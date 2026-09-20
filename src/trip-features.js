@@ -112,6 +112,14 @@ export function offlineManifest(state,day){
  const docs=state.documents.filter(d=>d.category!=='memory'&&(d.day===day||ids.has(d.stepId)||(!d.day&&!d.stepId)));
  return {files:[...(d?.pages||[]).map(p=>({key:`page-${p}`,title:`Guide page ${p}`,url:`/api/guide?page=${p}`})),...docs.filter(d=>d.pathname).map(d=>({key:`doc-${d.id}`,title:d.title,url:`/api/document?id=${d.id}`}))],links:docs.filter(d=>d.type==='link')};
 }
+// A ticket and its attached files are read as one set: the ticket itself first, then each
+// file attached to it. Written details and external links hold no file, so they are skipped.
+export function attachmentGroup(documents,view){
+ if(!view)return [];
+ const rootId=view.parentDocumentId||view.id,root=documents.find(d=>d.id===rootId);
+ const group=[...(root?.pathname?[root]:[]),...documents.filter(d=>d.parentDocumentId===rootId&&d.pathname)];
+ return group.some(d=>d.id===view.id)?group:[view];
+}
 export function searchTrip(state,query,guide=[]){
  const q=query.trim().toLowerCase();if(!q)return [];
  const hits=[],match=(...parts)=>parts.flat().filter(Boolean).join(' ').toLowerCase().includes(q);

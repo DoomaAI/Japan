@@ -171,6 +171,10 @@ Each day now shows a swipeable strip of its original guide pages above the activ
 
 Tickets & reservations remains the shared central document area. Save a ticket first, then expand Add photos / files to this ticket to select multiple images/PDFs and label each person. Individual attachments support opening, offline saving, person/tag edits and removal. Removing the parent ticket removes all its attachments from the shared itinerary (already downloaded copies remain). Upload retries retain successful registrations. Existing single-file tickets remain supported. Production Blob uploads still require a live deployment check.
 
+Opening any ticket file full-screen reads the whole set: the ticket's own file first, then each file attached to it. Swipe left and right, use the Previous/Next buttons, or press the arrow keys to move between them; Escape closes. A counter shows the position, and navigation is hidden for a ticket holding a single file. Written details and external links carry no file, so they are skipped. Swipe works on photos; a PDF is shown in an embedded viewer that takes its own touches, so use the buttons or arrow keys there.
+
+Saving a ticket now clears the add form, so the next one starts blank. Previously the title, reference, notes, tags and link stayed filled in and the chosen file was still attached to the file input, which risked saving a duplicate on the next entry.
+
 
 ### Guide-inspired visual theme
 White paper surfaces, fine rules, black Playfair Display headings and Roboto Condensed labels closely follow the original guide images. Font files and OFL licences are bundled under src/fonts; Vite emits them as versioned assets included in the offline shell. Exact source typefaces could not be identified from the raster guide. Theme styles live in src/guide-theme.css. Original guide pages and cover remain unchanged. Production build checked; live iPhone visual review remains pending.

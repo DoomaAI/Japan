@@ -292,3 +292,24 @@ test('only Damien writes the notes, only Lauren marks one read, and they never r
  assert.equal(ensureFeatures(visibleTrip(read,boston,onTrip)).thankYou.messages,undefined);
  assert.equal(ensureFeatures(hers).thankYou.messages,undefined);
 });
+
+test('the full-screen ticket viewer groups a ticket with its attached files, skipping notes and links',async()=>{
+ const {attachmentGroup}=await import('../src/trip-features.js');
+ const photoTicket={id:'root-photo',pathname:'a',type:'image/png'};
+ const one={id:'a1',parentDocumentId:'root-photo',pathname:'b',type:'image/jpeg'};
+ const two={id:'a2',parentDocumentId:'root-photo',pathname:'c',type:'application/pdf'};
+ const writtenTicket={id:'root-note',type:'note'};
+ const noteChild={id:'a3',parentDocumentId:'root-note',pathname:'d',type:'image/png'};
+ const linkDoc={id:'link',type:'link',url:'https://example.com'};
+ const other={id:'elsewhere',pathname:'e',type:'image/png'};
+ const docs=[photoTicket,one,two,writtenTicket,noteChild,linkDoc,other];
+ // The ticket leads, then its own files, in order, and nothing from another ticket.
+ assert.deepEqual(attachmentGroup(docs,photoTicket).map(d=>d.id),['root-photo','a1','a2']);
+ assert.deepEqual(attachmentGroup(docs,two).map(d=>d.id),['root-photo','a1','a2']);
+ // A ticket held as written details has no file of its own, so only its attachments are shown.
+ assert.deepEqual(attachmentGroup(docs,noteChild).map(d=>d.id),['a3']);
+ // A lone file and an unknown document still give a single, navigable entry.
+ assert.deepEqual(attachmentGroup(docs,other).map(d=>d.id),['elsewhere']);
+ assert.deepEqual(attachmentGroup(docs,{id:'gone',pathname:'z'}).map(d=>d.id),['gone']);
+ assert.deepEqual(attachmentGroup(docs,null),[]);
+});
