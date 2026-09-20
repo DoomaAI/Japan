@@ -589,3 +589,86 @@ test('ride ticks, must-do stars and heights are recorded with the right permissi
  assert.equal(riddenBy(pending,'tds-soaring').Boston,at);
  assert.deepEqual(riddenBy(state,'tds-soaring'),{});
 });
+
+test('the food list carries every dish in Japanese and English, with ordering phrases',async()=>{
+ const {FOOD,FOOD_KINDS,ORDERING,FOOD_KIND_LABEL}=await import('../src/food-data.js');
+ assert.ok(FOOD.length>=40);
+ assert.equal(new Set(FOOD.map(f=>f.id)).size,FOOD.length);
+ const japanese=/[぀-ヿ一-龯]/;
+ for(const f of FOOD){
+  assert.ok(f.en&&f.note,f.id);
+  assert.match(f.ja,japanese,`${f.id} has no Japanese`);
+  assert.ok(f.romaji&&!japanese.test(f.romaji),`${f.id} romaji`);
+  assert.ok(FOOD_KINDS.some(([k])=>k===f.kind),`${f.id} kind ${f.kind}`);
+ }
+ // Every group is actually used, so no filter option leads to an empty list.
+ for(const [k,label] of FOOD_KINDS){assert.ok(FOOD.some(f=>f.kind===k),`nothing in ${k}`);assert.equal(FOOD_KIND_LABEL(k),label);}
+ // The plain fallbacks a five-year-old will need on a hard day.
+ for(const id of ['gohan','poteto','teriyaki'])assert.equal(FOOD.find(f=>f.id===id).kind,'safe');
+ assert.equal(new Set(ORDERING.map(o=>o.id)).size,ORDERING.length);
+ for(const o of ORDERING){assert.ok(o.en&&o.romaji);assert.match(o.ja,japanese,o.id);}
+ for(const id of ['nowasabi','allergy','notspicy'])assert.ok(ORDERING.some(o=>o.id===id),id);
+});
+
+test('food is ticked and rated per person, and four stars makes it a favourite',async()=>{
+ const {ensureFeatures,pendingProgress,triedFood,foodRatings,foodAverage,isFavourite,FAVOURITE_AT}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const nate={name:'Nate',role:'child'},at='2026-09-19T05:00:00.000Z';
+ const tried=applyOperation(state,{type:'foodTried',itemId:'tonkatsu',person:'Nate',done:true,at},nate);
+ assert.equal(triedFood(tried,'tonkatsu').Nate,at);
+ assert.deepEqual(triedFood(applyOperation(tried,{type:'foodTried',itemId:'tonkatsu',person:'Nate',done:false},nate),'tonkatsu'),{});
+ // Rating something records that you ate it, so the two can never disagree.
+ const rated=applyOperation(state,{type:'foodRating',itemId:'tonkatsu',person:'Nate',rating:5},nate);
+ assert.equal(foodRatings(rated,'tonkatsu').Nate,5);
+ assert.ok(triedFood(rated,'tonkatsu').Nate);
+ // The card shows the family average, and four or more makes it a favourite.
+ const both=applyOperation(rated,{type:'foodRating',itemId:'tonkatsu',person:'Damien',rating:4},parent);
+ assert.equal(foodAverage(both,'tonkatsu'),4.5);
+ assert.equal(isFavourite(both,'tonkatsu'),true);
+ const mixed=applyOperation(both,{type:'foodRating',itemId:'tonkatsu',person:'Damien',rating:1},parent);
+ assert.equal(foodAverage(mixed,'tonkatsu'),3);
+ assert.equal(isFavourite(mixed,'tonkatsu'),false);
+ assert.equal(foodAverage(state,'ramen'),null);
+ assert.equal(isFavourite(state,'ramen'),false);
+ assert.ok(FAVOURITE_AT===4);
+ // Clearing a rating leaves the tick alone.
+ const cleared=applyOperation(rated,{type:'foodRating',itemId:'tonkatsu',person:'Nate',rating:0},nate);
+ assert.equal(foodRatings(cleared,'tonkatsu').Nate,undefined);
+ assert.ok(triedFood(cleared,'tonkatsu').Nate);
+ // Only your own, unless you are a parent, and only real dishes and real scores.
+ assert.throws(()=>applyOperation(state,{type:'foodRating',itemId:'tonkatsu',person:'Boston',rating:5},nate),e=>e.status===403);
+ assert.ok(applyOperation(state,{type:'foodRating',itemId:'tonkatsu',person:'Boston',rating:5},parent));
+ assert.throws(()=>applyOperation(state,{type:'foodTried',itemId:'sausage-roll',person:'Nate',done:true},nate),e=>e.status===404);
+ for(const bad of [6,-1,2.5,'five'])assert.throws(()=>applyOperation(state,{type:'foodRating',itemId:'ramen',person:'Nate',rating:bad},nate),/1 to 5/,String(bad));
+ // A tick made with no signal shows on the phone straight away.
+ const pending=pendingProgress(state,[{operation:{type:'foodRating',itemId:'ramen',person:'Nate',rating:3}},{operation:{type:'foodTried',itemId:'udon',person:'Nate',done:true,at}}]);
+ assert.equal(foodRatings(pending,'ramen').Nate,3);
+ assert.equal(triedFood(pending,'udon').Nate,at);
+ assert.deepEqual(foodRatings(state,'ramen'),{});
+});
+
+test('a parent can add dishes the family likes, but not delete the built-in ones',async()=>{
+ const {ensureFeatures,triedFood}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const nate={name:'Nate',role:'child'};
+ const added=applyOperation(state,{type:'foodAdd',en:'  Chicken katsu, no sauce  ',ja:'チキンカツ ソース抜き',romaji:'chikin katsu sōsu nuki',kind:'safe',note:'Nate will eat this anywhere.'},parent);
+ assert.equal(added.foodItems.length,1);
+ const ours=added.foodItems[0];
+ assert.equal(ours.en,'Chicken katsu, no sauce');
+ assert.equal(ours.kind,'safe');
+ assert.equal(ours.addedBy,'Damien');
+ // Our own dishes tick and rate exactly like the built-in ones.
+ assert.ok(triedFood(applyOperation(added,{type:'foodTried',itemId:ours.id,person:'Nate',done:true},nate),ours.id).Nate);
+ const edited=applyOperation(added,{type:'foodEdit',id:ours.id,en:'Chicken katsu',ja:'チキンカツ',romaji:'chikin katsu',kind:'meal',note:''},parent);
+ assert.equal(edited.foodItems[0].en,'Chicken katsu');
+ assert.equal(applyOperation(edited,{type:'foodRemove',id:ours.id},parent).foodItems.length,0);
+ // Built-in dishes belong to the app, not the family list.
+ assert.throws(()=>applyOperation(added,{type:'foodRemove',id:'tonkatsu'},parent),e=>e.status===404);
+ assert.throws(()=>applyOperation(added,{type:'foodEdit',id:'tonkatsu',en:'Mine now'},parent),e=>e.status===404);
+ // Validation and permissions.
+ assert.throws(()=>applyOperation(state,{type:'foodAdd',en:'  '},parent),/English name/);
+ assert.throws(()=>applyOperation(state,{type:'foodAdd',en:'Thing',kind:'banquet'},parent),/food group/);
+ assert.throws(()=>applyOperation(state,{type:'foodAdd',en:'Thing'},nate),e=>e.status===403);
+ assert.throws(()=>applyOperation(added,{type:'foodRemove',id:ours.id},nate),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'foodNonsense'},parent),/Unknown food action/);
+});
