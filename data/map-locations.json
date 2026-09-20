@@ -1,0 +1,4057 @@
+{
+  "source": "Japan_2026_Google_Maps_Master_List_SELECTED_ADDITIONS.xlsx",
+  "sheet": "Master List",
+  "locations": [
+    {
+      "id": "map-fe9b51800732",
+      "name": "1 Hotel Tokyo",
+      "district": "Akasaka / Toranomon",
+      "city": "Tokyo",
+      "category": "Hotel",
+      "address": "2-17-22 Akasaka, Minato-ku, Tokyo 107-0052, Japan",
+      "notes": "Confirmed hotel",
+      "sourceUrl": "https://www.1hotels.com/tokyo/contact-us",
+      "sourceRow": 2,
+      "aliases": [
+        "1 Hotel Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        19,
+        20,
+        23,
+        24,
+        26,
+        28
+      ],
+      "tripDays": [
+        "2026-09-21",
+        "2026-09-22",
+        "2026-09-23",
+        "2026-09-24"
+      ]
+    },
+    {
+      "id": "map-a8ca5448cf99",
+      "name": "Spotted Stone",
+      "district": "Akasaka / Toranomon",
+      "city": "Tokyo",
+      "category": "Bar / Drinks",
+      "address": "2-17-22 Akasaka, Minato-ku, Tokyo 107-0052, Japan",
+      "notes": "Inside 1 Hotel Tokyo",
+      "sourceUrl": "https://www.1hotels.com/tokyo",
+      "sourceRow": 3,
+      "aliases": [
+        "Spotted Stone"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-f906d0137379",
+      "name": "% ARABICA Kyoto Arashiyama",
+      "district": "Arashiyama",
+      "city": "Kyoto",
+      "category": "Cafe / Coffee",
+      "address": "3-47 Sagatenryuji Susukinobabacho, Ukyo-ku, Kyoto 616-8385, Japan",
+      "notes": "Planned coffee stop",
+      "sourceUrl": "https://arabica.coffee/en/location/arabica-kyoto-arashiyama/",
+      "sourceRow": 4,
+      "aliases": [
+        "% ARABICA Kyoto Arashiyama"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-55518e54a88b",
+      "name": "Arashiyama Bamboo Grove",
+      "district": "Arashiyama",
+      "city": "Kyoto",
+      "category": "Nature / Landmark",
+      "address": "Sagaogurayama Tabuchiyamacho, Ukyo-ku, Kyoto 616-8394, Japan",
+      "notes": "Planned 26 Sep",
+      "sourceUrl": "https://kyoto.travel/en/",
+      "sourceRow": 5,
+      "aliases": [
+        "Arashiyama Bamboo Grove",
+        "Arashiyama Bamboo Grove Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        36
+      ],
+      "tripDays": [
+        "2026-09-26"
+      ],
+      "japanese": "嵐山 竹林の小径"
+    },
+    {
+      "id": "map-ac06730c5aac",
+      "name": "Arashiyama Monkey Park Iwatayama",
+      "district": "Arashiyama",
+      "city": "Kyoto",
+      "category": "Nature / Entertainment",
+      "address": "61 Arashiyama Nakaoshitacho, Nishikyo-ku, Kyoto 616-0004, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://www.monkeypark.jp/",
+      "sourceRow": 6,
+      "aliases": [
+        "Arashiyama Monkey Park Iwatayama"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "嵐山モンキーパークいわたやま"
+    },
+    {
+      "id": "map-edf51d58946c",
+      "name": "Coffee Stand ReUnion Arashiyama",
+      "district": "Arashiyama",
+      "city": "Kyoto",
+      "category": "Cafe / Coffee",
+      "address": "42-8 Sagatenryuji Kurumamichicho, Ukyo-ku, Kyoto 616-8373, Japan",
+      "notes": "Planned coffee stop",
+      "sourceUrl": "https://cafe-reunion.jp/en/branch/en-detail-1/",
+      "sourceRow": 7,
+      "aliases": [
+        "Coffee Stand ReUnion Arashiyama",
+        "ReUnion coffee Arashiyama Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        36
+      ],
+      "tripDays": [
+        "2026-09-26"
+      ]
+    },
+    {
+      "id": "map-e2f17d42140a",
+      "name": "Hatoya Ryoyousha Arashiyama Main Store (八十八良葉舎 嵐山本店)",
+      "district": "Arashiyama",
+      "city": "Kyoto",
+      "category": "Matcha / Cafe",
+      "address": "33 Sagatenryuji Tsukurimichicho, Ukyo-ku, Kyoto 616-8384, Japan",
+      "notes": "Confirmed 2026; Arashiyama matcha stop; MATCHA STOP — try drinks/branch specials; check any retail tea or matcha available to take home.",
+      "sourceUrl": "https://www.8108kyoto.com/",
+      "sourceRow": 8,
+      "aliases": [
+        "Hatoya Ryoyousha Arashiyama Main Store (八十八良葉舎 嵐山本店)",
+        "Hatoya Arashiyama Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        36
+      ],
+      "tripDays": [
+        "2026-09-26"
+      ],
+      "japanese": "八十八良葉舎 嵐山本店"
+    },
+    {
+      "id": "map-71ebb6866fd6",
+      "name": "KUMONOCHA Cafe Arashiyama",
+      "district": "Arashiyama",
+      "city": "Kyoto",
+      "category": "Cafe / Matcha / Dessert",
+      "address": "20-13 Sagatenryuji Tsukurimichicho, Ukyo-ku, Kyoto 616-8384, Japan",
+      "notes": "Correction: KUMONOCHA is Kyoto, not Nara; official site shows Kyoto locations; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://www.kumonocha.com/en/%E5%89%AF%E6%9C%AC-%E9%9B%B2%E3%83%8E%E8%8C%B6-%E5%9B%9B%E6%9D%A1%E6%B2%B3%E5%8E%9F%E7%94%BA%E5%BA%97",
+      "sourceRow": 9,
+      "aliases": [
+        "KUMONOCHA Cafe Arashiyama"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-0f6380ec99c4",
+      "name": "Tenryu-ji",
+      "district": "Arashiyama",
+      "city": "Kyoto",
+      "category": "Historical / Temple",
+      "address": "68 Sagatenryuji Susukinobabacho, Ukyo-ku, Kyoto 616-8385, Japan",
+      "notes": "Planned 26 Sep",
+      "sourceUrl": "https://www.tenryuji.com/en/",
+      "sourceRow": 10,
+      "aliases": [
+        "Tenryu-ji"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "天龍寺"
+    },
+    {
+      "id": "map-4507156b653b",
+      "name": "Togetsukyo Bridge",
+      "district": "Arashiyama",
+      "city": "Kyoto",
+      "category": "Landmark",
+      "address": "Saganakanoshimacho, Ukyo-ku, Kyoto 616-8383, Japan",
+      "notes": "Planned 26 Sep",
+      "sourceUrl": "https://kyoto.travel/en/",
+      "sourceRow": 11,
+      "aliases": [
+        "Togetsukyo Bridge",
+        "Togetsukyo Bridge Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        36
+      ],
+      "tripDays": [
+        "2026-09-26"
+      ],
+      "japanese": "渡月橋"
+    },
+    {
+      "id": "map-c4f7c05a7e69",
+      "name": "Hatoya Asakusa (八十八浅草)",
+      "district": "Asakusa",
+      "city": "Tokyo",
+      "category": "Matcha / Tea Stand",
+      "address": "2-14-3 Hanakawado, Taito-ku, Tokyo 111-0033, Japan",
+      "notes": "Additional Hatoya branch near Asakusa sightseeing.; MATCHA STOP — try drinks/branch specials; check any retail tea or matcha available to take home.",
+      "sourceUrl": "https://www.8108kyoto.com/",
+      "sourceRow": 12,
+      "aliases": [
+        "Hatoya Asakusa (八十八浅草)"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "八十八浅草"
+    },
+    {
+      "id": "map-8ff5fd469e8f",
+      "name": "Kaminarimon Gate",
+      "district": "Asakusa",
+      "city": "Tokyo",
+      "category": "Historical / Landmark",
+      "address": "2-3-1 Asakusa, Taito-ku, Tokyo 111-0032, Japan",
+      "notes": "Senso-ji entrance",
+      "sourceUrl": "https://www.senso-ji.jp/english/",
+      "sourceRow": 13,
+      "aliases": [
+        "Kaminarimon Gate"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "雷門"
+    },
+    {
+      "id": "map-032604292176",
+      "name": "Nakamise Shopping Street",
+      "district": "Asakusa",
+      "city": "Tokyo",
+      "category": "Shopping / Food Street",
+      "address": "1-36-3 Asakusa, Taito-ku, Tokyo 111-0032, Japan",
+      "notes": "Traditional snacks + souvenirs",
+      "sourceUrl": "https://www.asakusa-nakamise.jp/e-index.html",
+      "sourceRow": 14,
+      "aliases": [
+        "Nakamise Shopping Street"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "仲見世商店街"
+    },
+    {
+      "id": "map-0f90dbecc7f3",
+      "name": "Senso-ji",
+      "district": "Asakusa",
+      "city": "Tokyo",
+      "category": "Historical / Temple",
+      "address": "2-3-1 Asakusa, Taito-ku, Tokyo 111-0032, Japan",
+      "notes": "Optional / discussed",
+      "sourceUrl": "https://www.senso-ji.jp/english/",
+      "sourceRow": 15,
+      "aliases": [
+        "Senso-ji"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "浅草寺"
+    },
+    {
+      "id": "map-7632bcffa574",
+      "name": "Azabudai Hills",
+      "district": "Azabudai / Toranomon",
+      "city": "Tokyo",
+      "category": "Shopping / Dining / Landmark",
+      "address": "1-2-4 Azabudai, Minato-ku, Tokyo 106-0041, Japan",
+      "notes": "teamLab location",
+      "sourceUrl": "https://www.azabudai-hills.com/en/",
+      "sourceRow": 16,
+      "aliases": [
+        "Azabudai Hills",
+        "Azabudai Hills Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        24
+      ],
+      "tripDays": [
+        "2026-09-23"
+      ],
+      "japanese": "麻布台ヒルズ"
+    },
+    {
+      "id": "map-d52e959a870c",
+      "name": "Nakamura Tokichi Honten Azabudai Store",
+      "district": "Azabudai / Toranomon",
+      "city": "Tokyo",
+      "category": "Matcha / Tea Shop / Takeaway",
+      "address": "Azabudai Hills Garden Plaza B B1F, 5-9-1 Toranomon, Minato-ku, Tokyo 105-0001, Japan",
+      "notes": "Very relevant to teamLab/Azabudai day and near 1 Hotel Tokyo.; MATCHA — drink/dessert where a cafe is available and browse take-home tea/matcha products.",
+      "sourceUrl": "https://global.tokichi.jp/pages/stores",
+      "sourceRow": 17,
+      "aliases": [
+        "Nakamura Tokichi Honten Azabudai Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-fe3a436f8e54",
+      "name": "teamLab Borderless",
+      "district": "Azabudai / Toranomon",
+      "city": "Tokyo",
+      "category": "Entertainment / Digital Art Museum",
+      "address": "Azabudai Hills Garden Plaza B B1, 1-2-4 Azabudai, Minato-ku, Tokyo 106-0041, Japan",
+      "notes": "Booked 23 Sep",
+      "sourceUrl": "https://www.teamlab.art/e/tokyo/",
+      "sourceRow": 18,
+      "aliases": [
+        "teamLab Borderless",
+        "teamLab Borderless Azabudai Hills"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        25
+      ],
+      "tripDays": [
+        "2026-09-23"
+      ],
+      "japanese": "チームラボボーダレス"
+    },
+    {
+      "id": "map-db68a79a180f",
+      "name": "fiveran Karasuma Oike",
+      "district": "Central Kyoto / Karasuma Oike",
+      "city": "Kyoto",
+      "category": "Bakery / Food",
+      "address": "377 Ennogyojacho, Muromachi-dori Sanjo-agaru, Nakagyo-ku, Kyoto 604-8174, Japan",
+      "notes": "TIPS SHEET — popular Kyoto bakery; good breakfast/snack option.",
+      "sourceUrl": "https://fiveran.jp/pages/about",
+      "sourceRow": 19,
+      "aliases": [
+        "fiveran Karasuma Oike"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-8f78e2c5c232",
+      "name": "A Happy Pancake Kyoto",
+      "district": "Central Kyoto / Kawaramachi",
+      "city": "Kyoto",
+      "category": "Cafe / Pancakes",
+      "address": "Kyara Building 2F, 354-1 Iseyacho, Gokomachi-dori Takoyakushi-agaru, Nakagyo-ku, Kyoto 604-8066, Japan",
+      "notes": "TIPS SHEET — Kyoto branch; soufflé pancakes including Kyoto-limited flavours; online reservations recommended.",
+      "sourceUrl": "https://magia.tokyo/shop",
+      "sourceRow": 20,
+      "aliases": [
+        "A Happy Pancake Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-59d7c2276a61",
+      "name": "(THISIS)SHIZEN",
+      "district": "Central Kyoto / Nakagyo",
+      "city": "Kyoto",
+      "category": "Cafe / Japanese Sweets / Art",
+      "address": "ShinPuhKan 1F, 586-2 Banocho, Nakagyo-ku, Kyoto 604-8172, Japan",
+      "notes": "Discussed cafe",
+      "sourceUrl": "https://thisis.website/shizen/",
+      "sourceRow": 21,
+      "aliases": [
+        "(THISIS)SHIZEN"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-a9708b2053a8",
+      "name": "Marukyu Koyamaen Nishinotoin Store & Motoan Tea House",
+      "district": "Central Kyoto / Nakagyo",
+      "city": "Kyoto",
+      "category": "Matcha / Cafe / Tea Shop",
+      "address": "West side of Nishinotoin-dori, Oike-sagaru, Nakagyo-ku, Kyoto 604-8277, Japan",
+      "notes": "Official direct shop with Motoan tea house; especially relevant near central Kyoto.; MATCHA BUYING — priority stop for take-home Marukyu Koyamaen tins/powder; check stock and purchase limits.",
+      "sourceUrl": "https://www.marukyu-koyamaen.co.jp/motoan-shop/about/",
+      "sourceRow": 22,
+      "aliases": [
+        "Marukyu Koyamaen Nishinotoin Store & Motoan Tea House"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-ed0ca6d840a0",
+      "name": "Nishiki Market",
+      "district": "Central Kyoto / Nakagyo",
+      "city": "Kyoto",
+      "category": "Market / Food",
+      "address": "609 Nishidaimonjicho, Nakagyo-ku, Kyoto 604-8054, Japan",
+      "notes": "Food / shopping",
+      "sourceUrl": "https://www.kyoto-nishiki.or.jp/en/access/",
+      "sourceRow": 23,
+      "aliases": [
+        "Nishiki Market"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "錦市場"
+    },
+    {
+      "id": "map-e0b23e6da48b",
+      "name": "ONN Kyoto Gokomachi (温 京都御幸町)",
+      "district": "Central Kyoto / Nakagyo",
+      "city": "Kyoto",
+      "category": "Cafe / Japanese Sweets",
+      "address": "341-1 Iseyacho, Nakagyo-ku, Kyoto 604-8066, Japan",
+      "notes": "Confirmed 2026",
+      "sourceUrl": "https://www.resol-hotel.jp/discovery/20240131",
+      "sourceRow": 24,
+      "aliases": [
+        "ONN Kyoto Gokomachi (温 京都御幸町)"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "温 京都御幸町"
+    },
+    {
+      "id": "map-a625f2bea910",
+      "name": "Pokemon Center KYOTO",
+      "district": "Central Kyoto / Nakagyo",
+      "city": "Kyoto",
+      "category": "Shopping / Character",
+      "address": "SUINA Muromachi 2F, 78 Hakoyahokomachi, Shimogyo-ku, Kyoto 600-8009, Japan",
+      "notes": "Character shopping; POKÉMON — browse Japan-exclusive merchandise and souvenirs.",
+      "sourceUrl": "https://shop.pokemon.co.jp/en/shop/pokemoncenter-kyoto/",
+      "sourceRow": 25,
+      "aliases": [
+        "Pokemon Center KYOTO"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "ポケモンセンターキョウト"
+    },
+    {
+      "id": "map-a478649a9a6a",
+      "name": "Shinkyogoku Shopping Street",
+      "district": "Central Kyoto / Nakagyo",
+      "city": "Kyoto",
+      "category": "Shopping Street",
+      "address": "Shinkyogoku-dori, Nakagyo-ku, Kyoto 604-8042, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://kyoto.travel/en/",
+      "sourceRow": 26,
+      "aliases": [
+        "Shinkyogoku Shopping Street"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "新京極商店街"
+    },
+    {
+      "id": "map-f5704fd00f5f",
+      "name": "Teramachi Shopping Street",
+      "district": "Central Kyoto / Nakagyo",
+      "city": "Kyoto",
+      "category": "Shopping Street",
+      "address": "Teramachidori, Nakagyo-ku, Kyoto 604-8042, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://kyoto.travel/en/",
+      "sourceRow": 27,
+      "aliases": [
+        "Teramachi Shopping Street"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "寺町商店街"
+    },
+    {
+      "id": "map-98960b6b8468",
+      "name": "Nakamura Tokichi Honten Daimaru Kyoto Store",
+      "district": "Central Kyoto / Shijo",
+      "city": "Kyoto",
+      "category": "Matcha / Tea Shop",
+      "address": "Daimaru Kyoto B1 Gochisou Paradise, 79 Tachiuri Nishimachi, Shijo-dori Takakura Nishi-iru, Shimogyo-ku, Kyoto 600-8007, Japan",
+      "notes": "Tea-shop-only branch in central Kyoto.; MATCHA — drink/dessert where a cafe is available and browse take-home tea/matcha products.",
+      "sourceUrl": "https://global.tokichi.jp/pages/stores",
+      "sourceRow": 28,
+      "aliases": [
+        "Nakamura Tokichi Honten Daimaru Kyoto Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-0abf37f57bbf",
+      "name": "Chao Chao Gyoza Shijo Kawaramachi",
+      "district": "Central Kyoto / Shijo-Kawaramachi",
+      "city": "Kyoto",
+      "category": "Food / Gyoza",
+      "address": "312-1 Junpucho, Kawaramachi-dori Shijo-sagaru, Shimogyo-ku, Kyoto 600-8021, Japan",
+      "notes": "TIPS SHEET — fun casual gyoza stop; expect queues at busy times.",
+      "sourceUrl": "https://advance-kitchen.studio.site/",
+      "sourceRow": 29,
+      "aliases": [
+        "Chao Chao Gyoza Shijo Kawaramachi"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-70209db17652",
+      "name": "Marukyu Koyamaen Kyoto Takashimaya Store",
+      "district": "Central Kyoto / Shijo-Kawaramachi",
+      "city": "Kyoto",
+      "category": "Matcha / Tea Shop",
+      "address": "Kyoto Takashimaya B1 Japanese Sweets Floor, Shijo-dori Kawaramachi Nishi-iru, Shimogyo-ku, Kyoto, Japan",
+      "notes": "Official direct-managed Marukyu Koyamaen shop; stock/purchase limits may apply.; MATCHA BUYING — priority stop for take-home Marukyu Koyamaen tins/powder; check stock and purchase limits.",
+      "sourceUrl": "https://www.marukyu-koyamaen.co.jp/information/news-2801/",
+      "sourceRow": 30,
+      "aliases": [
+        "Marukyu Koyamaen Kyoto Takashimaya Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-211586fe457c",
+      "name": "Nakamura Tokichi Honten Shijo Store",
+      "district": "Central Kyoto / Shijo-Kawaramachi",
+      "city": "Kyoto",
+      "category": "Matcha / Cafe / Tea Shop",
+      "address": "Kyoto Takashimaya S.C. T8 3F, 35 Otabicho, Shijo-dori Teramachi Higashi-iru, Shimogyo-ku, Kyoto 600-8002, Japan",
+      "notes": "Full cafe + tea shop; central Kyoto branch.; MATCHA — drink/dessert where a cafe is available and browse take-home tea/matcha products.",
+      "sourceUrl": "https://global.tokichi.jp/pages/stores",
+      "sourceRow": 31,
+      "aliases": [
+        "Nakamura Tokichi Honten Shijo Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-a0535d1f9534",
+      "name": "GRAN CHA / STAND GRANCHA",
+      "district": "Central Nara",
+      "city": "Nara",
+      "category": "Tea / Matcha / Japanese Sweets",
+      "address": "22 Higashimukinakamachi, Nara 630-8215, Japan",
+      "notes": "Confirmed 2026; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://grancha-nara.com/",
+      "sourceRow": 32,
+      "aliases": [
+        "GRAN CHA / STAND GRANCHA"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-97bb6d3b8819",
+      "name": "Higashimuki Shopping Street",
+      "district": "Central Nara",
+      "city": "Nara",
+      "category": "Shopping Street",
+      "address": "Higashimuki Nakamachi, Nara-shi, Nara 630-8215, Japan",
+      "notes": "Shopping / food",
+      "sourceUrl": "https://narashikanko.or.jp/en/",
+      "sourceRow": 33,
+      "aliases": [
+        "Higashimuki Shopping Street"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "東向商店街"
+    },
+    {
+      "id": "map-5bbaa0b2053b",
+      "name": "Isuien Garden",
+      "district": "Central Nara",
+      "city": "Nara",
+      "category": "Garden / Historical",
+      "address": "74 Suimoncho, Nara-shi, Nara 630-8208, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://isuien.or.jp/en/",
+      "sourceRow": 34,
+      "aliases": [
+        "Isuien Garden"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "依水園"
+    },
+    {
+      "id": "map-f44af1c60933",
+      "name": "Kintetsu-Nara Station",
+      "district": "Central Nara",
+      "city": "Nara",
+      "category": "Transport",
+      "address": "29 Higashimuki Nakamachi, Nara-shi, Nara 630-8215, Japan",
+      "notes": "Arrival / departure",
+      "sourceUrl": "https://www.kintetsu.co.jp/foreign/english/",
+      "sourceRow": 35,
+      "aliases": [
+        "Kintetsu-Nara Station"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        38
+      ],
+      "tripDays": [
+        "2026-09-27"
+      ],
+      "japanese": "近鉄奈良駅"
+    },
+    {
+      "id": "map-f33056946491",
+      "name": "Kofuku-ji",
+      "district": "Central Nara",
+      "city": "Nara",
+      "category": "Historical / Temple",
+      "address": "48 Noboriojicho, Nara-shi, Nara 630-8213, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://www.kohfukuji.com/english/",
+      "sourceRow": 36,
+      "aliases": [
+        "Kofuku-ji"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "興福寺"
+    },
+    {
+      "id": "map-3e3d6a19a476",
+      "name": "Nakatanidou",
+      "district": "Central Nara",
+      "city": "Nara",
+      "category": "Food / Japanese Sweets",
+      "address": "29 Hashimotocho, Nara-shi, Nara 630-8217, Japan",
+      "notes": "Mochi stop",
+      "sourceUrl": "https://www.visitnara.jp/venues/S01048/",
+      "sourceRow": 37,
+      "aliases": [
+        "Nakatanidou",
+        "Nakatanidou Nara"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        38
+      ],
+      "tripDays": [
+        "2026-09-27"
+      ],
+      "japanese": "中谷堂"
+    },
+    {
+      "id": "map-b63ba127bef9",
+      "name": "Daikanyama TSUTAYA BOOKS",
+      "district": "Daikanyama",
+      "city": "Tokyo",
+      "category": "Shopping / Bookstore / Mirumi",
+      "address": "17-5 Sarugakucho, Shibuya-ku, Tokyo 150-0033, Japan",
+      "notes": "Confirmed 2026 Mirumi official retailer; stock may fluctuate; MIRUMI HUNT — Boston wants grey; Lauren wants ivory. Check both colours; if unavailable, ask staff about other-branch or online stock.",
+      "sourceUrl": "https://mirumi.ux-xu.com/",
+      "sourceRow": 38,
+      "aliases": [
+        "Daikanyama TSUTAYA BOOKS"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "代官山 蔦屋書店"
+    },
+    {
+      "id": "map-c0c17465914c",
+      "name": "Chibo Dotonbori Building",
+      "district": "Dotonbori / Namba",
+      "city": "Osaka",
+      "category": "Restaurant / Okonomiyaki",
+      "address": "1-5-5 Dotonbori, Chuo-ku, Osaka 542-0071, Japan",
+      "notes": "Okonomiyaki option",
+      "sourceUrl": "https://www.chibo.com/",
+      "sourceRow": 39,
+      "aliases": [
+        "Chibo Dotonbori Building"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-30935571de5c",
+      "name": "Dotonbori",
+      "district": "Dotonbori / Namba",
+      "city": "Osaka",
+      "category": "Food / Entertainment District",
+      "address": "Dotonbori, Chuo-ku, Osaka 542-0071, Japan",
+      "notes": "Planned 28 Sep",
+      "sourceUrl": "https://osaka-info.jp/en/spot/dotonbori/",
+      "sourceRow": 40,
+      "aliases": [
+        "Dotonbori",
+        "Dotonbori Osaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        44
+      ],
+      "tripDays": [
+        "2026-09-28"
+      ],
+      "japanese": "道頓堀"
+    },
+    {
+      "id": "map-08d30b93f6b9",
+      "name": "Ebisubashi Bridge / Glico Sign",
+      "district": "Dotonbori / Namba",
+      "city": "Osaka",
+      "category": "Landmark",
+      "address": "1-10 Dotonbori, Chuo-ku, Osaka 542-0071, Japan",
+      "notes": "Glico photo",
+      "sourceUrl": "https://www.glico.com/global/",
+      "sourceRow": 41,
+      "aliases": [
+        "Ebisubashi Bridge / Glico Sign",
+        "Ebisubashi Osaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        44
+      ],
+      "tripDays": [
+        "2026-09-28"
+      ]
+    },
+    {
+      "id": "map-b1f0cd078447",
+      "name": "Hozenji Temple",
+      "district": "Dotonbori / Namba",
+      "city": "Osaka",
+      "category": "Historical / Temple",
+      "address": "1-2-16 Namba, Chuo-ku, Osaka 542-0076, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://osaka-info.jp/en/spot/hozenji-temple/",
+      "sourceRow": 42,
+      "aliases": [
+        "Hozenji Temple"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "法善寺"
+    },
+    {
+      "id": "map-18270d547b0f",
+      "name": "Hozenji Yokocho",
+      "district": "Dotonbori / Namba",
+      "city": "Osaka",
+      "category": "Historical / Food Alley",
+      "address": "1-2 Namba, Chuo-ku, Osaka 542-0076, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://osaka-info.jp/en/spot/hozenji-yokocho/",
+      "sourceRow": 43,
+      "aliases": [
+        "Hozenji Yokocho",
+        "Hozenji Yokocho Osaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        44
+      ],
+      "tripDays": [
+        "2026-09-28"
+      ],
+      "japanese": "法善寺横丁"
+    },
+    {
+      "id": "map-b89cebe4155c",
+      "name": "Kuromon Ichiba Market",
+      "district": "Dotonbori / Namba",
+      "city": "Osaka",
+      "category": "Market / Food",
+      "address": "2 Nipponbashi, Chuo-ku, Osaka 542-0073, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://kuromon.com/en/",
+      "sourceRow": 44,
+      "aliases": [
+        "Kuromon Ichiba Market"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "黒門市場"
+    },
+    {
+      "id": "map-36b7d5aed301",
+      "name": "Kushikatsu Daruma Namba Main Store",
+      "district": "Dotonbori / Namba",
+      "city": "Osaka",
+      "category": "Restaurant / Kushikatsu",
+      "address": "1-5-24 Namba, Chuo-ku, Osaka 542-0076, Japan",
+      "notes": "Food option",
+      "sourceUrl": "https://www.kushikatu-daruma.com/",
+      "sourceRow": 45,
+      "aliases": [
+        "Kushikatsu Daruma Namba Main Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-943723f22998",
+      "name": "Rikuro Ojisan no Mise Namba Main Store",
+      "district": "Dotonbori / Namba",
+      "city": "Osaka",
+      "category": "Food / Bakery / Cheesecake",
+      "address": "3-2-28 Namba, Chuo-ku, Osaka 542-0076, Japan",
+      "notes": "Cheesecake",
+      "sourceUrl": "https://www.rikuro.co.jp/",
+      "sourceRow": 46,
+      "aliases": [
+        "Rikuro Ojisan no Mise Namba Main Store",
+        "Rikuro Namba Osaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        44
+      ],
+      "tripDays": [
+        "2026-09-28"
+      ]
+    },
+    {
+      "id": "map-e44980b1cc03",
+      "name": "Takoyaki Wanaka Sennichimae Main Store",
+      "district": "Dotonbori / Namba",
+      "city": "Osaka",
+      "category": "Food / Takoyaki",
+      "address": "11-19 Namba Sennichimae, Chuo-ku, Osaka 542-0075, Japan",
+      "notes": "Takoyaki option",
+      "sourceUrl": "https://takoyaki-wanaka.com/",
+      "sourceRow": 47,
+      "aliases": [
+        "Takoyaki Wanaka Sennichimae Main Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-1da30b373e23",
+      "name": "THE MATCHA TOKYO atre EBISU",
+      "district": "Ebisu",
+      "city": "Tokyo",
+      "category": "Matcha / Cafe",
+      "address": "atre Ebisu Main Building 3F, 1-2-2 Ebisu-minami, Shibuya-ku, Tokyo 150-0022, Japan",
+      "notes": "Opened July 2026; all Tokyo branches included.; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://www.the-matcha.tokyo/pages/cafe",
+      "sourceRow": 48,
+      "aliases": [
+        "THE MATCHA TOKYO atre EBISU"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-65a8bea2855c",
+      "name": "eight Bakery (Fushimi Inari)",
+      "district": "Fushimi Inari",
+      "city": "Kyoto",
+      "category": "Bakery / Food",
+      "address": "29-4 Fukakusa Ichinotsubocho, Fushimi-ku, Kyoto 612-0012, Japan",
+      "notes": "TIPS SHEET — current relocated branch beside Fushimi Inari Station; bakery/snack option.",
+      "sourceUrl": "https://eight-bakery.com/",
+      "sourceRow": 49,
+      "aliases": [
+        "eight Bakery (Fushimi Inari)"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-4716d83c5bf3",
+      "name": "Fushimi Inari Taisha",
+      "district": "Fushimi Inari",
+      "city": "Kyoto",
+      "category": "Historical / Shrine",
+      "address": "68 Fukakusa Yabunouchicho, Fushimi-ku, Kyoto 612-0882, Japan",
+      "notes": "KYOTO CULTURAL STOP — iconic thousands of torii gates; useful optional cultural stop if time allows.",
+      "sourceUrl": "https://inari.jp/en/access/",
+      "sourceRow": 50,
+      "aliases": [
+        "Fushimi Inari Taisha"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "伏見稲荷大社"
+    },
+    {
+      "id": "map-13fbf8e59ef7",
+      "name": "Futako Tamagawa TSUTAYA ELECTRICS",
+      "district": "Futako-Tamagawa",
+      "city": "Tokyo",
+      "category": "Shopping / Electronics / Mirumi / Nekojita FuFu",
+      "address": "Futako Tamagawa Rise S.C. Terrace Market 1F-2F, 1-14-1 Tamagawa, Setagaya-ku, Tokyo 158-0094, Japan",
+      "notes": "Confirmed 2026 stockist for both Mirumi and Nekojita FuFu; stock may fluctuate; MIRUMI HUNT — Boston wants grey; Lauren wants ivory. Check both colours; if unavailable, ask staff about other-branch or online stock.; NEKOJITA FUFU — look for the small blowing/cooling robot; check physical stock.",
+      "sourceUrl": "https://mirumi.ux-xu.com/",
+      "sourceRow": 51,
+      "aliases": [
+        "Futako Tamagawa TSUTAYA ELECTRICS"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-1974188436e5",
+      "name": "A Happy Pancake Ginza",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Cafe / Pancakes",
+      "address": "New Ginza Building No.10 7F-B, 5-8-5 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "TIPS SHEET — soufflé pancakes; online reservations recommended.",
+      "sourceUrl": "https://magia.tokyo/shop",
+      "sourceRow": 52,
+      "aliases": [
+        "A Happy Pancake Ginza"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-c91921d9561f",
+      "name": "ATELIER MATCHA",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Matcha / Cafe",
+      "address": "8-18-4 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "Matcha stop; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://ateliermatcha.com/en",
+      "sourceRow": 53,
+      "aliases": [
+        "ATELIER MATCHA"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-6e079f3e5378",
+      "name": "CELINE Ginza",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Luxury Shopping",
+      "address": "6-10-1 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "Ginza Six; LUXURY SHOPPING — priority brands for this trip include Louis Vuitton, Celine and Chanel.",
+      "sourceUrl": "https://www.celine.com/",
+      "sourceRow": 54,
+      "aliases": [
+        "CELINE Ginza"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-08c2442fba30",
+      "name": "CHANEL Ginza",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Luxury Shopping",
+      "address": "3-5-3 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "Luxury shopping; LUXURY SHOPPING — priority brands for this trip include Louis Vuitton, Celine and Chanel.",
+      "sourceUrl": "https://www.chanel.com/",
+      "sourceRow": 55,
+      "aliases": [
+        "CHANEL Ginza"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-adeb2575d94b",
+      "name": "CLOUD CLUB MATCHA",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Matcha / Tea Stand",
+      "address": "3-14-6 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "Matcha stop; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://tabelog.com/tokyo/A1301/A130101/13310630/",
+      "sourceRow": 56,
+      "aliases": [
+        "CLOUD CLUB MATCHA"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-d21aabc47ddf",
+      "name": "EATALY Ginza",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Restaurant / Food Hall",
+      "address": "GINZA SIX 6F, 6-10-1 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "Discussed food stop",
+      "sourceUrl": "https://www.eataly.co.jp/",
+      "sourceRow": 57,
+      "aliases": [
+        "EATALY Ginza"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-c4b8d7fd1b58",
+      "name": "Ginza Manneken",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Food / Waffles",
+      "address": "Dai-ichi Life Ginza Fori Building 1F, 5-7-19 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "Confirmed 2026; planned 4 Oct food stop",
+      "sourceUrl": "https://www.manneken.co.jp/smp/shop/kanto/ginza.php",
+      "sourceRow": 58,
+      "aliases": [
+        "Ginza Manneken"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-49c5ecf991bc",
+      "name": "Ginza Mitsukoshi",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Shopping / Department Store",
+      "address": "4-6-16 Ginza, Chuo-ku, Tokyo 104-8212, Japan",
+      "notes": "Shopping / food hall",
+      "sourceUrl": "https://www.mistore.jp/store/ginza/foreign_customer/index.html",
+      "sourceRow": 59,
+      "aliases": [
+        "Ginza Mitsukoshi"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "銀座三越"
+    },
+    {
+      "id": "map-57304c1bf189",
+      "name": "GINZA SIX",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Shopping / Luxury",
+      "address": "6-10-1 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "Planned 4 Oct; MATCHA / FOOD-HALL BROWSE — check premium Japanese tea and confectionery counters while here.",
+      "sourceUrl": "https://ginza6.tokyo/",
+      "sourceRow": 60,
+      "aliases": [
+        "GINZA SIX",
+        "GINZA SIX Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        66
+      ],
+      "tripDays": [
+        "2026-10-04"
+      ]
+    },
+    {
+      "id": "map-ce6b2deb9f85",
+      "name": "Hermes Ginza",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Luxury Shopping",
+      "address": "5-4-1 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "Luxury shopping; LUXURY SHOPPING — priority brands for this trip include Louis Vuitton, Celine and Chanel.",
+      "sourceUrl": "https://www.hermes.com/",
+      "sourceRow": 61,
+      "aliases": [
+        "Hermes Ginza"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-6164d074be46",
+      "name": "Louis Vuitton Matsuya Ginza",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Luxury Shopping",
+      "address": "3-6-1 Ginza, Chuo-ku, Tokyo 104-8130, Japan",
+      "notes": "Luxury shopping; LUXURY SHOPPING — priority brands for this trip include Louis Vuitton, Celine and Chanel.",
+      "sourceUrl": "https://jp.louisvuitton.com/",
+      "sourceRow": 62,
+      "aliases": [
+        "Louis Vuitton Matsuya Ginza"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-588c9acd5080",
+      "name": "Manneken Ginza",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Food / Sweets / Waffles",
+      "address": "5-7-19 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "TIPS SHEET — quick Belgian waffle stop while in Ginza; takeaway.",
+      "sourceUrl": "https://www.manneken.co.jp/",
+      "sourceRow": 63,
+      "aliases": [
+        "Manneken Ginza"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-61091dc5ba8d",
+      "name": "Matsuya Ginza",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Shopping / Department Store",
+      "address": "3-6-1 Ginza, Chuo-ku, Tokyo 104-8130, Japan",
+      "notes": "Shopping / matcha buying; MATCHA / FOOD-HALL BROWSE — check premium Japanese tea and confectionery counters while here.",
+      "sourceUrl": "https://www.matsuya.com/ginza/",
+      "sourceRow": 64,
+      "aliases": [
+        "Matsuya Ginza"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "松屋銀座"
+    },
+    {
+      "id": "map-25d6c8249bcc",
+      "name": "Nakamura Tokichi Honten Ginza Store",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Matcha / Cafe / Tea Shop",
+      "address": "GINZA SIX 4F, 6-10-1 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "Full cafe + tea shop; directly relevant to 4 Oct Ginza day.; MATCHA — drink/dessert where a cafe is available and browse take-home tea/matcha products.",
+      "sourceUrl": "https://global.tokichi.jp/pages/ginza-store",
+      "sourceRow": 65,
+      "aliases": [
+        "Nakamura Tokichi Honten Ginza Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-8bccbcb293e3",
+      "name": "Shiseido Parlour Ginza",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Cafe / Dessert / Restaurant",
+      "address": "8-8-3 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://parlour.shiseido.co.jp/en/",
+      "sourceRow": 66,
+      "aliases": [
+        "Shiseido Parlour Ginza"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-d4d17b230e6f",
+      "name": "YOU Ginza",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Restaurant / Omurice",
+      "address": "4-13-17 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "Omurice option",
+      "sourceUrl": "https://tabelog.com/",
+      "sourceRow": 67,
+      "aliases": [
+        "YOU Ginza"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-24f36a5abe18",
+      "name": "ZEN PUNK MATCHA",
+      "district": "Ginza",
+      "city": "Tokyo",
+      "category": "Matcha / Cafe",
+      "address": "1F, 3-14-2 Ginza, Chuo-ku, Tokyo 104-0061, Japan",
+      "notes": "Matcha stop; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://zenpunk-matcha.com/",
+      "sourceRow": 68,
+      "aliases": [
+        "ZEN PUNK MATCHA"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-7b5c1c8d4d2f",
+      "name": "GOKAGO",
+      "district": "Gion / Higashiyama",
+      "city": "Kyoto",
+      "category": "Matcha / Cafe",
+      "address": "2-258 Kiyomizu, Higashiyama-ku, Kyoto 605-0862, Japan",
+      "notes": "Confirmed 2026; priority Kyoto matcha stop; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://gokago-kyoto.com/en/password",
+      "sourceRow": 69,
+      "aliases": [
+        "GOKAGO",
+        "GOKAGO Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        40,
+        41
+      ],
+      "tripDays": [
+        "2026-09-27"
+      ]
+    },
+    {
+      "id": "map-8b3f72a2ecc8",
+      "name": "Hanamikoji Street",
+      "district": "Gion / Higashiyama",
+      "city": "Kyoto",
+      "category": "Historical District / Street",
+      "address": "Gionmachi Minamigawa, Higashiyama-ku, Kyoto 605-0074, Japan",
+      "notes": "Planned 24 Sep",
+      "sourceUrl": "https://kyoto.travel/en/",
+      "sourceRow": 70,
+      "aliases": [
+        "Hanamikoji Street",
+        "Hanamikoji Street Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        28,
+        40
+      ],
+      "tripDays": [
+        "2026-09-24",
+        "2026-09-27"
+      ],
+      "japanese": "花見小路通"
+    },
+    {
+      "id": "map-b0dc685ac286",
+      "name": "Kennin-ji",
+      "district": "Gion / Higashiyama",
+      "city": "Kyoto",
+      "category": "Historical / Temple",
+      "address": "584 Komatsucho, Higashiyama-ku, Kyoto 605-0811, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://www.kenninji.jp/english/",
+      "sourceRow": 71,
+      "aliases": [
+        "Kennin-ji"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "建仁寺"
+    },
+    {
+      "id": "map-e57891178174",
+      "name": "Kiyomizu-dera",
+      "district": "Gion / Higashiyama",
+      "city": "Kyoto",
+      "category": "Historical / Temple",
+      "address": "1-294 Kiyomizu, Higashiyama-ku, Kyoto 605-0862, Japan",
+      "notes": "Discussed",
+      "sourceUrl": "https://www.kiyomizudera.or.jp/en/location/",
+      "sourceRow": 72,
+      "aliases": [
+        "Kiyomizu-dera"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "清水寺"
+    },
+    {
+      "id": "map-31145627b925",
+      "name": "Kodaiji Temple",
+      "district": "Gion / Higashiyama",
+      "city": "Kyoto",
+      "category": "Historical / Temple",
+      "address": "526 Shimogawara-cho, Higashiyama-ku, Kyoto 605-0825, Japan",
+      "notes": "KYOTO CULTURAL STOP — historic Zen temple near Ninenzaka/Yasaka area; often has seasonal evening illuminations.",
+      "sourceUrl": "https://www.kodaiji.com/",
+      "sourceRow": 73,
+      "aliases": [
+        "Kodaiji Temple"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "高台寺"
+    },
+    {
+      "id": "map-983e398aaa72",
+      "name": "Kyoto Kimono Rental Aiwafuku Gion Shijo",
+      "district": "Gion / Higashiyama",
+      "city": "Kyoto",
+      "category": "Cultural Experience / Kimono Rental",
+      "address": "Hachigen Building 3F, 151 Tokiwacho, Higashiyama-ku, Kyoto 605-0079, Japan",
+      "notes": "KIMONO RENTAL — planned cultural afternoon option; convenient for Gion/Higashiyama sightseeing and tea ceremony photos.",
+      "sourceUrl": "https://aiwafuku.com/shop/gionshijyo/",
+      "sourceRow": 74,
+      "aliases": [
+        "Kyoto Kimono Rental Aiwafuku Gion Shijo",
+        "Aiwafuku Gion Shijo Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        40
+      ],
+      "tripDays": [
+        "2026-09-27"
+      ]
+    },
+    {
+      "id": "map-70bc85b83841",
+      "name": "Maruyama Park",
+      "district": "Gion / Higashiyama",
+      "city": "Kyoto",
+      "category": "Park / Cultural Landmark",
+      "address": "Maruyama-cho, Higashiyama-ku, Kyoto 605-0071, Japan",
+      "notes": "KYOTO CULTURAL STOP — atmospheric park immediately behind Yasaka Shrine; easy add-on during Gion evening.",
+      "sourceUrl": "https://www.japan.travel/en/spot/1177/",
+      "sourceRow": 75,
+      "aliases": [
+        "Maruyama Park"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "円山公園"
+    },
+    {
+      "id": "map-45e5c02a602c",
+      "name": "Miyagawacho",
+      "district": "Gion / Higashiyama",
+      "city": "Kyoto",
+      "category": "Historical District / Cultural",
+      "address": "Miyagawasuji, Higashiyama-ku, Kyoto 605-0801, Japan",
+      "notes": "KYOTO CULTURAL STOP — traditional geiko/maiko district; quieter historic streets south of Gion.",
+      "sourceUrl": "https://kyoto.travel/en/",
+      "sourceRow": 76,
+      "aliases": [
+        "Miyagawacho"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "宮川町"
+    },
+    {
+      "id": "map-54bbe0ec1cbb",
+      "name": "Ninenzaka",
+      "district": "Gion / Higashiyama",
+      "city": "Kyoto",
+      "category": "Historical District / Shopping Street",
+      "address": "Masuyacho, Higashiyama-ku, Kyoto 605-0826, Japan",
+      "notes": "Old streets",
+      "sourceUrl": "https://kyoto.travel/en/",
+      "sourceRow": 77,
+      "aliases": [
+        "Ninenzaka",
+        "Ninenzaka Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        40,
+        41
+      ],
+      "tripDays": [
+        "2026-09-27"
+      ],
+      "japanese": "二寧坂"
+    },
+    {
+      "id": "map-9b3a6bf995cd",
+      "name": "Sannenzaka",
+      "district": "Gion / Higashiyama",
+      "city": "Kyoto",
+      "category": "Historical District / Shopping Street",
+      "address": "Kiyomizu 2-chome, Higashiyama-ku, Kyoto 605-0862, Japan",
+      "notes": "Old streets",
+      "sourceUrl": "https://kyoto.travel/en/",
+      "sourceRow": 78,
+      "aliases": [
+        "Sannenzaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "産寧坂"
+    },
+    {
+      "id": "map-069391d8c6f1",
+      "name": "Yasaka Pagoda (Hokan-ji)",
+      "district": "Gion / Higashiyama",
+      "city": "Kyoto",
+      "category": "Historical / Landmark",
+      "address": "388 Yasakakamimachi, Higashiyama-ku, Kyoto 605-0827, Japan",
+      "notes": "Old streets / photo stop",
+      "sourceUrl": "https://kyoto.travel/en/",
+      "sourceRow": 79,
+      "aliases": [
+        "Yasaka Pagoda (Hokan-ji)",
+        "Yasaka Pagoda Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        40
+      ],
+      "tripDays": [
+        "2026-09-27"
+      ],
+      "japanese": "八坂の塔（法観寺）"
+    },
+    {
+      "id": "map-fceaeca0cd88",
+      "name": "Yasaka Shrine",
+      "district": "Gion / Higashiyama",
+      "city": "Kyoto",
+      "category": "Historical / Shrine",
+      "address": "625 Gionmachi Kitagawa, Higashiyama-ku, Kyoto 605-0073, Japan",
+      "notes": "Planned 24 Sep",
+      "sourceUrl": "https://www.yasaka-jinja.or.jp/en/",
+      "sourceRow": 80,
+      "aliases": [
+        "Yasaka Shrine",
+        "Yasaka Shrine Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        28
+      ],
+      "tripDays": [
+        "2026-09-24"
+      ],
+      "japanese": "八坂神社"
+    },
+    {
+      "id": "map-3412c8bbb1bb",
+      "name": "Hatoya Kiyomizu (八十八良葉舎 清水)",
+      "district": "Gion / Higashiyama / Kiyomizu",
+      "city": "Kyoto",
+      "category": "Matcha / Tea Stand",
+      "address": "415-6 Minamimachi, Higashiyama-ku, Kyoto 605-0824, Japan",
+      "notes": "Additional Hatoya branch; directly relevant to Kiyomizu/Higashiyama sightseeing.; MATCHA STOP — try drinks/branch specials; check any retail tea or matcha available to take home.",
+      "sourceUrl": "https://www.8108kyoto.com/",
+      "sourceRow": 81,
+      "aliases": [
+        "Hatoya Kiyomizu (八十八良葉舎 清水)"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "八十八良葉舎 清水"
+    },
+    {
+      "id": "map-9e35a9630f2b",
+      "name": "KUMONOCHA Kiyomizu Sannenzaka",
+      "district": "Gion / Higashiyama / Kiyomizu",
+      "city": "Kyoto",
+      "category": "Cafe / Matcha / Dessert",
+      "address": "3-317 Kiyomizu, Sanneizaka Matsubara-agaru, Higashiyama-ku, Kyoto 605-0862, Japan",
+      "notes": "Active KUMONOCHA branch; the former Shijo-Kawaramachi branch is not included because it remains indefinitely closed/unconfirmed.; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://www.kumonocha.com/en/shop-info-1",
+      "sourceRow": 82,
+      "aliases": [
+        "KUMONOCHA Kiyomizu Sannenzaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-8bfb03285e08",
+      "name": "Camellia Flower Teahouse",
+      "district": "Gion / Higashiyama / Ninenzaka",
+      "city": "Kyoto",
+      "category": "Cultural Experience / Tea Ceremony",
+      "address": "349-12 Masuyacho, Higashiyama-ku, Kyoto 605-0826, Japan",
+      "notes": "TEA CEREMONY — preferred cultural experience in the Ninenzaka/Higashiyama area; English-speaking hosts. Check booking confirmation for exact teahouse/annex.",
+      "sourceUrl": "https://tea-kyoto.com/find-us/flower",
+      "sourceRow": 83,
+      "aliases": [
+        "Camellia Flower Teahouse"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-1c1b37597639",
+      "name": "Shirakawa-minami-dori",
+      "district": "Gion / Shirakawa",
+      "city": "Kyoto",
+      "category": "Historical Street / Cultural",
+      "address": "Shirakawa-minami-dori, Motoyoshicho, Higashiyama-ku, Kyoto 605-0087, Japan",
+      "notes": "KYOTO CULTURAL STOP — one of Gion's prettiest traditional canal-side streets; pair with Tatsumi Bridge.",
+      "sourceUrl": "https://kyoto.travel/en/",
+      "sourceRow": 84,
+      "aliases": [
+        "Shirakawa-minami-dori"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "白川南通"
+    },
+    {
+      "id": "map-5b5ea93c9e91",
+      "name": "Tatsumi Bridge",
+      "district": "Gion / Shirakawa",
+      "city": "Kyoto",
+      "category": "Historical / Landmark",
+      "address": "Gion Tatsumi Bridge, 372 Kiyomotocho, Higashiyama-ku, Kyoto 605-0084, Japan",
+      "notes": "KYOTO CULTURAL STOP — classic Gion photo spot over Shirakawa; especially pretty in kimono / evening light.",
+      "sourceUrl": "https://www.google.com/maps/search/?api=1&query=Tatsumi+Bridge+Kyoto",
+      "sourceRow": 85,
+      "aliases": [
+        "Tatsumi Bridge",
+        "Tatsumi Bridge Gion Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        30
+      ],
+      "tripDays": [
+        "2026-09-24"
+      ],
+      "japanese": "巽橋"
+    },
+    {
+      "id": "map-81e68f338280",
+      "name": "Haneda Airport Terminal 3",
+      "district": "Haneda Airport",
+      "city": "Tokyo",
+      "category": "Transport / Airport",
+      "address": "2-6-5 Hanedakuko, Ota-ku, Tokyo 144-0041, Japan",
+      "notes": "International arrival/departure",
+      "sourceUrl": "https://tokyo-haneda.com/en/",
+      "sourceRow": 86,
+      "aliases": [
+        "Haneda Airport Terminal 3",
+        "Haneda Airport Terminal 3 arrivals"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        19,
+        72
+      ],
+      "tripDays": [
+        "2026-09-21",
+        "2026-10-06"
+      ],
+      "japanese": "羽田空港 第3ターミナル"
+    },
+    {
+      "id": "map-c9a215fcad07",
+      "name": "ANAKUMA CAFE Harajuku",
+      "district": "Harajuku",
+      "city": "Tokyo",
+      "category": "Cafe / Novelty Experience",
+      "address": "1-23-28 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "NOVELTY CAFE — order at the wall and a resident bear serves the drink/donut through a small hole with a fluffy paw. Fun interactive stop for the boys while in Harajuku; also check the gacha/merch if available.",
+      "sourceUrl": "https://anakuma.jp/",
+      "sourceRow": 87,
+      "aliases": [
+        "ANAKUMA CAFE Harajuku"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        60
+      ],
+      "tripDays": [
+        "2026-10-03"
+      ]
+    },
+    {
+      "id": "map-e28ce924f12a",
+      "name": "HARRY Harajuku Station Front Store",
+      "district": "Harajuku",
+      "city": "Tokyo",
+      "category": "Animal Cafe / Entertainment",
+      "address": "Shanzele Harajuku No.2 Building 4F, 1-13-21 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "OPTIONAL KIDS STOP — hedgehogs plus hamsters, meerkats, owls and guinea pigs; 1 minute from Harajuku Station.",
+      "sourceUrl": "https://harinezumi-cafe.com/en/",
+      "sourceRow": 88,
+      "aliases": [
+        "HARRY Harajuku Station Front Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-dbad5e478067",
+      "name": "HARRY Harajuku Terrace",
+      "district": "Harajuku",
+      "city": "Tokyo",
+      "category": "Animal Cafe / Entertainment",
+      "address": "Jingumae 426 Building 3F, 4-26-5 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "OPTIONAL KIDS STOP — otters, hedgehogs and chinchillas. This is the Terrace branch; save alongside the Station Front branch so you can choose based on animals/route.",
+      "sourceUrl": "https://harinezumi-cafe.com/store/harajuku-terrace/",
+      "sourceRow": 89,
+      "aliases": [
+        "HARRY Harajuku Terrace"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        62
+      ],
+      "tripDays": [
+        "2026-10-03"
+      ]
+    },
+    {
+      "id": "map-70115928b296",
+      "name": "KAWAII MONSTER LAND - HARAJUKU -",
+      "district": "Harajuku",
+      "city": "Tokyo",
+      "category": "Entertainment / Cafe",
+      "address": "Takeshita Street Square B1F, 1-16-4 Jingumae, Shibuya-ku, Tokyo, Japan",
+      "notes": "Confirmed; opened 13 Feb 2026",
+      "sourceUrl": "https://www.gotokyo.org/en/new-and-now/new-and-trending/260323/topics.html",
+      "sourceRow": 90,
+      "aliases": [
+        "KAWAII MONSTER LAND - HARAJUKU -",
+        "Kawaii Monster Land Harajuku"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        60
+      ],
+      "tripDays": [
+        "2026-10-03"
+      ]
+    },
+    {
+      "id": "map-074eb5406680",
+      "name": "mipig cafe Harajuku",
+      "district": "Harajuku",
+      "city": "Tokyo",
+      "category": "Animal Cafe / Entertainment",
+      "address": "1-15-4 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "OPTIONAL KIDS STOP — micro pig cafe; reservation-only. Useful Harajuku backup/activity.",
+      "sourceUrl": "https://mipig.cafe/en/locations/harajuku/",
+      "sourceRow": 91,
+      "aliases": [
+        "mipig cafe Harajuku"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        60
+      ],
+      "tripDays": [
+        "2026-10-03"
+      ]
+    },
+    {
+      "id": "map-db34ea9d96b0",
+      "name": "TAMAGOTCHI FACTORY",
+      "district": "Harajuku",
+      "city": "Tokyo",
+      "category": "Shopping / Character",
+      "address": "Tokyu Plaza Harajuku Harakado 3F, 6-31-21 Jingumae, Shibuya-ku, Tokyo, Japan",
+      "notes": "Confirmed official 2026 store; TAMAGOTCHI — dedicated shop; look for Japan-exclusive or hard-to-find Tamagotchi items.",
+      "sourceUrl": "https://tamagotchi-official.com/gb/shoplist/",
+      "sourceRow": 92,
+      "aliases": [
+        "TAMAGOTCHI FACTORY",
+        "Tamagotchi Factory Harakado Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        62
+      ],
+      "tripDays": [
+        "2026-10-03"
+      ]
+    },
+    {
+      "id": "map-6521014df34c",
+      "name": "Menchirashi",
+      "district": "Harajuku / Cat Street",
+      "city": "Tokyo",
+      "category": "Food / Udon",
+      "address": "6-13-7 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "FOOD TARGET — go specifically for the carbonara-style udon with Parmigiano Reggiano, thick-cut bacon and egg; expect queues.",
+      "sourceUrl": "https://www.55web.site/menchirashi/english",
+      "sourceRow": 93,
+      "aliases": [
+        "Menchirashi"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-7fdd8a84f1a6",
+      "name": "A Happy Pancake Omotesando",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Cafe / Pancakes",
+      "address": "Kiyohara Building B1F, 4-9-3 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "TIPS SHEET — soufflé pancakes; online reservations recommended/open in advance.",
+      "sourceUrl": "https://magia.tokyo/shop",
+      "sourceRow": 94,
+      "aliases": [
+        "A Happy Pancake Omotesando"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-925f82f3bc7d",
+      "name": "AMORE Vintage Omotesando",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Vintage / Luxury Shopping",
+      "address": "5-1-6 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "Vintage designer bags; VINTAGE BAG HUNT — priority brands: Louis Vuitton, Celine and Chanel. Compare condition, included accessories, authentication and tax-free pricing.; LUXURY SHOPPING — priority brands for this trip include Louis Vuitton, Celine and Chanel.",
+      "sourceUrl": "https://amorevintagejapan.com/",
+      "sourceRow": 95,
+      "aliases": [
+        "AMORE Vintage Omotesando"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-bbc2b1205669",
+      "name": "Cat Street",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Shopping Street",
+      "address": "Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://www.gotokyo.org/en/spot/520/index.html",
+      "sourceRow": 96,
+      "aliases": [
+        "Cat Street",
+        "Cat Street Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        62
+      ],
+      "tripDays": [
+        "2026-10-03"
+      ]
+    },
+    {
+      "id": "map-4b0f959f67c5",
+      "name": "CELINE Omotesando",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Luxury Shopping",
+      "address": "3-5-29 Kita-Aoyama, Minato-ku, Tokyo 107-0061, Japan",
+      "notes": "Luxury shopping; LUXURY SHOPPING — priority brands for this trip include Louis Vuitton, Celine and Chanel.",
+      "sourceUrl": "https://www.celine.com/",
+      "sourceRow": 97,
+      "aliases": [
+        "CELINE Omotesando"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-295aad33dfca",
+      "name": "CHANEL Omotesando",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Luxury Shopping",
+      "address": "3-5-3 Kita-Aoyama, Minato-ku, Tokyo 107-0061, Japan",
+      "notes": "Luxury shopping; LUXURY SHOPPING — priority brands for this trip include Louis Vuitton, Celine and Chanel.",
+      "sourceUrl": "https://www.chanel.com/",
+      "sourceRow": 98,
+      "aliases": [
+        "CHANEL Omotesando"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-e8e8d0609923",
+      "name": "I'm donut ? Omotesando",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Food / Bakery",
+      "address": "5-10-1 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "Discussed viral food stop",
+      "sourceUrl": "https://www.instagram.com/imdonut_official/",
+      "sourceRow": 99,
+      "aliases": [
+        "I'm donut ? Omotesando",
+        "I'm donut Omotesando Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        21
+      ],
+      "tripDays": [
+        "2026-09-22"
+      ]
+    },
+    {
+      "id": "map-31de10f9ab12",
+      "name": "Kiddy Land Harajuku",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Shopping / Toys",
+      "address": "6-1-9 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "Priority shopping; CHARACTER / TOY SHOPPING — priority browse for the boys and Japan-only character items.",
+      "sourceUrl": "https://www.kiddyland.co.jp/harajuku/",
+      "sourceRow": 100,
+      "aliases": [
+        "Kiddy Land Harajuku",
+        "Kiddy Land Harajuku Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        21
+      ],
+      "tripDays": [
+        "2026-09-22"
+      ]
+    },
+    {
+      "id": "map-ddc7d170d42b",
+      "name": "Louis Vuitton Omotesando",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Luxury Shopping",
+      "address": "5-7-5 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "Luxury shopping; LUXURY SHOPPING — priority brands for this trip include Louis Vuitton, Celine and Chanel.",
+      "sourceUrl": "https://jp.louisvuitton.com/",
+      "sourceRow": 101,
+      "aliases": [
+        "Louis Vuitton Omotesando"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-81975a1244a5",
+      "name": "Meiji Jingu",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Historical / Shrine",
+      "address": "1-1 Yoyogikamizonocho, Shibuya-ku, Tokyo 151-8557, Japan",
+      "notes": "Planned 22 Sep",
+      "sourceUrl": "https://www.meijijingu.or.jp/en/",
+      "sourceRow": 102,
+      "aliases": [
+        "Meiji Jingu",
+        "Meiji Jingu Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        20
+      ],
+      "tripDays": [
+        "2026-09-22"
+      ],
+      "japanese": "明治神宮"
+    },
+    {
+      "id": "map-a079b2abe20a",
+      "name": "Omotesando",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Shopping Street / Landmark",
+      "address": "Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "Planned 22 Sep",
+      "sourceUrl": "https://www.gotokyo.org/en/destinations/western-tokyo/harajuku-and-omotesando/index.html",
+      "sourceRow": 103,
+      "aliases": [
+        "Omotesando",
+        "Omotesando Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        21
+      ],
+      "tripDays": [
+        "2026-09-22"
+      ],
+      "japanese": "表参道"
+    },
+    {
+      "id": "map-95e4841d7261",
+      "name": "QOO TOKYO Omotesando",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Vintage / Luxury Shopping",
+      "address": "4-11-15 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "Vintage designer bags; VINTAGE BAG HUNT — priority brands: Louis Vuitton, Celine and Chanel. Compare condition, included accessories, authentication and tax-free pricing.; LUXURY SHOPPING — priority brands for this trip include Louis Vuitton, Celine and Chanel.",
+      "sourceUrl": "https://qoo-online.com/",
+      "sourceRow": 104,
+      "aliases": [
+        "QOO TOKYO Omotesando"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-66dc61d20400",
+      "name": "Takeshita Street",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Shopping Street / Landmark",
+      "address": "1 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "Planned 3 Oct",
+      "sourceUrl": "https://www.gotokyo.org/en/spot/48/index.html",
+      "sourceRow": 105,
+      "aliases": [
+        "Takeshita Street",
+        "Takeshita Street Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        60
+      ],
+      "tripDays": [
+        "2026-10-03"
+      ],
+      "japanese": "竹下通り"
+    },
+    {
+      "id": "map-dab62cd2c100",
+      "name": "THE MATCHA TOKYO Harajuku",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Matcha / Cafe",
+      "address": "1-13-18 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "Alternative matcha branch; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://www.the-matcha.tokyo/pages/cafe",
+      "sourceRow": 106,
+      "aliases": [
+        "THE MATCHA TOKYO Harajuku"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-14c59b8e7861",
+      "name": "THE MATCHA TOKYO Omotesando",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Matcha / Cafe",
+      "address": "5-11-13 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "Matcha stop; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://www.the-matcha.tokyo/pages/cafe",
+      "sourceRow": 107,
+      "aliases": [
+        "THE MATCHA TOKYO Omotesando"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        21,
+        62
+      ],
+      "tripDays": [
+        "2026-09-22",
+        "2026-10-03"
+      ]
+    },
+    {
+      "id": "map-50aa3b875be8",
+      "name": "Tokyu Plaza Omotesando Harajuku",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Shopping / Landmark",
+      "address": "4-30-3 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "Mirrored escalator",
+      "sourceUrl": "https://www.tokyu-plaza.com/omotesando-harajuku/",
+      "sourceRow": 108,
+      "aliases": [
+        "Tokyu Plaza Omotesando Harajuku",
+        "Tokyu Plaza Omotesando OMOKADO"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        21
+      ],
+      "tripDays": [
+        "2026-09-22"
+      ]
+    },
+    {
+      "id": "map-20925dedf25c",
+      "name": "Tonkatsu Maisen Aoyama",
+      "district": "Harajuku / Omotesando",
+      "city": "Tokyo",
+      "category": "Restaurant / Japanese",
+      "address": "4-8-5 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "Planned lunch 22 Sep",
+      "sourceUrl": "https://mai-sen.com/",
+      "sourceRow": 109,
+      "aliases": [
+        "Tonkatsu Maisen Aoyama",
+        "Tonkatsu Maisen Aoyama Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        21
+      ],
+      "tripDays": [
+        "2026-09-22"
+      ]
+    },
+    {
+      "id": "map-f795249f31e4",
+      "name": "mipig cafe Harajuku Takeshita Street",
+      "district": "Harajuku / Takeshita",
+      "city": "Tokyo",
+      "category": "Animal Cafe / Entertainment",
+      "address": "DEAR LIFE Harajuku Takeshita Street 1F, 1-6-10 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "OPTIONAL KIDS STOP — second Harajuku micro pig branch on Takeshita Street; reservation-only.",
+      "sourceUrl": "https://mipig.cafe/en/locations/harajuku-takeshita/",
+      "sourceRow": 110,
+      "aliases": [
+        "mipig cafe Harajuku Takeshita Street"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-3db26433bb37",
+      "name": "BASEMAN Iidabashi",
+      "district": "Iidabashi",
+      "city": "Tokyo",
+      "category": "Shopping / Baseball",
+      "address": "1-4-8 Iidabashi, Chiyoda-ku, Tokyo 102-0072, Japan",
+      "notes": "Baseball shop before game; BASEBALL SHOPPING — look for Giants/baseball merchandise and souvenirs around the 3 Oct game.",
+      "sourceUrl": "https://www.baseman.co.jp/",
+      "sourceRow": 111,
+      "aliases": [
+        "BASEMAN Iidabashi"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-d43a636f5e31",
+      "name": "Hatoya Kamakura (八十八鎌倉)",
+      "district": "Kamakura",
+      "city": "Kanagawa",
+      "category": "Matcha / Tea Stand",
+      "address": "11-37 Onarimachi, Kamakura-shi, Kanagawa 248-0012, Japan",
+      "notes": "All Hatoya branches retained because Kamakura is still a plausible Kanto detour; confirmed 2026 official branch.; MATCHA STOP — try drinks/branch specials; check any retail tea or matcha available to take home.",
+      "sourceUrl": "https://www.8108kyoto.com/",
+      "sourceRow": 112,
+      "aliases": [
+        "Hatoya Kamakura (八十八鎌倉)"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "八十八鎌倉"
+    },
+    {
+      "id": "map-f9f9274b2f3d",
+      "name": "Science Museum (Kagaku Gijutsukan)",
+      "district": "Kitanomaru / Imperial Palace",
+      "city": "Tokyo",
+      "category": "Museum / Kids / Science",
+      "address": "2-1 Kitanomaru-koen, Chiyoda-ku, Tokyo 102-0091, Japan",
+      "notes": "TIPS SHEET — hands-on science museum; good second-Tokyo-stay option with the boys.",
+      "sourceUrl": "https://www.jsf.or.jp/en/",
+      "sourceRow": 113,
+      "aliases": [
+        "Science Museum (Kagaku Gijutsukan)"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "科学技術館"
+    },
+    {
+      "id": "map-55f3e37bbc7a",
+      "name": "Jishu Jinja Shrine",
+      "district": "Kiyomizu / Higashiyama",
+      "city": "Kyoto",
+      "category": "Historical / Shrine (Closed)",
+      "address": "1-317 Kiyomizu, Higashiyama-ku, Kyoto 605-0862, Japan",
+      "notes": "REFERENCE ONLY — famous love/matchmaking shrine at Kiyomizu-dera, but still CLOSED for renovation with no reopening date as of Sep 2026. Do not plan around it unless status changes.",
+      "sourceUrl": "https://www.jishujinja.or.jp/english/",
+      "sourceRow": 114,
+      "aliases": [
+        "Jishu Jinja Shrine"
+      ],
+      "referenceOnly": true,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "地主神社"
+    },
+    {
+      "id": "map-8a39cf5b0624",
+      "name": "Higashi Hongan-ji",
+      "district": "Kyoto Station / Shimogyo",
+      "city": "Kyoto",
+      "category": "Historical / Temple",
+      "address": "754 Tokiwacho, Karasuma-dori Shichijo-agaru, Shimogyo-ku, Kyoto 600-8505, Japan",
+      "notes": "Near hotel",
+      "sourceUrl": "https://english.higashihonganji.or.jp/",
+      "sourceRow": 115,
+      "aliases": [
+        "Higashi Hongan-ji"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "東本願寺"
+    },
+    {
+      "id": "map-2904d4cdb94c",
+      "name": "Hotel Kanra Kyoto",
+      "district": "Kyoto Station / Shimogyo",
+      "city": "Kyoto",
+      "category": "Hotel",
+      "address": "190 Kitamachi, Karasuma-dori Rokujo-sagaru, Shimogyo-ku, Kyoto 600-8176, Japan",
+      "notes": "Confirmed 24-29 Sep",
+      "sourceUrl": "https://www.hotelkanra.jp/en/",
+      "sourceRow": 116,
+      "aliases": [
+        "Hotel Kanra Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        28,
+        32,
+        35,
+        37,
+        38,
+        40,
+        41,
+        44,
+        46
+      ],
+      "tripDays": [
+        "2026-09-24",
+        "2026-09-25",
+        "2026-09-26",
+        "2026-09-27",
+        "2026-09-28",
+        "2026-09-29"
+      ],
+      "japanese": "ホテル カンラ 京都"
+    },
+    {
+      "id": "map-29bd0c3f3afd",
+      "name": "Karasuma Rock Kyoto",
+      "district": "Kyoto Station / Shimogyo",
+      "city": "Kyoto",
+      "category": "Restaurant / Grill",
+      "address": "191 Karasuma-dori 6-jo Sagaru Kitamachi, Shimogyo-ku, Kyoto 600-8176, Japan",
+      "notes": "Confirmed 2026; planned dinner 26 Sep",
+      "sourceUrl": "https://www.tripadvisor.com.au/Restaurant_Review-g298564-d26608621-Reviews-Karasuma_Rock_Kyoto-Kyoto_Kyoto_Prefecture_Kinki.html",
+      "sourceRow": 117,
+      "aliases": [
+        "Karasuma Rock Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        37
+      ],
+      "tripDays": [
+        "2026-09-26"
+      ]
+    },
+    {
+      "id": "map-eeedd72fd506",
+      "name": "Kyoto Station",
+      "district": "Kyoto Station / Shimogyo",
+      "city": "Kyoto",
+      "category": "Transport / Landmark",
+      "address": "Higashishiokoji Kamadonocho, Shimogyo-ku, Kyoto 600-8216, Japan",
+      "notes": "Shinkansen / Osaka transfers",
+      "sourceUrl": "https://www.kyoto-station-building.co.jp/",
+      "sourceRow": 118,
+      "aliases": [
+        "Kyoto Station"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        32,
+        36,
+        38,
+        46
+      ],
+      "tripDays": [
+        "2026-09-25",
+        "2026-09-26",
+        "2026-09-27",
+        "2026-09-29"
+      ],
+      "japanese": "京都駅"
+    },
+    {
+      "id": "map-a3493f23817b",
+      "name": "Marukyu Koyamaen JR Kyoto Isetan Store",
+      "district": "Kyoto Station / Shimogyo",
+      "city": "Kyoto",
+      "category": "Matcha / Tea Shop",
+      "address": "JR Kyoto Isetan B1 Food Floor, Higashi-Shiokoji, Shiokoji-sagaru Karasuma-dori, Shimogyo-ku, Kyoto 600-8555, Japan",
+      "notes": "Official direct-managed Marukyu Koyamaen shop; stock/purchase limits may apply.; MATCHA BUYING — priority stop for take-home Marukyu Koyamaen tins/powder; check stock and purchase limits.",
+      "sourceUrl": "https://www.marukyu-koyamaen.co.jp/information/news-2801/",
+      "sourceRow": 119,
+      "aliases": [
+        "Marukyu Koyamaen JR Kyoto Isetan Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-e861bc14ebf7",
+      "name": "Nakamura Tokichi Honten JR Kyoto Isetan Store",
+      "district": "Kyoto Station / Shimogyo",
+      "city": "Kyoto",
+      "category": "Matcha / Tea Shop",
+      "address": "JR Kyoto Isetan B1 Food Floor, Higashi-Shiokoji, Shiokoji-sagaru Karasuma-dori, Shimogyo-ku, Kyoto 600-8555, Japan",
+      "notes": "Tea-shop-only branch; useful because you are already passing through Kyoto Station.; MATCHA — drink/dessert where a cafe is available and browse take-home tea/matcha products.",
+      "sourceUrl": "https://global.tokichi.jp/pages/stores",
+      "sourceRow": 120,
+      "aliases": [
+        "Nakamura Tokichi Honten JR Kyoto Isetan Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-3c1413de02a9",
+      "name": "Nakamura Tokichi Honten Kyoto Store",
+      "district": "Kyoto Station / Shimogyo",
+      "city": "Kyoto",
+      "category": "Matcha / Cafe / Tea Shop",
+      "address": "JR Kyoto Isetan Eat Paradise 3F, Higashi-Shiokoji, Shiokoji-sagaru Karasuma-dori, Shimogyo-ku, Kyoto 600-8555, Japan",
+      "notes": "Cafe + tea shop; one of four Nakamura Tokichi locations in Kyoto city.; MATCHA — drink/dessert where a cafe is available and browse take-home tea/matcha products.",
+      "sourceUrl": "https://global.tokichi.jp/pages/stores",
+      "sourceRow": 121,
+      "aliases": [
+        "Nakamura Tokichi Honten Kyoto Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-6b133d14ce33",
+      "name": "TOTARO (糖太朗)",
+      "district": "Kyoto Station / Shimogyo",
+      "city": "Kyoto",
+      "category": "Matcha / Cafe / Dessert",
+      "address": "101-2 Nushiyacho, Rokujo-dori Ainomachi Nishi-iru, Shimogyo-ku, Kyoto, Japan",
+      "notes": "Confirmed 2026; near Hotel Kanra / Gojo; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://tabelog.com/en/kyoto/A2601/A260201/26039149/",
+      "sourceRow": 122,
+      "aliases": [
+        "TOTARO (糖太朗)",
+        "Totaro Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        28,
+        46
+      ],
+      "tripDays": [
+        "2026-09-24",
+        "2026-09-29"
+      ],
+      "japanese": "糖太朗"
+    },
+    {
+      "id": "map-f4c35e4b5c5e",
+      "name": "TOTARO KYOTO",
+      "district": "Kyoto Station / Shimogyo",
+      "city": "Kyoto",
+      "category": "Matcha / Cafe / Dessert",
+      "address": "101-2 Nurushiyacho, Rokujo-dori Ainocho Nishi-iru, Shimogyo-ku, Kyoto 600-8182, Japan",
+      "notes": "TIPS SHEET — about 5 minutes from Hotel Kanra; brown-sugar iced matcha, matcha ice cream, shiratama/mochi.",
+      "sourceUrl": "https://www.instagram.com/totaro_kyoto/",
+      "sourceRow": 123,
+      "aliases": [
+        "TOTARO KYOTO"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-555e7e22b2f4",
+      "name": "Disney Ambassador Hotel / Chef Mickey",
+      "district": "Maihama / Tokyo Disney Resort",
+      "city": "Chiba",
+      "category": "Hotel / Restaurant",
+      "address": "2-11 Maihama, Urayasu-shi, Chiba 279-8522, Japan",
+      "notes": "Chef Mickey booked 29 Sep 16:50",
+      "sourceUrl": "https://www.tokyodisneyresort.jp/en/hotel/dah/",
+      "sourceRow": 124,
+      "aliases": [
+        "Disney Ambassador Hotel / Chef Mickey",
+        "Chef Mickey Disney Ambassador Hotel",
+        "Disney Ambassador Hotel"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        47
+      ],
+      "tripDays": [
+        "2026-09-29"
+      ]
+    },
+    {
+      "id": "map-3ad79ff851a6",
+      "name": "Fantasy Springs",
+      "district": "Maihama / Tokyo Disney Resort",
+      "city": "Chiba",
+      "category": "Theme Park Area",
+      "address": "Tokyo DisneySea, 1-13 Maihama, Urayasu-shi, Chiba 279-8511, Japan",
+      "notes": "1 Oct priority area",
+      "sourceUrl": "https://www.tokyodisneyresort.jp/special/en/fantasysprings/",
+      "sourceRow": 125,
+      "aliases": [
+        "Fantasy Springs"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "ファンタジースプリングス"
+    },
+    {
+      "id": "map-b6732be4c2f2",
+      "name": "Maihama Station",
+      "district": "Maihama / Tokyo Disney Resort",
+      "city": "Chiba",
+      "category": "Transport",
+      "address": "26-5 Maihama, Urayasu-shi, Chiba 279-0031, Japan",
+      "notes": "Disney rail access",
+      "sourceUrl": "https://www.jreast.co.jp/",
+      "sourceRow": 126,
+      "aliases": [
+        "Maihama Station"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        47
+      ],
+      "tripDays": [
+        "2026-09-29"
+      ],
+      "japanese": "舞浜駅"
+    },
+    {
+      "id": "map-42a689648c37",
+      "name": "Tokyo Disneyland",
+      "district": "Maihama / Tokyo Disney Resort",
+      "city": "Chiba",
+      "category": "Theme Park / Entertainment",
+      "address": "1-1 Maihama, Urayasu-shi, Chiba 279-0031, Japan",
+      "notes": "30 Sep",
+      "sourceUrl": "https://www.tokyodisneyresort.jp/en/tdl/",
+      "sourceRow": 127,
+      "aliases": [
+        "Tokyo Disneyland"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        48,
+        49
+      ],
+      "tripDays": [
+        "2026-09-30"
+      ],
+      "japanese": "東京ディズニーランド"
+    },
+    {
+      "id": "map-ed85428e54c4",
+      "name": "Tokyo DisneySea",
+      "district": "Maihama / Tokyo Disney Resort",
+      "city": "Chiba",
+      "category": "Theme Park / Entertainment",
+      "address": "1-13 Maihama, Urayasu-shi, Chiba 279-8511, Japan",
+      "notes": "1 Oct",
+      "sourceUrl": "https://www.tokyodisneyresort.jp/en/tds/",
+      "sourceRow": 128,
+      "aliases": [
+        "Tokyo DisneySea"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        52
+      ],
+      "tripDays": [
+        "2026-10-01"
+      ],
+      "japanese": "東京ディズニーシー"
+    },
+    {
+      "id": "map-807b5de5c91c",
+      "name": "Tokyo DisneySea Fantasy Springs Hotel",
+      "district": "Maihama / Tokyo Disney Resort",
+      "city": "Chiba",
+      "category": "Hotel",
+      "address": "1-2 Maihama, Urayasu-shi, Chiba 279-8526, Japan",
+      "notes": "Confirmed 29 Sep-1 Oct",
+      "sourceUrl": "https://www.tokyodisneyresort.jp/en/hotel/fsh/",
+      "sourceRow": 129,
+      "aliases": [
+        "Tokyo DisneySea Fantasy Springs Hotel"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        46,
+        51,
+        52
+      ],
+      "tripDays": [
+        "2026-09-29",
+        "2026-09-30",
+        "2026-10-01"
+      ],
+      "japanese": "東京ディズニーシー・ファンタジースプリングスホテル"
+    },
+    {
+      "id": "map-087ae6dc5a46",
+      "name": "Tokyo Character Street",
+      "district": "Marunouchi / Tokyo Station",
+      "city": "Tokyo",
+      "category": "Shopping / Character",
+      "address": "Tokyo Station First Avenue B1F, 1-9-1 Marunouchi, Chiyoda-ku, Tokyo 100-0005, Japan",
+      "notes": "Planned 4 Oct; CHARACTER SHOPPING — browse Japan-only character stores/souvenirs for the boys.",
+      "sourceUrl": "https://www.tokyoeki-1bangai.co.jp/en/street/character",
+      "sourceRow": 130,
+      "aliases": [
+        "Tokyo Character Street"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        67
+      ],
+      "tripDays": [
+        "2026-10-04"
+      ],
+      "japanese": "東京キャラクターストリート"
+    },
+    {
+      "id": "map-52408ecdfc44",
+      "name": "Tokyo Station",
+      "district": "Marunouchi / Tokyo Station",
+      "city": "Tokyo",
+      "category": "Transport / Landmark",
+      "address": "1 Marunouchi, Chiyoda-ku, Tokyo 100-0005, Japan",
+      "notes": "Shinkansen + 4 Oct",
+      "sourceUrl": "https://www.jreast.co.jp/e/stations/e1039.html",
+      "sourceRow": 131,
+      "aliases": [
+        "Tokyo Station",
+        "Tokyo Station Marunouchi"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        28,
+        67
+      ],
+      "tripDays": [
+        "2026-09-24",
+        "2026-10-04"
+      ],
+      "japanese": "東京駅"
+    },
+    {
+      "id": "map-cb7b86eb1a20",
+      "name": "TSUTAYA BOOKSTORE MARUNOUCHI",
+      "district": "Marunouchi / Tokyo Station",
+      "city": "Tokyo",
+      "category": "Shopping / Bookstore / Mirumi",
+      "address": "Marunouchi Building 3F-4F, 2-4-1 Marunouchi, Chiyoda-ku, Tokyo 100-6304, Japan",
+      "notes": "Corrected 2026 address; confirmed Mirumi official retailer; MIRUMI HUNT — Boston wants grey; Lauren wants ivory. Check both colours; if unavailable, ask staff about other-branch or online stock.",
+      "sourceUrl": "https://mirumi.ux-xu.com/",
+      "sourceRow": 132,
+      "aliases": [
+        "TSUTAYA BOOKSTORE MARUNOUCHI",
+        "Tsutaya Bookstore Marunouchi Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        67
+      ],
+      "tripDays": [
+        "2026-10-04"
+      ]
+    },
+    {
+      "id": "map-e835cf74be03",
+      "name": "OBRA Namba / Minatomachi",
+      "district": "Namba / Minatomachi",
+      "city": "Osaka",
+      "category": "Cafe / Matcha / Canele",
+      "address": "APA Hotel & Resort Osaka Namba Ekimae Tower 1F, 1-2-13 Minatomachi, Naniwa-ku, Osaka 556-0017, Japan",
+      "notes": "Original OBRA location; 2026 Shinsaibashi branch is its second location.; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://tabelog.com/osaka/A2701/A270202/27145979/",
+      "sourceRow": 133,
+      "aliases": [
+        "OBRA Namba / Minatomachi"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-03b06749f18b",
+      "name": "NARAMILE",
+      "district": "Nara Park",
+      "city": "Nara",
+      "category": "Tea / Matcha / Local Products",
+      "address": "Nara Park Bus Terminal East Building 2F, 76 Noboriojicho, Nara 630-8213, Japan",
+      "notes": "Confirmed 2026; official main site address; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://naramile.com/",
+      "sourceRow": 134,
+      "aliases": [
+        "NARAMILE"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-20809c0fac75",
+      "name": "Kasuga Taisha",
+      "district": "Nara Park / Central Nara",
+      "city": "Nara",
+      "category": "Historical / Shrine",
+      "address": "160 Kasuganocho, Nara-shi, Nara 630-8212, Japan",
+      "notes": "Planned",
+      "sourceUrl": "https://www.kasugataisha.or.jp/en/",
+      "sourceRow": 135,
+      "aliases": [
+        "Kasuga Taisha"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "春日大社"
+    },
+    {
+      "id": "map-b53429a87fef",
+      "name": "Nara Park",
+      "district": "Nara Park / Central Nara",
+      "city": "Nara",
+      "category": "Park / Nature",
+      "address": "469 Zoshicho, Nara-shi, Nara 630-8501, Japan",
+      "notes": "Planned 27 Sep",
+      "sourceUrl": "https://www.visitnara.jp/venues/A00489/",
+      "sourceRow": 136,
+      "aliases": [
+        "Nara Park"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        38,
+        39
+      ],
+      "tripDays": [
+        "2026-09-27"
+      ],
+      "japanese": "奈良公園"
+    },
+    {
+      "id": "map-a1a0b47b0850",
+      "name": "Todai-ji",
+      "district": "Nara Park / Central Nara",
+      "city": "Nara",
+      "category": "Historical / Temple",
+      "address": "406-1 Zoshicho, Nara-shi, Nara 630-8587, Japan",
+      "notes": "Planned Great Buddha",
+      "sourceUrl": "https://www.todaiji.or.jp/en/",
+      "sourceRow": 137,
+      "aliases": [
+        "Todai-ji",
+        "Todai-ji Nara"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        38
+      ],
+      "tripDays": [
+        "2026-09-27"
+      ],
+      "japanese": "東大寺"
+    },
+    {
+      "id": "map-906e2135f25b",
+      "name": "Gachagacha no Mori Nipponbashi Otaroad Store",
+      "district": "Nipponbashi / Namba",
+      "city": "Osaka",
+      "category": "Shopping / Gachapon",
+      "address": "Hikari Building, 3-7-22 Nippombashi, Naniwa-ku, Osaka 556-0005, Japan",
+      "notes": "POLLY POCKET HUNT — planned Osaka stop; prioritise both the older ¥400 Miniature Charm 2 series and newer ¥600 Miniature Collection.",
+      "sourceUrl": "https://www.otaku-osaka.com/",
+      "sourceRow": 138,
+      "aliases": [
+        "Gachagacha no Mori Nipponbashi Otaroad Store",
+        "Gacha Gacha no Mori Nipponbashi Ota Road Osaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        44
+      ],
+      "tripDays": [
+        "2026-09-28"
+      ]
+    },
+    {
+      "id": "map-a0909a23ffc0",
+      "name": "Miraikan - National Museum of Emerging Science and Innovation",
+      "district": "Odaiba / Aomi",
+      "city": "Tokyo",
+      "category": "Museum / Shopping / Nekojita FuFu",
+      "address": "2-3-6 Aomi, Koto-ku, Tokyo 135-0064, Japan",
+      "notes": "Confirmed official Nekojita FuFu physical stockist; stock may fluctuate; NEKOJITA FUFU — look for the small blowing/cooling robot; check physical stock.",
+      "sourceUrl": "https://nekojitafufu.ux-xu.com/H1mGaXLL/LUV-bmYP",
+      "sourceRow": 139,
+      "aliases": [
+        "Miraikan - National Museum of Emerging Science and Innovation"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-51916a3fa4c3",
+      "name": "Kids Plaza Osaka",
+      "district": "Ogimachi / Tenma",
+      "city": "Osaka",
+      "category": "Museum / Kids / Indoor",
+      "address": "2-1-7 Ogimachi, Kita-ku, Osaka 530-0025, Japan",
+      "notes": "TIPS SHEET — rainy-day or spare-time backup; interactive children's museum.",
+      "sourceUrl": "https://www.kidsplaza.or.jp/info/",
+      "sourceRow": 140,
+      "aliases": [
+        "Kids Plaza Osaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "キッズプラザ大阪"
+    },
+    {
+      "id": "map-28194718c755",
+      "name": "Kyoto Okazaki TSUTAYA BOOKS",
+      "district": "Okazaki",
+      "city": "Kyoto",
+      "category": "Shopping / Bookstore / Mirumi",
+      "address": "Rohm Theatre Kyoto Park Plaza 1F, 13 Okazaki Saishojicho, Sakyo-ku, Kyoto 606-8342, Japan",
+      "notes": "Confirmed 2026 Mirumi official retailer; stock may fluctuate; MIRUMI HUNT — Boston wants grey; Lauren wants ivory. Check both colours; if unavailable, ask staff about other-branch or online stock.",
+      "sourceUrl": "https://mirumi.ux-xu.com/",
+      "sourceRow": 141,
+      "aliases": [
+        "Kyoto Okazaki TSUTAYA BOOKS"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-d39fe817f564",
+      "name": "THE MATCHA TOKYO Tokyo Skytree Town",
+      "district": "Oshiage / Tokyo Skytree",
+      "city": "Tokyo",
+      "category": "Matcha / Cafe",
+      "address": "Tokyo Skytree Town Solamachi 1F, 1-1-2 Oshiage, Sumida-ku, Tokyo 131-0045, Japan",
+      "notes": "All Tokyo branches included even though this area is not currently on the itinerary.; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://www.the-matcha.tokyo/pages/cafe",
+      "sourceRow": 142,
+      "aliases": [
+        "THE MATCHA TOKYO Tokyo Skytree Town"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-76df8034aed6",
+      "name": "Pontocho Alley",
+      "district": "Pontocho",
+      "city": "Kyoto",
+      "category": "Historical District / Dining Street",
+      "address": "Pontocho-dori, Nakagyo-ku, Kyoto 604-8014, Japan",
+      "notes": "KYOTO CULTURAL STOP — atmospheric narrow dining lane beside the Kamo River; best from late afternoon into evening.",
+      "sourceUrl": "https://www.japan.travel/en/spot/79/",
+      "sourceRow": 143,
+      "aliases": [
+        "Pontocho Alley",
+        "Pontocho Alley Kyoto"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        28
+      ],
+      "tripDays": [
+        "2026-09-24"
+      ],
+      "japanese": "先斗町"
+    },
+    {
+      "id": "map-874f87abf2eb",
+      "name": "Wagyu Sukiyaki Kyoto Chikarayama Pontocho",
+      "district": "Pontocho",
+      "city": "Kyoto",
+      "category": "Food / Sukiyaki",
+      "address": "185-8 Zaimokucho, Nakagyo-ku, Kyoto 604-8017, Japan",
+      "notes": "DINNER OPTION — wagyu sukiyaki specialist in Pontocho; table-side preparation. Reservation recommended.",
+      "sourceUrl": "https://chikayado.jp/sukiyakipontocho",
+      "sourceRow": 144,
+      "aliases": [
+        "Wagyu Sukiyaki Kyoto Chikarayama Pontocho"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        28
+      ],
+      "tripDays": [
+        "2026-09-24"
+      ]
+    },
+    {
+      "id": "map-6fa00568588d",
+      "name": "Kamo River - Shijo / Pontocho",
+      "district": "Pontocho / Gion",
+      "city": "Kyoto",
+      "category": "Nature / Cultural Landmark",
+      "address": "Shijo Ohashi area, Kyoto 605-0801, Japan",
+      "notes": "KYOTO CULTURAL STOP — riverside walk connecting Gion and Pontocho; useful evening stroll and orientation pin.",
+      "sourceUrl": "https://www.japan.travel/en/spot/1183/",
+      "sourceRow": 145,
+      "aliases": [
+        "Kamo River - Shijo / Pontocho"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-7c1183f169ed",
+      "name": "Roppongi TSUTAYA BOOKS",
+      "district": "Roppongi",
+      "city": "Tokyo",
+      "category": "Shopping / Bookstore / Mirumi",
+      "address": "Roppongi Hills Keyakizaka-dori, 6-11-1 Roppongi, Minato-ku, Tokyo 106-0032, Japan",
+      "notes": "Confirmed on Mirumi official 2026 retailer list; stock may fluctuate; MIRUMI HUNT — Boston wants grey; Lauren wants ivory. Check both colours; if unavailable, ask staff about other-branch or online stock.",
+      "sourceUrl": "https://mirumi.ux-xu.com/",
+      "sourceRow": 146,
+      "aliases": [
+        "Roppongi TSUTAYA BOOKS"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-0b01727c345a",
+      "name": "Tokyo Tower",
+      "district": "Roppongi / Toranomon",
+      "city": "Tokyo",
+      "category": "Landmark / Observation",
+      "address": "4-2-8 Shibakoen, Minato-ku, Tokyo 105-0011, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://www.tokyotower.co.jp/en.html",
+      "sourceRow": 147,
+      "aliases": [
+        "Tokyo Tower"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "東京タワー"
+    },
+    {
+      "id": "map-2a19437a7c56",
+      "name": "Ryogoku View Hotel",
+      "district": "Ryogoku",
+      "city": "Tokyo",
+      "category": "Hotel / Meeting Point",
+      "address": "2-19-1 Ryogoku, Sumida-ku, Tokyo 130-0026, Japan",
+      "notes": "SUMO DAY — Klook meeting point / rendezvous location before the tournament. Save for taxi drop-off and return navigation.",
+      "sourceUrl": "https://www.viewhotels.jp/ryogoku/",
+      "sourceRow": 148,
+      "aliases": [
+        "Ryogoku View Hotel",
+        "Ryogoku View Hotel 2-19-1 Ryogoku Tokyo",
+        "Ryogoku View Hotel Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        26
+      ],
+      "tripDays": [
+        "2026-09-23"
+      ],
+      "japanese": "両国ビューホテル"
+    },
+    {
+      "id": "map-a9c05502fa21",
+      "name": "Nara TSUTAYA BOOKS",
+      "district": "Sanjooji",
+      "city": "Nara",
+      "category": "Shopping / Bookstore / Mirumi",
+      "address": "1-1-691-1 Sanjooji, Nara 630-8013, Japan",
+      "notes": "Confirmed on Mirumi official 2026 retailer list; stock may fluctuate; MIRUMI HUNT — Boston wants grey; Lauren wants ivory. Check both colours; if unavailable, ask staff about other-branch or online stock.",
+      "sourceUrl": "https://mirumi.ux-xu.com/",
+      "sourceRow": 149,
+      "aliases": [
+        "Nara TSUTAYA BOOKS"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-39a9a75c14a1",
+      "name": "Gotokuji Temple",
+      "district": "Setagaya",
+      "city": "Tokyo",
+      "category": "Historical / Temple",
+      "address": "2-24-7 Gotokuji, Setagaya-ku, Tokyo 154-0021, Japan",
+      "notes": "Cat temple option 5 Oct",
+      "sourceUrl": "https://gotokuji.jp/en/",
+      "sourceRow": 150,
+      "aliases": [
+        "Gotokuji Temple",
+        "Gotokuji Temple Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        72
+      ],
+      "tripDays": [
+        "2026-10-06"
+      ],
+      "japanese": "豪徳寺"
+    },
+    {
+      "id": "map-6e7a1fa07422",
+      "name": "#C-pla Shibuya Center-gai",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "category": "Shopping / Gachapon",
+      "address": "Shibuya Heiwa Building, 21-8 Udagawacho, Shibuya-ku, Tokyo 150-0042, Japan",
+      "notes": "POLLY POCKET HUNT — check machines for the older ¥400 Polly Pocket Miniature Charm 2 and newer ¥600 Polly Pocket Miniature Collection; stock changes constantly.",
+      "sourceUrl": "https://www.gashapon.jp/shop/shop.php?shop_code=S90000823",
+      "sourceRow": 151,
+      "aliases": [
+        "#C-pla Shibuya Center-gai"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-c9c35da1d0fe",
+      "name": "A Happy Pancake Shibuya",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "category": "Cafe / Pancakes",
+      "address": "Dogenzaka Plaza Nishinaya Building 3F, 1-18-8 Dogenzaka, Shibuya-ku, Tokyo 150-0043, Japan",
+      "notes": "TIPS SHEET — soufflé pancakes; useful Shibuya branch; online reservations recommended.",
+      "sourceUrl": "https://magia.tokyo/shop",
+      "sourceRow": 152,
+      "aliases": [
+        "A Happy Pancake Shibuya"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-f008378c6ce1",
+      "name": "CRISP SALAD WORKS Shibuya Scramble Square",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "category": "Food / Salad / Healthy",
+      "address": "Shibuya Scramble Square 2F, 2-24-12 Shibuya, Shibuya-ku, Tokyo 150-6101, Japan",
+      "notes": "TIPS SHEET — convenient healthy-meal backup right at Shibuya Scramble Square.",
+      "sourceUrl": "https://crisp.co.jp/location",
+      "sourceRow": 153,
+      "aliases": [
+        "CRISP SALAD WORKS Shibuya Scramble Square"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-cd2648870861",
+      "name": "EDW yellow Shibuya",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "category": "Restaurant / Omurice / Cafe",
+      "address": "Ikuma Building B1F, 26-5 Udagawacho, Shibuya-ku, Tokyo 150-0042, Japan",
+      "notes": "Confirmed 2026; yellow omurice planned 5 Oct",
+      "sourceUrl": "https://tabelog.com/en/tokyo/A1303/A130301/13199237/",
+      "sourceRow": 154,
+      "aliases": [
+        "EDW yellow Shibuya",
+        "EDW yellow 26-5 Udagawacho Tokyo",
+        "EDW yellow Shibuya Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        70
+      ],
+      "tripDays": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "id": "map-42da872a09bf",
+      "name": "FLIPPER'S Shibuya",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "category": "Cafe / Pancakes",
+      "address": "Jinnan Plaza Building 1F, 1-15-5 Jinnan, Shibuya-ku, Tokyo 150-0041, Japan",
+      "notes": "Planned 5 Oct",
+      "sourceUrl": "https://www.flavorworks.co.jp/en/flippers",
+      "sourceRow": 155,
+      "aliases": [
+        "FLIPPER'S Shibuya",
+        "FLIPPER'S Shibuya Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        68
+      ],
+      "tripDays": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "id": "map-7f3270b71529",
+      "name": "Hachiko Statue",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "category": "Landmark",
+      "address": "2-1 Dogenzaka, Shibuya-ku, Tokyo 150-0043, Japan",
+      "notes": "Optional photo stop",
+      "sourceUrl": "https://www.gotokyo.org/en/spot/86/index.html",
+      "sourceRow": 156,
+      "aliases": [
+        "Hachiko Statue",
+        "Hachiko Statue Shibuya"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        22
+      ],
+      "tripDays": [
+        "2026-09-22"
+      ],
+      "japanese": "忠犬ハチ公像"
+    },
+    {
+      "id": "map-3fd0b625dbac",
+      "name": "MEGA Don Quijote Shibuya",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "category": "Shopping",
+      "address": "28-6 Udagawacho, Shibuya-ku, Tokyo 150-0042, Japan",
+      "notes": "General shopping",
+      "sourceUrl": "https://www.donki.com/en/store/shop_detail.php?shop_id=442",
+      "sourceRow": 157,
+      "aliases": [
+        "MEGA Don Quijote Shibuya"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-8ee68e6f87f8",
+      "name": "Nintendo TOKYO",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "category": "Shopping / Gaming",
+      "address": "Shibuya PARCO 6F, 15-1 Udagawacho, Shibuya-ku, Tokyo 150-8377, Japan",
+      "notes": "Inside Shibuya PARCO; NINTENDO — browse Japan-exclusive merchandise and character items.",
+      "sourceUrl": "https://www.nintendo.co.jp/officialstore/index.html",
+      "sourceRow": 158,
+      "aliases": [
+        "Nintendo TOKYO"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-1d7833ba8f21",
+      "name": "Pokemon Center SHIBUYA",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "category": "Shopping / Character",
+      "address": "Shibuya PARCO 6F, 15-1 Udagawacho, Shibuya-ku, Tokyo 150-8377, Japan",
+      "notes": "Inside Shibuya PARCO; POKÉMON — browse Japan-exclusive merchandise and souvenirs.",
+      "sourceUrl": "https://shop.pokemon.co.jp/en/shop/pokemoncenter-shibuya/",
+      "sourceRow": 159,
+      "aliases": [
+        "Pokemon Center SHIBUYA"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "ポケモンセンターシブヤ"
+    },
+    {
+      "id": "map-0ae12056a88d",
+      "name": "Shibuya PARCO",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "category": "Shopping / Entertainment",
+      "address": "15-1 Udagawacho, Shibuya-ku, Tokyo 150-8377, Japan",
+      "notes": "Nintendo + Pokemon",
+      "sourceUrl": "https://shibuya.parco.jp/",
+      "sourceRow": 160,
+      "aliases": [
+        "Shibuya PARCO"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "渋谷PARCO"
+    },
+    {
+      "id": "map-df2f06eb337c",
+      "name": "Shibuya Scramble Crossing",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "category": "Landmark",
+      "address": "2-24 Shibuya, Shibuya-ku, Tokyo 150-0002, Japan",
+      "notes": "Planned",
+      "sourceUrl": "https://www.gotokyo.org/en/spot/78/index.html",
+      "sourceRow": 161,
+      "aliases": [
+        "Shibuya Scramble Crossing",
+        "Shibuya Crossing Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        22
+      ],
+      "tripDays": [
+        "2026-09-22"
+      ],
+      "japanese": "渋谷スクランブル交差点"
+    },
+    {
+      "id": "map-be520bf104e5",
+      "name": "SHIBUYA SKY",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "category": "Landmark / Observation",
+      "address": "Shibuya Scramble Square, 2-24-12 Shibuya, Shibuya-ku, Tokyo 150-6145, Japan",
+      "notes": "Booked 22 Sep",
+      "sourceUrl": "https://www.shibuya-scramble-square.com/sky/",
+      "sourceRow": 162,
+      "aliases": [
+        "SHIBUYA SKY",
+        "SHIBUYA SKY Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        22
+      ],
+      "tripDays": [
+        "2026-09-22"
+      ]
+    },
+    {
+      "id": "map-04fe07d5d504",
+      "name": "Hatoya Shibuya (八十八 渋谷)",
+      "district": "Shibuya / Kamiyamacho",
+      "city": "Tokyo",
+      "category": "Matcha / Tea Stand",
+      "address": "AISK Building 1F, 3-8 Kamiyamacho, Shibuya-ku, Tokyo 150-0047, Japan",
+      "notes": "Confirmed 2026; discussed for 5 Oct; MATCHA STOP — try drinks/branch specials; check any retail tea or matcha available to take home.",
+      "sourceUrl": "https://www.8108kyoto.com/",
+      "sourceRow": 163,
+      "aliases": [
+        "Hatoya Shibuya (八十八 渋谷)",
+        "Hatoya Shibuya Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        69
+      ],
+      "tripDays": [
+        "2026-10-05"
+      ],
+      "japanese": "八十八 渋谷"
+    },
+    {
+      "id": "map-1d5b690a0275",
+      "name": "THE MATCHA TOKYO Shibuya Miyashita Park",
+      "district": "Shibuya / Miyashita Park",
+      "city": "Tokyo",
+      "category": "Matcha / Cafe",
+      "address": "RAYARD MIYASHITA PARK South 2F, 6-20-10 Jingumae, Shibuya-ku, Tokyo 150-0001, Japan",
+      "notes": "Extra Shibuya branch; useful on either Shibuya day.; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://www.the-matcha.tokyo/pages/cafe",
+      "sourceRow": 164,
+      "aliases": [
+        "THE MATCHA TOKYO Shibuya Miyashita Park"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-6b5c0b4dfd96",
+      "name": "BEYBLADE BAR TOKYO",
+      "district": "Shimokitazawa",
+      "city": "Tokyo",
+      "category": "Entertainment / Cafe / Shopping",
+      "address": "mosia 4F, 2-4-5 Kitazawa, Setagaya-ku, Tokyo 155-0031, Japan",
+      "notes": "BOSTON / NATE — permanent Beyblade experience bar with battle area, collaboration food, displays and exclusive merchandise. Reservation recommended.",
+      "sourceUrl": "https://www.tablecheck.com/en/beyblade-bar",
+      "sourceRow": 165,
+      "aliases": [
+        "BEYBLADE BAR TOKYO",
+        "Beyblade Bar Tokyo Shimokitazawa"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        67
+      ],
+      "tripDays": [
+        "2026-10-04"
+      ]
+    },
+    {
+      "id": "map-59b957b9f0b2",
+      "name": "CRISP SALAD WORKS NEWoMan Shinjuku",
+      "district": "Shinjuku",
+      "city": "Tokyo",
+      "category": "Food / Salad / Healthy",
+      "address": "NEWoMan Shinjuku 2F Ekisoto, 5-24-55 Sendagaya, Shibuya-ku, Tokyo 151-0051, Japan",
+      "notes": "TIPS SHEET — convenient healthy-meal backup during the Hilton/Shinjuku stay.",
+      "sourceUrl": "https://crisp.co.jp/location",
+      "sourceRow": 166,
+      "aliases": [
+        "CRISP SALAD WORKS NEWoMan Shinjuku"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-effca637a00b",
+      "name": "Gacha Gacha no Mori Shinjuku SUBNADE",
+      "district": "Shinjuku",
+      "city": "Tokyo",
+      "category": "Shopping / Gachapon",
+      "address": "Shinjuku SUBNADE underground mall, Area 401, 1-2-2 Kabukicho, Shinjuku-ku, Tokyo 160-0021, Japan",
+      "notes": "POLLY POCKET HUNT — large gachapon store; check for older ¥400 Miniature Charm 2 and newer ¥600 Miniature Collection.",
+      "sourceUrl": "https://www.gachagachanomori.com/",
+      "sourceRow": 167,
+      "aliases": [
+        "Gacha Gacha no Mori Shinjuku SUBNADE"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-f7ef1df89178",
+      "name": "Hilton Tokyo",
+      "district": "Shinjuku",
+      "city": "Tokyo",
+      "category": "Hotel",
+      "address": "6-6-2 Nishi-Shinjuku, Shinjuku-ku, Tokyo 160-0023, Japan",
+      "notes": "Confirmed hotel 1-6 Oct",
+      "sourceUrl": "https://www.hilton.com/en/hotels/tyohitw-hilton-tokyo/hotel-location/",
+      "sourceRow": 168,
+      "aliases": [
+        "Hilton Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        16,
+        55,
+        56,
+        59,
+        60,
+        62,
+        63,
+        66,
+        67,
+        71,
+        72
+      ],
+      "tripDays": [
+        "2026-10-01",
+        "2026-10-02",
+        "2026-10-03",
+        "2026-10-04",
+        "2026-10-05",
+        "2026-10-06"
+      ],
+      "japanese": "ヒルトン東京"
+    },
+    {
+      "id": "map-e974ec844344",
+      "name": "Omoide Yokocho",
+      "district": "Shinjuku",
+      "city": "Tokyo",
+      "category": "Food / Dining Alley",
+      "address": "1-2 Nishi-Shinjuku, Shinjuku-ku, Tokyo 160-0023, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://www.gotokyo.org/en/spot/19/index.html",
+      "sourceRow": 169,
+      "aliases": [
+        "Omoide Yokocho"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "思い出横丁"
+    },
+    {
+      "id": "map-1a977cf107eb",
+      "name": "Selection Shinjuku Baseball Hall",
+      "district": "Shinjuku",
+      "city": "Tokyo",
+      "category": "Shopping / Baseball",
+      "address": "Stork Nishi-Shinjuku Fukusei Building 105, 7-22-37 Nishi-Shinjuku, Shinjuku-ku, Tokyo 160-0023, Japan",
+      "notes": "Baseball shop; BASEBALL SHOPPING — look for Giants/baseball merchandise and souvenirs around the 3 Oct game.",
+      "sourceUrl": "https://www.selection-j.com/shop/shoppage/shinjuku_1",
+      "sourceRow": 170,
+      "aliases": [
+        "Selection Shinjuku Baseball Hall"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-b88baab55163",
+      "name": "THE MATCHA TOKYO NEWoMan Shinjuku",
+      "district": "Shinjuku",
+      "city": "Tokyo",
+      "category": "Matcha / Cafe",
+      "address": "NEWoMan Shinjuku, 4-1-6 Shinjuku, Shinjuku-ku, Tokyo 160-0022, Japan",
+      "notes": "All Tokyo branches included; especially relevant while staying at Hilton Tokyo.; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://www.the-matcha.tokyo/pages/cafe",
+      "sourceRow": 171,
+      "aliases": [
+        "THE MATCHA TOKYO NEWoMan Shinjuku"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-9a0b2f2fe3bc",
+      "name": "Tokyo Metropolitan Government Building",
+      "district": "Shinjuku",
+      "city": "Tokyo",
+      "category": "Landmark / Observation",
+      "address": "2-8-1 Nishi-Shinjuku, Shinjuku-ku, Tokyo 163-8001, Japan",
+      "notes": "Near Hilton",
+      "sourceUrl": "https://www.metro.tokyo.lg.jp/english/offices/observat.html",
+      "sourceRow": 172,
+      "aliases": [
+        "Tokyo Metropolitan Government Building"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "東京都庁"
+    },
+    {
+      "id": "map-64fbc06be089",
+      "name": "Amerikamura",
+      "district": "Shinsaibashi",
+      "city": "Osaka",
+      "category": "Shopping / District",
+      "address": "Nishishinsaibashi, Chuo-ku, Osaka 542-0086, Japan",
+      "notes": "Vintage shopping",
+      "sourceUrl": "https://osaka-info.jp/en/spot/america-mura/",
+      "sourceRow": 173,
+      "aliases": [
+        "Amerikamura",
+        "Amerikamura Osaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        44
+      ],
+      "tripDays": [
+        "2026-09-28"
+      ],
+      "japanese": "アメリカ村"
+    },
+    {
+      "id": "map-71a7473c2fc2",
+      "name": "BRAND OFF Shinsaibashi",
+      "district": "Shinsaibashi",
+      "city": "Osaka",
+      "category": "Vintage / Luxury Shopping",
+      "address": "1-4-12 Shinsaibashisuji, Chuo-ku, Osaka 542-0085, Japan",
+      "notes": "Vintage designer bags; VINTAGE BAG HUNT — priority brands: Louis Vuitton, Celine and Chanel. Compare condition, included accessories, authentication and tax-free pricing.; LUXURY SHOPPING — priority brands for this trip include Louis Vuitton, Celine and Chanel.",
+      "sourceUrl": "https://www.brandoff-store.com/",
+      "sourceRow": 174,
+      "aliases": [
+        "BRAND OFF Shinsaibashi"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-0b38751749b6",
+      "name": "Daimaru Shinsaibashi",
+      "district": "Shinsaibashi",
+      "city": "Osaka",
+      "category": "Shopping / Department Store",
+      "address": "1-7-1 Shinsaibashisuji, Chuo-ku, Osaka 542-8501, Japan",
+      "notes": "Shopping / Pokemon",
+      "sourceUrl": "https://www.daimaru.co.jp/shinsaibashi/",
+      "sourceRow": 175,
+      "aliases": [
+        "Daimaru Shinsaibashi"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "大丸心斎橋店"
+    },
+    {
+      "id": "map-51e57b66be57",
+      "name": "Gallery Rare Shinsaibashi",
+      "district": "Shinsaibashi",
+      "city": "Osaka",
+      "category": "Vintage / Luxury Shopping",
+      "address": "2-7-18 Shinsaibashisuji, Chuo-ku, Osaka 542-0085, Japan",
+      "notes": "Vintage designer bags; VINTAGE BAG HUNT — priority brands: Louis Vuitton, Celine and Chanel. Compare condition, included accessories, authentication and tax-free pricing.; LUXURY SHOPPING — priority brands for this trip include Louis Vuitton, Celine and Chanel.",
+      "sourceUrl": "https://galleryrare.jp/",
+      "sourceRow": 176,
+      "aliases": [
+        "Gallery Rare Shinsaibashi"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-5484df34196c",
+      "name": "Pokemon Center OSAKA DX",
+      "district": "Shinsaibashi",
+      "city": "Osaka",
+      "category": "Shopping / Character",
+      "address": "Daimaru Shinsaibashi Main Building 9F, 1-7-1 Shinsaibashisuji, Chuo-ku, Osaka 542-8501, Japan",
+      "notes": "Character shopping; POKÉMON — browse Japan-exclusive merchandise and souvenirs.",
+      "sourceUrl": "https://www.pokemon.co.jp/shop/en/",
+      "sourceRow": 177,
+      "aliases": [
+        "Pokemon Center OSAKA DX"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "ポケモンセンターオーサカDX"
+    },
+    {
+      "id": "map-989392ef2a36",
+      "name": "Shinsaibashi-suji Shopping Street",
+      "district": "Shinsaibashi",
+      "city": "Osaka",
+      "category": "Shopping Street",
+      "address": "Shinsaibashisuji, Chuo-ku, Osaka 542-0085, Japan",
+      "notes": "Planned 28 Sep",
+      "sourceUrl": "https://www.shinsaibashi.or.jp/lang/en/",
+      "sourceRow": 178,
+      "aliases": [
+        "Shinsaibashi-suji Shopping Street",
+        "Shinsaibashi-suji Osaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        44
+      ],
+      "tripDays": [
+        "2026-09-28"
+      ],
+      "japanese": "心斎橋筋商店街"
+    },
+    {
+      "id": "map-17af6a524b0d",
+      "name": "VINTAGE QOO TOKYO Shinsaibashi",
+      "district": "Shinsaibashi",
+      "city": "Osaka",
+      "category": "Vintage / Luxury Shopping",
+      "address": "MI Cube Shinsaibashi 1F-2F, 1-1-16 Shinsaibashisuji, Chuo-ku, Osaka 542-0085, Japan",
+      "notes": "Confirmed 2026; designer bag shopping; VINTAGE BAG HUNT — priority brands: Louis Vuitton, Celine and Chanel. Compare condition, included accessories, authentication and tax-free pricing.; LUXURY SHOPPING — priority brands for this trip include Louis Vuitton, Celine and Chanel.",
+      "sourceUrl": "https://qoo-online.com/en/pages/qoo-shinsaibashi",
+      "sourceRow": 179,
+      "aliases": [
+        "VINTAGE QOO TOKYO Shinsaibashi"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-391ca95c87d6",
+      "name": "CHADO",
+      "district": "Shinsaibashi / Minamisenba",
+      "city": "Osaka",
+      "category": "Matcha / Cafe",
+      "address": "4-13-15 Minamisenba, Chuo-ku, Osaka 542-0081, Japan",
+      "notes": "Confirmed 2026; priority Osaka matcha stop; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://tabelog.com/en/osaka/A2701/A270201/27152362/",
+      "sourceRow": 180,
+      "aliases": [
+        "CHADO",
+        "CHADO Matcha 4-13-15 Minamisenba Osaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        44
+      ],
+      "tripDays": [
+        "2026-09-28"
+      ]
+    },
+    {
+      "id": "map-b5edf2032261",
+      "name": "OBRA Shinsaibashi",
+      "district": "Shinsaibashi / Minamisenba",
+      "city": "Osaka",
+      "category": "Cafe / Matcha / Canele",
+      "address": "1F, 4-12-9 Minamisenba, Chuo-ku, Osaka 542-0081, Japan",
+      "notes": "Confirmed current Shinsaibashi branch; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://maps.apple.com/place?place-id=IEF1807C54FE0536E",
+      "sourceRow": 181,
+      "aliases": [
+        "OBRA Shinsaibashi"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-3238b1343306",
+      "name": "GIANTS STORE BALLPARK TOKYO",
+      "district": "Tokyo Dome / Korakuen",
+      "city": "Tokyo",
+      "category": "Shopping / Baseball",
+      "address": "Tokyo Dome 22 Gate Area, 1-3-61 Koraku, Bunkyo-ku, Tokyo 112-0004, Japan",
+      "notes": "Giants merchandise; BASEBALL SHOPPING — look for Giants/baseball merchandise and souvenirs around the 3 Oct game.",
+      "sourceUrl": "https://www.giants.jp/",
+      "sourceRow": 182,
+      "aliases": [
+        "GIANTS STORE BALLPARK TOKYO"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-7b5bda0a619e",
+      "name": "Tokyo Dome",
+      "district": "Tokyo Dome / Korakuen",
+      "city": "Tokyo",
+      "category": "Stadium / Baseball",
+      "address": "1-3-61 Koraku, Bunkyo-ku, Tokyo 112-0004, Japan",
+      "notes": "Giants game 3 Oct",
+      "sourceUrl": "https://www.tokyo-dome.co.jp/en/dome/access/",
+      "sourceRow": 183,
+      "aliases": [
+        "Tokyo Dome"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        63
+      ],
+      "tripDays": [
+        "2026-10-03"
+      ],
+      "japanese": "東京ドーム"
+    },
+    {
+      "id": "map-96696fb16f2a",
+      "name": "Tokyo Dome City",
+      "district": "Tokyo Dome / Korakuen",
+      "city": "Tokyo",
+      "category": "Entertainment / Shopping",
+      "address": "1-3-61 Koraku, Bunkyo-ku, Tokyo 112-0004, Japan",
+      "notes": "Game day area",
+      "sourceUrl": "https://www.tokyo-dome.co.jp/en/",
+      "sourceRow": 184,
+      "aliases": [
+        "Tokyo Dome City"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "東京ドームシティ"
+    },
+    {
+      "id": "map-89700559e485",
+      "name": "CRISP SALAD WORKS Toranomon Hills Business Tower",
+      "district": "Toranomon",
+      "city": "Tokyo",
+      "category": "Food / Salad / Healthy",
+      "address": "Toranomon Hills Business Tower B1F, 1-17-1 Toranomon, Minato-ku, Tokyo 105-6490, Japan",
+      "notes": "TIPS SHEET — easy healthy-meal option near the first Tokyo hotel / Toranomon area.",
+      "sourceUrl": "https://crisp.co.jp/location",
+      "sourceRow": 185,
+      "aliases": [
+        "CRISP SALAD WORKS Toranomon Hills Business Tower"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-e300c832b77b",
+      "name": "MATCHA CAFE MARUNI",
+      "district": "Tsukiji",
+      "city": "Tokyo",
+      "category": "Matcha / Cafe",
+      "address": "SOLASIA Building 3F, 4-13-8 Tsukiji, Chuo-ku, Tokyo, Japan",
+      "notes": "Confirmed; sister cafe opened Feb 2026; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://matchastandmaruni.com/pages/store",
+      "sourceRow": 186,
+      "aliases": [
+        "MATCHA CAFE MARUNI"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-5de7be8d1209",
+      "name": "MATCHA STAND MARUNI Tokyo Tsukiji",
+      "district": "Tsukiji",
+      "city": "Tokyo",
+      "category": "Matcha / Cafe / Shopping",
+      "address": "4-14-18 Tsukiji, Chuo-ku, Tokyo 104-0045, Japan",
+      "notes": "Confirmed 2026; original Tsukiji matcha stand; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://matchastandmaruni.com/pages/store",
+      "sourceRow": 187,
+      "aliases": [
+        "MATCHA STAND MARUNI Tokyo Tsukiji"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-3c3bf3d7b906",
+      "name": "Bear Paw Cafe (Kuma no Te Cafe)",
+      "district": "Uehonmachi",
+      "city": "Osaka",
+      "category": "Cafe / Novelty Experience",
+      "address": "5-3-11 Uehonmachinishi, Chuo-ku, Osaka 542-0062, Japan",
+      "notes": "NOVELTY CAFE — drinks, matcha and parfaits are handed through the wall by a fluffy bear paw. Save for the experience with the boys; also supports a low-stress work environment for people recovering from mental-health challenges.",
+      "sourceUrl": "https://www.kumanote-cafe.com/",
+      "sourceRow": 188,
+      "aliases": [
+        "Bear Paw Cafe (Kuma no Te Cafe)"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-55b6dca0e865",
+      "name": "Ameyoko Shopping Street",
+      "district": "Ueno",
+      "city": "Tokyo",
+      "category": "Market / Shopping",
+      "address": "6 Ueno, Taito-ku, Tokyo 110-0005, Japan",
+      "notes": "Planned 2 Oct option",
+      "sourceUrl": "https://www.ameyoko.net/",
+      "sourceRow": 189,
+      "aliases": [
+        "Ameyoko Shopping Street",
+        "Ameyoko Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        16
+      ],
+      "tripDays": [
+        "2026-10-02"
+      ],
+      "japanese": "アメ横商店街"
+    },
+    {
+      "id": "map-b7bcbf111723",
+      "name": "Matcha Lab. Ueno Marui",
+      "district": "Ueno",
+      "city": "Tokyo",
+      "category": "Matcha / Cafe / Dessert",
+      "address": "Ueno Marui 1F, 6-15-1 Ueno, Taito-ku, Tokyo 110-8502, Japan",
+      "notes": "Confirmed 2026; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://map.yahoo.co.jp/v3/place/GyRymGCkfaY",
+      "sourceRow": 190,
+      "aliases": [
+        "Matcha Lab. Ueno Marui"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-8738ecd4566c",
+      "name": "National Museum of Nature and Science",
+      "district": "Ueno",
+      "city": "Tokyo",
+      "category": "Museum / Entertainment",
+      "address": "7-20 Uenokoen, Taito-ku, Tokyo 110-8718, Japan",
+      "notes": "Planned 2 Oct option",
+      "sourceUrl": "https://www.kahaku.go.jp/english/",
+      "sourceRow": 191,
+      "aliases": [
+        "National Museum of Nature and Science",
+        "National Museum of Nature and Science Tokyo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        16
+      ],
+      "tripDays": [
+        "2026-10-02"
+      ],
+      "japanese": "国立科学博物館"
+    },
+    {
+      "id": "map-5bd5c9d8ad66",
+      "name": "Shinobazu Pond",
+      "district": "Ueno",
+      "city": "Tokyo",
+      "category": "Park / Landmark",
+      "address": "Uenokoen, Taito-ku, Tokyo 110-0007, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://www.kensetsu.metro.tokyo.lg.jp/jimusho/toubuk/ueno/en_index.html",
+      "sourceRow": 192,
+      "aliases": [
+        "Shinobazu Pond"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "不忍池"
+    },
+    {
+      "id": "map-306f5425795a",
+      "name": "Ueno Park",
+      "district": "Ueno",
+      "city": "Tokyo",
+      "category": "Park / Landmark",
+      "address": "Uenokoen, Taito-ku, Tokyo 110-0007, Japan",
+      "notes": "Planned 2 Oct option",
+      "sourceUrl": "https://www.kensetsu.metro.tokyo.lg.jp/jimusho/toubuk/ueno/en_index.html",
+      "sourceRow": 193,
+      "aliases": [
+        "Ueno Park"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "上野公園"
+    },
+    {
+      "id": "map-bbfd07469768",
+      "name": "Ueno Zoo",
+      "district": "Ueno",
+      "city": "Tokyo",
+      "category": "Zoo / Entertainment",
+      "address": "9-83 Uenokoen, Taito-ku, Tokyo 110-8711, Japan",
+      "notes": "Optional",
+      "sourceUrl": "https://www.tokyo-zoo.net/english/ueno/",
+      "sourceRow": 194,
+      "aliases": [
+        "Ueno Zoo"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "上野動物園"
+    },
+    {
+      "id": "map-ea4712643051",
+      "name": "Yanagi Chaya ecute Ueno",
+      "district": "Ueno",
+      "city": "Tokyo",
+      "category": "Cafe / Matcha / Japanese Sweets",
+      "address": "ecute Ueno 2F (outside JR gates), 7-1-1 Ueno, Taito-ku, Tokyo 110-0005, Japan",
+      "notes": "Confirmed 2026; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://shop.create-restaurants.co.jp/1206/en/",
+      "sourceRow": 195,
+      "aliases": [
+        "Yanagi Chaya ecute Ueno"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-001c6537153f",
+      "name": "American Diner ANDRA",
+      "district": "Ueno / Higashiueno",
+      "city": "Tokyo",
+      "category": "Restaurant / Diner / Burgers",
+      "address": "5-13-7 Higashiueno, Taito-ku, Tokyo 110-0015, Japan",
+      "notes": "Confirmed 2026",
+      "sourceUrl": "https://tabelog.com/en/tokyo/A1311/A131101/13264482/",
+      "sourceRow": 196,
+      "aliases": [
+        "American Diner ANDRA"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-0359f844a3ce",
+      "name": "Savor the Matcha",
+      "district": "Ueno Park",
+      "city": "Tokyo",
+      "category": "Matcha / Cafe",
+      "address": "16-25 Uenokoen, Taito-ku, Tokyo 110-0007, Japan",
+      "notes": "Confirmed 2026; MATCHA STOP — drinks/dessert; check retail matcha or tea to take home if sold.",
+      "sourceUrl": "https://tabelog.com/en/tokyo/A1311/A131101/13316294/",
+      "sourceRow": 197,
+      "aliases": [
+        "Savor the Matcha"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-8ccb7b0cd442",
+      "name": "Byodoin Omotesando",
+      "district": "Uji",
+      "city": "Kyoto",
+      "category": "Shopping Street / Tea District",
+      "address": "Byodoin Omotesando, Uji, Kyoto 611-0021, Japan",
+      "notes": "KYOTO/UJI CULTURAL + MATCHA STOP — tea-shopping street leading to Byodoin; save if Uji becomes viable.",
+      "sourceUrl": "https://www.kyoto-uji-kankou.or.jp/",
+      "sourceRow": 198,
+      "aliases": [
+        "Byodoin Omotesando"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "平等院表参道"
+    },
+    {
+      "id": "map-8589828bd690",
+      "name": "Byodoin Temple",
+      "district": "Uji",
+      "city": "Kyoto",
+      "category": "Historical / Temple",
+      "address": "116 Uji Renge, Uji, Kyoto 611-0021, Japan",
+      "notes": "KYOTO/UJI CULTURAL STOP — UNESCO temple and Phoenix Hall, featured on the ¥10 coin; optional if you make the Uji matcha side trip.",
+      "sourceUrl": "https://www.byodoin.or.jp/en/guide/access/",
+      "sourceRow": 199,
+      "aliases": [
+        "Byodoin Temple"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "平等院"
+    },
+    {
+      "id": "map-b576666ab8fe",
+      "name": "Marukyu Koyamaen Head Office Main Shop",
+      "district": "Uji",
+      "city": "Kyoto",
+      "category": "Matcha / Tea Shop",
+      "address": "86 Terauchi, Ogura-cho, Uji-shi, Kyoto 611-0042, Japan",
+      "notes": "Official direct-managed main shop; opening days are more limited than central Kyoto branches.; MATCHA BUYING — priority stop for take-home Marukyu Koyamaen tins/powder; check stock and purchase limits.",
+      "sourceUrl": "https://www.marukyu-koyamaen.co.jp/information/news-2801/",
+      "sourceRow": 200,
+      "aliases": [
+        "Marukyu Koyamaen Head Office Main Shop"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-5b81cfeb76e6",
+      "name": "Nakamura Tokichi Honten Byodoin Store",
+      "district": "Uji",
+      "city": "Kyoto",
+      "category": "Matcha / Cafe / Tea Shop",
+      "address": "5-1 Uji Renge, Uji-shi, Kyoto 611-0021, Japan",
+      "notes": "Uji/Byodoin branch; included as a realistic optional matcha detour.; MATCHA — drink/dessert where a cafe is available and browse take-home tea/matcha products.",
+      "sourceUrl": "https://global.tokichi.jp/pages/stores",
+      "sourceRow": 201,
+      "aliases": [
+        "Nakamura Tokichi Honten Byodoin Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-97c1198c05ca",
+      "name": "Nakamura Tokichi Honten Main Store",
+      "district": "Uji",
+      "city": "Kyoto",
+      "category": "Matcha / Cafe / Tea Shop",
+      "address": "10 Uji Ichiban, Uji-shi, Kyoto 611-0021, Japan",
+      "notes": "Uji main store; included because Uji is within the realistic Kyoto trip radius.; MATCHA — drink/dessert where a cafe is available and browse take-home tea/matcha products.",
+      "sourceUrl": "https://global.tokichi.jp/pages/stores",
+      "sourceRow": 202,
+      "aliases": [
+        "Nakamura Tokichi Honten Main Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-50a91f7bad9a",
+      "name": "Marukyu Koyamaen Makishima Factory Shop",
+      "district": "Uji / Makishima",
+      "city": "Kyoto",
+      "category": "Matcha / Tea Shop",
+      "address": "172-4 Nakagawara, Makishima-cho, Uji-shi, Kyoto, Japan",
+      "notes": "Official direct-managed factory shop; included because Uji is within the broader Kyoto area.; MATCHA BUYING — priority stop for take-home Marukyu Koyamaen tins/powder; check stock and purchase limits.",
+      "sourceUrl": "https://www.marukyu-koyamaen.co.jp/information/news-2801/",
+      "sourceRow": 203,
+      "aliases": [
+        "Marukyu Koyamaen Makishima Factory Shop"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-396811391a80",
+      "name": "CRISP SALAD WORKS KITTE Osaka",
+      "district": "Umeda / Osaka Station",
+      "city": "Osaka",
+      "category": "Food / Salad / Healthy",
+      "address": "KITTE Osaka B1F, 3-2-2 Umeda, Kita-ku, Osaka 530-0001, Japan",
+      "notes": "TIPS SHEET — healthy-meal backup near Osaka Station/Umeda.",
+      "sourceUrl": "https://crisp.co.jp/location",
+      "sourceRow": 204,
+      "aliases": [
+        "CRISP SALAD WORKS KITTE Osaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-b3cf3cd8e8b3",
+      "name": "Nakamura Tokichi Honten Osaka Store",
+      "district": "Umeda / Osaka Station",
+      "city": "Osaka",
+      "category": "Matcha / Tea Shop",
+      "address": "Hankyu Umeda Main Store B1F, 8-7 Kakudacho, Kita-ku, Osaka 530-8350, Japan",
+      "notes": "Tea-shop-only Osaka branch; no cafe at this location.; MATCHA — drink/dessert where a cafe is available and browse take-home tea/matcha products.",
+      "sourceUrl": "https://global.tokichi.jp/pages/osaka-store",
+      "sourceRow": 205,
+      "aliases": [
+        "Nakamura Tokichi Honten Osaka Store"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-b147c181021f",
+      "name": "Osaka Station",
+      "district": "Umeda / Osaka Station",
+      "city": "Osaka",
+      "category": "Transport / Landmark",
+      "address": "3-1-1 Umeda, Kita-ku, Osaka 530-0001, Japan",
+      "notes": "Transfer",
+      "sourceUrl": "https://www.jr-odekake.net/eki/top?id=0610130",
+      "sourceRow": 206,
+      "aliases": [
+        "Osaka Station"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        43
+      ],
+      "tripDays": [
+        "2026-09-28"
+      ],
+      "japanese": "大阪駅"
+    },
+    {
+      "id": "map-31202a3ed732",
+      "name": "Umeda TSUTAYA BOOKS",
+      "district": "Umeda / Osaka Station",
+      "city": "Osaka",
+      "category": "Shopping / Bookstore / Mirumi",
+      "address": "LUCUA 1100 9F, 3-1-3 Umeda, Kita-ku, Osaka 530-8558, Japan",
+      "notes": "Confirmed 2026 Mirumi official retailer; stock may fluctuate; MIRUMI HUNT — Boston wants grey; Lauren wants ivory. Check both colours; if unavailable, ask staff about other-branch or online stock.",
+      "sourceUrl": "https://mirumi.ux-xu.com/",
+      "sourceRow": 207,
+      "aliases": [
+        "Umeda TSUTAYA BOOKS"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": []
+    },
+    {
+      "id": "map-eba8a175a993",
+      "name": "Universal City Station",
+      "district": "Universal City",
+      "city": "Osaka",
+      "category": "Transport",
+      "address": "6-2 Shimaya, Konohana-ku, Osaka 554-0024, Japan",
+      "notes": "USJ transport",
+      "sourceUrl": "https://www.jr-odekake.net/",
+      "sourceRow": 208,
+      "aliases": [
+        "Universal City Station",
+        "Universal City Station Osaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        32
+      ],
+      "tripDays": [
+        "2026-09-25"
+      ],
+      "japanese": "ユニバーサルシティ駅"
+    },
+    {
+      "id": "map-fd94e4672b15",
+      "name": "Universal CityWalk Osaka",
+      "district": "Universal City",
+      "city": "Osaka",
+      "category": "Shopping / Dining",
+      "address": "6-2-61 Shimaya, Konohana-ku, Osaka 554-0024, Japan",
+      "notes": "USJ area",
+      "sourceUrl": "https://ucw.jp/",
+      "sourceRow": 209,
+      "aliases": [
+        "Universal CityWalk Osaka"
+      ],
+      "referenceOnly": false,
+      "guidePages": [],
+      "tripDays": [],
+      "japanese": "ユニバーサル・シティウォーク大阪"
+    },
+    {
+      "id": "map-1bbb9883c438",
+      "name": "Universal Studios Japan",
+      "district": "Universal City",
+      "city": "Osaka",
+      "category": "Theme Park / Entertainment",
+      "address": "2-1-33 Sakurajima, Konohana-ku, Osaka 554-0031, Japan",
+      "notes": "Booked 25 Sep",
+      "sourceUrl": "https://www.usj.co.jp/web/en/us",
+      "sourceRow": 210,
+      "aliases": [
+        "Universal Studios Japan"
+      ],
+      "referenceOnly": false,
+      "guidePages": [
+        33,
+        34,
+        35
+      ],
+      "tripDays": [
+        "2026-09-25"
+      ],
+      "japanese": "ユニバーサル・スタジオ・ジャパン"
+    }
+  ]
+}
