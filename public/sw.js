@@ -1,6 +1,8 @@
 const SHELL='japan-shell-v1',PRIVATE='japan-private-v1';
 const PRELOAD = /* BUILD_ASSETS */ ['/','/favicon-32.png','/icon-180.png','/icon-192.png','/manifest.webmanifest','/cover.jpg'];
-self.addEventListener('install',event=>{event.waitUntil(caches.open(SHELL).then(c=>c.addAll(PRELOAD)));});
+// Take over as soon as a new build is installed. Without this a new version sits waiting
+// until every copy of the app is closed, which on a Home Screen app can be days.
+self.addEventListener('install',event=>{event.waitUntil(caches.open(SHELL).then(c=>c.addAll(PRELOAD)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',event=>{event.waitUntil(self.clients.claim());});
 self.addEventListener('fetch',event=>{
  const u=new URL(event.request.url);if(event.request.method!=='GET'||u.origin!==self.location.origin)return;
