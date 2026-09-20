@@ -774,3 +774,37 @@ test('every ticket gets a thumbnail: its own photo, an attached one, or a labell
  assert.equal(documentThumbnail(photo),photo);
  assert.equal(documentThumbnail(note),null);
 });
+
+test('the yen converter works from a shared rate, set by a parent',async()=>{
+ const {ensureFeatures,yenPerAud,rateIsSet,yenToAud,audToYen,DEFAULT_YEN_PER_AUD}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const nate={name:'Nate',role:'child'};
+ // Until someone sets it, an estimate is used and the app can tell that nobody has.
+ assert.equal(yenPerAud(state),DEFAULT_YEN_PER_AUD);
+ assert.equal(rateIsSet(state),false);
+ // Conversion both ways, rounded the way money is read.
+ assert.equal(yenToAud(1000,100),10);
+ assert.equal(yenToAud(1280,101.37),12.63);
+ assert.equal(audToYen(50,98),4900);
+ assert.equal(audToYen(12.63,101.37),1280);
+ // A parent sets it; everyone then converts at the same number.
+ const set=applyOperation(state,{type:'exchangeRate',perAud:101.37,source:'live'},parent);
+ assert.equal(yenPerAud(set),101.37);
+ assert.equal(rateIsSet(set),true);
+ assert.equal(set.rates.by,'Damien');
+ assert.equal(set.rates.source,'live');
+ assert.ok(Date.parse(set.rates.at));
+ // Cents are kept: rounding the rate to a whole yen misreports every conversion.
+ assert.equal(applyOperation(state,{type:'exchangeRate',perAud:98.456},parent).rates.perAud,98.46);
+ assert.equal(applyOperation(state,{type:'exchangeRate',perAud:100},parent).rates.source,'manual');
+ // A rate nobody could have meant is refused, and a child cannot set one.
+ for(const bad of [0,0.5,1001,-20,NaN,'ninety','',null])
+  assert.throws(()=>applyOperation(state,{type:'exchangeRate',perAud:bad},parent),/how many yen/,String(bad));
+ assert.throws(()=>applyOperation(state,{type:'exchangeRate',perAud:100},nate),e=>e.status===403);
+ // A trip saved before this feature existed still converts.
+ const older=structuredClone(seed);delete older.rates;
+ assert.equal(yenPerAud(ensureFeatures(older)),DEFAULT_YEN_PER_AUD);
+ assert.equal(yenPerAud({}),DEFAULT_YEN_PER_AUD);
+ assert.equal(yenPerAud({rates:{perAud:0}}),DEFAULT_YEN_PER_AUD);
+ assert.equal(rateIsSet({rates:{perAud:100}}),false,'a rate with no timestamp is not "set"');
+});

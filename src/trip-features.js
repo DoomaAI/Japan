@@ -111,6 +111,14 @@ export function foodAverage(state,id){
 }
 export const FAVOURITE_AT=4;
 export const isFavourite=(state,id)=>{const avg=foodAverage(state,id);return avg!==null&&avg>=FAVOURITE_AT;};
+// Yen per 1 Australian dollar. Kept in the trip so everyone sees the same number, and set by
+// a parent rather than trusted to a third party — a shop with no signal still needs to convert.
+export const DEFAULT_YEN_PER_AUD=98;
+export const yenPerAud=state=>{const v=state.rates?.perAud;return Number.isFinite(v)&&v>0?v:DEFAULT_YEN_PER_AUD;};
+export const rateIsSet=state=>Number.isFinite(state.rates?.perAud)&&!!state.rates?.at;
+export const yenToAud=(yen,rate)=>Math.round((yen/rate)*100)/100;
+export const audToYen=(aud,rate)=>Math.round(aud*rate);
+export const asAud=n=>`$${yenToAud(n,1).toFixed(2)}`;
 export const MISSION_SEED=2;
 // Three missions a day for each boy, written around what that day actually holds.
 // Nate is 5, Boston is 8, so each day carries a junior and a senior set.
@@ -296,7 +304,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;

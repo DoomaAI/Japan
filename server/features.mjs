@@ -63,6 +63,10 @@ export function extraOperation(state,op,user,fail,now){
    if(!custom())fail('That is one of the built-in dishes and cannot be removed.',404);
    state.foodItems=state.foodItems.filter(i=>i.id!==op.id);
   }else fail('Unknown food action.');
+ }else if(op.type==='exchangeRate'){
+  if(!parent)fail('A parent can set the rate.',403);
+  if(!Number.isFinite(op.perAud)||op.perAud<1||op.perAud>1000)fail('Enter how many yen one Australian dollar buys.');
+  state.rates={perAud:Math.round(op.perAud*100)/100,at:now,by:user.name,source:op.source==='live'?'live':'manual'};
  }else if(op.type==='parkRide'){
   const ride=findRide(op.rideId);if(!ride)fail('Unknown ride.',404);
   if(!state.members.includes(op.person))fail('Choose a family member.');
