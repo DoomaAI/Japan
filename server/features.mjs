@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,THANK_YOU_FROM,THANK_YOU_TO} from '../src/trip-features.js';
+import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO} from '../src/trip-features.js';
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
 export function extraOperation(state,op,user,fail,now){
  const parent=user.role==='parent',dayOK=day=>day===null||state.days.some(d=>d.date===day);
@@ -28,6 +28,17 @@ export function extraOperation(state,op,user,fail,now){
   const next=nextExtraMission(state,op.day,op.person);if(!next)fail('No more missions are available.',404);
   const [title,notes,icon='']=next;
   state.challenges.push({id:randomUUID(),title,notes,icon,diagram:'',day:op.day,participants:[op.person],completions:{},responses:{},skips:{},generated:true,createdBy:user.name,createdAt:now});
+ }else if(op.type==='eyeSpy'){
+  const leg=state.steps.find(s=>s.id===op.stepId);
+  if(!leg||!isTrainLeg(leg))fail('That is not a train leg.',404);
+  if(!EYE_SPY.some(i=>i.id===op.item))fail('Unknown thing to spot.',404);
+  if(!BOYS.includes(op.person)||(!parent&&op.person!==user.name))fail('Tick only your own list.',403);
+  if(typeof op.done!=='boolean')fail('Invalid spot.');
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid spot time.');at=new Date(op.at).toISOString();}
+  const key=eyeSpyKey(op.stepId,op.item),found={...(state.eyeSpy[key]||{})};
+  if(op.done)found[op.person]=found[op.person]||at;else delete found[op.person];
+  state.eyeSpy={...state.eyeSpy,[key]:found};
+  if(!Object.keys(found).length)delete state.eyeSpy[key];
  }else if(op.type==='challengeRemove'){
   state.challenges=state.challenges.filter(c=>c.id!==op.id);
  }else if(op.type==='challengeStatus'){

@@ -26,7 +26,7 @@ export function ticketParent(id,state){
  return doc;
 }
 export function validatePatch(p,state){
- const allowed=['title','notes','place','japanese','time','duration','kind','day','page','group','option','participants','order','review','bookingTime','bookingReference','locked','website','travelMinutes','arrivalBuffer','locationId'];
+ const allowed=['title','notes','place','japanese','time','duration','kind','day','page','group','option','participants','order','review','bookingTime','bookingReference','locked','website','travelMinutes','arrivalBuffer','locationId','phone'];
  if(!p || typeof p!=='object' || Array.isArray(p))throw new AppError('Invalid change.');
  for(const [k,v] of Object.entries(p)){
   if(!allowed.includes(k))throw new AppError('Unsupported field.');
@@ -37,6 +37,7 @@ export function validatePatch(p,state){
   if(k==='day'&&v!==null&&!state.days.some(d=>d.date===v))throw new AppError('Choose a trip day.');
   if(k==='locationId'&&v!==null&&!(state.locations||[]).some(l=>l.id===v))throw new AppError('Choose a location from the map list.');
   if(k==='website'&&(v!==''&&(!text(v,2000)||!safeLink(v))))throw new AppError('Use an HTTPS website link.');
+  if(k==='phone'&&(!text(v,40)||(v!==''&&!/^\+?[\d\s().-]{5,}$/.test(v))))throw new AppError('Use a phone number, ideally with its country code.');
   if(['travelMinutes','arrivalBuffer'].includes(k)&&(!Number.isInteger(v)||v<0||v>360))throw new AppError('Travel and arrival buffers must be 0–360 minutes.');
   if(k==='duration'&&(!Number.isInteger(v)||v<0||v>1440))throw new AppError('Duration must be 0–1440 minutes.');
   if(k==='page'&&(!Number.isInteger(v)||v<1||v>72))throw new AppError('Choose a guide page from 1 to 72.');
@@ -53,7 +54,7 @@ export function applyOperation(input,op,user){
  const state=ensureFeatures(structuredClone(input)),now=new Date().toISOString();
  const parent=user.role==='parent';
  const step=state.steps.find(s=>s.id===op.id);
- if(!parent && !['status','challengeStatus','challengeSkip','challengeNew','shoppingAdd','shoppingStatus','acknowledge'].includes(op.type))throw new AppError('A parent can make this change.',403);
+ if(!parent && !['status','challengeStatus','challengeSkip','challengeNew','eyeSpy','shoppingAdd','shoppingStatus','acknowledge'].includes(op.type))throw new AppError('A parent can make this change.',403);
  if(['status','patch','lock','remove','backlog','schedule'].includes(op.type)&&!step)throw new AppError('Activity not found.',404);
  const before=step?structuredClone(step):null;
  const extra=extraOperation(state,op,user,(message,status=400)=>{throw new AppError(message,status);},now);

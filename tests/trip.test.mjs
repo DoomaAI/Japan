@@ -440,3 +440,73 @@ test('asking for a different mission draws a fresh one, up to a daily limit',asy
  assert.throws(()=>applyOperation(state,{type:'challengeNew',day,person:'Damien'},parent),e=>e.status===403);
  assert.throws(()=>applyOperation(state,{type:'challengeNew',day:'2099-01-01',person:'Nate'},parent),/trip day/);
 });
+
+test('a phone number becomes a dialable link, and a WhatsApp link when the country is known',async()=>{
+ const {phoneLinks}=await import('../src/trip-features.js');
+ // Written the Japanese way: the leading 0 is replaced by +81.
+ const local=phoneLinks('03-1234-5678');
+ assert.equal(local.tel,'tel:+81312345678');
+ assert.equal(local.whatsapp,'https://wa.me/81312345678');
+ assert.equal(local.international,'+81312345678');
+ assert.equal(local.assumed,true);
+ assert.equal(local.written,'03-1234-5678');
+ // Written with a country code: taken as given, and never flagged as assumed.
+ for(const written of ['+81 3 1234 5678','0081 3 1234 5678','+81(3)1234-5678']){
+  const given=phoneLinks(written);
+  assert.equal(given.whatsapp,'https://wa.me/81312345678',written);
+  assert.equal(given.assumed,false,written);
+ }
+ // An Australian number written without its code is the case the flag exists for.
+ const au=phoneLinks('0412 345 678');
+ assert.equal(au.assumed,true);
+ assert.equal(phoneLinks('+61 412 345 678').assumed,false);
+ assert.equal(phoneLinks('+61 412 345 678').whatsapp,'https://wa.me/61412345678');
+ // Too short to be an international number: still dialable, but no WhatsApp link offered.
+ assert.equal(phoneLinks('12345').whatsapp,null);
+ assert.equal(phoneLinks('12345').tel,'tel:12345');
+ for(const empty of ['','   ','no digits here',null,undefined])assert.equal(phoneLinks(empty),null,String(empty));
+ // The activity editor stores it, and the server rejects anything that is not a number.
+ const s=structuredClone(seed),id=s.steps[0].id;
+ assert.equal(applyOperation(s,{type:'patch',id,patch:{phone:'+81 3 1234 5678'}},parent).steps[0].phone,'+81 3 1234 5678');
+ assert.equal(applyOperation(s,{type:'patch',id,patch:{phone:''}},parent).steps[0].phone,'');
+ for(const bad of ['call me maybe','<script>',123])assert.throws(()=>applyOperation(s,{type:'patch',id,patch:{phone:bad}},parent),/phone number|too long/i,String(bad));
+});
+
+test('I spy runs on the Shinkansen legs, per boy, and points Fuji the right way',async()=>{
+ const {ensureFeatures,pendingProgress,EYE_SPY,isTrainLeg,trainLegs,fujiSide,eyeSpySpotted,eyeSpyHint}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const nate={name:'Nate',role:'child'},boston={name:'Boston',role:'child'};
+ const legs=trainLegs(state);
+ assert.equal(legs.length,2);
+ assert.deepEqual(legs.map(l=>l.title),['Nozomi 33 to Kyoto','Nozomi 250 to Tokyo']);
+ assert.ok(!isTrainLeg(state.steps.find(s=>s.title==='Taxi to Tokyo Station')));
+ assert.ok(!isTrainLeg(null)&&!isTrainLeg(undefined));
+ // Fuji is south of the line: right heading west, left coming back.
+ assert.equal(fujiSide(legs[0]),'right');
+ assert.equal(fujiSide(legs[1]),'left');
+ assert.match(eyeSpyHint(EYE_SPY[0],legs[1]),/on the left/);
+ assert.match(eyeSpyHint(EYE_SPY[0],legs[0]),/out of Tokyo/);
+ assert.match(eyeSpyHint(EYE_SPY[0],legs[1]),/before we reach Tokyo/);
+ for(const leg of legs)for(const item of EYE_SPY)assert.doesNotMatch(eyeSpyHint(item,leg),/\{/,item.id);
+ assert.equal(new Set(EYE_SPY.map(i=>i.id)).size,EYE_SPY.length);
+ for(const item of EYE_SPY){assert.ok(item.icon&&item.title);assert.equal(typeof item.hint,'string');}
+
+ const leg=legs[0].id,at='2026-09-19T03:00:00.000Z';
+ const spotted=applyOperation(state,{type:'eyeSpy',stepId:leg,item:'fuji',person:'Nate',done:true,at},nate);
+ assert.deepEqual(eyeSpySpotted(spotted,leg,'Nate').map(i=>i.id),['fuji']);
+ // Each boy keeps his own list, on each leg separately.
+ assert.equal(eyeSpySpotted(spotted,leg,'Boston').length,0);
+ assert.equal(eyeSpySpotted(spotted,legs[1].id,'Nate').length,0);
+ assert.equal(eyeSpySpotted(applyOperation(spotted,{type:'eyeSpy',stepId:leg,item:'fuji',person:'Nate',done:false},nate),leg,'Nate').length,0);
+ // Only your own list; a parent may tick for either boy.
+ assert.throws(()=>applyOperation(state,{type:'eyeSpy',stepId:leg,item:'fuji',person:'Boston',done:true},nate),e=>e.status===403);
+ assert.ok(applyOperation(state,{type:'eyeSpy',stepId:leg,item:'fuji',person:'Boston',done:true},parent));
+ // Only real legs and real things to spot.
+ assert.throws(()=>applyOperation(state,{type:'eyeSpy',stepId:state.steps[0].id,item:'fuji',person:'Nate',done:true},nate),/train leg/);
+ assert.throws(()=>applyOperation(state,{type:'eyeSpy',stepId:leg,item:'dragon',person:'Nate',done:true},nate),/Unknown thing/);
+ assert.throws(()=>applyOperation(state,{type:'eyeSpy',stepId:leg,item:'fuji',person:'Damien',done:true},parent),e=>e.status===403);
+ // A tunnel has no signal, so ticks queue on the phone and show straight away.
+ const pending=pendingProgress(state,[{operation:{type:'eyeSpy',stepId:leg,item:'tunnel',person:'Nate',done:true,at}}]);
+ assert.deepEqual(eyeSpySpotted(pending,leg,'Nate').map(i=>i.id),['tunnel']);
+ assert.equal(eyeSpySpotted(state,leg,'Nate').length,0);
+});

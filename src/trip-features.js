@@ -42,6 +42,51 @@ export function noteReadState(day,seen,today){
  return {read:true,when,readDay,late:readDay!==day,pending:null};
 }
 export const thankYouSpares=state=>{const scheduled=new Set(thankYouSchedule(state).map(e=>e.message?.id));return thankYouNotes(state).filter(m=>!scheduled.has(m.id));};
+// A phone number as written, turned into something to tap. Japanese numbers are normally
+// written with a leading 0, which has to be dropped once +81 is added — so a number with no
+// country code is read as a Japanese one, and the app says so rather than dialling silently.
+export function phoneLinks(raw,defaultCountry='81'){
+ const written=String(raw||'').trim();
+ if(!written||!/\d/.test(written))return null;
+ const compact=written.replace(/[^\d+]/g,'');
+ let international=null,assumed=false;
+ if(compact.startsWith('+'))international=compact.slice(1).replace(/\D/g,'');
+ else if(compact.startsWith('00'))international=compact.slice(2).replace(/\D/g,'');
+ else if(compact.startsWith('0')){international=defaultCountry+compact.replace(/\D/g,'').slice(1);assumed=true;}
+ const dialable=international?`+${international}`:compact.replace(/\D/g,'');
+ return {written,tel:`tel:${dialable}`,dialable,international:international?`+${international}`:null,assumed,
+  whatsapp:international&&international.length>=8&&international.length<=15?`https://wa.me/${international}`:null};
+}
+// A long window seat deserves something to do. Shown on the Shinkansen legs.
+export const EYE_SPY=[
+ {id:'fuji',icon:'🗻',title:'Mount Fuji',hint:'{when}, if the sky is clear. Watch the windows on the {side}.'},
+ {id:'passing',icon:'🚅',title:'A Shinkansen going the other way',hint:'Gone in a blink. Listen for the bang as it passes.'},
+ {id:'tunnel',icon:'🚇',title:'A tunnel',hint:'Your ears might pop. Count how many you go through.'},
+ {id:'paddies',icon:'🌾',title:'Rice fields in neat squares',hint:'Flat, green and fitted together like tiles.'},
+ {id:'mountains',icon:'🏔️',title:'Mountains with their tops in cloud',hint:''},
+ {id:'sea',icon:'🌊',title:'The sea',hint:'It appears and disappears. Be quick.'},
+ {id:'river',icon:'🌉',title:'A long bridge over a river',hint:'Wide, pale and stony underneath.'},
+ {id:'nets',icon:'⛳',title:'Tall green nets around a golf range',hint:'Huge nets on poles, right beside the track.'},
+ {id:'factory',icon:'🏭',title:'A factory with tall chimneys',hint:''},
+ {id:'torii',icon:'⛩️',title:'A shrine gate out of the window',hint:'Look for the orange gate shape.'},
+ {id:'roofs',icon:'🏘️',title:'Houses with blue or grey tiled roofs',hint:'They shine when the sun catches them.'},
+ {id:'jam',icon:'🚗',title:'Cars stuck in a traffic jam below',hint:'We will go straight past them.'},
+ {id:'whitecars',icon:'🅿️',title:'A car park where nearly every car is white',hint:''},
+ {id:'trolley',icon:'🛒',title:'The snack trolley coming down the aisle',hint:''},
+ {id:'bow',icon:'🧹',title:'The cleaning team bowing on the platform',hint:'They bow to the train before and after they clean it.'},
+ {id:'asleep',icon:'💤',title:'Someone fast asleep',hint:'Very common. Be kind about it.'}
+];
+export const isTrainLeg=step=>/nozomi|shinkansen/i.test(step?.title||'');
+export const trainLegs=state=>state.steps.filter(isTrainLeg);
+export const eyeSpyKey=(stepId,itemId)=>`${stepId}|${itemId}`;
+export const eyeSpySpotted=(state,stepId,person)=>EYE_SPY.filter(item=>state.eyeSpy?.[eyeSpyKey(stepId,item.id)]?.[person]);
+// Fuji sits south of the line, so it is on the right heading west and the left heading back —
+// and it passes about 40 minutes from the Tokyo end of the journey, whichever way you travel.
+export const towardsTokyo=step=>/tokyo/i.test(step?.title||'');
+export const fujiSide=step=>towardsTokyo(step)?'left':'right';
+export const eyeSpyHint=(item,step)=>item.hint
+ .replace('{side}',fujiSide(step))
+ .replace('{when}',towardsTokyo(step)?'About 40 minutes before we reach Tokyo':'About 40 minutes out of Tokyo');
 export const MISSION_SEED=2;
 // Three missions a day for each boy, written around what that day actually holds.
 // Nate is 5, Boston is 8, so each day carries a junior and a senior set.
@@ -227,7 +272,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -294,6 +339,7 @@ export function pendingProgress(state,queue){
  const next=ensureFeatures(structuredClone(state));
  for(const {operation:o}of queue){
   if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=true;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;}}}
+  if(o.type==='eyeSpy'){const key=eyeSpyKey(o.stepId,o.item),found={...(next.eyeSpy[key]||{})};if(o.done)found[o.person]=found[o.person]||o.at;else delete found[o.person];next.eyeSpy={...next.eyeSpy,[key]:found};}
   if(o.type==='challengeSkip'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.skips={...(c.skips||{})};if(o.done){c.skips[o.person]=c.skips[o.person]||o.at;delete c.completions[o.person];}else delete c.skips[o.person];}}
   if(o.type==='challengeStatus'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.completions={...c.completions};if(o.done)c.completions[o.person]=c.completions[o.person]||o.at;else delete c.completions[o.person];if(o.response!==undefined)c.responses={...(c.responses||{}),[o.person]:o.response};}}
  }
