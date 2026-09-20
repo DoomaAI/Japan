@@ -672,3 +672,72 @@ test('a parent can add dishes the family likes, but not delete the built-in ones
  assert.throws(()=>applyOperation(added,{type:'foodRemove',id:ours.id},nate),e=>e.status===403);
  assert.throws(()=>applyOperation(state,{type:'foodNonsense'},parent),/Unknown food action/);
 });
+
+test('the menu reader sends a well-formed vision request and reads the answer back',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ let seen=null;
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen={path:req.url,headers:req.headers,json:JSON.parse(body)};
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'msg_1',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'end_turn',
+    usage:{input_tokens:1500,output_tokens:400},
+    content:[{type:'text',text:JSON.stringify({readable:true,place:'Maisen',note:'Order the rice separately for Nate.',
+     suggestions:[{ja:'ロースかつ膳',en:'Pork loin katsu set',why:'The dish this place is known for.',forWhom:['Damien','Lauren','Boston'],matchesOurList:'tonkatsu',spicy:false,price:'¥2,100'},
+                  {ja:'白ごはん',en:'Plain rice',why:'Nate will always eat this.',forWhom:['Nate'],matchesOurList:'gohan',spicy:false,price:''}],
+     avoid:[{en:'Karashi mustard',why:'Very sharp for a child.'}]})}]}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {readMenu,menuReaderReady}=await import('../server/menu.mjs');
+  assert.equal(menuReaderReady(),true);
+  let state=ensureFeatures(structuredClone(seed));
+  state=applyOperation(state,{type:'foodRating',itemId:'tonkatsu',person:'Boston',rating:5},parent);
+  const pixel='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const answer=await readMenu({image:`data:image/png;base64,${pixel}`,mediaType:'image/png'},state);
+
+  // The request the SDK actually put on the wire.
+  assert.equal(seen.path,'/v1/messages');
+  assert.equal(seen.json.model,'claude-opus-5');
+  assert.equal(seen.json.max_tokens,8000);
+  assert.deepEqual(seen.json.thinking,{type:'adaptive'});
+  assert.equal(seen.json.output_config.effort,'medium');
+  assert.equal(seen.json.output_config.format.type,'json_schema');
+  assert.equal(seen.json.output_config.format.schema.additionalProperties,false);
+  assert.deepEqual(seen.json.output_config.format.schema.required,['readable','place','suggestions','avoid','note']);
+  const [image,text]=seen.json.messages[0].content;
+  assert.equal(image.type,'image');
+  assert.equal(image.source.media_type,'image/png');
+  assert.equal(image.source.data,pixel,'the data: prefix must be stripped before sending');
+  // The prompt carries this family's own tastes, not a generic one.
+  assert.match(seen.json.system,/Nate is five/);
+  assert.match(text.text,/Loved \(4\+\): tonkatsu .*Boston 5\/5/);
+  assert.match(text.text,/Still want to try:.*gohan=Plain white rice/);
+
+  // And the answer comes back in the shape the screen expects.
+  assert.equal(answer.readable,true);
+  assert.equal(answer.place,'Maisen');
+  assert.equal(answer.suggestions.length,2);
+  assert.equal(answer.suggestions[0].matchesOurList,'tonkatsu');
+  assert.equal(answer.suggestions[1].forWhom[0],'Nate');
+  assert.deepEqual(answer.usage,{input:1500,output:400});
+
+  // Input guards, before anything is sent anywhere.
+  for(const [input,pattern] of [
+   [{image:'',mediaType:'image/png'},/Take or choose a photo/],
+   [{image:'not base64!!',mediaType:'image/png'},/could not be read/],
+   [{image:pixel,mediaType:'image/gif'},/JPEG, PNG or WebP/],
+   [{image:'A'.repeat(3_000_001),mediaType:'image/png'},/too large/]
+  ])await assert.rejects(()=>readMenu(input,state),pattern,JSON.stringify(input).slice(0,40));
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+});

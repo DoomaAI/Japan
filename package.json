@@ -11,6 +11,7 @@
     "create-owner": "node --env-file=.env.local scripts/create-owner-link.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
     "@neondatabase/serverless": "^1.0.2",
     "@vercel/blob": "^2.3.0",
     "lucide-react": "^0.468.0",
