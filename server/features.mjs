@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {BOYS,delayForDay} from '../src/trip-features.js';
+import {BOYS,delayForDay,initialThankYou,THANK_YOU_FROM,THANK_YOU_TO} from '../src/trip-features.js';
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
 export function extraOperation(state,op,user,fail,now){
  const parent=user.role==='parent',dayOK=day=>day===null||state.days.some(d=>d.date===day);
@@ -46,6 +46,34 @@ export function extraOperation(state,op,user,fail,now){
   const alert=state.alerts.find(a=>a.id===op.id);if(!alert)fail('Update not found.',404);alert.seenBy={...(alert.seenBy||{}),[user.name]:now};
  }else if(op.type==='journal'){
   dayCheck(op.day);if(!op.day)fail('Choose a day.');requireText(op.notes,8000,'diary notes');state.journal[op.day]=op.notes;
+ }else if(typeof op.type==='string'&&op.type.startsWith('thankYou')){
+  // Private notes from Damien to Lauren. Only Damien writes them; only Lauren marks one read.
+  if(!Array.isArray(state.thankYou?.messages))state.thankYou={seen:{},...state.thankYou,messages:initialThankYou()};
+  const notes=state.thankYou.messages;
+  if(op.type==='thankYouSeen'){
+   if(user.name!==THANK_YOU_TO)fail('These notes are for Lauren.',403);
+   if(!op.day||!state.days.some(d=>d.date===op.day))fail('Choose a trip day.');
+   state.thankYou.seen={...state.thankYou.seen,[op.day]:now};
+  }else{
+   if(user.name!==THANK_YOU_FROM)fail('Only Damien can change these notes.',403);
+   if(op.type==='thankYouAdd'||op.type==='thankYouEdit'){
+    const value=(op.text||'').trim(),day=op.day??null;
+    if(!string(value,1200)||!value)fail('Write a note of 1–1200 characters.');
+    if(day!==null){
+     if(!state.days.some(d=>d.date===day))fail('Choose a trip day.');
+     if(notes.some(m=>m.day===day&&m.id!==op.id))fail('That day already has a note pinned to it. Free the other note first.');
+    }
+    if(op.type==='thankYouAdd')notes.push({id:randomUUID(),text:value,day,order:Math.max(0,...notes.map(m=>m.order))+10});
+    else{const note=notes.find(m=>m.id===op.id);if(!note)fail('Note not found.',404);Object.assign(note,{text:value,day});}
+   }else if(op.type==='thankYouRemove'){
+    if(!notes.some(m=>m.id===op.id))fail('Note not found.',404);
+    state.thankYou.messages=notes.filter(m=>m.id!==op.id);
+   }else if(op.type==='thankYouReorder'){
+    if(!Array.isArray(op.ids)||op.ids.length!==notes.length||new Set(op.ids).size!==notes.length||op.ids.some(id=>!notes.some(m=>m.id===id)))fail('The notes changed. Reload before reordering them.');
+    const slots=notes.map(m=>m.order).sort((a,b)=>a-b);op.ids.forEach((id,i)=>{notes.find(m=>m.id===id).order=slots[i];});
+   }else fail('Unknown note action.');
+  }
+  return {summary:null,important:false,private:true};
  }else if(op.type==='runningLate'){
   dayCheck(op.day);if(!op.day||!Number.isInteger(op.delay)||op.delay<1||op.delay>240)fail('Enter a delay of 1–240 minutes.');
   const plan=delayForDay(state,op.day,op.delay);

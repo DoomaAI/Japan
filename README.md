@@ -123,6 +123,7 @@ Source docs: [Google Maps URLs](https://developers.google.com/maps/documentation
 - **Diary:** completed steps, actual times, challenge discoveries, family reflections and associated media form a daily diary. Export selected day or whole trip as HTML, embedding available JPEG/PNG/WebP photos. Video and HEIC originals remain authenticated links; missing photos are explicitly reported. Exported diaries contain family content and should be shared intentionally.
 - **Boys' missions:** Boston is **8**, Nate is **5**. Each has 16 day-specific missions and six whole-trip quests, with separate completion timestamps and discovery notes. Tasks are designed for curious, advanced children: maps, patterns, money, observation, design and reasoning. Parents can add/edit/remove missions, including tasks for both boys. Each child can update only his own challenge progress. Challenge completion and discovery notes can queue offline alongside activity completion.
 - **Shopping:** shared list with item, quantity, intended person, optional day, shop, HTTPS link, notes and total yen budget per item. Anyone in the family can add and mark bought/unbought; parent editors can change details or remove entries. Shopping edits currently require connectivity.
+- **Daily notes for Lauren:** a private thank-you note from Damien that pops up for Lauren once per trip day. See the section below.
 
 The bottom navigation is Home, Days, Missions, Shopping, Tickets and More. More links to Options, meeting card, diary, updates, search, map, original guide and help; gallery, quick capture and offline preparation also remain available. New main pages have `?tab=...&day=...` URLs, with item links for search destinations.
 
@@ -130,6 +131,26 @@ New state fields are initialized only when absent, preserving existing family ed
 
 Additional validation: 18 automated test groups passed, including age-correct mission assignment, child permissions, shopping, acknowledgements, delay/backlog handling, offline manifests, unified search and diary dates. All 10 added screen components also rendered successfully in a server-render smoke check. This is not a browser visual or physical iPhone pass. Test actual uploads, map display, offline storage and video playback after deployment.
 
+
+## Daily thank-you notes (Damien → Lauren)
+
+A private note from Damien appears as a pop-up for Lauren once on each day of the trip.
+
+**What each person sees**
+
+| | Pop-up | The note list | Schedule and read receipts |
+| --- | --- | --- | --- |
+| Damien | No | Yes — writes, amends, reorders, pins, removes | Yes |
+| Lauren | Yes, once per trip day | No | No |
+| Nate, Boston | No | No | No |
+
+**How the schedule works.** The notes are a single ordered list, seeded with 20 written suggestions. Each trip day takes the next note in list order, so reordering the list changes which day gets which note. A note can instead be pinned to a specific day; pinned notes always land on their day and the unpinned ones fill the days around them. A day accepts only one pinned note. With 20 notes and 16 trip days, the surplus sits at the bottom of the list as spares until Damien moves one up. Damien can amend any wording, add his own notes, or delete ones he does not want.
+
+**How Lauren sees it.** The note opens automatically the first time she opens the app on that day, in Japan time. Closing it records that she opened it and it does not reopen. A heart in the top bar reopens the day's note whenever she wants it, with a dot until she has read it. Dismissal is also recorded on the phone itself, so the note does not reappear if she is offline when she closes it.
+
+**Privacy.** This is enforced on the server, not only in the interface. `server/visibility.mjs` redacts the trip state at the response boundary: Damien receives the full list, Lauren receives only the text scheduled for the current Japan day, and Nate and Boston receive neither. The note text is never sent to a phone that is not meant to read it, so it is not in the cached offline snapshot or the itinerary backup download for those family members. The notes are also kept out of Family updates and the "Recent family changes" history, so no one sees that a note was written or read. Damien is the only person who can write or change a note; Lauren is the only person who can mark one read. Both rules are checked server-side by family-member name, not only by parent role.
+
+**Limitations.** The pop-up appears when the app is opened or refreshed — it is not a phone push notification, and nothing is sent if Lauren does not open the app that day. Marking a note read needs connectivity; offline, the phone remembers the dismissal and the read receipt is simply not recorded. Anyone holding Damien's parent invite link can read and edit the list, so treat that link as private.
 
 ## Imported map locations and guide directions
 

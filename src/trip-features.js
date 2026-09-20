@@ -1,5 +1,39 @@
 import {activeSteps,minutes,asClock,japanDate,japanClock} from './timing.js';
 export const BOYS=['Nate','Boston'];
+export const THANK_YOU_FROM='Damien',THANK_YOU_TO='Lauren';
+export function initialThankYou(){
+ return [
+ 'Thank you for saying yes to Japan. Sixteen days, four passports and a plan that only works because you hold it together.',
+ 'Thank you for the packing. Every charger, every jumper and every snack the boys will claim they are starving for by nine in the morning.',
+ 'Thank you for being the calm one at the station. You read the signs, I read the room, and somehow we still get on the right train.',
+ 'Thank you for letting the boys be loud in a quiet country, and for the way you steer them back without ever making them feel small.',
+ 'Thank you for the early mornings. I know you were awake long before the rest of us, working out how today was going to run.',
+ 'Thank you for choosing the small places. The best meal of this trip will be one you found down a side street.',
+ 'Thank you for the photos you take of us. You are in far too few of them, and I am going to fix that today.',
+ 'Thank you for your patience with my plans, and for never saying I told you so on the days you very much did.',
+ 'Thank you for carrying the things nobody sees. The bookings, the messages home, the worrying I get to skip.',
+ 'Thank you for the way you explain things to Nate. He is five and he is learning a whole country from you, one question at a time.',
+ 'Thank you for taking Boston seriously. He asks hard questions and you answer them properly. He will remember that longer than the rides.',
+ 'Thank you for letting today be slower. Not every day has to be a highlight, and you always know which ones should not be.',
+ 'Thank you for laughing at the parts that went wrong. Those are the stories we will actually tell when we get home.',
+ 'Thank you for being the person the boys look for first in a crowd. That is not an accident. You earned it.',
+ 'Thank you for making a hotel room feel like ours within ten minutes of walking in.',
+ 'Thank you for your company. You are still the person I most want to show a new place to.',
+ 'Thank you for the budget you quietly keep in your head so the rest of us get to simply enjoy it.',
+ 'Thank you for the grace at the end of a long day, when the other three Pasfields have run out of it entirely.',
+ 'Thank you for trying everything once. The boys are braver because they watch you go first.',
+ 'Thank you for this whole trip. Whatever we remember about Japan, the best part of it was going with you.'
+ ].map((text,i)=>({id:`thanks-${i+1}`,text,day:null,order:(i+1)*10}));
+}
+export const thankYouNotes=state=>[...(state.thankYou?.messages||[])].sort((a,b)=>(a.order-b.order)||String(a.id).localeCompare(String(b.id)));
+export function thankYouSchedule(state){
+ const notes=thankYouNotes(state),pinned=new Map();
+ for(const m of notes)if(m.day&&state.days.some(d=>d.date===m.day)&&!pinned.has(m.day))pinned.set(m.day,m);
+ const pool=notes.filter(m=>!m.day);let next=0;
+ return state.days.map(d=>({day:d.date,message:pinned.get(d.date)||pool[next++]||null}));
+}
+export const thankYouForDay=(state,day)=>thankYouSchedule(state).find(entry=>entry.day===day)?.message||null;
+export const thankYouSpares=state=>{const scheduled=new Set(thankYouSchedule(state).map(e=>e.message?.id));return thankYouNotes(state).filter(m=>!scheduled.has(m.id));};
 export function initialChallenges(days){
  const junior=[
  ['Airport code detective','Find HND or another airport code on a sign. Match it to a boarding pass with a parent. Stretch: what might the letters stand for?'],
@@ -44,7 +78,7 @@ export function initialChallenges(days){
  return [...days.flatMap((d,i)=>BOYS.map(person=>{const mission=(person==='Nate'?junior:senior)[i%junior.length];return {id:`mission-${d.date}-${person}`,title:mission[0],notes:mission[1],day:d.date,participants:[person],completions:{},responses:{}};})),...BOYS.flatMap(person=>overall[person].map(([title,notes],i)=>({id:`quest-${person}-${i}`,title,notes,day:null,participants:[person],completions:{},responses:{}})))];
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),challenges:state.challenges??initialChallenges(state.days),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),challenges:state.challenges??initialChallenges(state.days),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
