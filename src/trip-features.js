@@ -33,52 +33,259 @@ export function thankYouSchedule(state){
  return state.days.map(d=>({day:d.date,message:pinned.get(d.date)||pool[next++]||null}));
 }
 export const thankYouForDay=(state,day)=>thankYouSchedule(state).find(entry=>entry.day===day)?.message||null;
+// Whether Lauren has opened a day's note, and when. A note opened after midnight in Japan
+// reports the date she actually read it, so a late read is not mistaken for one on the day.
+export function noteReadState(day,seen,today){
+ const at=seen?.[day];
+ if(!at)return {read:false,when:null,readDay:null,late:false,pending:day>today?'waiting':day===today?'today':'missed'};
+ const when=new Date(at),readDay=japanDate(when);
+ return {read:true,when,readDay,late:readDay!==day,pending:null};
+}
 export const thankYouSpares=state=>{const scheduled=new Set(thankYouSchedule(state).map(e=>e.message?.id));return thankYouNotes(state).filter(m=>!scheduled.has(m.id));};
+// A phone number as written, turned into something to tap. Japanese numbers are normally
+// written with a leading 0, which has to be dropped once +81 is added — so a number with no
+// country code is read as a Japanese one, and the app says so rather than dialling silently.
+export function phoneLinks(raw,defaultCountry='81'){
+ const written=String(raw||'').trim();
+ if(!written||!/\d/.test(written))return null;
+ const compact=written.replace(/[^\d+]/g,'');
+ let international=null,assumed=false;
+ if(compact.startsWith('+'))international=compact.slice(1).replace(/\D/g,'');
+ else if(compact.startsWith('00'))international=compact.slice(2).replace(/\D/g,'');
+ else if(compact.startsWith('0')){international=defaultCountry+compact.replace(/\D/g,'').slice(1);assumed=true;}
+ const dialable=international?`+${international}`:compact.replace(/\D/g,'');
+ return {written,tel:`tel:${dialable}`,dialable,international:international?`+${international}`:null,assumed,
+  whatsapp:international&&international.length>=8&&international.length<=15?`https://wa.me/${international}`:null};
+}
+// A long window seat deserves something to do. Shown on the Shinkansen legs.
+export const EYE_SPY=[
+ {id:'fuji',icon:'🗻',title:'Mount Fuji',hint:'{when}, if the sky is clear. Watch the windows on the {side}.'},
+ {id:'passing',icon:'🚅',title:'A Shinkansen going the other way',hint:'Gone in a blink. Listen for the bang as it passes.'},
+ {id:'tunnel',icon:'🚇',title:'A tunnel',hint:'Your ears might pop. Count how many you go through.'},
+ {id:'paddies',icon:'🌾',title:'Rice fields in neat squares',hint:'Flat, green and fitted together like tiles.'},
+ {id:'mountains',icon:'🏔️',title:'Mountains with their tops in cloud',hint:''},
+ {id:'sea',icon:'🌊',title:'The sea',hint:'It appears and disappears. Be quick.'},
+ {id:'river',icon:'🌉',title:'A long bridge over a river',hint:'Wide, pale and stony underneath.'},
+ {id:'nets',icon:'⛳',title:'Tall green nets around a golf range',hint:'Huge nets on poles, right beside the track.'},
+ {id:'factory',icon:'🏭',title:'A factory with tall chimneys',hint:''},
+ {id:'torii',icon:'⛩️',title:'A shrine gate out of the window',hint:'Look for the orange gate shape.'},
+ {id:'roofs',icon:'🏘️',title:'Houses with blue or grey tiled roofs',hint:'They shine when the sun catches them.'},
+ {id:'jam',icon:'🚗',title:'Cars stuck in a traffic jam below',hint:'We will go straight past them.'},
+ {id:'whitecars',icon:'🅿️',title:'A car park where nearly every car is white',hint:''},
+ {id:'trolley',icon:'🛒',title:'The snack trolley coming down the aisle',hint:''},
+ {id:'bow',icon:'🧹',title:'The cleaning team bowing on the platform',hint:'They bow to the train before and after they clean it.'},
+ {id:'asleep',icon:'💤',title:'Someone fast asleep',hint:'Very common. Be kind about it.'}
+];
+export const isTrainLeg=step=>/nozomi|shinkansen/i.test(step?.title||'');
+export const trainLegs=state=>state.steps.filter(isTrainLeg);
+export const eyeSpyKey=(stepId,itemId)=>`${stepId}|${itemId}`;
+export const eyeSpySpotted=(state,stepId,person)=>EYE_SPY.filter(item=>state.eyeSpy?.[eyeSpyKey(stepId,item.id)]?.[person]);
+// Fuji sits south of the line, so it is on the right heading west and the left heading back —
+// and it passes about 40 minutes from the Tokyo end of the journey, whichever way you travel.
+export const towardsTokyo=step=>/tokyo/i.test(step?.title||'');
+export const fujiSide=step=>towardsTokyo(step)?'left':'right';
+export const eyeSpyHint=(item,step)=>item.hint
+ .replace('{side}',fujiSide(step))
+ .replace('{when}',towardsTokyo(step)?'About 40 minutes before we reach Tokyo':'About 40 minutes out of Tokyo');
+// Ride checklist state. `parkRides` records who has ridden what and what the family has
+// starred as a must-do; `heights` is each boy's height in cm, so a ride can say plainly
+// whether he is tall enough rather than leaving a number to be compared in a queue.
+export const riddenBy=(state,rideId)=>state.parkRides?.[rideId]?.ridden||{};
+export const isMustDo=(state,rideId)=>!!state.parkRides?.[rideId]?.must;
+export function heightCheck(ride,person,heights){
+ if(!ride.height)return {limit:false,ok:true,label:'Everyone can ride'};
+ const own=heights?.[person];
+ if(!own)return {limit:true,ok:null,label:`${ride.height}cm minimum`,short:null};
+ const short=ride.height-own;
+ return {limit:true,ok:short<=0,label:short<=0?`${person} is tall enough`:`${short}cm too short for ${person}`,short:short>0?short:0};
+}
+export const parkProgress=(state,park,person)=>park.rides.filter(r=>riddenBy(state,r.id)[person]).length;
+export const MISSION_SEED=2;
+// Three missions a day for each boy, written around what that day actually holds.
+// Nate is 5, Boston is 8, so each day carries a junior and a senior set.
+export const DAY_MISSIONS={
+ '2026-09-21':{Nate:[
+  ['Airport code detective','Find the letters HND on a sign. Say them out loud, then find them again on a bag tag.','🔤'],
+  ['First words in Japanese','Say konnichiwa to one person with a parent beside you. How did they say it back?','👋'],
+  ['Window seat report','Look out of the car window on the way to the hotel. Name three things you have never seen at home.','🚗']],
+ Boston:[
+  ['Arrival planner','Read the arrival board with a parent. Work out how long until our next step, and explain the Japan–Sydney time difference using two phone clocks.','🕐'],
+  ['Border process map','List the order of what happened: plane, immigration, bags, customs, car. Explain why each step comes where it does.','🛂'],
+  ['First impressions log','Record three things done differently from the airport at home. Say what problem each one solves.','📝']]},
+ '2026-09-22':{Nate:[
+  ['Forest sound map','Stand still at Meiji Jingu and close your eyes for ten seconds. Name three sounds you can hear.','👂'],
+  ['Torii gate counter','Count the big wooden gates we walk through. What shape are they? Draw one in the air.','⛩️','torii'],
+  ['Crossing watcher','At Shibuya, watch one full green light with a parent. Guess how many people crossed, then say why it is hard to count.','🚦','crossing']],
+ Boston:[
+  ['Old and new investigator','Meiji Jingu is a forest inside a city. Find one detail that feels old and one that feels brand new, and explain what each is for.','🏙️'],
+  ['Crowd engineer','Watch the Shibuya crossing. Work out the rules that stop people bumping into each other, then suggest one improvement.','🚶'],
+  ['Shop window analyst','On Omotesando, compare two shop windows. What is each one trying to make you feel, and how?','🪟']]},
+ '2026-09-23':{Nate:[
+  ['Light and colour hunt','At teamLab, find a colour that changes while you watch. Tell a parent what made it change.','🌈'],
+  ['Little baker','At the bakery, follow each step in order. Say the steps back afterwards, first to last.','🥐'],
+  ['Sumo watcher','Watch one bout. Who moved first? Show the family the strongest stance you can make.','🤼']],
+ Boston:[
+  ['Prediction and evidence','At teamLab, pick an artwork. Predict what happens when you move, test it, then say whether your evidence matched.','🔬'],
+  ['Recipe as instructions','Write the bakery steps as instructions someone else could follow. What would go wrong if you swapped two of them?','📋'],
+  ['Sumo rules analyst','Work out the rules of winning by watching, before anyone tells you. Then check with the guide — what did you get right?','🏆']]},
+ '2026-09-24':{Nate:[
+  ['Platform number hunt','Find our platform number on a sign, then find the same number somewhere else on the platform.','🔢'],
+  ['Fast train feeling','On the Nozomi, watch something close and something far away. Which one whizzes past faster? Why do you think that is?','🚄'],
+  ['Lantern spotter','In Gion, count five paper lanterns. What do you think the writing on them says?','🏮']],
+ Boston:[
+  ['Rail journey analyst','Find our route on a map. Estimate the distance from Tokyo to Kyoto, then compare it with the real journey information.','🗺️'],
+  ['Speed calculator','With a parent, use the journey time and distance to estimate the train speed. Check it against a posted figure.','⏱️'],
+  ['Two cities compared','Gion tonight, Tokyo this morning. Name three differences and explain what caused each one.','⚖️']]},
+ '2026-09-25':{Nate:[
+  ['Ride bravery badge','Choose one ride you were nervous about. Say how you felt before and how you felt after.','🎢'],
+  ['Question block hunt','In Super Nintendo World, find three things that look like they came out of a game. Which is your favourite, and why?','❓'],
+  ['Queue time guesser','Before a queue, guess how long it will take. Check the clock afterwards — were you close?','⏳']],
+ Boston:[
+  ['Theme-park strategist','Using posted wait times with a parent, choose the best order for two attractions. Include walking and a break.','🗓️'],
+  ['Ride engineering','Pick one ride. Explain how it makes you feel speed — is it real speed, or a trick of sound, light and tilt?','⚙️'],
+  ['Land designer','Super Nintendo World turns a game into a place. Name three ways they did it, then design a fourth.','🎮']]},
+ '2026-09-26':{Nate:[
+  ['Bamboo engineer','Look up in the bamboo grove. Find the rings on a stem and count five. What do you think they are for?','🎋','bamboo'],
+  ['River bridge count','At Togetsukyo, count the arches or posts holding the bridge up. Why does a bridge need so many?','🌉','arch'],
+  ['Slow looking','Sit still for one minute somewhere quiet. Name one thing you only noticed because you stopped.','🧘']],
+ Boston:[
+  ['Bamboo structure challenge','Sketch a bamboo stem and label two features that help it stay tall or bend. Compare it with a building you have seen.','📐'],
+  ['Bridge load investigator','Look at how Togetsukyo carries its weight. Where does the force go? Sketch your answer.','🏗️'],
+  ['Visitor flow study','The grove gets busy. Work out where the pinch points are, and suggest one change that would help.','🚶']]},
+ '2026-09-27':{Nate:[
+  ['Deer manners','Feed a deer with a parent. What did it do before you gave it the food? Copy the bow it makes.','🦌'],
+  ['Giant Buddha size','Stand near the Great Buddha. Guess how many grown-ups tall it is, then find out.','🗿'],
+  ['Mochi pounding rhythm','Watch the mochi makers at Nakatanidou. Clap their rhythm. How do they never hit each other?','🍡']],
+ Boston:[
+  ['Animal behaviour notebook','Observe the deer quietly. Record three behaviours, and separate what you saw from what you think it means.','📓'],
+  ['Todai-ji by numbers','Find the height or the age of the Great Buddha hall. Work out how long before Australia was colonised it was built.','🏯'],
+  ['Old Kyoto detective','In kimono, notice what changes about how you move. Explain how clothing and building design fit each other.','👘']]},
+ '2026-09-28':{Nate:[
+  ['Neon sign hunt','Find the Glico running man. Copy his pose for a photo. What else is lit up near him?','🎇'],
+  ['Takoyaki watch','Watch someone turn the takoyaki balls. Count how many they turn before they stop. Would you be fast enough?','🐙'],
+  ['Gachapon gamble','Choose one gachapon machine. Say what you hope you get before you turn it. Did you get it?','🎰']],
+ Boston:[
+  ['Market comparison','Compare prices or sizes for three similar items in Shinsaibashi. Which would you choose, and why besides price?','🛍️'],
+  ['Neon economics','Dotonbori is covered in signs. Work out who pays for them and what they get back. Which sign works hardest, and why?','💡'],
+  ['River city view','From the cruise, work out why Osaka grew up around these canals. What did they carry?','🛶']]},
+ '2026-09-29':{Nate:[
+  ['Train change tracker','We change trains today. Count how many different trains we ride. Which one was your favourite?','🚉'],
+  ['Luggage detective','Our bags travel separately. Say where you think they are right now, and where they will meet us.','🧳'],
+  ['First look at the springs','When we arrive, find three things that tell you a story before anyone says a word.','✨']],
+ Boston:[
+  ['Transfer planner','Read the plan with a parent. Work out our buffer between two steps, and say whether it is enough.','⏲️'],
+  ['Luggage logistics','Our bags are forwarded. Map the journey they take, and list two things that could go wrong.','📦'],
+  ['Imagineering review','Fantasy Springs is built to tell a story. Explain how it uses sound, light, movement, scenery and timing.','🎭']]},
+ '2026-09-30':{Nate:[
+  ['Ride story teller','Choose one ride. Tell the story back to us in three sentences: beginning, middle and end.','📖'],
+  ['Hidden character hunt','Find three characters hidden in the scenery that are not on any sign. Where were they?','🔍'],
+  ['Music mapper','Notice how the music changes as we walk between lands. Where exactly does it swap over?','🎵']],
+ Boston:[
+  ['Queue design study','Compare two queues. What does each one do to make the waiting feel shorter?','🧵'],
+  ['Pass strategist','With a parent, look back at the day. Where did our passes save the most time? What would you change?','🎟️'],
+  ['Ride mechanism guess','Pick a ride and work out how it moves you — track, arm, boat or belt. Look for the evidence.','🔧']]},
+ '2026-10-01':{Nate:[
+  ['Port explorer','DisneySea has different ports. Name your favourite and say what makes it feel different from the others.','🚢'],
+  ['Water spotter','Find three places water is used to tell the story. What would change without it?','💧'],
+  ['Dumpling verdict','Try a Little Green Dumpling. Describe the taste to someone who has never had one.','🥟']],
+ Boston:[
+  ['Design a new port','Invent a DisneySea port. Give it a setting, a ride idea, and one detail that makes the story believable.','✏️'],
+  ['Water as a tool','Explain three jobs water does here: moving people, making sound, hiding machinery. Find an example of each.','🌊'],
+  ['Transition analyst','Walk between two ports and find the exact point the theme changes. How did they hide the join?','🚪']]},
+ '2026-10-02':{Nate:[
+  ['Market smell map','At Tsukiji, name three smells. Which one made you hungriest?','👃'],
+  ['Gachapon sorter','In Akihabara, find a machine and sort what is inside into groups your own way. Explain your rule.','🧩'],
+  ['Museum favourite','At Ueno, pick one thing you would put in your own museum. Say why.','🖼️']],
+ Boston:[
+  ['Market chain','At Tsukiji, trace one food from the sea to the plate. How many people touched it on the way?','🐟'],
+  ['Akihabara economics','Work out why so many similar shops sit next to each other. Would they not take each other’s customers?','🏪'],
+  ['Museum of our trip','Choose five trip highlights, put them in order, and give your exhibition a name and a one-line description.','🏛️']]},
+ '2026-10-03':{Nate:[
+  ['Takeshita colour hunt','Find the brightest thing on Takeshita Street. Then find something quiet and plain. Which do you like better?','🎨'],
+  ['Animal café manners','At the café, watch before you touch. What did the animals do when they were happy?','🐹'],
+  ['Scoreboard reader','At the Giants game, find the score. Who is winning, and by how many?','⚾','scoreboard']],
+ Boston:[
+  ['Street style analyst','Harajuku is about self-expression. Find three outfits and explain what each one is saying.','🧥'],
+  ['Animal welfare check','Look at how the café cares for its animals. List three things they do well, and one thing you would add.','❤️'],
+  ['Baseball analyst','Use the scoreboard to explain innings and runs. Predict a result, then compare it with what happens.','📊']]},
+ '2026-10-04':{Nate:[
+  ['Gift chooser','Pick a present for someone at home. Say who it is for and why they will like it.','🎁'],
+  ['Character street spotter','Find three characters you recognise and one you have never seen. Ask what the new one is.','🧸'],
+  ['Beyblade launcher','Watch a battle. What makes a spinner last longer — heavy or light? Try your idea.','🌀','top']],
+ Boston:[
+  ['Smart souvenir buyer','Compare two souvenirs for price, quality, luggage space and usefulness at home. Recommend one within budget.','💴'],
+  ['Ginza and Shimokitazawa','We see both today. Compare who each place is for, and how the shops and streets show it.','🏬'],
+  ['Beyblade physics','Explain why a spinning top stays upright, and what makes one beat another. Test your theory twice.','🔁']]},
+ '2026-10-05':{Nate:[
+  ['Pancake describer','Describe the pancakes in three words. Could you make them at home?','🥞'],
+  ['Park in the air','Miyashita Park sits on top of shops. Say what is above you and what is below you.','🌳'],
+  ['Favourite day vote','Tell the family your favourite day of the trip so far, and one reason why.','⭐']],
+ Boston:[
+  ['Rooftop park design','A park built above shops solves a problem. Name the problem, and two things the designers had to get right.','🏙️'],
+  ['Last-day budget','Work out what is left of your budget and plan how to spend it. Explain your choices.','🧮'],
+  ['Trip curator','Choose five highlights and arrange them as a story. Add one thing you learned and one question you still have.','📚']]},
+ '2026-10-06':{Nate:[
+  ['Lucky cat counter','At Gotokuji, count the cats until you lose count. Which paw is up? Copy it.','🐱','paw'],
+  ['Packing helper','Find three of your own things and pack them yourself. Tell a parent when you are done.','🎒'],
+  ['Thank you in Japanese','Say arigatou gozaimasu to one person today. How did it feel?','🙏']],
+ Boston:[
+  ['Lucky cat investigator','Find out why people leave the cats at Gotokuji. Whose wish is each one?','🏮'],
+  ['Journey home planner','Read the departure plan. Work out our buffer at Haneda, and what we would do if one step ran late.','✈️'],
+  ['Trip documentary','Plan a six-photo story with captions explaining one thing you learned. Choose the photos before we land.','🎬']]}
+};
+// Reserve missions, drawn one at a time when a boy skips one or asks for something else.
+// They work anywhere, so they suit any day of the trip.
+export const EXTRA_MISSIONS={
+ Nate:[
+  ['Colour of the day','Choose a colour. Find five things in that colour before we get back.','🎨'],
+  ['Counting game','Count something all day — red cars, dogs, vending machines. Tell us the total tonight.','🔢'],
+  ['New food taster','Try one thing you have never eaten. Describe it in three words.','🍽️'],
+  ['Sign copier','Find some Japanese writing and copy one character carefully. Show a parent.','✍️'],
+  ['Kind helper','Do one helpful thing for someone in the family without being asked. What was it?','🤝'],
+  ['Sound collector','Find three sounds you would never hear at home. Make each one yourself.','🔔'],
+  ['Tall and small','Find the tallest thing and the smallest thing you can see right now.','📏'],
+  ['Photo of the day','Take one photo you really like. Tell us why you chose it.','📸'],
+  ['Vending machine detective','Find a vending machine. Guess what three of the drinks are before asking.','🥤'],
+  ['Map pointer','On a map with a parent, point to where we are and where we are going.','🗺️']],
+ Boston:[
+  ['Cost comparison','Pick something we bought today. Work out what it would cost at home, and explain the difference.','💴'],
+  ['Timetable reader','Read a timetable or departure board and work out the next two options. Which is better, and why?','🕑'],
+  ['Ask a local','With a parent, ask one polite question of someone who works here. What did you learn?','🗣️'],
+  ['Design improvement','Find something well designed today. Explain the problem it solves, then improve it.','📐'],
+  ['Rule spotter','Find an unwritten rule people here follow. How did you work it out?','👀'],
+  ['Estimate then check','Estimate a distance, a wait or a crowd size, then find a way to check it.','📊'],
+  ['Material investigator','Pick a building or object. Name its materials and say why each was chosen.','🧱'],
+  ['Waste detective','Work out how rubbish and recycling are handled here. How does it differ from home?','♻️'],
+  ['Language pattern','Find a Japanese word used on several different signs. Work out what it means.','🔤'],
+  ['Teach it back','Choose something you learned today and teach it to your brother so he understands.','🎓']]
+};
+export const GENERATED_PER_DAY=3;
+export const generatedMissions=(state,day,person)=>state.challenges.filter(c=>c.day===day&&c.generated&&c.participants.includes(person));
+// The next reserve mission this boy does not already have on this day.
+export function nextExtraMission(state,day,person){
+ const pool=EXTRA_MISSIONS[person]||[];
+ const taken=new Set(state.challenges.filter(c=>c.day===day&&c.participants.includes(person)).map(c=>c.title));
+ return pool.find(([title])=>!taken.has(title))||pool[0]||null;
+}
 export function initialChallenges(days){
- const junior=[
- ['Airport code detective','Find HND or another airport code on a sign. Match it to a boarding pass with a parent. Stretch: what might the letters stand for?'],
- ['Nature pattern hunter','Find three different leaf shapes or repeating patterns. Sort them your way and explain your rule.'],
- ['Art detective','Choose an artwork or display. Predict what will happen when you move, then test your idea.'],
- ['Train map navigator','Find our start and destination on a map with a parent. Count the stops or match the line colours.'],
- ['Design a game power-up','Invent a power-up for a ride or game. Explain its special ability and one rule that keeps it fair.'],
- ['Bamboo engineer','Look at bamboo from the path. Find its repeating sections and design a tall tower using the same idea.'],
- ['Deer observer','Watch deer from a respectful distance with a parent. Describe two behaviours and guess what each means.'],
- ['Food sign detective','Find three food pictures or shop signs. Work out what each shop sells using the clues.'],
- ['Journey comparison','Compare two ways we travelled today. Which carries more people? Which felt faster? Explain your clues.'],
- ['Imagineer for a day','Choose a ride or scene. Explain how sound, colour or movement helps tell its story.'],
- ['Harbour designer','Find three details that make a place look like a harbour. Draw an imaginary boat and explain its job.'],
- ['Yen puzzle','With a parent, choose two price labels. Which costs more? Can you make 100 yen using different coins?'],
- ['Scoreboard detective','At the game or on a photo, find the score. Explain who is ahead and how many more they have.'],
- ['Souvenir decision','Compare two things you like. Give one reason to choose each, then decide which you would use most at home.'],
- ['City pattern hunt','Spot a repeating shape, a symbol and a clever way people queue. Explain what each helps people do.'],
- ['Museum of our trip','Choose three favourite memories. Put them in order and give your tiny museum a name.']
- ];
- const senior=[
- ['Arrival planner','Read the arrival information with a parent. Work out the time until our next step. Stretch: explain the Japan–Sydney time difference using the phone clocks.'],
- ['Old and new investigator','Find a traditional detail and a modern one. Explain what job each does and how the city fits both together.'],
- ['Prediction and evidence','Choose an interactive artwork or a sumo moment. Make a prediction, observe what happens, then explain whether your evidence supports it.'],
- ['Rail journey analyst','Find our route on a map. Estimate the distance or count stops, then compare the estimate with the journey information.'],
- ['Theme-park strategist','Using posted wait times with a parent, choose two attractions and explain the best order. Include time to walk and take a break.'],
- ['Bamboo structure challenge','Sketch a bamboo stem and label two features that could help it stay tall or bend. Compare your ideas with a building or tower.'],
- ['Animal behaviour notebook','Observe deer quietly with a parent. Record three behaviours. Separate what you actually saw from what you think it means.'],
- ['Menu value puzzle','Using real menu prices, build two snack combinations under a parent-agreed yen budget. Which is better value, and why?'],
- ['Transfer planner','Read the travel plan with a parent. Work out how much time we have between two steps and suggest a sensible buffer.'],
- ['Imagineering review','Choose an attraction. Explain how it uses at least three of sound, light, movement, scenery and timing to tell a story.'],
- ['Design a new port','Invent a DisneySea-style port. Give it a setting, a ride idea and one detail that makes the story believable.'],
- ['Market comparison','Compare prices or sizes for three similar items. Work out which you would choose and explain a reason besides price.'],
- ['Baseball analyst','Use the scoreboard or a game summary to explain innings, runs and who is ahead. Predict one result and compare it with what happens.'],
- ['Smart souvenir buyer','Compare two souvenirs for price, quality, luggage space and usefulness at home. Make a recommendation within an agreed budget.'],
- ['Urban design detective','Find one feature that helps lots of people move safely. Explain the problem it solves and suggest an improvement.'],
- ['Trip curator','Choose five trip highlights and arrange them as a story. Add one thing you learned and one question you still want to investigate.']
- ];
  const overall={
- Nate:[['Japanese phrase explorer','Learn and use five useful Japanese words or phrases with a parent. Explain what each means.'],['Stamp and symbol collector','Find three different station or attraction stamps or symbols. Sketch or photograph them where allowed and compare their designs.'],['Money master','Show two different ways to make the same amount of yen with coins, with a parent helping.'],['Three-city detective','Choose a detail that makes Tokyo, Kyoto and Osaka feel different. Tell us why.'],['Photo story maker','Choose four photos and tell a story with a beginning, middle and end.'],['Invent a Japan game','Make a simple game inspired by the trip and teach the family its rules.']],
- Boston:[['Japanese mini conversation','Learn five useful phrases and try a short polite exchange with a parent alongside. Explain which phrase fits which situation.'],['Route master','Help plan three real routes with a parent. Compare travel time, transfers and walking.'],['Yen budget keeper','Set an agreed souvenir budget, record purchases and calculate what remains.'],['Evidence collector','Investigate three questions about Japan. For each, record what you observed and where you checked the answer.'],['Trip documentary','Create a six-photo story or short video with captions explaining something you learned.'],['Design the next family day','Propose a day with travel, an activity, food, a break and a backup option. Explain how the timing works.']]
+ Nate:[['Japanese phrase explorer','Learn and use five useful Japanese words or phrases with a parent. Explain what each means.','💬'],['Stamp and symbol collector','Find three different station or attraction stamps or symbols. Sketch or photograph them where allowed and compare their designs.','🎴'],['Money master','Show two different ways to make the same amount of yen with coins, with a parent helping.','🪙'],['Three-city detective','Choose a detail that makes Tokyo, Kyoto and Osaka feel different. Tell us why.','🗾'],['Photo story maker','Choose four photos and tell a story with a beginning, middle and end.','📷'],['Invent a Japan game','Make a simple game inspired by the trip and teach the family its rules.','🎲']],
+ Boston:[['Japanese mini conversation','Learn five useful phrases and try a short polite exchange with a parent alongside. Explain which phrase fits which situation.','🗣️'],['Route master','Help plan three real routes with a parent. Compare travel time, transfers and walking.','🧭'],['Yen budget keeper','Set an agreed souvenir budget, record purchases and calculate what remains.','💰'],['Evidence collector','Investigate three questions about Japan. For each, record what you observed and where you checked the answer.','🔎'],['Trip documentary','Create a six-photo story or short video with captions explaining something you learned.','🎬'],['Design the next family day','Propose a day with travel, an activity, food, a break and a backup option. Explain how the timing works.','📅']]
  };
- return [...days.flatMap((d,i)=>BOYS.map(person=>{const mission=(person==='Nate'?junior:senior)[i%junior.length];return {id:`mission-${d.date}-${person}`,title:mission[0],notes:mission[1],day:d.date,participants:[person],completions:{},responses:{}};})),...BOYS.flatMap(person=>overall[person].map(([title,notes],i)=>({id:`quest-${person}-${i}`,title,notes,day:null,participants:[person],completions:{},responses:{}})))];
+ return [...days.flatMap(d=>BOYS.flatMap(person=>(DAY_MISSIONS[d.date]?.[person]||[]).map(([title,notes,icon='',diagram=''],i)=>({id:`mission-${d.date}-${person}-${i+1}`,title,notes,icon,diagram,day:d.date,participants:[person],completions:{},responses:{},skips:{}})))),...BOYS.flatMap(person=>overall[person].map(([title,notes,icon=''],i)=>({id:`quest-${person}-${i}`,title,notes,icon,diagram:'',day:null,participants:[person],completions:{},responses:{},skips:{}})))];
+}
+// The first release gave each boy one mission a day. This adds the fuller day-specific sets
+// once, keeping every completion, discovery note and parent-written challenge. A superseded
+// single mission is dropped only when nobody completed it.
+export function seededChallenges(state){
+ if(!state.challenges)return {challenges:initialChallenges(state.days),missionSeed:MISSION_SEED};
+ if((state.missionSeed||1)>=MISSION_SEED)return {challenges:state.challenges,missionSeed:state.missionSeed||MISSION_SEED};
+ const superseded=c=>/^mission-\d{4}-\d{2}-\d{2}-(Nate|Boston)$/.test(c.id)&&!Object.keys(c.completions||{}).length;
+ const kept=state.challenges.filter(c=>!superseded(c)),have=new Set(kept.map(c=>c.id));
+ return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),challenges:state.challenges??initialChallenges(state.days),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -112,6 +319,14 @@ export function offlineManifest(state,day){
  const docs=state.documents.filter(d=>d.category!=='memory'&&(d.day===day||ids.has(d.stepId)||(!d.day&&!d.stepId)));
  return {files:[...(d?.pages||[]).map(p=>({key:`page-${p}`,title:`Guide page ${p}`,url:`/api/guide?page=${p}`})),...docs.filter(d=>d.pathname).map(d=>({key:`doc-${d.id}`,title:d.title,url:`/api/document?id=${d.id}`}))],links:docs.filter(d=>d.type==='link')};
 }
+// A ticket and its attached files are read as one set: the ticket itself first, then each
+// file attached to it. Written details and external links hold no file, so they are skipped.
+export function attachmentGroup(documents,view){
+ if(!view)return [];
+ const rootId=view.parentDocumentId||view.id,root=documents.find(d=>d.id===rootId);
+ const group=[...(root?.pathname?[root]:[]),...documents.filter(d=>d.parentDocumentId===rootId&&d.pathname)];
+ return group.some(d=>d.id===view.id)?group:[view];
+}
 export function searchTrip(state,query,guide=[]){
  const q=query.trim().toLowerCase();if(!q)return [];
  const hits=[],match=(...parts)=>parts.flat().filter(Boolean).join(' ').toLowerCase().includes(q);
@@ -137,6 +352,9 @@ export function pendingProgress(state,queue){
  const next=ensureFeatures(structuredClone(state));
  for(const {operation:o}of queue){
   if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=true;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;}}}
+  if(o.type==='parkRide'){const e=next.parkRides[o.rideId]||{},ridden={...(e.ridden||{})};if(o.done)ridden[o.person]=ridden[o.person]||o.at;else delete ridden[o.person];next.parkRides={...next.parkRides,[o.rideId]:{...e,ridden}};}
+  if(o.type==='eyeSpy'){const key=eyeSpyKey(o.stepId,o.item),found={...(next.eyeSpy[key]||{})};if(o.done)found[o.person]=found[o.person]||o.at;else delete found[o.person];next.eyeSpy={...next.eyeSpy,[key]:found};}
+  if(o.type==='challengeSkip'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.skips={...(c.skips||{})};if(o.done){c.skips[o.person]=c.skips[o.person]||o.at;delete c.completions[o.person];}else delete c.skips[o.person];}}
   if(o.type==='challengeStatus'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.completions={...c.completions};if(o.done)c.completions[o.person]=c.completions[o.person]||o.at;else delete c.completions[o.person];if(o.response!==undefined)c.responses={...(c.responses||{}),[o.person]:o.response};}}
  }
  return next;

@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
-import {BOYS,delayForDay,initialThankYou,THANK_YOU_FROM,THANK_YOU_TO} from '../src/trip-features.js';
+import {findRide} from '../src/park-data.js';
+import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO} from '../src/trip-features.js';
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
 export function extraOperation(state,op,user,fail,now){
  const parent=user.role==='parent',dayOK=day=>day===null||state.days.some(d=>d.date===day);
@@ -8,9 +9,60 @@ export function extraOperation(state,op,user,fail,now){
  if(op.type==='challengeAdd'||op.type==='challengeEdit'){
   if(!string(op.title,250)||!op.title.trim())fail('Add a challenge title.');dayCheck(op.day??null);
   if(!Array.isArray(op.participants)||!op.participants.length||op.participants.some(n=>!BOYS.includes(n)))fail('Choose Nate, Boston or both.');
-  const values={title:op.title.trim(),day:op.day??null,participants:[...new Set(op.participants)],notes:op.notes||''};requireText(values.notes,2000,'notes');
-  if(op.type==='challengeAdd')state.challenges.push({id:randomUUID(),...values,completions:{}});
+  const values={title:op.title.trim(),day:op.day??null,participants:[...new Set(op.participants)],notes:op.notes||'',icon:(op.icon||'').trim()};requireText(values.notes,2000,'notes');
+  if([...values.icon].length>2)fail('Use one or two emoji for the picture.');
+  if(op.type==='challengeAdd')state.challenges.push({id:randomUUID(),...values,diagram:'',completions:{},responses:{},skips:{}});
   else{const c=state.challenges.find(c=>c.id===op.id);if(!c)fail('Challenge not found.',404);Object.assign(c,values);}
+ }else if(op.type==='challengeSkip'){
+  const c=state.challenges.find(c=>c.id===op.id);if(!c)fail('Challenge not found.',404);
+  if(!c.participants.includes(op.person)||(!parent&&op.person!==user.name))fail('Skip only your own missions.',403);
+  if(typeof op.done!=='boolean')fail('Invalid skip.');
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid skip time.');at=new Date(op.at).toISOString();}
+  c.skips={...(c.skips||{})};
+  if(op.done){c.skips[op.person]=c.skips[op.person]||at;delete c.completions[op.person];}else delete c.skips[op.person];
+ }else if(op.type==='challengeNew'){
+  // Draws the next reserve mission rather than inventing one, so it works offline-first and
+  // the boys can swap a mission themselves without a parent writing one.
+  if(!BOYS.includes(op.person)||(!parent&&op.person!==user.name))fail('Choose your own missions.',403);
+  if(!op.day||!state.days.some(d=>d.date===op.day))fail('Choose a trip day.');
+  if(generatedMissions(state,op.day,op.person).length>=GENERATED_PER_DAY)fail(`That is ${GENERATED_PER_DAY} new missions for this day already. Try finishing one first.`);
+  const next=nextExtraMission(state,op.day,op.person);if(!next)fail('No more missions are available.',404);
+  const [title,notes,icon='']=next;
+  state.challenges.push({id:randomUUID(),title,notes,icon,diagram:'',day:op.day,participants:[op.person],completions:{},responses:{},skips:{},generated:true,createdBy:user.name,createdAt:now});
+ }else if(op.type==='parkRide'){
+  const ride=findRide(op.rideId);if(!ride)fail('Unknown ride.',404);
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Tick only your own rides.',403);
+  if(typeof op.done!=='boolean')fail('Invalid ride tick.');
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid ride time.');at=new Date(op.at).toISOString();}
+  const entry=state.parkRides[op.rideId]||{},ridden={...(entry.ridden||{})};
+  if(op.done)ridden[op.person]=ridden[op.person]||at;else delete ridden[op.person];
+  state.parkRides={...state.parkRides,[op.rideId]:{...entry,ridden}};
+ }else if(op.type==='parkMust'){
+  const ride=findRide(op.rideId);if(!ride)fail('Unknown ride.',404);
+  if(typeof op.must!=='boolean')fail('Invalid must-do.');
+  const entry=state.parkRides[op.rideId]||{};
+  state.parkRides={...state.parkRides,[op.rideId]:{...entry,must:op.must}};
+ }else if(op.type==='familyHeights'){
+  const next={};
+  for(const name of BOYS){
+   const value=op.heights?.[name];
+   if(value===null||value===undefined||value==='')continue;
+   if(!Number.isInteger(value)||value<50||value>220)fail('Enter a height between 50cm and 220cm.');
+   next[name]=value;
+  }
+  state.heights=next;
+ }else if(op.type==='eyeSpy'){
+  const leg=state.steps.find(s=>s.id===op.stepId);
+  if(!leg||!isTrainLeg(leg))fail('That is not a train leg.',404);
+  if(!EYE_SPY.some(i=>i.id===op.item))fail('Unknown thing to spot.',404);
+  if(!BOYS.includes(op.person)||(!parent&&op.person!==user.name))fail('Tick only your own list.',403);
+  if(typeof op.done!=='boolean')fail('Invalid spot.');
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid spot time.');at=new Date(op.at).toISOString();}
+  const key=eyeSpyKey(op.stepId,op.item),found={...(state.eyeSpy[key]||{})};
+  if(op.done)found[op.person]=found[op.person]||at;else delete found[op.person];
+  state.eyeSpy={...state.eyeSpy,[key]:found};
+  if(!Object.keys(found).length)delete state.eyeSpy[key];
  }else if(op.type==='challengeRemove'){
   state.challenges=state.challenges.filter(c=>c.id!==op.id);
  }else if(op.type==='challengeStatus'){

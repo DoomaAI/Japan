@@ -113,18 +113,19 @@ test('photo/video registration rejects unsupported files and enforces per-type s
 
 test('daily and whole-trip missions correctly assign Boston age 8 and Nate age 5',async()=>{
  const {ensureFeatures}=await import('../src/trip-features.js');const state=ensureFeatures(seed);
- assert.equal(state.challenges.length,44);
+ assert.equal(state.challenges.length,108);
  for(const name of ['Nate','Boston']){
-  assert.equal(state.challenges.filter(c=>c.day&&c.participants.includes(name)).length,16);
+  assert.equal(state.challenges.filter(c=>c.day&&c.participants.includes(name)).length,48);
   assert.equal(state.challenges.filter(c=>!c.day&&c.participants.includes(name)).length,6);
  }
- assert.equal(state.challenges.find(c=>c.id==='mission-2026-09-25-Boston').title,'Theme-park strategist');
- assert.equal(state.challenges.find(c=>c.id==='mission-2026-09-25-Nate').title,'Design a game power-up');
- const id='mission-2026-09-25-Nate';
- const done=applyOperation(state,{type:'challengeStatus',id,person:'Nate',done:true,response:'My power-up lets everyone take a turn.',at:'2026-09-19T12:00:00Z'},child);
+ // The Universal day reads the park for Boston and the feelings of it for Nate.
+ assert.equal(state.challenges.find(c=>c.id==='mission-2026-09-25-Boston-1').title,'Theme-park strategist');
+ assert.equal(state.challenges.find(c=>c.id==='mission-2026-09-25-Nate-1').title,'Ride bravery badge');
+ const id='mission-2026-09-25-Nate-2';
+ const done=applyOperation(state,{type:'challengeStatus',id,person:'Nate',done:true,response:'I found a question block.',at:'2026-09-19T12:00:00Z'},child);
  assert.ok(done.challenges.find(c=>c.id===id).completions.Nate);
- assert.equal(done.challenges.find(c=>c.id===id).responses.Nate,'My power-up lets everyone take a turn.');
- assert.throws(()=>applyOperation(state,{type:'challengeStatus',id:'mission-2026-09-25-Boston',person:'Boston',done:true},child),e=>e.status===403);
+ assert.equal(done.challenges.find(c=>c.id===id).responses.Nate,'I found a question block.');
+ assert.throws(()=>applyOperation(state,{type:'challengeStatus',id:'mission-2026-09-25-Boston-1',person:'Boston',done:true},child),e=>e.status===403);
  assert.throws(()=>applyOperation(state,{type:'challengeAdd',title:'Replace plan',day:null,participants:['Nate']},child),e=>e.status===403);
  assert.deepEqual(ensureFeatures(done).challenges,done.challenges);
 });
@@ -291,4 +292,300 @@ test('only Damien writes the notes, only Lauren marks one read, and they never r
  // Redacted state must not re-seed the list when the phone normalises it.
  assert.equal(ensureFeatures(visibleTrip(read,boston,onTrip)).thankYou.messages,undefined);
  assert.equal(ensureFeatures(hers).thankYou.messages,undefined);
+});
+
+test('the full-screen ticket viewer groups a ticket with its attached files, skipping notes and links',async()=>{
+ const {attachmentGroup}=await import('../src/trip-features.js');
+ const photoTicket={id:'root-photo',pathname:'a',type:'image/png'};
+ const one={id:'a1',parentDocumentId:'root-photo',pathname:'b',type:'image/jpeg'};
+ const two={id:'a2',parentDocumentId:'root-photo',pathname:'c',type:'application/pdf'};
+ const writtenTicket={id:'root-note',type:'note'};
+ const noteChild={id:'a3',parentDocumentId:'root-note',pathname:'d',type:'image/png'};
+ const linkDoc={id:'link',type:'link',url:'https://example.com'};
+ const other={id:'elsewhere',pathname:'e',type:'image/png'};
+ const docs=[photoTicket,one,two,writtenTicket,noteChild,linkDoc,other];
+ // The ticket leads, then its own files, in order, and nothing from another ticket.
+ assert.deepEqual(attachmentGroup(docs,photoTicket).map(d=>d.id),['root-photo','a1','a2']);
+ assert.deepEqual(attachmentGroup(docs,two).map(d=>d.id),['root-photo','a1','a2']);
+ // A ticket held as written details has no file of its own, so only its attachments are shown.
+ assert.deepEqual(attachmentGroup(docs,noteChild).map(d=>d.id),['a3']);
+ // A lone file and an unknown document still give a single, navigable entry.
+ assert.deepEqual(attachmentGroup(docs,other).map(d=>d.id),['elsewhere']);
+ assert.deepEqual(attachmentGroup(docs,{id:'gone',pathname:'z'}).map(d=>d.id),['gone']);
+ assert.deepEqual(attachmentGroup(docs,null),[]);
+});
+
+test('read receipts report whether Lauren opened each note, and when she opened it late',async()=>{
+ const {noteReadState}=await import('../src/trip-features.js');
+ const today='2026-09-25';
+ // Opened during the day it was scheduled for.
+ const sameDay=noteReadState('2026-09-23',{'2026-09-23':'2026-09-23T00:14:00Z'},today);
+ assert.equal(sameDay.read,true);assert.equal(sameDay.readDay,'2026-09-23');assert.equal(sameDay.late,false);
+ assert.equal(sameDay.when.toISOString(),'2026-09-23T00:14:00.000Z');
+ // Opened after midnight in Japan: still that day's note, but reported against the day she read it.
+ const late=noteReadState('2026-09-23',{'2026-09-23':'2026-09-23T22:30:00Z'},today);
+ assert.equal(late.read,true);assert.equal(late.readDay,'2026-09-24');assert.equal(late.late,true);
+ // A day that is late in UTC but still the same Japan day is not counted as late.
+ assert.equal(noteReadState('2026-09-23',{'2026-09-23':'2026-09-23T14:00:00Z'},today).late,false);
+ // Not opened: past, current and future days are distinguished.
+ assert.deepEqual(noteReadState('2026-09-23',{},today).pending,'missed');
+ assert.deepEqual(noteReadState(today,{},today).pending,'today');
+ assert.deepEqual(noteReadState('2026-09-28',{},today).pending,'waiting');
+ for(const day of ['2026-09-23',today,'2026-09-28']){
+  const s=noteReadState(day,{},today);assert.equal(s.read,false);assert.equal(s.when,null);assert.equal(s.late,false);
+ }
+ assert.equal(noteReadState('2026-09-23',undefined,today).read,false);
+});
+
+test('each boy gets three day-specific missions on every trip day',async()=>{
+ const {initialChallenges,DAY_MISSIONS,BOYS}=await import('../src/trip-features.js');
+ const challenges=initialChallenges(seed.days);
+ assert.equal(new Set(challenges.map(c=>c.id)).size,challenges.length);
+ for(const d of seed.days)for(const boy of BOYS){
+  const mine=challenges.filter(c=>c.day===d.date&&c.participants[0]===boy);
+  assert.equal(mine.length,3,`${d.date} ${boy}`);
+  for(const c of mine){assert.ok(c.title.trim());assert.ok(c.notes.trim());assert.deepEqual(c.participants,[boy]);}
+  // Nate and Boston get different work on the same day.
+  const other=challenges.filter(c=>c.day===d.date&&c.participants[0]!==boy).map(c=>c.title);
+  assert.ok(mine.every(c=>!other.includes(c.title)),`${d.date} shares a title`);
+ }
+ // Missions are written per day, not recycled.
+ assert.equal(Object.keys(DAY_MISSIONS).length,seed.days.length);
+ assert.equal(challenges.filter(c=>c.day).length,seed.days.length*2*3);
+ assert.equal(challenges.filter(c=>!c.day).length,12);
+});
+
+test('the fuller mission set is added once without losing completions or parent challenges',async()=>{
+ const {ensureFeatures,seededChallenges,MISSION_SEED}=await import('../src/trip-features.js');
+ const day=seed.days[0].date;
+ const old={
+  challenges:[
+   {id:`mission-${day}-Nate`,title:'Old mission Nate did',notes:'x',day,participants:['Nate'],completions:{Nate:'2026-09-21T02:00:00Z'},responses:{Nate:'I found it'}},
+   {id:`mission-${day}-Boston`,title:'Old mission nobody did',notes:'x',day,participants:['Boston'],completions:{}},
+   {id:'quest-Nate-0',title:'Existing quest',notes:'x',day:null,participants:['Nate'],completions:{Nate:'2026-09-22T02:00:00Z'}},
+   {id:'custom-1',title:'A challenge Damien wrote',notes:'x',day,participants:['Nate'],completions:{}}],
+  days:seed.days};
+ const merged=seededChallenges(old),ids=merged.challenges.map(c=>c.id);
+ assert.equal(merged.missionSeed,MISSION_SEED);
+ // Completed work, discovery notes and parent-written challenges all survive.
+ const kept=merged.challenges.find(c=>c.id===`mission-${day}-Nate`);
+ assert.equal(kept.completions.Nate,'2026-09-21T02:00:00Z');assert.equal(kept.responses.Nate,'I found it');
+ assert.ok(ids.includes('custom-1'));
+ assert.equal(merged.challenges.find(c=>c.id==='quest-Nate-0').title,'Existing quest');
+ // The superseded single mission nobody completed is dropped, and the new sets arrive.
+ assert.ok(!ids.includes(`mission-${day}-Boston`));
+ for(const n of [1,2,3])for(const boy of ['Nate','Boston'])assert.ok(ids.includes(`mission-${day}-${boy}-${n}`));
+ // Running again changes nothing, and a fresh trip seeds straight to the new set.
+ assert.deepEqual(seededChallenges({...old,...merged}).challenges.map(c=>c.id),ids);
+ assert.equal(ensureFeatures(structuredClone(seed)).challenges.length,seed.days.length*6+12);
+ assert.equal(ensureFeatures(structuredClone(seed)).missionSeed,MISSION_SEED);
+});
+
+test('every mission carries a picture, and the shape-based ones carry a diagram',async()=>{
+ const {initialChallenges,EXTRA_MISSIONS,BOYS}=await import('../src/trip-features.js');
+ const {hasMissionArt}=await import('../src/MissionArt.jsx').catch(()=>({hasMissionArt:null}));
+ const challenges=initialChallenges(seed.days);
+ for(const c of challenges)assert.ok(c.icon&&[...c.icon].length<=2,`${c.title} has no picture`);
+ for(const boy of BOYS)for(const [title,notes,icon] of EXTRA_MISSIONS[boy]){assert.ok(title&&notes&&icon,title);}
+ const drawn=challenges.filter(c=>c.diagram);
+ assert.deepEqual([...new Set(drawn.map(c=>c.diagram))].sort(),['arch','bamboo','crossing','paw','scoreboard','top','torii']);
+ // Diagrams are for the five-year-old, where the shape is the point.
+ assert.ok(drawn.every(c=>c.participants[0]==='Nate'));
+ if(hasMissionArt)for(const c of drawn)assert.ok(hasMissionArt(c.diagram),`no art for ${c.diagram}`);
+});
+
+test('a boy can skip his own mission and bring it back, but cannot touch his brother’s',async()=>{
+ const {ensureFeatures,pendingProgress}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const nate={name:'Nate',role:'child'},boston={name:'Boston',role:'child'};
+ const id='mission-2026-09-22-Nate-2',at='2026-09-19T01:00:00.000Z';
+ const skipped=applyOperation(state,{type:'challengeSkip',id,person:'Nate',done:true,at},nate);
+ assert.equal(skipped.challenges.find(c=>c.id===id).skips.Nate,at);
+ // Skipping clears any tick, and bringing it back clears the skip.
+ const ticked=applyOperation(state,{type:'challengeStatus',id,person:'Nate',done:true},nate);
+ const thenSkipped=applyOperation(ticked,{type:'challengeSkip',id,person:'Nate',done:true},nate);
+ assert.equal(thenSkipped.challenges.find(c=>c.id===id).completions.Nate,undefined);
+ assert.deepEqual(applyOperation(skipped,{type:'challengeSkip',id,person:'Nate',done:false},nate).challenges.find(c=>c.id===id).skips,{});
+ // Only your own, and a parent may skip for either boy.
+ assert.throws(()=>applyOperation(state,{type:'challengeSkip',id,person:'Nate',done:true},boston),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'challengeSkip',id,person:'Boston',done:true},boston),e=>e.status===403);
+ assert.ok(applyOperation(state,{type:'challengeSkip',id,person:'Nate',done:true},parent));
+ assert.throws(()=>applyOperation(state,{type:'challengeSkip',id:'missing',person:'Nate',done:true},nate),e=>e.status===404);
+ assert.throws(()=>applyOperation(state,{type:'challengeSkip',id,person:'Nate',done:'yes'},nate),/Invalid skip/);
+ // A skip made offline shows immediately on the phone.
+ const pending=pendingProgress(state,[{operation:{type:'challengeSkip',id,person:'Nate',done:true,at}}]);
+ assert.equal(pending.challenges.find(c=>c.id===id).skips.Nate,at);
+ assert.equal(state.challenges.find(c=>c.id===id).skips.Nate,undefined);
+});
+
+test('asking for a different mission draws a fresh one, up to a daily limit',async()=>{
+ const {ensureFeatures,EXTRA_MISSIONS,GENERATED_PER_DAY,generatedMissions}=await import('../src/trip-features.js');
+ let state=ensureFeatures(structuredClone(seed));
+ const day='2026-09-22',nate={name:'Nate',role:'child'},boston={name:'Boston',role:'child'};
+ for(let i=0;i<GENERATED_PER_DAY;i++)state=applyOperation(state,{type:'challengeNew',day,person:'Nate'},nate);
+ const extra=generatedMissions(state,day,'Nate');
+ assert.equal(extra.length,GENERATED_PER_DAY);
+ // Each draw is a different mission, drawn from the reserve pool, and belongs to that boy alone.
+ assert.equal(new Set(extra.map(c=>c.title)).size,GENERATED_PER_DAY);
+ for(const c of extra){
+  assert.ok(EXTRA_MISSIONS.Nate.some(([title])=>title===c.title));
+  assert.deepEqual(c.participants,['Nate']);assert.equal(c.day,day);assert.ok(c.icon);assert.ok(c.generated);
+ }
+ assert.throws(()=>applyOperation(state,{type:'challengeNew',day,person:'Nate'},nate),/3 new missions/);
+ // Boston's own count is separate, and his draws come from his own pool.
+ const forBoston=applyOperation(state,{type:'challengeNew',day,person:'Boston'},boston);
+ assert.ok(EXTRA_MISSIONS.Boston.some(([title])=>title===generatedMissions(forBoston,day,'Boston')[0].title));
+ // You cannot draw for someone else, or onto a day that is not on the trip.
+ assert.throws(()=>applyOperation(state,{type:'challengeNew',day,person:'Boston'},nate),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'challengeNew',day,person:'Damien'},parent),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'challengeNew',day:'2099-01-01',person:'Nate'},parent),/trip day/);
+});
+
+test('a phone number becomes a dialable link, and a WhatsApp link when the country is known',async()=>{
+ const {phoneLinks}=await import('../src/trip-features.js');
+ // Written the Japanese way: the leading 0 is replaced by +81.
+ const local=phoneLinks('03-1234-5678');
+ assert.equal(local.tel,'tel:+81312345678');
+ assert.equal(local.whatsapp,'https://wa.me/81312345678');
+ assert.equal(local.international,'+81312345678');
+ assert.equal(local.assumed,true);
+ assert.equal(local.written,'03-1234-5678');
+ // Written with a country code: taken as given, and never flagged as assumed.
+ for(const written of ['+81 3 1234 5678','0081 3 1234 5678','+81(3)1234-5678']){
+  const given=phoneLinks(written);
+  assert.equal(given.whatsapp,'https://wa.me/81312345678',written);
+  assert.equal(given.assumed,false,written);
+ }
+ // An Australian number written without its code is the case the flag exists for.
+ const au=phoneLinks('0412 345 678');
+ assert.equal(au.assumed,true);
+ assert.equal(phoneLinks('+61 412 345 678').assumed,false);
+ assert.equal(phoneLinks('+61 412 345 678').whatsapp,'https://wa.me/61412345678');
+ // Too short to be an international number: still dialable, but no WhatsApp link offered.
+ assert.equal(phoneLinks('12345').whatsapp,null);
+ assert.equal(phoneLinks('12345').tel,'tel:12345');
+ for(const empty of ['','   ','no digits here',null,undefined])assert.equal(phoneLinks(empty),null,String(empty));
+ // The activity editor stores it, and the server rejects anything that is not a number.
+ const s=structuredClone(seed),id=s.steps[0].id;
+ assert.equal(applyOperation(s,{type:'patch',id,patch:{phone:'+81 3 1234 5678'}},parent).steps[0].phone,'+81 3 1234 5678');
+ assert.equal(applyOperation(s,{type:'patch',id,patch:{phone:''}},parent).steps[0].phone,'');
+ for(const bad of ['call me maybe','<script>',123])assert.throws(()=>applyOperation(s,{type:'patch',id,patch:{phone:bad}},parent),/phone number|too long/i,String(bad));
+});
+
+test('I spy runs on the Shinkansen legs, per boy, and points Fuji the right way',async()=>{
+ const {ensureFeatures,pendingProgress,EYE_SPY,isTrainLeg,trainLegs,fujiSide,eyeSpySpotted,eyeSpyHint}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const nate={name:'Nate',role:'child'},boston={name:'Boston',role:'child'};
+ const legs=trainLegs(state);
+ assert.equal(legs.length,2);
+ assert.deepEqual(legs.map(l=>l.title),['Nozomi 33 to Kyoto','Nozomi 250 to Tokyo']);
+ assert.ok(!isTrainLeg(state.steps.find(s=>s.title==='Taxi to Tokyo Station')));
+ assert.ok(!isTrainLeg(null)&&!isTrainLeg(undefined));
+ // Fuji is south of the line: right heading west, left coming back.
+ assert.equal(fujiSide(legs[0]),'right');
+ assert.equal(fujiSide(legs[1]),'left');
+ assert.match(eyeSpyHint(EYE_SPY[0],legs[1]),/on the left/);
+ assert.match(eyeSpyHint(EYE_SPY[0],legs[0]),/out of Tokyo/);
+ assert.match(eyeSpyHint(EYE_SPY[0],legs[1]),/before we reach Tokyo/);
+ for(const leg of legs)for(const item of EYE_SPY)assert.doesNotMatch(eyeSpyHint(item,leg),/\{/,item.id);
+ assert.equal(new Set(EYE_SPY.map(i=>i.id)).size,EYE_SPY.length);
+ for(const item of EYE_SPY){assert.ok(item.icon&&item.title);assert.equal(typeof item.hint,'string');}
+
+ const leg=legs[0].id,at='2026-09-19T03:00:00.000Z';
+ const spotted=applyOperation(state,{type:'eyeSpy',stepId:leg,item:'fuji',person:'Nate',done:true,at},nate);
+ assert.deepEqual(eyeSpySpotted(spotted,leg,'Nate').map(i=>i.id),['fuji']);
+ // Each boy keeps his own list, on each leg separately.
+ assert.equal(eyeSpySpotted(spotted,leg,'Boston').length,0);
+ assert.equal(eyeSpySpotted(spotted,legs[1].id,'Nate').length,0);
+ assert.equal(eyeSpySpotted(applyOperation(spotted,{type:'eyeSpy',stepId:leg,item:'fuji',person:'Nate',done:false},nate),leg,'Nate').length,0);
+ // Only your own list; a parent may tick for either boy.
+ assert.throws(()=>applyOperation(state,{type:'eyeSpy',stepId:leg,item:'fuji',person:'Boston',done:true},nate),e=>e.status===403);
+ assert.ok(applyOperation(state,{type:'eyeSpy',stepId:leg,item:'fuji',person:'Boston',done:true},parent));
+ // Only real legs and real things to spot.
+ assert.throws(()=>applyOperation(state,{type:'eyeSpy',stepId:state.steps[0].id,item:'fuji',person:'Nate',done:true},nate),/train leg/);
+ assert.throws(()=>applyOperation(state,{type:'eyeSpy',stepId:leg,item:'dragon',person:'Nate',done:true},nate),/Unknown thing/);
+ assert.throws(()=>applyOperation(state,{type:'eyeSpy',stepId:leg,item:'fuji',person:'Damien',done:true},parent),e=>e.status===403);
+ // A tunnel has no signal, so ticks queue on the phone and show straight away.
+ const pending=pendingProgress(state,[{operation:{type:'eyeSpy',stepId:leg,item:'tunnel',person:'Nate',done:true,at}}]);
+ assert.deepEqual(eyeSpySpotted(pending,leg,'Nate').map(i=>i.id),['tunnel']);
+ assert.equal(eyeSpySpotted(state,leg,'Nate').length,0);
+});
+
+test('the ride checklists cover the three park days and match the itinerary',async()=>{
+ const {PARKS,parkForDay,findRide,allRides,parkLands,ridePlanned}=await import('../src/park-data.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(PARKS.map(p=>p.day),['2026-09-25','2026-09-30','2026-10-01']);
+ for(const park of PARKS){
+  assert.ok(seed.days.some(d=>d.date===park.day),park.name);
+  assert.equal(parkForDay(park.day).id,park.id);
+  assert.ok(park.rides.length>=15,park.name);
+  assert.ok(parkLands(park).length>=4,park.name);
+  for(const r of park.rides){
+   assert.ok(r.id.startsWith(park.id+'-')&&r.name&&r.land&&r.note,r.id);
+   assert.ok(r.height===null||(Number.isInteger(r.height)&&r.height>=80&&r.height<=140),`${r.id} height`);
+   assert.ok(park.site.startsWith('https://')&&park.app.startsWith('https://'));
+  }
+  // Each park's checklist recognises the rides already booked into that day.
+  assert.ok(park.rides.filter(r=>ridePlanned(state,park,r)).length>=4,`${park.name} matched too few planned rides`);
+ }
+ assert.equal(new Set(allRides().map(r=>r.id)).size,allRides().length);
+ assert.equal(parkForDay('2026-09-22'),null);
+ assert.equal(findRide('nope'),null);
+ assert.equal(findRide('tds-journey').height,117);
+});
+
+test('a height turns a ride limit into a plain yes or no, per boy',async()=>{
+ const {heightCheck,riddenBy,isMustDo,parkProgress}=await import('../src/trip-features.js');
+ const {parkById,findRide}=await import('../src/park-data.js');
+ const open=findRide('tdl-pooh'),tall=findRide('usj-minecart');
+ // No limit at all.
+ assert.deepEqual(heightCheck(open,'Nate',{Nate:112}),{limit:false,ok:true,label:'Everyone can ride'});
+ // A limit with no height recorded yet just states the limit.
+ const unknown=heightCheck(tall,'Nate',{});
+ assert.equal(unknown.ok,null);assert.equal(unknown.limit,true);assert.match(unknown.label,/132cm minimum/);
+ // With a height it says plainly, and by how much.
+ const small=heightCheck(tall,'Nate',{Nate:112});
+ assert.equal(small.ok,false);assert.equal(small.short,20);assert.equal(small.label,'20cm too short for Nate');
+ const big=heightCheck(tall,'Boston',{Boston:132});
+ assert.equal(big.ok,true);assert.equal(big.short,0);assert.equal(big.label,'Boston is tall enough');
+ // Exactly on the limit counts as tall enough.
+ assert.equal(heightCheck(tall,'Nate',{Nate:132}).ok,true);
+ assert.equal(heightCheck(tall,'Nate',{Nate:131}).ok,false);
+ // Reading helpers cope with an untouched trip.
+ assert.deepEqual(riddenBy({},'tdl-pooh'),{});
+ assert.equal(isMustDo({},'tdl-pooh'),false);
+ assert.equal(parkProgress({parkRides:{}},parkById('tdl'),'Nate'),0);
+});
+
+test('ride ticks, must-do stars and heights are recorded with the right permissions',async()=>{
+ const {ensureFeatures,pendingProgress,riddenBy,isMustDo,parkProgress}=await import('../src/trip-features.js');
+ const {parkById}=await import('../src/park-data.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const nate={name:'Nate',role:'child'},boston={name:'Boston',role:'child'};
+ const id='tdl-pooh',at='2026-09-19T04:00:00.000Z';
+ const ridden=applyOperation(state,{type:'parkRide',rideId:id,person:'Nate',done:true,at},nate);
+ assert.equal(riddenBy(ridden,id).Nate,at);
+ assert.equal(parkProgress(ridden,parkById('tdl'),'Nate'),1);
+ assert.equal(parkProgress(ridden,parkById('tdl'),'Boston'),0);
+ assert.deepEqual(riddenBy(applyOperation(ridden,{type:'parkRide',rideId:id,person:'Nate',done:false},nate),id),{});
+ // A parent may tick for anyone, including themselves; a boy only for himself.
+ assert.ok(applyOperation(state,{type:'parkRide',rideId:id,person:'Lauren',done:true},parent));
+ assert.throws(()=>applyOperation(state,{type:'parkRide',rideId:id,person:'Boston',done:true},nate),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'parkRide',rideId:'nope',person:'Nate',done:true},nate),e=>e.status===404);
+ // Starring a must-do is a parent's call, and survives a later tick.
+ const starred=applyOperation(ridden,{type:'parkMust',rideId:id,must:true},parent);
+ assert.equal(isMustDo(starred,id),true);
+ assert.equal(riddenBy(starred,id).Nate,at);
+ assert.equal(isMustDo(applyOperation(starred,{type:'parkMust',rideId:id,must:false},parent),id),false);
+ assert.throws(()=>applyOperation(state,{type:'parkMust',rideId:id,must:true},nate),e=>e.status===403);
+ // Heights are validated and parent-set.
+ assert.deepEqual(applyOperation(state,{type:'familyHeights',heights:{Nate:112,Boston:132}},parent).heights,{Nate:112,Boston:132});
+ assert.deepEqual(applyOperation(state,{type:'familyHeights',heights:{Nate:112,Boston:''}},parent).heights,{Nate:112});
+ for(const bad of [{Nate:10},{Nate:300},{Nate:112.5},{Nate:'tall'}])assert.throws(()=>applyOperation(state,{type:'familyHeights',heights:bad},parent),/between 50cm and 220cm/,JSON.stringify(bad));
+ assert.throws(()=>applyOperation(state,{type:'familyHeights',heights:{Nate:112}},nate),e=>e.status===403);
+ // A tick made in a queue with no signal shows straight away on the phone.
+ const pending=pendingProgress(state,[{operation:{type:'parkRide',rideId:'tds-soaring',person:'Boston',done:true,at}}]);
+ assert.equal(riddenBy(pending,'tds-soaring').Boston,at);
+ assert.deepEqual(riddenBy(state,'tds-soaring'),{});
 });
