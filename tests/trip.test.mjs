@@ -808,3 +808,35 @@ test('the yen converter works from a shared rate, set by a parent',async()=>{
  assert.equal(yenPerAud({rates:{perAud:0}}),DEFAULT_YEN_PER_AUD);
  assert.equal(rateIsSet({rates:{perAud:100}}),false,'a rate with no timestamp is not "set"');
 });
+
+test('every screen is reachable exactly once, from the bar or from More',async()=>{
+ const {PAGES,PRIMARY,primaryNav,moreSections,moreIds,navActive}=await import('../src/nav-data.js');
+ const damien={name:'Damien',role:'parent'},lauren={name:'Lauren',role:'parent'},nate={name:'Nate',role:'child'};
+ for(const user of [damien,lauren,nate]){
+  const bar=primaryNav(user),more=moreIds(user),all=[...bar,...more];
+  // Nothing appears twice, and nothing is stranded.
+  assert.equal(new Set(all).size,all.length,`${user.name} lists a page twice`);
+  const expected=Object.keys(PAGES).filter(id=>id!=='thanks'||user.name==='Damien');
+  assert.deepEqual([...all].sort(),[...expected].sort(),`${user.name} cannot reach every page`);
+  // The bar holds five, plus More, which is what the layout has room for.
+  assert.equal(bar.length,5,user.name);
+  for(const id of all)assert.ok(PAGES[id]?.label&&PAGES[id]?.note,`${id} is missing a label or note`);
+  // Sections are non-empty and the pages already in the bar are not repeated below.
+  for(const [title,ids] of moreSections(user)){assert.ok(title&&ids.length);for(const id of ids)assert.ok(!bar.includes(id),`${id} is in both`);}
+ }
+ // Lauren's private notes belong to Damien's phone alone.
+ assert.ok(moreIds(damien).includes('thanks'));
+ for(const user of [lauren,nate])assert.ok(!moreIds(user).includes('thanks'),user.name);
+ // Parents reach for tickets and prices; the boys reach for their missions.
+ assert.deepEqual(PRIMARY.parent,['today','days','tickets','food','money']);
+ assert.deepEqual(PRIMARY.child,['today','days','challenges','food','diary']);
+ // The bug this replaces: on a sub-page nothing used to be highlighted, so you lost your place.
+ for(const [tab,expected] of [['food','food'],['today','today'],['parks','more'],['guide','more'],['thanks','more'],['search','more']]){
+  const lit=[...primaryNav(damien),'more'].filter(id=>navActive(tab,id,damien));
+  assert.deepEqual(lit,[expected],`on ${tab}`);
+ }
+ // A child on their own primary page lights that, not More.
+ assert.equal(navActive('challenges','challenges',nate),true);
+ assert.equal(navActive('challenges','more',nate),false);
+ assert.equal(navActive('tickets','more',nate),true,'tickets live under More for the boys');
+});
