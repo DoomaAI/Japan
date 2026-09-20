@@ -338,6 +338,12 @@ export function attachmentGroup(documents,view){
  const group=[...(root?.pathname?[root]:[]),...documents.filter(d=>d.parentDocumentId===rootId&&d.pathname)];
  return group.some(d=>d.id===view.id)?group:[view];
 }
+// HEIC and HEIF are accepted uploads but most browsers cannot draw them in an <img>, so they
+// never stand in as a thumbnail — they are offered as a link to the original instead.
+export const DRAWABLE=['image/jpeg','image/png','image/webp'];
+export const isDrawable=doc=>!!doc?.pathname&&DRAWABLE.includes(doc.type);
+// The picture that stands for a ticket: its own photo, else the first photo attached to it.
+export const documentThumbnail=(doc,attachments=[])=>isDrawable(doc)?doc:attachments.find(isDrawable)||null;
 export function searchTrip(state,query,guide=[]){
  const q=query.trim().toLowerCase();if(!q)return [];
  const hits=[],match=(...parts)=>parts.flat().filter(Boolean).join(' ').toLowerCase().includes(q);

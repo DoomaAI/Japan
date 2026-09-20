@@ -741,3 +741,36 @@ test('the menu reader sends a well-formed vision request and reads the answer ba
   if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
  }
 });
+
+test('every ticket gets a thumbnail: its own photo, an attached one, or a labelled tile',async()=>{
+ const {documentThumbnail,isDrawable,DRAWABLE}=await import('../src/trip-features.js');
+ const photo={id:'a',pathname:'x/a.png',type:'image/png'};
+ const pdf={id:'b',pathname:'x/b.pdf',type:'application/pdf'};
+ const note={id:'c',type:'note'};
+ const link={id:'d',type:'link',url:'https://example.com'};
+ const heic={id:'e',pathname:'x/e.heic',type:'image/heic'};
+ const video={id:'f',pathname:'x/f.mp4',type:'video/mp4'};
+ // Only the formats a browser can actually draw stand in as a picture.
+ assert.deepEqual(DRAWABLE,['image/jpeg','image/png','image/webp']);
+ for(const d of [photo,{...photo,type:'image/jpeg'},{...photo,type:'image/webp'}])assert.equal(isDrawable(d),true,d.type);
+ for(const d of [pdf,note,link,heic,video])assert.equal(isDrawable(d),false,d.type);
+ // A record with no file of its own cannot be drawn even if its type looks like an image.
+ assert.equal(isDrawable({id:'g',type:'image/png'}),false);
+ // A ticket that is a photo is its own thumbnail.
+ assert.equal(documentThumbnail(photo,[]),photo);
+ // A written tag or a PDF borrows the first drawable photo attached to it.
+ assert.equal(documentThumbnail(note,[pdf,heic,photo]),photo);
+ assert.equal(documentThumbnail(pdf,[photo]),photo);
+ // Order matters: the first drawable attachment wins.
+ const second={id:'h',pathname:'x/h.jpg',type:'image/jpeg'};
+ assert.equal(documentThumbnail(note,[photo,second]),photo);
+ // Nothing drawable anywhere means a tile instead, never a broken image.
+ for(const attachments of [[],[pdf],[heic],[video],[pdf,heic,video]])
+  assert.equal(documentThumbnail(note,attachments),null,JSON.stringify(attachments.map(a=>a.type)));
+ assert.equal(documentThumbnail(heic,[]),null);
+ assert.equal(documentThumbnail(video,[]),null);
+ assert.equal(documentThumbnail(link,[]),null);
+ // Called with no attachments argument at all.
+ assert.equal(documentThumbnail(photo),photo);
+ assert.equal(documentThumbnail(note),null);
+});
