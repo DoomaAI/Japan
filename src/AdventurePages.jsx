@@ -11,12 +11,12 @@ export function useReadAloud(){
  const supported=typeof window!=='undefined'&&'speechSynthesis'in window&&'SpeechSynthesisUtterance'in window;
  const [reading,setReading]=useState('');
  useEffect(()=>()=>{if(supported)window.speechSynthesis.cancel();},[supported]);
- function read(id,text){
+ function read(id,text,lang='en-AU'){
   if(!supported)return;
   window.speechSynthesis.cancel();
   if(reading===id){setReading('');return;}
   const say=new window.SpeechSynthesisUtterance(text);
-  say.lang='en-AU';say.rate=.85;
+  say.lang=lang;say.rate=lang.startsWith('ja')?.8:.85;
   say.onend=()=>setReading(now=>now===id?'':now);say.onerror=()=>setReading(now=>now===id?'':now);
   setReading(id);window.speechSynthesis.speak(say);
  }

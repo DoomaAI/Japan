@@ -840,3 +840,41 @@ test('every screen is reachable exactly once, from the bar or from More',async()
  assert.equal(navActive('challenges','more',nate),false);
  assert.equal(navActive('tickets','more',nate),true,'tickets live under More for the boys');
 });
+
+test('every Japanese word and phrase in the app carries a sound-it-out',async()=>{
+ const {FOOD,ORDERING,SAY_TIP}=await import('../src/food-data.js');
+ const {PHRASES}=await import('../src/phrases.js');
+ const japanese=/[぀-ヿ一-龯]/;
+ const everything=[...FOOD,...ORDERING,...Object.values(PHRASES)];
+ for(const item of everything){
+  const id=item.id||item.en;
+  assert.match(item.ja,japanese,`${id} has no Japanese`);
+  assert.ok(item.say,`${id} has no sound-it-out`);
+  // The phonics must be readable English: no Japanese characters, no macrons to trip over.
+  assert.doesNotMatch(item.say,japanese,`${id} phonics still has Japanese`);
+  assert.doesNotMatch(item.say,/[āīūēō]/,`${id} phonics uses a macron`);
+  assert.equal(item.say,item.say.toLowerCase(),`${id} phonics should not shout`);
+  // Chunked, so each part gets the same weight rather than an English stress.
+  assert.ok(/-/.test(item.say),`${id} phonics is not chunked`);
+ }
+ assert.equal(FOOD.length+ORDERING.length,60);
+ assert.ok(SAY_TIP.includes('evenly'));
+ // The endings a learner would otherwise get wrong, because the vowel goes silent.
+ assert.equal(ORDERING.find(o=>o.id==='four').say,'yo-neen dess','desu is said "dess"');
+ assert.equal(ORDERING.find(o=>o.id==='delicious').say,'go-chee-soh-sa-ma desh-ta','deshita is said "desh-ta"');
+ assert.match(ORDERING.find(o=>o.id==='bill').say,/shee-mass$/,'masu is said "mass"');
+ assert.equal(PHRASES.lost.say,'mee-chee nee ma-yo-ee-mash-ta');
+ assert.equal(FOOD.find(f=>f.id==='tonkatsu').say,'ton-kat-soo');
+ // Romaji is kept alongside — it is what you type into a translator.
+ for(const item of [...FOOD,...ORDERING])assert.ok(item.romaji,`${item.id} lost its romaji`);
+});
+
+test('a parent can give their own dish a sound-it-out',async()=>{
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const added=applyOperation(state,{type:'foodAdd',en:'Chicken katsu',ja:'チキンカツ',romaji:'chikin katsu',say:'  chee-keen kat-soo  ',kind:'safe'},parent);
+ assert.equal(added.foodItems[0].say,'chee-keen kat-soo');
+ // Optional, and bounded like the other text fields.
+ assert.equal(applyOperation(state,{type:'foodAdd',en:'Plain toast'},parent).foodItems[0].say,'');
+ assert.throws(()=>applyOperation(state,{type:'foodAdd',en:'Thing',say:'x'.repeat(201)},parent),/Invalid say/);
+});

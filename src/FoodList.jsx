@@ -1,6 +1,8 @@
 import React,{useState} from 'react';
 import {Check,Star,Languages,Plus,Trash2,Copy,AlertCircle} from 'lucide-react';
-import {FOOD,FOOD_KINDS,FOOD_KIND_LABEL,ORDERING} from './food-data.js';
+import {FOOD,FOOD_KINDS,FOOD_KIND_LABEL,ORDERING,SAY_TIP} from './food-data.js';
+import SayIt from './SayIt.jsx';
+import {PHRASES} from './phrases.js';
 import {triedFood,foodRatings,foodAverage,isFavourite,FAVOURITE_AT} from './trip-features.js';
 import MenuReader from './MenuReader.jsx';
 export const allFood=state=>[...FOOD,...(state.foodItems||[]).map(i=>({...i,custom:true}))];
@@ -16,11 +18,11 @@ export default function FoodList({state,user,mutate,busy,setBusy,notice,show,req
   &&(only!=='tried'||Object.keys(triedFood(state,i.id)).length)
   &&(only!=='todo'||!Object.keys(triedFood(state,i.id)).length)
   &&(only!=='loved'||isFavourite(state,i.id))
-  &&[i.en,i.ja,i.romaji,i.note].join(' ').toLowerCase().includes(query.toLowerCase()));
+  &&[i.en,i.ja,i.romaji,i.say,i.note].join(' ').toLowerCase().includes(query.toLowerCase()));
  const tallies=items.filter(i=>Object.keys(triedFood(state,i.id)).length).length;
  async function save(e){
   e.preventDefault();const f=new FormData(e.currentTarget);
-  const op={type:edit.id?'foodEdit':'foodAdd',id:edit.id,en:f.get('en'),ja:f.get('ja'),romaji:f.get('romaji'),kind:f.get('kind'),note:f.get('note')};
+  const op={type:edit.id?'foodEdit':'foodAdd',id:edit.id,en:f.get('en'),ja:f.get('ja'),romaji:f.get('romaji'),say:f.get('say'),kind:f.get('kind'),note:f.get('note')};
   if(await mutate(op))setEdit(null);
  }
  return <>
@@ -41,7 +43,8 @@ export default function FoodList({state,user,mutate,busy,setBusy,notice,show,req
    <h2>{edit.id?'Edit this dish':'Something we like'}</h2>
    <label>English name<input name="en" required maxLength={200} defaultValue={edit.en||''} placeholder="Chicken katsu, no sauce"/></label>
    <label>Japanese (to show at the counter)<input name="ja" maxLength={200} defaultValue={edit.ja||''} placeholder="チキンカツ"/></label>
-   <label>How to say it<input name="romaji" maxLength={200} defaultValue={edit.romaji||''} placeholder="chikin katsu"/></label>
+   <label>Written out (romaji)<input name="romaji" maxLength={200} defaultValue={edit.romaji||''} placeholder="chikin katsu"/></label>
+   <label>Sound it out<input name="say" maxLength={200} defaultValue={edit.say||''} placeholder="chee-keen kat-soo"/></label>
    <label>Group<select name="kind" defaultValue={edit.kind}>{FOOD_KINDS.map(([k,label])=><option key={k} value={k}>{label}</option>)}</select></label>
    <label>Note<textarea name="note" maxLength={2000} defaultValue={edit.note||''} placeholder="Where we had it, what to ask for"/></label>
    <div className="row wrap"><button className="primary" disabled={busy}>Save</button><button type="button" onClick={()=>setEdit(null)}>Cancel</button></div>
@@ -53,8 +56,7 @@ export default function FoodList({state,user,mutate,busy,setBusy,notice,show,req
      <div><strong>{item.en}</strong><small>{FOOD_KIND_LABEL(item.kind)}{item.custom?' · ours':''}</small></div>
      {average!==null&&<span className="food-score" title={`${Object.keys(ratings).length} rating(s)`}><Star size={14}/>{average}</span>}
     </div>
-    {item.ja&&<p className="japanese food-ja" lang="ja">{item.ja}</p>}
-    {item.romaji&&<small className="food-romaji">{item.romaji}</small>}
+    {item.ja&&<SayIt phrase={{...item,en:''}}/>}
     {item.note&&<p>{item.note}</p>}
     <div className="food-people">{state.members.map(n=>
      <div className="food-person" key={n}>
@@ -71,9 +73,9 @@ export default function FoodList({state,user,mutate,busy,setBusy,notice,show,req
   {!list.length&&<div className="empty"><p>Nothing matches that. Try another group, or add something we like.</p></div>}
   <details className="ordering">
    <summary>Asking for it — {ORDERING.length} phrases</summary>
-   <p>Tap a phrase to copy it, or hold your phone up and let someone read it.</p>
+   <p>{SAY_TIP} Tap Copy to put the Japanese on your clipboard, or hold your phone up and let someone read it.</p>
    {ORDERING.map(o=><div className="phrase" key={o.id}>
-    <div><strong>{o.en}</strong><p className="japanese small" lang="ja">{o.ja}</p><small>{o.romaji}</small></div>
+    <div><strong>{o.en}</strong><SayIt phrase={{...o,en:''}} size="small"/></div>
     <button onClick={()=>navigator.clipboard.writeText(o.ja).then(()=>notice('Copied in Japanese.')).catch(()=>notice('Select the Japanese to copy it.'))}><Copy size={15}/>Copy</button>
    </div>)}
   </details>
@@ -82,9 +84,8 @@ export default function FoodList({state,user,mutate,busy,setBusy,notice,show,req
 export function FoodCard({item,notice}){
  return <>
   <p className="eyebrow">WE WOULD LIKE THIS, PLEASE</p>
-  <div className="destination"><h2 lang="ja">{item.ja}</h2><h3>{item.en}</h3>{item.romaji&&<p>{item.romaji}</p>}</div>
-  <p className="japanese" lang="ja">これをください。</p>
-  <p>This one, please.</p>
+  <div className="destination"><h2 lang="ja">{item.ja}</h2><h3>{item.en}</h3>{item.say&&<p className="say-phonics"><span aria-hidden="true">say</span> {item.say}</p>}{item.romaji&&<small>{item.romaji}</small>}</div>
+  <SayIt phrase={PHRASES.thisOne}/>
   <button className="button" onClick={()=>navigator.clipboard.writeText(item.ja).then(()=>notice('Copied in Japanese.')).catch(()=>notice('Select the Japanese to copy it.'))}><Copy size={16}/>Copy the Japanese</button>
   <p><small>Written as it usually appears on a menu. Staff are the authority on what is actually in a dish.</small></p>
  </>;
