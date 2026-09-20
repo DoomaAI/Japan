@@ -113,18 +113,19 @@ test('photo/video registration rejects unsupported files and enforces per-type s
 
 test('daily and whole-trip missions correctly assign Boston age 8 and Nate age 5',async()=>{
  const {ensureFeatures}=await import('../src/trip-features.js');const state=ensureFeatures(seed);
- assert.equal(state.challenges.length,44);
+ assert.equal(state.challenges.length,108);
  for(const name of ['Nate','Boston']){
-  assert.equal(state.challenges.filter(c=>c.day&&c.participants.includes(name)).length,16);
+  assert.equal(state.challenges.filter(c=>c.day&&c.participants.includes(name)).length,48);
   assert.equal(state.challenges.filter(c=>!c.day&&c.participants.includes(name)).length,6);
  }
- assert.equal(state.challenges.find(c=>c.id==='mission-2026-09-25-Boston').title,'Theme-park strategist');
- assert.equal(state.challenges.find(c=>c.id==='mission-2026-09-25-Nate').title,'Design a game power-up');
- const id='mission-2026-09-25-Nate';
- const done=applyOperation(state,{type:'challengeStatus',id,person:'Nate',done:true,response:'My power-up lets everyone take a turn.',at:'2026-09-19T12:00:00Z'},child);
+ // The Universal day reads the park for Boston and the feelings of it for Nate.
+ assert.equal(state.challenges.find(c=>c.id==='mission-2026-09-25-Boston-1').title,'Theme-park strategist');
+ assert.equal(state.challenges.find(c=>c.id==='mission-2026-09-25-Nate-1').title,'Ride bravery badge');
+ const id='mission-2026-09-25-Nate-2';
+ const done=applyOperation(state,{type:'challengeStatus',id,person:'Nate',done:true,response:'I found a question block.',at:'2026-09-19T12:00:00Z'},child);
  assert.ok(done.challenges.find(c=>c.id===id).completions.Nate);
- assert.equal(done.challenges.find(c=>c.id===id).responses.Nate,'My power-up lets everyone take a turn.');
- assert.throws(()=>applyOperation(state,{type:'challengeStatus',id:'mission-2026-09-25-Boston',person:'Boston',done:true},child),e=>e.status===403);
+ assert.equal(done.challenges.find(c=>c.id===id).responses.Nate,'I found a question block.');
+ assert.throws(()=>applyOperation(state,{type:'challengeStatus',id:'mission-2026-09-25-Boston-1',person:'Boston',done:true},child),e=>e.status===403);
  assert.throws(()=>applyOperation(state,{type:'challengeAdd',title:'Replace plan',day:null,participants:['Nate']},child),e=>e.status===403);
  assert.deepEqual(ensureFeatures(done).challenges,done.challenges);
 });
@@ -334,4 +335,48 @@ test('read receipts report whether Lauren opened each note, and when she opened 
   const s=noteReadState(day,{},today);assert.equal(s.read,false);assert.equal(s.when,null);assert.equal(s.late,false);
  }
  assert.equal(noteReadState('2026-09-23',undefined,today).read,false);
+});
+
+test('each boy gets three day-specific missions on every trip day',async()=>{
+ const {initialChallenges,DAY_MISSIONS,BOYS}=await import('../src/trip-features.js');
+ const challenges=initialChallenges(seed.days);
+ assert.equal(new Set(challenges.map(c=>c.id)).size,challenges.length);
+ for(const d of seed.days)for(const boy of BOYS){
+  const mine=challenges.filter(c=>c.day===d.date&&c.participants[0]===boy);
+  assert.equal(mine.length,3,`${d.date} ${boy}`);
+  for(const c of mine){assert.ok(c.title.trim());assert.ok(c.notes.trim());assert.deepEqual(c.participants,[boy]);}
+  // Nate and Boston get different work on the same day.
+  const other=challenges.filter(c=>c.day===d.date&&c.participants[0]!==boy).map(c=>c.title);
+  assert.ok(mine.every(c=>!other.includes(c.title)),`${d.date} shares a title`);
+ }
+ // Missions are written per day, not recycled.
+ assert.equal(Object.keys(DAY_MISSIONS).length,seed.days.length);
+ assert.equal(challenges.filter(c=>c.day).length,seed.days.length*2*3);
+ assert.equal(challenges.filter(c=>!c.day).length,12);
+});
+
+test('the fuller mission set is added once without losing completions or parent challenges',async()=>{
+ const {ensureFeatures,seededChallenges,MISSION_SEED}=await import('../src/trip-features.js');
+ const day=seed.days[0].date;
+ const old={
+  challenges:[
+   {id:`mission-${day}-Nate`,title:'Old mission Nate did',notes:'x',day,participants:['Nate'],completions:{Nate:'2026-09-21T02:00:00Z'},responses:{Nate:'I found it'}},
+   {id:`mission-${day}-Boston`,title:'Old mission nobody did',notes:'x',day,participants:['Boston'],completions:{}},
+   {id:'quest-Nate-0',title:'Existing quest',notes:'x',day:null,participants:['Nate'],completions:{Nate:'2026-09-22T02:00:00Z'}},
+   {id:'custom-1',title:'A challenge Damien wrote',notes:'x',day,participants:['Nate'],completions:{}}],
+  days:seed.days};
+ const merged=seededChallenges(old),ids=merged.challenges.map(c=>c.id);
+ assert.equal(merged.missionSeed,MISSION_SEED);
+ // Completed work, discovery notes and parent-written challenges all survive.
+ const kept=merged.challenges.find(c=>c.id===`mission-${day}-Nate`);
+ assert.equal(kept.completions.Nate,'2026-09-21T02:00:00Z');assert.equal(kept.responses.Nate,'I found it');
+ assert.ok(ids.includes('custom-1'));
+ assert.equal(merged.challenges.find(c=>c.id==='quest-Nate-0').title,'Existing quest');
+ // The superseded single mission nobody completed is dropped, and the new sets arrive.
+ assert.ok(!ids.includes(`mission-${day}-Boston`));
+ for(const n of [1,2,3])for(const boy of ['Nate','Boston'])assert.ok(ids.includes(`mission-${day}-${boy}-${n}`));
+ // Running again changes nothing, and a fresh trip seeds straight to the new set.
+ assert.deepEqual(seededChallenges({...old,...merged}).challenges.map(c=>c.id),ids);
+ assert.equal(ensureFeatures(structuredClone(seed)).challenges.length,seed.days.length*6+12);
+ assert.equal(ensureFeatures(structuredClone(seed)).missionSeed,MISSION_SEED);
 });

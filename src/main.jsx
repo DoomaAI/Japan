@@ -39,7 +39,7 @@ function App(){
  const state=envelope?.state,user=envelope?.user,parent=user?.role==='parent';
  const directions=(place,mode='transit')=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(target)+'&travelmode='+mode;};
  const maps=place=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(target);};
- const envRef=useRef(envelope),queueRef=useRef(queue),working=useRef(false),touch=useRef(null),noteShown=useRef('');
+ const envRef=useRef(envelope),queueRef=useRef(queue),working=useRef(false),touch=useRef(null),noteShown=useRef(''),landed=useRef(false);
  envRef.current=envelope;queueRef.current=queue;
  function notice(s){setToast(s);}
  function accept(e){e={...e,state:ensureFeatures(e.state)};envRef.current=e;setEnvelope(e);localStorage.setItem('japan.snapshot',JSON.stringify({...e,savedAt:Date.now()}));}
@@ -113,6 +113,12 @@ function App(){
   noteShown.current=noteForMe.day;setModal({type:'thankyou',note:noteForMe});
  },[noteForMe?.day,noteForMe?.id,noteRead]);
  useEffect(()=>{if(tab==='thanks'&&user&&user.name!==THANK_YOU_FROM)setTab('today');},[tab,user?.name]);
+ // Nate and Boston open straight onto their own missions, unless a link names a screen.
+ useEffect(()=>{
+  if(!user||landed.current)return;landed.current=true;
+  const link=new URLSearchParams(location.search);
+  if(user.role==='child'&&!link.get('tab')&&!link.get('step')&&!link.get('page'))setTab('challenges');
+ },[user?.name]);
  async function readNote(note){
   localStorage.setItem(`japan.note.${note.day}`,'read');
   if(navigator.onLine&&!state.thankYou.seen?.[note.day])await mutate({type:'thankYouSeen',day:note.day});
