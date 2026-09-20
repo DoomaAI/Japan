@@ -9,6 +9,9 @@ import TicketViewer from './TicketViewer.jsx';
 import DocumentThumb from './DocumentThumb.jsx';
 import Currency from './Currency.jsx';
 import SayIt from './SayIt.jsx';
+import Phrasebook,{PhraseOfDay} from './Phrasebook.jsx';
+import {phraseForDay} from './phrasebook-data.js';
+import {phraseSeenBy} from './trip-features.js';
 import {PHRASES} from './phrases.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
 import {primaryNav,moreIds} from './nav-data.js';
@@ -42,14 +45,14 @@ function Dialog({title,children,onClose,wide=false}){const ref=useRef();useEffec
 async function copyOrShare(url,title,share=false){if(share&&navigator.share){await navigator.share({title,url});return;}await navigator.clipboard.writeText(url);}
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
- const [tab,setTab]=useState(['today','days','challenges','shopping','tickets','more','meeting','diary','updates','search','options','places','guide','help','thanks','parks','food','money'].includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
+ const [tab,setTab]=useState(['today','days','challenges','shopping','tickets','more','meeting','diary','updates','search','options','places','guide','help','thanks','parks','food','money','phrases'].includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
  const [focus,setFocus]=useState(new URLSearchParams(location.search).get('item')||null);
  const [updateReady,setUpdateReady]=useState(false),[modal,setModal]=useState(null),[busy,setBusy]=useState(false),[online,setOnline]=useState(navigator.onLine),[now,setNow]=useState(new Date()),[queue,setQueue]=useState(stored('japan.queue',[])),[conflict,setConflict]=useState(false);
  const [guidePage,setGuidePage]=useState(Number(new URLSearchParams(location.search).get('page'))||1),[guideIndex,setGuideIndex]=useState([]),[query,setQuery]=useState(''),[saved,setSaved]=useState(stored('japan.saved',[])),[clockShortcut,setClockShortcut]=useState(localStorage.getItem('japan.shortcut')||'');
  const state=envelope?.state,user=envelope?.user,parent=user?.role==='parent';
  const directions=(place,mode='transit')=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(target)+'&travelmode='+mode;};
  const maps=place=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(target);};
- const envRef=useRef(envelope),queueRef=useRef(queue),working=useRef(false),touch=useRef(null),noteShown=useRef(''),landed=useRef(false);
+ const envRef=useRef(envelope),queueRef=useRef(queue),working=useRef(false),touch=useRef(null),noteShown=useRef(''),phraseSeen=useRef(''),landed=useRef(false);
  envRef.current=envelope;queueRef.current=queue;
  function notice(s){setToast(s);}
  function accept(e){e={...e,state:ensureFeatures(e.state)};envRef.current=e;setEnvelope(e);localStorage.setItem('japan.snapshot',JSON.stringify({...e,savedAt:Date.now()}));}
@@ -135,6 +138,23 @@ function App(){
   const link=new URLSearchParams(location.search);
   if(user.role==='child'&&!link.get('tab')&&!link.get('step')&&!link.get('page'))setTab('challenges');
  },[user?.name]);
+ // Today's phrase, once per person per day. Lauren's private note takes precedence, so the
+ // two never stack up on the same screen.
+ const todayJapan=japanDate(now);
+ const phraseDay=state?.days.some(d=>d.date===todayJapan)?todayJapan:null;
+ const todaysPhrase=phraseDay?phraseForDay(state.days,phraseDay):null;
+ const phraseDone=!todaysPhrase||!!phraseSeenBy(state,phraseDay)[user?.name]||localStorage.getItem(`japan.phrase.${phraseDay}`)==='seen';
+ useEffect(()=>{
+  // It waits for a clear screen, so it lands after her note is closed rather than on top of it.
+  if(!todaysPhrase||phraseDone||modal||phraseSeen.current===phraseDay)return;
+  if(noteForMe&&!noteRead)return;
+  phraseSeen.current=phraseDay;setModal({type:'phrase',phrase:todaysPhrase,day:phraseDay});
+ },[todaysPhrase?.id,phraseDone,noteForMe?.day,noteRead,modal]);
+ async function seePhrase(day){
+  localStorage.setItem(`japan.phrase.${day}`,'seen');
+  if(navigator.onLine)await mutate({type:'phraseSeen',day,person:user.name});
+  setModal(null);
+ }
  async function readNote(note){
   localStorage.setItem(`japan.note.${note.day}`,'read');
   if(navigator.onLine&&!state.thankYou.seen?.[note.day])await mutate({type:'thankYouSeen',day:note.day});
@@ -182,6 +202,7 @@ function App(){
   {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='meeting'&&<MeetingCard key={day} state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='updates'&&<Updates state={state} user={user} mutate={mutate} busy={busy}/>}
+  {tab==='phrases'&&<><p className="eyebrow">A LITTLE JAPANESE GOES A LONG WAY</p><h1>Phrases</h1><Phrasebook/></>}
   {tab==='money'&&<><p className="eyebrow">WHAT DOES THAT COST?</p><h1>Yen converter</h1><Currency state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice}/></>}
   {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><FoodList state={visibleState} user={user} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal}/></>}
@@ -199,9 +220,10 @@ function App(){
   <BottomNav tab={tab} user={user} go={go} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
   {toast&&<div className="toast" role="status">{toast}<button aria-label="Dismiss" onClick={()=>setToast('')}><X size={16}/></button></div>}
-  {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',eyespy:'Window I spy',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',thankyou:`A note from ${THANK_YOU_FROM}`}[modal.type]} onClose={()=>setModal(null)} wide={['tickets','media','eyespy','park'].includes(modal.type)}>
+  {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',eyespy:'Window I spy',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',thankyou:`A note from ${THANK_YOU_FROM}`}[modal.type]} onClose={()=>setModal(null)} wide={['tickets','media','eyespy','park'].includes(modal.type)}>
    {modal.type==='foodcard'&&<FoodCard item={modal.item} notice={notice}/>}
    {modal.type==='park'&&<ParkGuide state={visibleState} user={user} park={modal.park} mutate={mutate} busy={busy} open={setModal}/>}
+   {modal.type==='phrase'&&<PhraseOfDay phrase={modal.phrase} day={modal.day} dayLabel={fmtDay(modal.day)} busy={busy} dismiss={()=>seePhrase(modal.day)}/>}
    {modal.type==='eyespy'&&<EyeSpy state={visibleState} user={user} step={modal.step} mutate={mutate} busy={busy}/>}
    {modal.type==='thankyou'&&<ThankYouNote note={modal.note} seenAt={state.thankYou.seen?.[modal.note.day]} busy={busy} dismiss={()=>readNote(modal.note)}/>}
    {modal.type==='late'&&<RunningLate state={state} day={day} mutate={mutate} busy={busy} close={()=>setModal(null)}/>}
@@ -213,7 +235,7 @@ function App(){
 
    {modal.type==='media'&&<MediaGallery initialSearch={modal.initialSearch} state={state} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} accept={accept} mutate={mutate} notice={notice} request={request}/>}
    {modal.type==='tickets'&&<Tickets initialSearch={modal.initialSearch} state={state} user={user} step={modal.step} config={config} busy={busy} setBusy={setBusy} accept={accept} mutate={mutate} notice={notice} saved={saved} saveOffline={saveOffline} selectStep={selectStep}/>}
-   {modal.type==='family'&&<Family user={user} state={state} notice={notice} onLogout={async()=>{try{await request('logout',{});}catch{}localStorage.removeItem('japan.snapshot');localStorage.removeItem('japan.queue');localStorage.removeItem('japan.saved');localStorage.removeItem('japan.position');localStorage.removeItem('japan.capture');localStorage.removeItem('japan.guide-index');Object.keys(localStorage).filter(k=>k.startsWith('japan.offline-external.')||k.startsWith('japan.note.')).forEach(k=>localStorage.removeItem(k));await caches.delete('japan-private-v1');location.href='/';}}/>}
+   {modal.type==='family'&&<Family user={user} state={state} notice={notice} onLogout={async()=>{try{await request('logout',{});}catch{}localStorage.removeItem('japan.snapshot');localStorage.removeItem('japan.queue');localStorage.removeItem('japan.saved');localStorage.removeItem('japan.position');localStorage.removeItem('japan.capture');localStorage.removeItem('japan.guide-index');Object.keys(localStorage).filter(k=>k.startsWith('japan.offline-external.')||k.startsWith('japan.note.')||k.startsWith('japan.phrase.')).forEach(k=>localStorage.removeItem(k));await caches.delete('japan-private-v1');location.href='/';}}/>}
    
    {modal.type==='apps'&&<AppLinks day={day}/>}
    {modal.type==='alarm'&&<><p><strong>{modal.step.title}</strong><br/>{fmtDay(modal.step.day)} · {modal.step.time||'No target time'} Japan time</p>{!modal.step.time?<p>Set a target time first.</p>:<><Button className="primary" icon={CalendarDays} onClick={()=>{const file=new Blob([calendarEvent(modal.step)],{type:'text/calendar;charset=utf-8'}),url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download='japan-reminder.ics';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notice('Open the calendar file to add the event and 15-minute alert.');}}>Add to Calendar</Button><p>A dated calendar event with a 15-minute alert. Check it was added on your phone.</p><details><summary>Use a phone alarm Shortcut</summary><p>Create an Apple Shortcut named <strong>Japan Alarm</strong>: receive text input → Get Dictionary from Input → Get Dictionary Value “time” → Create Alarm. Use dictionary value “label” for the alarm label.</p><p>This creates a Clock alarm for a time of day, not a future trip date. Use it only for today, with the phone timezone set to Japan. Test once on each phone.</p><label>Installed shortcut name<input value={clockShortcut} placeholder="Japan Alarm" onChange={e=>{setClockShortcut(e.target.value);localStorage.setItem('japan.shortcut',e.target.value);}}/></label>{clockShortcut&&modal.step.day===japanDate()&&Intl.DateTimeFormat().resolvedOptions().timeZone==='Asia/Tokyo'?<a className="button" href={`shortcuts://run-shortcut?name=${encodeURIComponent(clockShortcut)}&input=text&text=${encodeURIComponent(JSON.stringify({time:modal.step.time,label:modal.step.title}))}`}>Run alarm shortcut</a>:<p>Alarm link becomes available on the activity day when this phone uses Japan time.</p>}</details><p className="callout">If the itinerary changes, update any calendar event or phone alarm yourself. Existing reminders do not change automatically.</p></>}</>}

@@ -842,10 +842,12 @@ test('every screen is reachable exactly once, from the bar or from More',async()
 });
 
 test('every Japanese word and phrase in the app carries a sound-it-out',async()=>{
- const {FOOD,ORDERING,SAY_TIP}=await import('../src/food-data.js');
+ const {FOOD,ORDERING,MENU_WORDS,SAY_TIP}=await import('../src/food-data.js');
  const {PHRASES}=await import('../src/phrases.js');
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js');
  const japanese=/[぀-ヿ一-龯]/;
- const everything=[...FOOD,...ORDERING,...Object.values(PHRASES)];
+ const variants=FOOD.flatMap(f=>f.variants||[]);
+ const everything=[...FOOD,...variants,...ORDERING,...MENU_WORDS,...ALL_PHRASES(),...Object.values(PHRASES)];
  for(const item of everything){
   const id=item.id||item.en;
   assert.match(item.ja,japanese,`${id} has no Japanese`);
@@ -854,10 +856,12 @@ test('every Japanese word and phrase in the app carries a sound-it-out',async()=
   assert.doesNotMatch(item.say,japanese,`${id} phonics still has Japanese`);
   assert.doesNotMatch(item.say,/[āīūēō]/,`${id} phonics uses a macron`);
   assert.equal(item.say,item.say.toLowerCase(),`${id} phonics should not shout`);
-  // Chunked, so each part gets the same weight rather than an English stress.
-  assert.ok(/-/.test(item.say),`${id} phonics is not chunked`);
+  // Chunked, so each part gets the same weight rather than an English stress. A word
+  // that is only one sound ("hye", "men") has nothing to chunk.
+  assert.ok(/-/.test(item.say)||item.say.length<=4,`${id} phonics is not chunked`);
  }
- assert.equal(FOOD.length+ORDERING.length,60);
+ assert.equal(FOOD.length+ORDERING.length,64);
+ assert.equal(variants.length,34,'the chicken/pork/prawn/vege choices under the dishes');
  assert.ok(SAY_TIP.includes('evenly'));
  // The endings a learner would otherwise get wrong, because the vowel goes silent.
  assert.equal(ORDERING.find(o=>o.id==='four').say,'yo-neen dess','desu is said "dess"');
@@ -866,7 +870,7 @@ test('every Japanese word and phrase in the app carries a sound-it-out',async()=
  assert.equal(PHRASES.lost.say,'mee-chee nee ma-yo-ee-mash-ta');
  assert.equal(FOOD.find(f=>f.id==='tonkatsu').say,'ton-kat-soo');
  // Romaji is kept alongside — it is what you type into a translator.
- for(const item of [...FOOD,...ORDERING])assert.ok(item.romaji,`${item.id} lost its romaji`);
+ for(const item of everything)assert.ok(item.romaji,`${item.id||item.en} lost its romaji`);
 });
 
 test('a parent can give their own dish a sound-it-out',async()=>{
@@ -877,4 +881,66 @@ test('a parent can give their own dish a sound-it-out',async()=>{
  // Optional, and bounded like the other text fields.
  assert.equal(applyOperation(state,{type:'foodAdd',en:'Plain toast'},parent).foodItems[0].say,'');
  assert.throws(()=>applyOperation(state,{type:'foodAdd',en:'Thing',say:'x'.repeat(201)},parent),/Invalid say/);
+});
+
+test('a word a day, in trip order, practical and never repeated inside the trip',async()=>{
+ const {PHRASEBOOK,ALL_PHRASES,DAILY_ORDER,phraseForDay,findPhrase}=await import('../src/phrasebook-data.js');
+ const all=ALL_PHRASES();
+ assert.equal(new Set(all.map(p=>p.id)).size,all.length,'phrase ids must be unique');
+ assert.ok(PHRASEBOOK.every(s=>s.phrases.length),'no empty section');
+ // Every day of the trip gets a phrase, and no phrase comes round twice in 16 days.
+ const daily=seed.days.map(d=>phraseForDay(seed.days,d.date));
+ assert.equal(daily.filter(Boolean).length,seed.days.length);
+ assert.equal(new Set(daily.map(p=>p.id)).size,seed.days.length);
+ assert.equal(daily[0].id,'hello');assert.equal(daily.at(-1).id,'bye');
+ // The rota only ever names phrases that exist.
+ for(const id of DAILY_ORDER)assert.ok(findPhrase(id),`${id} is not in the phrasebook`);
+ assert.equal(phraseForDay(seed.days,'2099-01-01'),null,'a day off the trip gets nothing');
+});
+
+test('marking the daily phrase seen is per person, per day, and keeps the first time',async()=>{
+ const {ensureFeatures,phraseSeenBy}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const day=seed.days[0].date,at='2026-09-19T01:00:00.000Z';
+ const seen=applyOperation(state,{type:'phraseSeen',person:'Nate',day,at},child);
+ assert.equal(phraseSeenBy(seen,day).Nate,at);
+ // Seeing it again does not move the timestamp, and one person's tick is not another's.
+ const again=applyOperation(seen,{type:'phraseSeen',person:'Nate',day,at:'2026-09-19T09:00:00.000Z'},child);
+ assert.equal(phraseSeenBy(again,day).Nate,at);
+ assert.equal(phraseSeenBy(again,day).Damien,undefined);
+ const both=applyOperation(again,{type:'phraseSeen',person:'Damien',day},parent);
+ assert.ok(both.phraseSeen[day].Damien);
+ // You tick your own, on a real trip day, for a real member of the family.
+ assert.throws(()=>applyOperation(state,{type:'phraseSeen',person:'Damien',day},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'phraseSeen',person:'Nate',day:'2099-01-01'},child),/trip day/);
+ assert.throws(()=>applyOperation(state,{type:'phraseSeen',person:'Grandma',day},parent),/family member/);
+});
+
+test('the dishes carry the chicken, pork, prawn and vegetarian choices, and how to ask',async()=>{
+ const {FOOD,ORDERING,MENU_WORDS}=await import('../src/food-data.js');
+ const withVariants=FOOD.filter(f=>f.variants?.length);
+ assert.ok(withVariants.length>=10,'the dishes that come in versions');
+ for(const dish of withVariants){
+  const labels=dish.variants.map(v=>v.en);
+  assert.equal(new Set(labels).size,labels.length,`${dish.id} repeats a version`);
+ }
+ assert.ok(FOOD.find(f=>f.id==='yakitori').variants.some(v=>/chicken/i.test(v.en)));
+ assert.ok(FOOD.find(f=>f.id==='katsucurry').variants.some(v=>/vegetable/i.test(v.en)));
+ assert.ok(FOOD.find(f=>f.id==='gyoza').variants.some(v=>/prawn/i.test(v.en)));
+ assert.ok(FOOD.find(f=>f.id==='tonkatsu').variants.some(v=>/pork/i.test(v.en)));
+ // The words to spot on a menu, and the questions to ask about what is in a dish.
+ for(const id of ['chicken','pork','prawn','beef','egg'])assert.ok(MENU_WORDS.find(w=>w.id===id),`${id} missing from the menu words`);
+ for(const id of ['chickenplease','nomeat','meatinthis','vegetarian'])assert.ok(ORDERING.find(o=>o.id===id),`${id} missing from ordering`);
+});
+
+test('searching works from an English keyboard — no macrons, no punctuation',async()=>{
+ const {searchText}=await import('../src/trip-features.js');
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ const find=q=>ALL_PHRASES().filter(p=>searchText([p.en,p.ja,p.romaji,p.say,p.note].join(' ')).includes(searchText(q)));
+ assert.ok(find('arigato').some(p=>p.id==='thanks'),'"arigato" must find "arigatō gozaimasu"');
+ assert.ok(find('ohayo').some(p=>p.id==='morning'));
+ assert.ok(find('Where is the toilet').some(p=>p.id==='wheretoilet'),'the question mark must not block it');
+ assert.ok(find('こんにちは').some(p=>p.id==='hello'),'and Japanese still searches as itself');
+ assert.equal(searchText('  Arigatō  gozaimasu? '),'arigato gozaimasu');
+ assert.equal(searchText(undefined),'');
 });

@@ -63,6 +63,15 @@ export function extraOperation(state,op,user,fail,now){
    if(!custom())fail('That is one of the built-in dishes and cannot be removed.',404);
    state.foodItems=state.foodItems.filter(i=>i.id!==op.id);
   }else fail('Unknown food action.');
+ }else if(op.type==='phraseSeen'){
+  // Everyone gets the phrase of the day, and each person marks off their own.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Mark your own phrase as seen.',403);
+  if(!op.day||!state.days.some(d=>d.date===op.day))fail('Choose a trip day.');
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid phrase time.');at=new Date(op.at).toISOString();}
+  const seen={...(state.phraseSeen[op.day]||{})};
+  seen[op.person]=seen[op.person]||at;
+  state.phraseSeen={...state.phraseSeen,[op.day]:seen};
  }else if(op.type==='exchangeRate'){
   if(!parent)fail('A parent can set the rate.',403);
   if(!Number.isFinite(op.perAud)||op.perAud<1||op.perAud>1000)fail('Enter how many yen one Australian dollar buys.');
