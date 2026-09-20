@@ -1,0 +1,45 @@
+import {destinationFor} from './locations.js';
+import React,{useEffect,useState} from 'react';
+import {nextSummary,delayForDay,offlineManifest} from './trip-features.js';
+import {japanClock,japanDate} from './timing.js';
+import {dayLabel} from './AdventurePages.jsx';
+export function NextUp({state,day,now,selectStep,open,go,parent}){
+ const {current,fixed,departure}=nextSummary(state,day),tickets=state.documents.filter(d=>d.stepId===(fixed||current)?.id&&d.category!=='memory');
+ const today=state.days.find(d=>d.date===day),remaining=departure?Math.round((departure-now)/60000):null;
+ return <section className="next-up"><div><p className="eyebrow">YOUR FAMILY DASHBOARD · {dayLabel(day)}</p><h2>{current?'What’s next?':'Day complete'}</h2>{current?<button className="next-title" onClick={()=>selectStep(current)}>{current.time||'Any time'} · {current.title}</button>:<p>Time to capture a favourite memory.</p>}{fixed&&<div className="departure"><span>Next fixed booking</span><strong>{fixed.time} · {fixed.title}</strong><span>Leave by {japanClock(departure)}{japanDate(departure)!==day?` on ${dayLabel(japanDate(departure))}`:''}{day===japanDate(now)?remaining>=0?` · in ${remaining} min`:` · ${Math.abs(remaining)} min past departure target`:''}</span><small>Estimate: {fixed.travelMinutes??20} min travel + {fixed.arrivalBuffer??15} min early arrival. Check live directions.</small><div className="row wrap"><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinationFor(state,fixed))}&travelmode=transit`} target="_blank" rel="noreferrer">Directions</a><button onClick={()=>open({type:'tickets',step:fixed})}>{tickets.length?`${tickets.length} ticket / booking details`:'Add / view tickets'}</button>{parent&&<button onClick={()=>open({type:'edit',step:fixed})}>Edit travel estimate</button>}</div></div>}<div className="dashboard-actions"><button onClick={()=>open({type:'offline'})}>Offline readiness</button><button onClick={()=>go('meeting')}>Meeting card</button>{parent&&<><button onClick={()=>open({type:'late'})}>We’re running late</button><button onClick={()=>open({type:'capture'})}>Quick capture</button></>}<button onClick={()=>go('challenges')}>Boys’ missions</button><button onClick={()=>go('shopping')}>Shopping list</button></div></div><img src="/cover.jpg" alt="Our Japan travel guide cover"/></section>;
+}
+export function RunningLate({state,day,mutate,busy,close}){
+ const [delay,setDelay]=useState(20),plan=delayForDay(state,day,Number(delay));
+ return <><p>Preview a revised day. Fixed bookings and activities already started or completed stay protected. Stops that no longer fit move to Options with their notes and files.</p><label>Delay in minutes<input type="number" min="1" max="240" value={delay} onChange={e=>setDelay(e.target.value)}/></label>{plan.warnings.map(w=><p className="callout" key={w}>{w}</p>)}<h3>Revised times</h3>{plan.changes.map(c=><div className="list-row" key={c.id}><span>{c.title}</span><strong>{c.from} → {c.time}</strong></div>)}{!plan.changes.length&&<p>No flexible times need changing.</p>}<h3>Save for later</h3>{plan.backlog.map(c=><div className="list-row" key={c.id}><span>{c.title}<small>{c.reason}</small></span><strong>Options</strong></div>)}{!plan.backlog.length&&<p>Everything still fits around the protected times.</p>}<p>Uses your estimated durations and travel buffers. Check any booking warnings before applying. Existing phone alarms and calendar exports need updating separately.</p><button className="primary" disabled={busy||!Number.isInteger(Number(delay))||Number(delay)<1||Number(delay)>240||(!plan.changes.length&&!plan.backlog.length)} onClick={async()=>{if(await mutate({type:'runningLate',day,delay:Number(delay)}))close();}}>Apply this revised day</button></>;
+}
+export function OfflineReadiness({state,day,notice,refresh}){
+ const tomorrow=japanDate(new Date(Date.now()+86400000)),[date,setDate]=useState(state.days.some(d=>d.date===tomorrow)?tomorrow:day),[checks,setChecks]=useState({}),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[shell,setShell]=useState(false),[snapshot,setSnapshot]=useState(false),[localConfirmed,setLocalConfirmed]=useState(false);
+ const manifest=offlineManifest(state,date);
+ async function inspect(){
+  if(!('caches'in window)){setMessage('This browser cannot store offline files.');return;}
+  const cache=await caches.open('japan-private-v1'),result={};for(const f of manifest.files)result[f.url]=!!(await cache.match(f.url));setChecks(result);
+  const shellCache=await caches.open('japan-shell-v1'),root=await shellCache.match('/');let complete=!!root;
+  if(root){const html=await root.text(),assets=[...html.matchAll(/(?:src|href)="(\/assets\/[^\"]+)"/g)].map(m=>m[1]);if(!assets.length)complete=false;for(const a of assets)if(!await shellCache.match(a))complete=false;}
+  setShell(complete&&!!navigator.serviceWorker?.controller);
+  try{const data=JSON.parse(localStorage.getItem('japan.snapshot'));setSnapshot(!!data?.state?.days?.some(d=>d.date===date));}catch{setSnapshot(false);}
+ }
+ useEffect(()=>{inspect().catch(()=>setMessage('Could not check saved files.'));setLocalConfirmed(localStorage.getItem(`japan.offline-external.${date}`)==='yes');},[date,state.documents.length]);
+ async function download(){
+  if(!('caches'in window)){notice('Offline storage is unavailable.');return;}
+  setBusy(true);let failures=0;try{
+   await refresh();const cache=await caches.open('japan-private-v1');
+   for(const [i,file]of manifest.files.entries()){
+    setMessage(`Saving ${i+1}/${manifest.files.length}: ${file.title}`);
+    try{const r=await fetch(file.url);if(!r.ok)throw new Error('Download failed');await cache.put(file.url,r);}catch{failures++;}
+   }
+   setMessage(failures?`${failures} files could not save. Retry while connected.`:'Itinerary, saved addresses and available files downloaded.');
+   await inspect();
+  }catch{setMessage('Reconnect to download the latest plan.');}finally{setBusy(false);}
+ }
+ const saved=manifest.files.filter(f=>checks[f.url]).length,ready=shell&&snapshot&&saved===manifest.files.length&&(!manifest.links.length||localConfirmed);
+ return <><label>Prepare this day<select value={date} onChange={e=>setDate(e.target.value)}>{state.days.map(d=><option value={d.date} key={d.date}>{dayLabel(d.date)} · {d.title}</option>)}</select></label><p className={`readiness ${ready?'ready':''}`}>{ready?'Downloaded · ready for your airplane-mode check':'Preparation still needed'}</p><ul className="readiness-list"><li>{shell?'✓':'○'} App and navigation saved{!shell?' — open the deployed app online, then reload once':''}</li><li>{snapshot?'✓':'○'} Itinerary, addresses and meeting details saved</li><li>{saved===manifest.files.length?'✓':'○'} {saved} / {manifest.files.length} guide pages and files saved</li></ul><button className="primary" disabled={busy} onClick={download}>{busy?'Downloading…':'Download this day'}</button><button className="button" disabled={busy} onClick={()=>inspect().catch(()=>setMessage('Check failed.'))}>Check again</button><p role="status">{message}</p><details><summary>Individual files</summary>{manifest.files.map(f=><p key={f.url}>{checks[f.url]?'✓':'○'} {f.title}</p>)}</details>{manifest.links.length>0&&<div className="callout"><strong>External tickets need separate preparation</strong>{manifest.links.map(d=><p key={d.id}><a target="_blank" rel="noreferrer" href={d.url}>{d.title}</a></p>)}<label className="checkline"><input type="checkbox" checked={localConfirmed} onChange={e=>{setLocalConfirmed(e.target.checked);localStorage.setItem(`japan.offline-external.${date}`,e.target.checked?'yes':'no');}}/>I checked these tickets in their official apps</label></div>}<p>Live Maps, translation, rotating QR codes and videos need their own preparation. Test by opening the app and tickets in airplane mode. Browsers can clear downloads when storage is low.</p></>;
+}
+export function Updates({state,user,mutate,busy}){
+ const [all,setAll]=useState(false),list=state.alerts.filter(a=>all||!a.seenBy?.[user.name]);
+ return <><p className="eyebrow">KEEP EVERYONE IN THE LOOP</p><h1>Family updates</h1><p>Important plan changes appear here when the app refreshes. Acknowledge an update once you have read it.</p><label className="checkline"><input type="checkbox" checked={all} onChange={e=>setAll(e.target.checked)}/>Include updates I have read</label>{list.map(a=><article className="feature-card" key={a.id}><h3>{a.summary}</h3><small>{a.by} · {dayLabel(japanDate(new Date(a.at)))} · {japanClock(new Date(a.at))} JST</small><p>Read by: {Object.keys(a.seenBy||{}).join(', ')||'No one yet'}</p>{!a.seenBy?.[user.name]&&<button className="primary" disabled={busy} onClick={()=>mutate({type:'acknowledge',id:a.id})}>I’ve seen this</button>}</article>)}{!list.length&&<div className="empty">You’re up to date.</div>}<p>These are in-app alerts; they do not create phone push notifications.</p></>;
+}
