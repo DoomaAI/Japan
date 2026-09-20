@@ -19,6 +19,12 @@ export function documentAssociation(p,state){
  if(stepId&&day)throw new AppError('Attach to an activity or a day, not both.');
  return {stepId,day};
 }
+export function ticketParent(id,state){
+ if(!id)return null;
+ const doc=state.documents.find(d=>d.id===id);
+ if(!doc||doc.parentDocumentId||doc.category==='memory')throw new AppError('Choose an existing ticket or reservation.');
+ return doc;
+}
 export function validatePatch(p,state){
  const allowed=['title','notes','place','japanese','time','duration','kind','day','page','group','option','participants','order','review','bookingTime','bookingReference','locked','website','travelMinutes','arrivalBuffer','locationId'];
  if(!p || typeof p!=='object' || Array.isArray(p))throw new AppError('Invalid change.');
@@ -113,8 +119,11 @@ export function applyOperation(input,op,user){
   if(op.stepId&&!state.steps.some(s=>s.id===op.stepId))throw new AppError('Activity not found.');
   if(op.person&&!MEMBERS.includes(op.person)&&op.person!=='Family')throw new AppError('Invalid family member.');
   Object.assign(doc,{title:op.title,...documentDetails(op),...documentAssociation(op,state),person:op.person||'Family'});
+  const root=ticketParent(doc.parentDocumentId,state);
+  if(root)Object.assign(doc,{category:root.category,stepId:root.stepId,day:root.day});
+  else for(const a of state.documents.filter(a=>a.parentDocumentId===doc.id))Object.assign(a,{category:doc.category,stepId:doc.stepId,day:doc.day});
  }else if(op.type==='removeDocument'){
-  state.documents=state.documents.filter(d=>d.id!==op.id);
+  state.documents=state.documents.filter(d=>d.id!==op.id&&d.parentDocumentId!==op.id);
  }else throw new AppError('Unknown action.');
  const fields=['time','day','bookingTime','place','title','locked'];
  const diffs=op.type==='patch'&&before?fields.filter(k=>JSON.stringify(before[k]??null)!==JSON.stringify(step[k]??null)).map(k=>`${{time:'Target time',day:'Day',bookingTime:'Booking time',place:'Place',title:'Activity',locked:'Time lock'}[k]}: ${before[k]??'none'} → ${step[k]??'none'}`):[];

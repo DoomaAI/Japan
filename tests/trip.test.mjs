@@ -198,3 +198,25 @@ test('address matches preserve exact branches and leave ambiguous areas or stati
  assert.equal(updated.locationId,null);assert.equal(destinationFor(state,updated),'A different meeting point');
  assert.throws(()=>applyOperation(state,{type:'patch',id:step.id,patch:{locationId:'missing-location'}},parent));
 });
+
+test('ticket attachments stay grouped on edits and removal, and reject invalid parents',async()=>{
+ const {ticketParent}=await import('../server/model.mjs');
+ const s=structuredClone(seed);
+ const root={id:'ticket-root',title:'Family entry',person:'Family',type:'note',category:'ticket',stepId:null,day:null};
+ const a={id:'ticket-photo',parentDocumentId:root.id,title:'Boston QR',person:'Boston',type:'image/png',category:'ticket',stepId:null,day:null};
+ s.documents=[root,a];
+ assert.equal(ticketParent(root.id,s),root);
+ assert.throws(()=>ticketParent(a.id,s),/existing ticket/);
+ assert.throws(()=>ticketParent('missing',s),/existing ticket/);
+ const edited=applyOperation(s,{type:'editDocument',id:root.id,title:'Entry booking',person:'Family',category:'reservation',stepId:seed.steps[0].id},parent);
+ assert.equal(edited.documents[1].stepId,seed.steps[0].id);
+ assert.equal(edited.documents[1].category,'reservation');
+ assert.equal(edited.documents[1].person,'Boston');
+ const relabel=applyOperation(edited,{type:'editDocument',id:a.id,title:'Nate QR',person:'Nate',category:'other'},parent);
+ assert.equal(relabel.documents[1].person,'Nate');
+ assert.equal(relabel.documents[1].category,'reservation');
+ assert.equal(relabel.documents[1].stepId,seed.steps[0].id);
+ assert.equal(applyOperation(s,{type:'removeDocument',id:a.id},parent).documents.length,1);
+ assert.equal(applyOperation(s,{type:'removeDocument',id:root.id},parent).documents.length,0);
+ assert.throws(()=>applyOperation(s,{type:'removeDocument',id:root.id},child),AppError);
+});

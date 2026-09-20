@@ -17,3 +17,12 @@ export function locationsForPage(state,page){
  const ids=new Set(state.steps.filter(s=>s.page===page).map(s=>resolveLocation(state,s)?.id).filter(Boolean));
  return (state.locations||[]).filter(l=>ids.has(l.id)||(l.guidePages||[]).includes(page));
 }
+
+// Use the activity's own wording first; linked catalogue names enrich existing trips.
+export function showLocationDetails(state,step){
+ const location=resolveLocation(state,step);
+ const english=step?.place||location?.name||step?.title||'';
+ const japanese=step?.japanese?.trim()||location?.japanese||'';
+ const address=location?.japaneseAddress||location?.address||'';
+ return {english,japanese,address,copyText:[japanese,english,address].filter(Boolean).join('\n')};
+}

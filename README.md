@@ -143,3 +143,13 @@ The supplied `Japan_2026_Google_Maps_Master_List_SELECTED_ADDITIONS.xlsx` contai
 - These links use Google Maps universal URLs, requiring no Google API key. No Place IDs were supplied; destination pins and live route/entrance choices should be checked in Maps. [Google Maps URL documentation](https://developers.google.com/maps/documentation/urls/get-started).
 
 Validation now includes 20 automated test groups: all 209 rows retained; URL encoding and mode validated for 627 direction links; exact branch matching, custom destination detachment, guide-page associations and invalid location rejection covered. Both new location components rendered direction links in a server-render smoke check. Live iPhone navigation remains a deployment check.
+
+
+### Day guide previews and ticket attachments
+Each day now shows a swipeable strip of its original guide pages above the activities. The guide reader includes a day selector and return-to-day button.
+
+Tickets & reservations remains the shared central document area. Save a ticket first, then expand Add photos / files to this ticket to select multiple images/PDFs and label each person. Individual attachments support opening, offline saving, person/tag edits and removal. Removing the parent ticket removes all its attachments from the shared itinerary (already downloaded copies remain). Upload retries retain successful registrations. Existing single-file tickets remain supported. Production Blob uploads still require a live deployment check.
+
+
+### Guide-inspired visual theme
+White paper surfaces, fine rules, black Playfair Display headings and Roboto Condensed labels closely follow the original guide images. Font files and OFL licences are bundled under src/fonts; Vite emits them as versioned assets included in the offline shell. Exact source typefaces could not be identified from the raster guide. Theme styles live in src/guide-theme.css. Original guide pages and cover remain unchanged. Production build checked; live iPhone visual review remains pending.

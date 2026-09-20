@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {Readable} from 'node:stream';
 import {get,head} from '@vercel/blob';
 import {handleUpload} from '@vercel/blob/client';
-import {AppError,applyOperation,MEMBERS,documentDetails,documentAssociation} from './model.mjs';
+import {AppError,applyOperation,MEMBERS,documentDetails,documentAssociation,ticketParent} from './model.mjs';
 import {database,readTrip,writeTrip,session,localDemo,hash,token,setCookie} from './store.mjs';
 const json=(res,data,status=200)=>{res.statusCode=status;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));};
 async function body(req){if(req.body&&typeof req.body==='object')return req.body;let s='';for await(const c of req){s+=c;if(Buffer.byteLength(s)>1000000)throw new AppError('Request too large.',413);}try{return JSON.parse(s||'{}');}catch{throw new AppError('Invalid request.');}}
@@ -71,11 +71,12 @@ export default async function handler(req,res){
    if(!b.title||typeof b.title!=='string'||b.title.length>250)throw new AppError('Add a document title.');
    if(b.stepId&&!current.state.steps.some(s=>s.id===b.stepId))throw new AppError('Activity not found.');
    if(b.person&&!['Family',...MEMBERS].includes(b.person))throw new AppError('Choose a family member.');
-   const details=documentDetails(b),association=documentAssociation(b,current.state);
+   const root=ticketParent(b.parentDocumentId,current.state);
+   const details=documentDetails(root?{...b,category:root.category}:b),association=documentAssociation(root||b,current.state);
    const blob=await head(b.pathname);
    validateFile(blob.contentType,blob.size,details.category);
    const existing=current.state.documents.find(d=>d.pathname===b.pathname);if(existing)return json(res,{...current,user});
-   current.state.documents.push({id:randomUUID(),title:b.title,...details,...association,size:blob.size,pathname:b.pathname,type:blob.contentType,person:b.person||'Family',createdAt:new Date().toISOString()});
+   current.state.documents.push({id:randomUUID(),title:b.title,...details,...association,...(root?{parentDocumentId:root.id}:{}),size:blob.size,pathname:b.pathname,type:blob.contentType,person:b.person||'Family',createdAt:new Date().toISOString()});
    return json(res,{...await writeTrip(current.state,current.revision),user});
   }
   if(route==='document'&&req.method==='GET'){
