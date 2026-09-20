@@ -77,14 +77,14 @@ function App(){
   operation={...operation,operationId:crypto.randomUUID()};
   const rev=envRef.current.revision;
   if(!navigator.onLine||queueRef.current.length){
-   if(!['status','challengeStatus'].includes(operation.type)){notice('Reconnect and sync pending updates before editing the plan.');return false;}
+   if(!['status','challengeStatus','challengeSkip'].includes(operation.type)){notice('Reconnect and sync pending updates before editing the plan.');return false;}
    const at=operation.at||new Date().toISOString();operation.at=at;
    saveQueue([...queueRef.current,{revision:rev,operation}]);
    notice('Progress saved on this phone. It will sync when connected.');return true;
   }
   working.current=true;setBusy(true);
   try{const result=await request('mutate',{revision:rev,operation});accept(result);return result;}
-  catch(e){if(e.status===409){await refresh().catch(()=>{});notice('Someone changed the trip. The latest plan is loaded; review and try your change again.');}else if(!e.status&&['status','challengeStatus'].includes(operation.type)){
+  catch(e){if(e.status===409){await refresh().catch(()=>{});notice('Someone changed the trip. The latest plan is loaded; review and try your change again.');}else if(!e.status&&['status','challengeStatus','challengeSkip'].includes(operation.type)){
     operation.at=operation.at||new Date().toISOString();saveQueue([...queueRef.current,{revision:rev,operation}]);notice('Progress saved on this phone; waiting to sync.');
    }else notice(e.message);return false;
   }finally{working.current=false;setBusy(false);}

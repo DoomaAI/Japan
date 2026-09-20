@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {BOYS,delayForDay,initialThankYou,THANK_YOU_FROM,THANK_YOU_TO} from '../src/trip-features.js';
+import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,THANK_YOU_FROM,THANK_YOU_TO} from '../src/trip-features.js';
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
 export function extraOperation(state,op,user,fail,now){
  const parent=user.role==='parent',dayOK=day=>day===null||state.days.some(d=>d.date===day);
@@ -8,9 +8,26 @@ export function extraOperation(state,op,user,fail,now){
  if(op.type==='challengeAdd'||op.type==='challengeEdit'){
   if(!string(op.title,250)||!op.title.trim())fail('Add a challenge title.');dayCheck(op.day??null);
   if(!Array.isArray(op.participants)||!op.participants.length||op.participants.some(n=>!BOYS.includes(n)))fail('Choose Nate, Boston or both.');
-  const values={title:op.title.trim(),day:op.day??null,participants:[...new Set(op.participants)],notes:op.notes||''};requireText(values.notes,2000,'notes');
-  if(op.type==='challengeAdd')state.challenges.push({id:randomUUID(),...values,completions:{}});
+  const values={title:op.title.trim(),day:op.day??null,participants:[...new Set(op.participants)],notes:op.notes||'',icon:(op.icon||'').trim()};requireText(values.notes,2000,'notes');
+  if([...values.icon].length>2)fail('Use one or two emoji for the picture.');
+  if(op.type==='challengeAdd')state.challenges.push({id:randomUUID(),...values,diagram:'',completions:{},responses:{},skips:{}});
   else{const c=state.challenges.find(c=>c.id===op.id);if(!c)fail('Challenge not found.',404);Object.assign(c,values);}
+ }else if(op.type==='challengeSkip'){
+  const c=state.challenges.find(c=>c.id===op.id);if(!c)fail('Challenge not found.',404);
+  if(!c.participants.includes(op.person)||(!parent&&op.person!==user.name))fail('Skip only your own missions.',403);
+  if(typeof op.done!=='boolean')fail('Invalid skip.');
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid skip time.');at=new Date(op.at).toISOString();}
+  c.skips={...(c.skips||{})};
+  if(op.done){c.skips[op.person]=c.skips[op.person]||at;delete c.completions[op.person];}else delete c.skips[op.person];
+ }else if(op.type==='challengeNew'){
+  // Draws the next reserve mission rather than inventing one, so it works offline-first and
+  // the boys can swap a mission themselves without a parent writing one.
+  if(!BOYS.includes(op.person)||(!parent&&op.person!==user.name))fail('Choose your own missions.',403);
+  if(!op.day||!state.days.some(d=>d.date===op.day))fail('Choose a trip day.');
+  if(generatedMissions(state,op.day,op.person).length>=GENERATED_PER_DAY)fail(`That is ${GENERATED_PER_DAY} new missions for this day already. Try finishing one first.`);
+  const next=nextExtraMission(state,op.day,op.person);if(!next)fail('No more missions are available.',404);
+  const [title,notes,icon='']=next;
+  state.challenges.push({id:randomUUID(),title,notes,icon,diagram:'',day:op.day,participants:[op.person],completions:{},responses:{},skips:{},generated:true,createdBy:user.name,createdAt:now});
  }else if(op.type==='challengeRemove'){
   state.challenges=state.challenges.filter(c=>c.id!==op.id);
  }else if(op.type==='challengeStatus'){

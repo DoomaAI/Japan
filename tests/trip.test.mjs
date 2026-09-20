@@ -380,3 +380,63 @@ test('the fuller mission set is added once without losing completions or parent 
  assert.equal(ensureFeatures(structuredClone(seed)).challenges.length,seed.days.length*6+12);
  assert.equal(ensureFeatures(structuredClone(seed)).missionSeed,MISSION_SEED);
 });
+
+test('every mission carries a picture, and the shape-based ones carry a diagram',async()=>{
+ const {initialChallenges,EXTRA_MISSIONS,BOYS}=await import('../src/trip-features.js');
+ const {hasMissionArt}=await import('../src/MissionArt.jsx').catch(()=>({hasMissionArt:null}));
+ const challenges=initialChallenges(seed.days);
+ for(const c of challenges)assert.ok(c.icon&&[...c.icon].length<=2,`${c.title} has no picture`);
+ for(const boy of BOYS)for(const [title,notes,icon] of EXTRA_MISSIONS[boy]){assert.ok(title&&notes&&icon,title);}
+ const drawn=challenges.filter(c=>c.diagram);
+ assert.deepEqual([...new Set(drawn.map(c=>c.diagram))].sort(),['arch','bamboo','crossing','paw','scoreboard','top','torii']);
+ // Diagrams are for the five-year-old, where the shape is the point.
+ assert.ok(drawn.every(c=>c.participants[0]==='Nate'));
+ if(hasMissionArt)for(const c of drawn)assert.ok(hasMissionArt(c.diagram),`no art for ${c.diagram}`);
+});
+
+test('a boy can skip his own mission and bring it back, but cannot touch his brother’s',async()=>{
+ const {ensureFeatures,pendingProgress}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const nate={name:'Nate',role:'child'},boston={name:'Boston',role:'child'};
+ const id='mission-2026-09-22-Nate-2',at='2026-09-19T01:00:00.000Z';
+ const skipped=applyOperation(state,{type:'challengeSkip',id,person:'Nate',done:true,at},nate);
+ assert.equal(skipped.challenges.find(c=>c.id===id).skips.Nate,at);
+ // Skipping clears any tick, and bringing it back clears the skip.
+ const ticked=applyOperation(state,{type:'challengeStatus',id,person:'Nate',done:true},nate);
+ const thenSkipped=applyOperation(ticked,{type:'challengeSkip',id,person:'Nate',done:true},nate);
+ assert.equal(thenSkipped.challenges.find(c=>c.id===id).completions.Nate,undefined);
+ assert.deepEqual(applyOperation(skipped,{type:'challengeSkip',id,person:'Nate',done:false},nate).challenges.find(c=>c.id===id).skips,{});
+ // Only your own, and a parent may skip for either boy.
+ assert.throws(()=>applyOperation(state,{type:'challengeSkip',id,person:'Nate',done:true},boston),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'challengeSkip',id,person:'Boston',done:true},boston),e=>e.status===403);
+ assert.ok(applyOperation(state,{type:'challengeSkip',id,person:'Nate',done:true},parent));
+ assert.throws(()=>applyOperation(state,{type:'challengeSkip',id:'missing',person:'Nate',done:true},nate),e=>e.status===404);
+ assert.throws(()=>applyOperation(state,{type:'challengeSkip',id,person:'Nate',done:'yes'},nate),/Invalid skip/);
+ // A skip made offline shows immediately on the phone.
+ const pending=pendingProgress(state,[{operation:{type:'challengeSkip',id,person:'Nate',done:true,at}}]);
+ assert.equal(pending.challenges.find(c=>c.id===id).skips.Nate,at);
+ assert.equal(state.challenges.find(c=>c.id===id).skips.Nate,undefined);
+});
+
+test('asking for a different mission draws a fresh one, up to a daily limit',async()=>{
+ const {ensureFeatures,EXTRA_MISSIONS,GENERATED_PER_DAY,generatedMissions}=await import('../src/trip-features.js');
+ let state=ensureFeatures(structuredClone(seed));
+ const day='2026-09-22',nate={name:'Nate',role:'child'},boston={name:'Boston',role:'child'};
+ for(let i=0;i<GENERATED_PER_DAY;i++)state=applyOperation(state,{type:'challengeNew',day,person:'Nate'},nate);
+ const extra=generatedMissions(state,day,'Nate');
+ assert.equal(extra.length,GENERATED_PER_DAY);
+ // Each draw is a different mission, drawn from the reserve pool, and belongs to that boy alone.
+ assert.equal(new Set(extra.map(c=>c.title)).size,GENERATED_PER_DAY);
+ for(const c of extra){
+  assert.ok(EXTRA_MISSIONS.Nate.some(([title])=>title===c.title));
+  assert.deepEqual(c.participants,['Nate']);assert.equal(c.day,day);assert.ok(c.icon);assert.ok(c.generated);
+ }
+ assert.throws(()=>applyOperation(state,{type:'challengeNew',day,person:'Nate'},nate),/3 new missions/);
+ // Boston's own count is separate, and his draws come from his own pool.
+ const forBoston=applyOperation(state,{type:'challengeNew',day,person:'Boston'},boston);
+ assert.ok(EXTRA_MISSIONS.Boston.some(([title])=>title===generatedMissions(forBoston,day,'Boston')[0].title));
+ // You cannot draw for someone else, or onto a day that is not on the trip.
+ assert.throws(()=>applyOperation(state,{type:'challengeNew',day,person:'Boston'},nate),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'challengeNew',day,person:'Damien'},parent),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'challengeNew',day:'2099-01-01',person:'Nate'},parent),/trip day/);
+});

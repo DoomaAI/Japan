@@ -47,140 +47,174 @@ export const MISSION_SEED=2;
 // Nate is 5, Boston is 8, so each day carries a junior and a senior set.
 export const DAY_MISSIONS={
  '2026-09-21':{Nate:[
-  ['Airport code detective','Find the letters HND on a sign. Say them out loud, then find them again on a bag tag.'],
-  ['First words in Japanese','Say konnichiwa to one person with a parent beside you. How did they say it back?'],
-  ['Window seat report','Look out of the car window on the way to the hotel. Name three things you have never seen at home.']],
+  ['Airport code detective','Find the letters HND on a sign. Say them out loud, then find them again on a bag tag.','🔤'],
+  ['First words in Japanese','Say konnichiwa to one person with a parent beside you. How did they say it back?','👋'],
+  ['Window seat report','Look out of the car window on the way to the hotel. Name three things you have never seen at home.','🚗']],
  Boston:[
-  ['Arrival planner','Read the arrival board with a parent. Work out how long until our next step, and explain the Japan–Sydney time difference using two phone clocks.'],
-  ['Border process map','List the order of what happened: plane, immigration, bags, customs, car. Explain why each step comes where it does.'],
-  ['First impressions log','Record three things done differently from the airport at home. Say what problem each one solves.']]},
+  ['Arrival planner','Read the arrival board with a parent. Work out how long until our next step, and explain the Japan–Sydney time difference using two phone clocks.','🕐'],
+  ['Border process map','List the order of what happened: plane, immigration, bags, customs, car. Explain why each step comes where it does.','🛂'],
+  ['First impressions log','Record three things done differently from the airport at home. Say what problem each one solves.','📝']]},
  '2026-09-22':{Nate:[
-  ['Forest sound map','Stand still at Meiji Jingu and close your eyes for ten seconds. Name three sounds you can hear.'],
-  ['Torii gate counter','Count the big wooden gates we walk through. What shape are they? Draw one in the air.'],
-  ['Crossing watcher','At Shibuya, watch one full green light with a parent. Guess how many people crossed, then say why it is hard to count.']],
+  ['Forest sound map','Stand still at Meiji Jingu and close your eyes for ten seconds. Name three sounds you can hear.','👂'],
+  ['Torii gate counter','Count the big wooden gates we walk through. What shape are they? Draw one in the air.','⛩️','torii'],
+  ['Crossing watcher','At Shibuya, watch one full green light with a parent. Guess how many people crossed, then say why it is hard to count.','🚦','crossing']],
  Boston:[
-  ['Old and new investigator','Meiji Jingu is a forest inside a city. Find one detail that feels old and one that feels brand new, and explain what each is for.'],
-  ['Crowd engineer','Watch the Shibuya crossing. Work out the rules that stop people bumping into each other, then suggest one improvement.'],
-  ['Shop window analyst','On Omotesando, compare two shop windows. What is each one trying to make you feel, and how?']]},
+  ['Old and new investigator','Meiji Jingu is a forest inside a city. Find one detail that feels old and one that feels brand new, and explain what each is for.','🏙️'],
+  ['Crowd engineer','Watch the Shibuya crossing. Work out the rules that stop people bumping into each other, then suggest one improvement.','🚶'],
+  ['Shop window analyst','On Omotesando, compare two shop windows. What is each one trying to make you feel, and how?','🪟']]},
  '2026-09-23':{Nate:[
-  ['Light and colour hunt','At teamLab, find a colour that changes while you watch. Tell a parent what made it change.'],
-  ['Little baker','At the bakery, follow each step in order. Say the steps back afterwards, first to last.'],
-  ['Sumo watcher','Watch one bout. Who moved first? Show the family the strongest stance you can make.']],
+  ['Light and colour hunt','At teamLab, find a colour that changes while you watch. Tell a parent what made it change.','🌈'],
+  ['Little baker','At the bakery, follow each step in order. Say the steps back afterwards, first to last.','🥐'],
+  ['Sumo watcher','Watch one bout. Who moved first? Show the family the strongest stance you can make.','🤼']],
  Boston:[
-  ['Prediction and evidence','At teamLab, pick an artwork. Predict what happens when you move, test it, then say whether your evidence matched.'],
-  ['Recipe as instructions','Write the bakery steps as instructions someone else could follow. What would go wrong if you swapped two of them?'],
-  ['Sumo rules analyst','Work out the rules of winning by watching, before anyone tells you. Then check with the guide — what did you get right?']]},
+  ['Prediction and evidence','At teamLab, pick an artwork. Predict what happens when you move, test it, then say whether your evidence matched.','🔬'],
+  ['Recipe as instructions','Write the bakery steps as instructions someone else could follow. What would go wrong if you swapped two of them?','📋'],
+  ['Sumo rules analyst','Work out the rules of winning by watching, before anyone tells you. Then check with the guide — what did you get right?','🏆']]},
  '2026-09-24':{Nate:[
-  ['Platform number hunt','Find our platform number on a sign, then find the same number somewhere else on the platform.'],
-  ['Fast train feeling','On the Nozomi, watch something close and something far away. Which one whizzes past faster? Why do you think that is?'],
-  ['Lantern spotter','In Gion, count five paper lanterns. What do you think the writing on them says?']],
+  ['Platform number hunt','Find our platform number on a sign, then find the same number somewhere else on the platform.','🔢'],
+  ['Fast train feeling','On the Nozomi, watch something close and something far away. Which one whizzes past faster? Why do you think that is?','🚄'],
+  ['Lantern spotter','In Gion, count five paper lanterns. What do you think the writing on them says?','🏮']],
  Boston:[
-  ['Rail journey analyst','Find our route on a map. Estimate the distance from Tokyo to Kyoto, then compare it with the real journey information.'],
-  ['Speed calculator','With a parent, use the journey time and distance to estimate the train speed. Check it against a posted figure.'],
-  ['Two cities compared','Gion tonight, Tokyo this morning. Name three differences and explain what caused each one.']]},
+  ['Rail journey analyst','Find our route on a map. Estimate the distance from Tokyo to Kyoto, then compare it with the real journey information.','🗺️'],
+  ['Speed calculator','With a parent, use the journey time and distance to estimate the train speed. Check it against a posted figure.','⏱️'],
+  ['Two cities compared','Gion tonight, Tokyo this morning. Name three differences and explain what caused each one.','⚖️']]},
  '2026-09-25':{Nate:[
-  ['Ride bravery badge','Choose one ride you were nervous about. Say how you felt before and how you felt after.'],
-  ['Question block hunt','In Super Nintendo World, find three things that look like they came out of a game. Which is your favourite, and why?'],
-  ['Queue time guesser','Before a queue, guess how long it will take. Check the clock afterwards — were you close?']],
+  ['Ride bravery badge','Choose one ride you were nervous about. Say how you felt before and how you felt after.','🎢'],
+  ['Question block hunt','In Super Nintendo World, find three things that look like they came out of a game. Which is your favourite, and why?','❓'],
+  ['Queue time guesser','Before a queue, guess how long it will take. Check the clock afterwards — were you close?','⏳']],
  Boston:[
-  ['Theme-park strategist','Using posted wait times with a parent, choose the best order for two attractions. Include walking and a break.'],
-  ['Ride engineering','Pick one ride. Explain how it makes you feel speed — is it real speed, or a trick of sound, light and tilt?'],
-  ['Land designer','Super Nintendo World turns a game into a place. Name three ways they did it, then design a fourth.']]},
+  ['Theme-park strategist','Using posted wait times with a parent, choose the best order for two attractions. Include walking and a break.','🗓️'],
+  ['Ride engineering','Pick one ride. Explain how it makes you feel speed — is it real speed, or a trick of sound, light and tilt?','⚙️'],
+  ['Land designer','Super Nintendo World turns a game into a place. Name three ways they did it, then design a fourth.','🎮']]},
  '2026-09-26':{Nate:[
-  ['Bamboo engineer','Look up in the bamboo grove. Find the rings on a stem and count five. What do you think they are for?'],
-  ['River bridge count','At Togetsukyo, count the arches or posts holding the bridge up. Why does a bridge need so many?'],
-  ['Slow looking','Sit still for one minute somewhere quiet. Name one thing you only noticed because you stopped.']],
+  ['Bamboo engineer','Look up in the bamboo grove. Find the rings on a stem and count five. What do you think they are for?','🎋','bamboo'],
+  ['River bridge count','At Togetsukyo, count the arches or posts holding the bridge up. Why does a bridge need so many?','🌉','arch'],
+  ['Slow looking','Sit still for one minute somewhere quiet. Name one thing you only noticed because you stopped.','🧘']],
  Boston:[
-  ['Bamboo structure challenge','Sketch a bamboo stem and label two features that help it stay tall or bend. Compare it with a building you have seen.'],
-  ['Bridge load investigator','Look at how Togetsukyo carries its weight. Where does the force go? Sketch your answer.'],
-  ['Visitor flow study','The grove gets busy. Work out where the pinch points are, and suggest one change that would help.']]},
+  ['Bamboo structure challenge','Sketch a bamboo stem and label two features that help it stay tall or bend. Compare it with a building you have seen.','📐'],
+  ['Bridge load investigator','Look at how Togetsukyo carries its weight. Where does the force go? Sketch your answer.','🏗️'],
+  ['Visitor flow study','The grove gets busy. Work out where the pinch points are, and suggest one change that would help.','🚶']]},
  '2026-09-27':{Nate:[
-  ['Deer manners','Feed a deer with a parent. What did it do before you gave it the food? Copy the bow it makes.'],
-  ['Giant Buddha size','Stand near the Great Buddha. Guess how many grown-ups tall it is, then find out.'],
-  ['Mochi pounding rhythm','Watch the mochi makers at Nakatanidou. Clap their rhythm. How do they never hit each other?']],
+  ['Deer manners','Feed a deer with a parent. What did it do before you gave it the food? Copy the bow it makes.','🦌'],
+  ['Giant Buddha size','Stand near the Great Buddha. Guess how many grown-ups tall it is, then find out.','🗿'],
+  ['Mochi pounding rhythm','Watch the mochi makers at Nakatanidou. Clap their rhythm. How do they never hit each other?','🍡']],
  Boston:[
-  ['Animal behaviour notebook','Observe the deer quietly. Record three behaviours, and separate what you saw from what you think it means.'],
-  ['Todai-ji by numbers','Find the height or the age of the Great Buddha hall. Work out how long before Australia was colonised it was built.'],
-  ['Old Kyoto detective','In kimono, notice what changes about how you move. Explain how clothing and building design fit each other.']]},
+  ['Animal behaviour notebook','Observe the deer quietly. Record three behaviours, and separate what you saw from what you think it means.','📓'],
+  ['Todai-ji by numbers','Find the height or the age of the Great Buddha hall. Work out how long before Australia was colonised it was built.','🏯'],
+  ['Old Kyoto detective','In kimono, notice what changes about how you move. Explain how clothing and building design fit each other.','👘']]},
  '2026-09-28':{Nate:[
-  ['Neon sign hunt','Find the Glico running man. Copy his pose for a photo. What else is lit up near him?'],
-  ['Takoyaki watch','Watch someone turn the takoyaki balls. Count how many they turn before they stop. Would you be fast enough?'],
-  ['Gachapon gamble','Choose one gachapon machine. Say what you hope you get before you turn it. Did you get it?']],
+  ['Neon sign hunt','Find the Glico running man. Copy his pose for a photo. What else is lit up near him?','🎇'],
+  ['Takoyaki watch','Watch someone turn the takoyaki balls. Count how many they turn before they stop. Would you be fast enough?','🐙'],
+  ['Gachapon gamble','Choose one gachapon machine. Say what you hope you get before you turn it. Did you get it?','🎰']],
  Boston:[
-  ['Market comparison','Compare prices or sizes for three similar items in Shinsaibashi. Which would you choose, and why besides price?'],
-  ['Neon economics','Dotonbori is covered in signs. Work out who pays for them and what they get back. Which sign works hardest, and why?'],
-  ['River city view','From the cruise, work out why Osaka grew up around these canals. What did they carry?']]},
+  ['Market comparison','Compare prices or sizes for three similar items in Shinsaibashi. Which would you choose, and why besides price?','🛍️'],
+  ['Neon economics','Dotonbori is covered in signs. Work out who pays for them and what they get back. Which sign works hardest, and why?','💡'],
+  ['River city view','From the cruise, work out why Osaka grew up around these canals. What did they carry?','🛶']]},
  '2026-09-29':{Nate:[
-  ['Train change tracker','We change trains today. Count how many different trains we ride. Which one was your favourite?'],
-  ['Luggage detective','Our bags travel separately. Say where you think they are right now, and where they will meet us.'],
-  ['First look at the springs','When we arrive, find three things that tell you a story before anyone says a word.']],
+  ['Train change tracker','We change trains today. Count how many different trains we ride. Which one was your favourite?','🚉'],
+  ['Luggage detective','Our bags travel separately. Say where you think they are right now, and where they will meet us.','🧳'],
+  ['First look at the springs','When we arrive, find three things that tell you a story before anyone says a word.','✨']],
  Boston:[
-  ['Transfer planner','Read the plan with a parent. Work out our buffer between two steps, and say whether it is enough.'],
-  ['Luggage logistics','Our bags are forwarded. Map the journey they take, and list two things that could go wrong.'],
-  ['Imagineering review','Fantasy Springs is built to tell a story. Explain how it uses sound, light, movement, scenery and timing.']]},
+  ['Transfer planner','Read the plan with a parent. Work out our buffer between two steps, and say whether it is enough.','⏲️'],
+  ['Luggage logistics','Our bags are forwarded. Map the journey they take, and list two things that could go wrong.','📦'],
+  ['Imagineering review','Fantasy Springs is built to tell a story. Explain how it uses sound, light, movement, scenery and timing.','🎭']]},
  '2026-09-30':{Nate:[
-  ['Ride story teller','Choose one ride. Tell the story back to us in three sentences: beginning, middle and end.'],
-  ['Hidden character hunt','Find three characters hidden in the scenery that are not on any sign. Where were they?'],
-  ['Music mapper','Notice how the music changes as we walk between lands. Where exactly does it swap over?']],
+  ['Ride story teller','Choose one ride. Tell the story back to us in three sentences: beginning, middle and end.','📖'],
+  ['Hidden character hunt','Find three characters hidden in the scenery that are not on any sign. Where were they?','🔍'],
+  ['Music mapper','Notice how the music changes as we walk between lands. Where exactly does it swap over?','🎵']],
  Boston:[
-  ['Queue design study','Compare two queues. What does each one do to make the waiting feel shorter?'],
-  ['Pass strategist','With a parent, look back at the day. Where did our passes save the most time? What would you change?'],
-  ['Ride mechanism guess','Pick a ride and work out how it moves you — track, arm, boat or belt. Look for the evidence.']]},
+  ['Queue design study','Compare two queues. What does each one do to make the waiting feel shorter?','🧵'],
+  ['Pass strategist','With a parent, look back at the day. Where did our passes save the most time? What would you change?','🎟️'],
+  ['Ride mechanism guess','Pick a ride and work out how it moves you — track, arm, boat or belt. Look for the evidence.','🔧']]},
  '2026-10-01':{Nate:[
-  ['Port explorer','DisneySea has different ports. Name your favourite and say what makes it feel different from the others.'],
-  ['Water spotter','Find three places water is used to tell the story. What would change without it?'],
-  ['Dumpling verdict','Try a Little Green Dumpling. Describe the taste to someone who has never had one.']],
+  ['Port explorer','DisneySea has different ports. Name your favourite and say what makes it feel different from the others.','🚢'],
+  ['Water spotter','Find three places water is used to tell the story. What would change without it?','💧'],
+  ['Dumpling verdict','Try a Little Green Dumpling. Describe the taste to someone who has never had one.','🥟']],
  Boston:[
-  ['Design a new port','Invent a DisneySea port. Give it a setting, a ride idea, and one detail that makes the story believable.'],
-  ['Water as a tool','Explain three jobs water does here: moving people, making sound, hiding machinery. Find an example of each.'],
-  ['Transition analyst','Walk between two ports and find the exact point the theme changes. How did they hide the join?']]},
+  ['Design a new port','Invent a DisneySea port. Give it a setting, a ride idea, and one detail that makes the story believable.','✏️'],
+  ['Water as a tool','Explain three jobs water does here: moving people, making sound, hiding machinery. Find an example of each.','🌊'],
+  ['Transition analyst','Walk between two ports and find the exact point the theme changes. How did they hide the join?','🚪']]},
  '2026-10-02':{Nate:[
-  ['Market smell map','At Tsukiji, name three smells. Which one made you hungriest?'],
-  ['Gachapon sorter','In Akihabara, find a machine and sort what is inside into groups your own way. Explain your rule.'],
-  ['Museum favourite','At Ueno, pick one thing you would put in your own museum. Say why.']],
+  ['Market smell map','At Tsukiji, name three smells. Which one made you hungriest?','👃'],
+  ['Gachapon sorter','In Akihabara, find a machine and sort what is inside into groups your own way. Explain your rule.','🧩'],
+  ['Museum favourite','At Ueno, pick one thing you would put in your own museum. Say why.','🖼️']],
  Boston:[
-  ['Market chain','At Tsukiji, trace one food from the sea to the plate. How many people touched it on the way?'],
-  ['Akihabara economics','Work out why so many similar shops sit next to each other. Would they not take each other’s customers?'],
-  ['Museum of our trip','Choose five trip highlights, put them in order, and give your exhibition a name and a one-line description.']]},
+  ['Market chain','At Tsukiji, trace one food from the sea to the plate. How many people touched it on the way?','🐟'],
+  ['Akihabara economics','Work out why so many similar shops sit next to each other. Would they not take each other’s customers?','🏪'],
+  ['Museum of our trip','Choose five trip highlights, put them in order, and give your exhibition a name and a one-line description.','🏛️']]},
  '2026-10-03':{Nate:[
-  ['Takeshita colour hunt','Find the brightest thing on Takeshita Street. Then find something quiet and plain. Which do you like better?'],
-  ['Animal café manners','At the café, watch before you touch. What did the animals do when they were happy?'],
-  ['Scoreboard reader','At the Giants game, find the score. Who is winning, and by how many?']],
+  ['Takeshita colour hunt','Find the brightest thing on Takeshita Street. Then find something quiet and plain. Which do you like better?','🎨'],
+  ['Animal café manners','At the café, watch before you touch. What did the animals do when they were happy?','🐹'],
+  ['Scoreboard reader','At the Giants game, find the score. Who is winning, and by how many?','⚾','scoreboard']],
  Boston:[
-  ['Street style analyst','Harajuku is about self-expression. Find three outfits and explain what each one is saying.'],
-  ['Animal welfare check','Look at how the café cares for its animals. List three things they do well, and one thing you would add.'],
-  ['Baseball analyst','Use the scoreboard to explain innings and runs. Predict a result, then compare it with what happens.']]},
+  ['Street style analyst','Harajuku is about self-expression. Find three outfits and explain what each one is saying.','🧥'],
+  ['Animal welfare check','Look at how the café cares for its animals. List three things they do well, and one thing you would add.','❤️'],
+  ['Baseball analyst','Use the scoreboard to explain innings and runs. Predict a result, then compare it with what happens.','📊']]},
  '2026-10-04':{Nate:[
-  ['Gift chooser','Pick a present for someone at home. Say who it is for and why they will like it.'],
-  ['Character street spotter','Find three characters you recognise and one you have never seen. Ask what the new one is.'],
-  ['Beyblade launcher','Watch a battle. What makes a spinner last longer — heavy or light? Try your idea.']],
+  ['Gift chooser','Pick a present for someone at home. Say who it is for and why they will like it.','🎁'],
+  ['Character street spotter','Find three characters you recognise and one you have never seen. Ask what the new one is.','🧸'],
+  ['Beyblade launcher','Watch a battle. What makes a spinner last longer — heavy or light? Try your idea.','🌀','top']],
  Boston:[
-  ['Smart souvenir buyer','Compare two souvenirs for price, quality, luggage space and usefulness at home. Recommend one within budget.'],
-  ['Ginza and Shimokitazawa','We see both today. Compare who each place is for, and how the shops and streets show it.'],
-  ['Beyblade physics','Explain why a spinning top stays upright, and what makes one beat another. Test your theory twice.']]},
+  ['Smart souvenir buyer','Compare two souvenirs for price, quality, luggage space and usefulness at home. Recommend one within budget.','💴'],
+  ['Ginza and Shimokitazawa','We see both today. Compare who each place is for, and how the shops and streets show it.','🏬'],
+  ['Beyblade physics','Explain why a spinning top stays upright, and what makes one beat another. Test your theory twice.','🔁']]},
  '2026-10-05':{Nate:[
-  ['Pancake describer','Describe the pancakes in three words. Could you make them at home?'],
-  ['Park in the air','Miyashita Park sits on top of shops. Say what is above you and what is below you.'],
-  ['Favourite day vote','Tell the family your favourite day of the trip so far, and one reason why.']],
+  ['Pancake describer','Describe the pancakes in three words. Could you make them at home?','🥞'],
+  ['Park in the air','Miyashita Park sits on top of shops. Say what is above you and what is below you.','🌳'],
+  ['Favourite day vote','Tell the family your favourite day of the trip so far, and one reason why.','⭐']],
  Boston:[
-  ['Rooftop park design','A park built above shops solves a problem. Name the problem, and two things the designers had to get right.'],
-  ['Last-day budget','Work out what is left of your budget and plan how to spend it. Explain your choices.'],
-  ['Trip curator','Choose five highlights and arrange them as a story. Add one thing you learned and one question you still have.']]},
+  ['Rooftop park design','A park built above shops solves a problem. Name the problem, and two things the designers had to get right.','🏙️'],
+  ['Last-day budget','Work out what is left of your budget and plan how to spend it. Explain your choices.','🧮'],
+  ['Trip curator','Choose five highlights and arrange them as a story. Add one thing you learned and one question you still have.','📚']]},
  '2026-10-06':{Nate:[
-  ['Lucky cat counter','At Gotokuji, count the cats until you lose count. Which paw is up? Copy it.'],
-  ['Packing helper','Find three of your own things and pack them yourself. Tell a parent when you are done.'],
-  ['Thank you in Japanese','Say arigatou gozaimasu to one person today. How did it feel?']],
+  ['Lucky cat counter','At Gotokuji, count the cats until you lose count. Which paw is up? Copy it.','🐱','paw'],
+  ['Packing helper','Find three of your own things and pack them yourself. Tell a parent when you are done.','🎒'],
+  ['Thank you in Japanese','Say arigatou gozaimasu to one person today. How did it feel?','🙏']],
  Boston:[
-  ['Lucky cat investigator','Find out why people leave the cats at Gotokuji. Whose wish is each one?'],
-  ['Journey home planner','Read the departure plan. Work out our buffer at Haneda, and what we would do if one step ran late.'],
-  ['Trip documentary','Plan a six-photo story with captions explaining one thing you learned. Choose the photos before we land.']]}
+  ['Lucky cat investigator','Find out why people leave the cats at Gotokuji. Whose wish is each one?','🏮'],
+  ['Journey home planner','Read the departure plan. Work out our buffer at Haneda, and what we would do if one step ran late.','✈️'],
+  ['Trip documentary','Plan a six-photo story with captions explaining one thing you learned. Choose the photos before we land.','🎬']]}
 };
+// Reserve missions, drawn one at a time when a boy skips one or asks for something else.
+// They work anywhere, so they suit any day of the trip.
+export const EXTRA_MISSIONS={
+ Nate:[
+  ['Colour of the day','Choose a colour. Find five things in that colour before we get back.','🎨'],
+  ['Counting game','Count something all day — red cars, dogs, vending machines. Tell us the total tonight.','🔢'],
+  ['New food taster','Try one thing you have never eaten. Describe it in three words.','🍽️'],
+  ['Sign copier','Find some Japanese writing and copy one character carefully. Show a parent.','✍️'],
+  ['Kind helper','Do one helpful thing for someone in the family without being asked. What was it?','🤝'],
+  ['Sound collector','Find three sounds you would never hear at home. Make each one yourself.','🔔'],
+  ['Tall and small','Find the tallest thing and the smallest thing you can see right now.','📏'],
+  ['Photo of the day','Take one photo you really like. Tell us why you chose it.','📸'],
+  ['Vending machine detective','Find a vending machine. Guess what three of the drinks are before asking.','🥤'],
+  ['Map pointer','On a map with a parent, point to where we are and where we are going.','🗺️']],
+ Boston:[
+  ['Cost comparison','Pick something we bought today. Work out what it would cost at home, and explain the difference.','💴'],
+  ['Timetable reader','Read a timetable or departure board and work out the next two options. Which is better, and why?','🕑'],
+  ['Ask a local','With a parent, ask one polite question of someone who works here. What did you learn?','🗣️'],
+  ['Design improvement','Find something well designed today. Explain the problem it solves, then improve it.','📐'],
+  ['Rule spotter','Find an unwritten rule people here follow. How did you work it out?','👀'],
+  ['Estimate then check','Estimate a distance, a wait or a crowd size, then find a way to check it.','📊'],
+  ['Material investigator','Pick a building or object. Name its materials and say why each was chosen.','🧱'],
+  ['Waste detective','Work out how rubbish and recycling are handled here. How does it differ from home?','♻️'],
+  ['Language pattern','Find a Japanese word used on several different signs. Work out what it means.','🔤'],
+  ['Teach it back','Choose something you learned today and teach it to your brother so he understands.','🎓']]
+};
+export const GENERATED_PER_DAY=3;
+export const generatedMissions=(state,day,person)=>state.challenges.filter(c=>c.day===day&&c.generated&&c.participants.includes(person));
+// The next reserve mission this boy does not already have on this day.
+export function nextExtraMission(state,day,person){
+ const pool=EXTRA_MISSIONS[person]||[];
+ const taken=new Set(state.challenges.filter(c=>c.day===day&&c.participants.includes(person)).map(c=>c.title));
+ return pool.find(([title])=>!taken.has(title))||pool[0]||null;
+}
 export function initialChallenges(days){
  const overall={
- Nate:[['Japanese phrase explorer','Learn and use five useful Japanese words or phrases with a parent. Explain what each means.'],['Stamp and symbol collector','Find three different station or attraction stamps or symbols. Sketch or photograph them where allowed and compare their designs.'],['Money master','Show two different ways to make the same amount of yen with coins, with a parent helping.'],['Three-city detective','Choose a detail that makes Tokyo, Kyoto and Osaka feel different. Tell us why.'],['Photo story maker','Choose four photos and tell a story with a beginning, middle and end.'],['Invent a Japan game','Make a simple game inspired by the trip and teach the family its rules.']],
- Boston:[['Japanese mini conversation','Learn five useful phrases and try a short polite exchange with a parent alongside. Explain which phrase fits which situation.'],['Route master','Help plan three real routes with a parent. Compare travel time, transfers and walking.'],['Yen budget keeper','Set an agreed souvenir budget, record purchases and calculate what remains.'],['Evidence collector','Investigate three questions about Japan. For each, record what you observed and where you checked the answer.'],['Trip documentary','Create a six-photo story or short video with captions explaining something you learned.'],['Design the next family day','Propose a day with travel, an activity, food, a break and a backup option. Explain how the timing works.']]
+ Nate:[['Japanese phrase explorer','Learn and use five useful Japanese words or phrases with a parent. Explain what each means.','💬'],['Stamp and symbol collector','Find three different station or attraction stamps or symbols. Sketch or photograph them where allowed and compare their designs.','🎴'],['Money master','Show two different ways to make the same amount of yen with coins, with a parent helping.','🪙'],['Three-city detective','Choose a detail that makes Tokyo, Kyoto and Osaka feel different. Tell us why.','🗾'],['Photo story maker','Choose four photos and tell a story with a beginning, middle and end.','📷'],['Invent a Japan game','Make a simple game inspired by the trip and teach the family its rules.','🎲']],
+ Boston:[['Japanese mini conversation','Learn five useful phrases and try a short polite exchange with a parent alongside. Explain which phrase fits which situation.','🗣️'],['Route master','Help plan three real routes with a parent. Compare travel time, transfers and walking.','🧭'],['Yen budget keeper','Set an agreed souvenir budget, record purchases and calculate what remains.','💰'],['Evidence collector','Investigate three questions about Japan. For each, record what you observed and where you checked the answer.','🔎'],['Trip documentary','Create a six-photo story or short video with captions explaining something you learned.','🎬'],['Design the next family day','Propose a day with travel, an activity, food, a break and a backup option. Explain how the timing works.','📅']]
  };
- return [...days.flatMap(d=>BOYS.flatMap(person=>(DAY_MISSIONS[d.date]?.[person]||[]).map(([title,notes],i)=>({id:`mission-${d.date}-${person}-${i+1}`,title,notes,day:d.date,participants:[person],completions:{},responses:{}})))),...BOYS.flatMap(person=>overall[person].map(([title,notes],i)=>({id:`quest-${person}-${i}`,title,notes,day:null,participants:[person],completions:{},responses:{}})))];
+ return [...days.flatMap(d=>BOYS.flatMap(person=>(DAY_MISSIONS[d.date]?.[person]||[]).map(([title,notes,icon='',diagram=''],i)=>({id:`mission-${d.date}-${person}-${i+1}`,title,notes,icon,diagram,day:d.date,participants:[person],completions:{},responses:{},skips:{}})))),...BOYS.flatMap(person=>overall[person].map(([title,notes,icon=''],i)=>({id:`quest-${person}-${i}`,title,notes,icon,diagram:'',day:null,participants:[person],completions:{},responses:{},skips:{}})))];
 }
 // The first release gave each boy one mission a day. This adds the fuller day-specific sets
 // once, keeping every completion, discovery note and parent-written challenge. A superseded
@@ -260,6 +294,7 @@ export function pendingProgress(state,queue){
  const next=ensureFeatures(structuredClone(state));
  for(const {operation:o}of queue){
   if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=true;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;}}}
+  if(o.type==='challengeSkip'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.skips={...(c.skips||{})};if(o.done){c.skips[o.person]=c.skips[o.person]||o.at;delete c.completions[o.person];}else delete c.skips[o.person];}}
   if(o.type==='challengeStatus'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.completions={...c.completions};if(o.done)c.completions[o.person]=c.completions[o.person]||o.at;else delete c.completions[o.person];if(o.response!==undefined)c.responses={...(c.responses||{}),[o.person]:o.response};}}
  }
  return next;
