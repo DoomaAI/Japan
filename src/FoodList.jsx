@@ -3,7 +3,7 @@ import {Check,Star,Languages,Plus,Trash2,Copy,AlertCircle} from 'lucide-react';
 import {FOOD,FOOD_KINDS,FOOD_KIND_LABEL,ORDERING,SAY_TIP} from './food-data.js';
 import SayIt from './SayIt.jsx';
 import {PHRASES} from './phrases.js';
-import {triedFood,foodRatings,foodAverage,isFavourite,FAVOURITE_AT} from './trip-features.js';
+import {triedFood,foodRatings,foodAverage,isFavourite,FAVOURITE_AT,searchText} from './trip-features.js';
 import MenuReader from './MenuReader.jsx';
 export const allFood=state=>[...FOOD,...(state.foodItems||[]).map(i=>({...i,custom:true}))];
 function Stars({value,onRate,disabled,label}){
@@ -18,7 +18,7 @@ export default function FoodList({state,user,mutate,busy,setBusy,notice,show,req
   &&(only!=='tried'||Object.keys(triedFood(state,i.id)).length)
   &&(only!=='todo'||!Object.keys(triedFood(state,i.id)).length)
   &&(only!=='loved'||isFavourite(state,i.id))
-  &&[i.en,i.ja,i.romaji,i.say,i.note].join(' ').toLowerCase().includes(query.toLowerCase()));
+  &&searchText([i.en,i.ja,i.romaji,i.say,i.note,...(i.variants||[]).flatMap(v=>[v.en,v.ja,v.romaji,v.say])].join(' ')).includes(searchText(query)));
  const tallies=items.filter(i=>Object.keys(triedFood(state,i.id)).length).length;
  async function save(e){
   e.preventDefault();const f=new FormData(e.currentTarget);
@@ -58,6 +58,11 @@ export default function FoodList({state,user,mutate,busy,setBusy,notice,show,req
     </div>
     {item.ja&&<SayIt phrase={{...item,en:''}}/>}
     {item.note&&<p>{item.note}</p>}
+    {item.variants?.length>0&&<details className="variants"><summary>{item.variants.length} kinds — chicken, pork, prawn, vegetable</summary>
+     {item.variants.map(v=><div className="variant" key={v.ja}>
+      <div><strong>{v.en}</strong><p className="japanese small" lang="ja">{v.ja}</p><small className="say-phonics"><span aria-hidden="true">say</span> {v.say}</small></div>
+      <button onClick={()=>show({type:'foodcard',item:v})}><Languages size={15}/>Show</button></div>)}
+    </details>}
     <div className="food-people">{state.members.map(n=>
      <div className="food-person" key={n}>
       <button className={`rider${tried[n]?' on':''}`} disabled={busy||(!parent&&n!==user.name)} aria-pressed={!!tried[n]}

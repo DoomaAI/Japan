@@ -10,6 +10,7 @@ export const PAGES={
  diary:{label:'Diary',note:'Completed activities, discoveries and photos'},
  places:{label:'Places & our map',note:'Directions and our Google My Map'},
  meeting:{label:'Meeting card',note:'If we get separated'},
+ phrases:{label:'Phrases',note:'Greetings and travel Japanese, with how to say it'},
  help:{label:'Help & useful apps',note:'Translation, hotel directions, reminders'},
  options:{label:'Options & ideas',note:'Places and activities saved for later'},
  parks:{label:'Theme park rides',note:'Checklists, height limits and park maps'},
@@ -26,7 +27,7 @@ export const PRIMARY={
  child:['today','days','challenges','food','diary']
 };
 export const MORE_SECTIONS=[
- ['Out and about',['places','money','food','meeting','help']],
+ ['Out and about',['places','money','food','phrases','meeting','help']],
  ['The plan',['options','parks','shopping','challenges','tickets','guide']],
  ['Looking back',['diary','updates','search']],
  ['Just for you',['thanks']]
