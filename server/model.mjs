@@ -127,9 +127,10 @@ export function applyOperation(input,op,user){
  }else throw new AppError('Unknown action.');
  const fields=['time','day','bookingTime','place','title','locked'];
  const diffs=op.type==='patch'&&before?fields.filter(k=>JSON.stringify(before[k]??null)!==JSON.stringify(step[k]??null)).map(k=>`${{time:'Target time',day:'Day',bookingTime:'Booking time',place:'Place',title:'Activity',locked:'Time lock'}[k]}: ${before[k]??'none'} → ${step[k]??'none'}`):[];
- const important=extra?.important||diffs.length>0||['reschedule','choose','backlog','schedule','remove'].includes(op.type);
+ const important=!extra?.private&&(extra?.important||diffs.length>0||['reschedule','choose','backlog','schedule','remove'].includes(op.type));
  if(important){const summary=extra?.summary||(diffs.length?`${step.title}: ${diffs.join('; ')}`:`${step?.title||op.option||'Day plan'} · ${{reschedule:'times adjusted',choose:'alternative selected',backlog:'saved to Options',schedule:'added to a day',remove:'removed from itinerary'}[op.type]||'updated'}`);state.alerts=[{id:randomUUID(),summary,by:user.name,at:now,stepId:step?.id||null,seenBy:{[user.name]:now}},...state.alerts].slice(0,200);}
  if(op.operationId)state.appliedOperationIds=[...(state.appliedOperationIds||[]),op.operationId].slice(-500);
- state.history=[{id:randomUUID(),at:now,by:user.name,type:op.type,title:step?.title||op.step?.title||op.title||op.option||'Trip update'},...(state.history||[])].slice(0,200);
+ // Private notes stay out of the shared alert feed and family history.
+ if(!extra?.private)state.history=[{id:randomUUID(),at:now,by:user.name,type:op.type,title:step?.title||op.step?.title||op.title||op.option||'Trip update'},...(state.history||[])].slice(0,200);
  return state;
 }

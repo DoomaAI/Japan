@@ -6,6 +6,7 @@ import {get,head} from '@vercel/blob';
 import {handleUpload} from '@vercel/blob/client';
 import {AppError,applyOperation,MEMBERS,documentDetails,documentAssociation,ticketParent} from './model.mjs';
 import {database,readTrip,writeTrip,session,localDemo,hash,token,setCookie} from './store.mjs';
+import {visibleEnvelope} from './visibility.mjs';
 const json=(res,data,status=200)=>{res.statusCode=status;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));};
 async function body(req){if(req.body&&typeof req.body==='object')return req.body;let s='';for await(const c of req){s+=c;if(Buffer.byteLength(s)>1000000)throw new AppError('Request too large.',413);}try{return JSON.parse(s||'{}');}catch{throw new AppError('Invalid request.');}}
 const parent=u=>{if(u.role!=='parent')throw new AppError('A parent can do this.',403);};
@@ -35,10 +36,10 @@ export default async function handler(req,res){
   const user=await session(req);
   if(route==='session'&&req.method==='GET')return json(res,{user});
   if(route==='logout'&&post){if(!localDemo()){const c=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('japan_session='))?.slice(14);if(c){const db=await database();await db`DELETE FROM japan_sessions WHERE token_hash=${hash(c)}`;}}setCookie(res,'');return json(res,{ok:true});}
-  if(route==='state'&&req.method==='GET')return json(res,{...await readTrip(),user});
+  if(route==='state'&&req.method==='GET')return json(res,visibleEnvelope(await readTrip(),user));
   if(route==='mutate'&&post){
-   const current=await readTrip();if(b.operation?.operationId&&current.state.appliedOperationIds?.includes(b.operation.operationId))return json(res,{...current,user});if(b.revision!==current.revision)throw new AppError('The family updated the trip. Review your change against the latest plan.',409);
-   const state=applyOperation(current.state,b.operation,user);return json(res,{...await writeTrip(state,current.revision),user});
+   const current=await readTrip();if(b.operation?.operationId&&current.state.appliedOperationIds?.includes(b.operation.operationId))return json(res,visibleEnvelope(current,user));if(b.revision!==current.revision)throw new AppError('The family updated the trip. Review your change against the latest plan.',409);
+   const state=applyOperation(current.state,b.operation,user);return json(res,visibleEnvelope(await writeTrip(state,current.revision),user));
   }
   if(route==='invites'&&req.method==='GET'){
    parent(user);if(localDemo())return json(res,{invites:[]});const db=await database();return json(res,{invites:await db`SELECT id,name,role,revoked,expires_at FROM japan_grants ORDER BY created_at`});
@@ -75,9 +76,9 @@ export default async function handler(req,res){
    const details=documentDetails(root?{...b,category:root.category}:b),association=documentAssociation(root||b,current.state);
    const blob=await head(b.pathname);
    validateFile(blob.contentType,blob.size,details.category);
-   const existing=current.state.documents.find(d=>d.pathname===b.pathname);if(existing)return json(res,{...current,user});
+   const existing=current.state.documents.find(d=>d.pathname===b.pathname);if(existing)return json(res,visibleEnvelope(current,user));
    current.state.documents.push({id:randomUUID(),title:b.title,...details,...association,...(root?{parentDocumentId:root.id}:{}),size:blob.size,pathname:b.pathname,type:blob.contentType,person:b.person||'Family',createdAt:new Date().toISOString()});
-   return json(res,{...await writeTrip(current.state,current.revision),user});
+   return json(res,visibleEnvelope(await writeTrip(current.state,current.revision),user));
   }
   if(route==='document'&&req.method==='GET'){
    const {state}=await readTrip();const doc=state.documents.find(d=>d.id===url.searchParams.get('id')&&d.pathname);if(!doc)throw new AppError('Ticket not found.',404);
