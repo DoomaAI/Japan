@@ -34,6 +34,21 @@ The production frontend builds and the automated model/API checks pass. No GitHu
 7. On a trusted development machine, place the production `DATABASE_URL` and `APP_ORIGIN` in the ignored `.env.local` file and run `npm run create-owner` (Node 22+). This creates the database schema and initial itinerary, then writes the private parent link to `.private/owner-link.txt`. It does not print the link, expose a public setup endpoint or overwrite an existing owner. No setup key is used. Deliver the link privately and keep a recovery copy.
 8. Open the private parent link, then the avatar → **Our family** → create a link for each family member. Send links yourself. Damien/Lauren links can edit and upload; Nate/Boston links can view and complete assigned activities. Each person opens their link in Safari before adding the app to the Home Screen.
 
+### Home Screen icon
+
+The shortcut icon is the guide's own cover — the title block, with Mount Fuji, the pagoda and the cherry blossom, cropped square from `public/cover.jpg` (which is guide page 1). It reads clearly at 60pt on an iPhone Home Screen.
+
+| File | Used for |
+| --- | --- |
+| `icon-180.png` | `apple-touch-icon` — the iPhone Home Screen shortcut |
+| `icon-192.png`, `icon-512.jpg` | Manifest icons, `purpose: any` |
+| `icon-maskable-512.jpg` | Manifest `purpose: maskable` — the art is inset so Android's circular crop keeps the whole title |
+| `favicon-32.png` | Browser tab |
+
+`any` and `maskable` are deliberately separate files: a maskable icon used as `any` looks needlessly padded, and an `any` icon used as maskable has its edges cropped. The 512s are JPEG because the artwork is photographic — PNG made them roughly nine times larger for no visible gain — and they are left out of the offline shell, since they are only read when installing the app, which always happens online.
+
+**iOS caches the Home Screen icon.** Anyone who already added the app to their Home Screen keeps the old icon until they remove the shortcut and add it again from Safari.
+
 ### Environment
 
 | Variable | Purpose |

@@ -4,7 +4,7 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/((?!cover.jpg|kyoto.jpg|api/|assets/|guide/|manifest.webmanifest|sw.js|favicon.svg|icon-192.png|icon-512.png).*)",
+      "source": "/((?!cover.jpg|kyoto.jpg|api/|assets/|guide/|manifest.webmanifest|sw.js|favicon-32.png|icon-180.png|icon-192.png|icon-512.jpg|icon-maskable-512.jpg).*)",
       "destination": "/index.html"
     }
   ],

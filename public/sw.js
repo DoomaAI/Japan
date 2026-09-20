@@ -1,5 +1,5 @@
 const SHELL='japan-shell-v1',PRIVATE='japan-private-v1';
-const PRELOAD = /* BUILD_ASSETS */ ['/','/favicon.svg','/icon-192.png','/icon-512.png','/manifest.webmanifest','/cover.jpg'];
+const PRELOAD = /* BUILD_ASSETS */ ['/','/favicon-32.png','/icon-180.png','/icon-192.png','/manifest.webmanifest','/cover.jpg'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(SHELL).then(c=>c.addAll(PRELOAD)));});
 self.addEventListener('activate',event=>{event.waitUntil(self.clients.claim());});
 self.addEventListener('fetch',event=>{
