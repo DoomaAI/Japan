@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {findRide} from '../src/park-data.js';
+import {FOOD,FOOD_KINDS} from '../src/food-data.js';
 import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO} from '../src/trip-features.js';
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
 export function extraOperation(state,op,user,fail,now){
@@ -29,6 +30,39 @@ export function extraOperation(state,op,user,fail,now){
   const next=nextExtraMission(state,op.day,op.person);if(!next)fail('No more missions are available.',404);
   const [title,notes,icon='']=next;
   state.challenges.push({id:randomUUID(),title,notes,icon,diagram:'',day:op.day,participants:[op.person],completions:{},responses:{},skips:{},generated:true,createdBy:user.name,createdAt:now});
+ }else if(typeof op.type==='string'&&op.type.startsWith('food')){
+  const custom=()=>state.foodItems.find(i=>i.id===op.id);
+  const known=id=>FOOD.some(i=>i.id===id)||state.foodItems.some(i=>i.id===id);
+  if(op.type==='foodTried'||op.type==='foodRating'){
+   if(!known(op.itemId))fail('Unknown food.',404);
+   if(!state.members.includes(op.person))fail('Choose a family member.');
+   if(!parent&&op.person!==user.name)fail('Tick and rate only for yourself.',403);
+   const entry=state.food[op.itemId]||{};
+   if(op.type==='foodTried'){
+    if(typeof op.done!=='boolean')fail('Invalid food tick.');
+    let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid tasting time.');at=new Date(op.at).toISOString();}
+    const tried={...(entry.tried||{})};
+    if(op.done)tried[op.person]=tried[op.person]||at;else delete tried[op.person];
+    state.food={...state.food,[op.itemId]:{...entry,tried}};
+   }else{
+    if(op.rating!==0&&!(Number.isInteger(op.rating)&&op.rating>=1&&op.rating<=5))fail('Rate it from 1 to 5 stars.');
+    const ratings={...(entry.ratings||{})},tried={...(entry.tried||{})};
+    if(op.rating){ratings[op.person]=op.rating;tried[op.person]=tried[op.person]||now;}else delete ratings[op.person];
+    state.food={...state.food,[op.itemId]:{...entry,ratings,tried}};
+   }
+  }else if(op.type==='foodAdd'||op.type==='foodEdit'){
+   if(!parent)fail('A parent can change the food list.',403);
+   const values={en:(op.en||'').trim(),ja:(op.ja||'').trim(),romaji:(op.romaji||'').trim(),kind:op.kind||'meal',note:op.note||''};
+   if(!values.en)fail('Add the English name.');
+   for(const [k,v] of Object.entries(values))requireText(v,k==='note'?2000:200,k);
+   if(!FOOD_KINDS.some(([k])=>k===values.kind))fail('Choose a food group.');
+   if(op.type==='foodAdd')state.foodItems.push({id:randomUUID(),...values,addedBy:user.name,createdAt:now});
+   else{const item=custom();if(!item)fail('That is one of the built-in dishes. Add your own version instead.',404);Object.assign(item,values);}
+  }else if(op.type==='foodRemove'){
+   if(!parent)fail('A parent can change the food list.',403);
+   if(!custom())fail('That is one of the built-in dishes and cannot be removed.',404);
+   state.foodItems=state.foodItems.filter(i=>i.id!==op.id);
+  }else fail('Unknown food action.');
  }else if(op.type==='parkRide'){
   const ride=findRide(op.rideId);if(!ride)fail('Unknown ride.',404);
   if(!state.members.includes(op.person))fail('Choose a family member.');
