@@ -52,7 +52,7 @@ export function extraOperation(state,op,user,fail,now){
    }
   }else if(op.type==='foodAdd'||op.type==='foodEdit'){
    if(!parent)fail('A parent can change the food list.',403);
-   const values={en:(op.en||'').trim(),ja:(op.ja||'').trim(),romaji:(op.romaji||'').trim(),kind:op.kind||'meal',note:op.note||''};
+   const values={en:(op.en||'').trim(),ja:(op.ja||'').trim(),romaji:(op.romaji||'').trim(),say:(op.say||'').trim(),kind:op.kind||'meal',note:op.note||''};
    if(!values.en)fail('Add the English name.');
    for(const [k,v] of Object.entries(values))requireText(v,k==='note'?2000:200,k);
    if(!FOOD_KINDS.some(([k])=>k===values.kind))fail('Choose a food group.');

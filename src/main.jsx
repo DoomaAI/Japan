@@ -8,6 +8,8 @@ import {ThankYouNote,ThankYouEditor} from './ThankYou.jsx';
 import TicketViewer from './TicketViewer.jsx';
 import DocumentThumb from './DocumentThumb.jsx';
 import Currency from './Currency.jsx';
+import SayIt from './SayIt.jsx';
+import {PHRASES} from './phrases.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
 import {primaryNav,moreIds} from './nav-data.js';
 import EyeSpy from './EyeSpy.jsx';
@@ -273,5 +275,5 @@ createRoot(document.getElementById('root')).render(<App/>);
 
 function ShowLocation({state,step,notice,maps}){
  const {english,japanese,address,copyText}=showLocationDetails(state,step);
- return <><p className="eyebrow">PLEASE HELP US FIND THIS PLACE</p><p className="japanese" lang="ja">ここへ行きたいです。</p><p>I’d like to go here.</p><div className="destination">{japanese&&<h2 className="destination-japanese" lang="ja">{japanese}</h2>}<h3>{english}</h3>{address&&<p>{address}</p>}</div>{!japanese&&<p>Japanese details haven’t been added for this place yet. Edit the activity to add its Japanese name or address, or open Maps.</p>}<div className="row wrap"><Link className="button primary" href={maps(step)}>Show in Maps</Link><Button icon={Copy} onClick={()=>navigator.clipboard.writeText(copyText).then(()=>notice('Location details copied.')).catch(()=>notice('Select the location details to copy them.'))}>Copy location</Button><Link className="button" href={`https://translate.google.com/?sl=en&tl=ja&text=${encodeURIComponent(english)}&op=translate`}>Translate location</Link></div><p className="japanese small" lang="ja">道に迷いました。</p><p>I’m lost.</p></>;
+ return <><p className="eyebrow">PLEASE HELP US FIND THIS PLACE</p><SayIt phrase={PHRASES.goHere}/><div className="destination">{japanese&&<h2 className="destination-japanese" lang="ja">{japanese}</h2>}<h3>{english}</h3>{address&&<p>{address}</p>}</div>{!japanese&&<p>Japanese details haven’t been added for this place yet. Edit the activity to add its Japanese name or address, or open Maps.</p>}<div className="row wrap"><Link className="button primary" href={maps(step)}>Show in Maps</Link><Button icon={Copy} onClick={()=>navigator.clipboard.writeText(copyText).then(()=>notice('Location details copied.')).catch(()=>notice('Select the location details to copy them.'))}>Copy location</Button><Link className="button" href={`https://translate.google.com/?sl=en&tl=ja&text=${encodeURIComponent(english)}&op=translate`}>Translate location</Link></div><hr/><SayIt phrase={PHRASES.lost} size="small"/></>;
 }
