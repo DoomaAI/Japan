@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';
+import {findRide} from '../src/park-data.js';
 import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO} from '../src/trip-features.js';
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
 export function extraOperation(state,op,user,fail,now){
@@ -28,6 +29,29 @@ export function extraOperation(state,op,user,fail,now){
   const next=nextExtraMission(state,op.day,op.person);if(!next)fail('No more missions are available.',404);
   const [title,notes,icon='']=next;
   state.challenges.push({id:randomUUID(),title,notes,icon,diagram:'',day:op.day,participants:[op.person],completions:{},responses:{},skips:{},generated:true,createdBy:user.name,createdAt:now});
+ }else if(op.type==='parkRide'){
+  const ride=findRide(op.rideId);if(!ride)fail('Unknown ride.',404);
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Tick only your own rides.',403);
+  if(typeof op.done!=='boolean')fail('Invalid ride tick.');
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid ride time.');at=new Date(op.at).toISOString();}
+  const entry=state.parkRides[op.rideId]||{},ridden={...(entry.ridden||{})};
+  if(op.done)ridden[op.person]=ridden[op.person]||at;else delete ridden[op.person];
+  state.parkRides={...state.parkRides,[op.rideId]:{...entry,ridden}};
+ }else if(op.type==='parkMust'){
+  const ride=findRide(op.rideId);if(!ride)fail('Unknown ride.',404);
+  if(typeof op.must!=='boolean')fail('Invalid must-do.');
+  const entry=state.parkRides[op.rideId]||{};
+  state.parkRides={...state.parkRides,[op.rideId]:{...entry,must:op.must}};
+ }else if(op.type==='familyHeights'){
+  const next={};
+  for(const name of BOYS){
+   const value=op.heights?.[name];
+   if(value===null||value===undefined||value==='')continue;
+   if(!Number.isInteger(value)||value<50||value>220)fail('Enter a height between 50cm and 220cm.');
+   next[name]=value;
+  }
+  state.heights=next;
  }else if(op.type==='eyeSpy'){
   const leg=state.steps.find(s=>s.id===op.stepId);
   if(!leg||!isTrainLeg(leg))fail('That is not a train leg.',404);

@@ -87,6 +87,19 @@ export const fujiSide=step=>towardsTokyo(step)?'left':'right';
 export const eyeSpyHint=(item,step)=>item.hint
  .replace('{side}',fujiSide(step))
  .replace('{when}',towardsTokyo(step)?'About 40 minutes before we reach Tokyo':'About 40 minutes out of Tokyo');
+// Ride checklist state. `parkRides` records who has ridden what and what the family has
+// starred as a must-do; `heights` is each boy's height in cm, so a ride can say plainly
+// whether he is tall enough rather than leaving a number to be compared in a queue.
+export const riddenBy=(state,rideId)=>state.parkRides?.[rideId]?.ridden||{};
+export const isMustDo=(state,rideId)=>!!state.parkRides?.[rideId]?.must;
+export function heightCheck(ride,person,heights){
+ if(!ride.height)return {limit:false,ok:true,label:'Everyone can ride'};
+ const own=heights?.[person];
+ if(!own)return {limit:true,ok:null,label:`${ride.height}cm minimum`,short:null};
+ const short=ride.height-own;
+ return {limit:true,ok:short<=0,label:short<=0?`${person} is tall enough`:`${short}cm too short for ${person}`,short:short>0?short:0};
+}
+export const parkProgress=(state,park,person)=>park.rides.filter(r=>riddenBy(state,r.id)[person]).length;
 export const MISSION_SEED=2;
 // Three missions a day for each boy, written around what that day actually holds.
 // Nate is 5, Boston is 8, so each day carries a junior and a senior set.
@@ -272,7 +285,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -339,6 +352,7 @@ export function pendingProgress(state,queue){
  const next=ensureFeatures(structuredClone(state));
  for(const {operation:o}of queue){
   if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=true;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;}}}
+  if(o.type==='parkRide'){const e=next.parkRides[o.rideId]||{},ridden={...(e.ridden||{})};if(o.done)ridden[o.person]=ridden[o.person]||o.at;else delete ridden[o.person];next.parkRides={...next.parkRides,[o.rideId]:{...e,ridden}};}
   if(o.type==='eyeSpy'){const key=eyeSpyKey(o.stepId,o.item),found={...(next.eyeSpy[key]||{})};if(o.done)found[o.person]=found[o.person]||o.at;else delete found[o.person];next.eyeSpy={...next.eyeSpy,[key]:found};}
   if(o.type==='challengeSkip'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.skips={...(c.skips||{})};if(o.done){c.skips[o.person]=c.skips[o.person]||o.at;delete c.completions[o.person];}else delete c.skips[o.person];}}
   if(o.type==='challengeStatus'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.completions={...c.completions};if(o.done)c.completions[o.person]=c.completions[o.person]||o.at;else delete c.completions[o.person];if(o.response!==undefined)c.responses={...(c.responses||{}),[o.person]:o.response};}}

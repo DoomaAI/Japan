@@ -510,3 +510,82 @@ test('I spy runs on the Shinkansen legs, per boy, and points Fuji the right way'
  assert.deepEqual(eyeSpySpotted(pending,leg,'Nate').map(i=>i.id),['tunnel']);
  assert.equal(eyeSpySpotted(state,leg,'Nate').length,0);
 });
+
+test('the ride checklists cover the three park days and match the itinerary',async()=>{
+ const {PARKS,parkForDay,findRide,allRides,parkLands,ridePlanned}=await import('../src/park-data.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(PARKS.map(p=>p.day),['2026-09-25','2026-09-30','2026-10-01']);
+ for(const park of PARKS){
+  assert.ok(seed.days.some(d=>d.date===park.day),park.name);
+  assert.equal(parkForDay(park.day).id,park.id);
+  assert.ok(park.rides.length>=15,park.name);
+  assert.ok(parkLands(park).length>=4,park.name);
+  for(const r of park.rides){
+   assert.ok(r.id.startsWith(park.id+'-')&&r.name&&r.land&&r.note,r.id);
+   assert.ok(r.height===null||(Number.isInteger(r.height)&&r.height>=80&&r.height<=140),`${r.id} height`);
+   assert.ok(park.site.startsWith('https://')&&park.app.startsWith('https://'));
+  }
+  // Each park's checklist recognises the rides already booked into that day.
+  assert.ok(park.rides.filter(r=>ridePlanned(state,park,r)).length>=4,`${park.name} matched too few planned rides`);
+ }
+ assert.equal(new Set(allRides().map(r=>r.id)).size,allRides().length);
+ assert.equal(parkForDay('2026-09-22'),null);
+ assert.equal(findRide('nope'),null);
+ assert.equal(findRide('tds-journey').height,117);
+});
+
+test('a height turns a ride limit into a plain yes or no, per boy',async()=>{
+ const {heightCheck,riddenBy,isMustDo,parkProgress}=await import('../src/trip-features.js');
+ const {parkById,findRide}=await import('../src/park-data.js');
+ const open=findRide('tdl-pooh'),tall=findRide('usj-minecart');
+ // No limit at all.
+ assert.deepEqual(heightCheck(open,'Nate',{Nate:112}),{limit:false,ok:true,label:'Everyone can ride'});
+ // A limit with no height recorded yet just states the limit.
+ const unknown=heightCheck(tall,'Nate',{});
+ assert.equal(unknown.ok,null);assert.equal(unknown.limit,true);assert.match(unknown.label,/132cm minimum/);
+ // With a height it says plainly, and by how much.
+ const small=heightCheck(tall,'Nate',{Nate:112});
+ assert.equal(small.ok,false);assert.equal(small.short,20);assert.equal(small.label,'20cm too short for Nate');
+ const big=heightCheck(tall,'Boston',{Boston:132});
+ assert.equal(big.ok,true);assert.equal(big.short,0);assert.equal(big.label,'Boston is tall enough');
+ // Exactly on the limit counts as tall enough.
+ assert.equal(heightCheck(tall,'Nate',{Nate:132}).ok,true);
+ assert.equal(heightCheck(tall,'Nate',{Nate:131}).ok,false);
+ // Reading helpers cope with an untouched trip.
+ assert.deepEqual(riddenBy({},'tdl-pooh'),{});
+ assert.equal(isMustDo({},'tdl-pooh'),false);
+ assert.equal(parkProgress({parkRides:{}},parkById('tdl'),'Nate'),0);
+});
+
+test('ride ticks, must-do stars and heights are recorded with the right permissions',async()=>{
+ const {ensureFeatures,pendingProgress,riddenBy,isMustDo,parkProgress}=await import('../src/trip-features.js');
+ const {parkById}=await import('../src/park-data.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const nate={name:'Nate',role:'child'},boston={name:'Boston',role:'child'};
+ const id='tdl-pooh',at='2026-09-19T04:00:00.000Z';
+ const ridden=applyOperation(state,{type:'parkRide',rideId:id,person:'Nate',done:true,at},nate);
+ assert.equal(riddenBy(ridden,id).Nate,at);
+ assert.equal(parkProgress(ridden,parkById('tdl'),'Nate'),1);
+ assert.equal(parkProgress(ridden,parkById('tdl'),'Boston'),0);
+ assert.deepEqual(riddenBy(applyOperation(ridden,{type:'parkRide',rideId:id,person:'Nate',done:false},nate),id),{});
+ // A parent may tick for anyone, including themselves; a boy only for himself.
+ assert.ok(applyOperation(state,{type:'parkRide',rideId:id,person:'Lauren',done:true},parent));
+ assert.throws(()=>applyOperation(state,{type:'parkRide',rideId:id,person:'Boston',done:true},nate),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'parkRide',rideId:'nope',person:'Nate',done:true},nate),e=>e.status===404);
+ // Starring a must-do is a parent's call, and survives a later tick.
+ const starred=applyOperation(ridden,{type:'parkMust',rideId:id,must:true},parent);
+ assert.equal(isMustDo(starred,id),true);
+ assert.equal(riddenBy(starred,id).Nate,at);
+ assert.equal(isMustDo(applyOperation(starred,{type:'parkMust',rideId:id,must:false},parent),id),false);
+ assert.throws(()=>applyOperation(state,{type:'parkMust',rideId:id,must:true},nate),e=>e.status===403);
+ // Heights are validated and parent-set.
+ assert.deepEqual(applyOperation(state,{type:'familyHeights',heights:{Nate:112,Boston:132}},parent).heights,{Nate:112,Boston:132});
+ assert.deepEqual(applyOperation(state,{type:'familyHeights',heights:{Nate:112,Boston:''}},parent).heights,{Nate:112});
+ for(const bad of [{Nate:10},{Nate:300},{Nate:112.5},{Nate:'tall'}])assert.throws(()=>applyOperation(state,{type:'familyHeights',heights:bad},parent),/between 50cm and 220cm/,JSON.stringify(bad));
+ assert.throws(()=>applyOperation(state,{type:'familyHeights',heights:{Nate:112}},nate),e=>e.status===403);
+ // A tick made in a queue with no signal shows straight away on the phone.
+ const pending=pendingProgress(state,[{operation:{type:'parkRide',rideId:'tds-soaring',person:'Boston',done:true,at}}]);
+ assert.equal(riddenBy(pending,'tds-soaring').Boston,at);
+ assert.deepEqual(riddenBy(state,'tds-soaring'),{});
+});
