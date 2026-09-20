@@ -33,6 +33,14 @@ export function thankYouSchedule(state){
  return state.days.map(d=>({day:d.date,message:pinned.get(d.date)||pool[next++]||null}));
 }
 export const thankYouForDay=(state,day)=>thankYouSchedule(state).find(entry=>entry.day===day)?.message||null;
+// Whether Lauren has opened a day's note, and when. A note opened after midnight in Japan
+// reports the date she actually read it, so a late read is not mistaken for one on the day.
+export function noteReadState(day,seen,today){
+ const at=seen?.[day];
+ if(!at)return {read:false,when:null,readDay:null,late:false,pending:day>today?'waiting':day===today?'today':'missed'};
+ const when=new Date(at),readDay=japanDate(when);
+ return {read:true,when,readDay,late:readDay!==day,pending:null};
+}
 export const thankYouSpares=state=>{const scheduled=new Set(thankYouSchedule(state).map(e=>e.message?.id));return thankYouNotes(state).filter(m=>!scheduled.has(m.id));};
 export function initialChallenges(days){
  const junior=[

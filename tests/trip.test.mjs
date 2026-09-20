@@ -313,3 +313,25 @@ test('the full-screen ticket viewer groups a ticket with its attached files, ski
  assert.deepEqual(attachmentGroup(docs,{id:'gone',pathname:'z'}).map(d=>d.id),['gone']);
  assert.deepEqual(attachmentGroup(docs,null),[]);
 });
+
+test('read receipts report whether Lauren opened each note, and when she opened it late',async()=>{
+ const {noteReadState}=await import('../src/trip-features.js');
+ const today='2026-09-25';
+ // Opened during the day it was scheduled for.
+ const sameDay=noteReadState('2026-09-23',{'2026-09-23':'2026-09-23T00:14:00Z'},today);
+ assert.equal(sameDay.read,true);assert.equal(sameDay.readDay,'2026-09-23');assert.equal(sameDay.late,false);
+ assert.equal(sameDay.when.toISOString(),'2026-09-23T00:14:00.000Z');
+ // Opened after midnight in Japan: still that day's note, but reported against the day she read it.
+ const late=noteReadState('2026-09-23',{'2026-09-23':'2026-09-23T22:30:00Z'},today);
+ assert.equal(late.read,true);assert.equal(late.readDay,'2026-09-24');assert.equal(late.late,true);
+ // A day that is late in UTC but still the same Japan day is not counted as late.
+ assert.equal(noteReadState('2026-09-23',{'2026-09-23':'2026-09-23T14:00:00Z'},today).late,false);
+ // Not opened: past, current and future days are distinguished.
+ assert.deepEqual(noteReadState('2026-09-23',{},today).pending,'missed');
+ assert.deepEqual(noteReadState(today,{},today).pending,'today');
+ assert.deepEqual(noteReadState('2026-09-28',{},today).pending,'waiting');
+ for(const day of ['2026-09-23',today,'2026-09-28']){
+  const s=noteReadState(day,{},today);assert.equal(s.read,false);assert.equal(s.when,null);assert.equal(s.late,false);
+ }
+ assert.equal(noteReadState('2026-09-23',undefined,today).read,false);
+});
