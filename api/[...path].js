@@ -1,2 +1,3 @@
 export {default} from '../server/handler.mjs';
-export const config = { maxDuration: 30 };
+// Reading a menu photo is the slowest call the app makes.
+export const config = { maxDuration: 60 };

@@ -2,13 +2,14 @@ import React,{useState} from 'react';
 import {Check,Star,Languages,Plus,Trash2,Copy,AlertCircle} from 'lucide-react';
 import {FOOD,FOOD_KINDS,FOOD_KIND_LABEL,ORDERING} from './food-data.js';
 import {triedFood,foodRatings,foodAverage,isFavourite,FAVOURITE_AT} from './trip-features.js';
+import MenuReader from './MenuReader.jsx';
 export const allFood=state=>[...FOOD,...(state.foodItems||[]).map(i=>({...i,custom:true}))];
 function Stars({value,onRate,disabled,label}){
  return <span className="stars" role="group" aria-label={label}>{[1,2,3,4,5].map(n=>
   <button key={n} type="button" className={`star${n<=value?' on':''}`} disabled={disabled} aria-label={`${n} star${n>1?'s':''}`} aria-pressed={n===value}
    onClick={()=>onRate(n===value?0:n)}><Star size={17}/></button>)}</span>;
 }
-export default function FoodList({state,user,mutate,busy,notice,show}){
+export default function FoodList({state,user,mutate,busy,setBusy,notice,show,request,config}){
  const [kind,setKind]=useState(''),[only,setOnly]=useState(''),[query,setQuery]=useState(''),[edit,setEdit]=useState(null);
  const parent=user.role==='parent',items=allFood(state);
  const list=items.filter(i=>(!kind||i.kind===kind)
@@ -24,6 +25,9 @@ export default function FoodList({state,user,mutate,busy,notice,show}){
  }
  return <>
   <p className="callout"><AlertCircle size={18}/>The Japanese is how a dish is usually written on a menu, as a helper for reading and pointing. Menus vary and shops write things their own way. <strong>Anything allergy-related must be confirmed with the restaurant, not with this list.</strong></p>
+  {config?.menuReader
+   ?user.role==='parent'&&<MenuReader state={state} user={user} request={request} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={show}/>
+   :<details className="menu-reader"><summary>Read a menu from a photo</summary><p>Photographing a menu and having it suggest what we would like is built and ready, but switched off. It needs an Anthropic API key set as <code>ANTHROPIC_API_KEY</code> on the deployment, server-side. Everything else on this page works without it.</p></details>}
   <div className="quest-progress"><strong>{tallies} / {items.length} tried</strong><progress max={items.length} value={tallies}/><span>Rate what you eat. Four stars or more and it lands in Our favourites.</span></div>
   <div className="document-filters">
    <label>Search<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Dish, Japanese or note"/></label>
