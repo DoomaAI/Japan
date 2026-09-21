@@ -931,8 +931,11 @@ test('the yen converter works from a shared rate, set by a parent',async()=>{
 });
 
 test('every screen is reachable exactly once, from the bar or from More',async()=>{
- const {PAGES,PRIMARY,MORE_SECTIONS,primaryNav,moreSections,moreIds,navActive}=await import('../src/nav-data.js');
+ const {PAGES,PRIMARY,MORE_SECTIONS,primaryNav,moreSections,moreIds,navActive,setAvailable}=await import('../src/nav-data.js');
  const damien={name:'Damien',role:'parent'},lauren={name:'Lauren',role:'parent'},nate={name:'Nate',role:'child'};
+ // Forwarded email is only offered where a mail provider is connected to the deployment. The
+ // rest of this is about a menu with that connected, so it is switched on for the check.
+ setAvailable({inbox:true});
  for(const user of [damien,lauren,nate]){
   const bar=primaryNav(user),more=moreIds(user),all=[...bar,...more];
   // Nothing appears twice, and nothing is stranded.
@@ -952,6 +955,18 @@ test('every screen is reachable exactly once, from the bar or from More',async()
  // parents' screen and the boys are never sent to it.
  assert.ok(moreIds(lauren).includes('inbox'));
  assert.ok(!moreIds(nate).includes('inbox'));
+ // With no mail provider connected there is no screen about forwarding email: it is not on
+ // anyone's menu, and not something a link or an old bar setting can reach either.
+ setAvailable({inbox:false});
+ try{
+  for(const user of [damien,lauren,nate]){
+   assert.ok(!moreIds(user).includes('inbox'),`${user.name} is offered a screen this deployment cannot use`);
+   assert.ok(!primaryNav(user).includes('inbox'),user.name);
+  }
+  // Everything else is still exactly where it was: hiding one page strands none of the others.
+  const expected=Object.keys(PAGES).filter(id=>id!=='inbox'&&(id!=='thanks'||'Damien'==='Damien'));
+  assert.deepEqual([...primaryNav(damien),...moreIds(damien)].sort(),expected.sort());
+ }finally{setAvailable({inbox:true});}
  // Parents reach for tickets and prices; the boys reach for their missions.
  assert.deepEqual(PRIMARY.parent,['today','days','tickets','food','money']);
  assert.deepEqual(PRIMARY.child,['today','days','challenges','food','diary']);
@@ -979,9 +994,12 @@ test('every screen is reachable exactly once, from the bar or from More',async()
 });
 
 test('each phone arranges its own menu, and nothing put away is lost',async()=>{
- const {PAGES,PRIMARY,BAR_MIN,BAR_MAX,FIXED,emptyNav,cleanNav,primaryNav,hiddenNav,moreIds,moreSections,addableNav,pagesFor,menuOrder,navActive}
+ const {PAGES,PRIMARY,BAR_MIN,BAR_MAX,FIXED,emptyNav,cleanNav,primaryNav,hiddenNav,moreIds,moreSections,addableNav,pagesFor,menuOrder,navActive,setAvailable}
   =await import('../src/nav-data.js');
  const damien={name:'Damien',role:'parent'},lauren={name:'Lauren',role:'parent'},nate={name:'Nate',role:'child'};
+ // This is about arranging a menu, not about which screens a deployment has, so forwarded email
+ // is switched on rather than left to whatever an earlier test happened to leave behind.
+ setAvailable({inbox:true});
  // Nobody has touched it: everything is exactly where it was before any of this existed.
  for(const user of [damien,lauren,nate]){
   assert.deepEqual(primaryNav(user,emptyNav()),primaryNav(user));
