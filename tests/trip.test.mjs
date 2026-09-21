@@ -3406,7 +3406,7 @@ test('a spot-the-difference score is one the server will actually take',async()=
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:(OFFLINE|'[^']+'),Component:(\w+)/g)];
- assert.equal(entries.length,21);
+ assert.equal(entries.length,22);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -3433,7 +3433,7 @@ test('a game that really is Japanese says so, and one that only looks it says no
  // The ones that are genuinely Japanese games, and nothing else. Sumo stable and Onigiri to
  // Fuji are games about Japan, which is a different claim and is not made.
  assert.deepEqual(entries.filter(g=>g.origin==='traditional').map(g=>g.id).sort(),
-  ['daruma','fukuwarai','gomoku','janken','karuta','kingyo','origami','shiritori','sumo']);
+  ['daruma','fukuwarai','gomoku','janken','karuta','kendama','kingyo','origami','shiritori','sumo']);
  assert.deepEqual(entries.filter(g=>g.origin==='modern').map(g=>g.id).sort(),['picross','shogi']);
  for(const g of entries.filter(g=>g.origin))
   assert.ok(g.ja,`${g.title} claims to be Japanese, so it must say what it is called in Japanese`);
@@ -3443,6 +3443,69 @@ test('a game that really is Japanese says so, and one that only looks it says no
  assert.match(source,/const ORIGINS=\{\n traditional:.*\n modern:.*\n\};/);
  for(const g of entries.filter(g=>g.origin))
   assert.match(source,new RegExp(`id:'${g.id}'[\\s\\S]{0,600}?story:'`),`${g.title} must say why`);
+});
+
+test('kendama wants the pull and the catch both right, and gets harder in the order it is learned',async()=>{
+ const K=await import('../src/kendama.js');
+ // The tricks are in the order they are really learned, and each one is tighter than the last
+ // in both things at once — a narrower pull to find and a shorter moment to find it in.
+ assert.deepEqual(K.TRICKS.map(t=>t.id),
+  ['ozara','kozara','chuzara','rosoku','tomeken','hikoki','furiken']);
+ // Each trick names a cup and has to put the ball in it. The first drawing landed everything
+ // in the middle of the crosspiece, which is not where any of them go.
+ const CUPS={ozara:[21,54],kozara:[80,54],chuzara:[50,90],rosoku:[50,90],
+  tomeken:[50,38],hikoki:[50,38],furiken:[50,38]};
+ for(const t of K.TRICKS){
+  assert.deepEqual(t.land,CUPS[t.id],`${t.id} must land in the cup it is named after`);
+  assert.ok(t.ja&&t.romaji&&t.en&&t.how,`${t.id} is missing a name`);
+  assert.ok(t.band[0]<t.band[1]&&t.band[0]>=0&&t.band[1]<=1,`${t.id} has an impossible band`);
+  assert.ok(t.window>0&&t.worth>0);
+ }
+ for(let i=1;i<K.TRICKS.length;i++){
+  assert.ok(K.TRICKS[i].window<K.TRICKS[i-1].window,`${K.TRICKS[i].id} must want a shorter moment`);
+  assert.ok(K.TRICKS[i].worth>K.TRICKS[i-1].worth,`${K.TRICKS[i].id} must be worth more`);
+  const wide=b=>b[1]-b[0];
+  assert.ok(wide(K.TRICKS[i].band)<=wide(K.TRICKS[i-1].band),`${K.TRICKS[i].id} must want a narrower pull`);
+ }
+ // A harder pull is a longer wait, which is what ties the two halves together.
+ assert.ok(K.airtime(0.9)>K.airtime(0.2));
+ assert.equal(K.airtime(0),K.PULL_BASE);
+ // Both have to be right. Each way of getting it wrong is named, because a child who is told
+ // only that he missed learns nothing about which half he got wrong.
+ const spike=K.trickById('tomeken');
+ const ideal=K.airtime(0.5);
+ assert.equal(K.judge(spike,0.5,ideal).landed,true);
+ assert.equal(K.judge(spike,0.05,ideal).why,'soft');
+ assert.equal(K.judge(spike,0.99,ideal).why,'hard');
+ assert.equal(K.judge(spike,0.5,ideal-spike.window-1).why,'early');
+ assert.equal(K.judge(spike,0.5,ideal+spike.window+1).why,'late');
+ // The edges of the window are inside it, not outside.
+ assert.equal(K.judge(spike,0.5,ideal-spike.window).landed,true);
+ assert.equal(K.judge(spike,0.5,ideal+spike.window).landed,true);
+ // A perfect pull on an easy trick is still a catch on a hard one's clock, so the pull band is
+ // genuinely the thing separating them rather than the timing doing all the work.
+ const easy=K.trickById('ozara');
+ assert.equal(K.judge(easy,0.2,K.airtime(0.2)).landed,true);
+ assert.equal(K.judge(K.trickById('furiken'),0.2,K.airtime(0.2)).why,'soft');
+ // Moshikame closes its window as the run goes on, and never past its floor.
+ assert.ok(K.moshikameWindow(0)>K.moshikameWindow(10));
+ assert.equal(K.moshikameWindow(9999),K.MOSHIKAME.floor);
+ assert.ok(K.MOSHIKAME.floor>0&&K.MOSHIKAME.floor<K.MOSHIKAME.window);
+ // And it really does alternate between two different cups, which is the whole trick.
+ assert.notDeepEqual(K.MOSHIKAME.land,K.MOSHIKAME.alt);
+ assert.deepEqual(K.MOSHIKAME.land,K.trickById('ozara').land,'moshikame starts on the big cup');
+ assert.deepEqual(K.MOSHIKAME.alt,K.trickById('chuzara').land,'and alternates with the base cup');
+ // The ball hangs below the handle before anybody pulls it.
+ assert.ok(K.HANG[1]>Math.max(...K.TRICKS.map(t=>t.land[1])),'it must hang below every cup');
+ // Scoring: going up the list beats doing the easy one over and over.
+ assert.equal(K.kendamaScore([]),0);
+ assert.ok(K.kendamaScore(['ozara','kozara','chuzara'])>K.kendamaScore(['ozara']));
+ assert.ok(K.kendamaScore(['furiken'])>K.kendamaScore(['ozara','kozara','chuzara']),
+  'the hardest trick alone must beat the three easiest');
+ assert.ok(K.kendamaScore(K.TRICKS.map(t=>t.id))<=9999);
+ assert.equal(K.moshikameScore(0),0);
+ assert.ok(K.moshikameScore(20)>K.moshikameScore(5));
+ assert.ok(K.moshikameScore(99999)<=9999);
 });
 
 test('gomoku knows a five when it sees one, and the harder opponent really is harder',async()=>{

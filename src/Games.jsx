@@ -16,6 +16,7 @@ import Shiritori from './Shiritori.jsx';
 import Kingyo from './Kingyo.jsx';
 import Picross from './Picross.jsx';
 import Gomoku from './Gomoku.jsx';
+import Kendama from './Kendama.jsx';
 const PAIRS=6;
 // Dragging one tile onto another, with a tap still meaning what it meant. Pointer events
 // cover a finger and a mouse alike; the target is found from where the finger actually
@@ -871,6 +872,8 @@ const GAMES=[
   story:'The genuinely Japanese puzzle, and the reason this mark exists at all. Two people invented nonograms independently in Japan in 1987 — Non Ishida, who won a competition with it, and Tetsuya Nishio — and it went out from there. Sudoku is the opposite story: American, out of Indianapolis in 1979, named and made famous in Japan, and called Japanese ever since.'},
  {id:'gomoku',title:'Five in a row',ja:'五目並べ',origin:'traditional',needs:OFFLINE,Component:Gomoku,
   story:'Played in Japan for centuries and formalised here as renju in 1899 — but games of five-in-a-row are older than that and are not only Japanese, so it is traditional here rather than invented here. The mark exists to stop that sort of thing being fudged, and it would be a poor showing to fudge it on this one.'},
+ {id:'kendama',title:'Kendama',ja:'けん玉',origin:'traditional',needs:OFFLINE,Component:Kendama,
+  story:'The cup-and-ball came to Japan from abroad, but the shape everybody means by kendama — the crosspiece with a big cup one side and a small cup the other — was designed in Hiroshima in 1919, and the trick names and the grading behind them are entirely Japanese. Those names are why it is in here: it teaches them the way the sumo game teaches the ranks, by making you say one before you can do it.'},
  {id:'merge',title:'Onigiri to Fuji',needs:OFFLINE,Component:Merge},
  {id:'remember',title:'What we did',needs:OFFLINE,Component:Remember},
  {id:'sights',title:'Japan pairs',needs:OFFLINE,Component:Sights},
