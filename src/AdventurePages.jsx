@@ -3,7 +3,7 @@ import {Volume2,Square,SkipForward,RotateCcw,Sparkles} from 'lucide-react';
 import MissionArt from './MissionArt.jsx';
 import {BOYS,yenPerAud,yenToAud} from './trip-features.js';
 import {japanClock,japanDate} from './timing.js';
-import {matchVoice,speechRate,needsSettle,isRealFailure} from './speech.js';
+import {matchVoice,speechRate,needsSettle,isRealFailure,claimPlayback,warmUp} from './speech.js';
 export const dayLabel=d=>d?new Intl.DateTimeFormat('en-AU',{day:'numeric',month:'short',weekday:'short',timeZone:'Asia/Tokyo'}).format(new Date(d+'T12:00:00+09:00')):'Whole trip';
 export function DaySelect({state,value,onChange,name,allowAll=false}){return <select name={name} value={value} onChange={onChange}><option value="">{allowAll?'Whole trip':'Unscheduled'}</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select>;}
 // Reads a mission aloud, so Nate can follow his own missions before he can read them.
@@ -34,6 +34,10 @@ export function useReadAloud(){
    setReading(id);
    // Safari can leave the engine paused after a cancel, and then says nothing at all.
    try{synth.resume();}catch{}
+   // Say that this is playback, so the ring/silent switch does not swallow it, and spend
+   // the first utterance the phone ignores on something nobody needed to hear.
+   claimPlayback();
+   warmUp(synth,window.SpeechSynthesisUtterance);
    synth.speak(say);
    // If it never even starts, the phone is not going to explain why. We can.
    timer.current=setTimeout(()=>{if(!synth.speaking&&!synth.pending){done();setProblem(SILENT_HINT);}},1500);

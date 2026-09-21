@@ -1128,3 +1128,35 @@ test('two speeds, and the quirks that make a phone say nothing at all',async()=>
  assert.equal(isRealFailure('synthesis-failed'),true);
  assert.equal(isRealFailure(undefined),false);
 });
+
+test('the sound check turns "nothing happened" into something to act on',async()=>{
+ const {soundCheckLines,describeVoices,claimPlayback,warmUp}=await import('../src/speech.js');
+ const read=facts=>Object.fromEntries(soundCheckLines(facts));
+ // A phone that has a Japanese voice and spoke.
+ const good=read({build:'b',standalone:true,supported:true,voices:[{lang:'en-AU',name:'Karen'},{lang:'ja-JP',name:'Kyoko'}],audioSession:'playback',started:true,startedAfter:35,ended:true,error:''});
+ assert.equal(good['Opened from'],'Home Screen icon');
+ assert.match(good['Voices found'],/Japanese: Kyoko/);
+ assert.match(good['It started speaking'],/yes, after 35ms/);
+ assert.equal(good['Reported fault'],'none');
+ // A phone that accepted the words and then did nothing — the case being reported.
+ const mute=read({build:'b',standalone:true,supported:true,voices:[{lang:'ja-JP',name:'Kyoko'}],audioSession:'not supported',started:false,ended:false,error:''});
+ assert.equal(mute['It started speaking'],'no — nothing began');
+ assert.equal(mute['Silent-switch override'],'not supported');
+ // A phone with voices but none of them Japanese, and one that cannot speak at all.
+ assert.match(read({voices:[{lang:'en-AU',name:'Karen'}]})['Voices found'],/none of them Japanese/);
+ assert.equal(read({supported:false,voices:null})['Speech support'],'no — this browser cannot speak');
+ assert.equal(read({voices:null})['Voices found'],'none yet');
+ assert.equal(read({})['Build'],'unknown');
+ assert.deepEqual(describeVoices([{lang:'ja_JP',name:'K'},{lang:'en-US'}]),{count:2,japanese:['K'],state:'yes'});
+ // The two iOS workarounds degrade quietly where the phone has never heard of them.
+ assert.equal(claimPlayback(null),'not supported');
+ assert.equal(claimPlayback({}),'not supported');
+ assert.equal(claimPlayback({audioSession:{type:'auto'}}),'playback','it asks to be treated as playback');
+ assert.equal(warmUp(null,null),false);
+ warmUp.done=false;
+ let spoken=[];
+ assert.equal(warmUp({speak:u=>spoken.push(u)},class{constructor(t){this.text=t;}}),true);
+ assert.equal(spoken.length,1);assert.equal(spoken[0].volume,0,'the warm-up is silent');
+ assert.equal(warmUp({speak:u=>spoken.push(u)},class{}),false,'only ever once');
+ assert.equal(spoken.length,1);
+});
