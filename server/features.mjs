@@ -246,11 +246,19 @@ export function extraOperation(state,op,user,fail,now){
   state.photoVotes={...state.photoVotes,[op.day]:votes};
  }else if(op.type==='photoRemove'){
   const entry=state.photos.find(p=>p.id===op.id);if(!entry)fail('Photo not found.',404);
-  if(!parent&&entry.by!==user.name)fail('You can only remove your own photos.',403);
+  // Yours to remove if it is your photo or you are the one who put it on.
+  if(!parent&&entry.by!==user.name&&(entry.for||entry.by)!==user.name)fail('You can only remove your own photos.',403);
   state.photos=state.photos.filter(p=>p.id!==op.id);
   const votes={...(state.photoVotes[entry.day]||{})};
   for(const [who,id] of Object.entries(votes))if(id===op.id)delete votes[who];
   state.photoVotes={...state.photoVotes,[entry.day]:votes};
+ }else if(op.type==='photoAssign'){
+  // Handing a photo to whoever it belongs to, after the fact — because the answer to "whose
+  // is this?" is usually worked out once everyone has seen it.
+  const entry=state.photos.find(p=>p.id===op.id);if(!entry)fail('Photo not found.',404);
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&entry.by!==user.name)fail('Only a parent can hand someone else\u2019s photo over.',403);
+  state.photos=state.photos.map(p=>p.id===op.id?{...p,for:op.person}:p);
  }else if(op.type==='gameScore'){
   // Only ever your own, and only ever upwards: a best score is a best score.
   if(!state.members.includes(op.person))fail('Choose a family member.');

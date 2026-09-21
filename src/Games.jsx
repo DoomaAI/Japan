@@ -1,8 +1,9 @@
 import React,{useState,useMemo,useEffect,useRef} from 'react';
 import {Trophy,RotateCcw,Check,X,Wifi,WifiOff} from 'lucide-react';
-import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER,SIGHTS,ELEMENTS,elementById,startingElements,combine,discoverable,SUMO_RANKS,rankAt,TOP_RANK,STABLE_SIZE,emptyStable,recruit,promote,shortRank,bestRank,stableFull,oddsOf,bout,challengerFor} from './kana-data.js';
+import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER,SIGHTS,ELEMENTS,elementById,startingElements,combine,discoverable,SUMO_RANKS,rankAt,TOP_RANK,STABLE_SIZE,emptyStable,recruit,promote,shortRank,bestRank,stableFull,oddsOf,bout,challengerFor,SUMO_RITUALS,STOMPS,STOMP_WINDOW,stompScore,SALT_BAND,saltScore,MATTA,chargeScore,leadUpEffect,ceremonyScore,KIMARITE,kimariteById,SUMO_TICK,SURGE_TICKS,TAKEN_AS_READ,theirWeight,startBout,sumoAction,SEKITORI,BASHO_DAYS,bashoAt,newCareer,rankRate,climb,bashoOpponent,bashoWorth,bashoDay} from './kana-data.js';
 import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-features.js';
 import SpotDifference from './SpotDifference.jsx';
+import Origami from './Origami.jsx';
 import {useReadAloud} from './AdventurePages.jsx';
 import {useJapaneseVoice} from './SayIt.jsx';
 import {canOffer,speechRate} from './speech.js';
@@ -42,9 +43,10 @@ const Stats=({items})=><div className={`game-stats cols-${items.length}`}>{items
  <span key={label}><small>{label}</small><strong>{value}</strong></span>)}</div>;
 // What turns into what. Small cards on a grid, so the icon, the English and the Japanese
 // line up down the page rather than running together in a ragged block of text.
-const Ladder=({title,items})=><details className="merge-ladder"><summary>{title}</summary>
- <div className="ladder-grid">{items.map(item=>
-  <span key={item.key}><b aria-hidden="true">{item.icon}</b>{item.en}<small lang="ja">{item.ja}</small></span>)}</div>
+const Ladder=({title,items,notes})=><details className="merge-ladder"><summary>{title}</summary>
+ <div className={`ladder-grid${notes?' notes':''}`}>{items.map(item=>
+  <span key={item.key}><b aria-hidden="true">{item.icon}</b>{item.en}<small lang="ja">{item.ja}</small>
+   {item.note&&<small>{item.note}</small>}</span>)}</div>
 </details>;
 // Say the kana aloud where the phone can, because a five-year-old matching shapes learns
 // more if the shape has a sound. Silence is fine; the game does not depend on it.
@@ -392,8 +394,9 @@ function Snake({user,state,mutate,busy}){
   <button className="primary" onClick={again}>{over?'Again':running?'Restart':'Start'}</button>
  </>;
 }
-// Sumo. Tap faster than the other one and push him out of the ring. A win against a faster
-// opponent is worth more, so the best score says who you beat rather than how long it took.
+// Sumo, the whole thing: the stamps, the salt, the stare, and then a bout that is not just
+// tapping. A win against a faster opponent is worth more, so the best score says who you
+// beat rather than how long it took — and a clean ceremony pays on top of it.
 const SUMO_LEVELS=[
  ['jonokuchi','Beginner',1100,5],
  ['nate','Nate-speed',900,10],
@@ -405,40 +408,359 @@ const SUMO_LEVELS=[
 ];
 const SUMO_RATE=Object.fromEntries(SUMO_LEVELS.map(([id,,rate])=>[id,rate]));
 const SUMO_WORTH=Object.fromEntries(SUMO_LEVELS.map(([id,,,worth])=>[id,worth]));
-// Sumo. Tap faster than the other one and push him out of the ring.
-function Sumo({user,state,mutate,busy}){
- const [push,setPush]=useState(0),[playing,setPlaying]=useState(false),[result,setResult]=useState(''),[level,setLevel]=useState('nate');
- const pushRef=useRef(0);
- const rate=SUMO_RATE[level];
- // One place decides where the pair has moved to and whether the bout is over, so nothing
- // has to reach out of a state updater to save a score.
- const shift=delta=>{
-  const next=Math.max(-10,Math.min(10,pushRef.current+delta));
-  pushRef.current=next;setPush(next);
-  if(next>=10){setPlaying(false);setResult('won');mutate({type:'gameScore',person:user.name,game:'sumo',score:SUMO_WORTH[level]});}
-  else if(next<=-10){setPlaying(false);setResult('lost');}
+const SUMO_BEAT=820;                 // the drum the stamps are timed to
+const SALT_TICK=40;                  // how often the salt sweep moves
+const SURGE_CHANCE=0.09,OPEN_CHANCE=0.08;
+const STOMP_FEET=['Left','Right'];
+const NEXT_RITUAL={shiko:'shio',shio:'tachiai',tachiai:'bout'};
+// One bout, ceremony and all: stamp on the beat, throw the salt, hold the crouch until the
+// gyoji calls, and only then the ring. The caller says how fast the other one is and what to
+// do with the result. Given one ritual to drill instead, it runs that alone and hands back
+// how it went — which is all training is: the same practice, with nobody writing it down.
+function SumoBout({rate,named,drill,quick,onDone}){
+ const [phase,setPhase]=useState(drill||(quick?'bout':'shiko'));
+ const [scores,setScores]=useState({}),[stomps,setStomps]=useState([]),[foot,setFoot]=useState(0);
+ const [sweep,setSweep]=useState(0),[salt,setSalt]=useState(null);
+ const [call,setCall]=useState(false),[holding,setHolding]=useState(false),[reaction,setReaction]=useState(null);
+ const [match,setMatch]=useState(null),[done,setDone]=useState(null);
+ const sheet=useRef(quick?{...TAKEN_AS_READ}:{}),stompRef=useRef([]),footRef=useRef(0),beatAt=useRef(0);
+ const sweepRef=useRef(0),wayRef=useRef(1),targetRef=useRef(50);
+ const callAt=useRef(0),holdTimer=useRef(null),nextStep=useRef(null);
+ const matchRef=useRef(null),plan=useRef({surge:0,open:0});
+ stompRef.current=stomps;footRef.current=foot;
+ const after=(ms,fn)=>{clearTimeout(nextStep.current);nextStep.current=setTimeout(fn,ms);};
+ const mark=(id,value)=>{sheet.current={...sheet.current,[id]:value};setScores(sheet.current);};
+ useEffect(()=>()=>{clearTimeout(nextStep.current);clearTimeout(holdTimer.current);},[]);
+ // A ritual done is a ritual scored. In a drill that is the whole thing; otherwise it hands
+ // on to the next one, and the three of them together decide how the bout starts.
+ const step=(id,value,wait)=>{
+  mark(id,value);
+  after(wait,()=>{
+   if(!drill)return setPhase(NEXT_RITUAL[id]);
+   setDone({drill:id,score:value});setPhase('over');onDone?.({drill:id,score:value});
+  });
+ };
+ // The stamps. A beat nobody stamped is a beat missed, and it is recorded as one, so the
+ // score is out of four however few of them you hit.
+ useEffect(()=>{
+  if(phase!=='shiko')return;
+  let beats=0;
+  stompRef.current=[];setStomps([]);footRef.current=0;setFoot(0);beatAt.current=Date.now();
+  const tick=setInterval(()=>{
+   if(stompRef.current.length<=beats){const missed=[...stompRef.current,STOMP_WINDOW*2];stompRef.current=missed;setStomps(missed);}
+   beats+=1;
+   if(beats>=STOMPS){clearInterval(tick);step('shiko',stompScore(stompRef.current),800);return;}
+   beatAt.current=Date.now();footRef.current=beats;setFoot(beats);
+  },SUMO_BEAT);
+  return ()=>clearInterval(tick);
+ },[phase]);
+ const stamp=()=>{
+  if(phase!=='shiko'||stompRef.current.length>footRef.current)return;
+  const next=[...stompRef.current,Date.now()-beatAt.current];
+  stompRef.current=next;setStomps(next);
+ };
+ // The salt. A marker sweeps the ring, and a faster opponent sweeps it faster.
+ useEffect(()=>{
+  if(phase!=='shio'||salt!==null)return;
+  targetRef.current=22+Math.random()*56;
+  sweepRef.current=0;wayRef.current=1;setSweep(0);
+  const step_=Math.min(5,1.6+(1100-rate)/170);
+  const tick=setInterval(()=>{
+   let at=sweepRef.current+wayRef.current*step_;
+   if(at>=100){at=100;wayRef.current=-1;}else if(at<=0){at=0;wayRef.current=1;}
+   sweepRef.current=at;setSweep(at);
+  },SALT_TICK);
+  return ()=>clearInterval(tick);
+ },[phase,salt,rate]);
+ const throwSalt=()=>{
+  if(phase!=='shio'||salt!==null)return;
+  const thrown=saltScore(sweepRef.current,targetRef.current);
+  setSalt(thrown);step('shio',thrown,1000);
+ };
+ // The charge. Hold the crouch; the gyoji calls when he feels like it, and letting go first
+ // is a matta. Nothing is timed until you are down, so there is nothing to guess at.
+ useEffect(()=>{if(phase==='tachiai'){setCall(false);setHolding(false);}},[phase]);
+ const charge=()=>{
+  if(phase!=='tachiai'||sheet.current.charge!==undefined||(!holding&&!call))return;
+  clearTimeout(holdTimer.current);setHolding(false);
+  const went=call?Date.now()-callAt.current:-1;
+  setReaction(went);step('tachiai',chargeScore(went),1100);
+ };
+ const crouch=()=>{
+  if(phase!=='tachiai'||sheet.current.charge!==undefined||holding)return;
+  if(call)return charge();          // the crouch was broken by something; the call still counts
+  setHolding(true);
+  holdTimer.current=setTimeout(()=>{callAt.current=Date.now();setCall(true);},1100+Math.random()*2300);
+ };
+ const letGo=()=>{clearTimeout(holdTimer.current);setHolding(false);};
+ // The bout. One timer: he leans on you, he gathers himself for a surge, and now and then he
+ // leaves something open. Everything either of them does goes through the one reducer.
+ const land=next=>{
+  matchRef.current=next;setMatch(next);
+  if(!next.over)return;
+  setPhase('over');setDone(next);
+  onDone?.({won:next.over==='won',by:next.won,ceremony:ceremonyScore(sheet.current)});
  };
  useEffect(()=>{
-  if(!playing)return;
-  const tick=setInterval(()=>shift(-1),rate);
+  if(phase!=='bout')return;
+  const effect=leadUpEffect(sheet.current),theirs=theirWeight(rate);
+  const openTicks=Math.max(2,Math.round(effect.opening/SUMO_TICK));
+  const start=startBout(effect);
+  matchRef.current=start;setMatch(start);plan.current={surge:0,open:0};
+  const tick=setInterval(()=>{
+   let next=matchRef.current;
+   if(!next||next.over)return;
+   next=sumoAction(next,{type:'tick',their:theirs,rest:effect.rest});
+   const on=plan.current;
+   if(on.surge>0){on.surge-=1;if(!on.surge)next=sumoAction(next,{type:'surge',on:false});}
+   else if(!next.opening&&Math.random()<SURGE_CHANCE){on.surge=SURGE_TICKS;next=sumoAction(next,{type:'surge',on:true});}
+   if(on.open>0){on.open-=1;if(!on.open)next=sumoAction(next,{type:'open',id:null});}
+   else if(!next.surge&&Math.random()<OPEN_CHANCE){
+    on.open=openTicks;next=sumoAction(next,{type:'open',id:KIMARITE[Math.floor(Math.random()*KIMARITE.length)].id});}
+   land(next);
+  },SUMO_TICK);
   return ()=>clearInterval(tick);
- },[playing,rate,level]);
- const shove=()=>{if(playing)shift(1);};
- const start=()=>{pushRef.current=0;setPush(0);setResult('');setPlaying(true);};
- const position=50-push*4.5;
+ },[phase,rate]);
+ const act=action=>{if(phase==='bout'&&matchRef.current&&!matchRef.current.over)land(sumoAction(matchRef.current,action));};
+ const ceremony=Math.round(ceremonyScore(scores)*100);
+ const shown=match||(done&&!done.drill?done:null);
+ const opening=shown?kimariteById(shown.opening):null;
+ const band=Math.max(0,Math.min(100-SALT_BAND*2,targetRef.current-SALT_BAND));
  return <>
-  <p>Tap as fast as you can and push him out of the ring. Call it properly: <strong>nokotta, nokotta!</strong></p>
-  <div className="segmented game-picker">{SUMO_LEVELS.map(([id,label])=>
-   <button key={id} className={level===id?'selected':''} disabled={playing} onClick={()=>setLevel(id)}>{label}</button>)}</div>
-  <div className="sumo-ring">
-   <div className="sumo-pair" style={{left:`${Math.max(4,Math.min(96,position))}%`}}>
-    <span aria-hidden="true">🤼</span>
+  {phase==='shiko'&&<>
+   <p>Stamp on the beat — <strong lang="ja">四股</strong> shiko, driving the bad spirits out of the ring.</p>
+   <div className="sumo-beat" aria-hidden="true">{Array.from({length:STOMPS},(_,i)=>{
+    const landed=stomps[i];
+    return <span key={i} className={`sumo-foot${i%2?' right':''}${i===foot&&landed===undefined?' now':''}${landed===undefined?'':landed<=STOMP_WINDOW?' hit':' missed'}`}>🦶</span>;})}</div>
+   <p className="game-status" aria-live="polite">{STOMP_FEET[foot%2]} foot{stomps.length>foot?' — stamped':''}</p>
+   <button className="primary sumo-push" onClick={stamp}>STAMP</button>
+  </>}
+  {phase==='shio'&&<>
+   <p>A handful of salt to purify the ring — <strong lang="ja">塩まき</strong> shio-maki. Stop the sweep on the light band.</p>
+   <div className="salt-bar">
+    <i className="salt-band" style={{left:`${band}%`,width:`${SALT_BAND*2}%`}}/>
+    <i className="salt-mark" style={{left:`${sweep}%`}}/>
    </div>
-  </div>
-  <button className="primary sumo-push" disabled={!playing} onClick={shove}>{playing?'PUSH!':'Ready'}</button>
-  <p className="game-status">{result==='won'?<><Trophy size={16}/> Out of the ring — you win.</>:result==='lost'?'Pushed out. Again?':playing?`${push>0?'Winning':push<0?'Losing':'Even'}`:'Pick a speed and start.'}
-   {bestScore(state,user.name,'sumo')>0?` · best win worth ${bestScore(state,user.name,'sumo')}`:''}</p>
-  <button onClick={start}>{playing?'Restart':'Start the bout'}</button>
+   <p className="game-status" aria-live="polite">{salt===null?'Throw it high.':salt>0.75?'🧂 Straight up — the crowd saw that.':salt>0.3?'🧂 A fair handful.':'Half of it went on your foot.'}</p>
+   <button className="primary sumo-push" disabled={salt!==null} onClick={throwSalt}>THROW THE SALT</button>
+  </>}
+  {phase==='tachiai'&&<>
+   <p>Crouch, fists down, and hold. Nobody moves until the gyoji calls — go first and it is a <strong>matta</strong>, a false start.</p>
+   <div className={`sumo-call${call?' now':''}`} aria-live="assertive">
+    {sheet.current.charge===MATTA?'MATTA — you went early.':sheet.current.charge>=0?'Away you go.':call?'HAKKEYOI! — go!':holding?'Hold it…':'Press and hold to crouch.'}</div>
+   <button className="primary sumo-push" onPointerDown={crouch} onPointerUp={charge} onPointerCancel={letGo} onPointerLeave={letGo}>
+    {holding?'HOLD':'CROUCH'}</button>
+  </>}
+  {shown&&<>
+   <p>Push him out — <strong>nokotta, nokotta!</strong> Brace when he gathers himself, and when he leaves something open, read the tell and take it.</p>
+   <div className={`sumo-ring${shown.surge?' surge':''}${shown.opening?' open':''}`}>
+    <div className="sumo-pair" style={{left:`${Math.max(4,Math.min(96,50-shown.push*4.5))}%`}}><span aria-hidden="true">🤼</span></div>
+   </div>
+   <div className={`sumo-stamina${shown.stamina<shown.max*0.25?' low':''}`}><i style={{width:`${Math.max(0,shown.stamina/shown.max*100)}%`}}/></div>
+   <div className={`sumo-call${shown.surge?' surge':''}${shown.opening?' open':''}`} aria-live="assertive">
+    {shown.surge?'HE IS DRIVING IN — BRACE!':opening?`Opening: ${opening.tell}${named?` — ${opening.en}`:''}`:shown.note||(shown.push>0?'You have the ground.':shown.push<0?'He has the ground.':'Even.')}</div>
+   <div className="row wrap sumo-hands">
+    <button className="primary sumo-push" disabled={phase!=='bout'} onClick={()=>act({type:'push'})}>PUSH</button>
+    <button className="sumo-push" disabled={phase!=='bout'} onClick={()=>act({type:'brace'})}>BRACE</button>
+   </div>
+   <div className="sumo-moves">{KIMARITE.map(k=>
+    <button key={k.id} className={`sumo-move${named&&opening?.id===k.id?' open':''}`} disabled={phase!=='bout'} onClick={()=>act({type:'technique',id:k.id})}>
+     <span aria-hidden="true">{k.icon}</span><strong>{k.en}</strong><small lang="ja">{k.ja}</small></button>)}</div>
+  </>}
+  {done?.drill&&<p className="callout">{done.drill==='shiko'?`Stance ${Math.round(done.score*100)}%. ${done.score>0.8?'That is a wrestler.':'Listen for the drum rather than watching the feet.'}`
+   :done.drill==='shio'?`Throw ${Math.round(done.score*100)}%. ${done.score>0.8?'Straight up.':'Start the tap before the marker gets there.'}`
+   :done.score===MATTA?'A matta. You have to hold until the call, however long he leaves it.'
+   :`Away in ${reaction}ms — charge ${Math.round(done.score*100)}%. ${done.score>0.8?'Nobody beats that off the line.':'Under 250ms is a good tachi-ai.'}`}</p>}
+  {!drill&&!quick&&<p className="game-status">{Object.keys(scores).length?`Ceremony ${ceremony}%`:'The ceremony first.'}{scores.charge===MATTA?' · matta':''}</p>}
+  {quick&&<p className="game-status">Ceremony taken as read — this is the ring on its own.</p>}
+ </>;
+}
+// Read the tell, name the move. The same four kimarite as the ring, with nothing on the
+// clock, because nobody learns which is which in the middle of being pushed over.
+function TellDrill(){
+ const pickOne=()=>KIMARITE[Math.floor(Math.random()*KIMARITE.length)];
+ const [asked,setAsked]=useState(pickOne);
+ const [answer,setAnswer]=useState(null),[run,setRun]=useState(0),[best,setBest]=useState(0);
+ const choose=k=>{
+  if(answer)return;
+  const right=k.id===asked.id;
+  setAnswer({id:k.id,right});
+  const next=right?run+1:0;setRun(next);setBest(b=>Math.max(b,next));
+ };
+ return <>
+  <p>He has left you something. Which move answers it?</p>
+  <div className="decoder-word"><span>{asked.tell}</span>{answer&&<small lang="ja">{asked.ja} · {asked.romaji}</small>}</div>
+  <div className="sumo-moves">{KIMARITE.map(k=>{
+   const state_=!answer?'':k.id===asked.id?' right':answer.id===k.id?' wrong':'';
+   return <button key={k.id} className={`sumo-move${state_}`} disabled={!!answer} onClick={()=>choose(k)}>
+    <span aria-hidden="true">{k.icon}</span><strong>{k.en}</strong><small lang="ja">{k.ja}</small></button>;})}</div>
+  <p className="game-status">{run} in a row{best>0?` · best ${best}`:''}</p>
+  <button className="primary" onClick={()=>{setAsked(pickOne());setAnswer(null);}}>{answer?'Another tell':'Skip this one'}</button>
+ </>;
+}
+const KEIKO=[
+ {id:'quick',en:'Straight to the ring',ja:'ぶつかり稽古',why:'No ceremony, no waiting — just the pushing. The stance and the salt are taken as read.'},
+ {id:'shiko',en:'The stamps',ja:'四股',why:'Four beats. Land on the drum, not after it.'},
+ {id:'shio',en:'The salt',ja:'塩まき',why:'Stop the sweep on the band. It gets faster the higher you set the speed.'},
+ {id:'tachiai',en:'The charge',ja:'立合い',why:'Hold, and go on the call. It will tell you how many milliseconds you took.'},
+ {id:'tells',en:'Read the tell',ja:'決まり手',why:'Which move answers which opening, with nothing on the clock.'},
+ {id:'bout',en:'A practice bout',ja:'申し合い',why:'The whole thing, at any speed, with nothing written down.'}
+];
+// Keiko: the morning practice at the stable, which is where a wrestler actually spends his
+// life. Every piece of the bout on its own, as often as you like, and none of it recorded —
+// a five-year-old cannot learn four kimarite while he is being shoved out of the ring.
+function Keiko({level,setLevel,rate,named,initial,back}){
+ const [drill,setDrill]=useState(initial||''),[attempt,setAttempt]=useState(0),[last,setLast]=useState(null);
+ const open=KEIKO.find(k=>k.id===drill);
+ const start=id=>{setDrill(id);setLast(null);setAttempt(a=>a+1);};
+ return <>
+  <p className="eyebrow">KEIKO · 稽古 · {open?open.en.toUpperCase():'MORNING PRACTICE'}</p>
+  {!drill&&<>
+   <p>Nothing here is written down. Do any of it as many times as you like, which is what the wrestlers themselves do every morning before anybody watches.</p>
+   <div className="sumo-rituals">{KEIKO.map(k=>
+    <button key={k.id} className="sumo-choice" onClick={()=>start(k.id)}>
+     <b>{k.en} <small lang="ja">{k.ja}</small></b><small>{k.why}</small></button>)}</div>
+  </>}
+  {drill&&<>
+   {drill==='tells'?<TellDrill key={attempt}/>
+    :<SumoBout key={attempt} rate={rate} named={named} quick={drill==='quick'} drill={drill==='bout'||drill==='quick'?null:drill} onDone={setLast}/>}
+   {(drill!=='tells')&&<div className="row wrap">
+    <button className="primary" onClick={()=>setAttempt(a=>a+1)}><RotateCcw size={16}/> Again</button>
+    <button onClick={()=>{setDrill('');setLast(null);}}>Another drill</button>
+   </div>}
+   {drill==='tells'&&<button onClick={()=>setDrill('')}>Another drill</button>}
+   {(drill==='bout'||drill==='quick')&&<div className="segmented game-picker">{SUMO_LEVELS.map(([id,label])=>
+    <button key={id} className={level===id?'selected':''} onClick={()=>{setLevel(id);setAttempt(a=>a+1);}}>{label}</button>)}</div>}
+  </>}
+  <button onClick={back}>Back to the stable</button>
+ </>;
+}
+const SUMO_MODES=[
+ {id:'quick',en:'Quick bout',ja:'ぶつかり稽古',romaji:'butsukari-geiko',why:'Straight into the pushing — no ceremony, no waiting. Practice, so nothing is written down.'},
+ {id:'keiko',en:'Training',ja:'稽古',romaji:'keiko',why:'Practise any piece of it, as often as you like. Nothing is written down.'},
+ {id:'one',en:'One bout',ja:'一番',romaji:'ichiban',why:'A single bout at a family speed, from Beginner to Yokozuna. Worth points, like it always was.'},
+ {id:'climb',en:'The climb',ja:'番付',romaji:'banzuke',why:'Fight up through the four unpaid divisions, a rank at a time. Reach juryo and you are a sekitori.'},
+ {id:'basho',en:'The tournament',ja:'本場所',romaji:'basho',why:'Seven days, one bout a day. Four wins is a winning record and a promotion; three is a demotion.'}
+];
+const sumoKey=name=>`japan.sumo.${name||'someone'}`;
+const loadCareer=name=>{try{return {...newCareer(),...JSON.parse(localStorage.getItem(sumoKey(name))||'null')};}catch{return newCareer();}};
+const saveCareer=(name,career)=>{try{localStorage.setItem(sumoKey(name),JSON.stringify(career));}catch{}};
+// Sumo: the stable you belong to. Train at it, fight one for the fun of it, climb the banzuke
+// a rank at a time, and once you are paid — juryo, where a wrestler becomes a sekitori — the
+// tournament opens: seven days, one bout a day, and the record at the end decides which way
+// your name moves on the sheet. The rank lives on the phone so it survives a closed tab; the
+// highest one ever reached is synced like any other score, because that is the bit worth
+// keeping and the bit a brother wants to see.
+function Sumo({user,state,mutate,busy}){
+ const [mode,setMode]=useState(''),[level,setLevel]=useState('nate'),[firstDrill,setFirstDrill]=useState('');
+ const [career,setCareer]=useState(()=>loadCareer(user.name));
+ const [fighting,setFighting]=useState(false),[attempt,setAttempt]=useState(0),[after,setAfter]=useState(null);
+ const sekitori=career.rank>=SEKITORI;
+ const mine=rankAt(career.rank),highest=rankAt(Math.max(career.rank,bestScore(state,user.name,'sumo-rank')));
+ const meeting=mode==='climb'?Math.min(SEKITORI,career.rank+1):mode==='basho'?bashoOpponent(career.rank,career.day):0;
+ const rate=mode==='one'||mode==='keiko'?SUMO_RATE[level]:rankRate(meeting);
+ const named=mode==='one'||mode==='keiko'?SUMO_LEVELS.findIndex(([id])=>id===level)<2:career.rank<3;
+ const worth=SUMO_WORTH[level];
+ const basho=bashoAt(career.basho),senshuraku=career.day===BASHO_DAYS-1;
+ // Two scores can change on the same day — the rank and the tournament — and the app takes
+ // one change at a time, so they go one after the other rather than both at once.
+ const keep=async next=>{
+  setCareer(next);saveCareer(user.name,next);
+  if(next.rank!==career.rank)await mutate({type:'gameScore',person:user.name,game:'sumo-rank',score:next.rank});
+ };
+ // What a result means depends on what you entered. One bout pays points; a climb moves you
+ // a rung either way; a day of the tournament goes onto the record, and on the seventh the
+ // record decides the rank.
+ const finish=async result=>{
+  if(result.drill)return;
+  if(mode==='one'){
+   setAfter({won:result.won,by:result.by,worth:worth+Math.round(worth*0.5*result.ceremony)});
+   if(result.won)mutate({type:'gameScore',person:user.name,game:'sumo',score:worth+Math.round(worth*0.5*result.ceremony)});
+   return;
+  }
+  if(mode==='climb'){
+   const to=climb(career.rank,result.won);
+   setAfter({won:result.won,by:result.by,from:career.rank,to,sekitori:to>=SEKITORI&&career.rank<SEKITORI});
+   await keep({...career,rank:to});
+   return;
+  }
+  const next=bashoDay(career,result.won);
+  setAfter({won:result.won,by:result.by,day:career.day+1,basho:next.last||{wins:next.wins,losses:next.losses}});
+  await keep(next);
+  if(next.last)await mutate({type:'gameScore',person:user.name,game:'sumo-basho',score:bashoWorth(next.last.wins,next.last.from)});
+ };
+ const enter=()=>{setAfter(null);setAttempt(a=>a+1);setFighting(true);};
+ const leave=()=>{setFighting(false);setAfter(null);};
+ const go=(id,drill='')=>{setFirstDrill(drill);setMode(id);setFighting(false);setAfter(null);};
+ if(mode==='keiko')return <Keiko level={level} setLevel={setLevel} rate={rate} named={named} initial={firstDrill} back={()=>go('')}/>;
+ return <>
+  {!mode&&<>
+   <p>The bout is the short part. First the stamping, the salt and the long stare — and none of it is for show: each one buys you something in the ring.</p>
+   <div className="sumo-career">
+    <b>{mine.icon} {mine.en} <small lang="ja">{mine.ja} · {mine.romaji}</small></b>
+    <p>{sekitori
+     ?career.day>0?`Sekitori. Day ${career.day+1} of the ${basho.romaji}, ${career.wins}–${career.losses}.`
+      :`Sekitori — on the banzuke. Next up: the ${basho.romaji}, ${basho.month}, ${basho.where}.`
+     :`${SEKITORI-career.rank} more win${SEKITORI-career.rank===1?'':'s'} and you are a sekitori — paid, on the banzuke, and in the tournament.`}</p>
+   </div>
+   <Stats items={[
+    ['Highest rank',highest.level>1?<>{highest.icon} {shortRank(highest)}</>:'—'],
+    ['Tournaments won',career.titles||'—'],
+    ['Best single bout',bestScore(state,user.name,'sumo')||'—'],
+    ['Best tournament',bestScore(state,user.name,'sumo-basho')||'—']
+   ]}/>
+   <div className="sumo-rituals">{SUMO_MODES.map(m=>
+    <button key={m.id} className="sumo-choice" disabled={m.id==='basho'&&!sekitori} onClick={()=>m.id==='quick'?go('keiko','quick'):go(m.id)}>
+     <b>{m.en} <small lang="ja">{m.ja} · {m.romaji}</small></b>
+     <small>{m.id==='basho'&&!sekitori?'Climb to juryo first. Nobody enters the tournament off the street.':m.why}</small></button>)}</div>
+   <Ladder notes title="The three rituals, and what each one buys"
+    items={SUMO_RITUALS.map(r=>({key:r.id,icon:r.icon,en:r.en,ja:`${r.ja} · ${r.romaji}`,note:`${r.how} ${r.buys}`}))}/>
+   <Ladder notes title="The moves, and the tell that calls for them"
+    items={KIMARITE.map(k=>({key:k.id,icon:k.icon,en:k.en,ja:`${k.ja} · ${k.romaji}`,note:k.tell}))}/>
+  </>}
+  {mode&&!fighting&&<>
+   {mode==='one'&&<>
+    <p>One bout, for the fun of it. Pick who you are up against.</p>
+    <div className="segmented game-picker">{SUMO_LEVELS.map(([id,label])=>
+     <button key={id} className={level===id?'selected':''} onClick={()=>setLevel(id)}>{label}</button>)}</div>
+    <p className="game-status">Worth {worth} to win, and up to half as much again for a clean ceremony.</p>
+   </>}
+   {mode==='climb'&&<>
+    <p>Beat the man on the rung above and you take his rank. Lose and you go back down one — nobody falls out of the bottom, and the climb stops at juryo, where the tournament starts.</p>
+    <div className="sumo-ladder">{SUMO_RANKS.slice(0,SEKITORI).map(r=>
+     <span key={r.level} className={r.level===career.rank?'now':r.level<career.rank?'passed':''}>
+      {r.icon} {shortRank(r)} <small lang="ja">{r.ja}</small></span>)}</div>
+    <p className="game-status">Next: {rankAt(meeting).icon} {shortRank(rankAt(meeting))} <small lang="ja">{rankAt(meeting).ja}</small></p>
+   </>}
+   {mode==='basho'&&<>
+    <p>The <strong lang="ja">{basho.ja}</strong> {basho.romaji} — {basho.month}, {basho.where}. Seven days, one bout a day. Four wins is <strong>kachi-koshi</strong>, a winning record and a promotion; three or fewer is <strong>make-koshi</strong>, and your name moves down the sheet.</p>
+    <div className="sumo-record">{Array.from({length:BASHO_DAYS},(_,i)=>
+     <span key={i} className={career.form?.[i]==='w'?'won':career.form?.[i]==='l'?'lost':i===career.day?'now':''}>{i+1}</span>)}</div>
+    <p className="game-status">{senshuraku?'Senshuraku — the final day. ':`Day ${career.day+1}. `}
+     {career.wins}–{career.losses} · against {rankAt(meeting).icon} {shortRank(rankAt(meeting))} <small lang="ja">{rankAt(meeting).ja}</small></p>
+   </>}
+   <button className="primary sumo-push" onClick={enter}>
+    {mode==='one'?'Enter the ring':mode==='climb'?`Fight the ${shortRank(rankAt(meeting))}`:senshuraku?'Fight senshuraku':`Fight day ${career.day+1}`}</button>
+   <button onClick={()=>go('')}>Back to the stable</button>
+  </>}
+  {mode&&fighting&&<>
+   {mode!=='one'&&<p className="eyebrow">{mode==='climb'?`FOR THE RANK OF ${shortRank(rankAt(meeting)).toUpperCase()}`:`${basho.romaji.toUpperCase()} · ${senshuraku?'SENSHURAKU':`DAY ${career.day+1}`}`}</p>}
+   <SumoBout key={attempt} rate={rate} named={named} onDone={finish}/>
+   {after&&<div className={`stable-bout${after.won?' won':''}`}>
+    <p className="janken-verdict">{after.won?`Out of the ring${after.by?` — ${kimariteById(after.by).romaji}`:''}.`:'Pushed out.'}</p>
+    {mode==='one'&&<p>{after.won?`Worth ${after.worth}.`:'The ceremony decides more than you think.'}</p>}
+    {mode==='climb'&&<p>{after.sekitori?'Juryo. You are a sekitori — paid, on the banzuke, and in the tournament.'
+     :after.won?`Promoted: ${shortRank(rankAt(after.to))}.`:after.to<after.from?`Back down to ${shortRank(rankAt(after.to))}.`:`Still ${shortRank(rankAt(after.to))}.`}</p>}
+    {mode==='basho'&&<p>{after.basho.kachikoshi!==undefined
+     ?`${after.basho.wins}–${after.basho.losses}. ${after.basho.title?'A perfect seven — the tournament is yours.':after.basho.kachikoshi?'Kachi-koshi, and a promotion.':'Make-koshi. Your name moves down the sheet.'} ${shortRank(rankAt(after.basho.to))}.`
+     :`Day ${after.day} of ${BASHO_DAYS} · ${after.basho.wins}–${after.basho.losses}.`}</p>}
+   </div>}
+   <div className="row wrap">
+    {after&&<button className="primary" onClick={enter}>
+     {mode==='one'?'Again':mode==='climb'?after.won?'Next rank up':'That rank again':career.day===0?`Enter the ${bashoAt(career.basho).romaji}`:`Fight day ${career.day+1}`}</button>}
+    <button onClick={leave}>Leave the ring</button>
+   </div>
+  </>}
  </>;
 }
 // Merge two wrestlers of the same rank and one of them is promoted. Build one big enough to
@@ -529,6 +851,7 @@ const GAMES=[
  {id:'snake',title:'Sushi snake',needs:OFFLINE,Component:Snake},
  {id:'stable',title:'Sumo stable',needs:OFFLINE,Component:Stable},
  {id:'sumo',title:'Sumo',needs:OFFLINE,Component:Sumo},
+ {id:'origami',title:'Origami',needs:'Works with no signal. You need a square of paper.',Component:Origami},
  {id:'spot',title:'Spot the difference',needs:'Needs signal once, to fetch the photo. The puzzle is made on the phone.',Component:SpotDifference},
  {id:'janken',title:'Janken',needs:'Needs both phones online.',Component:Janken}
 ];

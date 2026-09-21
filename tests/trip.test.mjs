@@ -2513,6 +2513,169 @@ test('sumo has a speed for everyone, and the pairs boards can be sized',async()=
  assert.match(source,/game:`kana-\$\{set\}-\$\{pairs\}`/);
 });
 
+test('the sumo lead-up is a game of its own, and pays into the bout rather than into the score',async()=>{
+ const {SUMO_RITUALS,STOMP_WINDOW,stompScore,SALT_BAND,saltScore,MATTA,chargeScore,leadUpEffect,ceremonyScore,KIMARITE,kimariteById,theirWeight}=await import('../src/kana-data.js');
+ // Three rituals, each with the Japanese for it, because the point is knowing what you are
+ // looking at when the real one does it in Ryogoku.
+ assert.deepEqual(SUMO_RITUALS.map(r=>r.id),['shiko','shio','tachiai']);
+ for(const r of SUMO_RITUALS)for(const k of ['icon','en','ja','romaji','how','buys'])assert.ok(r[k],`${r.id} has no ${k}`);
+ // Stamps are scored out of four however few you hit, so a beat nobody stamped is not free.
+ assert.equal(stompScore([0,0,0,0]),1);
+ assert.equal(stompScore([0,0]),0.5,'two beats out of four is half a stance');
+ assert.equal(stompScore([STOMP_WINDOW,STOMP_WINDOW,STOMP_WINDOW,STOMP_WINDOW]),0,'a stamp a whole beat late is a stamp missed');
+ assert.ok(stompScore([-80,80,-80,80])>0.7,'close enough counts');
+ assert.equal(stompScore([]),0);
+ // The salt lands in a band rather than on a point — a five-year-old cannot stop a sweep
+ // on a pixel — and missing it altogether is a nothing rather than a penalty.
+ assert.equal(saltScore(50,50),1);
+ assert.equal(saltScore(50+SALT_BAND,50),0);
+ assert.equal(saltScore(0,90),0);
+ // Going before the gyoji calls is a matta, and it is the only score that can be negative.
+ assert.equal(chargeScore(-1),MATTA);
+ assert.equal(chargeScore(100),1);
+ assert.equal(chargeScore(900),0);
+ // What the ceremony buys: wind, a longer look at an opening, and ground already won.
+ const clean=leadUpEffect({shiko:1,shio:1,charge:1}),none=leadUpEffect({});
+ assert.ok(clean.stamina>none.stamina&&clean.rest>none.rest&&clean.opening>none.opening);
+ assert.ok(clean.push>0&&none.push===0);
+ assert.equal(leadUpEffect({charge:MATTA}).push,-2,'a false start hands him the ground');
+ assert.ok(leadUpEffect({charge:MATTA}).matta);
+ // A matta is a nothing in the scoring rather than a second punishment.
+ assert.equal(ceremonyScore({shiko:1,shio:1,charge:MATTA}),ceremonyScore({shiko:1,shio:1,charge:0}));
+ assert.equal(ceremonyScore({shiko:1,shio:1,charge:1}),1);
+ // Four real finishing moves, each with the tell that calls for it.
+ assert.equal(new Set(KIMARITE.map(k=>k.id)).size,4);
+ for(const k of KIMARITE)for(const f of ['icon','en','ja','romaji','tell'])assert.ok(k[f],`${k.id} has no ${f}`);
+ assert.equal(kimariteById('nothing'),null);
+ assert.equal(kimariteById('oshidashi').ja,'押し出し');
+ // A faster opponent leans harder, in the same order as the speeds themselves.
+ assert.ok(theirWeight(330)>theirWeight(1100));
+ // And the ring actually walks all of it, in order, before anybody pushes anybody.
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ for(const phase of ['shiko','shio','tachiai','bout'])assert.match(source,new RegExp(`phase==='${phase}'`),`the ring never reaches ${phase}`);
+ for(const move of ["type:'brace'","type:'technique'","type:'push'"])assert.ok(source.includes(move),`no way to ${move}`);
+});
+
+test('a sumo bout is won by reading him, not by tapping',async()=>{
+ const {startBout,sumoAction,leadUpEffect,SUMO_LIMIT,SHOVE_COST,SHOVE_GAIN,TIRED_GAIN,TECHNIQUE_GAIN,shovePower}=await import('../src/kana-data.js');
+ const fresh=()=>startBout(leadUpEffect({}));
+ // Every shove costs what it earns, so a whole bar of mashing crosses a fraction of the ring.
+ const mashed=Array.from({length:40}).reduce(b=>sumoAction(b,{type:'push'}),fresh());
+ assert.ok(!mashed.over,'mashing alone never pushes anyone out');
+ assert.equal(mashed.stamina,0);
+ assert.ok(mashed.push<SUMO_LIMIT/2);
+ assert.equal(shovePower(100),SHOVE_GAIN);
+ assert.equal(shovePower(SHOVE_COST),TIRED_GAIN,'a tired wrestler shoves for less');
+ assert.equal(shovePower(0),0,'and an empty one for nothing at all');
+ // He gathers himself now and then, and it counts double while it lasts. Pushing into it
+ // costs you ground; bracing into it costs him.
+ const surging=sumoAction(fresh(),{type:'surge',on:true});
+ assert.ok(sumoAction(surging,{type:'push'}).push<0);
+ const held=sumoAction(surging,{type:'brace'});
+ assert.equal(held.surge,false);
+ assert.ok(held.push>0);
+ assert.equal(sumoAction(surging,{type:'tick',their:1,rest:0}).push,-2);
+ assert.equal(sumoAction(fresh(),{type:'tick',their:1,rest:0}).push,-1);
+ // Bracing with nothing coming gives ground away, and gives your legs a rest.
+ const shoved=sumoAction(fresh(),{type:'push'}),rested=sumoAction(shoved,{type:'brace'});
+ assert.ok(rested.push<shoved.push&&rested.stamina>shoved.stamina);
+ // An opening is taken by the move that answers the tell, and thrown away by anything else.
+ const open=sumoAction(fresh(),{type:'open',id:'hatakikomi'});
+ const took=sumoAction(open,{type:'technique',id:'hatakikomi'});
+ assert.equal(took.push,TECHNIQUE_GAIN);
+ assert.equal(took.opening,null);
+ assert.ok(sumoAction(open,{type:'technique',id:'uwatenage'}).push<0,'the wrong move for that tell overbalances you');
+ assert.ok(sumoAction(fresh(),{type:'technique',id:'uwatenage'}).push<0,'and there is nothing to take hold of when nothing is open');
+ assert.ok(sumoAction(open,{type:'push'}).push<0,'mashing straight past an opening loses it');
+ // Out of the ring either way ends it, the winning move is remembered, and nothing moves after.
+ const won=sumoAction({...fresh(),push:SUMO_LIMIT-TECHNIQUE_GAIN,opening:'yorikiri'},{type:'technique',id:'yorikiri'});
+ assert.equal(won.over,'won');
+ assert.equal(won.won,'yorikiri');
+ assert.equal(sumoAction(won,{type:'push'}),won);
+ const lost=sumoAction({...fresh(),push:1-SUMO_LIMIT},{type:'tick',their:2,rest:0});
+ assert.equal(lost.over,'lost');
+ assert.equal(lost.won,'');
+ // Shoving him out is still winning, and names no move.
+ const pushedOut=sumoAction({...fresh(),push:SUMO_LIMIT-SHOVE_GAIN},{type:'push'});
+ assert.equal(pushedOut.over,'won');
+ assert.equal(pushedOut.won,'');
+});
+
+test('a sumo career climbs the banzuke, and the tournament decides the rest',async()=>{
+ const {newCareer,SEKITORI,TOP_RANK,BASHO_DAYS,KACHIKOSHI,BASHO,AKI,bashoAt,climb,rankRate,bashoOpponent,bashoDay,bashoWorth}=await import('../src/kana-data.js');
+ // A career starts at the bottom, unpaid, with the Autumn tournament next — the one that is
+ // on in Ryogoku while we are there.
+ const start=newCareer();
+ assert.equal(start.rank,1);
+ assert.equal(bashoAt(start.basho).romaji,'Aki basho');
+ assert.equal(BASHO.length,6,'six tournaments a year, like the real calendar');
+ for(const b of BASHO)for(const k of ['en','ja','romaji','where','month'])assert.ok(b[k],`${b.en} has no ${k}`);
+ assert.equal(bashoAt(AKI+BASHO.length).romaji,'Aki basho','and the year comes round again');
+ // The climb: up a rung for a win, down one for a loss, stopping at juryo either way.
+ assert.equal(climb(1,true),2);
+ assert.equal(climb(2,false),1);
+ assert.equal(climb(1,false),1,'nobody falls out of the bottom');
+ assert.equal(climb(SEKITORI,true),SEKITORI,'and nobody climbs past juryo this way');
+ // A higher rank is a faster opponent, all the way up.
+ for(let level=2;level<=TOP_RANK;level++)assert.ok(rankRate(level)<rankRate(level-1),`${level} is no faster than ${level-1}`);
+ // The schedule is built like a real torikumi: below you to start with, above you at the
+ // end, and the worst of them saved for senshuraku.
+ assert.deepEqual(Array.from({length:BASHO_DAYS},(_,d)=>bashoOpponent(6,d)),[5,5,6,6,6,7,8]);
+ assert.equal(bashoOpponent(TOP_RANK,6),TOP_RANK,'there is nobody above a yokozuna');
+ assert.equal(bashoOpponent(1,0),1,'and nobody below the bottom');
+ // Seven days, each going onto the record in the order it happened.
+ let mid={...newCareer(),rank:SEKITORI};
+ for(const won of [true,false,true])mid=bashoDay(mid,won);
+ assert.equal(mid.day,3);
+ assert.equal(mid.form,'wlw');
+ assert.equal(mid.wins,2);assert.equal(mid.losses,1);
+ assert.equal(mid.last,null,'a tournament is not over until the seventh day');
+ // Four of seven is kachi-koshi and a promotion, and the record starts again after it.
+ let up={...newCareer(),rank:SEKITORI};
+ for(const won of [true,true,false,true,false,true,false])up=bashoDay(up,won);
+ assert.equal(up.last.wins,4);
+ assert.equal(up.last.kachikoshi,true);
+ assert.equal(up.rank,SEKITORI+1);
+ assert.equal(up.day,0);assert.equal(up.form,'');assert.equal(up.wins,0);
+ assert.equal(up.basho,newCareer().basho+1,'and the next tournament is the next one of the year');
+ assert.ok(KACHIKOSHI>BASHO_DAYS/2,'a winning record has to be most of them');
+ // Three is make-koshi and the name moves down the sheet — but a sekitori stays a sekitori.
+ let down={...newCareer(),rank:SEKITORI+1};
+ for(let d=0;d<BASHO_DAYS;d++)down=bashoDay(down,d<3);
+ assert.equal(down.last.kachikoshi,false);
+ assert.equal(down.rank,SEKITORI);
+ let bottom={...newCareer(),rank:SEKITORI};
+ for(let d=0;d<BASHO_DAYS;d++)bottom=bashoDay(bottom,false);
+ assert.equal(bottom.rank,SEKITORI,'nobody is demoted out of the tournament they earned');
+ // A perfect seven is a zensho-yusho, and it is the thing worth keeping.
+ let perfect={...newCareer(),rank:TOP_RANK};
+ for(let d=0;d<BASHO_DAYS;d++)perfect=bashoDay(perfect,true);
+ assert.equal(perfect.last.title,true);
+ assert.equal(perfect.titles,1);
+ assert.equal(perfect.rank,TOP_RANK,'there is nowhere above yokozuna');
+ assert.equal(bashoWorth(0,SEKITORI),0);
+ assert.ok(bashoWorth(4,TOP_RANK)>bashoWorth(4,SEKITORI),'the same record higher up is worth more');
+ assert.ok(bashoWorth(BASHO_DAYS,TOP_RANK)>bashoWorth(BASHO_DAYS-1,TOP_RANK)*1.5,'and a perfect one pays for being perfect');
+ // A quick bout takes the ceremony as read: better than skipping it, short of doing it
+ // properly, so going straight to the pushing is neither a punishment nor a shortcut worth
+ // taking in a tournament.
+ const {TAKEN_AS_READ,leadUpEffect,ceremonyScore}=await import('../src/kana-data.js');
+ const taken=leadUpEffect(TAKEN_AS_READ);
+ assert.ok(taken.stamina>leadUpEffect({}).stamina&&taken.opening>leadUpEffect({}).opening);
+ assert.ok(taken.stamina<leadUpEffect({shiko:1,shio:1,charge:1}).stamina);
+ assert.ok(ceremonyScore(TAKEN_AS_READ)>0&&ceremonyScore(TAKEN_AS_READ)<1);
+ assert.ok(!taken.matta);
+ // Five ways into the ring, and the ones that are practice write nothing down.
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ for(const mode of ['quick','keiko','one','climb','basho'])assert.ok(source.includes(`id:'${mode}'`),`no ${mode} to choose`);
+ assert.ok(source.includes("quick?'bout':'shiko'"),'a quick bout has to start in the ring');
+ assert.ok(source.includes('if(result.drill)return;'),'a drill must never be scored');
+ // Training is never handed the thing that writes, so it cannot record anything even by
+ // accident — which is what makes it practice.
+ assert.ok(!/function Keiko\(\{[^}]*mutate/.test(source),'keiko must not be given mutate');
+ assert.ok(source.includes("game:'sumo-rank'")&&source.includes("game:'sumo-basho'"),'a career has to be worth keeping');
+});
+
 test('photo of the day: one vote each, and a tie stays a tie',async()=>{
  const {ensureFeatures,photosFor,photoVotesFor,photoOfTheDay}=await import('../src/trip-features.js');
  const boston={name:'Boston',role:'child'};
@@ -2984,7 +3147,7 @@ test('a spot-the-difference score is one the server will actually take',async()=
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',needs:(OFFLINE|'[^']+'),Component:(\w+)\}/g)];
- assert.equal(entries.length,11);
+ assert.equal(entries.length,12);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -3034,9 +3197,9 @@ test('a rank name is cut to what fits on a tile, and the long one is kept for th
 test('the two boards say which squares are empty, and both ladders are laid out the same way',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
- // One component draws both ladders, so the ranks and the merge ladder cannot drift apart,
- // and neither is left as a ragged run of inline text.
- assert.equal([...source.matchAll(/<Ladder /g)].length,2);
+ // One component draws every ladder — the merge one, the ranks, the rituals and the tells —
+ // so they cannot drift apart, and none is left as a ragged run of inline text.
+ assert.equal([...source.matchAll(/<Ladder /g)].length,4);
  assert.equal([...source.matchAll(/<details className="merge-ladder">/g)].length,1,
   'only the shared component draws one — no game writes its own');
  assert.match(css,/\.ladder-grid\{display:grid/);
@@ -3388,7 +3551,9 @@ test('the phrases can be gone through one at a time, over exactly what the list 
  const source=await readFile(new URL('../src/Phrasebook.jsx',import.meta.url),'utf8');
  // Both ways of going through them, and the phone remembers which you like.
  assert.match(source,/localStorage\.getItem\('japan\.phrasemode'\)/);
- assert.match(source,/\|\|'list'/,'the list stays the default — it is what search is for');
+ // The list is still the default for everyone who can read one; Nate is the exception, and
+ // he is the reason the exception exists.
+ assert.match(source,/const suits=user\?\.name==='Nate'\?'nate':'list'/);
  // The deck is built from the same filtered sections the list renders, so a search cannot
  // show one set and swipe through another.
  assert.match(source,/const deck=\[\s*\.\.\.sections\.flatMap/);
@@ -3568,6 +3733,265 @@ test('a forwarded email goes where the parent sends it, not only into Tickets',(
  assert.throws(()=>file_({destination:'activity',day:'2020-01-01'}),/trip day/);
  // Whichever door it went through, it leaves the inbox exactly once.
  for(const d of ['ticket','activity','options','idea','todo'])assert.equal(file_({destination:d,day}).inbox.length,0);
+});
+
+test('a photo belongs to somebody, which is not always whoever put it on',async()=>{
+ const {ensureFeatures,photoOwner,photosOf,photoCounts,photosFor}=await import('../src/trip-features.js');
+ const boston={name:'Boston',role:'child'};
+ let state=ensureFeatures(structuredClone(seed));
+ const day=state.days[0].date,other=state.days[1].date;
+ state.photos=[
+  {id:'a',by:'Damien',for:'Nate',day,at:'2026-09-21T01:00:00.000Z'},
+  {id:'b',by:'Boston',for:'Boston',day,at:'2026-09-21T02:00:00.000Z'},
+  // Written before photos could be handed over: it belongs to whoever added it, which is not
+  // a guess, it is what was true at the time.
+  {id:'c',by:'Nate',day:other,at:'2026-09-21T03:00:00.000Z'}
+ ];
+ assert.equal(photoOwner(state.photos[0]),'Nate','a parent can take one for a boy');
+ assert.equal(photoOwner(state.photos[2]),'Nate','and an older one is still his');
+ assert.equal(photoOwner(null),'');
+ // A name gets you the whole trip, newest first, not one day of it.
+ assert.deepEqual(photosOf(state,'Nate').map(p=>p.id),['c','a']);
+ assert.deepEqual(photosOf(state,'Nate',day).map(p=>p.id),['a']);
+ assert.deepEqual(photosOf(state,'Lauren'),[]);
+ assert.deepEqual(photoCounts(state),{Nate:2,Boston:1});
+ assert.deepEqual(photoCounts(state,day),{Nate:1,Boston:1});
+ // Handing one over afterwards, because whose it is gets worked out once everyone has seen it.
+ let handed=applyOperation(state,{type:'photoAssign',id:'b',person:'Nate'},parent);
+ assert.equal(photoOwner(handed.photos.find(p=>p.id==='b')),'Nate');
+ assert.equal(handed.photos.find(p=>p.id==='b').by,'Boston','and who added it is not rewritten');
+ // A boy can hand over one he added, and nobody else's.
+ assert.equal(photoOwner(applyOperation(state,{type:'photoAssign',id:'b',person:'Nate'},boston).photos.find(p=>p.id==='b')),'Nate');
+ assert.throws(()=>applyOperation(state,{type:'photoAssign',id:'a',person:'Boston'},boston),/parent/i);
+ assert.throws(()=>applyOperation(state,{type:'photoAssign',id:'b',person:'Nobody'},parent),/family member/i);
+ assert.throws(()=>applyOperation(state,{type:'photoAssign',id:'gone',person:'Nate'},parent),/not found/i);
+ // Removing: yours if it is your photo OR you are the one who put it on.
+ assert.equal(applyOperation(state,{type:'photoRemove',id:'b'},boston).photos.length,2);
+ assert.equal(applyOperation(state,{type:'photoRemove',id:'a'},{name:'Nate',role:'child'}).photos.length,2,
+  'a boy can remove a photo that was handed to him');
+ assert.throws(()=>applyOperation(state,{type:'photoRemove',id:'a'},boston),/only remove your own/i);
+ // The vote still names the owner rather than the uploader.
+ const {photoOfTheDay}=await import('../src/trip-features.js');
+ const voted={...state,photoVotes:{[day]:{Damien:'a',Lauren:'a'}}};
+ assert.deepEqual(photoOfTheDay(voted,day).winners.map(photoOwner),['Nate']);
+});
+
+test('the photos live behind a filter rather than another entry in the menu',async()=>{
+ const {PAGES,moreIds}=await import('../src/nav-data.js');
+ const page=await readFile(new URL('../src/PhotoDay.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ // One entry, not two: twenty-two is already a long menu.
+ assert.equal(Object.keys(PAGES).filter(id=>/photo/i.test(id)).length,1);
+ assert.match(PAGES.photos.note,/whose is whose/);
+ // Whose photos you are looking at is in the address, so a profile links straight to it and
+ // the back button does what it looks like it does.
+ assert.match(main,/get\('who'\)/);
+ assert.match(main,/\{tab:'photos',who:name\}/);
+ assert.match(party,/href=\{`\/\?tab=photos&who=\$\{encodeURIComponent\(name\)\}`\}/);
+ // A named person is their whole trip; nobody named is today, which is what the vote is for.
+ assert.match(page,/const whole=!!person;/);
+ assert.match(page,/whole\?photosOf\(state,person\):photosFor\(state,day\)/);
+ // Voting is a thing you do to a day, so it is not offered on a whole-trip view.
+ assert.match(page,/\{!whole&&<button type="button" className=\{myVote===p\.id\?'primary':''\}/);
+ // The twelve-a-day allowance is the owner's, not the uploader's.
+ const handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handler,/p\.for\|\|p\.by\)===owner&&p\.day===b\.day\).length>=12/);
+ assert.match(handler,/user\.role!=='parent'&&owner!==user\.name/,'a boy can only speak for himself');
+});
+
+test('every phrase, katakana word and menu word says when you would actually use it',async()=>{
+ const {PHRASEBOOK,ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ const {LOANWORDS}=await import('../src/kana-data.js');
+ const {MENU_WORDS}=await import('../src/food-data.js');
+ const lists=[
+  ['phrase',ALL_PHRASES(),p=>p.note,p=>p.en],
+  ['katakana word',LOANWORDS,w=>w.where,w=>w.ja],
+  ['menu word',MENU_WORDS,w=>w.note,w=>w.en]
+ ];
+ for(const [kind,items,explain,name] of lists){
+  for(const item of items){
+   const said=explain(item);
+   assert.ok(said&&said.trim(),`the ${kind} "${name(item)}" does not say when you would use it`);
+   assert.ok(said.length>=20,`"${name(item)}" is explained too thinly: ${said}`);
+   assert.ok(said.length<=320,`"${name(item)}" runs on: ${said}`);
+   assert.ok(/[.!?]$/.test(said.trim()),`"${name(item)}" is not a finished sentence: ${said}`);
+  }
+  // A note copied from one entry to another is worse than none: it reads as an answer and
+  // is not one.
+  const said=items.map(explain);
+  assert.equal(new Set(said).size,said.length,`two ${kind}s share an explanation`);
+ }
+ // Every section says what it is for as well.
+ for(const section of PHRASEBOOK)assert.ok(section.note?.trim(),`${section.title} has no line`);
+ assert.equal(new Set(PHRASEBOOK.map(s=>s.note)).size,PHRASEBOOK.length);
+ // The one about allergies has to keep pointing at the staff rather than at us.
+ const allergy=ALL_PHRASES().find(p=>p.id==='allergy');
+ assert.match(allergy.note,/confirm/i);
+ assert.match(allergy.note,/never trust a translation/i);
+ // And the explanation is shown wherever the word is, not just on the phrases.
+ const page=await readFile(new URL('../src/Phrasebook.jsx',import.meta.url),'utf8');
+ assert.match(page,/\{w\.note&&<small className="menu-word-note">\{w\.note\}<\/small>\}/);
+});
+
+test('a five-year-old can sound anything out without reading a word of it',async()=>{
+ const {VOWELS,MOUTH,CHUNK_VOWEL,vowelOf,soundBubbles,bubbleRows}=await import('../src/phonics.js');
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ const {MENU_WORDS}=await import('../src/food-data.js');
+ const {phonicChunks}=await import('../src/speech.js');
+ // Five vowels, five mouths, five colours — the whole idea is that there are only five.
+ assert.equal(VOWELS.length,5);
+ assert.deepEqual(VOWELS.map(v=>v.id),['a','i','u','e','o']);
+ assert.equal(new Set(VOWELS.map(v=>v.colour)).size,5,'a colour each, or they cannot be told apart');
+ for(const v of VOWELS){
+  assert.ok(MOUTH[v.id],`${v.id} has no mouth to make`);
+  assert.ok(v.hint.length>20,`${v.id} does not say what the mouth does`);
+ }
+ // The mouths have to differ from each other, or the picture says nothing.
+ assert.equal(new Set(Object.values(MOUTH).map(m=>`${m.rx}x${m.ry}`)).size,5);
+ // "ee" is the widest and flattest, "oo" the smallest — if that ever stops being true the
+ // pictures are lying about the sound.
+ assert.ok(MOUTH.i.rx>MOUTH.u.rx&&MOUTH.i.ry<MOUTH.u.ry);
+ assert.ok(MOUTH.a.ry>MOUTH.i.ry,'“ah” is the open one');
+ // Every syllable anywhere in the phrasebook or on a menu has a mouth. A bubble with no
+ // picture is a bubble he has to read, which is the thing this exists to avoid.
+ for(const item of [...ALL_PHRASES(),...MENU_WORDS])
+  for(const bubble of soundBubbles(item.say))
+   assert.ok(bubble.vowel,`“${bubble.text}” in “${item.en}” has no mouth`);
+ // Written out rather than guessed from the spelling, because the tricky ones are the common
+ // ones: ます swallows its u, and あい opens on the a.
+ assert.equal(vowelOf('mass'),'a');
+ assert.equal(vowelOf('dess'),'e');
+ assert.equal(vowelOf('guy'),'a');
+ assert.equal(vowelOf('sigh'),'a');
+ assert.equal(vowelOf('koo'),'u');
+ assert.equal(vowelOf('SHEE'),'i','however it is capitalised');
+ assert.equal(vowelOf('nonsense'),null);
+ assert.equal(vowelOf(''),null);
+ for(const v of Object.values(CHUNK_VOWEL))assert.ok(MOUTH[v],v);
+ // The bubbles are the same syllables the written sounding-out uses, with the dashes gone.
+ const say='soo-mee-ma-sen';
+ assert.deepEqual(soundBubbles(say).map(b=>b.text),phonicChunks(say).filter(c=>/[a-z]/i.test(c.text)).map(c=>c.text));
+ assert.deepEqual(soundBubbles(say).map(b=>b.vowel),['u','i','a','e']);
+ assert.deepEqual(soundBubbles(say).map(b=>b.index),[0,1,2,3]);
+ // Four to a row: more than that and a five-year-old stops seeing them.
+ assert.deepEqual(bubbleRows('a-b-c-d-e-f').map(r=>r.length),[4,2]);
+ assert.deepEqual(bubbleRows(''),[]);
+});
+
+test('every phrase has a picture of what it means, so it can be found without reading',async()=>{
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ const all=ALL_PHRASES();
+ for(const p of all){
+  assert.ok(p.icon,`“${p.en}” has no picture`);
+  // A flag is two code points and a variation selector is a third. Anything longer is a
+  // joined sequence, which falls apart into separate people on a phone that lacks it.
+  assert.ok([...p.icon].length<=3,`“${p.en}” uses a joined emoji: ${[...p.icon].length} code points`);
+  assert.ok(!p.icon.includes('\u200d'),`“${p.en}” uses a zero-width joiner`);
+ }
+ // Two phrases wearing the same picture is worse than none — he picks by picture.
+ const icons=all.map(p=>p.icon);
+ assert.equal(new Set(icons).size,icons.length,'two phrases share a picture');
+ const page=await readFile(new URL('../src/Phrasebook.jsx',import.meta.url),'utf8');
+ const out=await readFile(new URL('../src/SoundOut.jsx',import.meta.url),'utf8');
+ // Nate's card carries the picture, the Japanese and the mouths — and no romaji, no notes,
+ // and no sounding-out line to read.
+ assert.match(page,/<span className="phrase-picture"/);
+ assert.match(page,/mode==='nate'/);
+ assert.match(page,/<SoundOut phrase=\{phrase\}\/>/);
+ const young=page.slice(page.indexOf('phrase-card young'),page.indexOf(':<div className="phrase-card"'));
+ assert.doesNotMatch(young,/SayIt|phrase\.note|romaji/,'nothing on his card has to be read');
+ // A tapped mouth says that syllable on its own and slowly; the big button says the lot.
+ assert.match(out,/read\(`chunk-\$\{phrase\.id\}-\$\{bubble\.index\}`,bubble\.text,'en-AU',SLOW_RATE\)/);
+ // Where somebody has recorded the phrase, that is what "all together" plays.
+ assert.match(out,/clip\s*\?<ClipButton clip=\{clip\} label="All together"\/>/);
+ // The daily pop-up is where he actually meets a phrase, so it carries the picture too.
+ assert.match(page,/\{phrase\.icon&&<span className="phrase-picture small"/);
+ // And he starts on his own mode rather than on a list of fifty-three written phrases.
+ assert.match(page,/const suits=user\?\.name==='Nate'\?'nate':'list'/);
+ assert.match(page,/localStorage\.getItem\('japan\.phrasemode'\)\|\|suits/,'and anybody can change it');
+});
+
+test('the origami diagrams are folded rather than drawn, so they cannot disagree with each other',async()=>{
+ const o=await import('../src/origami-data.js');
+ // A fold is a reflection. Get that wrong and every diagram after it is wrong too.
+ assert.deepEqual(o.reflect([0,0],[5,0],[5,9]).map(Math.round),[10,0]);
+ assert.deepEqual(o.reflect([2,8],[0,0],[10,0]).map(Math.round),[2,-8]);
+ assert.deepEqual(o.reflect([3,4],[0,0],[0,0]),[3,4],'a crease with no length folds nothing');
+ assert.equal(o.sideOf([1,1],[0,0],[10,0]),-o.sideOf([1,-1],[0,0],[10,0]));
+ assert.equal(o.sideOf([5,0],[0,0],[10,0]),0,'on the crease is neither side');
+ // Half a square, cut along the middle.
+ const half=o.clipToSide([[0,0],[10,0],[10,10],[0,10]],[0,5],[10,5],o.sideOf([5,0],[0,5],[10,5]));
+ assert.equal(half.length,4);
+ assert.ok(half.every(([,y])=>y<=5.0001));
+ // "Fold this corner onto that one" lands the corner exactly on the other one — which is what
+ // the instruction says, so the picture has to agree with the words.
+ const crease=o.creaseBringing([0,0],[10,10]);
+ assert.deepEqual(o.reflect([0,0],crease[0],crease[1]).map(n=>Math.round(n*1e6)/1e6),[10,10]);
+ assert.equal(o.creaseBringing([4,4],[4,4]),null);
+ // Which side moves is worked out from the corner being folded, never written down: a sign
+ // copied wrongly is invisible in the source and obvious in the diagram.
+ const spec=o.foldSpec({bring:[10,10],to:[90,90]});
+ assert.equal(o.sideOf([10,10],spec.crease[0],spec.crease[1]),spec.move);
+ assert.equal(o.foldSpec({through:[[0,50],[100,50]]}),null,'a fold with nothing moving is not a fold');
+ assert.equal(o.foldSpec(null),null);
+ // Folding a square in half leaves two layers lying on top of each other.
+ const folded=o.foldLayers([o.PAPER],[0,50],[100,50],o.sideOf([50,10],[0,50],[100,50]));
+ assert.equal(folded.length,2);
+ for(const layer of folded)assert.ok(layer.every(([,y])=>y>=49.999),'both layers end up on the same side');
+ // Turning it over is a mirror — a fold made on the back lands in the mirrored place, and a
+ // diagram that forgot that would teach the wrong crease.
+ assert.deepEqual(o.flipLayers([[[10,20]]]),[[[90,20]]]);
+ // A rotation is re-fitted, or the step that needs looking at hardest walks off the card.
+ const spun=o.fitLayers(o.rotateLayers([o.PAPER],37));
+ const b=o.boundsOf(spun);
+ assert.ok(b.minX>=9.99&&b.maxX<=90.01&&b.minY>=9.99&&b.maxY<=90.01);
+ assert.equal(o.boundsOf([]),null);
+ // The crease is trimmed to the paper: a perpendicular bisector is an infinite line and drawn
+ // as one it stops looking like a fold in a sheet.
+ const trimmed=o.creaseInBox([[-400,50],[400,50]],{minX:10,maxX:90,minY:10,maxY:90});
+ assert.deepEqual(trimmed.map(p=>p.map(n=>Math.round(n*1e6)/1e6)),[[10,50],[90,50]]);
+ assert.equal(o.creaseInBox([[5,0],[5,100]],{minX:10,maxX:90,minY:10,maxY:90}),null,'and misses entirely when it should');
+ assert.equal(o.creaseInBox(null,{minX:0,maxX:1,minY:0,maxY:1}),null);
+});
+
+test('every origami model folds all the way to something, with a sentence at each step',async()=>{
+ const {ORIGAMI,modelById,stepFrames,foldSpec,origamiGame,boundsOf}=await import('../src/origami-data.js');
+ assert.ok(ORIGAMI.length>=1);
+ assert.equal(new Set(ORIGAMI.map(m=>m.id)).size,ORIGAMI.length);
+ for(const model of ORIGAMI){
+  assert.ok(model.name&&model.ja&&model.icon,model.id);
+  assert.ok(model.about.length>40&&model.finish.length>20,`${model.id} does not say what it becomes`);
+  assert.ok(origamiGame(model.id).length<=40,'the server refuses a longer game name');
+  const steps=stepFrames(model);
+  assert.equal(steps.length,model.steps.length+1,'the finished thing is a step of its own');
+  assert.ok(steps.at(-1).done);
+  for(const step of steps){
+   assert.ok(step.say&&step.say.trim().length>20,`a step of ${model.id} says too little: ${step.say}`);
+   assert.ok(/[.!?]$/.test(step.say.trim()));
+   assert.ok(step.layers.length,`a step of ${model.id} has no paper left`);
+   // Every picture stays inside the frame — nothing is drawn off the edge of the card.
+   const b=boundsOf(step.layers);
+   assert.ok(b.minX>=-0.01&&b.maxX<=100.01&&b.minY>=-0.01&&b.maxY<=100.01,`${model.id} runs off the card`);
+  }
+  // Each fold really folds: the paper after it is not the paper before it.
+  for(const step of model.steps){
+   if(!step.fold)continue;
+   assert.ok(foldSpec(step.fold),`a fold of ${model.id} does not describe a crease and a side`);
+  }
+  const before=steps.map(s=>JSON.stringify(s.layers));
+  assert.equal(new Set(before).size,before.length,`${model.id} has a step that changes nothing`);
+  // Paper only ever gets more layers, never fewer: that is what folding is.
+  for(let i=1;i<steps.length;i++)
+   assert.ok(steps[i].layers.length>=steps[i-1].layers.length,`${model.id} loses a layer at step ${i}`);
+ }
+ const hat=modelById('hat');
+ assert.ok(hat,'the hat is the one that is finished');
+ assert.equal(modelById('nothing-like-this'),null);
+ // It folds in half first, so the sheet it starts from is not square — a hat from a square has
+ // no brim, and the diagram would quietly stop matching the words.
+ const [[x0],[x1]]=[hat.paper[0],hat.paper[1]];
+ assert.ok(Math.abs(x1-x0)<Math.abs(hat.paper[2][1]-hat.paper[1][1]),'the hat starts from a tall sheet');
 });
 
 test('the boys’ spending money: what went in, what went out, and what is left',async()=>{

@@ -9,7 +9,7 @@ export const PAGES={
  money:{label:'Yen',note:'What a price is in dollars, signal or not'},
  challenges:{label:'Missions',note:'Daily missions and whole-trip quests'},
  games:{label:'Games',note:'Letters, sumo, snake, and spot the difference in our own photos'},
- photos:{label:'Photo of the day',note:'The boys\u2019 photos, feedback and the daily vote'},
+ photos:{label:'Photos',note:'Everyone\u2019s photos, whose is whose, and the daily vote'},
  diary:{label:'Diary',note:'Completed activities, discoveries and photos'},
  places:{label:'Places & our map',note:'Directions and our Google My Map'},
  meeting:{label:'Meeting card',note:'If we get separated'},

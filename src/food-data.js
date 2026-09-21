@@ -67,7 +67,7 @@ export const SAY_TIP='Say each chunk evenly — Japanese does not stress one par
 export const ORDERING=[
  {id:'four',en:'Four people, please',ja:'4人です',romaji:'yonin desu',say:'yo-neen dess'},
  {id:'children',en:'Two adults and two children',ja:'大人2人、子供2人です',romaji:'otona futari, kodomo futari desu',say:'oh-to-na foo-ta-ree, ko-do-mo foo-ta-ree dess'},
- {id:'spicy',en:'Is this spicy?',ja:'これは辛いですか？',romaji:'kore wa karai desu ka?',say:'ko-reh wa ka-rye dess ka'},
+ {id:'spicy',en:'Is this spicy?',ja:'これは辛いですか？',romaji:'kore wa karai desu ka?',say:'ko-reh wa ka-rye dess ka',note:'Worth asking before Nate orders. 大辛 is very hot and 甘口 is mild — but a kitchen\'s idea of mild is not always ours.'},
  {id:'notspicy',en:'Not spicy, please',ja:'辛くしないでください',romaji:'karaku shinaide kudasai',say:'ka-ra-koo shee-nigh-deh koo-da-sigh'},
  {id:'nowasabi',en:'No wasabi, please',ja:'わさび抜きでお願いします',romaji:'wasabi nuki de onegai shimasu',say:'wa-sa-bee noo-kee deh oh-neh-guy shee-mass'},
  {id:'this',en:'This one, please',ja:'これをください',romaji:'kore o kudasai',say:'ko-reh oh koo-da-sigh'},
@@ -87,20 +87,20 @@ export const ORDERING=[
 ];
 // The handful of words that tell you what is in something. Worth recognising on a menu.
 export const MENU_WORDS=[
- {id:'chicken',en:'Chicken',ja:'鶏 / チキン',romaji:'tori / chikin',say:'to-ree / chee-keen'},
- {id:'pork',en:'Pork',ja:'豚 / ポーク',romaji:'buta / pōku',say:'boo-ta / poh-koo'},
- {id:'beef',en:'Beef',ja:'牛 / ビーフ',romaji:'gyū / bīfu',say:'gyoo / bee-foo'},
- {id:'prawn',en:'Prawn',ja:'エビ',romaji:'ebi',say:'eh-bee'},
- {id:'fish',en:'Fish',ja:'魚',romaji:'sakana',say:'sa-ka-na'},
- {id:'vegetable',en:'Vegetable',ja:'野菜',romaji:'yasai',say:'ya-sigh'},
- {id:'egg',en:'Egg',ja:'卵',romaji:'tamago',say:'ta-ma-go'},
- {id:'meat',en:'Meat',ja:'肉',romaji:'niku',say:'nee-koo'},
- {id:'noodles',en:'Noodles',ja:'麺',romaji:'men',say:'men'},
- {id:'rice',en:'Rice',ja:'ご飯',romaji:'gohan',say:'go-han'},
- {id:'spicy',en:'Spicy',ja:'辛い',romaji:'karai',say:'ka-rye'},
- {id:'raw',en:'Raw',ja:'生',romaji:'nama',say:'na-ma'},
- {id:'cucumber',en:'Cucumber',ja:'きゅうり / かっぱ',romaji:'kyūri / kappa',say:'kyoo-ree / kap-pa'},
- {id:'avocado',en:'Avocado',ja:'アボカド',romaji:'abokado',say:'a-bo-ka-do'},
- {id:'roll',en:'Roll (rolled in seaweed)',ja:'巻き',romaji:'maki',say:'ma-kee'}
+ {id:'chicken',en:'Chicken',ja:'鶏 / チキン',romaji:'tori / chikin',say:'to-ree / chee-keen',note:'The kanji 鶏 is on a Japanese menu; チキン is on a burger or fried chicken.'},
+ {id:'pork',en:'Pork',ja:'豚 / ポーク',romaji:'buta / pōku',say:'boo-ta / poh-koo',note:'The one to look for if pork is off the list — it turns up in ramen broth and in gyoza.'},
+ {id:'beef',en:'Beef',ja:'牛 / ビーフ',romaji:'gyū / bīfu',say:'gyoo / bee-foo',note:'牛 on its own is beef. 牛丼 is the beef bowl, and 和牛 is wagyu.'},
+ {id:'prawn',en:'Prawn',ja:'エビ',romaji:'ebi',say:'eh-bee',note:'Written エビ far more often than with its kanji. エビフライ is a crumbed prawn.'},
+ {id:'fish',en:'Fish',ja:'魚',romaji:'sakana',say:'sa-ka-na',note:'On its own it means fish; on a menu the actual fish usually has its own name beside it.'},
+ {id:'vegetable',en:'Vegetable',ja:'野菜',romaji:'yasai',say:'ya-sigh',note:'野菜炒め is a vegetable stir fry, which is the easiest thing to ask for without meat.'},
+ {id:'egg',en:'Egg',ja:'卵',romaji:'tamago',say:'ta-ma-go',note:'卵 raw or soft, 玉子 cooked — the same word, two ways of writing it.'},
+ {id:'meat',en:'Meat',ja:'肉',romaji:'niku',say:'nee-koo',note:'The general word. If a dish says 肉 and nothing else, ask which animal.'},
+ {id:'noodles',en:'Noodles',ja:'麺',romaji:'men',say:'men',note:'The character on the shop sign. 麺類 is the noodle section of a menu.'},
+ {id:'rice',en:'Rice',ja:'ご飯',romaji:'gohan',say:'go-han',note:'ご飯 is cooked rice and also means “a meal”. ライス is the word for rice on a plate beside a curry.'},
+ {id:'spicy',en:'Spicy',ja:'辛い',romaji:'karai',say:'ka-rye',note:'The character to spot on a menu. 激辛 means extremely hot, and is not a dare worth taking.'},
+ {id:'raw',en:'Raw',ja:'生',romaji:'nama',say:'na-ma',note:'生 means raw or unheated. On a beer tap it means draught, which is a different thing entirely.'},
+ {id:'cucumber',en:'Cucumber',ja:'きゅうり / かっぱ',romaji:'kyūri / kappa',say:'kyoo-ree / kap-pa',note:'かっぱ is the cucumber roll, named after the river creature that is supposed to love them.'},
+ {id:'avocado',en:'Avocado',ja:'アボカド',romaji:'abokado',say:'a-bo-ka-do',note:'Not traditional, and on nearly every conveyor belt anyway — usually with prawn.'},
+ {id:'roll',en:'Roll (rolled in seaweed)',ja:'巻き',romaji:'maki',say:'ma-kee',note:'巻き at the end of a name means it is rolled in seaweed — 鉄火巻き is tuna, かっぱ巻き is cucumber.'}
 ];
 export const FOOD_KIND_LABEL=id=>FOOD_KINDS.find(([k])=>k===id)?.[1]||'Other';
