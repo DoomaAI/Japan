@@ -73,7 +73,7 @@ The shortcut icon is the guide's own cover — the title block, with Mount Fuji,
 | `APP_ORIGIN` | Exact production HTTPS origin; no trailing slash |
 | `ANTHROPIC_API_KEY` | Optional. Switches on the features that call the Claude API — reading a menu from a photo, reading a document into English, judging the photo of the day, translating a phrase of our own, looking a planning-board idea up on the web, suggesting ideas for a place, asking what is near here, and reading the sumo card and its wrestlers; server only, never prefixed `VITE_` |
 | `EMAIL_INBOX_SECRET` | Optional. The secret your mail provider puts in the inbound webhook URL. Without it `/api/email-in` answers 404 to everything; server only |
-| `EMAIL_INBOX_SENDERS` | Optional. Comma-separated addresses allowed to forward email in. Anything from another address is dropped; server only |
+| `EMAIL_INBOX_SENDERS` | Optional. Comma-separated addresses allowed to forward email in, or a single `*` to accept any sender. Empty means nobody, not everybody; server only |
 
 Looking a place up and suggesting ideas both run web searches on Anthropic's side, so they take longer than the other calls. `vercel.json` gives the API function a 60-second `maxDuration` for that reason; on a plan whose ceiling is lower, those two are the features that will time out, and everything else is unaffected.
 
@@ -88,7 +88,9 @@ domain of your own.
 2. Pick a long random secret and set `EMAIL_INBOX_SECRET` in the Vercel project. Set the inbound
    webhook URL to `https://YOUR-ORIGIN/api/email-in/THE-SECRET`. A URL with basic-auth
    credentials works too: the app accepts the secret as the password.
-3. Set `EMAIL_INBOX_SENDERS` to the addresses you will forward from, comma-separated.
+3. Set `EMAIL_INBOX_SENDERS` to the addresses you will forward from, comma-separated — or to a
+   single `*` to accept any sender. Leaving it empty is not the same as `*`: an empty list turns
+   every message away, and the app reports the feature as switched off.
 4. Set `ANTHROPIC_API_KEY` if it is not already set. Without it the email is still stored; it is
    simply not read into English.
 5. In Gmail, add a filter that forwards the confirmations you care about to the Postmark address.
@@ -100,10 +102,16 @@ are set, `/api/email-in` answers 404 to everything, including a correct secret.
 **What gets through.** A request without the secret is answered 404, the same as a wrong path, so
 a caller guessing at the URL learns nothing. A message from an address that is not on the list,
 one Postmark has marked as spam, or one with neither text nor attachments is answered 200 and
-dropped — 200 rather than an error, so a mail provider does not retry it for hours. Be aware that
-the sender list is a filter, not proof of identity: a `From` header can be forged by anyone who
-learns the address. The address is therefore never published, the secret in the URL is the real
-lock, and no forwarded email ever reaches the itinerary without a parent filing it.
+dropped — 200 rather than an error, so a mail provider does not retry it for hours.
+
+**On the sender list.** It is a filter, not proof of identity: a `From` header can be forged by
+anyone who learns the address. That is why the address is never published, the secret in the URL
+is the real lock, and no forwarded email reaches the itinerary without a parent filing it. It is
+also why `*` is a reasonable setting rather than a reckless one — and why an auto-forwarding
+Gmail filter needs it. **A filter that forwards automatically leaves the original sender in
+`From`**, so a confirmation arrives looking like it came from the hotel, not from you; only
+hitting Forward by hand rewrites it. With a named list, set the list to `*` or forward by hand.
+When it is open, the screen says so, so the setting is never a mystery.
 
 **Where it can be filed.** Tickets & reservations is the default, attached to the whole trip, a
 day or one activity. The other four put it where the family would have put it themselves: a new
