@@ -12,6 +12,9 @@ import SayIt from './SayIt.jsx';
 import Phrasebook,{PhraseOfDay} from './Phrasebook.jsx';
 import {phraseForDay} from './phrasebook-data.js';
 import {phraseSeenBy,phraseQueue} from './trip-features.js';
+import FunFacts,{FactOfDay} from './FunFacts.jsx';
+import {factForDay} from './fact-data.js';
+import {factSeenBy,factQueue} from './trip-features.js';
 import {PHRASES} from './phrases.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
 import {primaryNav,moreIds,PAGES} from './nav-data.js';
@@ -67,7 +70,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // What is missing is deliberate: anything that reshapes the plan needs the latest revision
 // to be safe, a stale exchange rate or forecast overwriting a fresh one is worse than not
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
-const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore',
+const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove',
  'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','spendAdd','spendBought','spendRequest','sumoResult','sumoPredict','stepRating','stepThought'];
 function App(){
@@ -79,7 +82,7 @@ function App(){
  const state=envelope?.state,user=envelope?.user,parent=user?.role==='parent';
  const directions=(place,mode='transit')=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(target)+'&travelmode='+mode;};
  const maps=place=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(target);};
- const envRef=useRef(envelope),queueRef=useRef(queue),working=useRef(false),touch=useRef(null),noteShown=useRef(''),phraseSeen=useRef(''),landed=useRef(false);
+ const envRef=useRef(envelope),queueRef=useRef(queue),working=useRef(false),touch=useRef(null),noteShown=useRef(''),phraseSeen=useRef(''),factShown=useRef(''),landed=useRef(false);
  envRef.current=envelope;queueRef.current=queue;
  function notice(s){setToast(s);}
  function accept(e){e={...e,state:ensureFeatures(e.state)};envRef.current=e;setEnvelope(e);localStorage.setItem('japan.snapshot',JSON.stringify({...e,savedAt:Date.now()}));}
@@ -209,21 +212,38 @@ function App(){
   const link=new URLSearchParams(location.search);
   if(user.role==='child'&&!link.get('tab')&&!link.get('step')&&!link.get('page'))setTab('challenges');
  },[user?.name]);
- // Today's phrase, once per person per day. Lauren's private note takes precedence, so the
- // two never stack up on the same screen.
+ // Whether today is a day of the trip at all. The daily pop-ups hang off this: the phrase
+ // first, then the fun fact, each once per person per day, and Lauren's private note ahead of
+ // both — so they queue rather than stacking up on the same screen.
  const todayJapan=japanDate(now);
- const phraseDay=state?.days.some(d=>d.date===todayJapan)?todayJapan:null;
- const todaysPhrase=phraseDay?phraseForDay(state.days,phraseDay):null;
- const phraseDone=!todaysPhrase||!!phraseSeenBy(state,phraseDay)[user?.name]||localStorage.getItem(`japan.phrase.${phraseDay}`)==='seen';
+ const dayOnTrip=state?.days.some(d=>d.date===todayJapan)?todayJapan:null;
+ const todaysPhrase=dayOnTrip?phraseForDay(state.days,dayOnTrip):null;
+ const phraseDone=!todaysPhrase||!!phraseSeenBy(state,dayOnTrip)[user?.name]||localStorage.getItem(`japan.phrase.${dayOnTrip}`)==='seen';
  useEffect(()=>{
   // It waits for a clear screen, so it lands after her note is closed rather than on top of it.
-  if(!todaysPhrase||phraseDone||modal||phraseSeen.current===phraseDay)return;
+  if(!todaysPhrase||phraseDone||modal||phraseSeen.current===dayOnTrip)return;
   if(noteForMe&&!noteRead)return;
-  phraseSeen.current=phraseDay;setModal({type:'phrase',phrase:todaysPhrase,day:phraseDay});
+  phraseSeen.current=dayOnTrip;setModal({type:'phrase',phrase:todaysPhrase,day:dayOnTrip});
  },[todaysPhrase?.id,phraseDone,noteForMe?.day,noteRead,modal]);
  async function seePhrase(day,phraseIds=[]){
   localStorage.setItem(`japan.phrase.${day}`,'seen');
   await mutate({type:'phraseSeen',day,person:user.name,phraseIds});
+  setModal(null);
+ }
+ // Today's fun fact, once per person per day, about what that day actually holds. It queues
+ // behind Lauren's note and the phrase rather than stacking on top of either, so a morning
+ // never opens onto three pop-ups at once.
+ const todaysFact=dayOnTrip?factForDay(state.days,dayOnTrip):null;
+ const factDone=!todaysFact||!!factSeenBy(state,dayOnTrip)[user?.name]||localStorage.getItem(`japan.fact.${dayOnTrip}`)==='seen';
+ useEffect(()=>{
+  if(!todaysFact||factDone||modal||factShown.current===dayOnTrip)return;
+  if(noteForMe&&!noteRead)return;
+  if(todaysPhrase&&!phraseDone)return;
+  factShown.current=dayOnTrip;setModal({type:'fact',day:dayOnTrip});
+ },[todaysFact?.id,factDone,todaysPhrase?.id,phraseDone,noteForMe?.day,noteRead,modal]);
+ async function seeFact(day,factIds=[]){
+  localStorage.setItem(`japan.fact.${day}`,'seen');
+  await mutate({type:'factSeen',day,person:user.name,factIds});
   setModal(null);
  }
  async function readNote(note){
@@ -286,6 +306,7 @@ function App(){
   {tab==='updates'&&<Updates state={state} user={user} mutate={mutate} busy={busy}/>}
   {tab==='photos'&&<><p className="eyebrow">THROUGH THEIR EYES</p><h1>Photos</h1>{!photoPerson&&<div className="form-row"><label>Day<select value={day} onChange={e=>selectPhotoDay(e.target.value)}>{state.days.map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)} · {d.title}</option>)}</select></label></div>}<PhotoDay state={visibleState} user={user} day={day} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay} person={photoPerson} setPerson={choosePhotoPerson}/></>}
   {tab==='games'&&<Games state={visibleState} user={user} mutate={mutate} busy={busy} online={online} refresh={refresh} dayLabel={fmtDay}/>}
+  {tab==='facts'&&<><p className="eyebrow">SOMETHING WORTH KNOWING EVERY DAY</p><h1>Fun facts</h1><p>A fact a day about what is actually coming up, taken out of the guide. Swipe for more whenever you want another.</p><FunFacts state={visibleState} user={user} day={japanDate(now)} mutate={mutate} busy={busy} openPage={openPage}/></>}
   {tab==='phrases'&&<><p className="eyebrow">A LITTLE JAPANESE GOES A LONG WAY</p><h1>Phrases</h1><Phrasebook state={visibleState} user={user} day={japanDate(now)} mutate={mutate} busy={busy} request={request} notice={notice} config={config}/></>}
   {tab==='money'&&<><p className="eyebrow">WHAT DOES THAT COST?</p><h1>Yen converter</h1><Currency state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice}/></>}
   {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><FoodList state={visibleState} user={user} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
@@ -309,13 +330,14 @@ function App(){
   <BottomNav tab={tab} user={user} go={go} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
   {toast&&<div className="toast" role="status">{toast}<button aria-label="Dismiss" onClick={()=>setToast('')}><X size={16}/></button></div>}
-  {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:'Food & amenities near here',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',eyespy:'Window I spy',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${THANK_YOU_FROM}`}[modal.type]} onClose={()=>setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo'].includes(modal.type)}>
+  {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:'Food & amenities near here',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',eyespy:'Window I spy',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${THANK_YOU_FROM}`}[modal.type]} onClose={()=>setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo'].includes(modal.type)}>
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)}/>}
    {modal.type==='voice'&&<VoiceNotes state={visibleState} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay}/>}
    {modal.type==='foodcard'&&<FoodCard item={modal.item} notice={notice}/>}
    {modal.type==='park'&&<ParkGuide state={visibleState} user={user} park={modal.park} mutate={mutate} busy={busy} open={setModal}/>}
    {modal.type==='phrase'&&<PhraseOfDay queue={phraseQueue(visibleState,user.name,modal.day)} day={modal.day} dateLabel={fmtDay(modal.day)} busy={busy} dismiss={ids=>seePhrase(modal.day,ids)}/>}
+   {modal.type==='fact'&&<FactOfDay queue={factQueue(visibleState,user.name,modal.day)} dateLabel={fmtDay(modal.day)} busy={busy} dismiss={ids=>seeFact(modal.day,ids)} openPage={async(page,ids)=>{await seeFact(modal.day,ids);openPage(page);}}/>}
    {modal.type==='eyespy'&&<EyeSpy state={visibleState} user={user} step={modal.step} mutate={mutate} busy={busy}/>}
    {modal.type==='thankyou'&&<ThankYouNote note={modal.note} seenAt={state.thankYou.seen?.[modal.note.day]} busy={busy} dismiss={()=>readNote(modal.note)}/>}
    {modal.type==='late'&&<RunningLate state={state} day={day} mutate={mutate} busy={busy} close={()=>setModal(null)}/>}

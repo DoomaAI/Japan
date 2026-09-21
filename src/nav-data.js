@@ -14,6 +14,7 @@ export const PAGES={
  places:{label:'Places & our map',note:'Directions and our Google My Map'},
  meeting:{label:'Meeting card',note:'If we get separated'},
  phrases:{label:'Phrases',note:'Greetings and travel Japanese, with how to say it'},
+ facts:{label:'Fun facts',note:'A fact a day about what is coming up, and the whole collection'},
  help:{label:'Help & useful apps',note:'Translation, hotel directions, reminders'},
  options:{label:'Options & ideas',note:'Places and activities saved for later'},
  planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, and voting on them'},
@@ -34,7 +35,7 @@ export const PRIMARY={
  child:['today','days','challenges','food','diary']
 };
 export const MORE_SECTIONS=[
- ['Out and about',['weather','places','money','spending','food','phrases','meeting','help']],
+ ['Out and about',['weather','places','money','spending','food','phrases','facts','meeting','help']],
  ['The plan',['todo','planning','options','parks','shopping','challenges','games','tickets','inbox','guide']],
  ['Looking back',['photos','diary','updates','search']],
  ['Just for you',['thanks']]
