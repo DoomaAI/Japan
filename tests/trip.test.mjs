@@ -3985,7 +3985,9 @@ test('every origami model folds all the way to something, with a sentence at eac
    if(!step.fold)continue;
    assert.ok(foldSpec(step.fold),`a fold of ${model.id} does not describe a crease and a side`);
   }
-  const before=steps.map(s=>JSON.stringify(s.layers));
+  // A step has to change SOMETHING. A crease leaves the paper where it was, so what it
+  // changes is the set of lines on it — but a step that changes neither is a lie.
+  const before=steps.map(s=>JSON.stringify([s.layers,s.creases]));
   assert.equal(new Set(before).size,before.length,`${model.id} has a step that changes nothing`);
   // Paper only ever gets more layers, never fewer: that is what folding is.
   for(let i=1;i<steps.length;i++)
@@ -4318,4 +4320,61 @@ test('a part-approval reads as a part-approval, and a generous one does not',asy
  assert.equal(purse(less,'Nate',day).paidIn,400);
  assert.equal(purse(more,'Nate',day).paidIn,1400);
  assert.equal(requestsFor(less,'Nate')[0].yen,600,'what was asked for is not rewritten by the answer');
+});
+
+test('folding and opening out again leaves a line, and the line goes with the paper',async()=>{
+ const o=await import('../src/origami-data.js');
+ const creased={id:'t',name:'t',ja:'t',icon:'x',about:'x'.repeat(50),finish:'y'.repeat(30),steps:[
+  {say:'Fold it in half and open it out again, so there is a line down the middle.',
+   crease:{through:[[50,0],[50,100]],moving:[20,50]}},
+  {say:'Now fold the top left corner in to the line you just made.',fold:{bring:[10,10],to:[50,50]}},
+  {say:'Turn the whole thing over and look at the back of it.',turn:true}
+ ]};
+ const frames=o.foldThrough(creased);
+ // The paper does not move, and there is a line on it now.
+ assert.deepEqual(frames[1].layers,frames[0].layers,'a crease is not a fold');
+ assert.equal(frames[0].creases.length,0);
+ assert.equal(frames[1].creases.length,1);
+ // Trimmed to the paper, like any other crease.
+ const [a,b]=frames[1].creases[0];
+ assert.equal(Math.round(a[0]),50);assert.equal(Math.round(b[0]),50);
+ assert.ok(Math.min(a[1],b[1])>=9.9&&Math.max(a[1],b[1])<=90.1,'it stops at the edge of the sheet');
+ // A real fold after it leaves the line alone.
+ assert.notDeepEqual(frames[2].layers,frames[1].layers);
+ assert.deepEqual(frames[2].creases,frames[1].creases);
+ // Turning it over takes the line with it — a guide line left behind where the paper used to
+ // be is worse than no guide line at all.
+ const over=frames[3].creases[0];
+ assert.equal(frames[3].creases.length,1);
+ for(const point of over)assert.ok(Number.isFinite(point[0])&&Number.isFinite(point[1]));
+ const paper=o.boundsOf(frames[3].layers);
+ assert.ok(over.every(([x])=>x>=paper.minX-1&&x<=paper.maxX+1),'and it lands on the paper');
+ // Every step is drawn with the creases it had at the time, not the ones it ends up with.
+ const shown=o.stepFrames(creased);
+ assert.equal(shown[0].creases.length,0,'the first step has no line yet — you are about to make it');
+ assert.equal(shown[1].creases.length,1);
+});
+
+test('the planes are planes: a rectangle, a centre line, and two wings',async()=>{
+ const {ORIGAMI,modelById,stepFrames}=await import('../src/origami-data.js');
+ const planes=['dart','glider','hammer'].map(modelById);
+ assert.ok(planes.every(Boolean),'all three are there');
+ assert.equal(ORIGAMI.length,7);
+ for(const plane of planes){
+  // A plane wants a rectangle. Folded from a square it comes out stubby and flies badly.
+  const width=plane.paper[1][0]-plane.paper[0][0],height=plane.paper[2][1]-plane.paper[1][1];
+  assert.ok(height>width*1.3,`${plane.id} should start from a long sheet`);
+  // The centre line first, opened out again, because every later fold is lined up on it.
+  assert.ok(plane.steps[0].crease,`${plane.id} should start by creasing the middle`);
+  assert.equal(stepFrames(plane)[1].creases.length,1);
+  // Folded in half, then a wing on each side — and the second one is folded after turning
+  // over, so they end up mirrored rather than stacked.
+  const wings=plane.steps.filter(s=>s.fold?.only==='front');
+  assert.equal(wings.length,2,`${plane.id} needs two wings`);
+  assert.ok(plane.steps.some(s=>s.turn),`${plane.id} has to be turned over between them`);
+  assert.ok(plane.steps.indexOf(wings[0])<plane.steps.findIndex(s=>s.turn),'one wing before the turn');
+  assert.ok(plane.steps.indexOf(wings[1])>plane.steps.findIndex(s=>s.turn),'and one after it');
+  // It says how to throw it, which is the half everybody gets wrong.
+  assert.match(plane.finish,/throw|let it go/i);
+ }
 });

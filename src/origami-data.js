@@ -162,17 +162,37 @@ export function creaseInBox(crease,bounds,over=0){
  if(!(hi>lo))return null;
  return [[ax+dx*lo,ay+dy*lo],[ax+dx*hi,ay+dy*hi]];
 }
+// Moving the creases with the paper. A crease is a line ON the sheet, so when the sheet is
+// turned or spun the line goes with it — a guide line left behind where the paper used to be
+// is worse than no guide line.
+const moveLine=(line,move)=>{const [[a],[b]]=[move([line[0]]),move([line[1]])];return [a,b];};
 // Play a model's folds through and keep the picture after each one, so a step can be shown
-// without replaying everything before it.
+// without replaying everything before it. Creases are remembered: folding and unfolding leaves
+// a line you line the next fold up against, and half of learning a plane is those lines.
 export function foldThrough(model){
- let layers=[model.paper||PAPER];
- const frames=[layers];
+ let layers=[model.paper||PAPER],creases=[];
+ const frames=[{layers,creases}];
  for(const step of model.steps){
-  const spec=foldSpec(step.fold);
-  if(spec)layers=foldLayers(layers,spec.crease[0],spec.crease[1],spec.move,step.fold.only);
-  else if(step.turn)layers=flipLayers(layers);
-  else if(step.rotate)layers=fitLayers(rotateLayers(layers,step.rotate));
-  frames.push(layers);
+  const spec=foldSpec(step.fold||step.crease);
+  if(step.crease&&spec){
+   // Folded and opened out again: the paper is where it was and there is a line on it now.
+   creases=[...creases,creaseInBox(spec.crease,boundsOf(layers))].filter(Boolean);
+  }else if(spec&&step.fold){
+   layers=foldLayers(layers,spec.crease[0],spec.crease[1],spec.move,step.fold.only);
+  }else if(step.turn){
+   layers=flipLayers(layers);
+   const axis=(boundsOf(layers).minX+boundsOf(layers).maxX)/2;
+   creases=creases.map(line=>moveLine(line,pts=>pts.map(([x,y])=>[2*axis-x,y])));
+  }else if(step.rotate){
+   const spun=rotateLayers(layers,step.rotate);
+   const before=boundsOf(spun);
+   layers=fitLayers(spun);
+   const after=boundsOf(layers);
+   const scale=(after.maxX-after.minX)/(before.maxX-before.minX||1);
+   const shift=([x,y])=>[after.minX+(x-before.minX)*scale,after.minY+(y-before.minY)*scale];
+   creases=creases.map(line=>moveLine(rotateLayers([line],step.rotate)[0].map(p=>p),pts=>pts.map(shift)));
+  }
+  frames.push({layers,creases});
  }
  return frames;
 }
@@ -181,8 +201,8 @@ export function foldThrough(model){
 // thing with nothing drawn on it.
 export function stepFrames(model){
  const frames=foldThrough(model);
- return model.steps.map((step,i)=>({...step,index:i,layers:frames[i],after:frames[i+1]}))
-  .concat([{say:model.finish,index:model.steps.length,layers:frames[frames.length-1],done:true}]);
+ return model.steps.map((step,i)=>({...step,index:i,layers:frames[i].layers,creases:frames[i].creases,after:frames[i+1].layers}))
+  .concat([{say:model.finish,index:model.steps.length,layers:frames.at(-1).layers,creases:frames.at(-1).creases,done:true}]);
 }
 const cup={
  id:'cup',name:'Paper cup',ja:'紙コップ',romaji:'kami koppu',icon:'🥤',minutes:4,level:'Easy',
@@ -255,6 +275,80 @@ const hat={
    fold:{through:[[0,75],[100,75]],moving:[50,90]}}
  ]
 };
-export const ORIGAMI=[fox,hat,cup,helmet];
+const A4=[[26,16],[74,16],[74,84],[26,84]];
+// Paper planes. All flat folds, which is why they work here — and the centre crease you make
+// first and then open out is the line every later fold is lined up against.
+const dart={
+ id:'dart',name:'Dart',ja:'かみひこうき',romaji:'kami hikōki',icon:'🛩️',minutes:2,level:'Easiest',
+ paper:A4,
+ about:'The one everybody knows. Thin, heavy at the front, and it goes a long way in a straight line. Throw it hard.',
+ finish:'Hold it underneath, at the thickest part, and throw it level and hard. It wants speed, not height.',
+ steps:[
+  {say:'A sheet of paper, the long way up. Fold it in half down the middle, then open it out again — you only want the line.',
+   crease:{through:[[50,0],[50,100]],moving:[30,50]}},
+  {say:'Fold the top left corner in so its edge lies along that middle line.',
+   fold:{bring:[26,16],to:[50,40]}},
+  {say:'Fold the top right corner in the same way. It comes to a point.',
+   fold:{bring:[74,16],to:[50,40]}},
+  {say:'Fold the new left edge in to the middle line again, from the point downwards.',
+   fold:{bring:[26,40],to:[50,64]}},
+  {say:'And the right edge the same. The nose is getting long and thin now.',
+   fold:{bring:[74,40],to:[50,64]}},
+  {say:'Fold the whole thing in half along the middle line, so the flaps end up on the outside.',
+   fold:{through:[[50,0],[50,100]],moving:[30,50]}},
+  {say:'Fold the front wing down to meet the bottom edge.',
+   fold:{through:[[0,58],[100,58]],moving:[60,30],only:'front'}},
+  {say:'Turn it over and fold the other wing down to match.',turn:true},
+  {say:'Fold that wing down too, and line the two up against each other.',
+   fold:{through:[[0,58],[100,58]],moving:[60,30],only:'front'}}
+ ]
+};
+const glider={
+ id:'glider',name:'Glider',ja:'グライダー',romaji:'guraidā',icon:'✈️',minutes:3,level:'Easy',
+ paper:A4,
+ about:'Blunt nose, wide wings. It will not go as far as the dart but it stays up much longer — throw it gently and it floats across the room.',
+ finish:'Hold it underneath and let it go, level and slow. Thrown hard it just loops.',
+ steps:[
+  {say:'The long way up. Fold in half down the middle and open it out again.',
+   crease:{through:[[50,0],[50,100]],moving:[30,50]}},
+  {say:'Fold the top edge down about a fifth of the way. That blunt nose is what keeps it in the air.',
+   fold:{through:[[0,30],[100,30]],moving:[50,20]}},
+  {say:'Fold the top left corner in to the middle line.',
+   fold:{bring:[26,30],to:[50,54]}},
+  {say:'Fold the top right corner in to match.',
+   fold:{bring:[74,30],to:[50,54]}},
+  {say:'Fold the whole thing in half along the middle line.',
+   fold:{through:[[50,0],[50,100]],moving:[30,50]}},
+  {say:'Fold the front wing down, leaving a finger-width of body underneath.',
+   fold:{through:[[0,48],[100,48]],moving:[60,30],only:'front'}},
+  {say:'Turn the whole thing over, keeping the nose pointing the same way.',turn:true},
+  {say:'Fold the other wing down to match it exactly, or it will fly in circles.',
+   fold:{through:[[0,48],[100,48]],moving:[60,30],only:'front'}}
+ ]
+};
+const hammer={
+ id:'hammer',name:'Wide wing',ja:'ひろつばさ',romaji:'hirotsubasa',icon:'🪁',minutes:3,level:'Easy',
+ paper:A4,
+ about:'Short, fat and slow, with a wing almost as wide as it is long. It hangs in the air and turns. The one to throw indoors.',
+ finish:'Throw it softly, nose slightly up. Bend the back corners of the wings up a touch and it will climb.',
+ steps:[
+  {say:'The long way up. Fold in half down the middle and open it out again.',
+   crease:{through:[[50,0],[50,100]],moving:[30,50]}},
+  {say:'Fold the top edge down a long way — about a third of the sheet. That is what makes the nose heavy and the wings wide.',
+   fold:{through:[[0,44],[100,44]],moving:[50,20]}},
+  {say:'Fold the top left corner down to the middle line.',
+   fold:{bring:[26,44],to:[50,66]}},
+  {say:'Fold the top right corner down to match it.',
+   fold:{bring:[74,44],to:[50,66]}},
+  {say:'Fold the whole thing in half along the middle line.',
+   fold:{through:[[50,0],[50,100]],moving:[30,50]}},
+  {say:'Fold the front wing down, right down near the bottom edge.',
+   fold:{through:[[0,56],[100,56]],moving:[60,40],only:'front'}},
+  {say:'Turn it over and fold the last wing down to match.',turn:true},
+  {say:'Fold it down, and press every crease hard.',
+   fold:{through:[[0,56],[100,56]],moving:[60,40],only:'front'}}
+ ]
+};
+export const ORIGAMI=[fox,hat,cup,helmet,dart,glider,hammer];
 export const modelById=id=>ORIGAMI.find(m=>m.id===id)||null;
 export const origamiGame=id=>`origami-${id}`;
