@@ -10,7 +10,7 @@ import {AppError,applyOperation,MEMBERS,documentDetails,documentAssociation,tick
 import {database,readTrip,writeTrip,updateTrip,session,localDemo,hash,token,setCookie} from './store.mjs';
 import {visibleEnvelope} from './visibility.mjs';
 import {readMenu,menuReaderReady} from './menu.mjs';
-import {translatePhrase,translatorReady} from './translate.mjs';
+import {translatePhrase,translatorReady,translateTicketText,TICKET_FIELDS,TICKET_DIRECTIONS,ticketTranslationKey} from './translate.mjs';
 import {researchPlace,researchReady} from './research.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {nearbyPlaces,nearbyReady} from './nearby.mjs';
@@ -112,6 +112,34 @@ export default async function handler(req,res){
   if(route==='translate'&&post){
    parent(user);
    return json(res,await translatePhrase(b));
+  }
+  // The same translator, pointed at what a booking already says rather than at a phrase typed
+  // into the phrasebook. Only what is written on the ticket is sent — the field is chosen by
+  // name and the text is read here, so nothing else travels with it. The answer is written
+  // onto the ticket rather than handed back to the screen alone, because the moment it is
+  // needed is at a counter with no signal.
+  if(route==='ticket-translate'&&post){
+   parent(user);
+   const field=String(b.field||'notes'),direction=String(b.direction||'en');
+   if(!TICKET_FIELDS.includes(field))throw new AppError('Translate the booking’s name, its reference or its notes.');
+   if(!TICKET_DIRECTIONS.includes(direction))throw new AppError('Choose English or Japanese.');
+   const key=ticketTranslationKey(field,direction);
+   if(b.remove===true)return json(res,visibleEnvelope(await updateTrip(next=>{
+    const found=next.documents.find(d=>d.id===b.id);
+    if(!found?.translations?.[key])return null;
+    delete found.translations[key];
+    return next;
+   }),user));
+   const {state}=await readTrip();
+   const doc=state.documents.find(d=>d.id===b.id);
+   if(!doc||doc.category==='memory')throw new AppError('That booking is no longer in the trip.',404);
+   const {usage,...translation}=await translateTicketText({text:doc[field]||'',direction,field,title:doc.title});
+   return json(res,visibleEnvelope(await updateTrip(next=>{
+    const found=next.documents.find(d=>d.id===b.id);
+    if(!found)throw new AppError('That booking is no longer in the trip.',404);
+    found.translations={...(found.translations||{}),[key]:{...translation,by:user.name,at:new Date().toISOString()}};
+    return next;
+   }),user));
   }
   // Looking a place up reads nothing private and writes nothing: it hands back a draft for a
   // parent to check and save themselves, through the ordinary revision-checked mutate.
@@ -293,7 +321,7 @@ export default async function handler(req,res){
    parent(user);const current=await readTrip();
    if(typeof b.pathname!=='string'||!b.pathname.startsWith(`tickets/${user.id}/`)||b.pathname.includes('..'))throw new AppError('Invalid attachment.');
    if(!b.title||typeof b.title!=='string'||b.title.length>250)throw new AppError('Add a document title.');
-   if(b.stepId&&!current.state.steps.some(s=>s.id===b.stepId))throw new AppError('Activity not found.');
+   for(const id of (Array.isArray(b.stepIds)?b.stepIds:[b.stepId]).filter(Boolean))if(!current.state.steps.some(s=>s.id===id))throw new AppError('Activity not found.');
    if(b.person&&!['Family',...MEMBERS].includes(b.person))throw new AppError('Choose a family member.');
    const root=ticketParent(b.parentDocumentId,current.state);
    const details=documentDetails(root?{...b,category:root.category}:b),association=documentAssociation(root||b,current.state);

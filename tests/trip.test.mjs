@@ -6076,6 +6076,199 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  // It is a switch to a screen reader too, not a button whose meaning is in the word beside it.
  assert.match(page,/role="switch" aria-checked=\{on\} aria-label=\{s\.label\}/);
 });
+
+test('one booking, every gate it opens: a ticket is allocated to as many activities as it covers',async()=>{
+ const {ticketList,isArchived,offlineManifest,pendingProgress,documentSteps,documentServesStep,documentStepList}=await import('../src/trip-features.js');
+ const day=seed.days[0].date,[a,b]=activeSteps(seed,day).filter(s=>!s.locked).slice(0,2);
+ const other=seed.steps.find(s=>s.day&&s.day!==day);
+ assert.ok(a&&b&&other);
+ // A rail pass that gets us through three gates is one booking held against all of them.
+ let s=applyOperation(seed,{type:'documentNote',title:'Two-day pass',category:'ticket',stepIds:[a.id,b.id,a.id]},parent);
+ const pass=s.documents.at(-1);
+ assert.deepEqual(pass.stepIds,[a.id,b.id],'each activity once');
+ assert.equal(pass.stepId,a.id,'the first of them is still where a ticket written last month keeps its activity');
+ assert.deepEqual(documentSteps(pass),[a.id,b.id]);
+ assert.deepEqual(documentStepList(s,pass).map(x=>x.title),[a.title,b.title]);
+ // It shows against either activity, and is downloaded for the day either one falls on.
+ assert.equal(ticketList(s,{step:a,all:false}).length,1);
+ assert.equal(ticketList(s,{step:b,all:false}).length,1);
+ assert.equal(ticketList(s,{step:other,all:false}).length,0);
+ // A booking spanning two days is downloaded for both of them, and for neither once it is used.
+ const across={id:'pass-file',title:'Two-day pass',person:'Family',type:'application/pdf',pathname:'tickets/pass.pdf',
+  category:'ticket',stepIds:[a.id,other.id],stepId:a.id,day:null};
+ const spanning={...structuredClone(seed),documents:[across]};
+ assert.ok(offlineManifest(spanning,day).files.some(f=>f.key==='doc-pass-file'));
+ assert.ok(offlineManifest(spanning,other.day).files.some(f=>f.key==='doc-pass-file'));
+ const usedUp=applyOperation(applyOperation(spanning,{type:'status',id:a.id,status:'done'},parent),{type:'status',id:other.id,status:'done'},parent);
+ assert.ok(!offlineManifest(usedUp,day).files.some(f=>f.key==='doc-pass-file'));
+ assert.ok(!offlineManifest(usedUp,other.day).files.some(f=>f.key==='doc-pass-file'));
+
+ // A pass is not finished at the first gate: it leaves the list once every activity it covers
+ // has been ticked off, and not before.
+ const first=applyOperation(s,{type:'status',id:a.id,status:'done'},parent);
+ assert.ok(!isArchived(first.documents.find(d=>d.id===pass.id)),'one gate down, the pass is still needed');
+ const both=applyOperation(first,{type:'status',id:b.id,status:'done'},parent);
+ const spent=both.documents.find(d=>d.id===pass.id);
+ assert.ok(isArchived(spent),'both gates walked through, the pass is finished');
+ assert.equal(spent.archivedWith,b.id);
+ // Undoing either of them brings it back, because it is needed again.
+ const undone=applyOperation(both,{type:'status',id:a.id,status:'todo'},parent);
+ assert.ok(!isArchived(undone.documents.find(d=>d.id===pass.id)));
+ assert.equal(undone.documents.find(d=>d.id===pass.id).archivedWith,null);
+
+ // The same rule on a phone with no signal, rather than waiting for the sync.
+ const at='2026-09-24T02:00:00.000Z';
+ const oneOffline=pendingProgress(s,[{operation:{type:'status',id:a.id,status:'done',at}}]);
+ assert.ok(!isArchived(oneOffline.documents.find(d=>d.id===pass.id)));
+ const bothOffline=pendingProgress(s,[{operation:{type:'status',id:a.id,status:'done',at}},{operation:{type:'status',id:b.id,status:'done',at}}]);
+ assert.equal(bothOffline.documents.find(d=>d.id===pass.id).archivedAt,at);
+ assert.ok(!isArchived(pendingProgress(bothOffline,[{operation:{type:'status',id:b.id,status:'todo',at}}]).documents.find(d=>d.id===pass.id)));
+
+ // Deleting one activity leaves the booking against the rest; deleting the last one hands it
+ // back to that activity's day rather than leaving it pointing at nothing.
+ const droppedOne=applyOperation(s,{type:'remove',id:a.id},parent);
+ assert.deepEqual(droppedOne.documents.find(d=>d.id===pass.id).stepIds,[b.id]);
+ assert.equal(droppedOne.documents.find(d=>d.id===pass.id).stepId,b.id);
+ assert.equal(droppedOne.documents.find(d=>d.id===pass.id).day,null);
+ const droppedBoth=applyOperation(droppedOne,{type:'remove',id:b.id},parent);
+ assert.deepEqual(droppedBoth.documents.find(d=>d.id===pass.id).stepIds,[]);
+ assert.equal(droppedBoth.documents.find(d=>d.id===pass.id).stepId,null);
+ assert.equal(droppedBoth.documents.find(d=>d.id===pass.id).day,b.day);
+
+ // A ticket and the files attached to it are one allocation, so the files follow it.
+ const withFile=applyOperation(s,{type:'documentNote',title:'Boston QR',parentDocumentId:pass.id},parent);
+ withFile.documents.at(-1).parentDocumentId=pass.id;
+ const synced=applyOperation(withFile,{type:'editDocument',id:pass.id,title:'Two-day pass',category:'ticket',stepIds:[b.id]},parent);
+ assert.deepEqual(synced.documents.find(d=>d.parentDocumentId===pass.id).stepIds,[b.id]);
+ assert.equal(synced.documents.find(d=>d.parentDocumentId===pass.id).stepId,b.id);
+
+ // A ticket saved before a booking could cover more than one activity still reads correctly.
+ const legacy={id:'legacy',title:'Old ticket',person:'Family',type:'note',category:'ticket',stepId:a.id,day:null};
+ const old={...structuredClone(seed),documents:[legacy]};
+ assert.deepEqual(documentSteps(legacy),[a.id]);
+ assert.ok(documentServesStep(legacy,a.id));
+ assert.equal(ticketList(old,{step:a,all:false}).length,1);
+ assert.ok(isArchived(applyOperation(old,{type:'status',id:a.id,status:'done'},parent).documents[0]));
+
+ // What cannot be allocated.
+ assert.throws(()=>applyOperation(seed,{type:'documentNote',title:'Bad',stepIds:[a.id,'nope']},parent),/Activity not found/);
+ assert.throws(()=>applyOperation(seed,{type:'documentNote',title:'Bad',stepIds:[a.id],day},parent),/activity or a day, not both/);
+ assert.throws(()=>applyOperation(seed,{type:'documentNote',title:'Bad',stepIds:'all'},parent),/Choose the activities/);
+ assert.throws(()=>applyOperation(seed,{type:'documentNote',title:'Bad',stepIds:activeSteps(seed,day).map(x=>x.id).concat(seed.steps.slice(0,25).map(x=>x.id))},parent),/at most 20 activities/);
+});
+
+test('a booking read in the other language, and kept on the booking where it will be needed',async()=>{
+ const {createServer}=await import('node:http');
+ let seen=null,reply={readable:true,language:'Japanese',english:'Check-in is from 15:00. Reference AB-9931.',note:''};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen={path:req.url,json:JSON.parse(body)};
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'msg_3',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'end_turn',
+    usage:{input_tokens:410,output_tokens:95},content:[{type:'text',text:JSON.stringify(reply)}]}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ process.env.LOCAL_DEMO='1';delete process.env.VERCEL;
+ const server=createServer(handler);await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ const base=`http://127.0.0.1:${server.address().port}`;
+ const post=(path,data)=>fetch(base+'/api/'+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify(data)});
+ try{
+  const {translateTicketText}=await import('../server/translate.mjs');
+  // A confirmation that arrived in Japanese, read into English.
+  const english=await translateTicketText({text:'  チェックインは15時です。予約番号 AB-9931  ',direction:'en',field:'notes',title:'Kyoto hotel'});
+  assert.equal(english.english,reply.english);
+  assert.equal(english.direction,'en');
+  assert.equal(english.source,'チェックインは15時です。予約番号 AB-9931','what was translated is kept beside the translation');
+  assert.equal(english.usage.input,410);
+  assert.equal(seen.json.model,'claude-opus-5');
+  assert.deepEqual(seen.json.output_config.format.schema.required,['readable','language','english','note']);
+  assert.match(seen.json.system,/into English for an Australian family/);
+  assert.match(JSON.stringify(seen.json.messages),/the notes on this booking/);
+  assert.match(JSON.stringify(seen.json.messages),/Kyoto hotel/);
+
+  // And the other way: what we wrote, in the Japanese to hold up at the counter.
+  reply={sensible:true,ja:'予約番号はAB-9931です。',romaji:'yoyaku bangō wa AB-9931 desu.',
+   say:'yo-ya-koo ban-goh wa AB-9931 dess',literal:'The booking reference is AB-9931.',note:''};
+  const japanese=await translateTicketText({text:'Our booking reference is AB-9931.',direction:'ja',field:'reference'});
+  assert.equal(japanese.ja,reply.ja);
+  assert.equal(japanese.say,reply.say);
+  assert.match(seen.json.system,/hold up at a counter/);
+  assert.deepEqual(seen.json.output_config.format.schema.required,['ja','romaji','say','literal','note','sensible']);
+
+  // What is refused rather than saved as an empty translation.
+  await assert.rejects(()=>translateTicketText({text:'   ',direction:'en'}),/nothing written here/);
+  await assert.rejects(()=>translateTicketText({text:'x',direction:'sideways'}),/English or Japanese/);
+  await assert.rejects(()=>translateTicketText({text:'x'.repeat(1001),direction:'ja'}),/at a counter/);
+  await assert.rejects(()=>translateTicketText({text:'x'.repeat(4001),direction:'en'}),/too long/);
+
+  // Through the API, the answer is written onto the booking rather than handed to one screen.
+  reply={readable:true,language:'Japanese',english:'Check-in is from 15:00. Reference AB-9931.',note:''};
+  const {revision}=await(await fetch(base+'/api/state')).json();
+  const made=await post('mutate',{revision,operation:{type:'documentNote',title:'Kyoto hotel',category:'reservation',
+   reference:'AB-9931',notes:'チェックインは15時です。'}});
+  assert.equal(made.status,200);
+  const doc=(await made.json()).state.documents.at(-1);
+  const translated=await post('ticket-translate',{id:doc.id,field:'notes',direction:'en'});
+  assert.equal(translated.status,200);
+  const saved=(await translated.json()).state.documents.find(d=>d.id===doc.id);
+  assert.equal(saved.translations['notes:en'].english,reply.english);
+  assert.equal(saved.translations['notes:en'].source,'チェックインは15時です。');
+  assert.equal(saved.translations['notes:en'].by,'Damien');
+  assert.equal(saved.translations['notes:en'].usage,undefined,'what it cost is not kept on the family’s ticket');
+  // Only the booking's own words go anywhere, chosen by name.
+  assert.equal((await(await post('ticket-translate',{id:doc.id,field:'person',direction:'en'})).json()).error,
+   'Translate the booking’s name, its reference or its notes.');
+  assert.equal((await(await post('ticket-translate',{id:doc.id,field:'notes',direction:'sideways'})).json()).error,'Choose English or Japanese.');
+  assert.equal((await post('ticket-translate',{id:'missing',field:'notes',direction:'en'})).status,404);
+  // It can be taken off again, and taking it off twice is not an error.
+  const cleared=await post('ticket-translate',{id:doc.id,field:'notes',direction:'en',remove:true});
+  assert.equal(cleared.status,200);
+  assert.deepEqual((await cleared.json()).state.documents.find(d=>d.id===doc.id).translations,{});
+  assert.equal((await post('ticket-translate',{id:doc.id,field:'notes',direction:'en',remove:true})).status,200);
+ }finally{
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+  delete process.env.LOCAL_DEMO;
+  await new Promise(r=>server.close(r));
+  await new Promise(r=>upstream.close(r));
+ }
+});
+
+test('a booking of several pages is one document: the pages keep their order and travel together',async()=>{
+ const {ticketFiles,attachmentReel,attachmentsOf,documentThumbnail,offlineManifest,ticketList,isArchived}=await import('../src/trip-features.js');
+ const day=seed.days[0].date,step=activeSteps(seed,day).find(s=>!s.locked);
+ // What the add form makes of three pages chosen together: the first is the document itself and
+ // carries its details, the rest are attached to it in the order they were picked.
+ const root={id:'hotel',title:'Kyoto hotel',person:'Family',type:'application/pdf',pathname:'tickets/hotel-1.pdf',
+  category:'reservation',reference:'AB-9931',stepIds:[step.id],stepId:step.id,day:null};
+ const pages=[1,2].map(n=>({id:`hotel-p${n+1}`,parentDocumentId:'hotel',title:`page-${n+1}.jpg`,person:'Family',
+  type:'image/jpeg',pathname:`tickets/hotel-${n+1}.jpg`,category:'reservation',stepIds:[step.id],stepId:step.id,day:null}));
+ const s={...structuredClone(seed),documents:[root,...pages]};
+
+ // One row on the list, not three.
+ assert.deepEqual(ticketList(s).map(d=>d.id),['hotel']);
+ assert.equal(attachmentsOf(s,root).length,2);
+ // And one set to open and swipe, in the order the pages were chosen.
+ assert.deepEqual(ticketFiles(s.documents,root).map(d=>d.id),['hotel','hotel-p2','hotel-p3']);
+ assert.deepEqual(attachmentReel(s.documents,[root],root).map(e=>e.file.id),['hotel','hotel-p2','hotel-p3']);
+ assert.deepEqual(attachmentReel(s.documents,[root],pages[1]).map(e=>e.ticket.id),['hotel','hotel','hotel']);
+ // A PDF first page cannot be drawn, so the row's thumbnail is the first photo in the set.
+ assert.equal(documentThumbnail(root,attachmentsOf(s,root))?.id,'hotel-p2');
+ // Every page is downloaded for the day, and every page leaves with the booking.
+ assert.equal(offlineManifest(s,day).files.filter(f=>f.key.startsWith('doc-hotel')).length,3);
+ const used=applyOperation(s,{type:'status',id:step.id,status:'done'},parent);
+ assert.ok(used.documents.every(d=>isArchived(d)),'a booking and all its pages are one thing to put away');
+ assert.equal(offlineManifest(used,day).files.filter(f=>f.key.startsWith('doc-hotel')).length,0);
+ // Removing the booking removes its pages; removing one page leaves the booking.
+ assert.equal(applyOperation(s,{type:'removeDocument',id:'hotel'},parent).documents.length,0);
+ assert.deepEqual(applyOperation(s,{type:'removeDocument',id:'hotel-p2'},parent).documents.map(d=>d.id),['hotel','hotel-p3']);
+});
+
 test('the sender list can be opened to everyone on purpose, but never by forgetting to fill it in',async()=>{
  const {senderAllowed,openToAnySender,emailInboxReady}=await import('../server/email.mjs');
  const set=(secret,senders)=>{
