@@ -18,6 +18,7 @@ export const PAGES={
  options:{label:'Options & ideas',note:'Places and activities saved for later'},
  planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, and voting on them'},
  todo:{label:'To-do list',note:'Things to do or buy, on the day we will do them'},
+ spending:{label:'Spending money',note:'What the boys have, what they bought and what is left'},
  weather:{label:'Weather',note:'Every day and every hour, with the graphs'},
  parks:{label:'Theme park rides',note:'Checklists, height limits and park maps'},
  shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need'},
@@ -33,7 +34,7 @@ export const PRIMARY={
  child:['today','days','challenges','food','diary']
 };
 export const MORE_SECTIONS=[
- ['Out and about',['weather','places','money','food','phrases','meeting','help']],
+ ['Out and about',['weather','places','money','spending','food','phrases','meeting','help']],
  ['The plan',['todo','planning','options','parks','shopping','challenges','games','tickets','inbox','guide']],
  ['Looking back',['photos','diary','updates','search']],
  ['Just for you',['thanks']]

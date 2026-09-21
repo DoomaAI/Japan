@@ -359,7 +359,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],inbox:state.inbox??[],stepReviews:state.stepReviews??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -536,6 +536,52 @@ export function todoProgress(state,day=null){
 // Everything with no day on it: the before-we-go jobs and the any-time ones, which is where a
 // to-do sits until somebody decides which day it belongs to.
 export const unallocatedTodos=state=>todosFor(state,null);
+// Spending money, which belongs to Nate and Boston and to nobody else. Each of them has a purse:
+// money a parent puts in, and money going out on the things they buy. An amount a day is worked
+// out from the trip's own days rather than written into the trip by something running overnight,
+// so a phone that has been in a pocket since Kyoto shows the right balance the moment it is
+// opened, with no signal and nothing to catch up on.
+export const EMPTY_PURSE={allowance:{},topUps:[],items:[]};
+export const spending=state=>({...EMPTY_PURSE,...(state.spending||{})});
+export const allowanceFor=(state,person)=>spending(state).allowance[person]||null;
+// Newest first: a top-up is a thing that just happened, and the one you want to see is the last.
+export const topUpsFor=(state,person)=>spending(state).topUps.filter(t=>t.person===person)
+ .sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')));
+// Still to buy first, oldest first inside each half, so the list reads as a queue the way the
+// to-do list does rather than as a pile of receipts.
+export const spendItemsFor=(state,person)=>spending(state).items.filter(i=>i.person===person)
+ .sort((a,b)=>(!!a.boughtAt)-(!!b.boughtAt)||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+// What an item counts for. Until it is bought that is the guess; afterwards it is what the till
+// actually took, which is the only figure a balance should ever be built from.
+export const spendCost=item=>Number.isFinite(item?.spent)?item.spent:(item?.estimate||0);
+// How many of the trip's days the amount a day has been paid on: counted from the day it starts,
+// never past the day it stops, and never past today.
+export function allowanceDays(state,person,today=japanDate()){
+ const plan=allowanceFor(state,person);
+ if(!plan?.yenPerDay||!plan.from)return 0;
+ const dates=(state.days||[]).map(d=>d.date),last=plan.to||dates.at(-1)||plan.from;
+ return dates.filter(date=>date>=plan.from&&date<=last&&date<=today).length;
+}
+export const allowancePaid=(state,person,today)=>allowanceDays(state,person,today)*(allowanceFor(state,person)?.yenPerDay||0);
+// What a purse is worth right now, every figure in yen. "left" is real money still in the purse;
+// "after" is what would be left once the things still on the list are paid for, which is the
+// number that answers "can I afford this as well?".
+export function purse(state,person,today){
+ const items=spendItemsFor(state,person),bought=items.filter(i=>i.boughtAt);
+ const topUps=topUpsFor(state,person).reduce((sum,t)=>sum+(t.yen||0),0);
+ const allowance=allowancePaid(state,person,today);
+ const spent=bought.reduce((sum,i)=>sum+spendCost(i),0);
+ const planned=items.filter(i=>!i.boughtAt).reduce((sum,i)=>sum+(i.estimate||0),0);
+ const paidIn=topUps+allowance;
+ return {topUps,allowance,paidIn,spent,planned,left:paidIn-spent,after:paidIn-spent-planned,
+  items:items.length,bought:bought.length,waiting:items.length-bought.length};
+}
+// A to-do of the buy kind is the start of a shopping trip, so it can be handed straight to a
+// boy's spending list. One that is already there is not offered twice.
+export const buyTodosFor=(state,person)=>todos(state)
+ .filter(t=>t.kind==='buy'&&!t.doneAt&&(t.person===person||t.person==='Family')
+  &&!spending(state).items.some(i=>i.todoId===t.id))
+ .sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
 // Standing in the street with two tired children: what is near enough to walk to right now.
 // Food and the practical things a family runs out of — not sights, which is what the planning
 // board is for.
@@ -679,6 +725,7 @@ export function searchTrip(state,query,guide=[]){
  for(const d of state.documents)if(match(d.title,d.reference,d.notes,d.tags))hits.push({type:d.category==='memory'?'Memory':'Document',id:d.id,title:d.title,detail:d.notes,day:d.day||state.steps.find(s=>s.id===d.stepId)?.day,document:d});
  for(const l of state.locations||[])if(match(l.name,l.district,l.city,l.address,l.category,l.notes))hits.push({type:'Location',id:l.id,title:l.name,detail:l.address});
  for(const s of state.shopping)if(match(s.title,s.notes,s.store,s.person,s.tags))hits.push({type:'Shopping',id:s.id,title:s.title,detail:s.store,day:s.day});
+ for(const i of spending(state).items)if(match(i.title,i.notes,i.person))hits.push({type:'Spending',id:i.id,title:i.title,detail:`${i.person}’s spending money`,day:i.day});
  for(const c of state.challenges)if(match(c.title,c.notes))hits.push({type:'Challenge',id:c.id,title:c.title,day:c.day});
  for(const [day,m]of Object.entries(state.meetings))if(match(m.place,m.japanese,m.notes))hits.push({type:'Meeting',id:day,title:m.place,detail:m.notes,day});
  for(const [day,n]of Object.entries(state.journal))if(match(n))hits.push({type:'Diary',id:day,title:`Diary · ${day}`,detail:n,day});
@@ -731,6 +778,10 @@ export function pendingProgress(state,queue){
    next.sumo=next_sumo;}
   if(o.type==='todoAdd')next.todos=[...next.todos,{id:`pending-${o.operationId}`,title:String(o.title||'').trim(),kind:o.kind==='buy'?'buy':'do',day:o.day??null,person:o.person||'Family',notes:String(o.notes||''),createdBy:o.by||'',createdAt:o.at,doneAt:null,doneBy:null,pending:true}];
   if(o.type==='todoStatus'){const t=next.todos.find(t=>t.id===o.id);if(t){t.doneAt=o.done?o.at:null;t.doneBy=o.done?o.by||t.doneBy:null;t.pending=true;}}
+  // Something wanted, and something bought, both with no signal: additions and a record of what
+  // happened, so the purse on the screen is right long before it reaches the family plan.
+  if(o.type==='spendAdd')next.spending={...next.spending,items:[...next.spending.items,{id:`pending-${o.operationId}`,person:o.person,title:String(o.title||'').trim(),estimate:Number.isFinite(o.estimate)?o.estimate:null,spent:null,day:o.day??null,notes:String(o.notes||''),todoId:o.todoId??null,createdBy:o.by||'',createdAt:o.at,boughtAt:null,boughtBy:null,pending:true}]};
+  if(o.type==='spendBought')next.spending={...next.spending,items:next.spending.items.map(i=>i.id!==o.id?i:{...i,boughtAt:o.done?o.at:null,boughtBy:o.done?o.by||i.boughtBy:null,spent:o.done&&Number.isFinite(o.spent)?o.spent:o.done?i.spent:null,pending:true})};
   if(o.type==='challengeSkip'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.skips={...(c.skips||{})};if(o.done){c.skips[o.person]=c.skips[o.person]||o.at;delete c.completions[o.person];}else delete c.skips[o.person];}}
   if(o.type==='challengeStatus'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.completions={...c.completions};if(o.done)c.completions[o.person]=c.completions[o.person]||o.at;else delete c.completions[o.person];if(o.response!==undefined)c.responses={...(c.responses||{}),[o.person]:o.response};}}
  }

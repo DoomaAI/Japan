@@ -3569,3 +3569,156 @@ test('a forwarded email goes where the parent sends it, not only into Tickets',(
  // Whichever door it went through, it leaves the inbox exactly once.
  for(const d of ['ticket','activity','options','idea','todo'])assert.equal(file_({destination:d,day}).inbox.length,0);
 });
+
+test('the boys’ spending money: what went in, what went out, and what is left',async()=>{
+ const {purse,spendItemsFor,topUpsFor,allowanceFor,allowanceDays,allowancePaid,spendCost}=await import('../src/trip-features.js');
+ const first=seed.days[0].date,third=seed.days[2].date,last=seed.days.at(-1).date;
+ const boston={name:'Boston',role:'child'};
+ // Money only goes in on a parent's say-so, and only into a boy's purse.
+ let state=applyOperation(seed,{type:'spendTopUp',person:'Nate',yen:3000,note:'Birthday money from Nan'},parent);
+ assert.throws(()=>applyOperation(state,{type:'spendTopUp',person:'Nate',yen:5000},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'spendTopUp',person:'Lauren',yen:5000},parent),/Nate and Boston/);
+ assert.deepEqual(topUpsFor(state,'Nate').map(t=>[t.yen,t.note,t.by]),[[3000,'Birthday money from Nan','Damien']]);
+ assert.equal(topUpsFor(state,'Boston').length,0,'one purse is not the other');
+ // An amount a day is worked out from the trip's own days rather than paid out overnight, so it
+ // is right on a phone that has been switched off — and it never runs ahead of today.
+ state=applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500,from:first},parent);
+ assert.equal(allowanceDays(state,'Nate','2026-09-01'),0,'nothing before the trip starts');
+ assert.equal(allowanceDays(state,'Nate',third),3);
+ assert.equal(allowancePaid(state,'Nate',third),1500);
+ assert.equal(allowanceDays(state,'Nate','2026-12-25'),16,'and it stops at the last day of the trip');
+ // A last day caps it, and a first day is required before any of it counts.
+ const short=applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500,from:first,to:seed.days[1].date},parent);
+ assert.equal(allowancePaid(short,'Nate',last),1000);
+ assert.throws(()=>applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500},parent),/starts/);
+ assert.throws(()=>applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500,from:third,to:first},parent),/before the first/);
+ assert.throws(()=>applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500,from:first},child),e=>e.status===403);
+ // Zero a day is how it stops, rather than a second way of undoing it.
+ assert.equal(allowanceFor(applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:0},parent),'Nate'),null);
+ // A boy writes down what he wants himself, and only for himself.
+ state=applyOperation(state,{type:'spendAdd',person:'Nate',title:'A Beyblade',estimate:1500,day:third},child);
+ state=applyOperation(state,{type:'spendAdd',person:'Nate',title:'Card pack',estimate:800},child);
+ assert.throws(()=>applyOperation(state,{type:'spendAdd',person:'Boston',title:'Not his'},child),e=>e.status===403);
+ assert.deepEqual(spendItemsFor(state,'Nate').map(i=>i.title),['A Beyblade','Card pack']);
+ // Nothing bought yet: everything in is still there, and the list is only a promise against it.
+ let money=purse(state,'Nate',third);
+ assert.deepEqual([money.paidIn,money.spent,money.planned,money.left,money.after],[4500,0,2300,4500,2200]);
+ assert.equal(money.allowance,1500);assert.equal(money.topUps,3000);
+ // Buying it is the moment it becomes money out, and the till receipt beats the guess.
+ const beyblade=spendItemsFor(state,'Nate')[0];
+ state=applyOperation(state,{type:'spendBought',id:beyblade.id,done:true,spent:1980},child);
+ const bought=spendItemsFor(state,'Nate').find(i=>i.id===beyblade.id);
+ assert.equal(bought.spent,1980);assert.equal(bought.boughtBy,'Nate');assert.ok(bought.boughtAt);
+ assert.equal(spendCost(bought),1980);
+ money=purse(state,'Nate',third);
+ assert.deepEqual([money.paidIn,money.spent,money.planned,money.left,money.after],[4500,1980,800,2520,1720]);
+ assert.deepEqual([money.items,money.bought,money.waiting],[2,1,1]);
+ // Bought things drop below the ones still waiting, the way a ticked-off job does.
+ assert.deepEqual(spendItemsFor(state,'Nate').map(i=>i.title),['Card pack','A Beyblade']);
+ // With no figure given it falls back to the guess rather than counting for nothing.
+ const guessed=applyOperation(state,{type:'spendBought',id:spendItemsFor(state,'Nate')[0].id,done:true},child);
+ assert.equal(purse(guessed,'Nate',third).spent,2780);
+ // Putting it back on the list clears the price with it, so an old receipt cannot haunt a new one.
+ const back=applyOperation(state,{type:'spendBought',id:beyblade.id,done:false},child);
+ const returned=spendItemsFor(back,'Nate').find(i=>i.id===beyblade.id);
+ assert.equal(returned.boughtAt,null);assert.equal(returned.spent,null);
+ assert.equal(purse(back,'Nate',third).spent,0);
+ // Wanting more than there is says so rather than showing a tidy figure.
+ const greedy=applyOperation(state,{type:'spendAdd',person:'Nate',title:'A whole Gunpla kit',estimate:9000},child);
+ assert.ok(purse(greedy,'Nate',third).after<0);
+ // One boy cannot reach into the other's list, and a parent can.
+ assert.throws(()=>applyOperation(state,{type:'spendRemove',id:beyblade.id},boston),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'spendEdit',id:beyblade.id,title:'Mine now'},boston),e=>e.status===403);
+ assert.equal(spendItemsFor(applyOperation(state,{type:'spendRemove',id:beyblade.id},parent),'Nate').length,1);
+ // Taking a top-up back off is a parent's, and the balance follows it.
+ const top=topUpsFor(state,'Nate')[0];
+ assert.throws(()=>applyOperation(state,{type:'spendTopUpRemove',id:top.id},child),e=>e.status===403);
+ assert.equal(purse(applyOperation(state,{type:'spendTopUpRemove',id:top.id},parent),'Nate',third).paidIn,1500);
+ for(const bad of [{type:'spendAdd',person:'Nate',title:'   '},{type:'spendAdd',person:'Nate',title:'x'.repeat(251)},
+  {type:'spendAdd',person:'Nate',title:'A',estimate:-5},{type:'spendAdd',person:'Nate',title:'A',estimate:1.5},
+  {type:'spendAdd',person:'Nate',title:'A',day:'2099-01-01'},{type:'spendAdd',person:'Nate',title:'A',notes:'n'.repeat(2001)},
+  {type:'spendAdd',person:'Nate',title:'A',todoId:'nope'},{type:'spendTopUp',person:'Nate',yen:0},
+  {type:'spendTopUp',person:'Nate',yen:20000000},{type:'spendBought',id:'nope',done:true},
+  {type:'spendBought',id:beyblade.id,done:'yes'},{type:'spendTopUpRemove',id:'nope'},{type:'spendWhatever',person:'Nate'}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,52)} should be refused`);
+ // Pocket money is not the itinerary, so it stays out of the family alert feed — except money
+ // going in, which is the one piece of news a boy actually wants.
+ assert.ok(state.alerts.some(a=>/Nate has ¥3,000 more spending money/.test(a.summary||'')));
+ assert.ok(!state.alerts.some(a=>/Beyblade/.test(a.summary||'')));
+ assert.equal(state.history[0].title,'A Beyblade','but the family history still reads properly');
+});
+
+test('a thing to buy moves off the to-do list and onto a boy’s spending money',async()=>{
+ const {buyTodosFor,spendItemsFor,purse}=await import('../src/trip-features.js');
+ const day=seed.days[3].date;
+ let state=applyOperation(seed,{type:'todoAdd',title:'Buy a Beyblade',kind:'buy',day,person:'Nate'},child);
+ state=applyOperation(state,{type:'todoAdd',title:'Buy stamps',kind:'buy',day,person:'Family'},parent);
+ state=applyOperation(state,{type:'todoAdd',title:'Buy Lauren a fan',kind:'buy',day,person:'Lauren'},parent);
+ state=applyOperation(state,{type:'todoAdd',title:'Post the postcards',kind:'do',day,person:'Nate'},parent);
+ state=applyOperation(state,{type:'spendTopUp',person:'Nate',yen:5000},parent);
+ // His own and the family's are offered; somebody else's job and a job that is not a buy are not.
+ assert.deepEqual(buyTodosFor(state,'Nate').map(t=>t.title),['Buy a Beyblade','Buy stamps']);
+ const job=state.todos.find(t=>t.title==='Buy a Beyblade');
+ state=applyOperation(state,{type:'spendAdd',person:'Nate',title:job.title,notes:job.notes,day:job.day,todoId:job.id},child);
+ const item=spendItemsFor(state,'Nate')[0];
+ assert.equal(item.todoId,job.id);assert.equal(item.day,day);
+ // Offered once: counting the same Beyblade against the purse twice is how a balance goes wrong.
+ assert.deepEqual(buyTodosFor(state,'Nate').map(t=>t.title),['Buy stamps']);
+ assert.throws(()=>applyOperation(state,{type:'spendAdd',person:'Nate',title:job.title,todoId:job.id},child),/already on the spending list/);
+ // Buying it finishes the job it came from, so the day's screen is not still asking for it.
+ state=applyOperation(state,{type:'spendBought',id:item.id,done:true,spent:1800},child);
+ const finished=state.todos.find(t=>t.id===job.id);
+ assert.ok(finished.doneAt);assert.equal(finished.doneBy,'Nate');
+ assert.equal(purse(state,'Nate',day).spent,1800);
+ // Putting it back on the spending list does not un-tick the job: it may have been ticked for
+ // reasons of its own, and un-ticking somebody else's work is not ours to do.
+ const back=applyOperation(state,{type:'spendBought',id:item.id,done:false},child);
+ assert.ok(back.todos.find(t=>t.id===job.id).doneAt);
+ assert.equal(purse(back,'Nate',day).spent,0);
+});
+
+test('spending money written down or spent with no signal waits on the phone',async()=>{
+ const {ensureFeatures,pendingProgress,spendItemsFor,purse}=await import('../src/trip-features.js');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ // Wanting something and buying something both still make sense whenever they land.
+ for(const op of ['spendAdd','spendBought'])assert.ok(list.includes(op),`${op} should survive with no signal`);
+ // Money going in, and a purse being emptied, need the latest revision behind them.
+ for(const op of ['spendAllowance','spendTopUp','spendTopUpRemove','spendEdit','spendRemove'])
+  assert.ok(!list.includes(op),`${op} changes the shared purse`);
+ const day=seed.days[2].date,at='2026-09-19T02:00:00.000Z';
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'spendTopUp',person:'Boston',yen:4000},parent);
+ state=applyOperation(state,{type:'spendAdd',person:'Boston',title:'A Gachapon',estimate:400},{name:'Boston',role:'child'});
+ const gacha=spendItemsFor(state,'Boston')[0];
+ const queue=[{operation:{type:'spendAdd',operationId:'q1',person:'Boston',title:'A card pack',estimate:900,day,by:'Boston',at}},
+              {operation:{type:'spendBought',operationId:'q2',id:gacha.id,done:true,spent:500,by:'Boston',at}}];
+ const preview=pendingProgress(state,queue);
+ assert.deepEqual(spendItemsFor(preview,'Boston').map(i=>i.title),['A card pack','A Gachapon']);
+ const fresh=spendItemsFor(preview,'Boston').find(i=>i.title==='A card pack');
+ assert.equal(fresh.estimate,900);assert.equal(fresh.createdBy,'Boston');assert.ok(fresh.pending);
+ const spent=spendItemsFor(preview,'Boston').find(i=>i.id===gacha.id);
+ assert.equal(spent.spent,500);assert.equal(spent.boughtBy,'Boston');assert.ok(spent.pending);
+ // The purse on the screen is right before any of it has reached the family plan.
+ const money=purse(preview,'Boston',day);
+ assert.deepEqual([money.paidIn,money.spent,money.planned,money.left],[4000,500,900,3500]);
+ assert.equal(purse(state,'Boston',day).spent,0,'and the saved trip is untouched until it syncs');
+});
+
+test('spending money has its own screen, and a thing to buy can be handed to it',async()=>{
+ const {PAGES}=await import('../src/nav-data.js');
+ assert.ok(PAGES.spending?.label&&PAGES.spending?.note);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/tab==='spending'&&<Spending/,'the page is rendered');
+ assert.match(main,/today=\{japanDate\(now\)\}/,'and told what day it is, so an amount a day stops at today');
+ // The hand-off is offered on the to-do row itself, which is where a boy is looking when he
+ // remembers he is paying for it.
+ const todo=await readFile(new URL('../src/TodoList.jsx',import.meta.url),'utf8');
+ assert.match(todo,/type:'spendAdd'/);
+ assert.match(todo,/todoId:item\.id/,'and the two stay linked');
+ // The bar is the whole answer, so it has to say the same thing to a screen reader.
+ const page=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ assert.match(page,/role="img"/);
+ assert.match(page,/aria-label=\{`\$\{yen\(spent\)\} spent and \$\{yen\(planned\)\} still to buy/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ for(const rule of ['.purse-meter{','.purse-spent{','.purse-planned{'])assert.ok(css.includes(rule),`${rule} is missing`);
+});

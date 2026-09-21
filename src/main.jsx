@@ -25,6 +25,7 @@ import MediaGallery from './MediaGallery.jsx';
 import Planning from './Planning.jsx';
 import Nearby from './Nearby.jsx';
 import TodoList,{DayTodos} from './TodoList.jsx';
+import Spending from './Spending.jsx';
 import Sumo from './Sumo.jsx';
 import StepReview from './StepReview.jsx';
 import WeatherPage from './WeatherPage.jsx';
@@ -68,7 +69,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
 const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove',
- 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','sumoResult','sumoPredict','stepRating','stepThought'];
+ 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','spendAdd','spendBought','sumoResult','sumoPredict','stepRating','stepThought'];
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
@@ -286,6 +287,7 @@ function App(){
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
   {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go}/>}
+  {tab==='spending'&&<Spending state={visibleState} user={user} mutate={mutate} busy={busy} go={go} notice={notice} today={japanDate(now)}/>}
   {tab==='inbox'&&parent&&<EmailInbox state={state} config={config} busy={busy} mutate={mutate} request={request} accept={accept} notice={notice} go={go}/>}
   {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}
