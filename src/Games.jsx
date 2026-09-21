@@ -4,9 +4,9 @@ import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,em
 import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-features.js';
 import SpotDifference from './SpotDifference.jsx';
 import Origami from './Origami.jsx';
-import {useReadAloud} from './AdventurePages.jsx';
-import {useJapaneseVoice} from './SayIt.jsx';
-import {canOffer,speechRate} from './speech.js';
+import {useKanaVoice} from './SayIt.jsx';
+import Karuta from './Karuta.jsx';
+import AnimalShogi from './AnimalShogi.jsx';
 const PAIRS=6;
 // Dragging one tile onto another, with a tap still meaning what it meant. Pointer events
 // cover a finger and a mouse alike; the target is found from where the finger actually
@@ -48,14 +48,6 @@ const Ladder=({title,items,notes})=><details className="merge-ladder"><summary>{
   <span key={item.key}><b aria-hidden="true">{item.icon}</b>{item.en}<small lang="ja">{item.ja}</small>
    {item.note&&<small>{item.note}</small>}</span>)}</div>
 </details>;
-// Say the kana aloud where the phone can, because a five-year-old matching shapes learns
-// more if the shape has a sound. Silence is fine; the game does not depend on it.
-function useKanaVoice(){
- const {supported,read}=useReadAloud();
- const japanese=useJapaneseVoice();
- const can=canOffer(supported,japanese);
- return (kana,id)=>{if(can)read(id,kana,'ja-JP',speechRate('ja',true));};
-}
 // Tap the Japanese letter, then the sound it makes. Nate's game.
 function KanaMatch({user,mutate,busy,state}){
  const [set,setSet]=useState('hiragana'),[seed,setSeed]=useState(()=>Date.now()%100000),[pairs,setPairs]=useState(PAIRS);
@@ -841,27 +833,51 @@ function Stable({user,state,mutate,busy}){
 // What each one needs, said plainly rather than as a yes-or-no: most of these work in a
 // tunnel, one needs the other phone, and one needs the photo to come down once.
 const OFFLINE='Works with no signal at all.';
+// Which of these are Japanese games and which are games about Japan. The distinction is worth
+// drawing because it is so often fudged: sudoku is the famous case, an American puzzle out of
+// Indianapolis in 1979 that Japan named and made famous, and it gets called Japanese for the
+// rest of its life. A boy told a game is Japanese should be told something that is true, so
+// the ones that really are say so, the ones that are Japanese but modern say that instead,
+// and the rest carry nothing and are honest by saying nothing.
+const ORIGINS={
+ traditional:{tag:'Traditional',what:'A Japanese game, played here long before any of us.'},
+ modern:{tag:'Japanese',what:'Japanese, and modern.'}
+};
 const GAMES=[
  {id:'match',title:'Match the letters',needs:OFFLINE,Component:KanaMatch},
  {id:'decode',title:'Read the sign',needs:OFFLINE,Component:Decoder},
+ {id:'karuta',title:'Karuta',ja:'かるた',origin:'traditional',needs:OFFLINE,Component:Karuta,
+  story:'Played at New Year since the Edo period. A reader reads, the cards lie face up, and the first hand on the right one keeps it. The proverb deck is iroha karuta, where the card is found by the letter the reading opens with.'},
+ {id:'shogi',title:'Animal shogi',ja:'どうぶつしょうぎ',origin:'modern',needs:OFFLINE,Component:AnimalShogi,
+  story:'The game is new — Madoka Kitao, a professional shogi player, drew it up in 2008 so a small child could play a whole game. What it is a small version of is not: shogi has been played in Japan since the 1500s, and taking a piece and playing it back as your own is the part that makes it shogi rather than chess.'},
  {id:'merge',title:'Onigiri to Fuji',needs:OFFLINE,Component:Merge},
  {id:'remember',title:'What we did',needs:OFFLINE,Component:Remember},
  {id:'sights',title:'Japan pairs',needs:OFFLINE,Component:Sights},
  {id:'kitchen',title:'Make it',needs:OFFLINE,Component:Kitchen},
  {id:'snake',title:'Sushi snake',needs:OFFLINE,Component:Snake},
  {id:'stable',title:'Sumo stable',needs:OFFLINE,Component:Stable},
- {id:'sumo',title:'Sumo',needs:OFFLINE,Component:Sumo},
- {id:'origami',title:'Origami',needs:'Works with no signal. You need a square of paper.',Component:Origami},
+ {id:'sumo',title:'Sumo',ja:'相撲',origin:'traditional',needs:OFFLINE,Component:Sumo,
+  story:'Japan’s oldest sport, and the rituals in here are the real ones — the stamps, the salt and the charge are what you will watch at Ryogoku before anybody touches anybody.'},
+ {id:'origami',title:'Origami',ja:'折り紙',origin:'traditional',needs:'Works with no signal. You need a square of paper.',Component:Origami,
+  story:'Folded in Japan for centuries, and written down as a craft to teach by 1797, in the Senbazuru Orikata — the book of a thousand cranes.'},
  {id:'spot',title:'Spot the difference',needs:'Needs signal once, to fetch the photo. The puzzle is made on the phone.',Component:SpotDifference},
- {id:'janken',title:'Janken',needs:'Needs both phones online.',Component:Janken}
+ {id:'janken',title:'Janken',ja:'じゃんけん',origin:'traditional',needs:'Needs both phones online.',Component:Janken,
+  story:'The Japanese hand game that became the world’s rock, paper and scissors — it went out from here, rather than arriving.'}
 ];
 export default function Games(props){
  const [game,setGame]=useState('match');
  const current=GAMES.find(g=>g.id===game)||GAMES[0];
+ const origin=ORIGINS[current.origin];
  return <>
   <p className="eyebrow">SOMETHING TO DO IN A QUEUE</p><h1>Games</h1>
   <div className="segmented game-picker">{GAMES.map(g=>
-   <button key={g.id} className={game===g.id?'selected':''} onClick={()=>setGame(g.id)}>{g.title}</button>)}</div>
+   <button key={g.id} className={game===g.id?'selected':''} onClick={()=>setGame(g.id)}
+    aria-label={ORIGINS[g.origin]?`${g.title} — ${ORIGINS[g.origin].tag.toLowerCase()}`:undefined}>{g.title}
+    {ORIGINS[g.origin]&&<i className={`game-tag ${g.origin}`} aria-hidden="true"/>}</button>)}</div>
+  {origin&&<p className="game-origin">
+   <b className={current.origin}>{origin.tag}</b>
+   {current.ja&&<em lang="ja">{current.ja}</em>}
+   <small>{current.story||origin.what}</small></p>}
   <p><small>{current.needs}</small></p>
   <current.Component {...props}/>
  </>;
