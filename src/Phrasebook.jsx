@@ -190,6 +190,7 @@ export default function Phrasebook({state,user,day,mutate,busy,request,notice,co
    <p>Not phrases — just the words that tell you what something is.</p>
    <div className="menu-words">{words.map(w=><div className="menu-word" key={w.id}>
     <span className="japanese" lang="ja">{w.ja}</span><strong>{w.en}</strong><small>{w.say}</small>
+    {w.note&&<small className="menu-word-note">{w.note}</small>}
    </div>)}</div>
   </section>}
   <p><small>{ALL_PHRASES().length} phrases. Written the way they are usually said to a stranger — polite, and safe to use with anyone.</small></p>
