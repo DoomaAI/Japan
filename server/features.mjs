@@ -277,6 +277,12 @@ export function extraOperation(state,op,user,fail,now){
   const votes={...(state.photoVotes[entry.day]||{})};
   for(const [who,id] of Object.entries(votes))if(id===op.id)delete votes[who];
   state.photoVotes={...state.photoVotes,[entry.day]:votes};
+ }else if(op.type==='drawingRemove'){
+  const entry=state.drawings.find(d=>d.id===op.id);if(!entry)fail('Drawing not found.',404);
+  // Yours to remove if you drew it or you are the one who sent it. A drawing is somebody's
+  // own work, so nobody else takes it down.
+  if(!parent&&entry.by!==user.name&&(entry.for||entry.by)!==user.name)fail('You can only remove your own drawings.',403);
+  state.drawings=state.drawings.filter(d=>d.id!==op.id);
  }else if(op.type==='photoAssign'){
   // Handing a photo to whoever it belongs to, after the fact — because the answer to "whose
   // is this?" is usually worked out once everyone has seen it.
