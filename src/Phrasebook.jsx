@@ -6,6 +6,7 @@ import {dayLabel,SILENT_HINT} from './AdventurePages.jsx';
 import {MENU_WORDS,SAY_TIP} from './food-data.js';
 import {searchText,phraseLogFor,phrasesSeenBy,phraseQueue} from './trip-features.js';
 import SayIt from './SayIt.jsx';
+import SoundCheck from './SoundCheck.jsx';
 export function PhraseRow({phrase,size='small'}){
  return <article className="phrase-row">
   <strong>{phrase.en}</strong>
@@ -47,6 +48,7 @@ export default function Phrasebook({state,user,day,mutate,busy}){
  const words=section?[]:MENU_WORDS.filter(w=>!q||searchText([w.en,w.ja,w.romaji,w.say].join(' ')).includes(q));
  return <>
   <p>{SAY_TIP} Tap <strong>Hear it</strong> where your phone has a Japanese voice, <strong>Slowly</strong> to take it a chunk at a time, or hold the screen up and let someone read the Japanese. {SILENT_HINT}</p>
+  <SoundCheck/>
   {state&&user&&<MyPhrases state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   <div className="document-filters">
    <label>Search<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="English, Japanese or how it sounds"/></label>

@@ -26,3 +26,39 @@ export const speechKey=(id,speed)=>`${id}|${speed}`;
 export const needsSettle=synth=>!!(synth&&(synth.speaking||synth.pending));
 // Stopping one phrase to start another is not a failure worth telling anyone about.
 export const isRealFailure=error=>!!error&&!['interrupted','canceled','cancelled'].includes(String(error));
+// iOS 16.4 and later lets a page say what kind of audio it is making. 'playback' is the one
+// that keeps playing with the ring/silent switch on, which is the usual reason a phone that
+// looks like it is speaking makes no sound at all.
+export function claimPlayback(nav=typeof navigator!=='undefined'?navigator:null){
+ try{
+  if(!nav?.audioSession)return 'not supported';
+  if(nav.audioSession.type!=='playback')nav.audioSession.type='playback';
+  return nav.audioSession.type;
+ }catch{return 'refused';}
+}
+// Safari will ignore the very first thing a page tries to say. Spending that on a silent
+// utterance means the first phrase anyone taps is the one they actually hear.
+export function warmUp(synth,Utterance){
+ if(!synth||!Utterance||warmUp.done)return false;
+ warmUp.done=true;
+ try{const u=new Utterance(' ');u.volume=0;synth.speak(u);return true;}catch{return false;}
+}
+export const describeVoices=voices=>{
+ if(!Array.isArray(voices))return {count:0,japanese:[],state:'unknown'};
+ const japanese=voices.filter(v=>String(v?.lang||'').toLowerCase().replace('_','-').startsWith('ja')).map(v=>v?.name||'unnamed');
+ return {count:voices.length,japanese,state:voiceState(voices)};
+};
+// What the phone did, in words the person holding it can read out.
+export function soundCheckLines(facts){
+ const v=describeVoices(facts.voices);
+ return [
+  ['Build',facts.build||'unknown'],
+  ['Opened from',facts.standalone?'Home Screen icon':'the browser'],
+  ['Speech support',facts.supported?'yes':'no — this browser cannot speak'],
+  ['Voices found',v.count?`${v.count}${v.japanese.length?` · Japanese: ${v.japanese.join(', ')}`:' · none of them Japanese'}`:'none yet'],
+  ['Silent-switch override',facts.audioSession||'not supported'],
+  ['It started speaking',facts.started===null?'not tested':facts.started?`yes, after ${facts.startedAfter}ms`:'no — nothing began'],
+  ['It finished',facts.ended===null?'not tested':facts.ended?'yes':'no'],
+  ['Reported fault',facts.error||'none']
+ ];
+}
