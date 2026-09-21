@@ -65,7 +65,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
 const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove',
- 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','sumoResult','stepRating','stepThought'];
+ 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','sumoResult','sumoPredict','stepRating','stepThought'];
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
