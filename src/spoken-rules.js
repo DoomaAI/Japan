@@ -55,7 +55,7 @@ export const PAGE_RULES={
  options:'Options and ideas. Places we might go if we have time, saved for later.',
  planning:'Planning board. Everybody puts up ideas for things to do, and then we all vote on them. You can add one too.',
  todo:'To do list. Jobs and things to buy, put on the day we are going to do them.',
- spending:'Spending money. How much money you have left, what you have spent it on, and how much is still there. You can ask for something, and Mum or Dad says yes or no.',
+ spending:'Spending money. How much money you have left, what you have spent it on, and how much is still there. You can ask for something, and Mum or Dad says yes or no. Right at the bottom of this page there are pictures of every Japanese coin and every note. Each one is drawn on both sides, so you can see what it looks like and what it is worth. Press the speaker under any of them and it will tell you about it.',
  weather:'Weather. What the weather is doing, so we know whether to take an umbrella or a jumper.',
  parks:'Theme park rides. A list of every ride, and whether you are tall enough for it. Tick the ones you have been on.',
  shopping:'Shopping list. Presents and souvenirs we want to buy. Tick something when we have got it.',

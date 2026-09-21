@@ -4,6 +4,7 @@ import {PiggyBank,Plus,Trash2,ShoppingBag,ListChecks,CalendarDays,Check,AlertCir
 import {BOYS,purse,spendItemsFor,topUpsFor,allowanceFor,allowanceDays,spendCost,buyTodosFor,requestsFor,requestedFor,openRequests,yenPerAud,yenToAud} from './trip-features.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {japanClock,japanDate} from './timing.js';
+import MoneyPictures from './MoneyPictures.jsx';
 const yen=n=>`¥${Math.round(n||0).toLocaleString('en-AU')}`;
 const dollars=(n,rate)=>`$${yenToAud(Math.abs(n||0),rate).toFixed(2)}`;
 // Both figures, always: a boy thinks in yen while he is standing in the shop and in dollars when
@@ -253,6 +254,8 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
   <label>Notes<textarea name="notes" maxLength={2000} defaultValue={edit.notes||''} placeholder="Which shop, which one, what colour"/></label>
   <div className="row wrap"><button className="primary" disabled={busy}>{edit.id?'Save':'Add it'}</button><button type="button" onClick={()=>setEdit(null)}>Cancel</button></div>
  </form>}
+
+ <MoneyPictures user={user} rate={rate}/>
 
  {go&&<p className="callout"><ShoppingBag size={18}/><span>Things the whole family is buying — with shops, links and quantities — live on the <button onClick={()=>go('shopping')}>Shopping list</button>. This page is the boys’ own money.</span></p>}
  </>;

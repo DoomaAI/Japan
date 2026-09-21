@@ -6027,3 +6027,87 @@ test('the pad keeps the lines, not the pixels, and the drawing that is saved has
  assert.match(store,/sort\(\(a,b\)=>String\(b\.at\)\.localeCompare\(String\(a\.at\)\)\)/,'newest first, like everything else that is a list of what we did');
  assert.match(store,/catch\{return \[\];\}/,'a phone with storage turned off says nothing is kept rather than breaking');
 });
+
+test('every coin and note is drawn on both sides, priced in both currencies, and can be heard',async()=>{
+ const {COINS,NOTES,OLD_NOTES,MONEY,moneyAloud,audAloud,kindOf,MONEY_ALOUD}=await import('../src/money-data.js');
+ const {DEFAULT_YEN_PER_AUD}=await import('../src/trip-features.js');
+ assert.equal(COINS.length,6,'the six coins that actually come out of a pocket');
+ assert.equal(NOTES.length,4,'the four notes, the rare two thousand included');
+ assert.equal(OLD_NOTES.length,3,'and the older set, still spendable and still everywhere');
+ assert.equal(new Set(MONEY.map(m=>m.id)).size,MONEY.length,'no piece of money is listed twice');
+ // The whole point is the two sides: a child holding a coin can only see one of them, and the
+ // number he can read is usually on the other one.
+ for(const item of MONEY){
+  for(const side of ['front','back']){
+   assert.ok(item[side]?.shows,`${item.id} does not say what is on its ${side}`);
+   assert.ok(item[side].why?.length>20,`${item.id} does not explain its ${side}`);
+  }
+  assert.ok(item.spot&&item.worth,`${item.id} has no way to tell it apart and no idea what it buys`);
+  assert.match(item.say,/^[a-z ]+$/,`${item.id} has to be sayable by somebody who cannot read a word of Japanese`);
+  assert.ok(item.yen>0);
+ }
+ // Coins stop at five hundred and notes start at a thousand, and nothing lives in between.
+ assert.equal(Math.max(...COINS.map(c=>c.yen)),500);
+ assert.equal(Math.min(...[...NOTES,...OLD_NOTES].map(n=>n.yen)),1000);
+ assert.equal(kindOf(COINS[0]),'coin');assert.equal(kindOf(NOTES[0]),'note');
+ // A note is longer the more it is worth, which is the one thing a child can check with his
+ // own two hands, so the drawing has to be honest about it.
+ const sizes=[...NOTES].sort((a,b)=>a.yen-b.yen).map(n=>n.mm);
+ assert.deepEqual(sizes,[...sizes].sort((a,b)=>a-b),'a bigger number has to be a longer note');
+ // Said to a five-year-old holding the thing, so: plain English, both sides, and short enough
+ // that he is still listening at the end. Japanese script read by an Australian voice is noise.
+ for(const item of MONEY){
+  const said=moneyAloud(item,DEFAULT_YEN_PER_AUD);
+  assert.doesNotMatch(said,/[　-ヿ一-鿿]/,`${item.id} would have the phone mangling Japanese`);
+  assert.doesNotMatch(said,/\p{Extended_Pictographic}/u,`${item.id} would be read out as a picture`);
+  assert.doesNotMatch(said,/[¥$—–]/,`${item.id} leaves a symbol for the voice to guess at`);
+  assert.ok(said.includes(item.front.shows)&&said.includes(item.back.shows),`${item.id} is only spoken on one side`);
+  assert.ok(said.length<=360,`${item.id} is too long to be read to a five-year-old`);
+ }
+ assert.ok(MONEY_ALOUD.length>200&&MONEY_ALOUD.length<900,'the whole lesson in one press, and no longer');
+ assert.doesNotMatch(MONEY_ALOUD,/[¥$—–]|[　-ヿ一-鿿]/);
+ // Dollars in words rather than in figures: a phone reading a dollar sign aloud is a lottery.
+ assert.equal(audAloud(1,98),'less than five cents');
+ assert.equal(audAloud(100,98),'about 1 dollar');
+ assert.equal(audAloud(500,98),'about 5 dollars 10');
+ assert.equal(audAloud(1000,98),'about 10 dollars');
+ assert.equal(audAloud(10000,98),'about 102 dollars');
+ assert.equal(audAloud(50,98),'about 50 cents');
+ // A rate nobody has set yet must not turn the whole lesson into a division by zero.
+ assert.equal(audAloud(100,0),'about 1 dollar');
+});
+
+test('the money pictures are our own drawing, both sides, and Nate can press one and be told',async()=>{
+ const {COINS,NOTES,OLD_NOTES}=await import('../src/money-data.js');
+ const art=await readFile(new URL('../src/MoneyArt.jsx',import.meta.url),'utf8');
+ const page=await readFile(new URL('../src/MoneyPictures.jsx',import.meta.url),'utf8');
+ const spending=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ // Drawn in the app rather than fetched, so it works on a phone with no signal in a shop.
+ assert.doesNotMatch(art,/<img|fetch\(|https?:\/\//,'nothing here is downloaded or photographed');
+ // Every coin needs its picture side, and every note needs the side worth looking at.
+ for(const coin of COINS)assert.ok(art.includes(`'${coin.id}':c=>`),`${coin.id} has no picture side drawn`);
+ for(const note of [...NOTES,...OLD_NOTES])
+  assert.ok(art.includes(`'${note.id}':ink=>`),`${note.id} has no back drawn`);
+ // The hole in a five or a fifty is a hole, not a white circle painted on: it has to still be
+ // a hole against whatever the card behind it is doing.
+ assert.match(art,/<mask id=\{id\}>/);
+ assert.match(art,/const BACK_LAYOUT=/,'the number goes under the hole on the coins that have one');
+ // Both sides of everything, every time.
+ assert.match(page,/\['front','back'\]\.map\(side=>/);
+ assert.match(page,/side==='front'\?'The picture side':'The number side'/,'a coin is not a note');
+ // Yen for the shop and dollars for working out whether it was worth it, the same as the rest
+ // of the page, at the family's own rate rather than a made-up one.
+ assert.match(page,/\{yen\(item\.yen\)\}/);assert.match(page,/\{dollars\(item\.yen,rate\)\}/);
+ assert.match(spending,/<MoneyPictures user=\{user\} rate=\{rate\}\/>/,'the spending page carries it');
+ // Nate is why the speaker is there, so he gets the story speed and a button he cannot miss.
+ assert.match(page,/const young=user\?\.name==='Nate'/);
+ assert.match(page,/rate:young\?YOUNG_RATE:undefined/);
+ assert.match(page,/young=\{aloud\.young\}/);
+ assert.match(page,/text=\{MONEY_ALOUD\}/,'and one press that tells him about the money as a whole');
+ assert.match(page,/text=\{moneyAloud\(item,rate\)\}/,'and one on every single piece of it');
+ // It says so when the phone stays silent, like everywhere else that speaks.
+ assert.match(page,/const \{supported:canRead,reading,read,problem\}=useReadAloud\(\)/);
+ assert.match(page,/\{SILENT_HINT\}/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/\.money-hear\.young\{/,'the button he presses is bigger than the one a parent presses');
+});
