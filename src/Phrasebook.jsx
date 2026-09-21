@@ -2,7 +2,7 @@ import React,{useState,useRef,useEffect} from 'react';
 import {MessageSquare,Search,ArrowLeft,ArrowRight,Sparkles,Check} from 'lucide-react';
 import {PHRASEBOOK,ALL_PHRASES} from './phrasebook-data.js';
 import {japanDate} from './timing.js';
-import {dayLabel} from './AdventurePages.jsx';
+import {dayLabel,SILENT_HINT} from './AdventurePages.jsx';
 import {MENU_WORDS,SAY_TIP} from './food-data.js';
 import {searchText,phraseLogFor,phrasesSeenBy,phraseQueue} from './trip-features.js';
 import SayIt from './SayIt.jsx';
@@ -46,7 +46,7 @@ export default function Phrasebook({state,user,day,mutate,busy}){
  // The menu words are their own section, so a section filter puts them away too.
  const words=section?[]:MENU_WORDS.filter(w=>!q||searchText([w.en,w.ja,w.romaji,w.say].join(' ')).includes(q));
  return <>
-  <p>{SAY_TIP} Tap <strong>Hear it</strong> where your phone has a Japanese voice, or hold the screen up and let someone read the Japanese.</p>
+  <p>{SAY_TIP} Tap <strong>Hear it</strong> where your phone has a Japanese voice, <strong>Slowly</strong> to take it a chunk at a time, or hold the screen up and let someone read the Japanese. {SILENT_HINT}</p>
   {state&&user&&<MyPhrases state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   <div className="document-filters">
    <label>Search<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="English, Japanese or how it sounds"/></label>

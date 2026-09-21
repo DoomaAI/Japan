@@ -16,3 +16,13 @@ export const settled=state=>state==='yes'||state==='no';
 // An unknown phone still gets the button: it may well speak Japanese, and hiding it there
 // costs the family the feature outright, while offering it costs one tap to find out.
 export const canOffer=(supported,state)=>!!supported&&state!=='no';
+// Two speeds. The slow one is for learning a phrase, not for listening to it — slow enough
+// that each chunk is separate, which is the whole point of the sound-it-out line above it.
+export const SLOW_RATE=.45;
+export const speechRate=(lang,slow)=>slow?SLOW_RATE:(String(lang||'').startsWith('ja')?.8:.85);
+export const speechKey=(id,speed)=>`${id}|${speed}`;
+// Safari goes silent when speak() follows cancel() in the same breath, so when the engine
+// was already talking we let it settle first.
+export const needsSettle=synth=>!!(synth&&(synth.speaking||synth.pending));
+// Stopping one phrase to start another is not a failure worth telling anyone about.
+export const isRealFailure=error=>!!error&&!['interrupted','canceled','cancelled'].includes(String(error));

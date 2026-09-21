@@ -1,30 +1,48 @@
-import React,{useEffect,useState} from 'react';
+import React,{useEffect,useState,useRef} from 'react';
 import {Volume2,Square,SkipForward,RotateCcw,Sparkles} from 'lucide-react';
 import MissionArt from './MissionArt.jsx';
 import {BOYS,yenPerAud,yenToAud} from './trip-features.js';
 import {japanClock,japanDate} from './timing.js';
-import {matchVoice} from './speech.js';
+import {matchVoice,speechRate,needsSettle,isRealFailure} from './speech.js';
 export const dayLabel=d=>d?new Intl.DateTimeFormat('en-AU',{day:'numeric',month:'short',weekday:'short',timeZone:'Asia/Tokyo'}).format(new Date(d+'T12:00:00+09:00')):'Whole trip';
 export function DaySelect({state,value,onChange,name,allowAll=false}){return <select name={name} value={value} onChange={onChange}><option value="">{allowAll?'Whole trip':'Unscheduled'}</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select>;}
 // Reads a mission aloud, so Nate can follow his own missions before he can read them.
 // Uses the browser's own speech; nothing is sent anywhere and it needs no connection.
+export const SILENT_HINT='No sound? On an iPhone the side switch silences this too — flick it off silent and turn the volume up.';
 export function useReadAloud(){
  const supported=typeof window!=='undefined'&&'speechSynthesis'in window&&'SpeechSynthesisUtterance'in window;
- const [reading,setReading]=useState('');
- useEffect(()=>()=>{if(supported)window.speechSynthesis.cancel();},[supported]);
- function read(id,text,lang='en-AU'){
+ const [reading,setReading]=useState(''),[problem,setProblem]=useState('');
+ const timer=useRef(null);
+ useEffect(()=>()=>{clearTimeout(timer.current);if(supported)window.speechSynthesis.cancel();},[supported]);
+ function read(id,text,lang='en-AU',rate){
   if(!supported)return;
-  window.speechSynthesis.cancel();
+  const synth=window.speechSynthesis;
+  const busy=needsSettle(synth);
+  clearTimeout(timer.current);
+  if(busy)synth.cancel();
   if(reading===id){setReading('');return;}
-  const say=new window.SpeechSynthesisUtterance(text);
-  say.lang=lang;say.rate=lang.startsWith('ja')?.8:.85;
-  // Name the voice as well as the language: left to itself a phone will happily read
-  // Japanese with an English voice.
-  try{const voice=matchVoice(window.speechSynthesis.getVoices(),lang);if(voice)say.voice=voice;}catch{}
-  say.onend=()=>setReading(now=>now===id?'':now);say.onerror=()=>setReading(now=>now===id?'':now);
-  setReading(id);window.speechSynthesis.speak(say);
+  setProblem('');
+  const start=()=>{
+   const say=new window.SpeechSynthesisUtterance(text);
+   say.lang=lang;say.rate=rate??speechRate(lang);
+   // Name the voice as well as the language: left to itself a phone will happily read
+   // Japanese with an English voice.
+   try{const voice=matchVoice(synth.getVoices(),lang);if(voice)say.voice=voice;}catch{}
+   const done=()=>setReading(now=>now===id?'':now);
+   say.onend=done;
+   say.onerror=e=>{done();if(isRealFailure(e?.error))setProblem(SILENT_HINT);};
+   setReading(id);
+   // Safari can leave the engine paused after a cancel, and then says nothing at all.
+   try{synth.resume();}catch{}
+   synth.speak(say);
+   // If it never even starts, the phone is not going to explain why. We can.
+   timer.current=setTimeout(()=>{if(!synth.speaking&&!synth.pending){done();setProblem(SILENT_HINT);}},1500);
+  };
+  // Speaking straight after a cancel in the same breath is the classic way to get silence
+  // out of Safari, so when something was already talking, let the engine settle first.
+  if(busy)timer.current=setTimeout(start,150);else start();
  }
- return {supported,reading,read};
+ return {supported,reading,read,problem,dismissProblem:()=>setProblem('')};
 }
 export function ReadAloudButton({id,text,reading,read}){
  return <button type="button" className="read-aloud" aria-label={reading===id?'Stop reading':'Read this mission aloud'} onClick={()=>read(id,text)}>{reading===id?<><Square size={15}/>Stop</>:<><Volume2 size={16}/>Read to me</>}</button>;
