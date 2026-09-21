@@ -22,6 +22,7 @@ export const GAME_RULES={
  stable:'Sumo stable. Drag one wrestler on top of another one of exactly the same size, and they turn into a bigger one. Build one big enough, then press fight to send him out. Winning gets you points. Losing makes your best wrestler smaller.',
  sumo:'Sumo. First there are three things to do before the fight. Stamp your feet on the beat. Throw the salt so it lands on the band. Then crouch, wait, and charge the moment he shouts, but not before. Then the fight. Pushing uses up your legs, so do not just tap and tap. When he leans in, press brace. And when he leaves himself open, look at what he is doing and pick the right move for it.',
  origami:'Origami. Get a square piece of paper. The picture shows you one fold at a time, with a dotted line where the fold goes and an arrow showing which way the paper moves. Do that fold, then press next. Take your time.',
+ draw:'Draw it. Pick something to draw. The phone shows you one line at a time, and the line draws itself so you can see which way it goes. Copy that line, then press next. You can draw on real paper and take a photo of it when you are done, or draw on the phone underneath the steps.',
  spot:'Spot the difference. There are two pictures of the same photo, and one of them has been changed in a few places. When you see something different, tap it, in either picture. Tapping a thing you already found does not cost you anything, so do not worry.',
  janken:'Janken. This is rock, paper, scissors, and you need somebody else holding their phone. Pick who you are playing, then tap rock, paper or scissors. Nobody sees your hand until you have both picked. Rock beats scissors, scissors beats paper, and paper beats rock.'
 };
@@ -38,6 +39,7 @@ export const PAGE_RULES={
  challenges:'Missions. These are your jobs for today. Each one has a picture, and a read to me button if you want to hear it. When you have done one, tick it off.',
  games:'Games. All the games are in here. Press the name of the one you want at the top. Some of them are real Japanese games and they have a little dot next to them.',
  photos:'Photos. All the photos everyone has taken. You can add yours, and at the end of the day everybody votes for the best one.',
+ facts:'Fun facts. A new fact every day about somewhere we are going or something we are about to see. Press the speaker to hear it. All the ones you have already had are kept in here too.',
  diary:'Diary. Everything we have already done, with the photos and the notes from those days. This is the trip so far.',
  places:'Places and our map. Every place we are going, and a button that opens the map and takes you there.',
  meeting:'Meeting card. If you ever get lost, show this to a grown up who works there. It has our hotel and Mum and Dad on it, in Japanese.',

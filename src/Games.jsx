@@ -4,6 +4,7 @@ import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,em
 import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-features.js';
 import SpotDifference from './SpotDifference.jsx';
 import Origami from './Origami.jsx';
+import Drawing from './Drawing.jsx';
 import {useKanaVoice} from './SayIt.jsx';
 import {SpeakRules} from './AdventurePages.jsx';
 import {gameRule} from './spoken-rules.js';
@@ -868,6 +869,7 @@ const GAMES=[
   story:'Japan’s oldest sport, and the rituals in here are the real ones — the stamps, the salt and the charge are what you will watch at Ryogoku before anybody touches anybody.'},
  {id:'origami',title:'Origami',ja:'折り紙',origin:'traditional',needs:'Works with no signal. You need a square of paper.',Component:Origami,
   story:'Folded in Japan for centuries, and written down as a craft to teach by 1797, in the Senbazuru Orikata — the book of a thousand cranes.'},
+ {id:'draw',title:'Draw it',needs:'Works with no signal, on paper or on the phone. Sending one to the family needs signal.',Component:Drawing},
  {id:'spot',title:'Spot the difference',needs:'Needs signal once, to fetch the photo. The puzzle is made on the phone.',Component:SpotDifference},
  {id:'janken',title:'Janken',ja:'じゃんけん',origin:'traditional',needs:'Needs both phones online.',Component:Janken,
   story:'The Japanese hand game that became the world’s rock, paper and scissors — it went out from here, rather than arriving.'}

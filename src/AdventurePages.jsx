@@ -64,13 +64,17 @@ export function useReadAloud(){
  }
  return {supported,reading,read,problem,dismissProblem:()=>setProblem('')};
 }
-export function ReadAloudButton({id,text,reading,read,what='this mission'}){
- return <button type="button" className="read-aloud" aria-label={reading===id?'Stop reading':`Read ${what} aloud`} onClick={()=>read(id,text)}>{reading===id?<><Square size={15}/>Stop</>:<><Volume2 size={16}/>Read to me</>}</button>;
+// `what` names the thing being read, for the screen reader; `rate` is for a listener who
+// needs it slower than talking pace. Both default to the missions this started as.
+export function ReadAloudButton({id,text,reading,read,what='mission',rate,className=''}){
+ return <button type="button" className={`read-aloud${className?' '+className:''}`} aria-label={reading===id?'Stop reading':`Read this ${what} aloud`} onClick={()=>read(id,text,'en-AU',rate)}>{reading===id?<><Square size={15}/>Stop</>:<><Volume2 size={16}/>Read to me</>}</button>;
 }
-// The same thing for a page or a game, for somebody who cannot read the page it is on. What it
-// says is not the screen read back — the writing on screen is for whoever can read it, and
-// SPOKEN_RULES is the same thing said to a five-year-old. It is a little slower than the app
-// reads anything else, because instructions heard once have to land the first time.
+// The same thing for a page or a game, for somebody who cannot read the page it is on. Where
+// ReadAloudButton reads a thing that is on the screen — a mission, a fact — this reads what
+// the screen is FOR, and what it says is deliberately not the screen read back: the writing
+// on the page is for whoever can read it, and spoken-rules.js is the same thing said to a
+// five-year-old. Slower than the app reads anything else, because instructions heard once
+// have to land the first time.
 export function SpeakRules({id,text,label='How to play'}){
  const {supported,reading,read}=useReadAloud();
  if(!supported||!text)return null;
