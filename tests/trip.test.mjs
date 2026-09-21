@@ -5,8 +5,9 @@ import {createServer} from 'node:http';
 import {applyOperation,AppError} from '../server/model.mjs';
 import {activeSteps,scheduleProposal,japanClock,japanDate} from '../src/timing.js';
 import handler from '../server/handler.mjs';
+import {htmlToText,parseInbound,addToInbox,MAX_INBOX} from '../server/email.mjs';
 const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url)));
-const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'};
+const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'},child_=child;
 
 test('every day, activity and alternative is linked to a real guide page',()=>{
  assert.equal(seed.days.length,16);assert.equal(seed.steps.length,237);assert.equal(new Set(seed.steps.map(s=>s.id)).size,237);
@@ -816,7 +817,7 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   const bar=primaryNav(user),more=moreIds(user),all=[...bar,...more];
   // Nothing appears twice, and nothing is stranded.
   assert.equal(new Set(all).size,all.length,`${user.name} lists a page twice`);
-  const expected=Object.keys(PAGES).filter(id=>id!=='thanks'||user.name==='Damien');
+  const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(id!=='inbox'||user.role==='parent'));
   assert.deepEqual([...all].sort(),[...expected].sort(),`${user.name} cannot reach every page`);
   // The bar holds five, plus More, which is what the layout has room for.
   assert.equal(bar.length,5,user.name);
@@ -827,6 +828,10 @@ test('every screen is reachable exactly once, from the bar or from More',async()
  // Lauren's private notes belong to Damien's phone alone.
  assert.ok(moreIds(damien).includes('thanks'));
  for(const user of [lauren,nate])assert.ok(!moreIds(user).includes('thanks'),user.name);
+ // Forwarded email carries bookings and whatever else an email brought with it, so it is a
+ // parents' screen and the boys are never sent to it.
+ assert.ok(moreIds(lauren).includes('inbox'));
+ assert.ok(!moreIds(nate).includes('inbox'));
  // Parents reach for tickets and prices; the boys reach for their missions.
  assert.deepEqual(PRIMARY.parent,['today','days','tickets','food','money']);
  assert.deepEqual(PRIMARY.child,['today','days','challenges','food','diary']);
@@ -2781,4 +2786,118 @@ test('a change is never hidden in the sky when there is a photograph underneath 
  // And what it copies from is not sky either, or a patch would paint a blue square.
  for(const e of round.edits.filter(e=>e.from))
   assert.ok(e.from.y+e.h>SKY,`and it cannot be copied out of the sky — ${e.from.y}`);
+});
+test('a Japanese email body survives the trip from HTML entities to readable text',()=>{
+ const html='<p>&#20104;&#32004;&#30906;&#35469;</p><div>Check-in&nbsp;15:00<br>Room&#x20;A</div><script>alert(1)</script><style>p{color:red}</style>';
+ const text=htmlToText(html);
+ assert.equal(text,'予約確認\nCheck-in 15:00\nRoom A');
+ assert.ok(!/alert|color:red/.test(text));
+ // An email that is already plain text is left exactly as the sender wrote it.
+ assert.equal(parseInbound({FromFull:{Email:'Damien@Example.com'},Subject:'Hotel',TextBody:'  Line one\n\nLine two  '}).text,'Line one\n\nLine two');
+});
+test('an inbound email is read defensively: sender, spam and shape are all checked before anything is kept',()=>{
+ const base={FromFull:{Email:'damien.pasfield@gmail.com'},Subject:'Booking',TextBody:'Confirmed.'};
+ const mail=parseInbound(base);
+ assert.equal(mail.from,'damien.pasfield@gmail.com');assert.equal(mail.spam,false);
+ // The From header, not just FromFull, and with the display name stripped off it.
+ assert.equal(parseInbound({From:'Damien Pasfield <Damien.Pasfield@Gmail.com>',TextBody:'x'}).from,'damien.pasfield@gmail.com');
+ // A body that is HTML only still arrives as words.
+ assert.equal(parseInbound({...base,TextBody:'',HtmlBody:'<p>Hello</p>'}).text,'Hello');
+ assert.equal(parseInbound({...base,Headers:[{Name:'X-Spam-Status',Value:'Yes, score=9.1'}]}).spam,true);
+ assert.equal(parseInbound({Subject:'No sender',TextBody:'x'}),null);
+ assert.equal(parseInbound('not an object'),null);
+ // Ten attachments is the ceiling, and an empty one is not an attachment.
+ const many=parseInbound({...base,Attachments:[...Array(14)].map((_,i)=>({Name:`f${i}.pdf`,ContentType:'application/pdf',Content:'AAAA'}))});
+ assert.equal(many.attachments.length,10);
+ assert.equal(parseInbound({...base,Attachments:[{Name:'empty.pdf',ContentType:'application/pdf',Content:''}]}).attachments.length,0);
+ // A filename from an email never becomes a path.
+ assert.equal(parseInbound({...base,Attachments:[{Name:'../../etc/passwd',ContentType:'application/pdf',Content:'AAAA'}]}).attachments[0].filename,'.._.._etc_passwd');
+});
+test('API: a forwarded email waits in the inbox, and only the right secret and the right sender get in',async()=>{
+ process.env.LOCAL_DEMO='1';delete process.env.VERCEL;
+ process.env.EMAIL_INBOX_SECRET='s3cret-forwarding-key';
+ process.env.EMAIL_INBOX_SENDERS='damien.pasfield@gmail.com, lauren@example.com';
+ const server=createServer(handler);await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
+ const email=(secret,mail,init={})=>fetch(`${base}/api/email-in/${secret}`,{method:'POST',headers:{'Content-Type':'application/json',...init.headers},body:JSON.stringify(mail)});
+ const hotel={FromFull:{Email:'Damien.Pasfield@gmail.com'},Subject:'ホテル予約確認',TextBody:'チェックインは15時です。',Date:'2026-09-20T09:00:00Z'};
+ try{
+  const config=await(await fetch(base+'/api/config')).json();assert.equal(config.emailInbox,true);
+  // A wrong secret is answered like a wrong address: nothing to learn from it.
+  assert.equal((await email('wrong-key',hotel)).status,404);
+  assert.equal((await fetch(base+'/api/email-in',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(hotel)})).status,404);
+  // The provider's own way of carrying the secret works too.
+  const basic=await email('nope',hotel,{headers:{Authorization:'Basic '+Buffer.from('postmark:s3cret-forwarding-key').toString('base64')}});
+  assert.equal((await basic.json()).filed,true);
+  // Somebody else's email is dropped, but answered 200 so it is not retried all day.
+  const stranger=await email('s3cret-forwarding-key',{FromFull:{Email:'spammer@elsewhere.test'},Subject:'You have won',TextBody:'Click here'});
+  assert.equal(stranger.status,200);assert.equal((await stranger.json()).reason,'sender');
+  const spam=await email('s3cret-forwarding-key',{...hotel,Headers:[{Name:'X-Spam-Status',Value:'Yes, score=12'}]});
+  assert.equal((await spam.json()).reason,'spam');
+  const accepted=await email('s3cret-forwarding-key',{...hotel,Attachments:[{Name:'voucher.pdf',ContentType:'application/pdf',Content:Buffer.from('%PDF-1.4 voucher').toString('base64')}]});
+  assert.equal((await accepted.json()).filed,true);
+  const {state,revision}=await(await fetch(base+'/api/state')).json();
+  assert.equal(state.inbox.length,2);
+  const item=state.inbox.find(i=>i.attachments.length);
+  assert.equal(item.from,'damien.pasfield@gmail.com');assert.equal(item.subject,'ホテル予約確認');
+  assert.equal(item.text,'チェックインは15時です。');assert.equal(item.reading,null);
+  // With no Blob store connected the file cannot be kept, and the email says so rather than
+  // pretending it has one.
+  assert.equal(item.attachments[0].pathname,null);assert.match(item.attachments[0].skipped,/storage/i);
+  // Filing it is a person's decision, and it is what puts it on the trip.
+  const filed=await fetch(base+'/api/mutate',{method:'POST',headers:{'Content-Type':'application/json',Origin:base},
+   body:JSON.stringify({revision,operation:{type:'inboxFile',id:item.id,title:'Kyoto hotel',category:'reservation',person:'Family',day:state.days[2].date,notes:'Check in from 15:00.'}})});
+  assert.equal(filed.status,200);
+  const after=(await filed.json()).state;
+  assert.equal(after.inbox.length,1);
+  const doc=after.documents.find(d=>d.title==='Kyoto hotel');
+  assert.equal(doc.category,'reservation');assert.equal(doc.day,state.days[2].date);assert.equal(doc.source,'email');
+  assert.equal(doc.from,'damien.pasfield@gmail.com');assert.equal(doc.type,'note');assert.equal(doc.notes,'Check in from 15:00.');
+  assert.equal((await(await fetch(base+'/api/inbox-file?id=nothing')).json()).error,'That attachment is not in the inbox.');
+ }finally{
+  delete process.env.LOCAL_DEMO;delete process.env.EMAIL_INBOX_SECRET;delete process.env.EMAIL_INBOX_SENDERS;
+  await new Promise(r=>server.close(r));
+ }
+});
+test('filing a forwarded email keeps its files together and its English where the phone can read it',()=>{
+ const files=[{id:'f1',filename:'ticket.pdf',type:'application/pdf',size:120,pathname:'inbox/a/0-ticket.pdf'},
+  {id:'f2',filename:'map.png',type:'image/png',size:90,pathname:'inbox/a/1-map.png'},
+  {id:'f3',filename:'huge.mov',type:'video/quicktime',size:1,pathname:null,skipped:'This kind of file, or its size, is not accepted.'}];
+ const item={id:'mail-1',from:'lauren@example.com',subject:'新幹線',receivedAt:'2026-09-25T02:00:00.000Z',text:'原文',
+  attachments:files,reading:{readable:true,kind:'train ticket',language:'Japanese',title:'Nozomi 33 tickets',
+   summary:['Two adults, two children.'],translation:'Nozomi 33, car 7.',actions:[{what:'Collect at the machine',when:'27 Sep'}]}};
+ const seeded={...structuredClone(seed),inbox:[item]};
+ const next=applyOperation(seeded,{type:'inboxFile',id:'mail-1',title:'Nozomi 33 tickets',category:'ticket',person:'Family'},parent);
+ assert.equal(next.inbox.length,0);
+ const root=next.documents.find(d=>d.title==='Nozomi 33 tickets');
+ assert.equal(root.pathname,'inbox/a/0-ticket.pdf');assert.equal(root.category,'ticket');
+ // The English is written into the ticket itself, so it is still readable with no signal.
+ assert.match(root.notes,/Nozomi 33, car 7\./);assert.match(root.notes,/Collect at the machine — 27 Sep/);
+ assert.match(root.notes,/Forwarded from lauren@example\.com on 2026-09-25/);
+ const child=next.documents.find(d=>d.parentDocumentId===root.id);
+ assert.equal(child.pathname,'inbox/a/1-map.png');assert.equal(child.notes,'');
+ // The file that could not be kept does not become a document pointing at nothing.
+ assert.equal(next.documents.filter(d=>d.source==='email').length,2);
+ // A child cannot file or discard one, and neither can be aimed at a day and an activity at once.
+ assert.throws(()=>applyOperation(seeded,{type:'inboxFile',id:'mail-1',title:'x'},child_),/parent/i);
+ assert.throws(()=>applyOperation(seeded,{type:'inboxDiscard',id:'mail-1'},child_),/parent/i);
+ assert.throws(()=>applyOperation(seeded,{type:'inboxFile',id:'mail-1',title:'x',day:seed.days[0].date,stepId:seed.steps[0].id},parent),/activity or a day/);
+ assert.throws(()=>applyOperation(seeded,{type:'inboxFile',id:'gone',title:'x'},parent),/no longer in the inbox/);
+ assert.throws(()=>applyOperation(seeded,{type:'inboxFile',id:'mail-1',title:'  '},parent),/title/i);
+ assert.equal(applyOperation(seeded,{type:'inboxDiscard',id:'mail-1'},parent).inbox.length,0);
+ // The inbox is a queue to work through, not an archive that grows without end.
+ const many={...structuredClone(seed),inbox:[]};
+ let piled=many;for(let i=0;i<MAX_INBOX+6;i++)piled=addToInbox(piled,{...item,id:`mail-${i}`});
+ assert.equal(piled.inbox.length,MAX_INBOX);assert.equal(piled.inbox[0].id,`mail-${MAX_INBOX+5}`);
+});
+test('a forwarded email is a parent\'s to read, and the boys\' phones are never sent it',async()=>{
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ const item={id:'mail-1',from:'damien.pasfield@gmail.com',subject:'Bank reference',text:'Account 1234.',attachments:[],reading:null};
+ const state={...structuredClone(seed),inbox:[item],games:{scores:{},janken:{round:null,scores:{}}}};
+ assert.equal(visibleTrip(state,parent).inbox.length,1);
+ assert.equal(visibleTrip(state,{name:'Lauren',role:'parent'}).inbox.length,1);
+ // Not hidden in the screen — removed from the answer, so no phone can fetch its way to it.
+ assert.deepEqual(visibleTrip(state,child).inbox,[]);
+ assert.deepEqual(visibleTrip(state,{name:'Boston',role:'child'}).inbox,[]);
+ // Redacting a copy never touches what is stored for the family.
+ assert.equal(state.inbox.length,1);
 });

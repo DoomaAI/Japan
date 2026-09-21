@@ -1,4 +1,4 @@
-import {ensureFeatures} from '../src/trip-features.js';
+import {ensureFeatures,inboxNotes} from '../src/trip-features.js';
 import {extraOperation} from './features.mjs';
 import { randomUUID } from 'node:crypto';
 export const MEMBERS = ['Damien','Lauren','Nate','Boston'];
@@ -126,6 +126,31 @@ export function applyOperation(input,op,user){
   const root=ticketParent(doc.parentDocumentId,state);
   if(root)Object.assign(doc,{category:root.category,stepId:root.stepId,day:root.day});
   else for(const a of state.documents.filter(a=>a.parentDocumentId===doc.id))Object.assign(a,{category:doc.category,stepId:doc.stepId,day:doc.day});
+ }else if(op.type==='inboxFile'){
+  // Filing is the moment a forwarded email becomes part of the trip, and a person does it.
+  // The email's own attachments become the ticket and its files; where it had none, the
+  // English reading is kept as a written note so it is still there with no signal.
+  const item=(state.inbox||[]).find(i=>i.id===op.id);
+  if(!item)throw new AppError('That email is no longer in the inbox.',404);
+  if(!text(op.title,250)||!op.title.trim())throw new AppError('Add a title for this booking.');
+  if(op.person&&!MEMBERS.includes(op.person)&&op.person!=='Family')throw new AppError('Invalid family member.');
+  if(op.category==='memory')throw new AppError('Forwarded email is filed as a booking, not a photo.');
+  const details=documentDetails({category:op.category||'reservation',reference:op.reference,
+   notes:op.notes!==undefined?op.notes:inboxNotes(item),tags:op.tags});
+  const association=documentAssociation(op,state),person=op.person||'Family';
+  const files=(item.attachments||[]).filter(f=>f.pathname),[first,...rest]=files;
+  const rootId=randomUUID();
+  state.documents.push({id:rootId,title:op.title.trim(),...details,...association,person,
+   ...(first?{pathname:first.pathname,type:first.type,size:first.size}:{type:'note'}),
+   source:'email',from:item.from,receivedAt:item.receivedAt||null,createdAt:now});
+  for(const f of rest)state.documents.push({id:randomUUID(),title:f.filename.slice(0,250),...details,notes:'',
+   ...association,person,parentDocumentId:rootId,pathname:f.pathname,type:f.type,size:f.size,
+   source:'email',createdAt:now});
+  state.inbox=state.inbox.filter(i=>i.id!==op.id);
+ }else if(op.type==='inboxDiscard'){
+  const item=(state.inbox||[]).find(i=>i.id===op.id);
+  if(!item)throw new AppError('That email is no longer in the inbox.',404);
+  state.inbox=state.inbox.filter(i=>i.id!==op.id);
  }else if(op.type==='removeDocument'){
   state.documents=state.documents.filter(d=>d.id!==op.id&&d.parentDocumentId!==op.id);
  }else throw new AppError('Unknown action.');

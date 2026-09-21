@@ -4,6 +4,7 @@ export const PAGES={
  today:{label:'Home',note:'What’s next today'},
  days:{label:'Days',note:'All sixteen days of the trip'},
  tickets:{label:'Tickets',note:'Bookings, luggage tags and QR codes'},
+ inbox:{label:'Forwarded email',note:'Booking emails you sent in, waiting to be filed'},
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
  money:{label:'Yen',note:'What a price is in dollars, signal or not'},
  challenges:{label:'Missions',note:'Daily missions and whole-trip quests'},
@@ -32,12 +33,12 @@ export const PRIMARY={
 };
 export const MORE_SECTIONS=[
  ['Out and about',['places','money','food','phrases','meeting','help']],
- ['The plan',['todo','planning','options','parks','shopping','challenges','games','tickets','guide']],
+ ['The plan',['todo','planning','options','parks','shopping','challenges','games','tickets','inbox','guide']],
  ['Looking back',['photos','diary','updates','search']],
  ['Just for you',['thanks']]
 ];
 export const primaryNav=user=>PRIMARY[user?.role==='child'?'child':'parent'];
-const allowed=(id,user)=>id!=='thanks'||user?.name==='Damien';
+const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(id!=='inbox'||user?.role==='parent');
 // Whatever the bottom bar does not already show, grouped so a long list stays scannable.
 export const moreSections=user=>{
  const shown=new Set(primaryNav(user));
