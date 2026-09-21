@@ -225,3 +225,50 @@ export function combine(a,b){
  return hit?hit[2]:null;
 }
 export const discoverable=()=>[...new Set(RECIPES.map(r=>r[2]))];
+// The real sumo ladder, bottom to top. Merge two of the same rank and the wrestler is
+// promoted — which is roughly how it works, and it teaches the names on the way up.
+export const SUMO_RANKS=[
+ {level:1,icon:'🥋',en:'Beginner',ja:'序ノ口',romaji:'jonokuchi'},
+ {level:2,icon:'🤼',en:'Second tier',ja:'序二段',romaji:'jonidan'},
+ {level:3,icon:'🤼‍♂️',en:'Third tier',ja:'三段目',romaji:'sandanme'},
+ {level:4,icon:'💪',en:'Makushita',ja:'幕下',romaji:'makushita'},
+ {level:5,icon:'🎽',en:'Juryo — now paid',ja:'十両',romaji:'jūryō'},
+ {level:6,icon:'🏅',en:'Maegashira',ja:'前頭',romaji:'maegashira'},
+ {level:7,icon:'🎖️',en:'Komusubi',ja:'小結',romaji:'komusubi'},
+ {level:8,icon:'🏆',en:'Sekiwake',ja:'関脇',romaji:'sekiwake'},
+ {level:9,icon:'👑',en:'Ozeki',ja:'大関',romaji:'ōzeki'},
+ {level:10,icon:'🌅',en:'Yokozuna',ja:'横綱',romaji:'yokozuna'}
+];
+export const rankAt=level=>SUMO_RANKS.find(r=>r.level===level)||null;
+export const TOP_RANK=SUMO_RANKS.length;
+export const STABLE_SIZE=16;
+export const emptyStable=()=>Array(STABLE_SIZE).fill(0);
+// A new recruit always arrives at the bottom, sometimes with a little help.
+export function recruit(stable,seed){
+ const free=stable.map((v,i)=>v?-1:i).filter(i=>i>=0);
+ if(!free.length)return null;
+ const n=(seed>>>0)||1;
+ const next=[...stable];
+ next[free[n%free.length]]=n%7===0?2:1;
+ return next;
+}
+// Two of the same rank become one of the next. Anything else is not a merge.
+export function promote(stable,a,b){
+ if(a===b||!stable[a]||!stable[b]||stable[a]!==stable[b]||stable[a]>=TOP_RANK)return null;
+ const next=[...stable];
+ next[b]=stable[b]+1;next[a]=0;
+ return {stable:next,level:next[b]};
+}
+export const bestRank=stable=>Math.max(0,...stable);
+export const stableFull=stable=>stable.every(Boolean);
+// A bout is decided by rank, with enough luck that a lower rank can still pull one off —
+// which is the whole reason an upset is worth watching.
+export const oddsOf=(mine,theirs)=>Math.max(0.05,Math.min(0.95,0.5+(mine-theirs)*0.12));
+export function bout(mine,theirs,roll){
+ if(!rankAt(mine)||!rankAt(theirs))return null;
+ const odds=oddsOf(mine,theirs);
+ const won=roll<odds;
+ return {won,odds,reward:won?theirs*10:0};
+}
+// Who the next challenger is: near your best, and never below the bottom rung.
+export const challengerFor=(best,cleared)=>Math.max(1,Math.min(TOP_RANK,Math.max(1,best-1)+(cleared%2)));

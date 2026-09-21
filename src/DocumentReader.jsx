@@ -18,7 +18,9 @@ export default function DocumentReader({config,busy,setBusy,request,notice,mutat
   setBusy(true);setWorking('Reading…');
   try{
    const pdf=file.type==='application/pdf';
-   const data=pdf?await readAsBase64(file):await shrinkPhoto(file);
+   // shrinkPhoto hands back an object; the server wants the base64 on its own. Sending the
+   // object was the difference between a photograph working and being refused outright.
+   const data=pdf?await readAsBase64(file):(await shrinkPhoto(file)).image;
    const answer=await request('read-document',{file:data,mediaType:pdf?'application/pdf':'image/jpeg',note});
    if(!answer.readable)notice('That could not be read. Try a straighter, closer photo, or one page at a time.');
    setResult(answer);
@@ -35,7 +37,7 @@ export default function DocumentReader({config,busy,setBusy,request,notice,mutat
  const copy=async()=>{try{await navigator.clipboard.writeText(result.translation||'');setCopied(true);}catch{notice('This phone would not let the app copy. Select the text and copy it by hand.');}};
  return <section className="menu-reader document-reader">
   <h2><FileText size={18}/> Read a document</h2>
-  <p>A letter from the hotel, a form, a notice, a receipt. Photograph it or choose a PDF and it comes back in English, with anything you have to do pulled out.</p>
+  <p>A letter from the hotel, a form, a notice, a receipt. Photograph it, pick a photo you already took, or choose a PDF — it comes back in English, with anything you have to do pulled out.</p>
   {!config?.documentReader
    ?<p className="callout">This needs an Anthropic API key on the deployment. Everything else on this page works without one.</p>
    :<>
@@ -43,9 +45,9 @@ export default function DocumentReader({config,busy,setBusy,request,notice,mutat
      <input value={note} maxLength={500} onChange={e=>setNote(e.target.value)} placeholder="Is there a deadline? What do we owe?"/></label>
     <div className="row wrap">
      <label className="menu-shoot button primary">Photograph it
-      <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={busy} onChange={e=>{choose(e.target.files?.[0]);e.target.value='';}}/></label>
-     <label className="menu-shoot button">Choose a file or PDF
-      <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={busy} onChange={e=>{choose(e.target.files?.[0]);e.target.value='';}}/></label>
+      <input type="file" accept="image/*" capture="environment" disabled={busy} onChange={e=>{choose(e.target.files?.[0]);e.target.value='';}}/></label>
+     <label className="menu-shoot button">Choose a photo or PDF
+      <input type="file" accept="image/*,application/pdf,.pdf" disabled={busy} onChange={e=>{choose(e.target.files?.[0]);e.target.value='';}}/></label>
     </div>
     {working&&<p className="game-status"><Clock size={15}/> {working} A page takes a few seconds.</p>}
    </>}
