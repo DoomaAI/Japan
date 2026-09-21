@@ -1,4 +1,4 @@
-import {ensureFeatures,inboxNotes} from '../src/trip-features.js';
+import {ensureFeatures,inboxNotes,documentSteps,documentServesStep,documentSpent} from '../src/trip-features.js';
 import {extraOperation} from './features.mjs';
 import { randomUUID } from 'node:crypto';
 export const MEMBERS = ['Damien','Lauren','Nate','Boston'];
@@ -15,12 +15,20 @@ export function documentDetails(p){
  if(!Array.isArray(tags)||tags.length>20||tags.some(t=>!text(t,50)||!t.trim()))throw new AppError('Use up to 20 tags, each under 50 characters.');
  return {category,reference,notes,tags:[...new Set(tags.map(t=>t.trim()))]};
 }
+// Where a document belongs: against one or more activities, or against a whole day, never both.
+// `stepIds` is the whole allocation and `stepId` is the first of them, kept because every
+// ticket saved before a booking could cover more than one activity has only that.
+export const MAX_DOCUMENT_STEPS=20;
 export function documentAssociation(p,state){
- const stepId=p.stepId||null,day=p.day||null;
- if(stepId&&!state.steps.some(s=>s.id===stepId))throw new AppError('Activity not found.');
+ const listed=p.stepIds!==undefined?p.stepIds:(p.stepId?[p.stepId]:[]);
+ if(!Array.isArray(listed))throw new AppError('Choose the activities this booking covers.');
+ const stepIds=[...new Set(listed.filter(id=>id!==null&&id!==undefined&&id!==''))];
+ if(stepIds.length>MAX_DOCUMENT_STEPS)throw new AppError(`Allocate a booking to at most ${MAX_DOCUMENT_STEPS} activities.`);
+ if(stepIds.some(id=>typeof id!=='string'||!state.steps.some(s=>s.id===id)))throw new AppError('Activity not found.');
+ const day=p.day||null;
  if(day&&!state.days.some(d=>d.date===day))throw new AppError('Choose a trip day.');
- if(stepId&&day)throw new AppError('Attach to an activity or a day, not both.');
- return {stepId,day};
+ if(stepIds.length&&day)throw new AppError('Attach to an activity or a day, not both.');
+ return {stepId:stepIds[0]||null,stepIds,day};
 }
 export function ticketParent(id,state){
  if(!id)return null;
@@ -89,11 +97,11 @@ export function applyOperation(input,op,user){
   // archived by hand beforehand is left where the family put it.
   if(op.status==='done'){
    step.completedAt=at;
-   for(const doc of state.documents.filter(d=>d.stepId===step.id&&d.category!=='memory'&&!d.archivedAt))Object.assign(doc,{archivedAt:at,archivedBy:user.name,archivedWith:step.id});
+   for(const doc of state.documents.filter(d=>documentServesStep(d,step.id)&&documentSpent(state.steps,d)&&d.category!=='memory'&&!d.archivedAt))Object.assign(doc,{archivedAt:at,archivedBy:user.name,archivedWith:step.id});
   }
   if(op.status==='todo'){
    delete step.completedAt;delete step.startedAt;
-   for(const doc of state.documents.filter(d=>d.archivedWith===step.id))Object.assign(doc,{archivedAt:null,archivedBy:null,archivedWith:null});
+   for(const doc of state.documents.filter(d=>d.archivedWith&&documentServesStep(d,step.id)))Object.assign(doc,{archivedAt:null,archivedBy:null,archivedWith:null});
   }
   if(op.status==='skipped')delete step.completedAt;
  }else if(op.type==='patch'){
@@ -123,7 +131,11 @@ export function applyOperation(input,op,user){
   const slots=active.map(s=>s.order).sort((a,b)=>a-b);op.ids.forEach((id,i)=>{state.steps.find(s=>s.id===id).order=slots[i];});
  }else if(op.type==='remove'){
   if(step.locked)throw new AppError('Unlock before deleting.');
-  for(const doc of state.documents){if(doc.stepId===step.id){doc.stepId=null;doc.day=step.day;}}
+  for(const doc of state.documents){
+   if(!documentServesStep(doc,step.id))continue;
+   const rest=documentSteps(doc).filter(id=>id!==step.id);
+   Object.assign(doc,{stepIds:rest,stepId:rest[0]||null,day:rest.length?null:step.day});
+  }
   // A planning idea that lost its activity goes back to being an idea, rather than pointing at
   // a step that is no longer there.
   for(const p of state.proposals){if(p.stepId===step.id)Object.assign(p,{stepId:null,scheduledBy:null,scheduledAt:null});}
@@ -146,8 +158,8 @@ export function applyOperation(input,op,user){
   if(op.person&&!MEMBERS.includes(op.person)&&op.person!=='Family')throw new AppError('Invalid family member.');
   Object.assign(doc,{title:op.title,...documentDetails(op),...documentAssociation(op,state),person:op.person||'Family'});
   const root=ticketParent(doc.parentDocumentId,state);
-  if(root)Object.assign(doc,{category:root.category,stepId:root.stepId,day:root.day});
-  else for(const a of state.documents.filter(a=>a.parentDocumentId===doc.id))Object.assign(a,{category:doc.category,stepId:doc.stepId,day:doc.day});
+  if(root)Object.assign(doc,{category:root.category,stepId:root.stepId,stepIds:documentSteps(root),day:root.day});
+  else for(const a of state.documents.filter(a=>a.parentDocumentId===doc.id))Object.assign(a,{category:doc.category,stepId:doc.stepId,stepIds:documentSteps(doc),day:doc.day});
  }else if(op.type==='inboxFile'){
   // Filing is the moment a forwarded email becomes part of the trip, and a person does it.
   // Where it goes is theirs to choose: a ticket, a ticket against one activity, a new activity
@@ -169,7 +181,7 @@ export function applyOperation(input,op,user){
    if(onDay&&!op.day)throw new AppError('Choose a trip day for this activity.');
    const created=addStep(state,validatePatch({title,notes:english.slice(0,4000),day:onDay?op.day:null,
     ...(onDay&&op.time?{time:op.time,kind:'fixed'}:{kind:'flexible'})},state));
-   association={stepId:created.id,day:null};
+   association={stepId:created.id,stepIds:[created.id],day:null};
    extra={summary:`${title} was added to the plan from a forwarded email`,important:true,title};
   }else if(destination==='idea'){
    extra=extraOperation(state,{type:'proposalAdd',title,notes:english.slice(0,4000),

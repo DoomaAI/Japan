@@ -430,7 +430,7 @@ export function offlineManifest(state,day){
  const d=state.days.find(d=>d.date===day),ids=new Set(activeSteps(state,day).map(s=>s.id));
  // A used ticket is not downloaded again: there is no point filling a phone with the gates we
  // have already walked through.
- const docs=state.documents.filter(d=>d.category!=='memory'&&!isArchived(d)&&(d.day===day||ids.has(d.stepId)||(!d.day&&!d.stepId)));
+ const docs=state.documents.filter(d=>d.category!=='memory'&&!isArchived(d)&&(d.day===day||documentSteps(d).some(id=>ids.has(id))||(!d.day&&!documentSteps(d).length)));
  return {files:[...(d?.pages||[]).map(p=>({key:`page-${p}`,title:`Guide page ${p}`,url:`/api/guide?page=${p}`})),...docs.filter(d=>d.pathname).map(d=>({key:`doc-${d.id}`,title:d.title,url:`/api/document?id=${d.id}`}))],links:docs.filter(d=>d.type==='link')};
 }
 // A ticket and its attached files are read as one set: the ticket itself first, then each
@@ -470,6 +470,20 @@ export const documentThumbnail=(doc,attachments=[])=>isDrawable(doc)?doc:attachm
 // still the only record of what was paid for.
 export const isArchived=doc=>!!doc?.archivedAt;
 export const attachmentsOf=(state,doc)=>(state.documents||[]).filter(a=>a.parentDocumentId===doc?.id);
+// One booking can get you through more than one gate. A rail pass covers three legs, a park
+// ticket covers the morning and the evening parade, a hotel reservation covers the night either
+// side of a day trip — so a ticket is allocated to as many activities as it actually serves.
+// The first of them stays in `stepId`, which is what every ticket saved before this had, so a
+// ticket written last month reads exactly the same as one allocated to four activities today.
+export const documentSteps=doc=>doc?.stepIds?.length?doc.stepIds:(doc?.stepId?[doc.stepId]:[]);
+export const documentServesStep=(doc,stepId)=>!!stepId&&documentSteps(doc).includes(stepId);
+export const documentStepList=(state,doc)=>documentSteps(doc).map(id=>(state.steps||[]).find(s=>s.id===id)).filter(Boolean);
+// A pass that gets you through three gates is not finished at the first one. A booking leaves
+// the list when every activity it is allocated to has been ticked off, and not before.
+export const documentSpent=(steps,doc)=>{
+ const ids=documentSteps(doc);
+ return ids.length>0&&ids.every(id=>steps.find(s=>s.id===id)?.status==='done');
+};
 // Which tickets the page is showing, filters and all. Kept out of the screen so the count beside
 // the 'used tickets' toggle is worked out by exactly the same rules as the list itself, and so
 // the strip you swipe through can be given the same set the page is showing.
@@ -477,7 +491,7 @@ export function ticketList(state,{step=null,all=true,category='',person='',searc
  const q=search.trim().toLowerCase();
  return (state.documents||[]).filter(d=>{
   if(d.parentDocumentId||d.category==='memory'||isArchived(d)!==archived)return false;
-  if(!all&&d.stepId!==step?.id)return false;
+  if(!all&&!documentServesStep(d,step?.id))return false;
   if(category&&(d.category||'ticket')!==category)return false;
   const files=attachmentsOf(state,d);
   if(person&&d.person!==person&&!files.some(a=>a.person===person))return false;
@@ -866,8 +880,8 @@ export function pendingProgress(state,queue){
   if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=true;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;}
    // The tickets for an activity ticked off on a train with no signal leave the list there and
    // then, exactly as they will when the change lands, rather than lingering until it syncs.
-   if(o.status==='done')next.documents=next.documents.map(d=>d.stepId===s.id&&d.category!=='memory'&&!d.archivedAt?{...d,archivedAt:o.at,archivedWith:s.id,pending:true}:d);
-   if(o.status==='todo')next.documents=next.documents.map(d=>d.archivedWith===s.id?{...d,archivedAt:null,archivedBy:null,archivedWith:null,pending:true}:d);
+   if(o.status==='done')next.documents=next.documents.map(d=>documentServesStep(d,s.id)&&documentSpent(next.steps,d)&&d.category!=='memory'&&!d.archivedAt?{...d,archivedAt:o.at,archivedWith:s.id,pending:true}:d);
+   if(o.status==='todo')next.documents=next.documents.map(d=>d.archivedWith&&documentServesStep(d,s.id)?{...d,archivedAt:null,archivedBy:null,archivedWith:null,pending:true}:d);
   }}
   if(o.type==='phraseSeen'){
    if(o.day){const e={...(next.phraseSeen[o.day]||{})};e[o.person]=e[o.person]||o.at;next.phraseSeen={...next.phraseSeen,[o.day]:e};}
