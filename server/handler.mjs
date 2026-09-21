@@ -152,7 +152,13 @@ export default async function handler(req,res){
    if(typeof b.pathname!=='string'||!b.pathname.startsWith(`photos/${user.id}/`)||b.pathname.includes('..'))throw new AppError('Invalid photo.');
    if(!b.day||!current.state.days.some(d=>d.date===b.day))throw new AppError('Choose a trip day.');
    if(b.title!==undefined&&(typeof b.title!=='string'||b.title.length>200))throw new AppError('Keep the title short.');
-   if(current.state.photos.filter(p=>p.by===user.name&&p.day===b.day).length>=12)throw new AppError('That is twelve photos for one day already. Remove one first.');
+   // Whose photo it is, which is not always who put it on. A parent takes a picture on their
+   // own phone of something a boy did and hands it to him; the boys can only speak for
+   // themselves. The cap of twelve a day is per owner, because it is their allowance.
+   const owner=b.for==null||b.for===''?user.name:String(b.for);
+   if(!current.state.members.includes(owner))throw new AppError('Choose who the photo belongs to.');
+   if(user.role!=='parent'&&owner!==user.name)throw new AppError('That is not your photo to add.',403);
+   if(current.state.photos.filter(p=>(p.for||p.by)===owner&&p.day===b.day).length>=12)throw new AppError('That is twelve photos for one day already. Remove one first.');
    const blob=await head(b.pathname);
    validateFile(blob.contentType,blob.size,'memory');
    if(current.state.photos.some(p=>p.pathname===b.pathname))return json(res,visibleEnvelope(current,user));
@@ -163,7 +169,7 @@ export default async function handler(req,res){
     tip:String(b.feedback.tip||'').slice(0,400),
     score:Number.isInteger(b.feedback.score)?Math.max(1,Math.min(10,b.feedback.score)):null
    }:null;
-   current.state.photos=[...current.state.photos,{id:randomUUID(),by:user.name,day:b.day,
+   current.state.photos=[...current.state.photos,{id:randomUUID(),by:user.name,for:owner,day:b.day,
     title:(b.title||'').trim(),pathname:b.pathname,type:blob.contentType,size:blob.size,feedback,at:new Date().toISOString()}];
    return json(res,visibleEnvelope(await writeTrip(current.state,current.revision),user));
   }

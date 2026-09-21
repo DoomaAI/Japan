@@ -161,6 +161,7 @@ function App(){
   }finally{working.current=false;setBusy(false);}
  }
  const visibleState=state?pendingProgress(state,queue):null;
+ const [photoPerson,setPhotoPerson]=useState(()=>new URLSearchParams(location.search).get('who')||'');
  const forecast=useForecastCheck({state:visibleState||{days:[]},day:null,mutate,notice});
  const today=state?.days.find(d=>d.date===day),steps=visibleState?activeSteps(visibleState,day):[],current=steps.find(s=>s.id===selected)||steps.find(s=>!['done','skipped'].includes(s.status))||steps.at(-1),index=steps.findIndex(s=>s.id===current?.id);
  const done=steps.filter(s=>s.status==='done').length,nextFixed=steps.find(s=>s.locked&&!['done','skipped'].includes(s.status)&&s.id!==current?.id),groups=state?[...new Set(state.steps.filter(s=>s.day===day&&s.group).map(s=>s.group))]:[];
@@ -173,6 +174,12 @@ function App(){
  // use the arrow keys. Clamped at both ends rather than wrapping, because page 1 coming after
  // page 72 is disorienting when you are looking for something.
  function selectPhotoDay(d){setDay(d);history.replaceState(null,'','/?'+new URLSearchParams({tab:'photos',day:d}));}
+ // Whose photos you are looking at lives in the address, so a profile can link straight to
+ // somebody's and the back button does what it looks like it does.
+ function choosePhotoPerson(name){
+  setPhotoPerson(name);
+  history.replaceState(null,'','/?'+new URLSearchParams(name?{tab:'photos',who:name}:{tab:'photos',day}));
+ }
  function turnPage(delta){
   const n=Math.min(72,Math.max(1,guidePage+delta));
   if(n===guidePage)return;
@@ -276,7 +283,7 @@ function App(){
   {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='meeting'&&<MeetingCard key={day} state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='updates'&&<Updates state={state} user={user} mutate={mutate} busy={busy}/>}
-  {tab==='photos'&&<><p className="eyebrow">THROUGH THEIR EYES</p><h1>Photo of the day</h1><div className="form-row"><label>Day<select value={day} onChange={e=>selectPhotoDay(e.target.value)}>{state.days.map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)} · {d.title}</option>)}</select></label></div><PhotoDay state={visibleState} user={user} day={day} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay}/></>}
+  {tab==='photos'&&<><p className="eyebrow">THROUGH THEIR EYES</p><h1>Photos</h1>{!photoPerson&&<div className="form-row"><label>Day<select value={day} onChange={e=>selectPhotoDay(e.target.value)}>{state.days.map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)} · {d.title}</option>)}</select></label></div>}<PhotoDay state={visibleState} user={user} day={day} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay} person={photoPerson} setPerson={choosePhotoPerson}/></>}
   {tab==='games'&&<Games state={visibleState} user={user} mutate={mutate} busy={busy} online={online} refresh={refresh} dayLabel={fmtDay}/>}
   {tab==='phrases'&&<><p className="eyebrow">A LITTLE JAPANESE GOES A LONG WAY</p><h1>Phrases</h1><Phrasebook state={visibleState} user={user} day={japanDate(now)} mutate={mutate} busy={busy} request={request} notice={notice} config={config}/></>}
   {tab==='money'&&<><p className="eyebrow">WHAT DOES THAT COST?</p><h1>Yen converter</h1><Currency state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice}/></>}

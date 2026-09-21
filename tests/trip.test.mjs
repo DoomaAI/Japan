@@ -3569,3 +3569,68 @@ test('a forwarded email goes where the parent sends it, not only into Tickets',(
  // Whichever door it went through, it leaves the inbox exactly once.
  for(const d of ['ticket','activity','options','idea','todo'])assert.equal(file_({destination:d,day}).inbox.length,0);
 });
+
+test('a photo belongs to somebody, which is not always whoever put it on',async()=>{
+ const {ensureFeatures,photoOwner,photosOf,photoCounts,photosFor}=await import('../src/trip-features.js');
+ const boston={name:'Boston',role:'child'};
+ let state=ensureFeatures(structuredClone(seed));
+ const day=state.days[0].date,other=state.days[1].date;
+ state.photos=[
+  {id:'a',by:'Damien',for:'Nate',day,at:'2026-09-21T01:00:00.000Z'},
+  {id:'b',by:'Boston',for:'Boston',day,at:'2026-09-21T02:00:00.000Z'},
+  // Written before photos could be handed over: it belongs to whoever added it, which is not
+  // a guess, it is what was true at the time.
+  {id:'c',by:'Nate',day:other,at:'2026-09-21T03:00:00.000Z'}
+ ];
+ assert.equal(photoOwner(state.photos[0]),'Nate','a parent can take one for a boy');
+ assert.equal(photoOwner(state.photos[2]),'Nate','and an older one is still his');
+ assert.equal(photoOwner(null),'');
+ // A name gets you the whole trip, newest first, not one day of it.
+ assert.deepEqual(photosOf(state,'Nate').map(p=>p.id),['c','a']);
+ assert.deepEqual(photosOf(state,'Nate',day).map(p=>p.id),['a']);
+ assert.deepEqual(photosOf(state,'Lauren'),[]);
+ assert.deepEqual(photoCounts(state),{Nate:2,Boston:1});
+ assert.deepEqual(photoCounts(state,day),{Nate:1,Boston:1});
+ // Handing one over afterwards, because whose it is gets worked out once everyone has seen it.
+ let handed=applyOperation(state,{type:'photoAssign',id:'b',person:'Nate'},parent);
+ assert.equal(photoOwner(handed.photos.find(p=>p.id==='b')),'Nate');
+ assert.equal(handed.photos.find(p=>p.id==='b').by,'Boston','and who added it is not rewritten');
+ // A boy can hand over one he added, and nobody else's.
+ assert.equal(photoOwner(applyOperation(state,{type:'photoAssign',id:'b',person:'Nate'},boston).photos.find(p=>p.id==='b')),'Nate');
+ assert.throws(()=>applyOperation(state,{type:'photoAssign',id:'a',person:'Boston'},boston),/parent/i);
+ assert.throws(()=>applyOperation(state,{type:'photoAssign',id:'b',person:'Nobody'},parent),/family member/i);
+ assert.throws(()=>applyOperation(state,{type:'photoAssign',id:'gone',person:'Nate'},parent),/not found/i);
+ // Removing: yours if it is your photo OR you are the one who put it on.
+ assert.equal(applyOperation(state,{type:'photoRemove',id:'b'},boston).photos.length,2);
+ assert.equal(applyOperation(state,{type:'photoRemove',id:'a'},{name:'Nate',role:'child'}).photos.length,2,
+  'a boy can remove a photo that was handed to him');
+ assert.throws(()=>applyOperation(state,{type:'photoRemove',id:'a'},boston),/only remove your own/i);
+ // The vote still names the owner rather than the uploader.
+ const {photoOfTheDay}=await import('../src/trip-features.js');
+ const voted={...state,photoVotes:{[day]:{Damien:'a',Lauren:'a'}}};
+ assert.deepEqual(photoOfTheDay(voted,day).winners.map(photoOwner),['Nate']);
+});
+
+test('the photos live behind a filter rather than another entry in the menu',async()=>{
+ const {PAGES,moreIds}=await import('../src/nav-data.js');
+ const page=await readFile(new URL('../src/PhotoDay.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ // One entry, not two: twenty-two is already a long menu.
+ assert.equal(Object.keys(PAGES).filter(id=>/photo/i.test(id)).length,1);
+ assert.match(PAGES.photos.note,/whose is whose/);
+ // Whose photos you are looking at is in the address, so a profile links straight to it and
+ // the back button does what it looks like it does.
+ assert.match(main,/get\('who'\)/);
+ assert.match(main,/\{tab:'photos',who:name\}/);
+ assert.match(party,/href=\{`\/\?tab=photos&who=\$\{encodeURIComponent\(name\)\}`\}/);
+ // A named person is their whole trip; nobody named is today, which is what the vote is for.
+ assert.match(page,/const whole=!!person;/);
+ assert.match(page,/whole\?photosOf\(state,person\):photosFor\(state,day\)/);
+ // Voting is a thing you do to a day, so it is not offered on a whole-trip view.
+ assert.match(page,/\{!whole&&<button type="button" className=\{myVote===p\.id\?'primary':''\}/);
+ // The twelve-a-day allowance is the owner's, not the uploader's.
+ const handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handler,/p\.for\|\|p\.by\)===owner&&p\.day===b\.day\).length>=12/);
+ assert.match(handler,/user\.role!=='parent'&&owner!==user\.name/,'a boy can only speak for himself');
+});
