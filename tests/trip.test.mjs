@@ -1494,6 +1494,569 @@ test('the merge board slides, merges once, and knows when it is stuck',async()=>
  assert.equal(bestTile(stuck),4);
 });
 
+test('anyone can put an idea on the planning board, and it is checked before it lands',async()=>{
+ const {proposalPlacement,proposalScore}=await import('../src/trip-features.js');
+ const idea={type:'proposalAdd',title:'teamLab Planets',place:'Toyosu, Koto City',category:'activity',timing:'window',
+  availability:'Daily 09:00–21:00, last entry 20:00',cost:3800,costNote:'each',website:'https://www.teamlab.art/e/planets/',
+  suitableFor:['Nate','Boston'],tags:['book ahead','Tokyo'],notes:'Barefoot, so roll the trousers up.',duration:120};
+ // A boy who cannot edit a single activity can still say where he wants to go.
+ const added=applyOperation(seed,idea,child),p=added.proposals.at(-1);
+ assert.equal(p.addedBy,'Nate');assert.equal(p.cost,3800);assert.deepEqual(p.suitableFor,['Nate','Boston']);
+ assert.deepEqual(p.tags,['book ahead','Tokyo']);assert.equal(p.stepId,null);
+ assert.equal(proposalPlacement(added,p).state,'open');assert.equal(proposalScore(p),0);
+ // The rest of the family hears about it, because an idea nobody sees is not a plan.
+ assert.match(added.alerts[0].summary,/Nate added teamLab Planets/);
+ assert.equal(added.history[0].title,'teamLab Planets');
+ for(const bad of [{...idea,title:'   '},{...idea,website:'http://example.com'},{...idea,mapUrl:'javascript:alert(1)'},
+  {...idea,cost:-5},{...idea,category:'nonsense'},{...idea,timing:'whenever'},{...idea,day:'2099-01-01'},
+  {...idea,suitableFor:['Grandma']},{...idea,time:'25:00'},{...idea,duration:5000},{...idea,tags:Array.from({length:21},(_,i)=>`tag-${i}`)},{...idea,tags:['x'.repeat(51)]}])
+  assert.throws(()=>applyOperation(seed,bad,parent),`${JSON.stringify(bad).slice(0,60)} should be refused`);
+});
+test('a vote belongs to the person who cast it, and only a parent puts an idea on a day',async()=>{
+ const {proposalScore,proposalVoters,proposalMusts}=await import('../src/trip-features.js');
+ let state=applyOperation(seed,{type:'proposalAdd',title:'Nara deer park'},parent);
+ const id=state.proposals.at(-1).id,at=state=>state.proposals.find(p=>p.id===id);
+ state=applyOperation(state,{type:'proposalVote',id,person:'Nate',vote:1},child);
+ state=applyOperation(state,{type:'proposalVote',id,person:'Lauren',vote:-1},parent);
+ state=applyOperation(state,{type:'proposalMust',id,person:'Nate',must:true},child);
+ assert.equal(proposalScore(at(state)),0);
+ assert.deepEqual(proposalVoters(at(state),1),['Nate']);
+ assert.deepEqual(proposalVoters(at(state),-1),['Lauren']);
+ assert.deepEqual(proposalMusts(at(state)),['Nate']);
+ // Changing your mind replaces your vote; clearing it takes it away entirely.
+ state=applyOperation(state,{type:'proposalVote',id,person:'Nate',vote:-1},child);
+ assert.equal(proposalScore(at(state)),-2);
+ state=applyOperation(state,{type:'proposalVote',id,person:'Nate',vote:0},child);
+ assert.equal(proposalScore(at(state)),-1);
+ assert.deepEqual(proposalMusts(at(state)),['Nate'],'clearing a vote is not giving up a must-do');
+ // Nobody votes for anybody else, and nobody but a parent moves the itinerary.
+ for(const op of [{type:'proposalVote',id,person:'Boston',vote:1},{type:'proposalMust',id,person:'Boston',must:true},
+  {type:'proposalSchedule',id,day:seed.days[0].date,time:'10:00'}])
+  assert.throws(()=>applyOperation(state,op,child),e=>e.status===403);
+ // Votes are not news. They stay out of the family alert feed.
+ assert.ok(!state.alerts.some(a=>a.summary.includes('Nara deer park')&&/vote/i.test(a.summary)));
+ assert.equal(state.history[0].title,'Planning · Nara deer park');
+});
+test('a parent turns a backed idea into an activity, carrying its hours and cost across',async()=>{
+ const {proposalPlacement}=await import('../src/trip-features.js');
+ const day=seed.days[2].date;
+ let state=applyOperation(seed,{type:'proposalAdd',title:'Fushimi Inari at dawn',place:'Fushimi Inari Taisha',timing:'window',
+  availability:'Open all hours',cost:0,costNote:'free',suitableFor:['Damien','Boston'],notes:'Go early, before the crowds.',duration:90},parent);
+ const id=state.proposals.at(-1).id;
+ state=applyOperation(state,{type:'proposalSchedule',id,day,time:'06:30',kind:'flexible'},parent);
+ const where=proposalPlacement(state,state.proposals.find(p=>p.id===id));
+ assert.equal(where.state,'scheduled');assert.equal(where.day,day);assert.equal(where.time,'06:30');assert.equal(where.locked,false);
+ assert.equal(where.step.fromProposalId,id);assert.deepEqual(where.step.participants,['Damien','Boston']);
+ assert.equal(where.step.duration,90);assert.equal(where.step.place,'Fushimi Inari Taisha');
+ // What someone standing outside the gate needs is the opening hours and the price, so both
+ // travel with the activity rather than staying behind on the board.
+ assert.match(where.step.notes,/Go early/);
+ assert.match(where.step.notes,/Available: Open all hours/);
+ assert.match(where.step.notes,/Estimated cost ¥0 · free/);
+ assert.ok(activeSteps(state,day).some(s=>s.id===where.step.id),'the new activity shows up on its day');
+ assert.match(state.alerts[0].summary,/Fushimi Inari at dawn added to/);
+ // It only goes on once, and a locked time has to be a time.
+ assert.throws(()=>applyOperation(state,{type:'proposalSchedule',id,day,time:'07:00'},parent),/already on the itinerary/);
+ // The page you buy the ticket on is the one wanted on the day, so it wins the activity's link.
+ let booked=applyOperation(seed,{type:'proposalAdd',title:'Ghibli Museum',website:'https://www.ghibli-museum.jp/',ticketUrl:'https://l-tike.com/ghibli/'},parent);
+ const ghibli=booked.proposals.at(-1).id;
+ booked=applyOperation(booked,{type:'proposalSchedule',id:ghibli,day,time:'10:00',kind:'fixed'},parent);
+ assert.equal(proposalPlacement(booked,booked.proposals.find(p=>p.id===ghibli)).step.website,'https://l-tike.com/ghibli/');
+ const spare=applyOperation(seed,{type:'proposalAdd',title:'Kabuki matinee',timing:'fixed'},parent);
+ const spareId=spare.proposals.at(-1).id;
+ assert.throws(()=>applyOperation(spare,{type:'proposalSchedule',id:spareId,day,kind:'fixed'},parent),/needs a time/);
+ assert.throws(()=>applyOperation(spare,{type:'proposalSchedule',id:spareId,day:'2099-01-01',time:'13:00'},parent),/trip day/);
+});
+test('a scheduled idea moves between days under the same lock, and comes back if its activity goes',async()=>{
+ const {proposalPlacement}=await import('../src/trip-features.js');
+ const [a,b]=[seed.days[1].date,seed.days[4].date];
+ let state=applyOperation(seed,{type:'proposalAdd',title:'Pokémon Center',timing:'fixed'},parent);
+ const id=state.proposals.at(-1).id,at=s=>proposalPlacement(s,s.proposals.find(p=>p.id===id));
+ state=applyOperation(state,{type:'proposalSchedule',id,day:a,time:'11:00',kind:'fixed'},parent);
+ assert.equal(at(state).locked,true,'an idea that needs a fixed time arrives locked');
+ assert.equal(at(state).step.bookingTime,'11:00');
+ // A step made from an idea is a step like any other: the lock is what guards its time.
+ assert.throws(()=>applyOperation(state,{type:'patch',id:at(state).step.id,patch:{day:b}},parent),/Unlock/);
+ state=applyOperation(state,{type:'lock',id:at(state).step.id,locked:false},parent);
+ state=applyOperation(state,{type:'patch',id:at(state).step.id,patch:{day:b,time:'15:00'}},parent);
+ assert.equal(at(state).day,b);assert.equal(at(state).time,'15:00');
+ // Sent to Options, the board says exactly that rather than claiming a day it no longer has.
+ assert.equal(at(applyOperation(state,{type:'backlog',id:at(state).step.id},parent)).state,'options');
+ // And if the activity is deleted, the idea is simply an idea again.
+ const removed=applyOperation(state,{type:'remove',id:at(state).step.id},parent);
+ assert.equal(removed.proposals.find(p=>p.id===id).stepId,null);
+ assert.equal(at(removed).state,'open');
+ // While it is on the itinerary it cannot be deleted or parked out from under the activity.
+ assert.throws(()=>applyOperation(state,{type:'proposalRemove',id},parent),/Remove the activity first/);
+ assert.throws(()=>applyOperation(state,{type:'proposalPark',id,parked:true},parent),/Take this off the itinerary/);
+ // A parked idea stays on the board but out of the way, and comes back when asked.
+ const parked=applyOperation(removed,{type:'proposalPark',id,parked:true},parent);
+ assert.equal(at(parked).state,'parked');
+ assert.equal(at(applyOperation(parked,{type:'proposalPark',id,parked:false},parent)).state,'open');
+});
+test('the board ranks what the family wants most, and filters by who each idea suits',async()=>{
+ const {rankedProposals}=await import('../src/trip-features.js');
+ let state=seed;
+ for(const [title,suitableFor,cost] of [['Ramen alley',[],1200],['Cat cafe',['Nate'],2000],['Whisky bar',['Damien','Lauren'],null]])
+  state=applyOperation(state,{type:'proposalAdd',title,suitableFor,cost},parent);
+ const id=title=>state.proposals.find(p=>p.title===title).id;
+ for(const person of ['Damien','Lauren','Boston'])state=applyOperation(state,{type:'proposalVote',id:id('Ramen alley'),person,vote:1},parent);
+ state=applyOperation(state,{type:'proposalVote',id:id('Cat cafe'),person:'Nate',vote:1},parent);
+ state=applyOperation(state,{type:'proposalMust',id:id('Cat cafe'),person:'Nate',must:true},parent);
+ state=applyOperation(state,{type:'proposalVote',id:id('Whisky bar'),person:'Nate',vote:-1},parent);
+ const titles=opts=>rankedProposals(state,opts).map(p=>p.title);
+ assert.deepEqual(titles({}),['Ramen alley','Cat cafe','Whisky bar']);
+ assert.deepEqual(titles({sort:'musts'}),['Cat cafe','Ramen alley','Whisky bar']);
+ assert.deepEqual(titles({sort:'cost'}),['Ramen alley','Cat cafe','Whisky bar'],'no price yet sorts last, not free');
+ // An idea with nobody named suits everyone; one named for Nate does not follow Damien around.
+ assert.deepEqual(titles({suits:'Nate'}),['Ramen alley','Cat cafe']);
+ assert.deepEqual(titles({suits:'Damien'}),['Ramen alley','Whisky bar']);
+ // Who added it and who voted on it are both ways back to an idea.
+ assert.deepEqual(titles({by:'Boston'}),['Ramen alley']);
+ assert.deepEqual(titles({query:'cat'}),['Cat cafe']);
+ assert.deepEqual(titles({placement:'open'}).length,3);
+ assert.deepEqual(titles({placement:'scheduled'}),[]);
+});
+test('an idea thought of with no signal, and the votes on it, wait on the phone',async()=>{
+ const {ensureFeatures,pendingProgress,proposalScore,proposalMusts}=await import('../src/trip-features.js');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ for(const op of ['proposalAdd','proposalVote','proposalMust'])assert.ok(list.includes(op),`${op} should survive with no signal`);
+ // Putting one on a day reshapes the itinerary, so that one needs the latest revision.
+ assert.ok(!list.includes('proposalSchedule'),'scheduling changes the plan and needs the latest revision');
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'proposalAdd',title:'Sumo morning practice'},parent);
+ const id=state.proposals.at(-1).id,at='2026-09-19T02:00:00.000Z';
+ const queue=[{operation:{type:'proposalAdd',operationId:'q1',person:'Boston',title:'Vending machine hunt',category:'activity',timing:'flex',at}},
+              {operation:{type:'proposalVote',operationId:'q2',id,person:'Boston',vote:1}},
+              {operation:{type:'proposalMust',operationId:'q3',id,person:'Boston',must:true,at}}];
+ const preview=pendingProgress(state,queue),fresh=preview.proposals.find(p=>p.title==='Vending machine hunt');
+ assert.equal(fresh.addedBy,'Boston');assert.ok(fresh.pending,'the phone says it has not synced yet');
+ assert.equal(proposalScore(preview.proposals.find(p=>p.id===id)),1);
+ assert.deepEqual(proposalMusts(preview.proposals.find(p=>p.id===id)),['Boston']);
+ assert.equal(proposalScore(state.proposals.find(p=>p.id===id)),0,'the shared trip is untouched until it syncs');
+ // What the phone drew is what the server builds when the queue finally lands.
+ const landed=applyOperation(state,queue[0].operation,{name:'Boston',role:'child'});
+ assert.equal(landed.proposals.at(-1).title,'Vending machine hunt');
+ assert.equal(landed.proposals.at(-1).createdAt,at);
+ assert.equal(landed.proposals.at(-1).addedBy,'Boston');
+});
+test('the planning board is searchable and reachable from the search results',async()=>{
+ const {searchTrip}=await import('../src/trip-features.js');
+ const state=applyOperation(seed,{type:'proposalAdd',title:'Owl forest cafe',place:'Akihabara',notes:'Boston found it.',tags:['rainy day']},parent);
+ const hit=searchTrip(state,'owl forest')[0];
+ assert.equal(hit.type,'Planning');assert.equal(hit.title,'Owl forest cafe');
+ assert.equal(searchTrip(state,'rainy day')[0]?.type,'Planning','a tag finds it too');
+ // The search result has somewhere to go: every hit type maps to a real page.
+ const page=await readFile(new URL('../src/PracticalPages.jsx',import.meta.url),'utf8');
+ assert.match(page,/Planning:'planning'/);
+});
+
+test('looking a place up searches the web, and nothing it says is taken on trust',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const seen=[];
+ // Two replies: the search loop stopping for breath, then the findings. The second must arrive
+ // without a "carry on" message of our own, which is how the server knows to resume.
+ const replies=[
+  {stop_reason:'pause_turn',content:[{type:'server_tool_use',id:'srv_1',name:'web_search',input:{query:'teamLab Planets hours'}}]},
+  {stop_reason:'tool_use',content:[{type:'tool_use',id:'call_1',name:'record_findings',input:{
+   found:true,title:'teamLab Planets TOKYO',place:'Toyosu, Koto City',address:'6-1-16 Toyosu, Koto City, Tokyo',
+   japanese:'チームラボプラネッツ TOKYO',availability:'Daily 09:00–22:00, last entry 21:00, closed 2nd Tuesday',
+   cost:3800,costNote:'adult; ¥1,500 for Boston, free for Nate',duration:120,category:'activity',timing:'fixed',
+   website:'https://www.teamlab.art/e/planets/',ticketUrl:'https://ticket.teamlab.art/planets',
+   mapUrl:'https://maps.app.goo.gl/abc123',suitableFor:['Damien','Lauren','Nate','Boston'],
+   tags:['Tokyo','book ahead','indoors'],notes:'Barefoot and knee-deep in water, so roll the trousers up.',
+   bestDay:seed.days[1].date,checkFirst:'Times and the closed Tuesday change — check the official ticket page before booking.',
+   sources:[{title:'teamLab Planets official site',url:'https://www.teamlab.art/e/planets/'},{title:'A blog',url:'http://notsecure.example.com'}]}}]}
+ ];
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen.push(JSON.parse(body));
+   const reply=replies[Math.min(seen.length-1,replies.length-1)];
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:`msg_${seen.length}`,type:'message',role:'assistant',model:'claude-opus-5',
+    usage:{input_tokens:9000,output_tokens:800,server_tool_use:{web_search_requests:3}},...reply}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {researchPlace,researchReady,normaliseFindings}=await import('../server/research.mjs');
+  assert.equal(researchReady(),true);
+  const state=ensureFeatures(structuredClone(seed));
+  const answer=await researchPlace({title:'teamLab Planets',place:'Tokyo'},state);
+
+  // The request the SDK actually put on the wire.
+  assert.equal(seen.length,2,'a paused search is resumed');
+  const [first,resumed]=seen;
+  assert.equal(first.model,'claude-opus-5');
+  assert.deepEqual(first.thinking,{type:'adaptive'});
+  assert.equal(first.output_config.effort,'medium');
+  const search=first.tools.find(t=>t.name==='web_search');
+  assert.equal(search.type,'web_search_20260209');
+  assert.equal(search.max_uses,8);
+  assert.equal(search.user_location.country,'JP','asked from Japan, so the local pages come back');
+  const record=first.tools.find(t=>t.name==='record_findings');
+  assert.equal(record.strict,true);
+  assert.equal(record.input_schema.additionalProperties,false);
+  for(const field of ['availability','ticketUrl','mapUrl','cost','checkFirst','sources'])
+   assert.ok(record.input_schema.required.includes(field),`${field} must come back`);
+  // The trip itself is in the question, so it can pick a day we are in the right city.
+  assert.match(first.messages[0].content,/teamLab Planets/);
+  assert.match(first.messages[0].content,new RegExp(`${seed.days[0].date} · `));
+  assert.match(first.system,/Nate is five/);
+  assert.match(first.system,/You are not booking anything/);
+  assert.equal(resumed.messages.length,2,'the paused turn is sent back, and nothing else');
+  assert.equal(resumed.messages[1].role,'assistant');
+
+  // And what comes back is a draft in the same shape the board already validates.
+  assert.equal(answer.draft.title,'teamLab Planets TOKYO');
+  assert.match(answer.draft.place,/Toyosu, Koto City · 6-1-16 Toyosu/);
+  assert.equal(answer.draft.availability,'Daily 09:00–22:00, last entry 21:00, closed 2nd Tuesday');
+  assert.equal(answer.draft.cost,3800);
+  assert.equal(answer.draft.duration,120);
+  assert.equal(answer.draft.timing,'fixed');
+  assert.equal(answer.draft.ticketUrl,'https://ticket.teamlab.art/planets');
+  assert.equal(answer.draft.mapUrl,'https://maps.app.goo.gl/abc123');
+  assert.deepEqual(answer.draft.suitableFor,[],'suiting all four is the same as suiting everyone');
+  assert.equal(answer.bestDay,seed.days[1].date);
+  assert.equal(answer.draft.day,seed.days[1].date,'the suggested day fills the blank like any other');
+  assert.match(answer.checkFirst,/check the official ticket page/);
+  assert.deepEqual(answer.sources.map(s=>s.url),['https://www.teamlab.art/e/planets/'],'a plain http source is dropped');
+  assert.equal(answer.usage.searches,3);
+
+  // A draft is only a draft: it still has to pass the board's own checks to be saved.
+  const saved=applyOperation(state,{type:'proposalAdd',...answer.draft},parent).proposals.at(-1);
+  assert.equal(saved.ticketUrl,'https://ticket.teamlab.art/planets');
+  assert.equal(saved.addedBy,'Damien');
+
+  // Nothing a model returns is trusted: invented links go, out-of-range numbers go, and a
+  // map link that is not a map becomes a plain Maps search for the address instead.
+  const junk=normaliseFindings({found:true,title:'A'.repeat(400),place:'',address:'1 Somewhere',japanese:'',
+   availability:'',cost:-40,costNote:'',duration:99999,category:'teleportation',timing:'whenever',
+   website:'javascript:alert(1)',ticketUrl:'http://insecure.example.com',mapUrl:'https://evil.example.com/maps',
+   suitableFor:['Nate','Grandma'],tags:Array.from({length:40},(_,i)=>`t${i}`),notes:'',bestDay:'2099-01-01',
+   checkFirst:'',sources:[{title:'x',url:'ftp://nope'}]},state);
+  assert.equal(junk.draft.title.length,250);
+  assert.equal(junk.draft.cost,null,'a nonsense price is dropped, not corrected');
+  assert.equal(junk.draft.duration,60);
+  assert.equal(junk.draft.category,'place');
+  assert.equal(junk.draft.timing,'flex');
+  assert.equal(junk.draft.website,'');
+  assert.equal(junk.draft.ticketUrl,'','a ticket link has to be HTTPS');
+  assert.match(junk.draft.mapUrl,/^https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=/);
+  assert.deepEqual(junk.draft.suitableFor,['Nate']);
+  assert.equal(junk.draft.tags.length,20);
+  assert.equal(junk.bestDay,null,'a day that is not on this trip is not a day');
+  assert.deepEqual(junk.sources,[]);
+  // Whatever survives that is still something the board will accept.
+  assert.ok(applyOperation(state,{type:'proposalAdd',...junk.draft},parent).proposals.at(-1));
+
+  await assert.rejects(()=>researchPlace({title:'   '},state),/Type what you want looked up/);
+  await assert.rejects(()=>researchPlace({title:'x'.repeat(251)},state),/Keep the name/);
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+});
+test('a lookup that found nothing says so, and only a parent can start one',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const {researchPlace,researchReady}=await import('../server/research.mjs');
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ delete process.env.ANTHROPIC_API_KEY;
+ try{
+  assert.equal(researchReady(),false);
+  await assert.rejects(()=>researchPlace({title:'Anywhere'},state),e=>e.status===503&&/not switched on/.test(e.message));
+ }finally{if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;}
+ const bodies=[
+  {stop_reason:'tool_use',content:[{type:'tool_use',id:'c1',name:'record_findings',input:{found:false,checkFirst:'There is no such museum in Kyoto. Check the name.',title:'',place:'',address:'',japanese:'',availability:'',cost:null,costNote:'',duration:0,category:'place',timing:'flex',website:'',ticketUrl:'',mapUrl:'',suitableFor:[],tags:[],notes:'',bestDay:'',sources:[]}}]},
+  {stop_reason:'end_turn',content:[{type:'text',text:'I had a look around.'}]},
+  {stop_reason:'refusal',content:[]}
+ ];
+ let turn=0;
+ const upstream=createServer((req,res)=>{
+  req.on('data',()=>{});
+  req.on('end',()=>{res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m',type:'message',role:'assistant',model:'claude-opus-5',usage:{input_tokens:1,output_tokens:1},...bodies[turn++]}));});
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  // Told plainly that it could not find the place, rather than handed a different one.
+  await assert.rejects(()=>researchPlace({title:'The Kyoto museum of nothing'},state),e=>e.status===404&&/no such museum/.test(e.message));
+  // An answer with no findings call in it is not an answer.
+  await assert.rejects(()=>researchPlace({title:'Somewhere'},state),e=>e.status===502&&/nothing to fill in/.test(e.message));
+  await assert.rejects(()=>researchPlace({title:'Somewhere'},state),e=>e.status===422&&/declined/.test(e.message));
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ // The route itself is a parent's, like the menu reader and the translator.
+ const handlerSource=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handlerSource,/route==='research'&&post\)\{\s*parent\(user\)/);
+ assert.match(handlerSource,/research:researchReady\(\)/,'the app has to be told whether it is switched on');
+});
+
+test('everyone keeps their own travel profile, and a parent keeps the ones a five-year-old will not',async()=>{
+ const {personProfile,party,partyBrief,partyInterests,profileFilled,INTERESTS}=await import('../src/trip-features.js');
+ let state=applyOperation(seed,{type:'partyPerson',name:'Damien',age:41,interests:['food','drink','views'],
+  loves:'a proper coffee',avoid:'long queues',dietary:'',notes:''},parent);
+ // A boy fills in his own, with no edit rights anywhere else in the app.
+ state=applyOperation(state,{type:'partyPerson',name:'Nate',age:5,interests:['kids','animals','trains'],
+  loves:'anything with a train in it',avoid:'',dietary:'nothing spicy',notes:'Flags after about three o’clock.'},child);
+ assert.equal(personProfile(state,'Damien').age,41);
+ assert.deepEqual(personProfile(state,'Nate').interests,['kids','animals','trains']);
+ assert.equal(personProfile(state,'Nate').by,'Nate');
+ assert.equal(profileFilled(state,'Boston'),false,'a profile nobody has filled in says so');
+ // What the family as a whole is after, most shared first.
+ state=applyOperation(state,{type:'partyPerson',name:'Boston',interests:['trains','sport']},parent);
+ assert.deepEqual(partyInterests(state)[0],{id:'trains',label:'Trains & engineering',who:['Nate','Boston']});
+ // The paragraph a model reads is what was actually said, and blank where nothing was.
+ const brief=partyBrief(state);
+ assert.match(brief,/Damien, 41 — likes Food & markets, Bars, sake & coffee, Views & high places; loves a proper coffee; would rather avoid long queues/);
+ assert.match(brief,/Nate, 5 —.*food: nothing spicy/);
+ assert.match(brief,/Lauren — nothing said yet/);
+ assert.match(brief,/Pace: Steady/);
+ // Nobody fills in anybody else's, and the pace and the budget are a parent's.
+ assert.throws(()=>applyOperation(state,{type:'partyPerson',name:'Boston',interests:['art']},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'partyTrip',pace:'gentle'},child),e=>e.status===403);
+ for(const bad of [{type:'partyPerson',name:'Grandma',interests:[]},{type:'partyPerson',name:'Nate',age:400},
+  {type:'partyPerson',name:'Nate',interests:['skydiving']},{type:'partyPerson',name:'Nate',loves:'x'.repeat(501)},
+  {type:'partyTrip',pace:'frantic'},{type:'partyTrip',pace:'gentle',budget:-5}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,50)} should be refused`);
+ // A blank age clears it; leaving the field out keeps what was there.
+ assert.equal(personProfile(applyOperation(state,{type:'partyPerson',name:'Damien',age:''},parent),'Damien').age,null);
+ assert.equal(personProfile(applyOperation(state,{type:'partyPerson',name:'Damien',interests:['art']},parent),'Damien').age,41);
+ state=applyOperation(state,{type:'partyTrip',pace:'gentle',budget:25000,notes:'We have done enough temples.'},parent);
+ assert.equal(party(state).pace,'gentle');assert.equal(party(state).budget,25000);
+ assert.match(partyBrief(state),/Rough budget: ¥25,000 a day/);
+ assert.match(partyBrief(state),/Worth knowing: We have done enough temples/);
+ assert.ok(INTERESTS.length>=12,'enough to describe four different people');
+ // None of this is the plan, so it never lands in the family alert feed.
+ assert.ok(!state.alerts.some(a=>/profile|pace|budget/i.test(a.summary||'')));
+});
+test('suggestions are built from who is going, and land on the board as ordinary ideas',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures,proposalPlacement}=await import('../src/trip-features.js');
+ let seen=null;
+ const answer={note:'Checked what is on in Tokyo in late September.',suggestions:[
+  {title:'A morning at a sumo stable practice',place:'Ryogoku, Tokyo',japanese:'相撲部屋 朝稽古',flavour:'unique',
+   category:'activity',timing:'fixed',duration:120,cost:12000,costNote:'for all four, through a guide',
+   suitableFor:['Damien','Lauren','Boston'],tags:['early start'],notes:'Watching training from the edge of the ring.',
+   why:'Boston ticked sport and sumo.',bookAhead:true},
+  {title:'Shibuya Scramble Crossing',place:'Shibuya, Tokyo',japanese:'渋谷スクランブル交差点',flavour:'landmark',
+   category:'place',timing:'flex',duration:60,cost:0,costNote:'',suitableFor:['Damien','Lauren','Nate','Boston'],
+   tags:['views'],notes:'The crossing everybody photographs.',why:'Damien ticked views.',bookAhead:false},
+  // Junk, to prove the same checks run here as everywhere else.
+  {title:'A'.repeat(400),place:'',japanese:'',flavour:'teleportation',category:'nonsense',timing:'whenever',
+   duration:99999,cost:-3,costNote:'',suitableFor:['Grandma'],tags:Array.from({length:40},(_,i)=>`t${i}`),
+   notes:'',why:'',bookAhead:false}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen=JSON.parse(body);
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m1',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:12000,output_tokens:1400,server_tool_use:{web_search_requests:3}},
+    content:[{type:'tool_use',id:'c1',name:'record_suggestions',input:answer}]}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {suggestIdeas,suggestReady,normaliseSuggestion}=await import('../server/suggest.mjs');
+  assert.equal(suggestReady(),true);
+  let state=ensureFeatures(structuredClone(seed));
+  state=applyOperation(state,{type:'partyPerson',name:'Boston',age:8,interests:['sport','trains']},parent);
+  state=applyOperation(state,{type:'partyTrip',pace:'gentle',budget:25000,notes:''},parent);
+  state=applyOperation(state,{type:'proposalAdd',title:'Nara deer park'},parent);
+  const result=await suggestIdeas({city:'Tokyo',kinds:['landmark','unique','drink'],count:6},state);
+
+  // The request the SDK actually put on the wire.
+  assert.equal(seen.model,'claude-opus-5');
+  assert.deepEqual(seen.thinking,{type:'adaptive'});
+  const search=seen.tools.find(t=>t.name==='web_search');
+  assert.equal(search.type,'web_search_20260209');
+  assert.equal(search.max_uses,5);
+  const record=seen.tools.find(t=>t.name==='record_suggestions');
+  assert.equal(record.strict,true);
+  assert.deepEqual(record.input_schema.properties.suggestions.items.required.includes('why'),true);
+  const ask=seen.messages[0].content;
+  assert.match(ask,/Suggest 6 ideas in Tokyo/);
+  assert.match(ask,/The famous ones, Only-in-Japan, off the usual list, Drink/);
+  assert.match(ask,/Boston, 8 — likes Sport & sumo, Trains & engineering/,'the party goes in the question');
+  assert.match(ask,/Pace: Gentle/);
+  assert.match(ask,/Rough budget: ¥25,000/);
+  assert.match(ask,/Nara deer park/,'what is already on the board is not suggested again');
+  assert.match(ask,new RegExp(seed.steps[0].title.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')),'nor what is already on the plan');
+  assert.match(seen.system,/Only-in-Japan, off the usual list/);
+  assert.match(seen.system,/you are not checking opening hours, prices/);
+
+  // What comes back is board-ready, and the junk one is cut to size rather than dropped whole.
+  assert.equal(result.where,'Tokyo');
+  assert.equal(result.suggestions.length,3);
+  const [sumo,shibuya,junk]=result.suggestions;
+  assert.equal(sumo.flavour,'unique');
+  assert.equal(sumo.draft.source,'suggested','an idea a model thought of never passes as one we found');
+  assert.equal(sumo.draft.cost,12000);
+  assert.ok(sumo.draft.tags.includes('book ahead'),'needing a booking becomes a tag you can filter on');
+  assert.deepEqual(shibuya.draft.suitableFor,[],'suiting all four is the same as suiting everyone');
+  assert.equal(junk.draft.title.length,250);
+  assert.equal(junk.draft.cost,null);
+  assert.equal(junk.draft.duration,60);
+  assert.equal(junk.draft.category,'place');
+  assert.equal(junk.flavour,'unique');
+  assert.deepEqual(junk.draft.suitableFor,[]);
+  assert.equal(junk.draft.tags.length,20);
+  // A suggestion carries no links at all: nothing here has been checked.
+  for(const item of result.suggestions)for(const key of ['website','ticketUrl','mapUrl'])
+   assert.equal(item.draft[key],'',`${key} must be left to Look it up`);
+  assert.equal(result.usage.searches,3);
+
+  // Putting one up is an ordinary idea, added by a person, that the family then votes on.
+  const board=applyOperation(state,{type:'proposalAdd',...sumo.draft,notes:`${sumo.draft.notes}\n\n${sumo.why}`},child);
+  const added=board.proposals.at(-1);
+  assert.equal(added.addedBy,'Nate');
+  assert.equal(added.source,'suggested');
+  assert.match(added.notes,/Boston ticked sport and sumo/);
+  assert.equal(proposalPlacement(board,added).state,'open');
+  // Editing it later does not quietly relabel it as something we found ourselves.
+  assert.equal(applyOperation(board,{type:'proposalEdit',id:added.id,...sumo.draft,title:'Sumo practice'},parent).proposals.at(-1).source,'suggested');
+
+  // Guards, before anything is sent anywhere.
+  await assert.rejects(()=>suggestIdeas({city:'Tokyo',kinds:[]},state),/at least one kind/);
+  await assert.rejects(()=>suggestIdeas({kinds:['landmark']},state),/Choose a day or type where/);
+  await assert.rejects(()=>suggestIdeas({day:'2099-01-01',kinds:['landmark']},state),/Choose a trip day/);
+  // A day is enough on its own: it names the city and the day they will be there.
+  await suggestIdeas({day:seed.days[0].date,kinds:['food']},state);
+  assert.match(seen.messages[0].content,new RegExp(`ideas in ${seed.days[0].city}`));
+  assert.match(seen.messages[0].content,new RegExp(`for ${seed.days[0].date}`));
+  assert.equal(normaliseSuggestion({},state).draft.title,'');
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ const handlerSource=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handlerSource,/route==='suggest'&&post\)\{\s*\n?\s*parent\(user\)/);
+ assert.match(handlerSource,/suggest:suggestReady\(\)/);
+});
+
+test('what is near here answers from a position or a planned place, and adds straight to the day',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures,walkingLink,roundCoord,NEARBY_KINDS}=await import('../src/trip-features.js');
+ let seen=null;
+ const answer={anchor:'Ryogoku, by the north exit of the station',note:'Named shops change hands often — check the sign before you commit.',options:[
+  {title:'Lawson',japanese:'ローソン',kind:'konbini',what:'Convenience store with a toilet, a cash machine and hot food.',
+   area:'On the main road, north exit',walkMinutes:3,priceBand:'cheap',openNote:'Usually 24 hours, but check',kidFriendly:true,
+   why:'Answers the toilet, the cash and lunch for Nate in one stop.'},
+  {title:'Chanko Tomoegata',japanese:'ちゃんこ巴潟',kind:'food',what:'Sumo stew, the local dish, in a sit-down room.',
+   area:'Ryogoku 2-chome',walkMinutes:8,priceBand:'mid',openNote:'Lunch about 11:30–14:00, guessing',kidFriendly:false,
+   why:'The thing to eat in this neighbourhood, but it is a long sit for a five-year-old.'},
+  {title:'B'.repeat(400),japanese:'',kind:'teleport',what:'',area:'',walkMinutes:9999,priceBand:'gold',openNote:'',kidFriendly:true,why:''}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen=JSON.parse(body);
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m1',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:4000,output_tokens:600,server_tool_use:{web_search_requests:2}},
+    content:[{type:'tool_use',id:'c1',name:'record_nearby',input:answer}]}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {nearbyPlaces,nearbyReady}=await import('../server/nearby.mjs');
+  assert.equal(nearbyReady(),true);
+  let state=ensureFeatures(structuredClone(seed));
+  state=applyOperation(state,{type:'partyPerson',name:'Nate',age:5,dietary:'nothing spicy'},parent);
+  const result=await nearbyPlaces({lat:35.6963214,lng:139.7930871,place:'Ryogoku Kokugikan',city:'Tokyo',
+   kinds:['food','toilet','konbini'],note:'twenty minutes before the train'},state);
+
+  // A position is cut down before it is ever sent — a hundred metres, not a hotel room.
+  assert.match(seen.messages[0].content,/Position, rounded to about a hundred metres: 35\.696, 139\.793/);
+  assert.ok(!seen.messages[0].content.includes('35.6963214'),'the precise position never leaves');
+  assert.match(seen.messages[0].content,/At or beside: Ryogoku Kokugikan/);
+  assert.match(seen.messages[0].content,/In: Tokyo/);
+  assert.match(seen.messages[0].content,/Somewhere to eat, Toilets, Convenience store/);
+  assert.match(seen.messages[0].content,/twenty minutes before the train/);
+  assert.match(seen.messages[0].content,/Nate, 5 —.*food: nothing spicy/,'who is with them shapes the answer');
+  assert.equal(seen.output_config.effort,'low','the one asked standing in the street is tuned for speed');
+  assert.equal(seen.tools.find(t=>t.name==='web_search').max_uses,4);
+  assert.equal(seen.tools.find(t=>t.name==='record_nearby').strict,true);
+  assert.match(seen.system,/You cannot see a map/);
+
+  // Nearest first, and the junk one clamped rather than believed.
+  assert.deepEqual(result.options.map(o=>o.draft.title.slice(0,20)),['Lawson','Chanko Tomoegata','BBBBBBBBBBBBBBBBBBBB']);
+  assert.deepEqual(result.from,{lat:35.696,lng:139.793});
+  const [lawson,chanko,junk]=result.options;
+  assert.equal(lawson.walkMinutes,3);assert.equal(lawson.kidFriendly,true);
+  assert.equal(lawson.draft.japanese,'ローソン','the name to point at comes back');
+  assert.equal(lawson.draft.category,'food');
+  assert.deepEqual(lawson.draft.suitableFor,[],'fine with Nate means fine with everyone');
+  assert.deepEqual(chanko.draft.suitableFor,['Damien','Lauren','Boston'],'not one for Nate says so on the card');
+  assert.equal(junk.kind,'food');assert.equal(junk.walkMinutes,null);assert.equal(junk.priceBand,'');
+  assert.equal(junk.draft.title.length,250);
+  // Nothing carries a link of its own; the app builds the walk from pieces it checked.
+  for(const o of result.options)for(const key of ['website','ticketUrl','mapUrl'])assert.equal(o.draft[key],'');
+  assert.equal(walkingLink('Lawson','north exit',result.from),
+   'https://www.google.com/maps/dir/?api=1&origin=35.696,139.793&destination=Lawson%20north%20exit&travelmode=walking');
+  assert.equal(walkingLink('Lawson','north exit',null),'https://www.google.com/maps/search/?api=1&query=Lawson%20north%20exit');
+  assert.equal(roundCoord(35.6963214),35.696);
+
+  // Quick add: straight onto today, right after whatever we are in the middle of.
+  const day=seed.days[3].date,before=activeSteps(state,day);
+  const after=applyOperation(state,{type:'add',step:{title:lawson.draft.title,day,time:null,duration:20,
+   place:lawson.area,japanese:lawson.draft.japanese,notes:lawson.what,kind:'flexible',page:1,
+   participants:[...state.members],order:before[0].order+0.5}},parent);
+  const added=activeSteps(after,day);
+  assert.equal(added.length,before.length+1);
+  assert.equal(added[1].title,'Lawson','it lands after the step we are on, not at the end of the day');
+  assert.equal(added[1].locked,false);assert.equal(added[1].status,'todo');
+  // A boy cannot add to the itinerary, so his button saves it to the board instead.
+  assert.throws(()=>applyOperation(state,{type:'add',step:{title:'Lawson',day}},child),e=>e.status===403);
+  assert.equal(applyOperation(state,{type:'proposalAdd',...lawson.draft},child).proposals.at(-1).source,'suggested');
+
+  // A planned place is enough on its own — no position needed, and none is sent.
+  await nearbyPlaces({place:'Fushimi Inari Taisha',city:'Kyoto',kinds:['coffee']},state);
+  assert.ok(!seen.messages[0].content.includes('Position'),'no position, nothing sent about one');
+  assert.match(seen.messages[0].content,/At or beside: Fushimi Inari Taisha/);
+  for(const [bad,pattern] of [
+   [{kinds:['food']},/Say where you are/],
+   [{place:'Ryogoku',kinds:[]},/Choose what you are looking for/],
+   [{lat:999,lng:0,kinds:['food']},/position could not be read/]
+  ])await assert.rejects(()=>nearbyPlaces(bad,state),pattern,JSON.stringify(bad));
+  assert.ok(NEARBY_KINDS.some(([id])=>id==='toilet'),'amenities, not just food');
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ // This one is not a parent's: whoever needs a toilet is whoever is holding the phone.
+ const handlerSource=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ const from=handlerSource.indexOf("route==='nearby'");
+ const route=handlerSource.slice(from,handlerSource.indexOf('\n  }',from));
+ assert.ok(route.includes('nearbyPlaces'),'the route body was found');
+ assert.ok(!route.includes('parent(user)'),'anyone in the family can ask what is near them');
+ assert.match(handlerSource,/nearby:nearbyReady\(\)/);
+ // And the position is never written into the trip.
+ const nearbySource=await readFile(new URL('../server/nearby.mjs',import.meta.url),'utf8');
+ assert.ok(!/state\.(steps|proposals|documents|journal)\s*=/.test(nearbySource),'a lookup writes nothing into the trip');
+});
+
 test('the recipe book is complete, sensible and reachable from the starting six',async()=>{
  const {ELEMENTS,RECIPES,SIGHTS,elementById,startingElements,combine,discoverable}=await import('../src/kana-data.js');
  const ids=ELEMENTS.map(e=>e.id);

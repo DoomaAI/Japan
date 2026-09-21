@@ -14,6 +14,7 @@ export const PAGES={
  phrases:{label:'Phrases',note:'Greetings and travel Japanese, with how to say it'},
  help:{label:'Help & useful apps',note:'Translation, hotel directions, reminders'},
  options:{label:'Options & ideas',note:'Places and activities saved for later'},
+ planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, and voting on them'},
  parks:{label:'Theme park rides',note:'Checklists, height limits and park maps'},
  shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need'},
  guide:{label:'Original travel guide',note:'All 72 pages, linked and searchable'},
@@ -29,7 +30,7 @@ export const PRIMARY={
 };
 export const MORE_SECTIONS=[
  ['Out and about',['places','money','food','phrases','meeting','help']],
- ['The plan',['options','parks','shopping','challenges','games','tickets','guide']],
+ ['The plan',['planning','options','parks','shopping','challenges','games','tickets','guide']],
  ['Looking back',['diary','updates','search']],
  ['Just for you',['thanks']]
 ];

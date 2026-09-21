@@ -10,6 +10,9 @@ import {database,readTrip,writeTrip,session,localDemo,hash,token,setCookie} from
 import {visibleEnvelope} from './visibility.mjs';
 import {readMenu,menuReaderReady} from './menu.mjs';
 import {translatePhrase,translatorReady} from './translate.mjs';
+import {researchPlace,researchReady} from './research.mjs';
+import {suggestIdeas,suggestReady} from './suggest.mjs';
+import {nearbyPlaces,nearbyReady} from './nearby.mjs';
 import {readDocument,readerReady} from './document-reader.mjs';
 const json=(res,data,status=200)=>{res.statusCode=status;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));};
 async function body(req,max=1000000){if(req.body&&typeof req.body==='object')return req.body;let s='';for await(const c of req){s+=c;if(Buffer.byteLength(s)>max)throw new AppError('Request too large.',413);}try{return JSON.parse(s||'{}');}catch{throw new AppError('Invalid request.');}}
@@ -30,7 +33,7 @@ export default async function handler(req,res){
    const result=await handleUpload({body:b,request:req,onBeforeGenerateToken:async()=>{throw new Error('Not a token request');},onUploadCompleted:async()=>{}});return json(res,result);
   }
   if(post)checkOrigin(req);
-  if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady()});
+  if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),research:researchReady(),suggest:suggestReady(),nearby:nearbyReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -52,6 +55,25 @@ export default async function handler(req,res){
   if(route==='translate'&&post){
    parent(user);
    return json(res,await translatePhrase(b));
+  }
+  // Looking a place up reads nothing private and writes nothing: it hands back a draft for a
+  // parent to check and save themselves, through the ordinary revision-checked mutate.
+  if(route==='research'&&post){
+   parent(user);const {state}=await readTrip();
+   return json(res,await researchPlace(b,state));
+  }
+  // Suggestions read the travel party and the plan and hand back ideas. Nothing is added to the
+  // board here: each one is put up, and voted on, by a person.
+  if(route==='suggest'&&post){
+   parent(user);const {state}=await readTrip();
+   return json(res,await suggestIdeas(b,state));
+  }
+  // What is near enough to walk to, right now. This one is not a parent's: the person who needs
+  // a toilet or a plain bowl of rice is whoever is holding the phone. The position is rounded
+  // before it leaves the browser and again here, and is never written into the trip.
+  if(route==='nearby'&&post){
+   const {state}=await readTrip();
+   return json(res,await nearbyPlaces(b,state));
   }
   if(route==='read-document'&&post){
    parent(user);

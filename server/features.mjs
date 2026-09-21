@@ -4,7 +4,9 @@ import {FOOD,FOOD_KINDS} from '../src/food-data.js';
 import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
-import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO} from '../src/trip-features.js';
+import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
+const MAX_PROPOSALS=300;
+const https=v=>{try{return new URL(v).protocol==='https:';}catch{return false;}};
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
 export function extraOperation(state,op,user,fail,now){
  const parent=user.role==='parent',dayOK=day=>day===null||state.days.some(d=>d.date===day);
@@ -66,6 +68,113 @@ export function extraOperation(state,op,user,fail,now){
    if(!custom())fail('That is one of the built-in dishes and cannot be removed.',404);
    state.foodItems=state.foodItems.filter(i=>i.id!==op.id);
   }else fail('Unknown food action.');
+ }else if(typeof op.type==='string'&&op.type.startsWith('proposal')){
+  // The planning board. Everyone adds and votes; only a parent moves an idea onto a day,
+  // because that is the one action here that reshapes the itinerary.
+  const board=state.proposals,found=()=>{const p=board.find(p=>p.id===op.id);if(!p)fail('That idea is no longer on the planning board.',404);return p;};
+  const ownVote=person=>{if(!state.members.includes(person))fail('Choose a family member.');if(!parent&&person!==user.name)fail('Vote as yourself.',403);};
+  const when=label=>{if(!op.at)return now;if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail(`Invalid ${label} time.`);return new Date(op.at).toISOString();};
+  if(op.type==='proposalAdd'||op.type==='proposalEdit'){
+   const draft=proposalDraft(op);
+   if(!draft.title)fail('Give the idea a name.');
+   for(const [key,max] of [['title',250],['place',250],['japanese',250],['costNote',250],['availability',250],['notes',4000],['website',2000],['ticketUrl',2000],['mapUrl',2000]])if(!string(draft[key],max))fail(`Keep the ${key} under ${max} characters.`);
+   for(const key of ['website','ticketUrl','mapUrl'])if(draft[key]&&!https(draft[key]))fail('Use an HTTPS link.');
+   if(!PROPOSAL_KINDS.some(([id])=>id===draft.category))fail('Choose what kind of idea this is.');
+   if(!PROPOSAL_TIMING.some(([id])=>id===draft.timing))fail('Say whether it is flexible, only at certain times, or a fixed time.');
+   if(draft.day!==null&&!state.days.some(d=>d.date===draft.day))fail('Choose a trip day, or leave the day open.');
+   if(draft.time!==null&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.time))fail('Use a valid time.');
+   if(!Number.isInteger(draft.duration)||draft.duration<0||draft.duration>1440)fail('How long it takes must be 0–1440 minutes.');
+   if(draft.cost!==null&&(!Number.isFinite(draft.cost)||draft.cost<0||draft.cost>10000000))fail('Enter a cost in yen.');
+   if(draft.suitableFor.some(n=>!state.members.includes(n)))fail('Choose family members.');
+   if(draft.tags.length>20||draft.tags.some(t=>!string(t,50)))fail('Use up to 20 tags, each under 50 characters.');
+   if(op.type==='proposalAdd'){
+    if(board.length>=MAX_PROPOSALS)fail(`That is ${MAX_PROPOSALS} ideas already. Schedule or park a few first.`);
+    board.push({id:randomUUID(),...draft,addedBy:user.name,createdAt:when('idea'),votes:{},musts:{},parked:false,stepId:null,scheduledBy:null,scheduledAt:null});
+    return {summary:`${user.name} added ${draft.title} to the planning board`,important:true,title:draft.title};
+   }
+   const p=found();
+   if(!parent&&p.addedBy!==user.name)fail('You can change the ideas you added.',403);
+   Object.assign(p,draft);
+   return {summary:null,important:false,title:draft.title};
+  }
+  if(op.type==='proposalVote'){
+   const p=found();ownVote(op.person);
+   if(![1,-1,0].includes(op.vote))fail('Vote yes, no, or clear your vote.');
+   const votes={...(p.votes||{})};
+   if(op.vote===0)delete votes[op.person];else votes[op.person]=op.vote;
+   p.votes=votes;
+   return {summary:null,important:false,title:`Planning · ${p.title}`};
+  }
+  if(op.type==='proposalMust'){
+   const p=found();ownVote(op.person);
+   if(typeof op.must!=='boolean')fail('Invalid must-do.');
+   const musts={...(p.musts||{})},at=when('must-do');
+   if(op.must)musts[op.person]=musts[op.person]||at;else delete musts[op.person];
+   p.musts=musts;
+   return {summary:null,important:false,title:`Planning · ${p.title}`};
+  }
+  if(op.type==='proposalPark'){
+   const p=found();
+   if(!parent&&p.addedBy!==user.name)fail('You can park the ideas you added.',403);
+   if(typeof op.parked!=='boolean')fail('Invalid park.');
+   if(op.parked&&proposalPlacement(state,p).step)fail('Take this off the itinerary before parking it.');
+   p.parked=op.parked;
+   return {summary:null,important:false,title:`Planning · ${p.title}`};
+  }
+  if(op.type==='proposalRemove'){
+   const p=found();
+   if(!parent&&p.addedBy!==user.name)fail('You can remove the ideas you added.',403);
+   if(proposalPlacement(state,p).step)fail('This idea is on the itinerary. Remove the activity first.');
+   state.proposals=board.filter(x=>x.id!==p.id);
+   return {summary:null,important:false,title:p.title};
+  }
+  if(op.type==='proposalSchedule'){
+   if(!parent)fail('A parent adds an idea to the itinerary.',403);
+   const p=found();
+   if(proposalPlacement(state,p).step)fail('This idea is already on the itinerary. Move it instead.');
+   if(!state.days.some(d=>d.date===op.day))fail('Choose a trip day.');
+   const time=op.time||null;
+   if(time!==null&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(time))fail('Use a valid time.');
+   const kind=['fixed','flexible','optional','review'].includes(op.kind)?op.kind:(p.timing==='fixed'?'fixed':'flexible');
+   const locked=kind==='fixed'||op.locked===true;
+   if(locked&&!time)fail('A locked time needs a time.');
+   const participants=p.suitableFor.length?[...p.suitableFor]:[...state.members];
+   state.steps.push({id:randomUUID(),title:p.title,day:op.day,time,originalTime:time,duration:p.duration||30,
+    notes:proposalStepNotes(p),place:p.place,japanese:p.japanese,website:p.ticketUrl||p.website,phone:'',
+    page:state.days.find(d=>d.date===op.day)?.pages?.[0]||1,kind,group:'',option:'',participants,
+    order:Math.max(0,...state.steps.filter(s=>s.day===op.day).map(s=>s.order))+10,
+    travelMinutes:20,arrivalBuffer:15,locationId:null,locked,bookingTime:locked?time:null,status:'todo',
+    fromProposalId:p.id});
+   Object.assign(p,{stepId:state.steps.at(-1).id,scheduledBy:user.name,scheduledAt:now,parked:false});
+   return {summary:`${p.title} added to ${op.day}${time?` at ${time}`:''} from the planning board`,important:true,title:p.title};
+  }
+  fail('Unknown planning action.');
+ }else if(op.type==='partyPerson'||op.type==='partyTrip'){
+  // Who is going and what they are each after. Everyone keeps their own; a parent keeps the
+  // ones the five-year-old will not be filling in himself, and the trip-wide pace and budget.
+  const current=party(state);
+  if(op.type==='partyPerson'){
+   if(!state.members.includes(op.name))fail('Choose a family member.');
+   if(!parent&&op.name!==user.name)fail('You can fill in your own.',403);
+   const me=personProfile(state,op.name);
+   const values={age:op.age===undefined?me.age:(op.age===null||op.age===''?null:Number(op.age)),
+    interests:[...new Set(Array.isArray(op.interests)?op.interests:[])],
+    loves:(op.loves??me.loves??'').trim(),avoid:(op.avoid??me.avoid??'').trim(),
+    dietary:(op.dietary??me.dietary??'').trim(),notes:(op.notes??me.notes??'').trim()};
+   if(values.age!==null&&(!Number.isInteger(values.age)||values.age<0||values.age>120))fail('Enter an age between 0 and 120.');
+   if(values.interests.some(id=>!INTERESTS.some(([key])=>key===id)))fail('Choose interests from the list.');
+   if(values.interests.length>INTERESTS.length)fail('Choose interests from the list.');
+   for(const key of ['loves','avoid','dietary','notes'])requireText(values[key],500,key);
+   state.party={...current,people:{...current.people,[op.name]:{...values,by:user.name,at:now}}};
+   return {summary:null,important:false,title:`${op.name}’s travel profile`};
+  }
+  if(!parent)fail('A parent sets the pace and the budget.',403);
+  const pace=PACES.some(([id])=>id===op.pace)?op.pace:fail('Choose how full the days should be.');
+  const budget=op.budget===null||op.budget===undefined||op.budget===''?null:Number(op.budget);
+  if(budget!==null&&(!Number.isFinite(budget)||budget<0||budget>10000000))fail('Enter a daily budget in yen.');
+  const notes=(op.notes??current.notes??'').trim();requireText(notes,2000,'notes');
+  state.party={...current,pace,budget:budget===null?null:Math.round(budget),notes};
+  return {summary:null,important:false,title:'How we want the days to go'};
  }else if(op.type==='phraseSeen'){
   // Everyone gets the phrase of the day, and each person marks off their own.
   if(!state.members.includes(op.person))fail('Choose a family member.');
