@@ -878,6 +878,41 @@ test('every screen is reachable exactly once, from the bar or from More',async()
  assert.equal(navActive('tickets','more',nate),true,'tickets live under More for the boys');
 });
 
+test('every row in the menu draws an icon, and the bar swipes across the bottom',async()=>{
+ const {PAGES}=await import('../src/nav-data.js');
+ const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // The bug this replaces: weather, the to-do list, the planning board and forwarded email had
+ // no icon, so More rendered <undefined/> and React took the whole screen down with it — and
+ // More is the one screen every other screen is reached from.
+ const icons=new Set([...nav.match(/const ICONS=\{[\s\S]*?\};/)[0].matchAll(/([a-z]+):/g)].map(m=>m[1]));
+ for(const id of Object.keys(PAGES))assert.ok(icons.has(id),`${id} has no icon, so its row cannot render`);
+ // And a page added tomorrow without one falls back rather than blanking the menu.
+ assert.match(nav,/export const iconFor=id=>ICONS\[id\]\|\|Circle;/);
+ assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,2,'the bar and the More list both go through the fallback');
+ assert.ok(!/const Icon=ICONS\[id\]/.test(nav),'nothing indexes ICONS directly any more');
+ // Six tabs do not fit a narrow phone at a readable size, so the five that are yours scroll.
+ assert.match(css,/\.nav-tabs\{flex:1;min-width:0;display:flex;[^}]*overflow-x:auto/);
+ assert.match(css,/\.nav-tabs button\{flex:1 0 auto;min-width:68px;scroll-snap-align:center\}/);
+ assert.match(css,/\.nav-tabs::-webkit-scrollbar\{display:none\}/);
+ // Auto margins centre the strip while it fits and fall to zero when it overflows, so the
+ // first tab stays reachable — which is exactly what justify-content:center would clip.
+ assert.match(css,/\.nav-tabs button:first-child\{margin-left:auto\}/);
+ assert.match(css,/\.nav-tabs button:last-child\{margin-right:auto\}/);
+ // More is not in the scroller. It is the way to every other screen, so it is pinned to the
+ // end of the bar and cannot be swiped off the edge the way the reported bug had it.
+ assert.match(nav,/<\/div>\s*\n\s*<button className=\{`nav-more/,'More sits outside the scrolling strip');
+ assert.match(css,/\.bottom-nav \.nav-more\{flex:0 0 auto/);
+ // A tab stopped by a hard edge reads as the end of the bar, so the side with more on it fades.
+ assert.match(nav,/data-swipe=\{swipe\|\|undefined\}/);
+ for(const side of ['end','start','both'])assert.match(css,new RegExp(`\\.nav-tabs\\[data-swipe="${side}"\\]\\{-webkit-mask-image:linear-gradient`),side);
+ // And a strip that is a couple of stray pixels over reads as fitting, rather than fading for nothing.
+ assert.match(nav,/const room=box\.scrollWidth-box\.clientWidth;\n\s*setSwipe\(room<SLACK\?''/);
+ // Whatever is lit is brought into view, so the current tab is never parked off the edge.
+ assert.match(nav,/box\.scrollTo\(\{left:on\.offsetLeft-\(box\.clientWidth-on\.offsetWidth\)\/2/);
+ assert.match(nav,/prefers-reduced-motion:reduce/,'and it does not animate for anyone who asked it not to');
+});
+
 test('every Japanese word and phrase in the app carries a sound-it-out',async()=>{
  const {FOOD,ORDERING,MENU_WORDS,SAY_TIP}=await import('../src/food-data.js');
  const {PHRASES}=await import('../src/phrases.js');
