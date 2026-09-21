@@ -64,6 +64,7 @@ export const PAGE_RULES={
  search:'Search everything. Type anything at all and it looks through the whole app for it.',
  mascot:'Our characters. Make your own Japanese character. Pick what it is, then its colours, its eyes, its mouth and what it holds, and give it a name.',
  thanks:'Notes for Lauren. This one is Dad writing notes for Mum, so there is nothing in here for you.',
+ settings:'Settings. Every morning the phone shows you a new Japanese phrase, and a fun fact about where we are going. If you would rather it did not, tap the big button beside one and it will stop. Tap it again and it comes back. All the phrases and all the facts are still there whenever you want them.',
  personalise:'My menu. This is where you choose the buttons along the bottom of the screen. You can move them up and down so your favourite one is first, take off the ones you never press, and put away any whole page you do not want to see. If it all goes wrong, press start again, and everything comes back.'
 };
 export const gameRule=id=>GAME_RULES[id]||'';

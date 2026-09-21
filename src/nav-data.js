@@ -28,7 +28,8 @@ export const PAGES={
  search:{label:'Search everything',note:'Find a booking, note, shop or guide page'},
  mascot:{label:'Our characters',note:'Design your own Japanese character and use it in the app'},
  thanks:{label:'Notes for Lauren',note:'Write and schedule her daily pop-up notes'},
- personalise:{label:'My menu',note:'Choose what you see, and the order it comes in'}
+ personalise:{label:'My menu',note:'Choose what you see, and the order it comes in'},
+ settings:{label:'Settings',note:'Turn the daily phrase or the daily fun fact off'}
 };
 // The five that earn a place in the bottom bar, by who is holding the phone. Parents reach
 // for tickets and prices; the boys reach for their missions. Everything else lives in More.
@@ -45,7 +46,7 @@ export const MORE_SECTIONS=[
  ['Out and about',['weather','places','money','food','phrases','meeting','help']],
  ['The plan',['todo','planning','options','parks','shopping','tickets','inbox']],
  ['Looking back',['photos','diary','updates','search','guide']],
- ['Just for you',['personalise','thanks']],
+ ['Just for you',['personalise','settings','thanks']],
  ['For the boys',['challenges','games','spending','facts','mascot']]
 ];
 const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(id!=='inbox'||user?.role==='parent');
