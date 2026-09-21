@@ -11,7 +11,7 @@ import Currency from './Currency.jsx';
 import SayIt from './SayIt.jsx';
 import Phrasebook,{PhraseOfDay} from './Phrasebook.jsx';
 import {phraseForDay} from './phrasebook-data.js';
-import {phraseSeenBy} from './trip-features.js';
+import {phraseSeenBy,phraseQueue} from './trip-features.js';
 import {PHRASES} from './phrases.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
 import {primaryNav,moreIds} from './nav-data.js';
@@ -151,9 +151,9 @@ function App(){
   if(noteForMe&&!noteRead)return;
   phraseSeen.current=phraseDay;setModal({type:'phrase',phrase:todaysPhrase,day:phraseDay});
  },[todaysPhrase?.id,phraseDone,noteForMe?.day,noteRead,modal]);
- async function seePhrase(day){
+ async function seePhrase(day,phraseIds=[]){
   localStorage.setItem(`japan.phrase.${day}`,'seen');
-  if(navigator.onLine)await mutate({type:'phraseSeen',day,person:user.name});
+  if(navigator.onLine)await mutate({type:'phraseSeen',day,person:user.name,phraseIds});
   setModal(null);
  }
  async function readNote(note){
@@ -203,7 +203,7 @@ function App(){
   {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='meeting'&&<MeetingCard key={day} state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='updates'&&<Updates state={state} user={user} mutate={mutate} busy={busy}/>}
-  {tab==='phrases'&&<><p className="eyebrow">A LITTLE JAPANESE GOES A LONG WAY</p><h1>Phrases</h1><Phrasebook/></>}
+  {tab==='phrases'&&<><p className="eyebrow">A LITTLE JAPANESE GOES A LONG WAY</p><h1>Phrases</h1><Phrasebook state={visibleState} user={user} day={japanDate(now)} mutate={mutate} busy={busy}/></>}
   {tab==='money'&&<><p className="eyebrow">WHAT DOES THAT COST?</p><h1>Yen converter</h1><Currency state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice}/></>}
   {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><FoodList state={visibleState} user={user} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal}/></>}
@@ -225,7 +225,7 @@ function App(){
    {modal.type==='voice'&&<VoiceNotes state={visibleState} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay}/>}
    {modal.type==='foodcard'&&<FoodCard item={modal.item} notice={notice}/>}
    {modal.type==='park'&&<ParkGuide state={visibleState} user={user} park={modal.park} mutate={mutate} busy={busy} open={setModal}/>}
-   {modal.type==='phrase'&&<PhraseOfDay phrase={modal.phrase} day={modal.day} dayLabel={fmtDay(modal.day)} busy={busy} dismiss={()=>seePhrase(modal.day)}/>}
+   {modal.type==='phrase'&&<PhraseOfDay queue={phraseQueue(visibleState,user.name,modal.day)} day={modal.day} dateLabel={fmtDay(modal.day)} busy={busy} dismiss={ids=>seePhrase(modal.day,ids)}/>}
    {modal.type==='eyespy'&&<EyeSpy state={visibleState} user={user} step={modal.step} mutate={mutate} busy={busy}/>}
    {modal.type==='thankyou'&&<ThankYouNote note={modal.note} seenAt={state.thankYou.seen?.[modal.note.day]} busy={busy} dismiss={()=>readNote(modal.note)}/>}
    {modal.type==='late'&&<RunningLate state={state} day={day} mutate={mutate} busy={busy} close={()=>setModal(null)}/>}

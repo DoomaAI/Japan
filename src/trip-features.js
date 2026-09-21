@@ -1,4 +1,5 @@
 import {activeSteps,minutes,asClock,japanDate,japanClock} from './timing.js';
+import {ORDERED_PHRASES,phraseForDay} from './phrasebook-data.js';
 export const BOYS=['Nate','Boston'];
 export const THANK_YOU_FROM='Damien',THANK_YOU_TO='Lauren';
 export function initialThankYou(){
@@ -118,6 +119,20 @@ export const voiceNotesFor=(state,{day,stepId}={})=>(state.voiceNotes||[])
 export const voiceLength=seconds=>`${Math.floor(seconds/60)}:${String(Math.round(seconds%60)).padStart(2,'0')}`;
 // Who has already seen a given day's phrase, so it pops up once each.
 export const phraseSeenBy=(state,day)=>state.phraseSeen?.[day]||{};
+// Every phrase a person has actually been shown, and when they first met it.
+export const phrasesSeenBy=(state,person)=>state.phraseLog?.[person]||{};
+export const phraseLogFor=(state,person)=>{
+ const seen=phrasesSeenBy(state,person);
+ return ORDERED_PHRASES().filter(p=>seen[p.id]).map(p=>({...p,at:seen[p.id]}))
+  .sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+};
+// What to show next: the day's phrase first, then whatever this person has not met yet, so
+// swiping on never lands twice on the same one.
+export function phraseQueue(state,person,day){
+ const seen=phrasesSeenBy(state,person),todays=day?phraseForDay(state.days,day):null;
+ const rest=ORDERED_PHRASES().filter(p=>p.id!==todays?.id&&!seen[p.id]);
+ return [todays,...rest].filter(Boolean);
+}
 // Searching for Japanese on an English keyboard: nobody types the macron in "arigatō",
 // and a question mark or a hyphen should not decide whether a phrase is found.
 export const searchText=s=>(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
@@ -314,7 +329,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseSeen:state.phraseSeen??{},voiceNotes:state.voiceNotes??[],thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},voiceNotes:state.voiceNotes??[],thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -387,7 +402,10 @@ export function pendingProgress(state,queue){
  const next=ensureFeatures(structuredClone(state));
  for(const {operation:o}of queue){
   if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=true;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;}}}
-  if(o.type==='phraseSeen'){const e={...(next.phraseSeen[o.day]||{})};e[o.person]=e[o.person]||o.at;next.phraseSeen={...next.phraseSeen,[o.day]:e};}
+  if(o.type==='phraseSeen'){
+   if(o.day){const e={...(next.phraseSeen[o.day]||{})};e[o.person]=e[o.person]||o.at;next.phraseSeen={...next.phraseSeen,[o.day]:e};}
+   if(o.phraseIds?.length){const log={...(next.phraseLog[o.person]||{})};for(const id of o.phraseIds)log[id]=log[id]||o.at;next.phraseLog={...next.phraseLog,[o.person]:log};}
+  }
   if(o.type==='foodTried'){const e=next.food[o.itemId]||{},tried={...(e.tried||{})};if(o.done)tried[o.person]=tried[o.person]||o.at;else delete tried[o.person];next.food={...next.food,[o.itemId]:{...e,tried}};}
   if(o.type==='foodRating'){const e=next.food[o.itemId]||{},ratings={...(e.ratings||{})};if(o.rating)ratings[o.person]=o.rating;else delete ratings[o.person];next.food={...next.food,[o.itemId]:{...e,ratings}};}
   if(o.type==='parkRide'){const e=next.parkRides[o.rideId]||{},ridden={...(e.ridden||{})};if(o.done)ridden[o.person]=ridden[o.person]||o.at;else delete ridden[o.person];next.parkRides={...next.parkRides,[o.rideId]:{...e,ridden}};}

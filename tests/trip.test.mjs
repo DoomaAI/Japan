@@ -1060,3 +1060,48 @@ test('a phone that has not listed its voices yet is not treated as having none',
  assert.equal(canOffer(true,'no'),false);
  assert.equal(canOffer(false,'yes'),false,'no speech support at all');
 });
+
+test('the phrase log records what was actually put on screen, once each',async()=>{
+ const {ensureFeatures,phraseLogFor,phrasesSeenBy,phraseQueue}=await import('../src/trip-features.js');
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ const state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.phraseLog,{});
+ const day=seed.days[0].date,at='2026-09-20T23:00:00.000Z';
+ // Closing the pop-up hands back every phrase swiped through, and marks the day done.
+ const first=applyOperation(state,{type:'phraseSeen',person:'Nate',day,phraseIds:['hello','thanks','excuse'],at},child);
+ assert.deepEqual(Object.keys(phrasesSeenBy(first,'Nate')),['hello','thanks','excuse']);
+ assert.ok(first.phraseSeen[day].Nate);
+ // Seeing one again keeps the first time, and one person's log is their own.
+ const again=applyOperation(first,{type:'phraseSeen',person:'Nate',phraseIds:['hello','please'],at:'2026-09-20T23:30:00.000Z'},child);
+ assert.equal(phrasesSeenBy(again,'Nate').hello,at,'the first time it was met is kept');
+ assert.equal(phrasesSeenBy(again,'Nate').please,'2026-09-20T23:30:00.000Z');
+ assert.deepEqual(phrasesSeenBy(again,'Boston'),{});
+ // The log reads newest first.
+ assert.deepEqual(phraseLogFor(again,'Nate').map(p=>p.id),['please','hello','thanks','excuse']);
+ assert.equal(phraseLogFor(again,'Nate')[0].en,'Please');
+ // What to show next never repeats what this person has already met.
+ const queue=phraseQueue(again,'Nate',seed.days[2].date);
+ assert.equal(queue[0].id,'excuse','the day of the trip still leads with its own phrase');
+ assert.equal(new Set(queue.map(p=>p.id)).size,queue.length);
+ assert.ok(!queue.slice(1).some(p=>phrasesSeenBy(again,'Nate')[p.id]),'no phrase comes round twice');
+ assert.equal(queue.length,ALL_PHRASES().length-3);
+ // "Show me another" logs a phrase without touching the day's pop-up.
+ const extra=applyOperation(again,{type:'phraseSeen',person:'Damien',phraseIds:['bye']},parent);
+ assert.ok(phrasesSeenBy(extra,'Damien').bye);
+ assert.deepEqual(extra.phraseSeen,again.phraseSeen,'no day is marked off by a spare phrase');
+ // It is still your own log, and only real phrases go in it.
+ assert.throws(()=>applyOperation(state,{type:'phraseSeen',person:'Damien',phraseIds:['hello']},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'phraseSeen',person:'Nate',phraseIds:['not-a-phrase']},child),/Unknown phrase/);
+ assert.throws(()=>applyOperation(state,{type:'phraseSeen',person:'Nate',phraseIds:'hello'},child),/Invalid phrase list/);
+ assert.throws(()=>applyOperation(state,{type:'phraseSeen',person:'Nate'},child),/trip day/);
+ assert.throws(()=>applyOperation(state,{type:'phraseSeen',person:'Nate',day:'2099-01-01',phraseIds:['hello']},child),/trip day/);
+});
+
+test('a queued phrase log still shows on the phone before it syncs',async()=>{
+ const {ensureFeatures,pendingProgress,phrasesSeenBy}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const day=seed.days[0].date,at='2026-09-20T23:00:00.000Z';
+ const preview=pendingProgress(state,[{operation:{type:'phraseSeen',person:'Nate',day,phraseIds:['hello','thanks'],at}}]);
+ assert.deepEqual(Object.keys(phrasesSeenBy(preview,'Nate')),['hello','thanks']);
+ assert.ok(preview.phraseSeen[day].Nate);
+});

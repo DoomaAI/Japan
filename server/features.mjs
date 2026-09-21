@@ -1,6 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {findRide} from '../src/park-data.js';
 import {FOOD,FOOD_KINDS} from '../src/food-data.js';
+import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO} from '../src/trip-features.js';
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
 export function extraOperation(state,op,user,fail,now){
@@ -67,11 +68,24 @@ export function extraOperation(state,op,user,fail,now){
   // Everyone gets the phrase of the day, and each person marks off their own.
   if(!state.members.includes(op.person))fail('Choose a family member.');
   if(!parent&&op.person!==user.name)fail('Mark your own phrase as seen.',403);
-  if(!op.day||!state.days.some(d=>d.date===op.day))fail('Choose a trip day.');
+  if(op.day!==null&&op.day!==undefined&&!state.days.some(d=>d.date===op.day))fail('Choose a trip day.');
+  if(!op.day&&!op.phraseIds?.length)fail('Choose a trip day.');
   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid phrase time.');at=new Date(op.at).toISOString();}
-  const seen={...(state.phraseSeen[op.day]||{})};
-  seen[op.person]=seen[op.person]||at;
-  state.phraseSeen={...state.phraseSeen,[op.day]:seen};
+  if(op.day){
+   const seen={...(state.phraseSeen[op.day]||{})};
+   seen[op.person]=seen[op.person]||at;
+   state.phraseSeen={...state.phraseSeen,[op.day]:seen};
+  }
+  // Every phrase actually put in front of someone goes in their own log, once.
+  if(op.phraseIds!==undefined){
+   if(!Array.isArray(op.phraseIds)||op.phraseIds.length>ALL_PHRASES().length)fail('Invalid phrase list.');
+   const log={...(state.phraseLog[op.person]||{})};
+   for(const id of op.phraseIds){
+    if(!findPhrase(id))fail('Unknown phrase.',404);
+    log[id]=log[id]||at;
+   }
+   state.phraseLog={...state.phraseLog,[op.person]:log};
+  }
  }else if(op.type==='voiceNoteRemove'){
   // Your own voice is yours to take back; a parent can remove any of them.
   const note=state.voiceNotes.find(v=>v.id===op.id);if(!note)fail('Voice note not found.',404);
