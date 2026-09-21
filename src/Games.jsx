@@ -9,6 +9,7 @@ import {useKanaVoice} from './SayIt.jsx';
 import {SpeakRules} from './AdventurePages.jsx';
 import {gameRule} from './spoken-rules.js';
 import {gameGuide} from './game-guide.js';
+import {WinBurst} from './Win.jsx';
 import Karuta from './Karuta.jsx';
 import AnimalShogi from './AnimalShogi.jsx';
 import Fukuwarai from './Fukuwarai.jsx';
@@ -100,6 +101,7 @@ function KanaMatch({user,mutate,busy,state}){
    return <button key={c.key} className={`kana-card${matched?' matched':''}${up?' up':''}${c.ja?' ja':''}`}
     disabled={matched} onClick={()=>tap(c)} lang={c.ja?'ja':undefined}>{c.face}</button>;
   })}</div>
+  <WinBurst on={finished} label="All matched!" sub={`${pairs} pairs in ${taps} taps`}/>
   <p className="game-status">{finished?<><Trophy size={16}/> All {pairs} matched in {taps} taps.</>:`${done.length} of ${pairs} matched`}</p>
   <div className="row wrap">
    <button className="primary" onClick={again}><RotateCcw size={16}/> New board</button>
@@ -161,6 +163,7 @@ function Janken({user,state,mutate,busy,online,refresh}){
   {thisRound&&round.done
    ?<div className="janken-result">
      <p><strong>{findThrow(round.throws[user.name])?.icon} you</strong> · <strong>{findThrow(theirs)?.icon} {against}</strong></p>
+     <WinBurst on={round.winner===user.name} label="You win!" sub="Jan ken pon"/>
      <p className="janken-verdict">{round.winner===null?'A draw — あいこでしょ! Throw again.':round.winner===user.name?'You win.':`${round.winner} wins.`}</p>
      <button className="primary" disabled={busy} onClick={()=>mutate({type:'jankenNewRound'})}><RotateCcw size={16}/> Again</button>
     </div>
@@ -207,6 +210,7 @@ function Merge({user,mutate,busy,state}){
    {[['up','↑'],['left','←'],['down','↓'],['right','→']].map(([d,a])=>
     <button key={d} type="button" aria-label={`Slide ${d}`} disabled={over} onClick={()=>move(d)}>{a}</button>)}
   </div>
+  <WinBurst on={top?.value===MERGE_LADDER[MERGE_LADDER.length-1].value} label="Mount Fuji!" sub="All the way up the ladder"/>
   {over&&<p className="game-status"><Trophy size={16}/> No moves left.</p>}
   <Stats items={[
    ['Score',score],
@@ -248,6 +252,7 @@ function Remember({user,state,mutate,busy,dayLabel}){
    const matched=done.includes(c.pair),up=matched||picked.some(p=>p.key===c.key);
    return <button key={c.key} className={`remember-card${matched?' matched':''}${up?' up':''}`} disabled={matched} onClick={()=>tap(c)}>
     <span>{up?c.face:'?'}</span></button>;})}</div>
+  <WinBurst on={finished} label="Every one!" sub={`${pairs} pairs in ${taps} taps`}/>
   <p className="game-status">{finished?<><Trophy size={16}/> All {pairs} in {taps} taps.</>:`${done.length} of ${pairs} matched`}
    {bestScore(state,user.name,'remember')>0?` · your best ${bestScore(state,user.name,'remember')}`:''}</p>
   <button className="primary" onClick={()=>{setSeed(Date.now()%100000);setPicked([]);setDone([]);setTaps(0);}}><RotateCcw size={16}/> New board</button>
@@ -282,6 +287,7 @@ function Sights({user,state,mutate,busy}){
    const matched=done.includes(c.pair),up=matched||picked.some(p=>p.key===c.key);
    return <button key={c.key} className={`sight-card${matched?' matched':''}${up?' up':''}`} disabled={matched} onClick={()=>tap(c)}>
     {up?<><span aria-hidden="true">{c.sight.icon}</span><small>{c.sight.en}<b lang="ja">{c.sight.ja}</b></small></>:<span className="sight-back" aria-hidden="true">🎴</span>}</button>;})}</div>
+  <WinBurst on={finished} label="All the pairs!" sub={`${pairs} pairs in ${taps} taps`}/>
   <p className="game-status">{finished?<><Trophy size={16}/> All {pairs} in {taps} taps.</>:`${done.length} of ${pairs} found`}
    {bestScore(state,user.name,`sights-${pairs}`)>0?` · your best at ${pairs} ${bestScore(state,user.name,`sights-${pairs}`)}`:''}</p>
   <button className="primary" onClick={()=>{setSeed(Date.now()%100000);setPicked([]);setDone([]);setTaps(0);}}><RotateCcw size={16}/> New board</button>
@@ -323,6 +329,7 @@ function Kitchen({user,state,mutate,busy}){
    {shown.map((e,i)=>
    <button key={e.id} data-tile={i} className={`kitchen-item${first===e.id?' chosen':''}${drag.over===i?' over':''}`} onPointerDown={drag.down(i)}>
     <span aria-hidden="true">{e.icon}</span><small>{e.en}</small></button>)}</div>
+  <WinBurst on={!left} label="You found everything!" sub={`All ${total} of them`}/>
   <p className="game-status">{found.length} of {total} found{left?` · ${left} to go`:' · everything!'}
    {bestScore(state,user.name,'kitchen')>0?` · your best ${bestScore(state,user.name,'kitchen')}`:''}</p>
   <button onClick={()=>{setFound(startingElements());setFirst(null);setLast(null);setTried(0);}}><RotateCcw size={16}/> Start again</button>
@@ -571,6 +578,7 @@ function SumoBout({rate,named,drill,quick,onDone}){
     <button key={k.id} className={`sumo-move${named&&opening?.id===k.id?' open':''}`} disabled={phase!=='bout'} onClick={()=>act({type:'technique',id:k.id})}>
      <span aria-hidden="true">{k.icon}</span><strong>{k.en}</strong><small lang="ja">{k.ja}</small></button>)}</div>
   </>}
+  <WinBurst on={done?.over==='won'} label="Out of the ring!" sub={done?.won?kimariteById(done.won)?.en:''}/>
   {done?.drill&&<p className="callout">{done.drill==='shiko'?`Stance ${Math.round(done.score*100)}%. ${done.score>0.8?'That is a wrestler.':'Listen for the drum rather than watching the feet.'}`
    :done.drill==='shio'?`Throw ${Math.round(done.score*100)}%. ${done.score>0.8?'Straight up.':'Start the tap before the marker gets there.'}`
    :done.score===MATTA?'A matta. You have to hold until the call, however long he leaves it.'
@@ -828,6 +836,7 @@ function Stable({user,state,mutate,busy}){
   {best>0&&<p className="game-odds">Your {rankAt(best).en.toLowerCase()} has a <strong>{Math.round(odds*100)}%</strong> chance against this one.</p>}
   {last?.promoted&&<p className="callout">Promoted to <strong>{last.promoted.icon} {last.promoted.en}</strong> <small lang="ja">{last.promoted.ja} · {last.promoted.romaji}</small></p>}
   {last?.note&&<p className="callout">{last.note}</p>}
+  <WinBurst on={!!last?.bout?.won} label="He won!" sub={last?.bout?.won?`${last.mine.en} takes it`:''}/>
   {last?.bout&&<div className={`stable-bout${last.bout.won?' won':''}`}>
    <p><strong>{last.mine.icon} {last.mine.en}</strong> v <strong>{last.against.icon} {last.against.en}</strong></p>
    <p className="janken-verdict">{last.bout.won?`Won — ${last.bout.reward} points.`:'Beaten, and demoted a rank.'}</p>
@@ -877,49 +886,89 @@ const ORIGINS={
  modern:{tag:'Japanese',what:'Japanese, and modern.'}
 };
 const GAMES=[
- {id:'match',title:'Match the letters',needs:OFFLINE,Component:KanaMatch},
- {id:'decode',title:'Read the sign',needs:OFFLINE,Component:Decoder},
- {id:'karuta',title:'Karuta',ja:'かるた',origin:'traditional',needs:OFFLINE,Component:Karuta,
+ {id:'match',title:'Match the letters',ease:1,needs:OFFLINE,Component:KanaMatch},
+ {id:'decode',title:'Read the sign',ease:2,needs:OFFLINE,Component:Decoder},
+ {id:'karuta',title:'Karuta',ease:2,ja:'かるた',origin:'traditional',needs:OFFLINE,Component:Karuta,
   story:'Played at New Year since the Edo period. A reader reads, the cards lie face up, and the first hand on the right one keeps it. The proverb deck is iroha karuta, where the card is found by the letter the reading opens with.'},
- {id:'shogi',title:'Animal shogi',ja:'どうぶつしょうぎ',origin:'modern',needs:OFFLINE,Component:AnimalShogi,
+ {id:'shogi',title:'Animal shogi',ease:3,ja:'どうぶつしょうぎ',origin:'modern',needs:OFFLINE,Component:AnimalShogi,
   story:'The game is new — Madoka Kitao, a professional shogi player, drew it up in 2008 so a small child could play a whole game. What it is a small version of is not: shogi has been played in Japan since the 1500s, and taking a piece and playing it back as your own is the part that makes it shogi rather than chess.'},
- {id:'fukuwarai',title:'Fukuwarai',ja:'福笑い',origin:'traditional',needs:OFFLINE,Component:Fukuwarai,
+ {id:'fukuwarai',title:'Fukuwarai',ease:1,ja:'福笑い',origin:'traditional',needs:OFFLINE,Component:Fukuwarai,
   story:'The New Year one, played blindfolded since the Edo period. The two faces are the two it is always played with — お多福, whose name means much good fortune, and ひょっとこ, who is blowing on a fire. It is the only game in here where losing is funnier than winning.'},
- {id:'daruma',title:'Daruma',ja:'だるまさんがころんだ',origin:'traditional',needs:OFFLINE,Component:Daruma,
+ {id:'daruma',title:'Daruma',ease:1,ja:'だるまさんがころんだ',origin:'traditional',needs:OFFLINE,Component:Daruma,
   story:'Japan’s red light, green light, and the chant is the game — だるまさんがころんだ, ten syllables at whatever speed the demon feels like, and he spins round on the last one. The child at the wall is the 鬼, the demon, which is what he is called in every Japanese chasing game.'},
- {id:'shiritori',title:'Shiritori',ja:'しりとり',origin:'traditional',needs:OFFLINE,Component:Shiritori,
+ {id:'shiritori',title:'Shiritori',ease:2,ja:'しりとり',origin:'traditional',needs:OFFLINE,Component:Shiritori,
   story:'The word game every family plays on a train, and it is older than any of them. Your word starts with the last sound of theirs, no word twice, and a word ending in ん loses because nothing in Japanese begins with it. That one rule is why it is worth playing while you are learning kana: it makes you read the end of a word.'},
- {id:'kingyo',title:'Goldfish scooping',ja:'金魚すくい',origin:'traditional',needs:OFFLINE,Component:Kingyo,
+ {id:'kingyo',title:'Goldfish scooping',ease:2,ja:'金魚すくい',origin:'traditional',needs:OFFLINE,Component:Kingyo,
   story:'The festival stall, and the boys will stand in front of a real one. You are handed a paper scoop and a bowl and you get what you can before the paper goes, which it always does — the man running the stall knows that and so does everybody queueing. The paper comes in numbered grades, and the higher the number the thinner it is, which is the difficulty setting at a real stall as well as in here.'},
- {id:'picross',title:'Picross',ja:'お絵かきロジック',origin:'modern',needs:OFFLINE,Component:Picross,
+ {id:'picross',title:'Picross',ease:3,ja:'お絵かきロジック',origin:'modern',needs:OFFLINE,Component:Picross,
   story:'The genuinely Japanese puzzle, and the reason this mark exists at all. Two people invented nonograms independently in Japan in 1987 — Non Ishida, who won a competition with it, and Tetsuya Nishio — and it went out from there. Sudoku is the opposite story: American, out of Indianapolis in 1979, named and made famous in Japan, and called Japanese ever since.'},
- {id:'gomoku',title:'Five in a row',ja:'五目並べ',origin:'traditional',needs:OFFLINE,Component:Gomoku,
+ {id:'gomoku',title:'Five in a row',ease:3,ja:'五目並べ',origin:'traditional',needs:OFFLINE,Component:Gomoku,
   story:'Played in Japan for centuries and formalised here as renju in 1899 — but games of five-in-a-row are older than that and are not only Japanese, so it is traditional here rather than invented here. The mark exists to stop that sort of thing being fudged, and it would be a poor showing to fudge it on this one.'},
- {id:'merge',title:'Onigiri to Fuji',needs:OFFLINE,Component:Merge},
- {id:'remember',title:'What we did',needs:OFFLINE,Component:Remember},
- {id:'sights',title:'Japan pairs',needs:OFFLINE,Component:Sights},
- {id:'kitchen',title:'Make it',needs:OFFLINE,Component:Kitchen},
- {id:'snake',title:'Sushi snake',needs:OFFLINE,Component:Snake},
- {id:'stable',title:'Sumo stable',needs:OFFLINE,Component:Stable},
- {id:'sumo',title:'Sumo',ja:'相撲',origin:'traditional',needs:OFFLINE,Component:Sumo,
+ {id:'merge',title:'Onigiri to Fuji',ease:2,needs:OFFLINE,Component:Merge},
+ {id:'remember',title:'What we did',ease:2,needs:OFFLINE,Component:Remember},
+ {id:'sights',title:'Japan pairs',ease:1,needs:OFFLINE,Component:Sights},
+ {id:'kitchen',title:'Make it',ease:1,needs:OFFLINE,Component:Kitchen},
+ {id:'snake',title:'Sushi snake',ease:1,needs:OFFLINE,Component:Snake},
+ {id:'stable',title:'Sumo stable',ease:2,needs:OFFLINE,Component:Stable},
+ {id:'sumo',title:'Sumo',ease:3,ja:'相撲',origin:'traditional',needs:OFFLINE,Component:Sumo,
   story:'Japan’s oldest sport, and the rituals in here are the real ones — the stamps, the salt and the charge are what you will watch at Ryogoku before anybody touches anybody.'},
- {id:'origami',title:'Origami',ja:'折り紙',origin:'traditional',needs:'Works with no signal. You need a square of paper.',Component:Origami,
+ {id:'origami',title:'Origami',ease:2,ja:'折り紙',origin:'traditional',needs:'Works with no signal. You need a square of paper.',Component:Origami,
   story:'Folded in Japan for centuries, and written down as a craft to teach by 1797, in the Senbazuru Orikata — the book of a thousand cranes.'},
- {id:'draw',title:'Draw it',needs:'Works with no signal, on paper or on the phone. Sending one to the family needs signal.',Component:Drawing},
- {id:'spot',title:'Spot the difference',needs:'Needs signal once, to fetch the photo. The puzzle is made on the phone.',Component:SpotDifference},
- {id:'janken',title:'Janken',ja:'じゃんけん',origin:'traditional',needs:'Needs both phones online.',Component:Janken,
+ {id:'draw',title:'Draw it',ease:1,needs:'Works with no signal, on paper or on the phone. Sending one to the family needs signal.',Component:Drawing},
+ {id:'spot',title:'Spot the difference',ease:2,needs:'Needs signal once, to fetch the photo. The puzzle is made on the phone.',Component:SpotDifference},
+ {id:'janken',title:'Janken',ease:1,ja:'じゃんけん',origin:'traditional',needs:'Needs both phones online.',Component:Janken,
   story:'The Japanese hand game that became the world’s rock, paper and scissors — it went out from here, rather than arriving.'}
 ];
+// Easiest first, in three bands, because a picker that opens on the hardest game in the list
+// is a picker a five-year-old scrolls past. The bands are what a boy can do rather than what
+// the game is: band one he plays on his own, band two wants reading or a plan, band three is
+// one an adult has to think about.
+const BANDS=[
+ [1,'Easy ones','Nate can play these on his own.'],
+ [2,'A bit harder','A bit of reading, or a plan.'],
+ [3,'The hard ones','Worth beating a grown-up at.']
+];
+// Which of them are the old Japanese games and which are not. The distinction is already drawn
+// on every card; this turns it into a way to choose, because "show me a real Japanese one" is a
+// thing both boys ask for and there was no way to answer it but to read all twenty-one names.
+const FILTERS=[
+ ['all','All games',()=>true],
+ ['traditional','Traditional Japanese',g=>g.origin==='traditional'],
+ ['rest','Everything else',g=>g.origin!=='traditional']
+];
+const sortedGames=filterId=>{
+ const match=FILTERS.find(([id])=>id===filterId)?.[2]||FILTERS[0][2];
+ return GAMES.filter(match).sort((a,b)=>a.ease-b.ease);
+};
 export default function Games(props){
  const [game,setGame]=useState('match');
+ const [filter,setFilter]=useState('all');
+ const showing=sortedGames(filter);
+ // Changing the filter changes what is on offer, so it changes what you are playing rather
+ // than leaving a board on screen that nothing in the picker points at any more.
+ const pick=id=>{
+  setFilter(id);
+  const list=sortedGames(id);
+  if(!list.some(g=>g.id===game))setGame(list[0].id);
+ };
  const current=GAMES.find(g=>g.id===game)||GAMES[0];
  const origin=ORIGINS[current.origin];
+ const band=BANDS.find(([level])=>level===current.ease);
  return <>
   <p className="eyebrow">SOMETHING TO DO IN A QUEUE</p><h1>Games</h1>
-  <div className="segmented game-picker">{GAMES.map(g=>
-   <button key={g.id} className={game===g.id?'selected':''} onClick={()=>setGame(g.id)}
-    aria-label={ORIGINS[g.origin]?`${g.title} — ${ORIGINS[g.origin].tag.toLowerCase()}`:undefined}>{g.title}
-    {ORIGINS[g.origin]&&<i className={`game-tag ${g.origin}`} aria-hidden="true"/>}</button>)}</div>
+  <div className="segmented game-filter">{FILTERS.map(([id,label])=>
+   <button key={id} className={filter===id?'selected':''} onClick={()=>pick(id)}>{label}</button>)}</div>
+  {BANDS.map(([level,label,note])=>{
+   const inBand=showing.filter(g=>g.ease===level);
+   if(!inBand.length)return null;
+   return <div className="game-band" key={level}>
+    <p className="game-band-head"><b>{label}</b><small>{note}</small></p>
+    <div className="segmented game-picker">{inBand.map(g=>
+     <button key={g.id} className={game===g.id?'selected':''} onClick={()=>setGame(g.id)}
+      aria-label={ORIGINS[g.origin]?`${g.title} — ${ORIGINS[g.origin].tag.toLowerCase()}`:undefined}>{g.title}
+      {ORIGINS[g.origin]&&<i className={`game-tag ${g.origin}`} aria-hidden="true"/>}</button>)}</div>
+   </div>;
+  })}
   {/* Before anything else on the page, because the person who needs it cannot read the rest. */}
   <SpeakRules id={`rules-${current.id}`} text={gameRule(current.id)} label={`How to play ${current.title}`}/>
   {origin&&<p className="game-origin">
@@ -927,7 +976,7 @@ export default function Games(props){
    {current.ja&&<em lang="ja">{current.ja}</em>}
    <small>{current.story||origin.what}</small></p>}
   <GameGuide game={current}/>
-  <p><small>{current.needs}</small></p>
+  <p><small>{band?`${band[1]} · ${band[2]} `:''}{current.needs}</small></p>
   <current.Component {...props}/>
  </>;
 }

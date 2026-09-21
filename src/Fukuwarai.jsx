@@ -2,6 +2,7 @@ import React,{useState,useRef} from 'react';
 import {Trophy,RotateCcw,Eye,EyeOff} from 'lucide-react';
 import {FACES,faceById,PARTS,targetFor,fukuwaraiScore,verdictOf,PERFECT} from './fukuwarai-data.js';
 import {bestScore} from './trip-features.js';
+import {WinBurst} from './Win.jsx';
 const INK='#16383b';
 // The faces, drawn rather than photographed, on the same hundred by a hundred square the rest
 // of the app draws on. Only the head is here: the eyebrows, eyes, nose and mouth are what you
@@ -105,6 +106,7 @@ export default function Fukuwarai({user,state,mutate,busy}){
     </div>
    :revealed
    ?<>
+     <WinBurst on={revealed} label="Blindfold off!" sub={`${result.total} out of ${PERFECT}`}/>
      <p className="game-status"><Trophy size={16}/> {result.total} out of {PERFECT}. {verdictOf(result.total)}</p>
      <div className="ladder-grid notes fuku-marks">{result.parts.map(p=>
       <span key={p.id}><b>{p.en}</b><small lang="ja">{p.ja}</small>

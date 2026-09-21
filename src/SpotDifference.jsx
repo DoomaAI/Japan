@@ -3,6 +3,7 @@ import {Trophy,RotateCcw,Lightbulb,Eye,Timer,Camera,WifiOff} from 'lucide-react'
 import {photosFor,scoresFor} from './trip-features.js';
 import {photoUrl} from './PhotoDay.jsx';
 import {LEVELS,levelFor,hashSeed,workingSize,planRound,applyEdits,hitTest,hintFor,paneLayout,paneBox,spotScore,spotGame} from './spot-data.js';
+import {WinBurst} from './Win.jsx';
 // Spot the difference, out of the photos the boys took themselves. One of the two pictures has
 // been quietly changed in a few places; tap wherever you see it, in either picture.
 //
@@ -180,6 +181,7 @@ export default function SpotDifference({state,user,mutate,busy,online}){
   {(status==='plain'||(status==='error'&&online))&&<p className="callout">{problem}</p>}
   {status==='playing'&&<>
    <div className={`spot-board ${mode}`} ref={board}>{pane(original)}{pane(edited)}</div>
+   <WinBurst on={finished&&!revealed} label="You found them all!" sub={`${total} in ${seconds} seconds`}/>
    <p className="game-status">
     {finished?<><Trophy size={16}/> All {total} found in {seconds}s — {score} points.</>
      :revealed?`There they are. ${found.length} of ${total} were yours.`

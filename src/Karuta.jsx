@@ -3,6 +3,7 @@ import {Trophy,RotateCcw,Volume2} from 'lucide-react';
 import {KARUTA_DECKS,KARUTA_SIZES,karutaRound,karutaScore,OTETSUKI} from './karuta-data.js';
 import {bestScore,scoresFor} from './trip-features.js';
 import {useKanaVoice} from './SayIt.jsx';
+import {WinBurst} from './Win.jsx';
 // Karuta. The cards lie face up, the reader calls one, and the first hand on it keeps it —
 // which on one phone means the clock is the brother you are racing. The call is deliberately
 // not written on the card: if the card showed you the answer it would be a matching game, and
@@ -63,6 +64,7 @@ export default function Karuta({user,state,mutate,busy}){
     </div>
    :finished
     ?<div className="karuta-call done">
+      <WinBurst on={finished} label="Every card taken!" sub={wrong?`${wrong} wrong along the way`:'A clean hand'}/>
       <p className="game-status"><Trophy size={16}/> All {round.cards.length} in {tenths(elapsed)} seconds
        {wrong?` — ${wrong} otetsuki`:' with a clean hand'}.</p>
       <p className="karuta-points">{karutaScore(round.cards.length,elapsed/1000,wrong)} points</p>

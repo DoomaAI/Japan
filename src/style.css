@@ -47,6 +47,34 @@
 .game-picker button{flex:0 1 auto;padding:.5rem .85rem;font-size:.84rem;border-radius:22px;white-space:nowrap}.game-stats.cols-4{grid-template-columns:repeat(2,1fr)}@media(min-width:620px){.game-stats.cols-4{grid-template-columns:repeat(4,1fr)}}
 .game-picker button{min-height:40px;padding:.4rem .7rem;font-size:.8rem}
 .game-guide{margin:.2rem 0 1rem;padding:.55rem .9rem;background:#fff;border:1px solid var(--border);border-radius:14px}.game-guide>summary{padding:.3rem 0;font-size:.88rem;font-weight:700;color:#27543f;cursor:pointer}.game-guide .guide-body>*:first-child{margin-top:.35rem}.game-guide h3{margin:.85rem 0 .25rem;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}.game-guide p{margin:0;font-size:.88rem;line-height:1.5;color:var(--ink)}.game-guide ol,.game-guide ul{margin:0;padding-left:1.2rem;font-size:.88rem;line-height:1.5;color:var(--ink)}.game-guide li{margin:.25rem 0}
+/* The handle above the bottom bar: something to aim at, and the only sign that the bar swipes
+   up for the rest of the menu. It sits on top of the bar rather than in it, because the bar is
+   already full of the screens this person chose. */
+.bottom-nav .nav-grip{position:absolute;top:-15px;left:50%;transform:translateX(-50%);flex:0 0 auto;width:54px;min-width:0;max-width:54px;height:16px;min-height:16px;padding:0;gap:0;border:1px solid var(--border);border-bottom:0;border-radius:12px 12px 0 0;background:#fffefc;color:#88a09c}
+.bottom-nav .nav-grip svg{margin-bottom:-2px}
+/* My menu: the bar in the order it is in, with arrows rather than a drag. */
+.menu-order{list-style:none;margin:.6rem 0 1.1rem;padding:0;display:grid;gap:.4rem}
+.menu-order li{display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;background:#fff;border:1px solid var(--border);border-radius:14px}
+.menu-order li>span:nth-child(2){flex:1;min-width:0;display:flex;flex-direction:column;gap:.1rem}
+.menu-order strong{font-size:.92rem;line-height:1.3}.menu-order small{font-size:.72rem;color:var(--muted);line-height:1.35}
+.menu-buttons{display:flex;gap:.3rem;flex:0 0 auto}
+.menu-buttons button{min-height:38px;padding:.35rem .55rem;font-size:.78rem}
+.menu-add{display:flex;flex-wrap:wrap;gap:.4rem;margin:.5rem 0 1.2rem}
+.menu-add button{gap:.35rem;padding:.4rem .7rem;font-size:.8rem;border-radius:22px}
+/* The picker, easiest band first, with the filter above it. */
+.game-filter{flex-wrap:wrap;margin:.9rem 0 .2rem}.game-filter button{flex:1 1 30%;min-height:40px;padding:.4rem .6rem;font-size:.78rem;border-radius:22px}
+.game-band{margin:0 0 .5rem}.game-band-head{display:flex;align-items:baseline;gap:.45rem;flex-wrap:wrap;margin:.7rem 0 0}.game-band-head b{font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink)}.game-band-head small{font-size:.72rem}.game-band .game-picker{margin:.3rem 0 0}
+/* The fanfare when a game is won. Over the game rather than in it: nothing under it moves, no
+   tap is needed, and it is gone in under three seconds. A phone asked for less movement gets
+   the words and none of the paper. */
+.win-burst{position:fixed;inset:0;z-index:70;pointer-events:none;display:grid;place-items:center}
+.win-paper span{position:absolute;top:-12%;font-size:1.7rem;line-height:1;animation:win-fall 2.6s cubic-bezier(.3,.6,.5,1) forwards}
+.win-banner{display:flex;flex-direction:column;align-items:center;gap:.15rem;margin:0;padding:.9rem 1.6rem;background:#fff;border:2px solid var(--green);border-radius:22px;box-shadow:0 12px 30px #16383b33;animation:win-pop .45s cubic-bezier(.2,1.4,.5,1)}
+.win-banner strong{font-family:'Fraunces',Georgia,serif;font-size:1.5rem;line-height:1.15;color:var(--green)}
+.win-banner small{font-size:.8rem;color:var(--ink)}
+@keyframes win-fall{0%{transform:translateY(0) rotate(0);opacity:0}10%{opacity:1}100%{transform:translateY(112vh) rotate(430deg);opacity:.1}}
+@keyframes win-pop{from{transform:scale(.6);opacity:0}70%{transform:scale(1.07);opacity:1}to{transform:scale(1);opacity:1}}
+@media(prefers-reduced-motion:reduce){.win-paper{display:none}.win-banner{animation:none}}
 button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:normal}.game-picker button.two-line{padding:.35rem .75rem}button.two-line b{font-weight:600}button.two-line small{font-size:.66rem;font-weight:600;opacity:.72}button.two-line.selected small{opacity:1}
 .hear-it.recorded{background:var(--green);border-color:var(--green);color:#fff;font-weight:700}.hear-it.quiet{background:transparent;border-style:dashed;font-weight:500}.hear-it.quiet.danger{border-color:#e4c3bd;padding:.4rem .55rem}.hear-row{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}.phrase-recorder{width:100%;margin:.5rem 0 .2rem;padding:.7rem .85rem;background:#eef3ea;border:1px solid #cfdcc9;border-radius:12px}.phrase-recorder p{margin:0 0 .5rem}.phrase-recorder audio{max-width:100%;height:36px}.sound-report p{display:flex;justify-content:space-between;gap:.8rem;margin:.25rem 0;font-size:.82rem}.sound-report p>span{color:var(--muted);flex:0 0 auto}.sound-report p>strong{text-align:right;overflow-wrap:anywhere}.sound-verdict{display:block!important;margin:.7rem 0!important;padding:.6rem .8rem;background:#fff5df;border-radius:10px;font-size:.85rem!important;text-align:left!important}
 .sumo-tally{padding:.7rem .9rem;margin:.6rem 0;background:var(--sand,#f6f3ec);border:1px solid var(--border);border-radius:12px}.sumo-tally .eyebrow{margin-bottom:.4rem}.sumo-tally .tag{display:inline-flex;align-items:baseline;gap:.15rem;font-size:.8rem}.sumo-tally .tag small{font-weight:600;color:var(--muted)}.sumo-tally .tag.must{background:#f7edd2}.sumo-picks{margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border)}.sumo-picks .row{gap:.35rem;align-items:center}.sumo-pick-toggle{font-size:.76rem;padding:.35rem .55rem;min-height:32px;gap:.3rem;color:var(--muted)}.sumo-picks .tag.pick{display:inline-flex;align-items:center;gap:.25rem;font-size:.72rem;padding:.3rem .5rem;white-space:normal}.sumo-picks .tag.pick.up{background:#dcebdd}.sumo-picks .tag.pick.down{background:#f6e3de}.sumo-pick-grid{margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem}.sumo-pick-grid p{margin:0}.sumo-pick-row{display:grid;grid-template-columns:4.2rem minmax(0,1fr) minmax(0,1fr);gap:.35rem;align-items:center}.sumo-pick-row>span{font-size:.82rem;font-weight:650}.sumo-pick-row button{font-size:.76rem;padding:.4rem .5rem;min-height:38px;overflow-wrap:anywhere}.sumo-pick-row .selected{background:var(--green);color:#fff;border-color:var(--green)}
