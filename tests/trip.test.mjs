@@ -2480,6 +2480,94 @@ test('sumo has a speed for everyone, and the pairs boards can be sized',async()=
  assert.match(source,/game:`kana-\$\{set\}-\$\{pairs\}`/);
 });
 
+test('the sumo lead-up is a game of its own, and pays into the bout rather than into the score',async()=>{
+ const {SUMO_RITUALS,STOMP_WINDOW,stompScore,SALT_BAND,saltScore,MATTA,chargeScore,leadUpEffect,ceremonyScore,KIMARITE,kimariteById,theirWeight}=await import('../src/kana-data.js');
+ // Three rituals, each with the Japanese for it, because the point is knowing what you are
+ // looking at when the real one does it in Ryogoku.
+ assert.deepEqual(SUMO_RITUALS.map(r=>r.id),['shiko','shio','tachiai']);
+ for(const r of SUMO_RITUALS)for(const k of ['en','ja','romaji','how','buys'])assert.ok(r[k],`${r.id} has no ${k}`);
+ // Stamps are scored out of four however few you hit, so a beat nobody stamped is not free.
+ assert.equal(stompScore([0,0,0,0]),1);
+ assert.equal(stompScore([0,0]),0.5,'two beats out of four is half a stance');
+ assert.equal(stompScore([STOMP_WINDOW,STOMP_WINDOW,STOMP_WINDOW,STOMP_WINDOW]),0,'a stamp a whole beat late is a stamp missed');
+ assert.ok(stompScore([-80,80,-80,80])>0.7,'close enough counts');
+ assert.equal(stompScore([]),0);
+ // The salt lands in a band rather than on a point — a five-year-old cannot stop a sweep
+ // on a pixel — and missing it altogether is a nothing rather than a penalty.
+ assert.equal(saltScore(50,50),1);
+ assert.equal(saltScore(50+SALT_BAND,50),0);
+ assert.equal(saltScore(0,90),0);
+ // Going before the gyoji calls is a matta, and it is the only score that can be negative.
+ assert.equal(chargeScore(-1),MATTA);
+ assert.equal(chargeScore(100),1);
+ assert.equal(chargeScore(900),0);
+ // What the ceremony buys: wind, a longer look at an opening, and ground already won.
+ const clean=leadUpEffect({shiko:1,shio:1,charge:1}),none=leadUpEffect({});
+ assert.ok(clean.stamina>none.stamina&&clean.rest>none.rest&&clean.opening>none.opening);
+ assert.ok(clean.push>0&&none.push===0);
+ assert.equal(leadUpEffect({charge:MATTA}).push,-2,'a false start hands him the ground');
+ assert.ok(leadUpEffect({charge:MATTA}).matta);
+ // A matta is a nothing in the scoring rather than a second punishment.
+ assert.equal(ceremonyScore({shiko:1,shio:1,charge:MATTA}),ceremonyScore({shiko:1,shio:1,charge:0}));
+ assert.equal(ceremonyScore({shiko:1,shio:1,charge:1}),1);
+ // Four real finishing moves, each with the tell that calls for it.
+ assert.equal(new Set(KIMARITE.map(k=>k.id)).size,4);
+ for(const k of KIMARITE)for(const f of ['icon','en','ja','romaji','tell'])assert.ok(k[f],`${k.id} has no ${f}`);
+ assert.equal(kimariteById('nothing'),null);
+ assert.equal(kimariteById('oshidashi').ja,'押し出し');
+ // A faster opponent leans harder, in the same order as the speeds themselves.
+ assert.ok(theirWeight(330)>theirWeight(1100));
+ // And the ring actually walks all of it, in order, before anybody pushes anybody.
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ for(const phase of ['shiko','shio','tachiai','bout'])assert.match(source,new RegExp(`phase==='${phase}'`),`the ring never reaches ${phase}`);
+ for(const move of ["type:'brace'","type:'technique'","type:'push'"])assert.ok(source.includes(move),`no way to ${move}`);
+});
+
+test('a sumo bout is won by reading him, not by tapping',async()=>{
+ const {startBout,sumoAction,leadUpEffect,SUMO_LIMIT,SHOVE_COST,SHOVE_GAIN,TIRED_GAIN,TECHNIQUE_GAIN,shovePower}=await import('../src/kana-data.js');
+ const fresh=()=>startBout(leadUpEffect({}));
+ // Every shove costs what it earns, so a whole bar of mashing crosses a fraction of the ring.
+ const mashed=Array.from({length:40}).reduce(b=>sumoAction(b,{type:'push'}),fresh());
+ assert.ok(!mashed.over,'mashing alone never pushes anyone out');
+ assert.equal(mashed.stamina,0);
+ assert.ok(mashed.push<SUMO_LIMIT/2);
+ assert.equal(shovePower(100),SHOVE_GAIN);
+ assert.equal(shovePower(SHOVE_COST),TIRED_GAIN,'a tired wrestler shoves for less');
+ assert.equal(shovePower(0),0,'and an empty one for nothing at all');
+ // He gathers himself now and then, and it counts double while it lasts. Pushing into it
+ // costs you ground; bracing into it costs him.
+ const surging=sumoAction(fresh(),{type:'surge',on:true});
+ assert.ok(sumoAction(surging,{type:'push'}).push<0);
+ const held=sumoAction(surging,{type:'brace'});
+ assert.equal(held.surge,false);
+ assert.ok(held.push>0);
+ assert.equal(sumoAction(surging,{type:'tick',their:1,rest:0}).push,-2);
+ assert.equal(sumoAction(fresh(),{type:'tick',their:1,rest:0}).push,-1);
+ // Bracing with nothing coming gives ground away, and gives your legs a rest.
+ const shoved=sumoAction(fresh(),{type:'push'}),rested=sumoAction(shoved,{type:'brace'});
+ assert.ok(rested.push<shoved.push&&rested.stamina>shoved.stamina);
+ // An opening is taken by the move that answers the tell, and thrown away by anything else.
+ const open=sumoAction(fresh(),{type:'open',id:'hatakikomi'});
+ const took=sumoAction(open,{type:'technique',id:'hatakikomi'});
+ assert.equal(took.push,TECHNIQUE_GAIN);
+ assert.equal(took.opening,null);
+ assert.ok(sumoAction(open,{type:'technique',id:'uwatenage'}).push<0,'the wrong move for that tell overbalances you');
+ assert.ok(sumoAction(fresh(),{type:'technique',id:'uwatenage'}).push<0,'and there is nothing to take hold of when nothing is open');
+ assert.ok(sumoAction(open,{type:'push'}).push<0,'mashing straight past an opening loses it');
+ // Out of the ring either way ends it, the winning move is remembered, and nothing moves after.
+ const won=sumoAction({...fresh(),push:SUMO_LIMIT-TECHNIQUE_GAIN,opening:'yorikiri'},{type:'technique',id:'yorikiri'});
+ assert.equal(won.over,'won');
+ assert.equal(won.won,'yorikiri');
+ assert.equal(sumoAction(won,{type:'push'}),won);
+ const lost=sumoAction({...fresh(),push:1-SUMO_LIMIT},{type:'tick',their:2,rest:0});
+ assert.equal(lost.over,'lost');
+ assert.equal(lost.won,'');
+ // Shoving him out is still winning, and names no move.
+ const pushedOut=sumoAction({...fresh(),push:SUMO_LIMIT-SHOVE_GAIN},{type:'push'});
+ assert.equal(pushedOut.over,'won');
+ assert.equal(pushedOut.won,'');
+});
+
 test('photo of the day: one vote each, and a tie stays a tie',async()=>{
  const {ensureFeatures,photosFor,photoVotesFor,photoOfTheDay}=await import('../src/trip-features.js');
  const boston={name:'Boston',role:'child'};

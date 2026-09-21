@@ -272,3 +272,101 @@ export function bout(mine,theirs,roll){
 }
 // Who the next challenger is: near your best, and never below the bottom rung.
 export const challengerFor=(best,cleared)=>Math.max(1,Math.min(TOP_RANK,Math.max(1,best-1)+(cleared%2)));
+// The lead-up is most of what you actually watch at the sumo — the stamping, the salt, the
+// long stare — and the bout itself is over in seconds. So the game does the same: three
+// rituals, each a small skill of its own, and what you earn doing them is what you carry
+// into the ring. None of them pays points directly, which is the point: they buy you wind,
+// a longer look at an opening, and ground you already own when the two of them meet.
+export const SUMO_RITUALS=[
+ {id:'shiko',en:'The stamps',ja:'四股',romaji:'shiko',how:'Stamp on the beat — left, right, left, right.',
+  buys:'A deep stance is a long wind: more to push with, and quicker to get it back.'},
+ {id:'shio',en:'The salt',ja:'塩まき',romaji:'shio-maki',how:'Stop the sweep on the sweet spot and the salt goes high.',
+  buys:'A good throw brings the crowd with you, and an opening stays open longer.'},
+ {id:'tachiai',en:'The charge',ja:'立合い',romaji:'tachi-ai',how:'Crouch and hold. Go the moment the gyoji calls — not before.',
+  buys:'Ground you already own when the bout starts. Go early and it is a matta.'}
+];
+export const STOMPS=4,STOMP_WINDOW=320;
+// How close each stamp landed to its beat, averaged over the beats there were — so a beat
+// nobody stamped costs you as much as a beat stamped badly.
+export function stompScore(offsets){
+ const beats=Math.max(STOMPS,offsets.length);
+ if(!beats)return 0;
+ return offsets.reduce((sum,o)=>sum+Math.max(0,1-Math.abs(o)/STOMP_WINDOW),0)/beats;
+}
+// The salt: a band, not a point, because a five-year-old cannot stop a sweep on a pixel.
+export const SALT_BAND=16;
+export const saltScore=(stopped,target)=>Math.max(0,1-Math.abs(stopped-target)/SALT_BAND);
+// Moving before the call is a matta — a false start. Real wrestlers do it all the time and
+// pay nothing but the crowd's patience; here it costs you the charge and a little ground.
+export const MATTA=-1;
+export const chargeScore=reaction=>reaction<0?MATTA:Math.max(0,Math.min(1,(700-reaction)/560));
+// What the ceremony bought. One place works it out, so the ring and the tests agree.
+export function leadUpEffect({shiko=0,shio=0,charge=0}={}){
+ const matta=charge===MATTA;
+ return {
+  stamina:Math.round(80+shiko*60),
+  rest:4+shiko*2,
+  opening:Math.round(900+shio*900),
+  push:matta?-2:Math.round(charge*40)/10,
+  matta
+ };
+}
+// A clean ceremony is worth more than a scruffy one, so a win pays by how you got there.
+// A matta is a nothing, not a negative — being punished twice for it would be unfair.
+export const ceremonyScore=({shiko=0,shio=0,charge=0}={})=>(shiko+shio+Math.max(0,charge))/3;
+// Four real finishing moves, each with the tell that gives it away. Reading the tell and
+// picking the move that answers it is the difference between winning and being slapped down.
+export const KIMARITE=[
+ {id:'oshidashi',icon:'👐',en:'Push him out',ja:'押し出し',romaji:'oshidashi',tell:'He is upright, chest wide open'},
+ {id:'yorikiri',icon:'🎽',en:'Carry him out',ja:'寄り切り',romaji:'yorikiri',tell:'You have both hands on his belt'},
+ {id:'hatakikomi',icon:'👋',en:'Slap him down',ja:'はたき込み',romaji:'hatakikomi',tell:'He is charging in, head down'},
+ {id:'uwatenage',icon:'🌀',en:'Throw him over',ja:'上手投げ',romaji:'uwatenage',tell:'His arm is high and loose over yours'}
+];
+export const kimariteById=id=>KIMARITE.find(k=>k.id===id)||null;
+// The bout. Out of the ring is ten paces from the middle, and every shove costs you
+// something — which is why mashing the button stopped being the whole game.
+export const SUMO_LIMIT=10,SUMO_TICK=240,SHOVE_COST=8,SHOVE_GAIN=0.4,TIRED_GAIN=0.15,TECHNIQUE_GAIN=2,SURGE_TICKS=3;
+// He leans on you a little over half as hard as he used to, because out-tapping him is no
+// longer the only thing you are doing. Faster opponent, heavier lean, same order as before.
+export const theirWeight=rate=>SUMO_TICK/rate*0.55;
+// A shove is only worth what is left in your legs.
+export const shovePower=stamina=>stamina<=0?0:stamina<SHOVE_COST*2?TIRED_GAIN:SHOVE_GAIN;
+export function startBout(effect){
+ return {push:effect.push,stamina:effect.stamina,max:effect.stamina,surge:false,opening:null,won:'',over:'',
+  note:effect.matta?'A matta. He takes the ground you gave away.':''};
+}
+// One place decides what a shove, a brace, a technique or another second of him leaning on
+// you is worth, so the ring and the tests agree about it.
+export function sumoAction(b,action){
+ if(!b||b.over)return b;
+ const next={...b,note:action.type==='tick'?b.note:''};
+ switch(action.type){
+  case 'push':
+   if(next.opening){next.opening=null;next.push-=0.5;next.note='Mashing straight past the opening.';break;}
+   if(next.surge){next.push-=1;next.stamina=Math.max(0,next.stamina-SHOVE_COST*2);next.note='Into his surge. Brace it next time.';break;}
+   next.push+=shovePower(next.stamina);
+   if(!next.stamina)next.note='Nothing left in your legs. Brace and get it back.';
+   next.stamina=Math.max(0,next.stamina-SHOVE_COST);
+   break;
+  case 'brace':
+   if(next.surge){next.surge=false;next.push+=0.5;next.stamina=Math.min(next.max,next.stamina+6);next.note='Held him. That surge cost him, not you.';}
+   else{next.push-=0.5;next.stamina=Math.min(next.max,next.stamina+14);next.note='Bracing with nothing coming — he walks you back.';}
+   break;
+  case 'technique':
+   if(next.opening===action.id){next.push+=TECHNIQUE_GAIN;next.won=action.id;next.opening=null;break;}
+   next.note=next.opening?'Wrong move for that tell.':'Nothing to take hold of — you overbalanced.';
+   next.push-=1.5;next.stamina=Math.max(0,next.stamina-SHOVE_COST);next.opening=null;
+   break;
+  case 'open':next.opening=action.id||null;break;
+  case 'surge':next.surge=Boolean(action.on);break;
+  case 'tick':
+   next.push-=(action.their||0)*(next.surge?2:1);
+   next.stamina=Math.min(next.max,next.stamina+(action.rest||0));
+   break;
+ }
+ next.push=Math.max(-SUMO_LIMIT,Math.min(SUMO_LIMIT,Math.round(next.push*100)/100));
+ if(next.push>=SUMO_LIMIT)next.over='won';
+ else if(next.push<=-SUMO_LIMIT)next.over='lost';
+ if(next.over!=='won')next.won='';
+ return next;
+}
