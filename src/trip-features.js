@@ -138,6 +138,10 @@ export function photoOfTheDay(state,day){
 }
 // Best score per person per game, and the janken round in progress.
 export const bestScore=(state,person,game)=>state.games?.scores?.[person]?.[game]??0;
+// Everybody's best at one game, for a head-to-head. Only people who have actually played it:
+// a nought beside a brother's name reads as a score rather than as not having had a go.
+export const scoresFor=(state,game)=>Object.fromEntries((state.members||[])
+ .map(name=>[name,bestScore(state,name,game)]).filter(([,score])=>score>0));
 export const jankenRound=state=>state.games?.janken?.round||null;
 export const jankenScores=state=>state.games?.janken?.scores||{};
 // A round is over once both players have thrown. Until then nobody sees the other's hand.

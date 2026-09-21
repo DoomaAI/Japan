@@ -2,6 +2,7 @@ import React,{useState,useMemo,useEffect,useRef} from 'react';
 import {Trophy,RotateCcw,Check,X,Wifi,WifiOff} from 'lucide-react';
 import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER,SIGHTS,ELEMENTS,elementById,startingElements,combine,discoverable,SUMO_RANKS,rankAt,TOP_RANK,STABLE_SIZE,emptyStable,recruit,promote,bestRank,stableFull,oddsOf,bout,challengerFor} from './kana-data.js';
 import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-features.js';
+import SpotDifference from './SpotDifference.jsx';
 import {useReadAloud} from './AdventurePages.jsx';
 import {useJapaneseVoice} from './SayIt.jsx';
 import {canOffer,speechRate} from './speech.js';
@@ -500,17 +501,21 @@ function Stable({user,state,mutate,busy}){
   </details>
  </>;
 }
+// What each one needs, said plainly rather than as a yes-or-no: most of these work in a
+// tunnel, one needs the other phone, and one needs the photo to come down once.
+const OFFLINE='Works with no signal at all.';
 const GAMES=[
- {id:'match',title:'Match the letters',offline:true,Component:KanaMatch},
- {id:'decode',title:'Read the sign',offline:true,Component:Decoder},
- {id:'merge',title:'Onigiri to Fuji',offline:true,Component:Merge},
- {id:'remember',title:'What we did',offline:true,Component:Remember},
- {id:'sights',title:'Japan pairs',offline:true,Component:Sights},
- {id:'kitchen',title:'Make it',offline:true,Component:Kitchen},
- {id:'snake',title:'Sushi snake',offline:true,Component:Snake},
- {id:'stable',title:'Sumo stable',offline:true,Component:Stable},
- {id:'sumo',title:'Sumo',offline:true,Component:Sumo},
- {id:'janken',title:'Janken',offline:false,Component:Janken}
+ {id:'match',title:'Match the letters',needs:OFFLINE,Component:KanaMatch},
+ {id:'decode',title:'Read the sign',needs:OFFLINE,Component:Decoder},
+ {id:'merge',title:'Onigiri to Fuji',needs:OFFLINE,Component:Merge},
+ {id:'remember',title:'What we did',needs:OFFLINE,Component:Remember},
+ {id:'sights',title:'Japan pairs',needs:OFFLINE,Component:Sights},
+ {id:'kitchen',title:'Make it',needs:OFFLINE,Component:Kitchen},
+ {id:'snake',title:'Sushi snake',needs:OFFLINE,Component:Snake},
+ {id:'stable',title:'Sumo stable',needs:OFFLINE,Component:Stable},
+ {id:'sumo',title:'Sumo',needs:OFFLINE,Component:Sumo},
+ {id:'spot',title:'Spot the difference',needs:'Needs signal once, to fetch the photo. The puzzle is made on the phone.',Component:SpotDifference},
+ {id:'janken',title:'Janken',needs:'Needs both phones online.',Component:Janken}
 ];
 export default function Games(props){
  const [game,setGame]=useState('match');
@@ -519,7 +524,7 @@ export default function Games(props){
   <p className="eyebrow">SOMETHING TO DO IN A QUEUE</p><h1>Games</h1>
   <div className="segmented game-picker">{GAMES.map(g=>
    <button key={g.id} className={game===g.id?'selected':''} onClick={()=>setGame(g.id)}>{g.title}</button>)}</div>
-  <p><small>{current.offline?'Works with no signal at all.':'Needs both phones online.'}</small></p>
+  <p><small>{current.needs}</small></p>
   <current.Component {...props}/>
  </>;
 }
