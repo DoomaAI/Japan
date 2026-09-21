@@ -3371,7 +3371,7 @@ test('a spot-the-difference score is one the server will actually take',async()=
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:(OFFLINE|'[^']+'),Component:(\w+)/g)];
- assert.equal(entries.length,19);
+ assert.equal(entries.length,20);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -3399,7 +3399,7 @@ test('a game that really is Japanese says so, and one that only looks it says no
  // Fuji are games about Japan, which is a different claim and is not made.
  assert.deepEqual(entries.filter(g=>g.origin==='traditional').map(g=>g.id).sort(),
   ['daruma','fukuwarai','janken','karuta','kingyo','origami','shiritori','sumo']);
- assert.deepEqual(entries.filter(g=>g.origin==='modern').map(g=>g.id),['shogi']);
+ assert.deepEqual(entries.filter(g=>g.origin==='modern').map(g=>g.id).sort(),['picross','shogi']);
  for(const g of entries.filter(g=>g.origin))
   assert.ok(g.ja,`${g.title} claims to be Japanese, so it must say what it is called in Japanese`);
  for(const g of entries.filter(g=>!g.origin))
@@ -3408,6 +3408,53 @@ test('a game that really is Japanese says so, and one that only looks it says no
  assert.match(source,/const ORIGINS=\{\n traditional:.*\n modern:.*\n\};/);
  for(const g of entries.filter(g=>g.origin))
   assert.match(source,new RegExp(`id:'${g.id}'[\\s\\S]{0,600}?story:'`),`${g.title} must say why`);
+});
+
+test('no picross puzzle can reach a child unless it can be worked out without guessing',async()=>{
+ const P=await import('../src/picross.js');
+ assert.deepEqual(P.cluesOf([1,1,0,1,1]),[2,2]);
+ assert.deepEqual(P.cluesOf([0,0,0]),[0],'an empty line is a nought, not nothing');
+ assert.deepEqual(P.cluesOf([1,1,1]),[3]);
+ assert.deepEqual(P.arrangements([2],4).map(a=>a.join('')),['1100','0110','0011']);
+ assert.deepEqual(P.arrangements([0],3).map(a=>a.join('')),['000']);
+ assert.deepEqual(P.arrangements([1,1],3).map(a=>a.join('')),['101'],'runs need a gap between them');
+ // The solver only ever deduces and never guesses, which is what makes it a gate rather than
+ // a hint: a two-by-two checkerboard has two solutions and it must refuse it.
+ assert.equal(P.solvable({art:['#.','.#']}),false,'an ambiguous picture is not solvable');
+ assert.equal(P.solvable({art:['..#..','..#..','#####','..#..','..#..']}),true);
+ // And this is the rule the whole game rests on. Every picture in the list, every time.
+ const guessy=P.PICTURES.filter(p=>!P.solvable(p)).map(p=>p.id);
+ assert.deepEqual(guessy,[],'these need guessing and must not ship');
+ assert.ok(P.PICTURES.length>=12,'there must be enough puzzles to be worth opening');
+ assert.equal(new Set(P.PICTURES.map(p=>p.id)).size,P.PICTURES.length);
+ for(const picture of P.PICTURES){
+  const n=picture.art.length;
+  assert.ok(P.SIZES.includes(n),`${picture.id} is ${n} squares, which is not a size we offer`);
+  for(const row of picture.art){
+   assert.equal(row.length,n,`${picture.id} is not square`);
+   assert.match(row,/^[#.]+$/,`${picture.id} has something other than a square in it`);
+  }
+  assert.ok(picture.en&&picture.ja,`${picture.id} must have a name in both languages`);
+  // A picture nobody could recognise is not worth solving, and an almost-empty grid is not a
+  // puzzle either.
+  const filled=P.gridOf(picture).flat().filter(Boolean).length;
+  assert.ok(filled>=n*n*0.2&&filled<=n*n*0.85,`${picture.id} fills ${filled} of ${n*n}`);
+ }
+ for(const size of P.SIZES)assert.ok(P.picturesOf(size).length>=4,`only ${P.picturesOf(size).length} at ${size} square`);
+ // The clues really do describe the picture, which is the one thing a wrong solver would hide.
+ for(const picture of P.PICTURES){
+  const q=P.puzzleFor(picture);
+  const found=P.solve(q.rows,q.cols);
+  assert.deepEqual(found,q.grid,`${picture.id} does not solve back to its own picture`);
+  assert.equal(q.rows.length,q.size);
+  assert.equal(q.cols.length,q.size);
+ }
+ // Working it out beats guessing at it, and a bigger picture is worth more than a small one.
+ assert.ok(P.picrossScore(10,60,0)>P.picrossScore(10,60,5),'guessing must cost something');
+ assert.ok(P.picrossScore(10,60,0)>P.picrossScore(5,60,0),'a bigger picture is worth more');
+ assert.ok(P.picrossScore(5,30,0)>P.picrossScore(5,200,0),'and quicker is worth more');
+ assert.ok(P.picrossScore(5,9999,999)>=5,'but a slow messy solve still counts as a solve');
+ assert.ok(P.picrossScore(10,0,0)<=9999);
 });
 
 test('the paper always goes, and going carefully beats going greedily on every grade',async()=>{

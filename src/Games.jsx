@@ -14,6 +14,7 @@ import Fukuwarai from './Fukuwarai.jsx';
 import Daruma from './Daruma.jsx';
 import Shiritori from './Shiritori.jsx';
 import Kingyo from './Kingyo.jsx';
+import Picross from './Picross.jsx';
 const PAIRS=6;
 // Dragging one tile onto another, with a tap still meaning what it meant. Pointer events
 // cover a finger and a mouse alike; the target is found from where the finger actually
@@ -865,6 +866,8 @@ const GAMES=[
   story:'The word game every family plays on a train, and it is older than any of them. Your word starts with the last sound of theirs, no word twice, and a word ending in ん loses because nothing in Japanese begins with it. That one rule is why it is worth playing while you are learning kana: it makes you read the end of a word.'},
  {id:'kingyo',title:'Goldfish scooping',ja:'金魚すくい',origin:'traditional',needs:OFFLINE,Component:Kingyo,
   story:'The festival stall, and the boys will stand in front of a real one. You are handed a paper scoop and a bowl and you get what you can before the paper goes, which it always does — the man running the stall knows that and so does everybody queueing. The paper comes in numbered grades, and the higher the number the thinner it is, which is the difficulty setting at a real stall as well as in here.'},
+ {id:'picross',title:'Picross',ja:'お絵かきロジック',origin:'modern',needs:OFFLINE,Component:Picross,
+  story:'The genuinely Japanese puzzle, and the reason this mark exists at all. Two people invented nonograms independently in Japan in 1987 — Non Ishida, who won a competition with it, and Tetsuya Nishio — and it went out from there. Sudoku is the opposite story: American, out of Indianapolis in 1979, named and made famous in Japan, and called Japanese ever since.'},
  {id:'merge',title:'Onigiri to Fuji',needs:OFFLINE,Component:Merge},
  {id:'remember',title:'What we did',needs:OFFLINE,Component:Remember},
  {id:'sights',title:'Japan pairs',needs:OFFLINE,Component:Sights},
