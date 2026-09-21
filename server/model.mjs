@@ -82,8 +82,19 @@ export function applyOperation(input,op,user){
   if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)throw new AppError('Choose a valid past completion time.');at=new Date(op.at).toISOString();}
   step.status=op.status;step.updatedBy=user.name;
   if(op.status==='started')step.startedAt=at;
-  if(op.status==='done')step.completedAt=at;
-  if(op.status==='todo'){delete step.completedAt;delete step.startedAt;}
+  // Ticking off the activity ticks off what got you in. The gate ticket for a train that has
+  // been caught is used, and nobody wants to remember to say so twice, so the booking held
+  // against this activity is marked used the moment the activity is done. It is remembered
+  // which activity took it, so undoing the activity brings its tickets back with it; one
+  // archived by hand beforehand is left where the family put it.
+  if(op.status==='done'){
+   step.completedAt=at;
+   for(const doc of state.documents.filter(d=>d.stepId===step.id&&d.category!=='memory'&&!d.archivedAt))Object.assign(doc,{archivedAt:at,archivedBy:user.name,archivedWith:step.id});
+  }
+  if(op.status==='todo'){
+   delete step.completedAt;delete step.startedAt;
+   for(const doc of state.documents.filter(d=>d.archivedWith===step.id))Object.assign(doc,{archivedAt:null,archivedBy:null,archivedWith:null});
+  }
   if(op.status==='skipped')delete step.completedAt;
  }else if(op.type==='patch'){
   const patch=validatePatch(op.patch,state);
@@ -187,6 +198,22 @@ export function applyOperation(input,op,user){
   state.inbox=state.inbox.filter(i=>i.id!==op.id);
  }else if(op.type==='removeDocument'){
   state.documents=state.documents.filter(d=>d.id!==op.id&&d.parentDocumentId!==op.id);
+ }else if(op.type==='archiveDocument'){
+  // A used ticket is not wrong, it is finished. Deleting it is the only thing worse than
+  // leaving it in the way: the gate can still be argued about a week later. So it is archived
+  // instead — off the list, out of the offline download and out of the swipe-through strip,
+  // whole underneath and one tap from coming back. Its files go with it, because a ticket and
+  // its photos are one thing to the family holding them.
+  const doc=state.documents.find(d=>d.id===op.id);
+  if(!doc)throw new AppError('Document not found.',404);
+  if(typeof op.archived!=='boolean')throw new AppError('Invalid archive change.');
+  if(doc.parentDocumentId)throw new AppError('Archive the ticket itself; its files go with it.');
+  if(doc.category==='memory')throw new AppError('A memory belongs in the gallery rather than the used pile.');
+  // Archived by hand is not archived by an activity: the mark is cleared either way, so putting
+  // one back stays put and does not travel with a step it was never tied to.
+  const mark=op.archived?{archivedAt:now,archivedBy:user.name,archivedWith:null}:{archivedAt:null,archivedBy:null,archivedWith:null};
+  for(const d of [doc,...state.documents.filter(d=>d.parentDocumentId===doc.id)])Object.assign(d,mark);
+  extra={title:doc.title};
  }else throw new AppError('Unknown action.');
  const fields=['time','day','bookingTime','place','title','locked'];
  const diffs=op.type==='patch'&&before?fields.filter(k=>JSON.stringify(before[k]??null)!==JSON.stringify(step[k]??null)).map(k=>`${{time:'Target time',day:'Day',bookingTime:'Booking time',place:'Place',title:'Activity',locked:'Time lock'}[k]}: ${before[k]??'none'} → ${step[k]??'none'}`):[];

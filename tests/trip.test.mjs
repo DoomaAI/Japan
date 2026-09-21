@@ -223,6 +223,94 @@ test('ticket attachments stay grouped on edits and removal, and reject invalid p
  assert.throws(()=>applyOperation(s,{type:'removeDocument',id:root.id},child),AppError);
 });
 
+test('a used ticket is archived rather than deleted: it and its files leave the list, the offline download and the strip, and come back whole',async()=>{
+ const {ticketList,isArchived,offlineManifest,searchTrip}=await import('../src/trip-features.js');
+ const s=structuredClone(seed);
+ const day=seed.days[0].date,step=seed.steps.find(x=>x.day===day);
+ const root={id:'ticket-root',title:'Skyliner seats',person:'Family',type:'application/pdf',pathname:'tickets/skyliner.pdf',category:'ticket',stepId:step.id,day:null};
+ const file={id:'ticket-photo',parentDocumentId:root.id,title:'Boston QR',person:'Boston',type:'image/png',pathname:'tickets/qr.png',category:'ticket',stepId:step.id,day:null};
+ const other={id:'ticket-other',title:'Hotel booking',person:'Family',type:'note',category:'reservation',stepId:null,day:null};
+ s.documents=[root,file,other];
+ assert.equal(ticketList(s).length,2);
+ assert.equal(ticketList(s,{archived:true}).length,0);
+
+ const used=applyOperation(s,{type:'archiveDocument',id:root.id,archived:true},parent);
+ const [archivedRoot,archivedFile]=used.documents;
+ assert.ok(isArchived(archivedRoot)&&isArchived(archivedFile),'the ticket and its files are archived together');
+ assert.equal(archivedRoot.archivedBy,'Damien');
+ assert.deepEqual(ticketList(used).map(d=>d.id),['ticket-other']);
+ assert.deepEqual(ticketList(used,{archived:true}).map(d=>d.id),['ticket-root']);
+ // Filters still apply to the used pile, so the count beside the toggle is the list it opens.
+ assert.equal(ticketList(used,{archived:true,person:'Boston'}).length,1);
+ assert.equal(ticketList(used,{archived:true,category:'reservation'}).length,0);
+ assert.equal(ticketList(used,{archived:true,search:'skyliner'}).length,1);
+ // Nothing archived is downloaded for the day it belonged to, and nothing is lost either.
+ assert.equal(offlineManifest(s,day).files.filter(f=>f.key.startsWith('doc-')).length,2);
+ assert.equal(offlineManifest(used,day).files.filter(f=>f.key.startsWith('doc-')).length,0);
+ assert.equal(used.documents.length,3);
+ assert.equal(searchTrip(used,'Skyliner').find(h=>h.document)?.type,'Used ticket');
+ assert.equal(searchTrip(used,'Hotel booking').find(h=>h.document)?.type,'Document');
+ assert.equal(used.history[0].title,'Skyliner seats');
+ assert.equal(used.alerts.length,(s.alerts||[]).length,'archiving a used ticket does not wake the family');
+
+ const back=applyOperation(used,{type:'archiveDocument',id:root.id,archived:false},parent);
+ assert.ok(back.documents.every(d=>!isArchived(d)));
+ assert.deepEqual(ticketList(back).map(d=>d.id),['ticket-root','ticket-other']);
+
+ assert.throws(()=>applyOperation(s,{type:'archiveDocument',id:root.id,archived:true},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(s,{type:'archiveDocument',id:'missing',archived:true},parent),e=>e.status===404);
+ assert.throws(()=>applyOperation(s,{type:'archiveDocument',id:file.id,archived:true},parent),/its files go with it/);
+ assert.throws(()=>applyOperation(s,{type:'archiveDocument',id:root.id},parent),/archive change/);
+ const memory={...structuredClone(s),documents:[{id:'memory-1',title:'Nate at the gate',person:'Nate',type:'image/png',category:'memory'}]};
+ assert.throws(()=>applyOperation(memory,{type:'archiveDocument',id:'memory-1',archived:true},parent),/gallery/);
+});
+
+test('ticking off an activity ticks off the bookings that got us in, and undoing it brings them back',async()=>{
+ const {ticketList,isArchived,pendingProgress}=await import('../src/trip-features.js');
+ const s=structuredClone(seed);
+ const step=seed.steps.find(x=>x.day===seed.days[0].date),other=seed.steps.find(x=>x.id!==step.id&&x.day);
+ const root={id:'gate',title:'Skyliner seats',person:'Family',type:'application/pdf',pathname:'tickets/skyliner.pdf',category:'ticket',stepId:step.id,day:null};
+ const file={id:'gate-photo',parentDocumentId:root.id,title:'Boston QR',person:'Boston',type:'image/png',pathname:'tickets/qr.png',category:'ticket',stepId:step.id,day:null};
+ const byHand={id:'bag',title:'Blue suitcase tag',person:'Family',type:'note',category:'luggage',stepId:step.id,day:null};
+ const elsewhere={id:'dinner',title:'Dinner booking',person:'Family',type:'note',category:'reservation',stepId:other.id,day:null};
+ const memory={id:'photo',title:'Nate at the gate',person:'Nate',type:'image/png',pathname:'memories/nate.png',category:'memory',stepId:step.id,day:null};
+ s.documents=[root,file,byHand,elsewhere,memory];
+ // A ticket the family had already put away by hand is left where they put it.
+ const prepared=applyOperation(s,{type:'archiveDocument',id:byHand.id,archived:true},parent);
+ const done=applyOperation(prepared,{type:'status',id:step.id,status:'done'},parent);
+ const doc=id=>done.documents.find(d=>d.id===id);
+ assert.ok(isArchived(doc('gate'))&&isArchived(doc('gate-photo')),'the booking and its files go together');
+ assert.equal(doc('gate').archivedWith,step.id);
+ assert.equal(doc('gate').archivedBy,'Damien');
+ assert.equal(doc('gate').archivedAt,done.steps.find(x=>x.id===step.id).completedAt);
+ assert.equal(doc('bag').archivedWith,null,'one archived by hand is not claimed by the activity');
+ assert.ok(!isArchived(doc('dinner')),'another activity’s booking is untouched');
+ assert.ok(!isArchived(doc('photo')),'a memory is not a ticket and is never ticked off');
+ assert.deepEqual(ticketList(done).map(d=>d.id),['dinner']);
+
+ const undone=applyOperation(done,{type:'status',id:step.id,status:'todo'},parent);
+ assert.ok(!isArchived(undone.documents.find(d=>d.id==='gate')),'undoing the activity brings its tickets back');
+ assert.ok(!isArchived(undone.documents.find(d=>d.id==='gate-photo')));
+ assert.equal(undone.documents.find(d=>d.id==='gate').archivedWith,null);
+ assert.ok(isArchived(undone.documents.find(d=>d.id==='bag')),'and leaves the hand-archived one where it was');
+ // Put back by hand while the activity stays done, and it stays back.
+ const kept=applyOperation(done,{type:'archiveDocument',id:root.id,archived:false},parent);
+ assert.equal(kept.documents.find(d=>d.id==='gate').archivedWith,null);
+
+ // Skipping is not using: a booking for something we did not do stays on the list.
+ assert.ok(!isArchived(applyOperation(s,{type:'status',id:step.id,status:'skipped'},parent).documents.find(d=>d.id==='gate')));
+ // The boys tick activities off too, and the ticket they walked through goes with it.
+ const byChild=applyOperation(s,{type:'status',id:step.id,status:'done'},child);
+ assert.equal(byChild.documents.find(d=>d.id==='gate').archivedBy,'Nate');
+
+ // The same thing happens on a phone with no signal, rather than waiting for the sync.
+ const at='2026-09-24T02:00:00.000Z';
+ const offline=pendingProgress(s,[{operation:{type:'status',id:step.id,status:'done',at}}]);
+ assert.equal(offline.documents.find(d=>d.id==='gate').archivedAt,at);
+ assert.deepEqual(ticketList(offline).map(d=>d.id),['dinner'],'everything that activity got us into leaves the list at once');
+ assert.ok(!isArchived(pendingProgress(offline,[{operation:{type:'status',id:step.id,status:'todo',at}}]).documents.find(d=>d.id==='gate')));
+});
+
 test('daily thank-you notes schedule one note per trip day, honour pins and reorder',async()=>{
  const {ensureFeatures,thankYouSchedule,thankYouForDay,thankYouNotes,thankYouSpares,initialThankYou}=await import('../src/trip-features.js');
  const state=ensureFeatures(structuredClone(seed));
@@ -876,6 +964,41 @@ test('every screen is reachable exactly once, from the bar or from More',async()
  assert.equal(navActive('challenges','challenges',nate),true);
  assert.equal(navActive('challenges','more',nate),false);
  assert.equal(navActive('tickets','more',nate),true,'tickets live under More for the boys');
+});
+
+test('every row in the menu draws an icon, and the bar swipes across the bottom',async()=>{
+ const {PAGES}=await import('../src/nav-data.js');
+ const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // The bug this replaces: weather, the to-do list, the planning board and forwarded email had
+ // no icon, so More rendered <undefined/> and React took the whole screen down with it — and
+ // More is the one screen every other screen is reached from.
+ const icons=new Set([...nav.match(/const ICONS=\{[\s\S]*?\};/)[0].matchAll(/([a-z]+):/g)].map(m=>m[1]));
+ for(const id of Object.keys(PAGES))assert.ok(icons.has(id),`${id} has no icon, so its row cannot render`);
+ // And a page added tomorrow without one falls back rather than blanking the menu.
+ assert.match(nav,/export const iconFor=id=>ICONS\[id\]\|\|Circle;/);
+ assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,2,'the bar and the More list both go through the fallback');
+ assert.ok(!/const Icon=ICONS\[id\]/.test(nav),'nothing indexes ICONS directly any more');
+ // Six tabs do not fit a narrow phone at a readable size, so the five that are yours scroll.
+ assert.match(css,/\.nav-tabs\{flex:1;min-width:0;display:flex;[^}]*overflow-x:auto/);
+ assert.match(css,/\.nav-tabs button\{flex:1 0 auto;min-width:68px;scroll-snap-align:center\}/);
+ assert.match(css,/\.nav-tabs::-webkit-scrollbar\{display:none\}/);
+ // Auto margins centre the strip while it fits and fall to zero when it overflows, so the
+ // first tab stays reachable — which is exactly what justify-content:center would clip.
+ assert.match(css,/\.nav-tabs button:first-child\{margin-left:auto\}/);
+ assert.match(css,/\.nav-tabs button:last-child\{margin-right:auto\}/);
+ // More is not in the scroller. It is the way to every other screen, so it is pinned to the
+ // end of the bar and cannot be swiped off the edge the way the reported bug had it.
+ assert.match(nav,/<\/div>\s*\n\s*<button className=\{`nav-more/,'More sits outside the scrolling strip');
+ assert.match(css,/\.bottom-nav \.nav-more\{flex:0 0 auto/);
+ // A tab stopped by a hard edge reads as the end of the bar, so the side with more on it fades.
+ assert.match(nav,/data-swipe=\{swipe\|\|undefined\}/);
+ for(const side of ['end','start','both'])assert.match(css,new RegExp(`\\.nav-tabs\\[data-swipe="${side}"\\]\\{-webkit-mask-image:linear-gradient`),side);
+ // And a strip that is a couple of stray pixels over reads as fitting, rather than fading for nothing.
+ assert.match(nav,/const room=box\.scrollWidth-box\.clientWidth;\n\s*setSwipe\(room<SLACK\?''/);
+ // Whatever is lit is brought into view, so the current tab is never parked off the edge.
+ assert.match(nav,/box\.scrollTo\(\{left:on\.offsetLeft-\(box\.clientWidth-on\.offsetWidth\)\/2/);
+ assert.match(nav,/prefers-reduced-motion:reduce/,'and it does not animate for anyone who asked it not to');
 });
 
 test('every Japanese word and phrase in the app carries a sound-it-out',async()=>{

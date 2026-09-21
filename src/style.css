@@ -145,3 +145,29 @@
 .goban-spot.white{background:radial-gradient(circle at 36% 32%,#fff,#d8d2c6 68%);border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.25)}
 .goban-spot.last{outline:2px solid var(--green);outline-offset:-3px;border-radius:50%}
 .goban-spot.won{outline:2px solid #c0392b;outline-offset:-3px;border-radius:50%}
+.document-row.archived{opacity:.72;background:repeating-linear-gradient(135deg,#f6f8f6,#f6f8f6 9px,#eef2ef 9px,#eef2ef 18px);border-radius:12px;padding:1.1rem .8rem}.document-row.archived strong{font-weight:500}
+
+/* The bottom bar swipes sideways. Six tabs squeezed into a 320px phone left every label
+   unreadable, so the five that belong to you are a scroller now — each keeps a thumb-sized
+   target and you swipe across for the rest. More sits outside that scroller, pinned to the
+   end of the bar: it is the way to every other screen, and a way out that can be swiped off
+   the edge is no way out at all.
+   Auto margins on the ends of the strip centre it while it fits and fall to zero once it
+   overflows, which keeps the first tab reachable — exactly what justify-content would clip. */
+.bottom-nav{justify-content:flex-start;align-items:stretch;gap:.25rem}
+.nav-tabs{flex:1;min-width:0;display:flex;align-items:stretch;flex-wrap:nowrap;gap:.25rem;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:none}
+.nav-tabs::-webkit-scrollbar{display:none}
+.nav-tabs button{flex:1 0 auto;min-width:68px;scroll-snap-align:center}
+.nav-tabs button:first-child{margin-left:auto}
+.nav-tabs button:last-child{margin-right:auto}
+.bottom-nav .nav-more{flex:0 0 auto;min-width:64px;max-width:150px;padding-left:.55rem;padding-right:.55rem}
+.bottom-nav span{white-space:nowrap;font-size:.7rem}
+/* A tab stopped by a hard edge reads as the end of the bar, so the side there is more to
+   swipe on fades out instead — and neither side fades once the whole strip is on screen. */
+.nav-tabs[data-swipe="end"]{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent)}
+.nav-tabs[data-swipe="start"]{-webkit-mask-image:linear-gradient(to right,transparent,#000 26px);mask-image:linear-gradient(to right,transparent,#000 26px)}
+.nav-tabs[data-swipe="both"]{-webkit-mask-image:linear-gradient(to right,transparent,#000 26px,#000 calc(100% - 26px),transparent);mask-image:linear-gradient(to right,transparent,#000 26px,#000 calc(100% - 26px),transparent)}
+@media(max-width:600px){.nav-tabs button{min-width:60px;padding:.4rem .3rem}
+.bottom-nav .nav-more{min-width:58px;padding-left:.35rem;padding-right:.35rem}
+.bottom-nav span{font-size:.68rem}
+}
