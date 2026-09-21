@@ -10,7 +10,7 @@ The production frontend builds and the automated model/API checks pass. No GitHu
 
 - 16 trip days, 237 editable steps, 6 groups of alternative plans, and all 72 original guide pages.
 - Swipe/previous/next navigation, day picker and direct links to days, activities and guide pages.
-- Target times in Japan time, original targets, booking times, lock/unlock, completion/start timestamps, skip/reset, notes and participants.
+- Target times in Japan time, original targets, booking times, lock/unlock, completion/start timestamps, skip/reset, notes and participants. Marking an activity **started / arrived** says how long we plan to stay and roughly when we move on — arriving early does not shorten a stop, so a booked hour is still an hour. **Ticking one off says where the day now stands**: how far ahead of or behind schedule we are, measured against the time that activity was meant to be finished, said in the message and kept on the card. An activity with no target time simply says nothing, because there is nothing for it to be late for.
 - A rescheduling preview that preserves locked/completed steps and flags booking overlaps. Durations default to editable 30-minute estimates; refine them before relying on rescheduling.
 - Parent editing, child completion permissions and per-person private invite links. No email required.
 - Neon persistence, optimistic revision checks, an audit history and 15-second foreground refresh. Pending offline progress is kept on the phone and conflicting updates require review.

@@ -28,3 +28,29 @@ export function calendarEvent(step){
  const esc=s=>String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');
  return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Pasfield//Japan Trip//EN','BEGIN:VEVENT',`UID:${step.id}@pasfield-japan`,`DTSTAMP:${stamp(new Date())}`,`DTSTART:${stamp(start)}`,`DTEND:${stamp(end)}`,`SUMMARY:${esc(step.title)}`,`LOCATION:${esc(step.place)}`,`DESCRIPTION:${esc(step.notes)}`,`URL:${location.origin}/?day=${step.day}&step=${step.id}`,'BEGIN:VALARM','TRIGGER:-PT15M','ACTION:DISPLAY','DESCRIPTION:Trip reminder','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
 }
+// Minutes as a person would say them out loud. Anything under an hour stays in minutes, because
+// "75 min" is a number you have to do arithmetic on while standing in a station.
+export const spanWords=m=>{const n=Math.round(Math.abs(m)),h=Math.floor(n/60),r=n%60;return n<60?`${n} min`:r?`${h} hr ${r} min`:`${h} hr`;};
+// How far ahead or behind the plan an activity is when it is ticked off. "Schedule" here means the
+// moment it was meant to be finished — its target time plus the length we set aside for it — rather
+// than when it was meant to start, because the rest of the day is built to begin from the finish.
+// A step with no target time has nothing to be ahead or behind of, so it says nothing at all.
+export function scheduleVariance(step,at=new Date()){
+ if(!step?.time||!step?.day)return null;
+ const target=new Date(`${step.day}T${step.time}:00+09:00`).getTime()+Math.max(step.duration||0,0)*60000;
+ const when=at instanceof Date?at:new Date(at);
+ if(!Number.isFinite(when.getTime()))return null;
+ const delta=Math.round((when.getTime()-target)/60000);
+ return {minutes:delta,target:japanClock(new Date(target)),
+  text:delta===0?'right on schedule':`${spanWords(delta)} ${delta<0?'ahead of':'behind'} schedule`};
+}
+// How long we are planning to stay, said at the moment we arrive. Arriving early does not make the
+// stop shorter — a booked hour is still an hour — so the clock starts at the target time when we
+// beat it and at the arrival itself when we do not.
+export function stayPlan(step,at=new Date()){
+ const when=at instanceof Date?at:new Date(at),duration=Math.max(step?.duration||0,0);
+ if(!duration||!Number.isFinite(when.getTime()))return {minutes:0,until:null,text:'No length set for this stop — move on whenever you’re ready.'};
+ const targeted=step?.day&&step?.time?new Date(`${step.day}T${step.time}:00+09:00`).getTime():null;
+ const until=new Date(Math.max(targeted??when.getTime(),when.getTime())+duration*60000);
+ return {minutes:duration,until:japanClock(until),text:`We plan to stay about ${spanWords(duration)}, moving on around ${japanClock(until)}.`};
+}
