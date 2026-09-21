@@ -2513,6 +2513,169 @@ test('sumo has a speed for everyone, and the pairs boards can be sized',async()=
  assert.match(source,/game:`kana-\$\{set\}-\$\{pairs\}`/);
 });
 
+test('the sumo lead-up is a game of its own, and pays into the bout rather than into the score',async()=>{
+ const {SUMO_RITUALS,STOMP_WINDOW,stompScore,SALT_BAND,saltScore,MATTA,chargeScore,leadUpEffect,ceremonyScore,KIMARITE,kimariteById,theirWeight}=await import('../src/kana-data.js');
+ // Three rituals, each with the Japanese for it, because the point is knowing what you are
+ // looking at when the real one does it in Ryogoku.
+ assert.deepEqual(SUMO_RITUALS.map(r=>r.id),['shiko','shio','tachiai']);
+ for(const r of SUMO_RITUALS)for(const k of ['icon','en','ja','romaji','how','buys'])assert.ok(r[k],`${r.id} has no ${k}`);
+ // Stamps are scored out of four however few you hit, so a beat nobody stamped is not free.
+ assert.equal(stompScore([0,0,0,0]),1);
+ assert.equal(stompScore([0,0]),0.5,'two beats out of four is half a stance');
+ assert.equal(stompScore([STOMP_WINDOW,STOMP_WINDOW,STOMP_WINDOW,STOMP_WINDOW]),0,'a stamp a whole beat late is a stamp missed');
+ assert.ok(stompScore([-80,80,-80,80])>0.7,'close enough counts');
+ assert.equal(stompScore([]),0);
+ // The salt lands in a band rather than on a point — a five-year-old cannot stop a sweep
+ // on a pixel — and missing it altogether is a nothing rather than a penalty.
+ assert.equal(saltScore(50,50),1);
+ assert.equal(saltScore(50+SALT_BAND,50),0);
+ assert.equal(saltScore(0,90),0);
+ // Going before the gyoji calls is a matta, and it is the only score that can be negative.
+ assert.equal(chargeScore(-1),MATTA);
+ assert.equal(chargeScore(100),1);
+ assert.equal(chargeScore(900),0);
+ // What the ceremony buys: wind, a longer look at an opening, and ground already won.
+ const clean=leadUpEffect({shiko:1,shio:1,charge:1}),none=leadUpEffect({});
+ assert.ok(clean.stamina>none.stamina&&clean.rest>none.rest&&clean.opening>none.opening);
+ assert.ok(clean.push>0&&none.push===0);
+ assert.equal(leadUpEffect({charge:MATTA}).push,-2,'a false start hands him the ground');
+ assert.ok(leadUpEffect({charge:MATTA}).matta);
+ // A matta is a nothing in the scoring rather than a second punishment.
+ assert.equal(ceremonyScore({shiko:1,shio:1,charge:MATTA}),ceremonyScore({shiko:1,shio:1,charge:0}));
+ assert.equal(ceremonyScore({shiko:1,shio:1,charge:1}),1);
+ // Four real finishing moves, each with the tell that calls for it.
+ assert.equal(new Set(KIMARITE.map(k=>k.id)).size,4);
+ for(const k of KIMARITE)for(const f of ['icon','en','ja','romaji','tell'])assert.ok(k[f],`${k.id} has no ${f}`);
+ assert.equal(kimariteById('nothing'),null);
+ assert.equal(kimariteById('oshidashi').ja,'押し出し');
+ // A faster opponent leans harder, in the same order as the speeds themselves.
+ assert.ok(theirWeight(330)>theirWeight(1100));
+ // And the ring actually walks all of it, in order, before anybody pushes anybody.
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ for(const phase of ['shiko','shio','tachiai','bout'])assert.match(source,new RegExp(`phase==='${phase}'`),`the ring never reaches ${phase}`);
+ for(const move of ["type:'brace'","type:'technique'","type:'push'"])assert.ok(source.includes(move),`no way to ${move}`);
+});
+
+test('a sumo bout is won by reading him, not by tapping',async()=>{
+ const {startBout,sumoAction,leadUpEffect,SUMO_LIMIT,SHOVE_COST,SHOVE_GAIN,TIRED_GAIN,TECHNIQUE_GAIN,shovePower}=await import('../src/kana-data.js');
+ const fresh=()=>startBout(leadUpEffect({}));
+ // Every shove costs what it earns, so a whole bar of mashing crosses a fraction of the ring.
+ const mashed=Array.from({length:40}).reduce(b=>sumoAction(b,{type:'push'}),fresh());
+ assert.ok(!mashed.over,'mashing alone never pushes anyone out');
+ assert.equal(mashed.stamina,0);
+ assert.ok(mashed.push<SUMO_LIMIT/2);
+ assert.equal(shovePower(100),SHOVE_GAIN);
+ assert.equal(shovePower(SHOVE_COST),TIRED_GAIN,'a tired wrestler shoves for less');
+ assert.equal(shovePower(0),0,'and an empty one for nothing at all');
+ // He gathers himself now and then, and it counts double while it lasts. Pushing into it
+ // costs you ground; bracing into it costs him.
+ const surging=sumoAction(fresh(),{type:'surge',on:true});
+ assert.ok(sumoAction(surging,{type:'push'}).push<0);
+ const held=sumoAction(surging,{type:'brace'});
+ assert.equal(held.surge,false);
+ assert.ok(held.push>0);
+ assert.equal(sumoAction(surging,{type:'tick',their:1,rest:0}).push,-2);
+ assert.equal(sumoAction(fresh(),{type:'tick',their:1,rest:0}).push,-1);
+ // Bracing with nothing coming gives ground away, and gives your legs a rest.
+ const shoved=sumoAction(fresh(),{type:'push'}),rested=sumoAction(shoved,{type:'brace'});
+ assert.ok(rested.push<shoved.push&&rested.stamina>shoved.stamina);
+ // An opening is taken by the move that answers the tell, and thrown away by anything else.
+ const open=sumoAction(fresh(),{type:'open',id:'hatakikomi'});
+ const took=sumoAction(open,{type:'technique',id:'hatakikomi'});
+ assert.equal(took.push,TECHNIQUE_GAIN);
+ assert.equal(took.opening,null);
+ assert.ok(sumoAction(open,{type:'technique',id:'uwatenage'}).push<0,'the wrong move for that tell overbalances you');
+ assert.ok(sumoAction(fresh(),{type:'technique',id:'uwatenage'}).push<0,'and there is nothing to take hold of when nothing is open');
+ assert.ok(sumoAction(open,{type:'push'}).push<0,'mashing straight past an opening loses it');
+ // Out of the ring either way ends it, the winning move is remembered, and nothing moves after.
+ const won=sumoAction({...fresh(),push:SUMO_LIMIT-TECHNIQUE_GAIN,opening:'yorikiri'},{type:'technique',id:'yorikiri'});
+ assert.equal(won.over,'won');
+ assert.equal(won.won,'yorikiri');
+ assert.equal(sumoAction(won,{type:'push'}),won);
+ const lost=sumoAction({...fresh(),push:1-SUMO_LIMIT},{type:'tick',their:2,rest:0});
+ assert.equal(lost.over,'lost');
+ assert.equal(lost.won,'');
+ // Shoving him out is still winning, and names no move.
+ const pushedOut=sumoAction({...fresh(),push:SUMO_LIMIT-SHOVE_GAIN},{type:'push'});
+ assert.equal(pushedOut.over,'won');
+ assert.equal(pushedOut.won,'');
+});
+
+test('a sumo career climbs the banzuke, and the tournament decides the rest',async()=>{
+ const {newCareer,SEKITORI,TOP_RANK,BASHO_DAYS,KACHIKOSHI,BASHO,AKI,bashoAt,climb,rankRate,bashoOpponent,bashoDay,bashoWorth}=await import('../src/kana-data.js');
+ // A career starts at the bottom, unpaid, with the Autumn tournament next — the one that is
+ // on in Ryogoku while we are there.
+ const start=newCareer();
+ assert.equal(start.rank,1);
+ assert.equal(bashoAt(start.basho).romaji,'Aki basho');
+ assert.equal(BASHO.length,6,'six tournaments a year, like the real calendar');
+ for(const b of BASHO)for(const k of ['en','ja','romaji','where','month'])assert.ok(b[k],`${b.en} has no ${k}`);
+ assert.equal(bashoAt(AKI+BASHO.length).romaji,'Aki basho','and the year comes round again');
+ // The climb: up a rung for a win, down one for a loss, stopping at juryo either way.
+ assert.equal(climb(1,true),2);
+ assert.equal(climb(2,false),1);
+ assert.equal(climb(1,false),1,'nobody falls out of the bottom');
+ assert.equal(climb(SEKITORI,true),SEKITORI,'and nobody climbs past juryo this way');
+ // A higher rank is a faster opponent, all the way up.
+ for(let level=2;level<=TOP_RANK;level++)assert.ok(rankRate(level)<rankRate(level-1),`${level} is no faster than ${level-1}`);
+ // The schedule is built like a real torikumi: below you to start with, above you at the
+ // end, and the worst of them saved for senshuraku.
+ assert.deepEqual(Array.from({length:BASHO_DAYS},(_,d)=>bashoOpponent(6,d)),[5,5,6,6,6,7,8]);
+ assert.equal(bashoOpponent(TOP_RANK,6),TOP_RANK,'there is nobody above a yokozuna');
+ assert.equal(bashoOpponent(1,0),1,'and nobody below the bottom');
+ // Seven days, each going onto the record in the order it happened.
+ let mid={...newCareer(),rank:SEKITORI};
+ for(const won of [true,false,true])mid=bashoDay(mid,won);
+ assert.equal(mid.day,3);
+ assert.equal(mid.form,'wlw');
+ assert.equal(mid.wins,2);assert.equal(mid.losses,1);
+ assert.equal(mid.last,null,'a tournament is not over until the seventh day');
+ // Four of seven is kachi-koshi and a promotion, and the record starts again after it.
+ let up={...newCareer(),rank:SEKITORI};
+ for(const won of [true,true,false,true,false,true,false])up=bashoDay(up,won);
+ assert.equal(up.last.wins,4);
+ assert.equal(up.last.kachikoshi,true);
+ assert.equal(up.rank,SEKITORI+1);
+ assert.equal(up.day,0);assert.equal(up.form,'');assert.equal(up.wins,0);
+ assert.equal(up.basho,newCareer().basho+1,'and the next tournament is the next one of the year');
+ assert.ok(KACHIKOSHI>BASHO_DAYS/2,'a winning record has to be most of them');
+ // Three is make-koshi and the name moves down the sheet — but a sekitori stays a sekitori.
+ let down={...newCareer(),rank:SEKITORI+1};
+ for(let d=0;d<BASHO_DAYS;d++)down=bashoDay(down,d<3);
+ assert.equal(down.last.kachikoshi,false);
+ assert.equal(down.rank,SEKITORI);
+ let bottom={...newCareer(),rank:SEKITORI};
+ for(let d=0;d<BASHO_DAYS;d++)bottom=bashoDay(bottom,false);
+ assert.equal(bottom.rank,SEKITORI,'nobody is demoted out of the tournament they earned');
+ // A perfect seven is a zensho-yusho, and it is the thing worth keeping.
+ let perfect={...newCareer(),rank:TOP_RANK};
+ for(let d=0;d<BASHO_DAYS;d++)perfect=bashoDay(perfect,true);
+ assert.equal(perfect.last.title,true);
+ assert.equal(perfect.titles,1);
+ assert.equal(perfect.rank,TOP_RANK,'there is nowhere above yokozuna');
+ assert.equal(bashoWorth(0,SEKITORI),0);
+ assert.ok(bashoWorth(4,TOP_RANK)>bashoWorth(4,SEKITORI),'the same record higher up is worth more');
+ assert.ok(bashoWorth(BASHO_DAYS,TOP_RANK)>bashoWorth(BASHO_DAYS-1,TOP_RANK)*1.5,'and a perfect one pays for being perfect');
+ // A quick bout takes the ceremony as read: better than skipping it, short of doing it
+ // properly, so going straight to the pushing is neither a punishment nor a shortcut worth
+ // taking in a tournament.
+ const {TAKEN_AS_READ,leadUpEffect,ceremonyScore}=await import('../src/kana-data.js');
+ const taken=leadUpEffect(TAKEN_AS_READ);
+ assert.ok(taken.stamina>leadUpEffect({}).stamina&&taken.opening>leadUpEffect({}).opening);
+ assert.ok(taken.stamina<leadUpEffect({shiko:1,shio:1,charge:1}).stamina);
+ assert.ok(ceremonyScore(TAKEN_AS_READ)>0&&ceremonyScore(TAKEN_AS_READ)<1);
+ assert.ok(!taken.matta);
+ // Five ways into the ring, and the ones that are practice write nothing down.
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ for(const mode of ['quick','keiko','one','climb','basho'])assert.ok(source.includes(`id:'${mode}'`),`no ${mode} to choose`);
+ assert.ok(source.includes("quick?'bout':'shiko'"),'a quick bout has to start in the ring');
+ assert.ok(source.includes('if(result.drill)return;'),'a drill must never be scored');
+ // Training is never handed the thing that writes, so it cannot record anything even by
+ // accident — which is what makes it practice.
+ assert.ok(!/function Keiko\(\{[^}]*mutate/.test(source),'keiko must not be given mutate');
+ assert.ok(source.includes("game:'sumo-rank'")&&source.includes("game:'sumo-basho'"),'a career has to be worth keeping');
+});
+
 test('photo of the day: one vote each, and a tie stays a tie',async()=>{
  const {ensureFeatures,photosFor,photoVotesFor,photoOfTheDay}=await import('../src/trip-features.js');
  const boston={name:'Boston',role:'child'};
@@ -3034,9 +3197,9 @@ test('a rank name is cut to what fits on a tile, and the long one is kept for th
 test('the two boards say which squares are empty, and both ladders are laid out the same way',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
- // One component draws both ladders, so the ranks and the merge ladder cannot drift apart,
- // and neither is left as a ragged run of inline text.
- assert.equal([...source.matchAll(/<Ladder /g)].length,2);
+ // One component draws every ladder — the merge one, the ranks, the rituals and the tells —
+ // so they cannot drift apart, and none is left as a ragged run of inline text.
+ assert.equal([...source.matchAll(/<Ladder /g)].length,4);
  assert.equal([...source.matchAll(/<details className="merge-ladder">/g)].length,1,
   'only the shared component draws one — no game writes its own');
  assert.match(css,/\.ladder-grid\{display:grid/);

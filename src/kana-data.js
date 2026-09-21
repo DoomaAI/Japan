@@ -275,3 +275,152 @@ export function bout(mine,theirs,roll){
 }
 // Who the next challenger is: near your best, and never below the bottom rung.
 export const challengerFor=(best,cleared)=>Math.max(1,Math.min(TOP_RANK,Math.max(1,best-1)+(cleared%2)));
+// The lead-up is most of what you actually watch at the sumo — the stamping, the salt, the
+// long stare — and the bout itself is over in seconds. So the game does the same: three
+// rituals, each a small skill of its own, and what you earn doing them is what you carry
+// into the ring. None of them pays points directly, which is the point: they buy you wind,
+// a longer look at an opening, and ground you already own when the two of them meet.
+export const SUMO_RITUALS=[
+ {id:'shiko',icon:'🦶',en:'The stamps',ja:'四股',romaji:'shiko',how:'Stamp on the beat — left, right, left, right.',
+  buys:'A deep stance is a long wind: more to push with, and quicker to get it back.'},
+ {id:'shio',icon:'🧂',en:'The salt',ja:'塩まき',romaji:'shio-maki',how:'Stop the sweep on the sweet spot and the salt goes high.',
+  buys:'A good throw brings the crowd with you, and an opening stays open longer.'},
+ {id:'tachiai',icon:'🤜',en:'The charge',ja:'立合い',romaji:'tachi-ai',how:'Crouch and hold. Go the moment the gyoji calls — not before.',
+  buys:'Ground you already own when the bout starts. Go early and it is a matta.'}
+];
+export const STOMPS=4,STOMP_WINDOW=320;
+// How close each stamp landed to its beat, averaged over the beats there were — so a beat
+// nobody stamped costs you as much as a beat stamped badly.
+export function stompScore(offsets){
+ const beats=Math.max(STOMPS,offsets.length);
+ if(!beats)return 0;
+ return offsets.reduce((sum,o)=>sum+Math.max(0,1-Math.abs(o)/STOMP_WINDOW),0)/beats;
+}
+// The salt: a band, not a point, because a five-year-old cannot stop a sweep on a pixel.
+export const SALT_BAND=16;
+export const saltScore=(stopped,target)=>Math.max(0,1-Math.abs(stopped-target)/SALT_BAND);
+// Moving before the call is a matta — a false start. Real wrestlers do it all the time and
+// pay nothing but the crowd's patience; here it costs you the charge and a little ground.
+export const MATTA=-1;
+export const chargeScore=reaction=>reaction<0?MATTA:Math.max(0,Math.min(1,(700-reaction)/560));
+// What the ceremony bought. One place works it out, so the ring and the tests agree.
+export function leadUpEffect({shiko=0,shio=0,charge=0}={}){
+ const matta=charge===MATTA;
+ return {
+  stamina:Math.round(80+shiko*60),
+  rest:4+shiko*2,
+  opening:Math.round(900+shio*900),
+  push:matta?-2:Math.round(charge*40)/10,
+  matta
+ };
+}
+// A clean ceremony is worth more than a scruffy one, so a win pays by how you got there.
+// A matta is a nothing, not a negative — being punished twice for it would be unfair.
+export const ceremonyScore=({shiko=0,shio=0,charge=0}={})=>(shiko+shio+Math.max(0,charge))/3;
+// Four real finishing moves, each with the tell that gives it away. Reading the tell and
+// picking the move that answers it is the difference between winning and being slapped down.
+export const KIMARITE=[
+ {id:'oshidashi',icon:'👐',en:'Push him out',ja:'押し出し',romaji:'oshidashi',tell:'He is upright, chest wide open'},
+ {id:'yorikiri',icon:'🎽',en:'Carry him out',ja:'寄り切り',romaji:'yorikiri',tell:'You have both hands on his belt'},
+ {id:'hatakikomi',icon:'👋',en:'Slap him down',ja:'はたき込み',romaji:'hatakikomi',tell:'He is charging in, head down'},
+ {id:'uwatenage',icon:'🌀',en:'Throw him over',ja:'上手投げ',romaji:'uwatenage',tell:'His arm is high and loose over yours'}
+];
+export const kimariteById=id=>KIMARITE.find(k=>k.id===id)||null;
+// A quick bout takes the ceremony as read — a fair stance, a fair throw, a fair charge —
+// because the point of one is to get to the pushing, not to be punished for skipping the
+// salt. It is practice, so nothing it does is written down either way.
+export const TAKEN_AS_READ={shiko:0.6,shio:0.6,charge:0.6};
+// The bout. Out of the ring is ten paces from the middle, and every shove costs you
+// something — which is why mashing the button stopped being the whole game.
+export const SUMO_LIMIT=10,SUMO_TICK=240,SHOVE_COST=8,SHOVE_GAIN=0.4,TIRED_GAIN=0.15,TECHNIQUE_GAIN=2,SURGE_TICKS=3;
+// He leans on you a little over half as hard as he used to, because out-tapping him is no
+// longer the only thing you are doing. Faster opponent, heavier lean, same order as before.
+export const theirWeight=rate=>SUMO_TICK/rate*0.55;
+// A shove is only worth what is left in your legs.
+export const shovePower=stamina=>stamina<=0?0:stamina<SHOVE_COST*2?TIRED_GAIN:SHOVE_GAIN;
+export function startBout(effect){
+ return {push:effect.push,stamina:effect.stamina,max:effect.stamina,surge:false,opening:null,won:'',over:'',
+  note:effect.matta?'A matta. He takes the ground you gave away.':''};
+}
+// One place decides what a shove, a brace, a technique or another second of him leaning on
+// you is worth, so the ring and the tests agree about it.
+export function sumoAction(b,action){
+ if(!b||b.over)return b;
+ const next={...b,note:action.type==='tick'?b.note:''};
+ switch(action.type){
+  case 'push':
+   if(next.opening){next.opening=null;next.push-=0.5;next.note='Mashing straight past the opening.';break;}
+   if(next.surge){next.push-=1;next.stamina=Math.max(0,next.stamina-SHOVE_COST*2);next.note='Into his surge. Brace it next time.';break;}
+   next.push+=shovePower(next.stamina);
+   if(!next.stamina)next.note='Nothing left in your legs. Brace and get it back.';
+   next.stamina=Math.max(0,next.stamina-SHOVE_COST);
+   break;
+  case 'brace':
+   if(next.surge){next.surge=false;next.push+=0.5;next.stamina=Math.min(next.max,next.stamina+6);next.note='Held him. That surge cost him, not you.';}
+   else{next.push-=0.5;next.stamina=Math.min(next.max,next.stamina+14);next.note='Bracing with nothing coming — he walks you back.';}
+   break;
+  case 'technique':
+   if(next.opening===action.id){next.push+=TECHNIQUE_GAIN;next.won=action.id;next.opening=null;break;}
+   next.note=next.opening?'Wrong move for that tell.':'Nothing to take hold of — you overbalanced.';
+   next.push-=1.5;next.stamina=Math.max(0,next.stamina-SHOVE_COST);next.opening=null;
+   break;
+  case 'open':next.opening=action.id||null;break;
+  case 'surge':next.surge=Boolean(action.on);break;
+  case 'tick':
+   next.push-=(action.their||0)*(next.surge?2:1);
+   next.stamina=Math.min(next.max,next.stamina+(action.rest||0));
+   break;
+ }
+ next.push=Math.max(-SUMO_LIMIT,Math.min(SUMO_LIMIT,Math.round(next.push*100)/100));
+ if(next.push>=SUMO_LIMIT)next.over='won';
+ else if(next.push<=-SUMO_LIMIT)next.over='lost';
+ if(next.over!=='won')next.won='';
+ return next;
+}
+
+// A career on the banzuke, which is the ranking sheet the whole sport hangs off. Four unpaid
+// divisions to climb a bout at a time, and at juryo you are a sekitori: paid, on the sheet,
+// and in the tournament. Everything below is arithmetic — who you meet, and what a record
+// does to your rank — so the ring only has to play the bout.
+export const SEKITORI=5;              // juryo, the rank the tournament opens at
+export const BASHO_DAYS=7;            // a lower-division tournament really is seven bouts
+export const KACHIKOSHI=4;            // four of seven is a winning record, and a promotion
+// The six tournaments of the year, in order. A career starts at the Autumn one in Ryogoku,
+// because that is the one on in Tokyo while we are there.
+export const BASHO=[
+ {en:'New Year',ja:'初場所',romaji:'Hatsu basho',where:'Tokyo',month:'January'},
+ {en:'Spring',ja:'春場所',romaji:'Haru basho',where:'Osaka',month:'March'},
+ {en:'Summer',ja:'夏場所',romaji:'Natsu basho',where:'Tokyo',month:'May'},
+ {en:'Nagoya',ja:'名古屋場所',romaji:'Nagoya basho',where:'Nagoya',month:'July'},
+ {en:'Autumn',ja:'秋場所',romaji:'Aki basho',where:'Ryogoku, Tokyo',month:'September'},
+ {en:'Kyushu',ja:'九州場所',romaji:'Kyūshū basho',where:'Fukuoka',month:'November'}
+];
+export const AKI=4;
+export const bashoAt=n=>BASHO[((n%BASHO.length)+BASHO.length)%BASHO.length];
+export const newCareer=()=>({rank:1,day:0,wins:0,losses:0,basho:AKI,titles:0,run:0,form:''});
+// A rank is a speed: the higher he is, the less time you have to think.
+export const rankRate=level=>Math.round(1150-Math.max(1,Math.min(TOP_RANK,level))*80);
+// The climb: win and you go up a rung, lose and you go back down one. Nobody falls out of
+// the bottom, and nobody climbs past juryo this way — the rest is decided in the tournament.
+export function climb(rank,won){
+ return Math.max(1,Math.min(SEKITORI,(won?rank+1:rank-1)));
+}
+// Who you meet on each day. The first days are below you and the last two above, which is
+// how a real torikumi is built: the big names are saved for senshuraku, the final day.
+export const bashoOpponent=(rank,day)=>
+ Math.max(1,Math.min(TOP_RANK,rank+(day<2?-1:day<5?0:day===5?1:2)));
+// A tournament is worth the bouts you won times the rank you won them at, and a perfect
+// seven — a zensho-yusho — is worth three times more again.
+export const bashoWorth=(wins,rank)=>wins*rank+(wins>=BASHO_DAYS?rank*3:0);
+// One day of the tournament. Seven of them, and then the record decides: four wins is
+// kachi-koshi and a promotion, three is make-koshi and a demotion. A sekitori stays one.
+export function bashoDay(career,won){
+ const day=career.day+1,wins=career.wins+(won?1:0),losses=career.losses+(won?0:1);
+ const form=(career.form||'')+(won?'w':'l');
+ if(day<BASHO_DAYS)return {...career,day,wins,losses,form,last:null};
+ const kachikoshi=wins>=KACHIKOSHI,title=wins>=BASHO_DAYS;
+ const to=Math.max(SEKITORI,Math.min(TOP_RANK,career.rank+(kachikoshi?1:-1)));
+ return {...career,rank:to,day:0,wins:0,losses:0,form:'',basho:career.basho+1,
+  titles:career.titles+(title?1:0),run:kachikoshi?career.run+1:0,
+  last:{wins,losses,form,kachikoshi,title,from:career.rank,to,at:bashoAt(career.basho)}};
+}
