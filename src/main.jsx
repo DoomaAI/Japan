@@ -27,6 +27,8 @@ import Nearby from './Nearby.jsx';
 import TodoList,{DayTodos} from './TodoList.jsx';
 import Sumo from './Sumo.jsx';
 import StepReview from './StepReview.jsx';
+import WeatherPage from './WeatherPage.jsx';
+import {useForecastCheck} from './Weather.jsx';
 import DayTimeline from './DayTimeline.jsx';
 import VoiceNotes from './VoiceNotes.jsx';
 import Games from './Games.jsx';
@@ -153,6 +155,7 @@ function App(){
   }finally{working.current=false;setBusy(false);}
  }
  const visibleState=state?pendingProgress(state,queue):null;
+ const forecast=useForecastCheck({state:visibleState||{days:[]},day:null,mutate,notice});
  const today=state?.days.find(d=>d.date===day),steps=visibleState?activeSteps(visibleState,day):[],current=steps.find(s=>s.id===selected)||steps.find(s=>!['done','skipped'].includes(s.status))||steps.at(-1),index=steps.findIndex(s=>s.id===current?.id);
  const done=steps.filter(s=>s.status==='done').length,nextFixed=steps.find(s=>s.locked&&!['done','skipped'].includes(s.status)&&s.id!==current?.id),groups=state?[...new Set(state.steps.filter(s=>s.day===day&&s.group).map(s=>s.group))]:[];
  function go(id,d,item){setFocus(item||null);if(d&&state.days.some(x=>x.date===d)){setDay(d);setSelected(null);}setTab(id);setQuery('');setModal(null);history.replaceState(null,'','/?'+new URLSearchParams({tab:id,day:d||day,...(item?{item}:{})}));}
@@ -225,7 +228,7 @@ function App(){
    <div className="date-strip" aria-label="Trip days">{state.days.map(d=><button key={d.date} className={day===d.date?'selected':''} onClick={()=>selectDay(d.date)}><span>{fmtDay(d.date,{weekday:'short'})}</span><strong>{d.date.slice(-2)}</strong>{d.date===japanDate()&&<i aria-label="Today"/>}</button>)}</div>
    {!!today?.pages?.length&&<section className="day-guide" aria-label="Original guide pages for this day"><div className="section-heading"><div><p className="eyebrow">YOUR ORIGINAL TRAVEL GUIDE</p><h2>This day in the guide</h2></div><Button icon={BookOpen} onClick={()=>openPage(today.pages[0])}>Read guide</Button></div><p>Swipe through the pages · tap any page to read it in full.</p><div className="day-guide-pages" key={day}>{today.pages.map(p=><button key={p} className="day-guide-page" onClick={()=>openPage(p)} aria-label={`Read original guide page ${p}`}><img src={`/api/guide?page=${p}`} alt={`Original travel guide page ${p}`} loading="lazy"/><span>Page {p}<ChevronRight size={16}/></span></button>)}</div></section>}
    <MorningNeeds state={visibleState} day={day} clock={japanClock(now)} today={japanDate(now)}/>
-   <Weather state={visibleState} day={day} mutate={mutate} busy={busy} online={online} notice={notice} dayLabel={fmtDay}/>
+   <Weather state={visibleState} day={day} mutate={mutate} busy={busy} online={online} notice={notice} dayLabel={fmtDay} go={go}/>
    <NextUp state={visibleState} day={day} now={now} selectStep={selectStep} open={setModal} go={go} parent={parent}/>
    <div className="day-tools"><span><CheckCircle2 size={16}/>{done} of {steps.length} completed</span><div><Button icon={ImageIcon} onClick={()=>setModal({type:'media',day})}>Photos</Button><Button icon={Mic} onClick={()=>setModal({type:'voice',day})}>Voice</Button><Button icon={Ticket} onClick={()=>setModal({type:'tickets'})}>Tickets</Button>{config?.nearby&&<Button icon={Compass} onClick={()=>setModal({type:'nearby'})}>Near here</Button>}{parent&&<Button icon={Plus} onClick={()=>setModal({type:'edit',step:null})}>Add</Button>}</div></div>
    <DayTodos state={visibleState} user={user} day={day} mutate={mutate} busy={busy} go={go}/>
@@ -271,6 +274,7 @@ function App(){
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal}/></>}
   {tab==='thanks'&&user.name===THANK_YOU_FROM&&<ThankYouEditor state={state} mutate={mutate} busy={busy}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
+  {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go}/>}
   {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}

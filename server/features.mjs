@@ -212,7 +212,27 @@ export function extraOperation(state,op,user,fail,now){
    if(!string(e.city,80))fail('Invalid forecast.');
    days[date]={city:e.city,code:e.code,max:e.max,min:e.min,rain:e.rain??null};
   }
-  state.weather={at:now,by:user.name,days};
+  // The same forecast by the hour, kept beside it. Checked as hard as the daily numbers,
+  // because a graph drawn from nonsense is a more convincing kind of wrong.
+  const hours={...(state.weather.hours||{})};
+  if(op.hours!==undefined){
+   if(!op.hours||typeof op.hours!=='object'||Array.isArray(op.hours))fail('Invalid forecast.');
+   const byDay=Object.entries(op.hours);
+   if(byDay.length>40)fail('Invalid forecast.');
+   for(const [date,list] of byDay){
+    if(!state.days.some(d=>d.date===date))continue;
+    if(!Array.isArray(list)||!list.length||list.length>24)fail('Invalid hourly forecast.');
+    hours[date]=list.map(x=>{
+     if(!x||!Number.isInteger(x.h)||x.h<0||x.h>23)fail('Invalid hourly forecast.');
+     if(!Number.isInteger(x.temp)||x.temp<-60||x.temp>60)fail('Invalid hourly forecast.');
+     if(x.feels!==null&&x.feels!==undefined&&(!Number.isInteger(x.feels)||x.feels<-70||x.feels>70))fail('Invalid hourly forecast.');
+     if(x.rain!==null&&x.rain!==undefined&&(!Number.isInteger(x.rain)||x.rain<0||x.rain>100))fail('Invalid hourly forecast.');
+     if(x.code!==null&&x.code!==undefined&&!Number.isInteger(x.code))fail('Invalid hourly forecast.');
+     return {h:x.h,temp:x.temp,feels:x.feels??null,rain:x.rain??null,code:x.code??null};
+    }).sort((a,b)=>a.h-b.h);
+   }
+  }
+  state.weather={at:now,by:user.name,days,hours};
  }else if(op.type==='photoVote'){
   // One vote each per day, and you can change your mind. Voting for your own is allowed —
   // they are brothers, they will vote for their own, and everyone can see who voted.

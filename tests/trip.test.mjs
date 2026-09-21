@@ -2708,3 +2708,59 @@ test('we rate an activity and say what we thought, each of us for ourselves',asy
  // opinion about it. It now stays put, as the message has always promised it would.
  assert.match(source,/setSelected\(done\);updateUrl\(day,done\)/);
 });
+
+test('the forecast comes back by the hour, and the graph is drawn from checked numbers',async()=>{
+ const {forecastUrl,parseHourly,parseForecast,daySummary,hoursFor,hoursAhead,hourLabel,pointFor}=await import('../src/weather-data.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const day=seed.days[3].date;
+ // One request carries both the daily numbers and the hourly ones — the trip moves cities, so
+ // asking twice per place would double a lookup that is already once per city.
+ const url=forecastUrl(pointFor('Kyoto'),day,day);
+ assert.match(url,/hourly=temperature_2m%2Capparent_temperature%2Cprecipitation_probability%2Cweather_code/);
+ assert.match(url,/daily=weather_code/);
+ assert.match(url,/timezone=Asia%2FTokyo/);
+ const hourly={time:[],temperature_2m:[],apparent_temperature:[],precipitation_probability:[],weather_code:[]};
+ for(let h=0;h<24;h++){hourly.time.push(`${day}T${String(h).padStart(2,'0')}:00`);
+  hourly.temperature_2m.push(h===14?24.4:12+h*0.4);hourly.apparent_temperature.push(11+h*0.4);
+  hourly.precipitation_probability.push(h>=16&&h<=18?70:5);hourly.weather_code.push(h>=16?61:1);}
+ // Readings that cannot be true are dropped rather than drawn.
+ hourly.time.push(`${day}T24:00`,'rubbish',`${seed.days[4].date}T09:00`);
+ hourly.temperature_2m.push(999,10,18);hourly.apparent_temperature.push(0,0,17);
+ hourly.precipitation_probability.push(0,0,500);hourly.weather_code.push(0,0,2);
+ const hours=parseHourly({hourly});
+ assert.equal(hours[day].length,24,'one entry per hour, and nothing that is not an hour');
+ assert.equal(hours[day][0].h,0);assert.equal(hours[day][14].temp,24);
+ assert.equal(hours[day][16].rain,70);
+ assert.equal(hours[seed.days[4].date][0].rain,null,'a percentage over a hundred is not a percentage');
+ assert.deepEqual(parseHourly({}),{});
+ // The shape of the day in a line, which is what the unopened card shows.
+ const shape=daySummary(hours[day]);
+ assert.equal(shape.warmest,14);assert.equal(shape.coldest,0);
+ assert.equal(shape.peakRain,70);assert.equal(shape.wettestHour,16);
+ assert.equal(daySummary([]),null);
+ assert.equal(hourLabel(7),'07:00');
+ // Kept in the trip beside the daily numbers, checked again on the way in.
+ let state=ensureFeatures(structuredClone(seed));
+ state=applyOperation(state,{type:'weatherUpdate',days:parseForecast({daily:{time:[day],weather_code:[61],
+  temperature_2m_max:[24],temperature_2m_min:[12],precipitation_probability_max:[70]}},'Kyoto'),hours},parent);
+ assert.equal(hoursFor(state,day).length,24);
+ assert.equal(hoursFor(state,seed.days[0].date),null,'a day nobody asked about stays empty');
+ assert.equal(hoursAhead(state,day,15).length,9,'from this hour to the end of the day');
+ assert.equal(hoursAhead(state,seed.days[0].date,0),null);
+ // A graph drawn from nonsense is a more convincing kind of wrong, so the hours are gated too.
+ for(const bad of [{[day]:[{h:24,temp:20}]},{[day]:[{h:1,temp:900}]},{[day]:[{h:1,temp:20,rain:200}]},
+  {[day]:[]},{[day]:'nope'},{[day]:Array.from({length:25},(_,h)=>({h:h%24,temp:20}))}])
+  assert.throws(()=>applyOperation(state,{type:'weatherUpdate',days:{},hours:bad},parent),/forecast/i,JSON.stringify(bad).slice(0,44));
+ // Checking the forecast has always been anybody's job, and still is.
+ assert.ok(applyOperation(state,{type:'weatherUpdate',days:{},hours:{[day]:hours[day]}},child));
+ // Two measures on one pair of axes would be a lie, so the chart is two charts over one x-axis.
+ const chart=await readFile(new URL('../src/WeatherCharts.jsx',import.meta.url),'utf8');
+ assert.match(chart,/Deliberately not one chart with\n\/\/ two scales/);
+ assert.equal((chart.match(/className="chart-line"/g)||[]).length,1,'one temperature series, so no legend box to disambiguate');
+ assert.ok(!/<legend|className="legend"/.test(chart));
+ assert.match(chart,/HourlyTable/,'and everything drawn is available as a table');
+ const nav=await import('../src/nav-data.js');
+ assert.ok(nav.PAGES.weather?.label&&nav.PAGES.weather?.note,'weather has its own screen');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(source,/tab==='weather'/);
+});
