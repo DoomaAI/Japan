@@ -2985,3 +2985,44 @@ test('a change is never hidden in the sky when there is a photograph underneath 
  for(const e of round.edits.filter(e=>e.from))
   assert.ok(e.from.y+e.h>SKY,`and it cannot be copied out of the sky — ${e.from.y}`);
 });
+
+test('a rank name is cut to what fits on a tile, and the long one is kept for the list',async()=>{
+ const {SUMO_RANKS,shortRank,rankAt}=await import('../src/kana-data.js');
+ // The only one with a long name, and the reason this exists at all.
+ assert.equal(rankAt(5).en,'Juryo — now paid');
+ assert.equal(shortRank(rankAt(5)),'Juryo');
+ for(const rank of SUMO_RANKS){
+  assert.ok(shortRank(rank).length<=12,`${shortRank(rank)} is too long for a tile`);
+  assert.ok(rank.en.startsWith(shortRank(rank)),'the short name is the start of the real one');
+ }
+ assert.equal(shortRank(null),'');
+});
+
+test('the two boards say which squares are empty, and both ladders are laid out the same way',async()=>{
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // One component draws both ladders, so the ranks and the merge ladder cannot drift apart,
+ // and neither is left as a ragged run of inline text.
+ assert.equal([...source.matchAll(/<Ladder /g)].length,2);
+ assert.equal([...source.matchAll(/<details className="merge-ladder">/g)].length,1,
+  'only the shared component draws one — no game writes its own');
+ assert.match(css,/\.ladder-grid\{display:grid/);
+ // An empty square has to look empty. Before this the empty and filled squares were within a
+ // few percent of each other and the board read as one blank slab.
+ for(const [empty,filled] of [['.merge-tile','.merge-tile.filled'],['.stable-cell','.stable-cell.filled']]){
+  const last=name=>[...css.matchAll(new RegExp(`\\${name}\\{([^}]*)\\}`,'g'))]
+   .map(m=>/background:(#[0-9a-f]{3,6})\b/.exec(m[1])?.[1]).filter(Boolean).pop();
+  const [a,b]=[last(empty),last(filled)];
+  assert.ok(a&&b,`${empty} and ${filled} must both set a background`);
+  // #fff and #ffffff are the same colour written two ways.
+  const channels=hex=>{
+   const full=hex.length===4?`#${[...hex.slice(1)].map(c=>c+c).join('')}`:hex;
+   return [1,3,5].map(i=>parseInt(full.slice(i,i+2),16));
+  };
+  const gap=Math.max(...channels(a).map((v,i)=>Math.abs(v-channels(b)[i])));
+  assert.ok(gap>=24,`${empty} and ${filled} are too close to tell apart (${a} v ${b}, ${gap})`);
+ }
+ // Every number on a games screen goes through the one figures block rather than being
+ // written into a sentence, so they line up instead of wrapping.
+ assert.ok([...source.matchAll(/<Stats /g)].length>=2);
+});
