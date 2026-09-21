@@ -4468,6 +4468,60 @@ test('we call the bouts from one phone, and the picks close once it has been wat
  assert.ok(list.includes('sumoPredict'));
 });
 
+test('the picks are read as a tipping comp: a ladder and a sheet of who called what',async()=>{
+ const {ensureFeatures,predictionLadder,predictionPeople,tippingTable}=await import('../src/trip-features.js');
+ const card={type:'sumoUpdate',basho:'Aki Basho 2026',dayNumber:11,venue:'Ryogoku Kokugikan',date:'2026-09-23',
+  doorsOpen:'08:00',notes:'',sources:[],bouts:[
+   {id:'makuuchi-38',division:'makuuchi',order:38,time:'17:40',east:{name:'Kirishima',rank:'Sekiwake',stable:'Michinoku'},west:{name:'Daieisho',rank:'Komusubi',stable:'Oitekaze'}},
+   {id:'makuuchi-40',division:'makuuchi',order:40,time:'17:55',east:{name:'Hoshoryu',rank:'Ozeki',stable:'Tatsunami'},west:{name:'Kotozakura',rank:'Ozeki',stable:'Sadogatake'}}]};
+ const members=['Damien','Lauren','Nate','Boston'];
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),card,parent);
+ // Everybody is on the ladder before a single bout is called, because a comp you join by
+ // scoring is one a five-year-old is never on.
+ assert.deepEqual(predictionLadder(state,members).map(t=>[t.place,t.name,t.right,t.waiting,t.percent]),
+  [[1,'Boston',0,0,null],[1,'Damien',0,0,null],[1,'Lauren',0,0,null],[1,'Nate',0,0,null]]);
+ // The sheet is empty until there is something to put on it: the card runs to forty-odd bouts
+ // and the comp is only about the ones somebody called or we watched.
+ assert.deepEqual(tippingTable(state,members).rows,[]);
+ for(const [person,pick] of [['Damien','Hoshoryu'],['Lauren','Kotozakura'],['Nate','Kotozakura']])
+  state=applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person,winner:pick},child);
+ state=applyOperation(state,{type:'sumoPredict',id:'makuuchi-38',person:'Damien',winner:'Kirishima'},child);
+ state=applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:'Kotozakura'},child);
+ const ladder=predictionLadder(state,members);
+ assert.deepEqual(ladder.map(t=>[t.place,t.name,t.right,t.wrong,t.waiting,t.percent]),
+  // Lauren and Nate share first on the same record. Under this ladder's rule — most right,
+  // then fewest wrong — Boston has called nothing and so has nothing wrong either, which puts
+  // him above Damien's one miss, with no hit rate at all rather than a hit rate of nought.
+  [[1,'Lauren',1,0,0,100],[1,'Nate',1,0,0,100],[3,'Boston',0,0,0,null],[4,'Damien',0,1,1,0]]);
+ const sheet=tippingTable(state,members);
+ // Columns follow the family, not the ladder: a column that moves between bouts is unreadable.
+ assert.deepEqual(sheet.people,members);
+ assert.deepEqual(predictionPeople(state,members),members);
+ // Bouts in running order, and a pick carries the side of the card it was on so four of them
+ // fit across a phone.
+ assert.deepEqual(sheet.rows.map(r=>[r.id,r.winner]),[['makuuchi-38',null],['makuuchi-40','Kotozakura']]);
+ assert.deepEqual(sheet.rows[1].picks.map(p=>[p.name,p.pick,p.side,p.outcome]),
+  [['Damien','Hoshoryu','east','wrong'],['Lauren','Kotozakura','west','right'],
+   ['Nate','Kotozakura','west','right'],['Boston',null,null,'none']]);
+ // The one nobody has watched is still to come rather than wrong, and a bout you sat out is
+ // neither.
+ assert.deepEqual(sheet.rows[0].picks.map(p=>p.outcome),['waiting','none','none','none']);
+ assert.deepEqual(sheet.totals.map(t=>[t.name,t.right,t.wrong,t.waiting,t.called]),
+  [['Damien',0,1,1,2],['Lauren',1,0,0,1],['Nate',1,0,0,1],['Boston',0,0,0,0]]);
+ // A bout that was watched with nobody calling it still belongs on the sheet: it is the row
+ // that says all four of us missed it.
+ const watched=applyOperation(state,{type:'sumoResult',id:'makuuchi-38',winner:'Daieisho'},parent);
+ const after=tippingTable(watched,members).rows[0];
+ assert.equal(after.winner,'Daieisho');
+ assert.deepEqual(after.picks.map(p=>p.outcome),['wrong','none','none','none']);
+ // Somebody who called a bout without being in the members list — a cousin on the day, or a
+ // name since changed — keeps their column rather than dropping off the sheet.
+ const guest={...watched,sumo:{...watched.sumo,predictions:{...watched.sumo.predictions,
+  'makuuchi-38':{...watched.sumo.predictions['makuuchi-38'],Grandma:'Daieisho'}}}};
+ assert.deepEqual(tippingTable(guest,members).people,[...members,'Grandma']);
+ assert.equal(predictionLadder(guest,members)[0].name,'Grandma','and is on the ladder where the record puts her');
+});
+
 test('a dish on a menu can be seen as well as read, and only Wikimedia can put it on the screen',async()=>{
  const {pictureQueries,pictureSearchUrl,pickPicture,findDishPicture,imageSearchUrl}=await import('../src/dish-picture.js');
  // The plain name the model stripped out of the menu's wording is asked for first: the menu
