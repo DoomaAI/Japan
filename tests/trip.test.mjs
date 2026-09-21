@@ -1794,3 +1794,150 @@ test('a lookup that found nothing says so, and only a parent can start one',asyn
  assert.match(handlerSource,/route==='research'&&post\)\{\s*parent\(user\)/);
  assert.match(handlerSource,/research:researchReady\(\)/,'the app has to be told whether it is switched on');
 });
+
+test('everyone keeps their own travel profile, and a parent keeps the ones a five-year-old will not',async()=>{
+ const {personProfile,party,partyBrief,partyInterests,profileFilled,INTERESTS}=await import('../src/trip-features.js');
+ let state=applyOperation(seed,{type:'partyPerson',name:'Damien',age:41,interests:['food','drink','views'],
+  loves:'a proper coffee',avoid:'long queues',dietary:'',notes:''},parent);
+ // A boy fills in his own, with no edit rights anywhere else in the app.
+ state=applyOperation(state,{type:'partyPerson',name:'Nate',age:5,interests:['kids','animals','trains'],
+  loves:'anything with a train in it',avoid:'',dietary:'nothing spicy',notes:'Flags after about three o’clock.'},child);
+ assert.equal(personProfile(state,'Damien').age,41);
+ assert.deepEqual(personProfile(state,'Nate').interests,['kids','animals','trains']);
+ assert.equal(personProfile(state,'Nate').by,'Nate');
+ assert.equal(profileFilled(state,'Boston'),false,'a profile nobody has filled in says so');
+ // What the family as a whole is after, most shared first.
+ state=applyOperation(state,{type:'partyPerson',name:'Boston',interests:['trains','sport']},parent);
+ assert.deepEqual(partyInterests(state)[0],{id:'trains',label:'Trains & engineering',who:['Nate','Boston']});
+ // The paragraph a model reads is what was actually said, and blank where nothing was.
+ const brief=partyBrief(state);
+ assert.match(brief,/Damien, 41 — likes Food & markets, Bars, sake & coffee, Views & high places; loves a proper coffee; would rather avoid long queues/);
+ assert.match(brief,/Nate, 5 —.*food: nothing spicy/);
+ assert.match(brief,/Lauren — nothing said yet/);
+ assert.match(brief,/Pace: Steady/);
+ // Nobody fills in anybody else's, and the pace and the budget are a parent's.
+ assert.throws(()=>applyOperation(state,{type:'partyPerson',name:'Boston',interests:['art']},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'partyTrip',pace:'gentle'},child),e=>e.status===403);
+ for(const bad of [{type:'partyPerson',name:'Grandma',interests:[]},{type:'partyPerson',name:'Nate',age:400},
+  {type:'partyPerson',name:'Nate',interests:['skydiving']},{type:'partyPerson',name:'Nate',loves:'x'.repeat(501)},
+  {type:'partyTrip',pace:'frantic'},{type:'partyTrip',pace:'gentle',budget:-5}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,50)} should be refused`);
+ // A blank age clears it; leaving the field out keeps what was there.
+ assert.equal(personProfile(applyOperation(state,{type:'partyPerson',name:'Damien',age:''},parent),'Damien').age,null);
+ assert.equal(personProfile(applyOperation(state,{type:'partyPerson',name:'Damien',interests:['art']},parent),'Damien').age,41);
+ state=applyOperation(state,{type:'partyTrip',pace:'gentle',budget:25000,notes:'We have done enough temples.'},parent);
+ assert.equal(party(state).pace,'gentle');assert.equal(party(state).budget,25000);
+ assert.match(partyBrief(state),/Rough budget: ¥25,000 a day/);
+ assert.match(partyBrief(state),/Worth knowing: We have done enough temples/);
+ assert.ok(INTERESTS.length>=12,'enough to describe four different people');
+ // None of this is the plan, so it never lands in the family alert feed.
+ assert.ok(!state.alerts.some(a=>/profile|pace|budget/i.test(a.summary||'')));
+});
+test('suggestions are built from who is going, and land on the board as ordinary ideas',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures,proposalPlacement}=await import('../src/trip-features.js');
+ let seen=null;
+ const answer={note:'Checked what is on in Tokyo in late September.',suggestions:[
+  {title:'A morning at a sumo stable practice',place:'Ryogoku, Tokyo',japanese:'相撲部屋 朝稽古',flavour:'unique',
+   category:'activity',timing:'fixed',duration:120,cost:12000,costNote:'for all four, through a guide',
+   suitableFor:['Damien','Lauren','Boston'],tags:['early start'],notes:'Watching training from the edge of the ring.',
+   why:'Boston ticked sport and sumo.',bookAhead:true},
+  {title:'Shibuya Scramble Crossing',place:'Shibuya, Tokyo',japanese:'渋谷スクランブル交差点',flavour:'landmark',
+   category:'place',timing:'flex',duration:60,cost:0,costNote:'',suitableFor:['Damien','Lauren','Nate','Boston'],
+   tags:['views'],notes:'The crossing everybody photographs.',why:'Damien ticked views.',bookAhead:false},
+  // Junk, to prove the same checks run here as everywhere else.
+  {title:'A'.repeat(400),place:'',japanese:'',flavour:'teleportation',category:'nonsense',timing:'whenever',
+   duration:99999,cost:-3,costNote:'',suitableFor:['Grandma'],tags:Array.from({length:40},(_,i)=>`t${i}`),
+   notes:'',why:'',bookAhead:false}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen=JSON.parse(body);
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m1',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:12000,output_tokens:1400,server_tool_use:{web_search_requests:3}},
+    content:[{type:'tool_use',id:'c1',name:'record_suggestions',input:answer}]}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {suggestIdeas,suggestReady,normaliseSuggestion}=await import('../server/suggest.mjs');
+  assert.equal(suggestReady(),true);
+  let state=ensureFeatures(structuredClone(seed));
+  state=applyOperation(state,{type:'partyPerson',name:'Boston',age:8,interests:['sport','trains']},parent);
+  state=applyOperation(state,{type:'partyTrip',pace:'gentle',budget:25000,notes:''},parent);
+  state=applyOperation(state,{type:'proposalAdd',title:'Nara deer park'},parent);
+  const result=await suggestIdeas({city:'Tokyo',kinds:['landmark','unique','drink'],count:6},state);
+
+  // The request the SDK actually put on the wire.
+  assert.equal(seen.model,'claude-opus-5');
+  assert.deepEqual(seen.thinking,{type:'adaptive'});
+  const search=seen.tools.find(t=>t.name==='web_search');
+  assert.equal(search.type,'web_search_20260209');
+  assert.equal(search.max_uses,5);
+  const record=seen.tools.find(t=>t.name==='record_suggestions');
+  assert.equal(record.strict,true);
+  assert.deepEqual(record.input_schema.properties.suggestions.items.required.includes('why'),true);
+  const ask=seen.messages[0].content;
+  assert.match(ask,/Suggest 6 ideas in Tokyo/);
+  assert.match(ask,/The famous ones, Only-in-Japan, off the usual list, Drink/);
+  assert.match(ask,/Boston, 8 — likes Sport & sumo, Trains & engineering/,'the party goes in the question');
+  assert.match(ask,/Pace: Gentle/);
+  assert.match(ask,/Rough budget: ¥25,000/);
+  assert.match(ask,/Nara deer park/,'what is already on the board is not suggested again');
+  assert.match(ask,new RegExp(seed.steps[0].title.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')),'nor what is already on the plan');
+  assert.match(seen.system,/Only-in-Japan, off the usual list/);
+  assert.match(seen.system,/you are not checking opening hours, prices/);
+
+  // What comes back is board-ready, and the junk one is cut to size rather than dropped whole.
+  assert.equal(result.where,'Tokyo');
+  assert.equal(result.suggestions.length,3);
+  const [sumo,shibuya,junk]=result.suggestions;
+  assert.equal(sumo.flavour,'unique');
+  assert.equal(sumo.draft.source,'suggested','an idea a model thought of never passes as one we found');
+  assert.equal(sumo.draft.cost,12000);
+  assert.ok(sumo.draft.tags.includes('book ahead'),'needing a booking becomes a tag you can filter on');
+  assert.deepEqual(shibuya.draft.suitableFor,[],'suiting all four is the same as suiting everyone');
+  assert.equal(junk.draft.title.length,250);
+  assert.equal(junk.draft.cost,null);
+  assert.equal(junk.draft.duration,60);
+  assert.equal(junk.draft.category,'place');
+  assert.equal(junk.flavour,'unique');
+  assert.deepEqual(junk.draft.suitableFor,[]);
+  assert.equal(junk.draft.tags.length,20);
+  // A suggestion carries no links at all: nothing here has been checked.
+  for(const item of result.suggestions)for(const key of ['website','ticketUrl','mapUrl'])
+   assert.equal(item.draft[key],'',`${key} must be left to Look it up`);
+  assert.equal(result.usage.searches,3);
+
+  // Putting one up is an ordinary idea, added by a person, that the family then votes on.
+  const board=applyOperation(state,{type:'proposalAdd',...sumo.draft,notes:`${sumo.draft.notes}\n\n${sumo.why}`},child);
+  const added=board.proposals.at(-1);
+  assert.equal(added.addedBy,'Nate');
+  assert.equal(added.source,'suggested');
+  assert.match(added.notes,/Boston ticked sport and sumo/);
+  assert.equal(proposalPlacement(board,added).state,'open');
+  // Editing it later does not quietly relabel it as something we found ourselves.
+  assert.equal(applyOperation(board,{type:'proposalEdit',id:added.id,...sumo.draft,title:'Sumo practice'},parent).proposals.at(-1).source,'suggested');
+
+  // Guards, before anything is sent anywhere.
+  await assert.rejects(()=>suggestIdeas({city:'Tokyo',kinds:[]},state),/at least one kind/);
+  await assert.rejects(()=>suggestIdeas({kinds:['landmark']},state),/Choose a day or type where/);
+  await assert.rejects(()=>suggestIdeas({day:'2099-01-01',kinds:['landmark']},state),/Choose a trip day/);
+  // A day is enough on its own: it names the city and the day they will be there.
+  await suggestIdeas({day:seed.days[0].date,kinds:['food']},state);
+  assert.match(seen.messages[0].content,new RegExp(`ideas in ${seed.days[0].city}`));
+  assert.match(seen.messages[0].content,new RegExp(`for ${seed.days[0].date}`));
+  assert.equal(normaliseSuggestion({},state).draft.title,'');
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ const handlerSource=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handlerSource,/route==='suggest'&&post\)\{\s*\n?\s*parent\(user\)/);
+ assert.match(handlerSource,/suggest:suggestReady\(\)/);
+});

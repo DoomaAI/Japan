@@ -1,19 +1,20 @@
 import React,{useRef,useState} from 'react';
 import {ThumbsUp,ThumbsDown,Star,MapPin,ExternalLink,CalendarDays,LockKeyhole,LockKeyholeOpen,Clock,Coins,Plus,Inbox,Trash2,ChevronRight,Users,Ticket,Search,AlertCircle} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
+import {TravelParty,Suggestions} from './PlanningParty.jsx';
 import {PROPOSAL_KINDS,PROPOSAL_TIMING,PROPOSAL_SORTS,PLACEMENT_LABEL,rankedProposals,proposalPlacement,proposalScore,proposalVoters,proposalMusts,yenPerAud,yenToAud} from './trip-features.js';
 const labelFor=(list,id,fallback)=>(list.find(([key])=>key===id)||fallback)[1];
 const kindLabel=id=>labelFor(PROPOSAL_KINDS,id,PROPOSAL_KINDS.at(-1));
 const timingLabel=id=>labelFor(PROPOSAL_TIMING,id,PROPOSAL_TIMING[0]);
 const mapsLink=p=>p.mapUrl||(p.place?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.place+' Japan')}`:'');
-const blank={title:'',place:'',japanese:'',website:'',ticketUrl:'',mapUrl:'',notes:'',cost:'',costNote:'',category:'place',suitableFor:[],tags:[],day:'',availability:'',timing:'flex',time:'',duration:60};
+const blank={source:'typed',title:'',place:'',japanese:'',website:'',ticketUrl:'',mapUrl:'',notes:'',cost:'',costNote:'',category:'place',suitableFor:[],tags:[],day:'',availability:'',timing:'flex',time:'',duration:60};
 const toForm=p=>({...blank,...p,cost:p.cost??'',day:p.day||'',time:p.time||''});
 const readForm=el=>{const f=new FormData(el);return {...blank,
- title:f.get('title'),place:f.get('place'),japanese:f.get('japanese'),website:f.get('website'),ticketUrl:f.get('ticketUrl'),
+ source:f.get('source')||'typed',title:f.get('title'),place:f.get('place'),japanese:f.get('japanese'),website:f.get('website'),ticketUrl:f.get('ticketUrl'),
  mapUrl:f.get('mapUrl'),notes:f.get('notes'),cost:f.get('cost'),costNote:f.get('costNote'),category:f.get('category'),
  timing:f.get('timing'),availability:f.get('availability'),day:f.get('day'),time:f.get('time'),duration:Number(f.get('duration')),
  suitableFor:f.getAll('suitableFor'),tags:String(f.get('tags')||'').split(',').map(t=>t.trim()).filter(Boolean)};};
-const fromForm=v=>({title:v.title,place:v.place,japanese:v.japanese,website:v.website,ticketUrl:v.ticketUrl,mapUrl:v.mapUrl,
+const fromForm=v=>({source:v.source,title:v.title,place:v.place,japanese:v.japanese,website:v.website,ticketUrl:v.ticketUrl,mapUrl:v.mapUrl,
  notes:v.notes,cost:v.cost,costNote:v.costNote,category:v.category,suitableFor:v.suitableFor,tags:v.tags,
  day:v.day||null,availability:v.availability,timing:v.timing,time:v.time||null,duration:Number(v.duration)});
 const FIELD_LABEL={title:'Name',place:'Where',japanese:'Japanese',website:'Website',ticketUrl:'Tickets',mapUrl:'Map',
@@ -80,6 +81,10 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
  return <><p className="eyebrow">BEFORE IT IS A PLAN</p><h1>Planning board</h1>
  <p>Anywhere any of us wants to go, eat or see. Put it up, and the rest of the family can back it, pass on it or star it as a must-do. A parent puts the ones we agree on onto a day — locked to a booked time, or left flexible.</p>
  <button className="primary" onClick={()=>open({...blank,day:date||'',suitableFor:[]})}><Plus size={18}/>Add an idea</button>
+ <TravelParty state={state} user={user} mutate={mutate} busy={busy}/>
+ {canLook&&<Suggestions state={state} user={user} day={date||day} request={request} mutate={mutate} busy={busy}
+  onAdded={()=>{if(placement==='scheduled')setPlacement('open');}}
+  onLookUp={p=>{open(toForm(p));lookup(toForm(p));}}/>}
  <div className="segmented plan-scope">{[['open','Up for a vote'],['scheduled','On the itinerary'],['','Everything']].map(([key,label])=><button key={key||'all'} className={placement===key?'selected':''} onClick={()=>setPlacement(key)}>{label}{key&&counts[key]?` · ${counts[key]}`:''}</button>)}</div>
  <div className="document-filters">
   <label>Search<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Place, note, tag or who added it"/></label>
@@ -111,7 +116,7 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
    </div>
    <div className="row wrap plan-tags">
     <span className={`tag placement ${where.state}`}>{PLACEMENT_LABEL[where.state]}</span>
-    <button className="tag" onClick={()=>setBy(p.addedBy)}>Added by {p.addedBy}</button>
+    <button className="tag" onClick={()=>setBy(p.addedBy)}>{p.source==='suggested'?'Suggested, put up by':'Added by'} {p.addedBy}</button>
     {p.suitableFor?.length?p.suitableFor.map(n=><button className="tag" key={n} onClick={()=>setSuits(n)}><Users size={12}/>Suits {n}</button>):<span className="tag"><Users size={12}/>Suits everyone</span>}
     {musts.map(n=><span className="tag must" key={n}><Star size={12}/>{n}’s must-do</span>)}
     {up.map(n=><span className="tag up" key={n}><ThumbsUp size={12}/>{n}</span>)}
@@ -157,6 +162,7 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
  {!list.length&&<div className="empty"><Inbox/><h2>{(state.proposals||[]).length?'Nothing here to look at.':'The board is empty.'}</h2><p>{(state.proposals||[]).length?'Every idea we have is somewhere else. Try Everything, or clear the filters.':'Add somewhere you want to go, something you want to eat, or an event we should try to catch. The rest of us will vote on it.'}</p></div>}
  {edit&&<form ref={form} key={`${edit.id||'new'}-${rev}`} className="feature-card plan-form" onSubmit={save}>
   <h2>{edit.id?'Edit this idea':'Add an idea'}</h2>
+  <input type="hidden" name="source" value={edit.source||'typed'}/>
   {edit.id&&proposalPlacement(state,edit).step&&<p className="callout">This idea is already an activity. Changing it here records what the family decided; it does not rewrite the activity on the day — edit that from its own card.</p>}
   <label>What is it?<input name="title" required maxLength={250} defaultValue={edit.title} placeholder="teamLab Planets, a conveyor-belt sushi place, the Ghibli clock…"/></label>
   {canLook&&<div className="plan-lookup">

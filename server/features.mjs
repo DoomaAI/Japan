@@ -4,7 +4,7 @@ import {FOOD,FOOD_KINDS} from '../src/food-data.js';
 import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
-import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
+import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
 const MAX_PROPOSALS=300;
 const https=v=>{try{return new URL(v).protocol==='https:';}catch{return false;}};
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
@@ -149,6 +149,32 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:`${p.title} added to ${op.day}${time?` at ${time}`:''} from the planning board`,important:true,title:p.title};
   }
   fail('Unknown planning action.');
+ }else if(op.type==='partyPerson'||op.type==='partyTrip'){
+  // Who is going and what they are each after. Everyone keeps their own; a parent keeps the
+  // ones the five-year-old will not be filling in himself, and the trip-wide pace and budget.
+  const current=party(state);
+  if(op.type==='partyPerson'){
+   if(!state.members.includes(op.name))fail('Choose a family member.');
+   if(!parent&&op.name!==user.name)fail('You can fill in your own.',403);
+   const me=personProfile(state,op.name);
+   const values={age:op.age===undefined?me.age:(op.age===null||op.age===''?null:Number(op.age)),
+    interests:[...new Set(Array.isArray(op.interests)?op.interests:[])],
+    loves:(op.loves??me.loves??'').trim(),avoid:(op.avoid??me.avoid??'').trim(),
+    dietary:(op.dietary??me.dietary??'').trim(),notes:(op.notes??me.notes??'').trim()};
+   if(values.age!==null&&(!Number.isInteger(values.age)||values.age<0||values.age>120))fail('Enter an age between 0 and 120.');
+   if(values.interests.some(id=>!INTERESTS.some(([key])=>key===id)))fail('Choose interests from the list.');
+   if(values.interests.length>INTERESTS.length)fail('Choose interests from the list.');
+   for(const key of ['loves','avoid','dietary','notes'])requireText(values[key],500,key);
+   state.party={...current,people:{...current.people,[op.name]:{...values,by:user.name,at:now}}};
+   return {summary:null,important:false,title:`${op.name}’s travel profile`};
+  }
+  if(!parent)fail('A parent sets the pace and the budget.',403);
+  const pace=PACES.some(([id])=>id===op.pace)?op.pace:fail('Choose how full the days should be.');
+  const budget=op.budget===null||op.budget===undefined||op.budget===''?null:Number(op.budget);
+  if(budget!==null&&(!Number.isFinite(budget)||budget<0||budget>10000000))fail('Enter a daily budget in yen.');
+  const notes=(op.notes??current.notes??'').trim();requireText(notes,2000,'notes');
+  state.party={...current,pace,budget:budget===null?null:Math.round(budget),notes};
+  return {summary:null,important:false,title:'How we want the days to go'};
  }else if(op.type==='phraseSeen'){
   // Everyone gets the phrase of the day, and each person marks off their own.
   if(!state.members.includes(op.person))fail('Choose a family member.');

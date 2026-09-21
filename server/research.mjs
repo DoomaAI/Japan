@@ -86,6 +86,8 @@ export function normaliseFindings(found,state){
  });
  // Everyone means nobody in particular, so four out of four is the same as leaving it open.
  if(draft.suitableFor.length===members.length)draft.suitableFor=[];
+ // A lookup fills in fields. Where the idea came from is not one of them.
+ delete draft.source;
  return {draft,bestDay,
   checkFirst:clamp(found.checkFirst,1000),
   sources:(Array.isArray(found.sources)?found.sources:[]).map(s=>({title:clamp(s?.title,200),url:https(s?.url)?.href||''})).filter(s=>s.url).slice(0,8)};

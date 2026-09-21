@@ -338,7 +338,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:state.weather??{at:null,by:null,days:{}},voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:state.weather??{at:null,by:null,days:{}},voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -386,6 +386,55 @@ export const DRAWABLE=['image/jpeg','image/png','image/webp'];
 export const isDrawable=doc=>!!doc?.pathname&&DRAWABLE.includes(doc.type);
 // The picture that stands for a ticket: its own photo, else the first photo attached to it.
 export const documentThumbnail=(doc,attachments=[])=>isDrawable(doc)?doc:attachments.find(isDrawable)||null;
+// Who is actually going, and what each of them would want out of a day. The boys fill in their
+// own, which is the point: an eight-year-old who has ticked trains and animals gets a different
+// list back from a five-year-old who has ticked playgrounds. Nothing here is on the plan — it is
+// what the suggestions are built from, and what a parent reads when a day needs rescuing.
+export const INTERESTS=[
+ ['temples','Temples & shrines'],['history','History & castles'],['art','Art & design'],['anime','Anime, games & manga'],
+ ['food','Food & markets'],['drink','Bars, sake & coffee'],['nature','Gardens, parks & nature'],['views','Views & high places'],
+ ['shopping','Shopping'],['crafts','Crafts & making things'],['trains','Trains & engineering'],['animals','Animals'],
+ ['sport','Sport & sumo'],['music','Music & live shows'],['onsen','Onsen & bathhouses'],['quirky','Weird and wonderful'],
+ ['kids','Playgrounds & running about'],['photo','Photo spots'],['quiet','Quiet corners, away from the crowds'],['nightlife','After dark']
+];
+export const PACES=[['gentle','Gentle · one big thing a day'],['steady','Steady · two or three'],['packed','Packed · we came a long way']];
+// The flavours a suggestion can be asked for. The first two are the axis that matters: the ones
+// everybody goes to, and the ones you would never find without being told.
+export const SUGGEST_KINDS=[
+ ['landmark','The famous ones'],['unique','Only-in-Japan, off the usual list'],['cultural','Cultural & traditional'],
+ ['food','Food'],['drink','Drink'],['outdoors','Outdoors & views'],['kids','With the boys'],
+ ['shopping','Shopping & markets'],['evening','After dark']
+];
+export const EMPTY_PARTY={people:{},pace:'steady',budget:null,notes:''};
+export const party=state=>({...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}});
+export const personProfile=(state,name)=>({age:null,interests:[],loves:'',avoid:'',dietary:'',notes:'',...(party(state).people[name]||{})});
+export const interestLabel=id=>(INTERESTS.find(([key])=>key===id)||[id,id])[1];
+export const paceLabel=id=>(PACES.find(([key])=>key===id)||PACES[1])[1];
+// Everyone's interests, most shared first — what the family as a whole is actually after.
+export function partyInterests(state){
+ const tally=new Map();
+ for(const name of state.members||[])for(const id of personProfile(state,name).interests)tally.set(id,[...(tally.get(id)||[]),name]);
+ return [...tally.entries()].sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0])).map(([id,who])=>({id,label:interestLabel(id),who}));
+}
+export const profileFilled=(state,name)=>{const p=personProfile(state,name);return !!(p.age||p.interests.length||p.loves||p.avoid||p.dietary||p.notes);};
+// The party as a paragraph a model can read. Nothing invented: a blank stays blank, so an empty
+// profile reads as "nothing said yet" rather than as a person with no interests.
+export function partyBrief(state){
+ const p=party(state);
+ const lines=(state.members||[]).map(name=>{
+  const me=personProfile(state,name),bits=[];
+  if(me.interests.length)bits.push(`likes ${me.interests.map(interestLabel).join(', ')}`);
+  if(me.loves)bits.push(`loves ${me.loves}`);
+  if(me.avoid)bits.push(`would rather avoid ${me.avoid}`);
+  if(me.dietary)bits.push(`food: ${me.dietary}`);
+  if(me.notes)bits.push(me.notes);
+  return `${name}${me.age?`, ${me.age}`:''} — ${bits.length?bits.join('; '):'nothing said yet'}`;
+ });
+ lines.push(`Pace: ${paceLabel(p.pace)}`);
+ if(p.budget)lines.push(`Rough budget: ¥${p.budget.toLocaleString('en-AU')} a day for all of them`);
+ if(p.notes)lines.push(`Worth knowing: ${p.notes}`);
+ return lines.join('\n');
+}
 // The planning board. Before anything is on a day, anyone in the family can put a place, a meal
 // or an event up where the others can see it, back it with a vote or star it as a must-do.
 // Nothing here is the plan: an idea only becomes an activity when a parent puts it on a day, and
@@ -420,7 +469,7 @@ export function proposalDraft(op){
   suitableFor:[...new Set(Array.isArray(op.suitableFor)?op.suitableFor:[])],
   tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))],
   day:op.day||null,availability:String(op.availability??'').trim(),timing:op.timing??'flex',
-  time:op.time||null,duration:number(op.duration,60)};
+  time:op.time||null,duration:number(op.duration,60),source:op.source==='suggested'?'suggested':'typed'};
 }
 // What a scheduled step carries over from the board: the opening hours and the price the family
 // agreed on are exactly what someone standing outside the place will want to read.

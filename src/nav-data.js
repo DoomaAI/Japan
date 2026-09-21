@@ -14,7 +14,7 @@ export const PAGES={
  phrases:{label:'Phrases',note:'Greetings and travel Japanese, with how to say it'},
  help:{label:'Help & useful apps',note:'Translation, hotel directions, reminders'},
  options:{label:'Options & ideas',note:'Places and activities saved for later'},
- planning:{label:'Planning board',note:'Ideas anyone can add, vote on and star as a must-do'},
+ planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, and voting on them'},
  parks:{label:'Theme park rides',note:'Checklists, height limits and park maps'},
  shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need'},
  guide:{label:'Original travel guide',note:'All 72 pages, linked and searchable'},
