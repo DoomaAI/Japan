@@ -1,7 +1,10 @@
-import {ensureFeatures} from '../src/trip-features.js';
+import {ensureFeatures,inboxNotes} from '../src/trip-features.js';
 import {extraOperation} from './features.mjs';
 import { randomUUID } from 'node:crypto';
 export const MEMBERS = ['Damien','Lauren','Nate','Boston'];
+// Where a forwarded email can be filed. A ticket is the default; the rest put it where the
+// family would have put it themselves had they typed it in.
+export const INBOX_DESTINATIONS=['ticket','activity','options','idea','todo'];
 export class AppError extends Error { constructor(message,status=400){super(message);this.status=status;} }
 const text = (v,max=1000) => typeof v === 'string' && v.length <= max;
 const clock = v => v === null || (typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v));
@@ -48,6 +51,18 @@ export function validatePatch(p,state){
  }
  return p;
 }
+// Adding an activity, whether it was typed in or arrived as a forwarded booking. It is one
+// function so the two cannot drift apart: an emailed confirmation with a time becomes exactly
+// the same locked step as one entered by hand.
+function addStep(state,p){
+ if(!p.title||p.day===undefined)throw new AppError('Add a name and choose a day or Options.');
+ if(p.day===null&&(p.time||p.bookingTime||p.locked))throw new AppError('Options have no fixed date or time.');
+ if(!!p.group!==!!p.option)throw new AppError('Add both an option group and option name, or leave both blank.');
+ const step={id:randomUUID(),originalTime:p.time??null,time:null,duration:30,notes:'',place:'',japanese:'',page:1,kind:'flexible',group:'',option:'',participants:MEMBERS,order:Math.max(0,...state.steps.filter(s=>s.day===p.day).map(s=>s.order))+10,...p,locked:p.locked??(p.kind==='fixed'),status:'todo',bookingTime:p.bookingTime??(p.kind==='fixed'?p.time:null)};
+ state.steps.push(step);
+ if(p.group&&!state.choices[p.group])state.choices[p.group]=p.option;
+ return step;
+}
 export function applyOperation(input,op,user){
  if(!op||typeof op!=='object')throw new AppError('Invalid action.');
  if(op.operationId!==undefined&&(!text(op.operationId,80)||!op.operationId.length))throw new AppError('Invalid operation identifier.');
@@ -57,7 +72,8 @@ export function applyOperation(input,op,user){
  if(!parent && !['status','challengeStatus','challengeSkip','challengeNew','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore','weatherUpdate','jankenThrow','jankenNewRound','voiceNoteRemove','voiceNoteLabel','shoppingAdd','shoppingStatus','todoAdd','todoStatus','sumoResult','sumoPredict','stepRating','stepThought','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust','partyPerson','photoVote','photoRemove'].includes(op.type))throw new AppError('A parent can make this change.',403);
  if(['status','patch','lock','remove','backlog','schedule'].includes(op.type)&&!step)throw new AppError('Activity not found.',404);
  const before=step?structuredClone(step):null;
- const extra=extraOperation(state,op,user,(message,status=400)=>{throw new AppError(message,status);},now);
+ const fail=(message,status=400)=>{throw new AppError(message,status);};
+ let extra=extraOperation(state,op,user,fail,now);
  if(extra){
  }else if(op.type==='status'){
   if(!parent&&!step.participants.includes(user.name))throw new AppError('This activity is assigned to other family members.',403);
@@ -81,12 +97,7 @@ export function applyOperation(input,op,user){
   if(typeof op.locked!=='boolean')throw new AppError('Invalid lock.');
   step.locked=op.locked;
  }else if(op.type==='add'){
-  const p=validatePatch(op.step,state);
-  if(!p.title||p.day===undefined)throw new AppError('Add a name and choose a day or Options.');
-  if(p.day===null&&(p.time||p.bookingTime||p.locked))throw new AppError('Options have no fixed date or time.');
-  if(!!p.group!==!!p.option)throw new AppError('Add both an option group and option name, or leave both blank.');
-  state.steps.push({id:randomUUID(),originalTime:p.time??null,time:null,duration:30,notes:'',place:'',japanese:'',page:1,kind:'flexible',group:'',option:'',participants:MEMBERS,order:Math.max(0,...state.steps.filter(s=>s.day===p.day).map(s=>s.order))+10,...p,locked:p.locked??(p.kind==='fixed'),status:'todo',bookingTime:p.bookingTime??(p.kind==='fixed'?p.time:null)});
-  if(p.group&&!state.choices[p.group])state.choices[p.group]=p.option;
+  addStep(state,validatePatch(op.step,state));
  }else if(op.type==='backlog'){
   if(step.locked)throw new AppError('Unlock the fixed time before saving this activity for later.');
   step.backlogFrom={day:step.day,time:step.time,bookingTime:step.bookingTime,status:step.status};
@@ -126,6 +137,54 @@ export function applyOperation(input,op,user){
   const root=ticketParent(doc.parentDocumentId,state);
   if(root)Object.assign(doc,{category:root.category,stepId:root.stepId,day:root.day});
   else for(const a of state.documents.filter(a=>a.parentDocumentId===doc.id))Object.assign(a,{category:doc.category,stepId:doc.stepId,day:doc.day});
+ }else if(op.type==='inboxFile'){
+  // Filing is the moment a forwarded email becomes part of the trip, and a person does it.
+  // Where it goes is theirs to choose: a ticket, a ticket against one activity, a new activity
+  // on a day, the Options list, an idea for the family to vote on, or a job on the to-do list.
+  const item=(state.inbox||[]).find(i=>i.id===op.id);
+  if(!item)throw new AppError('That email is no longer in the inbox.',404);
+  if(!text(op.title,250)||!op.title.trim())throw new AppError('Add a title for this booking.');
+  if(op.person&&!MEMBERS.includes(op.person)&&op.person!=='Family')throw new AppError('Invalid family member.');
+  if(op.category==='memory')throw new AppError('Forwarded email is filed as a booking, not a photo.');
+  const destination=op.destination||'ticket',title=op.title.trim();
+  if(!INBOX_DESTINATIONS.includes(destination))throw new AppError('Choose where this email goes.');
+  const english=op.notes!==undefined?op.notes:inboxNotes(item);
+  const files=(item.attachments||[]).filter(f=>f.pathname);
+  let association=documentAssociation(op,state);
+  // Everything but a plain ticket creates something of its own first, and the files that came
+  // with the email are attached to it rather than left floating.
+  if(destination==='activity'||destination==='options'){
+   const onDay=destination==='activity';
+   if(onDay&&!op.day)throw new AppError('Choose a trip day for this activity.');
+   const created=addStep(state,validatePatch({title,notes:english.slice(0,4000),day:onDay?op.day:null,
+    ...(onDay&&op.time?{time:op.time,kind:'fixed'}:{kind:'flexible'})},state));
+   association={stepId:created.id,day:null};
+   extra={summary:`${title} was added to the plan from a forwarded email`,important:true,title};
+  }else if(destination==='idea'){
+   extra=extraOperation(state,{type:'proposalAdd',title,notes:english.slice(0,4000),
+    category:op.ideaKind||'place',day:op.day||null,timing:'flex'},user,fail,now);
+  }else if(destination==='todo'){
+   extra=extraOperation(state,{type:'todoAdd',title,kind:op.todoKind==='buy'?'buy':'do',
+    day:op.day||null,person:op.person||'Family',notes:english.slice(0,2000)},user,fail,now);
+  }
+  // A file has nowhere to live but a document, so one is always made when the email carried an
+  // attachment. With no attachment, only a ticket needs one: everywhere else already holds the
+  // English on the thing that was just created.
+  if(files.length||destination==='ticket'){
+   const details=documentDetails({category:op.category||'reservation',reference:op.reference,notes:english,tags:op.tags});
+   const [first,...rest]=files,person=op.person||'Family',rootId=randomUUID();
+   state.documents.push({id:rootId,title,...details,...association,person,
+    ...(first?{pathname:first.pathname,type:first.type,size:first.size}:{type:'note'}),
+    source:'email',from:item.from,receivedAt:item.receivedAt||null,createdAt:now});
+   for(const f of rest)state.documents.push({id:randomUUID(),title:f.filename.slice(0,250),...details,notes:'',
+    ...association,person,parentDocumentId:rootId,pathname:f.pathname,type:f.type,size:f.size,
+    source:'email',createdAt:now});
+  }
+  state.inbox=state.inbox.filter(i=>i.id!==op.id);
+ }else if(op.type==='inboxDiscard'){
+  const item=(state.inbox||[]).find(i=>i.id===op.id);
+  if(!item)throw new AppError('That email is no longer in the inbox.',404);
+  state.inbox=state.inbox.filter(i=>i.id!==op.id);
  }else if(op.type==='removeDocument'){
   state.documents=state.documents.filter(d=>d.id!==op.id&&d.parentDocumentId!==op.id);
  }else throw new AppError('Unknown action.');

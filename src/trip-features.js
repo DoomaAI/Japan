@@ -359,7 +359,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],stepReviews:state.stepReviews??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],inbox:state.inbox??[],stepReviews:state.stepReviews??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -513,6 +513,22 @@ export const todos=state=>state.todos||[];
 // Still to do first, then oldest first, so the list reads as a queue rather than a pile.
 export const sortTodos=list=>[...list].sort((a,b)=>(!!a.doneAt)-(!!b.doneAt)||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
 export const todosFor=(state,day=null)=>sortTodos(todos(state).filter(t=>(t.day??null)===(day??null)));
+// Email forwarded into the trip, waiting for a parent to file it. Nothing here is on the
+// itinerary: it is a pile on the hall table, in the order it arrived.
+export const inboxItems=state=>[...(state.inbox||[])].sort((a,b)=>String(b.receivedAt||'').localeCompare(String(a.receivedAt||'')));
+export const inboxWaiting=state=>(state.inbox||[]).length;
+export const inboxTitle=item=>(item?.reading?.title||item?.subject||'Forwarded email').slice(0,250);
+// What gets written into the ticket's notes when the email is filed, so the English survives on
+// the phone afterwards — including with no signal, when the reader cannot be reached at all.
+export function inboxNotes(item,limit=4000){
+ const reading=item?.reading,lines=[`Forwarded from ${item?.from||'an unknown sender'}${item?.receivedAt?` on ${String(item.receivedAt).slice(0,10)}`:''}.`];
+ if(item?.subject)lines.push(`Subject: ${item.subject}`);
+ if(reading?.summary?.length)lines.push('',...reading.summary.map(line=>`\u2022 ${line}`));
+ if(reading?.actions?.length)lines.push('','To do:',...reading.actions.map(a=>`\u2022 ${a.what}${a.when?` \u2014 ${a.when}`:''}`));
+ const body=String(reading?.translation||item?.text||'').trim();
+ if(body)lines.push('',reading?.translation?'In English:':'The email said:',body);
+ return lines.join('\n').slice(0,limit);
+}
 export function todoProgress(state,day=null){
  const list=todosFor(state,day);
  return {done:list.filter(t=>t.doneAt).length,total:list.length,open:list.filter(t=>!t.doneAt).length};
