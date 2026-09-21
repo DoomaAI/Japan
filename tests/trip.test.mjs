@@ -6076,3 +6076,35 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  // It is a switch to a screen reader too, not a button whose meaning is in the word beside it.
  assert.match(page,/role="switch" aria-checked=\{on\} aria-label=\{s\.label\}/);
 });
+test('the sender list can be opened to everyone on purpose, but never by forgetting to fill it in',async()=>{
+ const {senderAllowed,openToAnySender,emailInboxReady}=await import('../server/email.mjs');
+ const set=(secret,senders)=>{
+  if(secret===null)delete process.env.EMAIL_INBOX_SECRET;else process.env.EMAIL_INBOX_SECRET=secret;
+  if(senders===null)delete process.env.EMAIL_INBOX_SENDERS;else process.env.EMAIL_INBOX_SENDERS=senders;
+ };
+ try{
+  // An empty list is nobody, not everybody. Forgetting to set it fails closed.
+  set('s',null);
+  assert.equal(openToAnySender(),false);assert.equal(emailInboxReady(),false);
+  assert.equal(senderAllowed('damien.pasfield@gmail.com'),false);
+  set('s','   ,  ,');
+  assert.equal(emailInboxReady(),false);assert.equal(senderAllowed('damien.pasfield@gmail.com'),false);
+  // A named list still only lets those addresses through, whatever case they arrive in.
+  set('s','Damien.Pasfield@gmail.com, lauren@example.com');
+  assert.equal(openToAnySender(),false);
+  assert.equal(senderAllowed('DAMIEN.PASFIELD@GMAIL.COM'),true);
+  assert.equal(senderAllowed('stranger@elsewhere.test'),false);
+  // One star, chosen deliberately, opens it to anyone — including the original sender of a
+  // booking that Gmail forwarded on with its own From left intact.
+  set('s','*');
+  assert.equal(openToAnySender(),true);assert.equal(emailInboxReady(),true);
+  for(const from of ['reservations@hotel.jp','stranger@elsewhere.test','damien.pasfield@gmail.com'])assert.equal(senderAllowed(from),true);
+  // A star alongside addresses still means everyone: the wider rule wins rather than silently
+  // narrowing to the list beside it.
+  set('s','damien.pasfield@gmail.com,*');
+  assert.equal(openToAnySender(),true);assert.equal(senderAllowed('anyone@anywhere.test'),true);
+  // The star is a sender rule only. It is not a way past the secret.
+  set(null,'*');
+  assert.equal(emailInboxReady(),false);
+ }finally{delete process.env.EMAIL_INBOX_SECRET;delete process.env.EMAIL_INBOX_SENDERS;}
+});

@@ -4,9 +4,9 @@ import {AppError} from './model.mjs';
 import {validateFile} from './files.mjs';
 import {readDocument,readEmailText,readerReady} from './document-reader.mjs';
 // Forwarding a booking confirmation into the trip is a door into the family's private data, so
-// it is bolted shut three times over: a secret only Postmark knows, a list of addresses we
-// forward from, and a human being who files whatever arrives. Nothing an email says can reach
-// the itinerary on its own.
+// it is bolted shut: a secret only Postmark knows, a list of addresses we forward from — or `*`
+// where we would rather not keep a list — and a human being who files whatever arrives. Nothing
+// an email says can reach the itinerary on its own, whoever it claims to be from.
 export const emailInboxReady=()=>!!(process.env.EMAIL_INBOX_SECRET&&allowedSenders().length);
 export const allowedSenders=()=>String(process.env.EMAIL_INBOX_SENDERS||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
 // Email bodies and translations live in the trip state, so they are kept to a readable length
@@ -71,7 +71,11 @@ export function parseInbound(body){
  return {from,subject,text,spam,attachments,
   receivedAt:Number.isFinite(received)?new Date(received).toISOString():new Date().toISOString()};
 }
-export const senderAllowed=from=>allowedSenders().includes(String(from||'').toLowerCase());
+// A single `*` opens the door to any sender. It is a deliberate choice, not a default: an empty
+// list still means nobody, because the one thing worse than turning the filter off on purpose is
+// turning it off by forgetting to fill it in.
+export const openToAnySender=()=>allowedSenders().includes('*');
+export const senderAllowed=from=>openToAnySender()||allowedSenders().includes(String(from||'').toLowerCase());
 const uploadsReady=()=>!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID);
 // An attachment that cannot be stored is still worth recording: the parent sees the email and
 // knows a file came with it, rather than the whole message being dropped silently.
