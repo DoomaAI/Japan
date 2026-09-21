@@ -7,7 +7,7 @@ import {scoresFor,bestScore} from './trip-features.js';
 // about to make dashed across it and an arrow showing which way the flap goes.
 function Diagram({step,size=260}){
  const layers=step.layers||[];
- const spec=foldSpec(step.fold),crease=spec?.crease;
+ const spec=foldSpec(step.fold||step.crease),crease=spec?.crease;
  // The picture is framed on the paper as it is now, not on the sheet it started as. Folding
  // makes the paper smaller every time, and by the eighth fold a fixed frame is showing a
  // postage stamp in the middle of an empty card.
@@ -45,10 +45,14 @@ function Diagram({step,size=260}){
   {layers.map((layer,i)=>
    <polygon key={i} points={layer.map(p=>p.join(',')).join(' ')}
     fill={i?'#ffffff':'#f0e6d2'} stroke="#8aa3a0" strokeWidth={0.8*ink} strokeLinejoin="round"/>)}
+  {(step.creases||[]).map((line,i)=><line key={`c${i}`} x1={line[0][0]} y1={line[0][1]} x2={line[1][0]} y2={line[1][1]}
+   stroke="#b9c9c5" strokeWidth={0.6*ink} strokeDasharray={`${2*ink} ${2*ink}`}/>)}
   {drawn&&<line x1={drawn[0][0]} y1={drawn[0][1]} x2={drawn[1][0]} y2={drawn[1][1]}
    stroke="#c2523c" strokeWidth={1.1*ink} strokeDasharray={`${4*ink} ${3*ink}`}/>}
   {arrow&&<path d={`M${arrow.from[0]},${arrow.from[1]} Q${arrow.over[0]+(arrow.to[1]-arrow.from[1])*0.32},${arrow.over[1]-(arrow.to[0]-arrow.from[0])*0.32} ${arrow.to[0]},${arrow.to[1]}`}
    fill="none" stroke="#16383b" strokeWidth={1.4*ink} markerEnd="url(#foldhead)"/>}
+  {step.crease&&arrow&&<path d={`M${arrow.to[0]},${arrow.to[1]} Q${arrow.over[0]-(arrow.to[1]-arrow.from[1])*0.32},${arrow.over[1]+(arrow.to[0]-arrow.from[0])*0.32} ${arrow.from[0]},${arrow.from[1]}`}
+   fill="none" stroke="#16383b" strokeWidth={1.1*ink} strokeDasharray={`${2*ink} ${2*ink}`} markerEnd="url(#foldhead)"/>}
   {step.turn&&<text x={view.x+view.size/2} y={view.y+view.size*0.54} textAnchor="middle" fontSize={16*ink}>↻</text>}
  </svg>;
 }
