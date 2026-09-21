@@ -300,7 +300,9 @@ export default async function handler(req,res){
    const blob=await head(b.pathname);
    validateFile(blob.contentType,blob.size,details.category);
    const existing=current.state.documents.find(d=>d.pathname===b.pathname);if(existing)return json(res,visibleEnvelope(current,user));
-   current.state.documents.push({id:randomUUID(),title:b.title,...details,...association,...(root?{parentDocumentId:root.id}:{}),size:blob.size,pathname:b.pathname,type:blob.contentType,person:b.person||'Family',createdAt:new Date().toISOString()});
+   // A file added to a ticket already marked used is archived with it, rather than reappearing
+   // on the list and in the offline download on its own.
+   current.state.documents.push({id:randomUUID(),title:b.title,...details,...association,...(root?{parentDocumentId:root.id,archivedAt:root.archivedAt??null,archivedBy:root.archivedBy??null}:{}),size:blob.size,pathname:b.pathname,type:blob.contentType,person:b.person||'Family',createdAt:new Date().toISOString()});
    return json(res,visibleEnvelope(await writeTrip(current.state,current.revision),user));
   }
   if(route==='document'&&req.method==='GET'){

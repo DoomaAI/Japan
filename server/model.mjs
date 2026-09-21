@@ -187,6 +187,20 @@ export function applyOperation(input,op,user){
   state.inbox=state.inbox.filter(i=>i.id!==op.id);
  }else if(op.type==='removeDocument'){
   state.documents=state.documents.filter(d=>d.id!==op.id&&d.parentDocumentId!==op.id);
+ }else if(op.type==='archiveDocument'){
+  // A used ticket is not wrong, it is finished. Deleting it is the only thing worse than
+  // leaving it in the way: the gate can still be argued about a week later. So it is archived
+  // instead — off the list, out of the offline download and out of the swipe-through strip,
+  // whole underneath and one tap from coming back. Its files go with it, because a ticket and
+  // its photos are one thing to the family holding them.
+  const doc=state.documents.find(d=>d.id===op.id);
+  if(!doc)throw new AppError('Document not found.',404);
+  if(typeof op.archived!=='boolean')throw new AppError('Invalid archive change.');
+  if(doc.parentDocumentId)throw new AppError('Archive the ticket itself; its files go with it.');
+  if(doc.category==='memory')throw new AppError('A memory belongs in the gallery rather than the used pile.');
+  const mark=op.archived?{archivedAt:now,archivedBy:user.name}:{archivedAt:null,archivedBy:null};
+  for(const d of [doc,...state.documents.filter(d=>d.parentDocumentId===doc.id)])Object.assign(d,mark);
+  extra={title:doc.title};
  }else throw new AppError('Unknown action.');
  const fields=['time','day','bookingTime','place','title','locked'];
  const diffs=op.type==='patch'&&before?fields.filter(k=>JSON.stringify(before[k]??null)!==JSON.stringify(step[k]??null)).map(k=>`${{time:'Target time',day:'Day',bookingTime:'Booking time',place:'Place',title:'Activity',locked:'Time lock'}[k]}: ${before[k]??'none'} → ${step[k]??'none'}`):[];

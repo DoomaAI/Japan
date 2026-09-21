@@ -428,7 +428,9 @@ export function nextSummary(state,day){
 }
 export function offlineManifest(state,day){
  const d=state.days.find(d=>d.date===day),ids=new Set(activeSteps(state,day).map(s=>s.id));
- const docs=state.documents.filter(d=>d.category!=='memory'&&(d.day===day||ids.has(d.stepId)||(!d.day&&!d.stepId)));
+ // A used ticket is not downloaded again: there is no point filling a phone with the gates we
+ // have already walked through.
+ const docs=state.documents.filter(d=>d.category!=='memory'&&!isArchived(d)&&(d.day===day||ids.has(d.stepId)||(!d.day&&!d.stepId)));
  return {files:[...(d?.pages||[]).map(p=>({key:`page-${p}`,title:`Guide page ${p}`,url:`/api/guide?page=${p}`})),...docs.filter(d=>d.pathname).map(d=>({key:`doc-${d.id}`,title:d.title,url:`/api/document?id=${d.id}`}))],links:docs.filter(d=>d.type==='link')};
 }
 // A ticket and its attached files are read as one set: the ticket itself first, then each
@@ -462,6 +464,26 @@ export const DRAWABLE=['image/jpeg','image/png','image/webp'];
 export const isDrawable=doc=>!!doc?.pathname&&DRAWABLE.includes(doc.type);
 // The picture that stands for a ticket: its own photo, else the first photo attached to it.
 export const documentThumbnail=(doc,attachments=[])=>isDrawable(doc)?doc:attachments.find(isDrawable)||null;
+// A ticket that has been used — scanned at the gate, the bag collected, the meal eaten — is not
+// wrong, it is finished, and a list of finished bookings is what makes the one that matters hard
+// to find on a platform. Archiving is the answer to that and deleting is not: what it says is
+// still the only record of what was paid for.
+export const isArchived=doc=>!!doc?.archivedAt;
+export const attachmentsOf=(state,doc)=>(state.documents||[]).filter(a=>a.parentDocumentId===doc?.id);
+// Which tickets the page is showing, filters and all. Kept out of the screen so the count beside
+// the 'used tickets' toggle is worked out by exactly the same rules as the list itself, and so
+// the strip you swipe through can be given the same set the page is showing.
+export function ticketList(state,{step=null,all=true,category='',person='',search='',archived=false}={}){
+ const q=search.trim().toLowerCase();
+ return (state.documents||[]).filter(d=>{
+  if(d.parentDocumentId||d.category==='memory'||isArchived(d)!==archived)return false;
+  if(!all&&d.stepId!==step?.id)return false;
+  if(category&&(d.category||'ticket')!==category)return false;
+  const files=attachmentsOf(state,d);
+  if(person&&d.person!==person&&!files.some(a=>a.person===person))return false;
+  return !q||[d.title,d.reference,d.notes,...(d.tags||[]),...files.flatMap(a=>[a.title,a.notes,...(a.tags||[])])].join(' ').toLowerCase().includes(q);
+ });
+}
 // What we thought of it, afterwards. Separate from a step's own notes, which are the plan —
 // these are four opinions about a thing that has happened, kept per person so nobody's stars
 // average away somebody else's. Rating something also records that you were there.
@@ -775,7 +797,9 @@ export function searchTrip(state,query,guide=[]){
  const hits=[],match=(...parts)=>parts.flat().filter(Boolean).join(' ').toLowerCase().includes(q);
  for(const s of state.steps)if(match(s.title,s.place,s.japanese,s.notes,s.bookingReference,s.website))hits.push({type:s.day?'Activity':'Option',id:s.id,title:s.title,detail:s.notes,day:s.day,step:s});
  for(const p of proposals(state))if(match(p.title,p.place,p.japanese,p.notes,p.availability,p.costNote,p.addedBy,p.tags))hits.push({type:'Planning',id:p.id,title:p.title,detail:p.notes||p.place,day:proposalPlacement(state,p).day||p.day});
- for(const d of state.documents)if(match(d.title,d.reference,d.notes,d.tags))hits.push({type:d.category==='memory'?'Memory':'Document',id:d.id,title:d.title,detail:d.notes,day:d.day||state.steps.find(s=>s.id===d.stepId)?.day,document:d});
+ // An archived ticket is hidden from the list, not from the trip: search still finds it, says so,
+ // and opens the used pile on it rather than a page that looks empty.
+ for(const d of state.documents)if(match(d.title,d.reference,d.notes,d.tags))hits.push({type:d.category==='memory'?'Memory':isArchived(d)?'Used ticket':'Document',id:d.id,title:d.title,detail:d.notes,day:d.day||state.steps.find(s=>s.id===d.stepId)?.day,document:d});
  for(const l of state.locations||[])if(match(l.name,l.district,l.city,l.address,l.category,l.notes))hits.push({type:'Location',id:l.id,title:l.name,detail:l.address});
  for(const s of state.shopping)if(match(s.title,s.notes,s.store,s.person,s.tags))hits.push({type:'Shopping',id:s.id,title:s.title,detail:s.store,day:s.day});
  for(const i of spending(state).items)if(match(i.title,i.notes,i.person))hits.push({type:'Spending',id:i.id,title:i.title,detail:`${i.person}’s spending money`,day:i.day});
