@@ -4543,12 +4543,12 @@ test('the two boards say which squares are empty, and both ladders are laid out 
 });
 
 test('the app can build the two sounds it needs without shipping a file',async()=>{
- const {wavDataUri,silenceUri,toneUri}=await import('../src/speech.js');
+ const {wavDataUri,holdUri,toneUri,HOLD_SECONDS}=await import('../src/speech.js');
  const decode=uri=>{
   assert.match(uri,/^data:audio\/wav;base64,/);
   return Buffer.from(uri.slice(uri.indexOf(',')+1),'base64');
  };
- const wav=decode(silenceUri(1,8000));
+ const wav=decode(holdUri(1,8000));
  // A real WAV header, or a phone will not play it — which is the whole point of the thing.
  assert.equal(wav.slice(0,4).toString('ascii'),'RIFF');
  assert.equal(wav.slice(8,12).toString('ascii'),'WAVE');
@@ -4561,11 +4561,21 @@ test('the app can build the two sounds it needs without shipping a file',async()
  assert.equal(wav.readUInt32LE(40),8000*2,'a second of it');
  assert.equal(wav.length,44+8000*2);
  assert.equal(wav.readUInt32LE(4),36+8000*2,'the size in the header matches the file');
- // Silence really is silent, and the beep really is not — a beep you cannot hear answers
- // nothing when someone is trying to find out whether their phone makes a sound.
+ // The hold is inaudible but it is NOT digital silence: a buffer of zeroes is exactly what
+ // iOS is entitled to decide is not playback, and a page that is not playing anything is
+ // ambient again and back under the ring switch. One step either side of zero is about
+ // ninety decibels down — no ear finds it, no heuristic calls it nothing. The beep, which
+ // is answering "can you hear this", really does have to be heard.
  const loudest=buffer=>{let peak=0;for(let i=44;i<buffer.length;i+=2)peak=Math.max(peak,Math.abs(buffer.readInt16LE(i)));return peak;};
- assert.equal(loudest(wav),0);
+ assert.equal(loudest(wav),1,'audible to nobody, and not nothing');
  assert.ok(loudest(decode(toneUri()))>8000);
+ // It crosses zero rather than sitting at one step: a constant offset is a DC level, which
+ // is not playing a sound either.
+ let below=0;for(let i=44;i<wav.length;i+=2)if(wav.readInt16LE(i)<0)below++;
+ assert.ok(below>0&&below<8000,'it alternates rather than sitting still');
+ // Every loop seam is a moment with nothing playing, so the hold is seconds rather than one.
+ assert.ok(HOLD_SECONDS>=3);
+ assert.equal(decode(holdUri()).length,44+HOLD_SECONDS*8000*2);
  // It fades in rather than starting square, because a click is not an answer either.
  const tone=decode(toneUri());
  assert.ok(Math.abs(tone.readInt16LE(44))<1500,'starts quietly');
@@ -4613,6 +4623,142 @@ test('the playback session is held for as long as there is something to say',asy
  assert.equal(playbackClaim(),'playback');
  assert.deepEqual(Object.keys(listeners),[],'and it lets go of the page afterwards');
  resetHold();resetArm();resetPlaybackClaim();
+});
+
+test('the hold is really playing before a word is said, and is put back when iOS takes it',async()=>{
+ const {holdPlayback,releasePlayback,keepHolding,whenHolding,resetHold}=await import('../src/speech.js');
+ // A phone's play() is a promise. A phrase begun before it lands is a phrase begun while the
+ // page is still ambient, which is the category the ring switch mutes — so the speaking waits
+ // for the hold rather than racing it.
+ resetHold();
+ let land=null;
+ const slow={paused:true,plays:0,pauses:0,
+  play(){this.plays++;this.paused=false;return new Promise(r=>{land=r;});},
+  pause(){this.pauses++;this.paused=true;}};
+ holdPlayback(()=>slow);
+ let said=0;
+ assert.equal(whenHolding(()=>said++,50,()=>{}),true,'there is a promise to wait on');
+ assert.equal(said,0,'nothing is said into an ambient page');
+ land();await Promise.resolve();await Promise.resolve();
+ assert.equal(said,1);
+ // Pausing before that promise settles aborts the play rather than stopping it, and an
+ // aborted play is not the gesture-unlock iOS remembers — which is how arming the page on
+ // the first touch managed to unarm itself.
+ resetHold();
+ let settle=null;
+ slow.play=function(){this.plays++;this.paused=false;return new Promise(r=>{settle=r;});};
+ holdPlayback(()=>slow);
+ releasePlayback();
+ assert.equal(slow.pauses,0,'not while the play request is still in the air');
+ settle();await Promise.resolve();await Promise.resolve();
+ assert.equal(slow.pauses,1);
+ // A hold that never settles must never cost anybody the phrase.
+ resetHold();
+ const stuck={paused:true,play(){this.paused=false;return new Promise(()=>{});},pause(){this.paused=true;}};
+ holdPlayback(()=>stuck);
+ let late=0;
+ whenHolding(()=>late++,250,fn=>fn());
+ assert.equal(late,1,'the deadline speaks where the promise will not');
+ // Nothing to wait on runs on the spot rather than waiting for nothing.
+ resetHold();
+ const plain={paused:true,play(){this.paused=false;},pause(){this.paused=true;}};
+ holdPlayback(()=>plain);
+ let now=0;whenHolding(()=>now++,250,()=>{});
+ assert.equal(now,1);
+ // iOS pauses a page's audio for reasons of its own — an interruption, a route change — and
+ // the moment it does the page is ambient again and the switch is back in charge.
+ resetHold();
+ const drop={paused:true,plays:0,play(){this.plays++;this.paused=false;},pause(){this.paused=true;}};
+ assert.equal(keepHolding(),false,'nothing held, nothing to put back');
+ holdPlayback(()=>drop);
+ assert.equal(drop.plays,1);
+ assert.equal(keepHolding(),false,'still playing, so leave it alone');
+ drop.paused=true;
+ assert.equal(keepHolding(),true);
+ assert.equal(drop.plays,2,'and the page counts as media again');
+ releasePlayback();
+ assert.equal(keepHolding(),false,'and not a moment longer than the talking');
+ resetHold();
+});
+
+test('the warm-up is spent on the first touch, never left in front of a real phrase',async()=>{
+ const {warmUp,armPlayback,resetArm,resetPlaybackClaim,resetHold}=await import('../src/speech.js');
+ const speech=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ // WebKit ignores the first thing a page says, so something throwaway goes first. But WebKit
+ // does not reliably finish a silent utterance either, and it speaks its queue in order: one
+ // that never ends is one every real phrase waits behind for the rest of the session. That is
+ // a phone where every button works, the engine reports itself busy, and not one word is ever
+ // heard — which is exactly what was being reported.
+ assert.doesNotMatch(speech,/warmUp/,'never queued in front of the thing somebody asked for');
+ warmUp.done=false;
+ const spoken=[],cancels=[],waits=[];
+ const synth={speak:u=>spoken.push(u),cancel:()=>cancels.push(1)};
+ assert.equal(warmUp(synth,class{constructor(t){this.text=t;}},(fn,ms)=>waits.push([fn,ms])),true);
+ assert.equal(spoken.length,1);
+ assert.equal(spoken[0].volume,0,'the warm-up is silent');
+ assert.equal(cancels.length,0,'the speak() call itself is what unlocks the engine');
+ assert.equal(waits.length,1);
+ // On the next turn, not after a wait: the first touch is very often the tap on 'Hear it'
+ // itself, and a cancel still pending when that phrase starts would stop the very thing the
+ // warm-up exists to help.
+ assert.equal(waits[0][1],0);
+ waits[0][0]();
+ assert.equal(cancels.length,1,'then the queue is cleared, whether it finished or not');
+ // And it is spent on the first touch anywhere, which is a touch that asked for no sound.
+ resetHold();resetArm();resetPlaybackClaim();warmUp.done=false;
+ const listeners={};
+ const win={navigator:{audioSession:{type:'ambient'}},
+  speechSynthesis:{speak:()=>{},cancel:()=>{}},
+  SpeechSynthesisUtterance:class{constructor(t){this.text=t;}},
+  addEventListener:(e,fn)=>{listeners[e]=fn;},removeEventListener:e=>{delete listeners[e];}};
+ armPlayback(win);
+ assert.equal(warmUp.done,false,'nothing is warmed before anybody touches anything');
+ listeners.pointerdown();
+ assert.equal(warmUp.done,true);
+ resetHold();resetArm();resetPlaybackClaim();
+});
+
+test('a reading that was heard is never reported as silence',async()=>{
+ const speech=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ // Whether a sound was made comes from the engine rather than a stopwatch. A short line — a
+ // kana, a chunk, a mission title — is finished well inside any deadline, and treating that
+ // as "nothing began" told a phone that had just read something out that it had done nothing.
+ assert.match(speech,/say\.onstart=\(\)=>\{began=true;\}/);
+ assert.match(speech,/if\(began\|\|synth\.speaking\|\|synth\.pending\)return;/);
+ assert.match(speech,/silenceAdvice\(\{started:began,standalone:isStandalone\(\)\}\)/,'and a failure reports what really happened');
+ // Held while talking, put back if iOS takes it away, and let go exactly once.
+ assert.match(speech,/setInterval\(keepHolding,1000\)/);
+ assert.match(speech,/whenHolding\(\(\)=>\{try\{synth\.speak\(say\);\}catch\{done\(\);\}\}\)/);
+ // iOS does not always report an utterance it was told to drop, so whoever interrupts one
+ // lets go of the hold it took rather than waiting to be told.
+ assert.match(speech,/if\(busy\)synth\.cancel\(\);\n  release\(\);/);
+ // The sixty-second safety net is tracked now, so one left over from an earlier reading
+ // cannot stop the button on the reading happening right now.
+ assert.match(speech,/guard\.current=setTimeout\(done,60000\)/);
+ assert.match(speech,/clearTimeout\(timer\.current\);clearTimeout\(guard\.current\)/);
+});
+
+test('no spoken section leaves a silent phone unexplained',async()=>{
+ const src=async n=>readFile(new URL(`../src/${n}`,import.meta.url),'utf8');
+ // A button that does nothing and says nothing is the whole complaint, so every place with
+ // one takes the reason off the hook and puts it on the screen.
+ for(const name of ['FunFacts.jsx','SayIt.jsx','SoundOut.jsx','AdventurePages.jsx'])
+  assert.match(await src(name),/\{problem&&/,`${name} keeps the reason to itself`);
+ const adventure=await src('AdventurePages.jsx');
+ assert.equal((adventure.match(/useReadAloud\(\)/g)||[]).length,3,'the hook, the rules button, the missions');
+ assert.doesNotMatch(adventure,/\{supported,reading,read\}=useReadAloud/,'the rules button used to drop it');
+ assert.doesNotMatch(adventure,/\{supported:canRead,reading,read\}=useReadAloud/,'and so did the missions');
+ assert.match(await src('SoundOut.jsx'),/\{supported,reading,read,problem\}=useReadAloud\(\)/);
+ // The facts page is where "I pressed it and nothing happened" actually gets said, so the
+ // two-button test is there as well as in the phrasebook.
+ assert.match(await src('FunFacts.jsx'),/<SoundCheck\/>/);
+ // And the check's verdict uses the beep it just played: a phone that plays a recording and
+ // will not speak for itself has a fix that nothing else on the screen can name.
+ const check=await src('SoundCheck.jsx');
+ assert.match(check,/silenceAdvice\(\{started:facts\.started,standalone:facts\.standalone,tone:facts\.tone\}\)/);
+ assert.doesNotMatch(check,/warmUp/,'the warm-up belongs to the first touch, not to a test run');
+ assert.match(check,/setInterval\(keepHolding,1000\)/,'and it measures the path everything else takes');
+ assert.match(check,/whenHolding\(/);
 });
 
 test('a recorded phrase is the family’s own, one per phrase, described by storage',async()=>{

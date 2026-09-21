@@ -6,6 +6,7 @@ import {dayLabel,SILENT_HINT,useReadAloud,ReadAloudButton} from './AdventurePage
 import {searchText,factQueue,factLogFor,factsSeenBy} from './trip-features.js';
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
 import {YOUNG_RATE} from './speech.js';
+import SoundCheck from './SoundCheck.jsx';
 // The day's fun fact, and as many more as anyone wants to swipe through. Everything actually
 // put on screen is handed back when it closes, so the log records what was really seen and
 // nobody is ever shown the same fact twice.
@@ -66,6 +67,9 @@ export default function FunFacts({state,user,day,mutate,busy,openPage}){
  return <>
   {canRead&&<p>{young?'Tap Read to me on any fact and the phone will read it to you. Nothing on this page has to be read.':'Tap Read to me on any fact and the phone will read it out — handy for Nate, who cannot read one yet.'} {SILENT_HINT}</p>}
   {problem&&<p className="callout">{problem}</p>}
+  {/* The phrasebook had the only copy of this, and the facts are where "I pressed it and
+      nothing happened" actually gets said. It is the same two-button test either way. */}
+  {canRead&&<SoundCheck/>}
   <section className="my-phrases">
    <h2>Facts you have seen</h2>
    <p>{log.length} of {total}{log.length<total?` · ${total-log.length} still to meet`:' · the whole collection'}</p>

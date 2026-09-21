@@ -28,7 +28,7 @@ export function MouthKey(){
 // Sounding a phrase out one bubble at a time. Tap a mouth and the phone says just that
 // syllable, slowly; tap the big one and it says the lot. Nothing here has to be read.
 export default function SoundOut({phrase}){
- const {supported,reading,read}=useReadAloud();
+ const {supported,reading,read,problem}=useReadAloud();
  const japanese=useJapaneseVoice();
  const audio=useContext(PhraseAudio);
  const [lit,setLit]=useState(-1);
@@ -60,5 +60,6 @@ export default function SoundOut({phrase}){
       onClick={()=>read(whole,phrase.ja,'ja-JP',speechRate('ja'))}>
       {reading===whole?<><Square size={16}/> Stop</>:<><Volume2 size={18}/> All together</>}</button>}
   </div>
+  {problem&&<small className="hear-problem">{problem}</small>}
  </div>;
 }
