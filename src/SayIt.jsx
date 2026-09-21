@@ -1,7 +1,7 @@
 import React,{useState,useEffect} from 'react';
 import {Volume2,Square,Snail} from 'lucide-react';
 import {useReadAloud} from './AdventurePages.jsx';
-import {voiceState,settled,canOffer,speechKey,speechRate,SLOW_RATE} from './speech.js';
+import {voiceState,settled,canOffer,speechKey,speechRate,SLOW_RATE,phonicChunks} from './speech.js';
 const voices=()=>{try{return window.speechSynthesis?.getVoices()||null;}catch{return null;}};
 export const hasJapaneseVoice=()=>voiceState(voices())==='yes';
 // The voice list arrives late, and on some phones the voiceschanged event never comes at all,
@@ -34,7 +34,8 @@ export default function SayIt({phrase,size='',showRomaji=true}){
  return <div className={`say-it ${size}`}>
   <p className="japanese" lang="ja">{phrase.ja}</p>
   {phrase.en&&<p className="say-en">{phrase.en}</p>}
-  <p className="say-phonics"><span aria-hidden="true">say</span> {phrase.say}</p>
+  <p className="say-phonics"><span aria-hidden="true">say</span> <span>{phonicChunks(phrase.say,phrase.hold).map((c,i)=>
+   c.hold?<b key={i} title="Hold this one — two beats, not one">{c.text}</b>:<React.Fragment key={i}>{c.text}</React.Fragment>)}</span></p>
   {showRomaji&&phrase.romaji&&<small>{phrase.romaji}</small>}
   {canOffer(supported,japanese)&&<span className="hear-row">
    {button('normal',undefined,'Hear it',Volume2,15)}

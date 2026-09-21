@@ -1535,3 +1535,89 @@ test('the morning reminder is about the jumper, not the meteorology',async()=>{
  assert.equal(isMorning('18:00'),false);
  assert.equal(isMorning(''),false);
 });
+
+test('what is marked in the phonics is length, and every mark lands on a real chunk',async()=>{
+ const {phonicChunks,holdsOf}=await import('../src/speech.js');
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ const {FOOD,ORDERING,SAY_TIP}=await import('../src/food-data.js');
+ const everything=[...ALL_PHRASES(),...FOOD,...ORDERING];
+ // A mark that does not match a chunk would simply never show, and nobody would notice.
+ let marked=0;
+ for(const item of everything){
+  const holds=holdsOf(item);if(!holds.length)continue;
+  marked++;
+  const chunks=phonicChunks(item.say,item.hold);
+  for(const h of holds)assert.ok(chunks.some(c=>c.hold&&c.text.toLowerCase()===h.toLowerCase()),
+   `${item.id||item.en}: "${h}" is not a chunk of "${item.say}"`);
+  assert.equal(chunks.filter(c=>c.hold).length>=holds.length,true);
+ }
+ assert.ok(marked>=35,`only ${marked} entries carry a length mark`);
+ // Only the ones that need it: a mark is there because the Japanese has a long vowel or a
+ // double consonant, and everything without one is left alone.
+ for(const item of everything){
+  const needs=/[āīūēō]/.test(item.romaji||'')||/([kstpg])\1|tch/.test(item.romaji||'');
+  if(!needs)assert.deepEqual(holdsOf(item),[],`${item.id||item.en} is marked but has nothing to hold`);
+ }
+ // The rendering keeps the word intact — the separators are still there.
+ const chunks=phonicChunks('oh-ha-yoh go-zye-mass','yoh');
+ assert.equal(chunks.map(c=>c.text).join(''),'oh-ha-yoh go-zye-mass');
+ assert.deepEqual(chunks.filter(c=>c.hold).map(c=>c.text),['yoh']);
+ // The same chunk twice is marked twice — kyūkyūsha is long in both halves.
+ assert.equal(phonicChunks('kyoo-kyoo-sha','kyoo').filter(c=>c.hold).length,2);
+ assert.deepEqual(phonicChunks('kon-nee-chee-wa').filter(c=>c.hold),[]);
+ assert.deepEqual(phonicChunks('',null),[]);
+ // And the screen explains what the mark means rather than leaving it to be guessed.
+ assert.match(SAY_TIP,/two beats/);
+ assert.match(SAY_TIP,/does not stress/,'the warning against an English thump stays');
+});
+
+test('a document is read as a document, a photo as a photo, and neither is trusted blindly',async()=>{
+ const {createServer}=await import('node:http');
+ let seen=null;
+ const answer={readable:true,language:'Japanese',kind:'Hotel letter',title:'Luggage forwarding',
+  summary:['They will send the bags to Kyoto on the 24th.','¥2,400, paid at the desk.'],
+  translation:'荷物転送のご案内\n---\nLuggage forwarding\nCollection: 24 September, 08:00',
+  actions:[{what:'Leave the bags at reception',when:'24 September, by 08:00'}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{seen=JSON.parse(body);res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'end_turn',
+    usage:{input_tokens:2200,output_tokens:800},content:[{type:'text',text:JSON.stringify(answer)}]}));});
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const key=process.env.ANTHROPIC_API_KEY,url=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {readDocument,readerReady}=await import('../server/document-reader.mjs');
+  assert.equal(readerReady(),true);
+  const data=Buffer.from('a page of japanese').toString('base64');
+  // A PDF is sent as a document block; a photo as an image block. Getting this wrong is a 400.
+  const out=await readDocument({file:data,mediaType:'application/pdf',note:'  What do we owe?  '});
+  assert.equal(seen.messages[0].content[0].type,'document');
+  assert.equal(seen.messages[0].content[0].source.media_type,'application/pdf');
+  assert.match(seen.messages[0].content[1].text,/They also asked: What do we owe\?$/,'the question is trimmed and passed on');
+  await readDocument({file:data,mediaType:'image/jpeg'});
+  assert.equal(seen.messages[0].content[0].type,'image');
+  assert.equal(seen.messages[0].content[1].text,'Read this and tell them what it says.');
+  // The answer comes back whole, with what it costs to have asked.
+  assert.equal(out.title,'Luggage forwarding');
+  assert.equal(out.actions[0].when,'24 September, by 08:00');
+  assert.equal(out.usage.input,2200);
+  assert.equal(seen.output_config.format.type,'json_schema');
+  assert.deepEqual(seen.output_config.format.schema.required,['readable','kind','title','summary','translation','actions','language']);
+  assert.match(seen.system,/Keep numbers, dates, times/);
+  assert.match(seen.system,/Never guess at a number you cannot see/);
+  assert.match(seen.system,/not advising/,'it reads the document, it does not advise on it');
+  // What it refuses to send at all.
+  await assert.rejects(()=>readDocument({file:'',mediaType:'image/jpeg'}),/Choose a photo or a PDF/);
+  await assert.rejects(()=>readDocument({file:'not base64!!',mediaType:'image/jpeg'}),/could not be read/);
+  await assert.rejects(()=>readDocument({file:data,mediaType:'image/gif'}),/JPEG, PNG or WebP photo, or a PDF/);
+  await assert.rejects(()=>readDocument({file:'A'.repeat(4_500_001),mediaType:'image/jpeg'}),/too large/);
+  await assert.rejects(()=>readDocument({file:data,mediaType:'image/jpeg',note:'x'.repeat(501)}),/note short/);
+ }finally{
+  if(key===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=key;
+  if(url===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=url;
+  await new Promise(r=>upstream.close(r));
+ }
+});
