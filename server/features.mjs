@@ -424,6 +424,135 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:item.title};
   }
   fail('Unknown to-do action.');
+ }else if(typeof op.type==='string'&&op.type.startsWith('spend')){
+  // Spending money, which is Nate's and Boston's. Money only ever goes in on a parent's say-so —
+  // either by hand or as an amount a day — and everything a boy does is about his own purse:
+  // writing down what he wants, saying what it actually cost, and taking his own entry off again.
+  const purse=state.spending,yen=(v,label)=>{if(!Number.isInteger(v)||v<0||v>10000000)fail(`Enter ${label} as whole yen, up to 10,000,000.`);};
+  const boy=person=>{if(!BOYS.includes(person))fail('Spending money belongs to Nate and Boston.');
+   if(!parent&&person!==user.name)fail('That is somebody else\u2019s spending money.',403);};
+  const item=()=>{const found=purse.items.find(i=>i.id===op.id);if(!found)fail('That is no longer on the spending list.',404);boy(found.person);return found;};
+  if(op.type==='spendAllowance'){
+   if(!parent)fail('A parent sets how much a day.',403);
+   boy(op.person);
+   const perDay=op.yenPerDay??0;yen(perDay,'how much a day');
+   const from=op.from??null,to=op.to??null;dayCheck(from);dayCheck(to);
+   if(perDay&&!from)fail('Choose the day the spending money starts.');
+   if(from&&to&&to<from)fail('The last day cannot come before the first.');
+   const allowance={...purse.allowance};
+   // Zero a day is how an amount a day is stopped, rather than a separate way of undoing it.
+   if(perDay)allowance[op.person]={yenPerDay:perDay,from,to,by:user.name,at:now};
+   else delete allowance[op.person];
+   purse.allowance=allowance;
+   return {summary:null,important:false,title:`${op.person}\u2019s spending money`};
+  }
+  if(op.type==='spendTopUp'){
+   if(!parent)fail('A parent puts money in.',403);
+   boy(op.person);
+   const amount=op.yen;yen(amount,'an amount');if(!amount)fail('Enter how much is going in.');
+   const note=(op.note||'').trim();requireText(note,250,'note');
+   if(purse.topUps.length>=500)fail('That is five hundred top-ups already.');
+   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+   purse.topUps=[...purse.topUps,{id:randomUUID(),person:op.person,yen:amount,note,at,by:user.name}];
+   return {summary:`${op.person} has \u00a5${amount.toLocaleString('en-AU')} more spending money${note?` \u00b7 ${note}`:''}`,important:true,title:`${op.person}\u2019s spending money`};
+  }
+  if(op.type==='spendTopUpRemove'){
+   if(!parent)fail('A parent can take a top-up back off.',403);
+   const found=purse.topUps.find(t=>t.id===op.id);if(!found)fail('That top-up is no longer there.',404);
+   purse.topUps=purse.topUps.filter(t=>t.id!==op.id);
+   return {summary:null,important:false,title:`${found.person}\u2019s spending money`};
+  }
+  if(op.type==='spendAdd'||op.type==='spendEdit'){
+   const target=op.type==='spendEdit'?item():null;
+   const person=op.type==='spendEdit'?target.person:(op.person||user.name);
+   boy(person);
+   if(!string(op.title,250)||!op.title.trim())fail('Write down what you want to buy.');
+   dayCheck(op.day??null);
+   const estimate=op.estimate??null;
+   if(estimate!==null)yen(estimate,'roughly what it costs');
+   const values={title:op.title.trim(),estimate,day:op.day??null,notes:(op.notes||'').trim()};
+   requireText(values.notes,2000,'notes');
+   if(op.type==='spendEdit'){Object.assign(target,values);return {summary:null,important:false,title:values.title};}
+   if(purse.items.length>=300)fail('That is three hundred things already. Buy some of them first.');
+   // A job off the to-do list can be handed over once. Handing the same one over twice would
+   // count the same jumper against the purse in two places.
+   let todoId=op.todoId??null;
+   if(todoId){
+    if(!state.todos.some(t=>t.id===todoId))fail('That job is no longer on the to-do list.',404);
+    if(purse.items.some(i=>i.todoId===todoId))fail('That one is already on the spending list.');
+   }
+   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+   purse.items=[...purse.items,{id:randomUUID(),person,...values,spent:null,todoId,
+    createdBy:user.name,createdAt:at,boughtAt:null,boughtBy:null}];
+   return {summary:null,important:false,title:values.title};
+  }
+  if(op.type==='spendBought'){
+   const found=item();
+   if(typeof op.done!=='boolean')fail('Invalid tick.');
+   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+   if(op.spent!==undefined&&op.spent!==null)yen(op.spent,'what it cost');
+   found.boughtAt=op.done?at:null;found.boughtBy=op.done?user.name:null;
+   // What it actually cost, which is what the balance is built from. Left alone it falls back to
+   // the guess; putting it back on the list clears it, so an old price cannot haunt a new one.
+   found.spent=op.done?(op.spent??found.spent??null):null;
+   // Buying the thing finishes the job it came from, so the same jumper is not still waiting to
+   // be bought on the day's screen. Putting it back on the list does not un-tick that job: it may
+   // have been ticked for reasons of its own.
+   if(op.done&&found.todoId){const job=state.todos.find(t=>t.id===found.todoId);if(job&&!job.doneAt){job.doneAt=at;job.doneBy=user.name;}}
+   return {summary:null,important:false,title:found.title};
+  }
+  if(op.type==='spendRequest'){
+   // The only way a boy's balance moves in his favour. He asks; a parent answers.
+   boy(op.person||user.name);
+   const person=op.person||user.name,amount=op.yen;
+   yen(amount,'how much you are asking for');if(!amount)fail('Ask for an amount.');
+   const reason=(op.reason||'').trim();requireText(reason,500,'reason');
+   if(purse.requests.filter(r=>r.person===person&&r.status==='open').length>=10)
+    fail('There are ten asks waiting on an answer already. Wait for one of those first.');
+   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+   purse.requests=[...purse.requests,{id:randomUUID(),person,yen:amount,reason,at,by:user.name,
+    status:'open',decidedBy:null,decidedAt:null,approvedYen:null,reply:''}];
+   return {summary:`${person} is asking for \u00a5${amount.toLocaleString('en-AU')} more spending money${reason?` \u00b7 ${reason}`:''}`,important:true,title:`${person}\u2019s spending money`};
+  }
+  if(op.type==='spendRequestDecide'){
+   if(!parent)fail('Mum or Dad answers this one.',403);
+   const ask=purse.requests.find(r=>r.id===op.id);if(!ask)fail('That ask is no longer there.',404);
+   if(ask.status!=='open')fail('That one has already been answered.');
+   if(typeof op.approve!=='boolean')fail('Say yes or no.');
+   const reply=(op.reply||'').trim();requireText(reply,500,'reply');
+   // A parent can say yes to a different figure, because "you can have half of that" is a real
+   // answer. Left out, it is the amount that was asked for.
+   const amount=op.approve?(op.yen??ask.yen):null;
+   if(op.approve){yen(amount,'how much you are approving');if(!amount)fail('Approve an amount, or say no.');}
+   Object.assign(ask,{status:op.approve?'approved':'declined',decidedBy:user.name,decidedAt:now,
+    approvedYen:amount,reply});
+   // Saying yes is what actually moves the money, so there is never an approval with no top-up
+   // behind it, and the top-up carries the approval rather than looking like a bare gift.
+   if(op.approve){
+    const topUp={id:randomUUID(),person:ask.person,yen:amount,note:reply||ask.reason,at:now,by:user.name,
+     approvedBy:user.name,requestId:ask.id};
+    purse.topUps=[...purse.topUps,topUp];
+    ask.topUpId=topUp.id;
+   }
+   return {summary:op.approve
+    ?`${user.name} approved \u00a5${amount.toLocaleString('en-AU')} more spending money for ${ask.person}`
+    :`${user.name} said not this time to ${ask.person}\u2019s ask for \u00a5${ask.yen.toLocaleString('en-AU')}`,
+    important:true,title:`${ask.person}\u2019s spending money`};
+  }
+  if(op.type==='spendRequestCancel'){
+   const ask=purse.requests.find(r=>r.id===op.id);if(!ask)fail('That ask is no longer there.',404);
+   boy(ask.person);
+   // Once it has been answered it is a record of what happened, and a record is not undone.
+   if(ask.status!=='open')fail('That one has been answered already.');
+   purse.requests=purse.requests.filter(r=>r.id!==ask.id);
+   return {summary:null,important:false,title:`${ask.person}\u2019s spending money`};
+  }
+  if(op.type==='spendRemove'){
+   const found=item();
+   purse.items=purse.items.filter(i=>i.id!==found.id);
+   return {summary:null,important:false,title:found.title};
+  }
+  fail('Unknown spending action.');
  }else if(op.type==='stepRating'||op.type==='stepThought'){
   // Four opinions about a thing that has happened. Kept per person, because an average is only
   // worth reading if you can see whose stars made it. Not the step's own notes, which are the plan.
