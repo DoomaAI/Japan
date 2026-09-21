@@ -3388,7 +3388,9 @@ test('the phrases can be gone through one at a time, over exactly what the list 
  const source=await readFile(new URL('../src/Phrasebook.jsx',import.meta.url),'utf8');
  // Both ways of going through them, and the phone remembers which you like.
  assert.match(source,/localStorage\.getItem\('japan\.phrasemode'\)/);
- assert.match(source,/\|\|'list'/,'the list stays the default — it is what search is for');
+ // The list is still the default for everyone who can read one; Nate is the exception, and
+ // he is the reason the exception exists.
+ assert.match(source,/const suits=user\?\.name==='Nate'\?'nate':'list'/);
  // The deck is built from the same filtered sections the list renders, so a search cannot
  // show one set and swipe through another.
  assert.match(source,/const deck=\[\s*\.\.\.sections\.flatMap/);
@@ -3667,4 +3669,82 @@ test('every phrase, katakana word and menu word says when you would actually use
  // And the explanation is shown wherever the word is, not just on the phrases.
  const page=await readFile(new URL('../src/Phrasebook.jsx',import.meta.url),'utf8');
  assert.match(page,/\{w\.note&&<small className="menu-word-note">\{w\.note\}<\/small>\}/);
+});
+
+test('a five-year-old can sound anything out without reading a word of it',async()=>{
+ const {VOWELS,MOUTH,CHUNK_VOWEL,vowelOf,soundBubbles,bubbleRows}=await import('../src/phonics.js');
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ const {MENU_WORDS}=await import('../src/food-data.js');
+ const {phonicChunks}=await import('../src/speech.js');
+ // Five vowels, five mouths, five colours — the whole idea is that there are only five.
+ assert.equal(VOWELS.length,5);
+ assert.deepEqual(VOWELS.map(v=>v.id),['a','i','u','e','o']);
+ assert.equal(new Set(VOWELS.map(v=>v.colour)).size,5,'a colour each, or they cannot be told apart');
+ for(const v of VOWELS){
+  assert.ok(MOUTH[v.id],`${v.id} has no mouth to make`);
+  assert.ok(v.hint.length>20,`${v.id} does not say what the mouth does`);
+ }
+ // The mouths have to differ from each other, or the picture says nothing.
+ assert.equal(new Set(Object.values(MOUTH).map(m=>`${m.rx}x${m.ry}`)).size,5);
+ // "ee" is the widest and flattest, "oo" the smallest — if that ever stops being true the
+ // pictures are lying about the sound.
+ assert.ok(MOUTH.i.rx>MOUTH.u.rx&&MOUTH.i.ry<MOUTH.u.ry);
+ assert.ok(MOUTH.a.ry>MOUTH.i.ry,'“ah” is the open one');
+ // Every syllable anywhere in the phrasebook or on a menu has a mouth. A bubble with no
+ // picture is a bubble he has to read, which is the thing this exists to avoid.
+ for(const item of [...ALL_PHRASES(),...MENU_WORDS])
+  for(const bubble of soundBubbles(item.say))
+   assert.ok(bubble.vowel,`“${bubble.text}” in “${item.en}” has no mouth`);
+ // Written out rather than guessed from the spelling, because the tricky ones are the common
+ // ones: ます swallows its u, and あい opens on the a.
+ assert.equal(vowelOf('mass'),'a');
+ assert.equal(vowelOf('dess'),'e');
+ assert.equal(vowelOf('guy'),'a');
+ assert.equal(vowelOf('sigh'),'a');
+ assert.equal(vowelOf('koo'),'u');
+ assert.equal(vowelOf('SHEE'),'i','however it is capitalised');
+ assert.equal(vowelOf('nonsense'),null);
+ assert.equal(vowelOf(''),null);
+ for(const v of Object.values(CHUNK_VOWEL))assert.ok(MOUTH[v],v);
+ // The bubbles are the same syllables the written sounding-out uses, with the dashes gone.
+ const say='soo-mee-ma-sen';
+ assert.deepEqual(soundBubbles(say).map(b=>b.text),phonicChunks(say).filter(c=>/[a-z]/i.test(c.text)).map(c=>c.text));
+ assert.deepEqual(soundBubbles(say).map(b=>b.vowel),['u','i','a','e']);
+ assert.deepEqual(soundBubbles(say).map(b=>b.index),[0,1,2,3]);
+ // Four to a row: more than that and a five-year-old stops seeing them.
+ assert.deepEqual(bubbleRows('a-b-c-d-e-f').map(r=>r.length),[4,2]);
+ assert.deepEqual(bubbleRows(''),[]);
+});
+
+test('every phrase has a picture of what it means, so it can be found without reading',async()=>{
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ const all=ALL_PHRASES();
+ for(const p of all){
+  assert.ok(p.icon,`“${p.en}” has no picture`);
+  // A flag is two code points and a variation selector is a third. Anything longer is a
+  // joined sequence, which falls apart into separate people on a phone that lacks it.
+  assert.ok([...p.icon].length<=3,`“${p.en}” uses a joined emoji: ${[...p.icon].length} code points`);
+  assert.ok(!p.icon.includes('\u200d'),`“${p.en}” uses a zero-width joiner`);
+ }
+ // Two phrases wearing the same picture is worse than none — he picks by picture.
+ const icons=all.map(p=>p.icon);
+ assert.equal(new Set(icons).size,icons.length,'two phrases share a picture');
+ const page=await readFile(new URL('../src/Phrasebook.jsx',import.meta.url),'utf8');
+ const out=await readFile(new URL('../src/SoundOut.jsx',import.meta.url),'utf8');
+ // Nate's card carries the picture, the Japanese and the mouths — and no romaji, no notes,
+ // and no sounding-out line to read.
+ assert.match(page,/<span className="phrase-picture"/);
+ assert.match(page,/mode==='nate'/);
+ assert.match(page,/<SoundOut phrase=\{phrase\}\/>/);
+ const young=page.slice(page.indexOf('phrase-card young'),page.indexOf(':<div className="phrase-card"'));
+ assert.doesNotMatch(young,/SayIt|phrase\.note|romaji/,'nothing on his card has to be read');
+ // A tapped mouth says that syllable on its own and slowly; the big button says the lot.
+ assert.match(out,/read\(`chunk-\$\{phrase\.id\}-\$\{bubble\.index\}`,bubble\.text,'en-AU',SLOW_RATE\)/);
+ // Where somebody has recorded the phrase, that is what "all together" plays.
+ assert.match(out,/clip\s*\?<ClipButton clip=\{clip\} label="All together"\/>/);
+ // The daily pop-up is where he actually meets a phrase, so it carries the picture too.
+ assert.match(page,/\{phrase\.icon&&<span className="phrase-picture small"/);
+ // And he starts on his own mode rather than on a list of fifty-three written phrases.
+ assert.match(page,/const suits=user\?\.name==='Nate'\?'nate':'list'/);
+ assert.match(page,/localStorage\.getItem\('japan\.phrasemode'\)\|\|suits/,'and anybody can change it');
 });
