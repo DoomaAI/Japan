@@ -115,6 +115,7 @@ export default function EmailInbox({state,config,busy,mutate,request,accept,noti
   <p className="eyebrow">SENT IN FROM YOUR EMAIL</p>
   <h1>Forwarded email</h1>
   {!config?.emailInbox&&<p className="callout"><AlertCircle size={18}/> Email forwarding is not switched on yet. Set <code>EMAIL_INBOX_SECRET</code> and <code>EMAIL_INBOX_SENDERS</code> in the deployment and point your mail provider at <code>/api/email-in</code>.</p>}
+  {config?.emailInbox&&config?.emailInboxOpen&&<p className="inbox-waiting"><Mail size={15}/> Anything sent to the trip address is accepted, whoever it says it is from. Spam is still turned away, and nothing reaches the trip until you file it.</p>}
   {!items.length
    ?<div className="empty"><Mail size={26}/><h3>Nothing waiting</h3><p>Forward a booking confirmation to the trip address and it appears here, read into English, for you to file.</p></div>
    :<>
