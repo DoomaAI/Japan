@@ -62,3 +62,13 @@ export function soundCheckLines(facts){
   ['Reported fault',facts.error||'none']
  ];
 }
+// Japanese does not stress a syllable the way English does — saying ありがとう with a thump on
+// one part is exactly the accent we are trying to avoid. What it does have is length: a long
+// vowel is held for two beats, and a double consonant is a beat of silence. Getting that wrong
+// changes the word (おばさん aunt, おばあさん grandmother), so that is what is marked.
+export function phonicChunks(say,hold){
+ const marks=new Set((Array.isArray(hold)?hold:hold?[hold]:[]).map(h=>String(h).toLowerCase()));
+ return String(say||'').split(/([^a-z']+)/i).filter(p=>p!=='')
+  .map(text=>({text,hold:marks.has(text.toLowerCase())}));
+}
+export const holdsOf=item=>Array.isArray(item?.hold)?item.hold:item?.hold?[item.hold]:[];

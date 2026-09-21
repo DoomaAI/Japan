@@ -2046,3 +2046,207 @@ test('what is near here answers from a position or a planned place, and adds str
  const nearbySource=await readFile(new URL('../server/nearby.mjs',import.meta.url),'utf8');
  assert.ok(!/state\.(steps|proposals|documents|journal)\s*=/.test(nearbySource),'a lookup writes nothing into the trip');
 });
+
+test('the recipe book is complete, sensible and reachable from the starting six',async()=>{
+ const {ELEMENTS,RECIPES,SIGHTS,elementById,startingElements,combine,discoverable}=await import('../src/kana-data.js');
+ const ids=ELEMENTS.map(e=>e.id);
+ assert.equal(new Set(ids).size,ids.length,'no element defined twice');
+ for(const e of ELEMENTS)assert.ok(e.icon&&e.en&&e.ja,`${e.id} is missing a picture or a name`);
+ // A recipe that makes one of its own ingredients is a dud, and every id has to exist.
+ for(const [a,b,c] of RECIPES){
+  for(const id of [a,b,c])assert.ok(elementById(id),`${id} is in a recipe but not an element`);
+  assert.ok(c!==a&&c!==b,`${a}+${b} makes something it is already made of`);
+ }
+ assert.equal(new Set(RECIPES.map(r=>r.slice(0,2).sort().join('+'))).size,RECIPES.length,'the same pair cannot make two things');
+ // Order does not matter, and a pair with no recipe says so rather than inventing one.
+ assert.equal(combine('rice','water'),'cookedrice');
+ assert.equal(combine('water','rice'),'cookedrice');
+ assert.equal(combine('fish','fish'),null);
+ assert.equal(combine('nonsense','water'),null);
+ // Everything can actually be reached by starting with what you are given.
+ const have=new Set(startingElements());
+ assert.equal(have.size,8);
+ for(let pass=0;pass<ELEMENTS.length;pass++)
+  for(const [a,b,c] of RECIPES)if(have.has(a)&&have.has(b))have.add(c);
+ assert.deepEqual(ids.filter(id=>!have.has(id)),[],'every element must be makeable');
+ assert.equal(discoverable().length,ids.length-startingElements().length);
+ // And ramen is where a child would expect it to be.
+ assert.equal(combine(combine('wheat','water'),combine(combine('bean','fire'),'water')),'ramen');
+ // The picture pairs are real things with both names.
+ assert.ok(SIGHTS.length>=16);
+ assert.equal(new Set(SIGHTS.map(s=>s.id)).size,SIGHTS.length);
+ for(const s of SIGHTS)assert.ok(s.icon&&s.en&&/[぀-ヿ]/.test(s.ja),`${s.id} needs a picture and a Japanese name`);
+});
+
+test('the morning reminder is about the jumper, not the meteorology',async()=>{
+ const {morningNeeds,isMorning}=await import('../src/weather-data.js');
+ // Rain, cold and heat each earn a line; a pleasant day earns silence.
+ assert.deepEqual(morningNeeds({code:61,max:19,min:15,rain:80}).needs.map(n=>n.id),['umbrella']);
+ assert.deepEqual(morningNeeds({code:0,max:14,min:7,rain:0}).needs.map(n=>n.id),['jumper']);
+ assert.match(morningNeeds({code:0,max:14,min:7,rain:0}).summary,/Nate/,'the five-year-old is the one who feels it');
+ assert.deepEqual(morningNeeds({code:63,max:15,min:9,rain:90}).needs.map(n=>n.id),['umbrella','jumper'],'both, when it is both');
+ assert.deepEqual(morningNeeds({code:0,max:33,min:26,rain:0}).needs.map(n=>n.id),['water']);
+ assert.equal(morningNeeds({code:0,max:24,min:18,rain:10}),null,'a fine day says nothing');
+ assert.equal(morningNeeds({code:2,max:22,min:16,rain:0}),null);
+ assert.equal(morningNeeds(null),null);
+ // A high chance of rain counts even when the code is not itself wet.
+ assert.ok(morningNeeds({code:2,max:22,min:18,rain:60}).needs.some(n=>n.id==='umbrella'));
+ // And it is a morning reminder, so it is done by the middle of the day.
+ assert.equal(isMorning('06:30'),true);
+ assert.equal(isMorning('10:59'),true);
+ assert.equal(isMorning('11:00'),false);
+ assert.equal(isMorning('18:00'),false);
+ assert.equal(isMorning(''),false);
+});
+
+test('what is marked in the phonics is length, and every mark lands on a real chunk',async()=>{
+ const {phonicChunks,holdsOf}=await import('../src/speech.js');
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ const {FOOD,ORDERING,SAY_TIP}=await import('../src/food-data.js');
+ const everything=[...ALL_PHRASES(),...FOOD,...ORDERING];
+ // A mark that does not match a chunk would simply never show, and nobody would notice.
+ let marked=0;
+ for(const item of everything){
+  const holds=holdsOf(item);if(!holds.length)continue;
+  marked++;
+  const chunks=phonicChunks(item.say,item.hold);
+  for(const h of holds)assert.ok(chunks.some(c=>c.hold&&c.text.toLowerCase()===h.toLowerCase()),
+   `${item.id||item.en}: "${h}" is not a chunk of "${item.say}"`);
+  assert.equal(chunks.filter(c=>c.hold).length>=holds.length,true);
+ }
+ assert.ok(marked>=35,`only ${marked} entries carry a length mark`);
+ // Only the ones that need it: a mark is there because the Japanese has a long vowel or a
+ // double consonant, and everything without one is left alone.
+ for(const item of everything){
+  const needs=/[āīūēō]/.test(item.romaji||'')||/([kstpg])\1|tch/.test(item.romaji||'');
+  if(!needs)assert.deepEqual(holdsOf(item),[],`${item.id||item.en} is marked but has nothing to hold`);
+ }
+ // The rendering keeps the word intact — the separators are still there.
+ const chunks=phonicChunks('oh-ha-yoh go-zye-mass','yoh');
+ assert.equal(chunks.map(c=>c.text).join(''),'oh-ha-yoh go-zye-mass');
+ assert.deepEqual(chunks.filter(c=>c.hold).map(c=>c.text),['yoh']);
+ // The same chunk twice is marked twice — kyūkyūsha is long in both halves.
+ assert.equal(phonicChunks('kyoo-kyoo-sha','kyoo').filter(c=>c.hold).length,2);
+ assert.deepEqual(phonicChunks('kon-nee-chee-wa').filter(c=>c.hold),[]);
+ assert.deepEqual(phonicChunks('',null),[]);
+ // And the screen explains what the mark means rather than leaving it to be guessed.
+ assert.match(SAY_TIP,/two beats/);
+ assert.match(SAY_TIP,/does not stress/,'the warning against an English thump stays');
+});
+
+test('a document is read as a document, a photo as a photo, and neither is trusted blindly',async()=>{
+ const {createServer}=await import('node:http');
+ let seen=null;
+ const answer={readable:true,language:'Japanese',kind:'Hotel letter',title:'Luggage forwarding',
+  summary:['They will send the bags to Kyoto on the 24th.','¥2,400, paid at the desk.'],
+  translation:'荷物転送のご案内\n---\nLuggage forwarding\nCollection: 24 September, 08:00',
+  actions:[{what:'Leave the bags at reception',when:'24 September, by 08:00'}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{seen=JSON.parse(body);res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'end_turn',
+    usage:{input_tokens:2200,output_tokens:800},content:[{type:'text',text:JSON.stringify(answer)}]}));});
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const key=process.env.ANTHROPIC_API_KEY,url=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {readDocument,readerReady}=await import('../server/document-reader.mjs');
+  assert.equal(readerReady(),true);
+  const data=Buffer.from('a page of japanese').toString('base64');
+  // A PDF is sent as a document block; a photo as an image block. Getting this wrong is a 400.
+  const out=await readDocument({file:data,mediaType:'application/pdf',note:'  What do we owe?  '});
+  assert.equal(seen.messages[0].content[0].type,'document');
+  assert.equal(seen.messages[0].content[0].source.media_type,'application/pdf');
+  assert.match(seen.messages[0].content[1].text,/They also asked: What do we owe\?$/,'the question is trimmed and passed on');
+  await readDocument({file:data,mediaType:'image/jpeg'});
+  assert.equal(seen.messages[0].content[0].type,'image');
+  assert.equal(seen.messages[0].content[1].text,'Read this and tell them what it says.');
+  // The answer comes back whole, with what it costs to have asked.
+  assert.equal(out.title,'Luggage forwarding');
+  assert.equal(out.actions[0].when,'24 September, by 08:00');
+  assert.equal(out.usage.input,2200);
+  assert.equal(seen.output_config.format.type,'json_schema');
+  assert.deepEqual(seen.output_config.format.schema.required,['readable','kind','title','summary','translation','actions','language']);
+  assert.match(seen.system,/Keep numbers, dates, times/);
+  assert.match(seen.system,/Never guess at a number you cannot see/);
+  assert.match(seen.system,/not advising/,'it reads the document, it does not advise on it');
+  // What it refuses to send at all.
+  await assert.rejects(()=>readDocument({file:'',mediaType:'image/jpeg'}),/Choose a photo or a PDF/);
+  await assert.rejects(()=>readDocument({file:'not base64!!',mediaType:'image/jpeg'}),/could not be read/);
+  await assert.rejects(()=>readDocument({file:data,mediaType:'image/gif'}),/JPEG, PNG or WebP photo, or a PDF/);
+  await assert.rejects(()=>readDocument({file:'A'.repeat(4_500_001),mediaType:'image/jpeg'}),/too large/);
+  await assert.rejects(()=>readDocument({file:data,mediaType:'image/jpeg',note:'x'.repeat(501)}),/note short/);
+ }finally{
+  if(key===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=key;
+  if(url===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=url;
+  await new Promise(r=>upstream.close(r));
+ }
+});
+
+test('a photograph reaches the reader as base64, not as the object around it',async()=>{
+ const source=await readFile(new URL('../src/DocumentReader.jsx',import.meta.url),'utf8');
+ const menu=await readFile(new URL('../src/MenuReader.jsx',import.meta.url),'utf8');
+ // shrinkPhoto returns {image,mediaType,preview}. Sending the whole object was the
+ // difference between a photograph working and being refused as "choose a photo or a PDF".
+ assert.match(menu,/return \{image:url\.slice/,'shrinkPhoto still hands back an object');
+ assert.match(source,/\(await shrinkPhoto\(file\)\)\.image/,'the base64 is taken out of it');
+ assert.doesNotMatch(source,/await shrinkPhoto\(file\),/);
+ // An iPhone stores its photos as HEIC, so a picker that only offers JPEG is no use on the
+ // phone this app is for.
+ const accepts=[...source.matchAll(/accept="([^"]+)"/g)].map(m=>m[1]);
+ assert.equal(accepts.length,2);
+ assert.ok(accepts.every(a=>a.includes('image/*')),`a picker still refuses an iPhone photo: ${accepts}`);
+ assert.ok(accepts.some(a=>a.includes('application/pdf')),'and one of them takes a PDF');
+ assert.ok(accepts.some((a,i)=>!source.split('accept="')[i+1].startsWith('image/*" capture')===false),'one opens the camera');
+ // The server accepts exactly the types the phone can produce.
+ const reader=await readFile(new URL('../server/document-reader.mjs',import.meta.url),'utf8');
+ assert.match(reader,/IMAGE_TYPES=\['image\/jpeg','image\/png','image\/webp'\]/,'anything else is converted to JPEG on the phone first');
+});
+
+test('the stable promotes on a match, and a bout can be lost by anyone',async()=>{
+ const {SUMO_RANKS,rankAt,TOP_RANK,emptyStable,recruit,promote,bestRank,stableFull,oddsOf,bout,challengerFor,STABLE_SIZE}=await import('../src/kana-data.js');
+ // The ladder is the real one, in order, with both names.
+ SUMO_RANKS.forEach((r,i)=>{assert.equal(r.level,i+1);assert.ok(r.icon&&r.en&&r.ja&&r.romaji);});
+ assert.equal(SUMO_RANKS.at(-1).romaji,'yokozuna');
+ assert.equal(rankAt(99),null);
+ // A recruit lands on a free square, never on an occupied one, and never on a full stable.
+ let stable=emptyStable();
+ assert.equal(stable.length,STABLE_SIZE);
+ stable=recruit(stable,3);
+ assert.equal(stable.filter(Boolean).length,1);
+ assert.ok([1,2].includes(stable.find(Boolean)),'and starts at or near the bottom');
+ assert.equal(recruit(Array(STABLE_SIZE).fill(4),1),null,'a full stable takes nobody');
+ // Two of the same become one of the next, and the other square is emptied.
+ const pair=[2,2,0,0];
+ const up=promote(pair,0,1);
+ assert.deepEqual(up.stable,[0,3,0,0]);
+ assert.equal(up.level,3);
+ // Everything that is not a match is refused rather than fudged.
+ assert.equal(promote([1,2,0,0],0,1),null,'different ranks');
+ assert.equal(promote([1,0,0,0],0,1),null,'an empty square');
+ assert.equal(promote([1,1,0,0],0,0),null,'the same square twice');
+ assert.equal(promote([TOP_RANK,TOP_RANK,0,0],0,1),null,'there is nothing above a yokozuna');
+ assert.equal(bestRank([0,3,7,2]),7);
+ assert.equal(bestRank(emptyStable()),0);
+ assert.equal(stableFull([1,1]),true);
+ assert.equal(stableFull([1,0]),false);
+ // Rank decides a bout, but never decides it entirely — an upset stays possible both ways.
+ assert.equal(oddsOf(5,5),0.5);
+ assert.ok(oddsOf(9,2)<=0.95&&oddsOf(9,2)>=0.9,'a yokozuna is not certain');
+ assert.ok(oddsOf(2,9)>=0.05,'and a beginner is not hopeless');
+ assert.equal(bout(5,4,0).won,true);
+ assert.equal(bout(5,4,0.999).won,false);
+ assert.equal(bout(5,4,0).reward,40,'beating a higher rank is worth more');
+ assert.equal(bout(5,1,0).reward,10);
+ assert.equal(bout(5,4,0.999).reward,0);
+ assert.equal(bout(0,4,0.1),null);
+ // The challenger tracks your best rather than running away from it.
+ for(const best of [1,3,6,10])
+  for(const cleared of [0,1,2,3]){
+   const c=challengerFor(best,cleared);
+   assert.ok(c>=1&&c<=TOP_RANK,`challenger ${c} is off the ladder`);
+   assert.ok(Math.abs(c-best)<=1,'and is somewhere near you');
+  }
+});
