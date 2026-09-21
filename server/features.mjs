@@ -493,6 +493,52 @@ export function extraOperation(state,op,user,fail,now){
    if(op.done&&found.todoId){const job=state.todos.find(t=>t.id===found.todoId);if(job&&!job.doneAt){job.doneAt=at;job.doneBy=user.name;}}
    return {summary:null,important:false,title:found.title};
   }
+  if(op.type==='spendRequest'){
+   // The only way a boy's balance moves in his favour. He asks; a parent answers.
+   boy(op.person||user.name);
+   const person=op.person||user.name,amount=op.yen;
+   yen(amount,'how much you are asking for');if(!amount)fail('Ask for an amount.');
+   const reason=(op.reason||'').trim();requireText(reason,500,'reason');
+   if(purse.requests.filter(r=>r.person===person&&r.status==='open').length>=10)
+    fail('There are ten asks waiting on an answer already. Wait for one of those first.');
+   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+   purse.requests=[...purse.requests,{id:randomUUID(),person,yen:amount,reason,at,by:user.name,
+    status:'open',decidedBy:null,decidedAt:null,approvedYen:null,reply:''}];
+   return {summary:`${person} is asking for \u00a5${amount.toLocaleString('en-AU')} more spending money${reason?` \u00b7 ${reason}`:''}`,important:true,title:`${person}\u2019s spending money`};
+  }
+  if(op.type==='spendRequestDecide'){
+   if(!parent)fail('Mum or Dad answers this one.',403);
+   const ask=purse.requests.find(r=>r.id===op.id);if(!ask)fail('That ask is no longer there.',404);
+   if(ask.status!=='open')fail('That one has already been answered.');
+   if(typeof op.approve!=='boolean')fail('Say yes or no.');
+   const reply=(op.reply||'').trim();requireText(reply,500,'reply');
+   // A parent can say yes to a different figure, because "you can have half of that" is a real
+   // answer. Left out, it is the amount that was asked for.
+   const amount=op.approve?(op.yen??ask.yen):null;
+   if(op.approve){yen(amount,'how much you are approving');if(!amount)fail('Approve an amount, or say no.');}
+   Object.assign(ask,{status:op.approve?'approved':'declined',decidedBy:user.name,decidedAt:now,
+    approvedYen:amount,reply});
+   // Saying yes is what actually moves the money, so there is never an approval with no top-up
+   // behind it, and the top-up carries the approval rather than looking like a bare gift.
+   if(op.approve){
+    const topUp={id:randomUUID(),person:ask.person,yen:amount,note:reply||ask.reason,at:now,by:user.name,
+     approvedBy:user.name,requestId:ask.id};
+    purse.topUps=[...purse.topUps,topUp];
+    ask.topUpId=topUp.id;
+   }
+   return {summary:op.approve
+    ?`${user.name} approved \u00a5${amount.toLocaleString('en-AU')} more spending money for ${ask.person}`
+    :`${user.name} said not this time to ${ask.person}\u2019s ask for \u00a5${ask.yen.toLocaleString('en-AU')}`,
+    important:true,title:`${ask.person}\u2019s spending money`};
+  }
+  if(op.type==='spendRequestCancel'){
+   const ask=purse.requests.find(r=>r.id===op.id);if(!ask)fail('That ask is no longer there.',404);
+   boy(ask.person);
+   // Once it has been answered it is a record of what happened, and a record is not undone.
+   if(ask.status!=='open')fail('That one has been answered already.');
+   purse.requests=purse.requests.filter(r=>r.id!==ask.id);
+   return {summary:null,important:false,title:`${ask.person}\u2019s spending money`};
+  }
   if(op.type==='spendRemove'){
    const found=item();
    purse.items=purse.items.filter(i=>i.id!==found.id);

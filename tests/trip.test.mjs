@@ -3722,3 +3722,115 @@ test('spending money has its own screen, and a thing to buy can be handed to it'
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  for(const rule of ['.purse-meter{','.purse-spent{','.purse-planned{'])assert.ok(css.includes(rule),`${rule} is missing`);
 });
+
+test('a boy asks for more spending money and a parent is the one who approves it',async()=>{
+ const {purse,requestsFor,requestedFor,openRequests,topUpsFor,REQUEST_STATES}=await import('../src/trip-features.js');
+ const day=seed.days[2].date,boston={name:'Boston',role:'child'};
+ let state=applyOperation(seed,{type:'spendTopUp',person:'Nate',yen:1000},parent);
+ // He cannot pay himself, so asking is the only way the balance moves in his favour.
+ assert.throws(()=>applyOperation(state,{type:'spendTopUp',person:'Nate',yen:2000},child),e=>e.status===403);
+ state=applyOperation(state,{type:'spendRequest',person:'Nate',yen:2000,reason:'The Beyblade is ¥2,400 and I have ¥1,000'},child);
+ const ask=requestsFor(state,'Nate')[0];
+ assert.equal(ask.status,'open');assert.equal(ask.by,'Nate');assert.equal(ask.approvedYen,null);
+ assert.equal(ask.decidedBy,null);
+ // Asking does not move any money: that is the whole point of asking.
+ assert.equal(purse(state,'Nate',day).paidIn,1000);
+ assert.equal(requestedFor(state,'Nate'),2000);
+ assert.deepEqual(openRequests(state).map(r=>r.person),['Nate']);
+ // One boy cannot ask out of the other's purse, and cannot answer his own ask.
+ assert.throws(()=>applyOperation(state,{type:'spendRequest',person:'Boston',yen:500},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true},child),e=>e.status===403);
+ // Yes to a different figure is a real answer, and the money moves the moment it is given.
+ const yes=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true,yen:1400,reply:'Half of it, and that is the lot until Kyoto.'},parent);
+ const settled=requestsFor(yes,'Nate')[0];
+ assert.equal(settled.status,'approved');assert.equal(settled.approvedYen,1400);
+ assert.equal(settled.decidedBy,'Damien');assert.ok(settled.decidedAt);
+ assert.equal(purse(yes,'Nate',day).paidIn,2400,'approving is what puts the money in');
+ assert.equal(requestedFor(yes,'Nate'),0,'and it is no longer waiting on anybody');
+ // The top-up it created says a parent approved it rather than looking like a bare gift.
+ const paid=topUpsFor(yes,'Nate').find(t=>t.requestId===ask.id);
+ assert.equal(paid.yen,1400);assert.equal(paid.approvedBy,'Damien');
+ assert.equal(settled.topUpId,paid.id);
+ // Left out, the approved amount is simply what was asked for.
+ const full=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true},parent);
+ assert.equal(purse(full,'Nate',day).paidIn,3000);
+ // No is an answer too, and it moves nothing.
+ const no=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:false,reply:'Not this time.'},parent);
+ assert.equal(requestsFor(no,'Nate')[0].status,'declined');
+ assert.equal(purse(no,'Nate',day).paidIn,1000);
+ assert.equal(topUpsFor(no,'Nate').length,1,'a no leaves no money behind it');
+ // An answer is a record of what happened, so it is answered once and never taken back.
+ for(const already of [yes,no])
+  assert.throws(()=>applyOperation(already,{type:'spendRequestDecide',id:ask.id,approve:true},parent),/already been answered/);
+ assert.throws(()=>applyOperation(yes,{type:'spendRequestCancel',id:ask.id},child),/answered already/);
+ // While it is still waiting, the boy who asked can take it back — and only him.
+ assert.throws(()=>applyOperation(state,{type:'spendRequestCancel',id:ask.id},boston),e=>e.status===403);
+ assert.equal(requestsFor(applyOperation(state,{type:'spendRequestCancel',id:ask.id},child),'Nate').length,0);
+ for(const bad of [{type:'spendRequest',person:'Nate',yen:0},{type:'spendRequest',person:'Nate',yen:-5},
+  {type:'spendRequest',person:'Nate',yen:1.5},{type:'spendRequest',person:'Lauren',yen:500},
+  {type:'spendRequest',person:'Nate',yen:500,reason:'r'.repeat(501)},
+  {type:'spendRequestDecide',id:ask.id,approve:'yes'},{type:'spendRequestDecide',id:'nope',approve:true},
+  {type:'spendRequestDecide',id:ask.id,approve:true,yen:0},{type:'spendRequestCancel',id:'nope'}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,52)} should be refused`);
+ // Ten unanswered asks is enough; a boy cannot bury a parent in them.
+ let many=state;
+ for(let i=0;i<9;i++)many=applyOperation(many,{type:'spendRequest',person:'Nate',yen:100},child);
+ assert.throws(()=>applyOperation(many,{type:'spendRequest',person:'Nate',yen:100},child),/ten asks waiting/);
+ // Both the ask and the answer are family news, which is exactly what the updates feed is for.
+ assert.ok(state.alerts.some(a=>/Nate is asking for ¥2,000/.test(a.summary||'')));
+ assert.ok(yes.alerts.some(a=>/Damien approved ¥1,400 more spending money for Nate/.test(a.summary||'')));
+ assert.ok(no.alerts.some(a=>/said not this time/.test(a.summary||'')));
+ assert.deepEqual(REQUEST_STATES.map(([id])=>id),['open','approved','declined']);
+});
+
+test('an ask made with no signal waits on the phone, but answering it does not',async()=>{
+ const {ensureFeatures,pendingProgress,requestsFor,requestedFor,purse}=await import('../src/trip-features.js');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ // A question asked on a train with no signal is still a fair question whenever it lands.
+ assert.ok(list.includes('spendRequest'),'asking should survive with no signal');
+ // Saying yes moves money, so it needs the latest plan behind it.
+ for(const op of ['spendRequestDecide','spendRequestCancel'])
+  assert.ok(!list.includes(op),`${op} changes the shared purse`);
+ const day=seed.days[1].date,at='2026-09-19T02:00:00.000Z';
+ const state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'spendTopUp',person:'Boston',yen:500},parent);
+ const preview=pendingProgress(state,[{operation:{type:'spendRequest',operationId:'q1',person:'Boston',yen:1500,reason:'A Gunpla kit',by:'Boston',at}}]);
+ const ask=requestsFor(preview,'Boston')[0];
+ assert.equal(ask.yen,1500);assert.equal(ask.status,'open');assert.ok(ask.pending);
+ assert.equal(requestedFor(preview,'Boston'),1500);
+ // It is a question, not money: the purse does not grow just because it was asked.
+ assert.equal(purse(preview,'Boston',day).paidIn,500);
+ assert.equal(requestsFor(state,'Boston').length,0,'and the saved trip is untouched until it syncs');
+});
+
+test('the asking and approving is on the page, and only a parent sees the answer buttons',async()=>{
+ const page=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ assert.match(page,/type:'spendRequest'/,'a boy can ask');
+ assert.match(page,/type:'spendRequestDecide'/,'and a parent can answer');
+ // The Yes button is inside a parent-only branch; a boy only ever gets to take his ask back.
+ assert.match(page,/\{open&&!answering&&<div className="ask-actions">/);
+ assert.match(page,/\{parent&&<>\n    <button className="primary" disabled=\{busy\} onClick=\{\(\)=>setAnswering\('yes'\)\}/);
+ assert.match(page,/\{mine&&!parent&&<button disabled=\{busy\} onClick=\{\(\)=>\{if\(confirm\('Take that ask back\?'\)\)/);
+ // Approving a different figure has to be offered, or "approved" would read against a number
+ // the boy never actually got.
+ assert.match(page,/Approve how much, in yen\?/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ for(const rule of ['.ask-row{','.ask-row.open{','.ask-dot{'])assert.ok(css.includes(rule),`${rule} is missing`);
+});
+
+test('a part-approval reads as a part-approval, and a generous one does not',async()=>{
+ const page=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ // Approving ¥400 of an ask for ¥600 is "¥400 of it". Approving ¥1,400 of an ask for ¥600 is
+ // not part of anything, so it must not claim to be.
+ assert.match(page,/approved \$\{both\(ask\.approvedYen,rate\)\}\$\{ask\.approvedYen<ask\.yen\?' of it':''\}/);
+ // And the server lets a parent name any figure, because both answers are real ones.
+ const {purse,requestsFor}=await import('../src/trip-features.js');
+ const day=seed.days[1].date;
+ let state=applyOperation(seed,{type:'spendRequest',person:'Nate',yen:600,reason:'A Gachapon go'},child);
+ const ask=requestsFor(state,'Nate')[0];
+ const less=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true,yen:400},parent);
+ const more=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true,yen:1400},parent);
+ assert.equal(purse(less,'Nate',day).paidIn,400);
+ assert.equal(purse(more,'Nate',day).paidIn,1400);
+ assert.equal(requestsFor(less,'Nate')[0].yen,600,'what was asked for is not rewritten by the answer');
+});
