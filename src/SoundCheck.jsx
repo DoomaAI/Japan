@@ -35,7 +35,8 @@ export default function SoundCheck(){
  return <details className="sound-check">
   <summary><Stethoscope size={15}/> Sound check — no sound when you tap Hear it?</summary>
   <ol>
-   <li>On an iPhone, look at the <strong>switch above the volume buttons</strong>. If you can see orange, the phone is on silent and no app can talk its way past it.</li>
+   <li><strong>Headphones or AirPods always work</strong>, silent switch or not. That is the sure way.</li>
+   <li>Otherwise, on an iPhone look at the <strong>switch above the volume buttons</strong>. If you can see orange, the phone is on silent.</li>
    <li>Turn the volume up with the phone unlocked and this page open.</li>
    <li>Tap the button below. It says <span lang="ja">こんにちは</span> and then reports what the phone actually did.</li>
   </ol>

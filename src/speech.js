@@ -26,16 +26,26 @@ export const speechKey=(id,speed)=>`${id}|${speed}`;
 export const needsSettle=synth=>!!(synth&&(synth.speaking||synth.pending));
 // Stopping one phrase to start another is not a failure worth telling anyone about.
 export const isRealFailure=error=>!!error&&!['interrupted','canceled','cancelled'].includes(String(error));
-// iOS 16.4 and later lets a page say what kind of audio it is making. 'playback' is the one
-// that keeps playing with the ring/silent switch on, which is the usual reason a phone that
-// looks like it is speaking makes no sound at all.
+// iOS 16.4 and later lets a page say what kind of audio it is making. Safari starts every
+// page as 'ambient', which is the category the ring/silent switch mutes — that is why a phone
+// that reports it is speaking can still make no sound. 'playback' is the media category, and
+// it is not muted by the switch.
+//
+// It has to be claimed ONCE, early, and then left alone: changing the type part-way through a
+// session is known to confuse iOS into playing nothing at all. So this remembers that it has
+// run and does nothing on every call after the first.
+let claimed=null;
 export function claimPlayback(nav=typeof navigator!=='undefined'?navigator:null){
+ if(claimed!==null)return claimed;
  try{
-  if(!nav?.audioSession)return 'not supported';
-  if(nav.audioSession.type!=='playback')nav.audioSession.type='playback';
-  return nav.audioSession.type;
- }catch{return 'refused';}
+  if(!nav?.audioSession)return claimed='not supported';
+  nav.audioSession.type='playback';
+  return claimed=nav.audioSession.type;
+ }catch{return claimed='refused';}
 }
+// Only for tests, which need each case from a clean start.
+export const resetPlaybackClaim=()=>{claimed=null;};
+export const playbackClaim=()=>claimed;
 // Safari will ignore the very first thing a page tries to say. Spending that on a silent
 // utterance means the first phrase anyone taps is the one they actually hear.
 export function warmUp(synth,Utterance){
@@ -72,3 +82,22 @@ export function phonicChunks(say,hold){
   .map(text=>({text,hold:marks.has(text.toLowerCase())}));
 }
 export const holdsOf=item=>Array.isArray(item?.hold)?item.hold:item?.hold?[item.hold]:[];
+// The lever for an iPhone too old for the Audio Session API (before iOS 16.4). Playing a
+// moment of silence through an <audio> element inside a real tap moves the page off the
+// ambient category, which is the one the ring/silent switch mutes. It is a nudge rather than
+// a guarantee — unlike claimPlayback there is nothing to read back — so it runs once, quietly,
+// and never reports success it cannot verify.
+const SILENCE='data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQQAAAAAAAAA';
+let nudged=false;
+export function nudgeOffAmbient(make=typeof Audio!=='undefined'?()=>new Audio(SILENCE):null){
+ if(nudged||!make)return false;
+ nudged=true;
+ try{
+  const el=make();
+  el.volume=0.01;
+  const played=el.play?.();
+  if(played?.catch)played.catch(()=>{});
+  return true;
+ }catch{return false;}
+}
+export const resetNudge=()=>{nudged=false;};

@@ -1149,9 +1149,19 @@ test('the sound check turns "nothing happened" into something to act on',async()
  assert.equal(read({})['Build'],'unknown');
  assert.deepEqual(describeVoices([{lang:'ja_JP',name:'K'},{lang:'en-US'}]),{count:2,japanese:['K'],state:'yes'});
  // The two iOS workarounds degrade quietly where the phone has never heard of them.
- assert.equal(claimPlayback(null),'not supported');
- assert.equal(claimPlayback({}),'not supported');
- assert.equal(claimPlayback({audioSession:{type:'auto'}}),'playback','it asks to be treated as playback');
+ const {resetPlaybackClaim,playbackClaim}=await import('../src/speech.js');
+ resetPlaybackClaim();assert.equal(claimPlayback(null),'not supported');
+ resetPlaybackClaim();assert.equal(claimPlayback({}),'not supported');
+ resetPlaybackClaim();
+ const phone={audioSession:{type:'auto'}};
+ assert.equal(claimPlayback(phone),'playback','Safari starts as ambient, which the switch mutes');
+ // Claimed once and then left alone: changing the type mid-session is what makes iOS play
+ // nothing at all, so every call after the first must be a no-op.
+ phone.audioSession.type='ambient';
+ assert.equal(claimPlayback(phone),'playback','the answer is remembered, not asked again');
+ assert.equal(phone.audioSession.type,'ambient','and the phone is not poked a second time');
+ assert.equal(playbackClaim(),'playback');
+ resetPlaybackClaim();
  assert.equal(warmUp(null,null),false);
  warmUp.done=false;
  let spoken=[];
@@ -1686,4 +1696,29 @@ test('the stable promotes on a match, and a bout can be lost by anyone',async()=
    assert.ok(c>=1&&c<=TOP_RANK,`challenger ${c} is off the ladder`);
    assert.ok(Math.abs(c-best)<=1,'and is somewhere near you');
   }
+test('the silent nudge fires once, inside a tap, and never claims more than it did',async()=>{
+ const {nudgeOffAmbient,resetNudge}=await import('../src/speech.js');
+ resetNudge();
+ const played=[];
+ const make=()=>{const el={volume:1,play(){played.push(this.volume);return Promise.resolve();}};return el;};
+ assert.equal(nudgeOffAmbient(make),true);
+ assert.equal(played.length,1,'a moment of silence, once');
+ assert.ok(played[0]<=0.01,'and inaudible');
+ assert.equal(nudgeOffAmbient(make),false,'never again in this session');
+ assert.equal(played.length,1);
+ // A phone with no Audio at all, and one that refuses to play, are both survivable.
+ resetNudge();assert.equal(nudgeOffAmbient(null),false);
+ resetNudge();assert.equal(nudgeOffAmbient(()=>{throw new Error('blocked');}),false);
+ resetNudge();
+ assert.equal(nudgeOffAmbient(()=>({volume:1,play(){return Promise.reject(new Error('gesture required'));}})),true,
+  'a rejected play is handled rather than thrown');
+});
+
+test('the session is claimed at the start, not before every phrase',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const speech=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ // Set once, early. Flipping the type part-way through is what makes iOS play nothing.
+ assert.match(main,/useEffect\(\(\)=>\{claimPlayback\(\);\},\[\]\)/,'claimed once when the app starts');
+ assert.doesNotMatch(speech,/claimPlayback\(\)/,'and never again from inside the speaking path');
+ assert.match(speech,/nudgeOffAmbient\(\)/,'the older-iPhone nudge still runs inside the tap');
 });
