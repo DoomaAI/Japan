@@ -2394,3 +2394,85 @@ test('sumo has a speed for everyone, and the pairs boards can be sized',async()=
  assert.match(source,/game:`sights-\$\{pairs\}`/);
  assert.match(source,/game:`kana-\$\{set\}-\$\{pairs\}`/);
 });
+
+test('photo of the day: one vote each, and a tie stays a tie',async()=>{
+ const {ensureFeatures,photosFor,photoVotesFor,photoOfTheDay}=await import('../src/trip-features.js');
+ const boston={name:'Boston',role:'child'};
+ let state=ensureFeatures(structuredClone(seed));
+ const day=seed.days[0].date,other=seed.days[1].date;
+ assert.deepEqual(state.photos,[]);
+ assert.equal(photoOfTheDay(state,day),null,'no photos, no winner');
+ state.photos=[
+  {id:'p1',by:'Nate',day,pathname:'photos/n/1.jpg',type:'image/jpeg',at:'2026-09-21T01:00:00Z',feedback:{score:7}},
+  {id:'p2',by:'Boston',day,pathname:'photos/b/2.jpg',type:'image/jpeg',at:'2026-09-21T02:00:00Z',feedback:{score:8}},
+  {id:'p3',by:'Boston',day:other,pathname:'photos/b/3.jpg',type:'image/jpeg',at:'2026-09-22T02:00:00Z',feedback:null}
+ ];
+ assert.deepEqual(photosFor(state,day).map(p=>p.id),['p2','p1'],'newest first, that day only');
+ assert.equal(photosFor(state).length,3);
+ // Nobody has voted yet, so there is no winner — not a winner by default.
+ assert.deepEqual(photoOfTheDay(state,day).winners,[]);
+ // One vote each, and changing your mind replaces it rather than adding one.
+ state=applyOperation(state,{type:'photoVote',person:'Nate',day,id:'p1'},child);
+ state=applyOperation(state,{type:'photoVote',person:'Nate',day,id:'p2'},child);
+ assert.deepEqual(photoVotesFor(state,day),{Nate:'p2'},'one vote, moved');
+ state=applyOperation(state,{type:'photoVote',person:'Boston',day,id:'p2'},boston);
+ assert.equal(photoOfTheDay(state,day).winners[0].id,'p2');
+ assert.equal(photoOfTheDay(state,day).votes,2);
+ // A tie is reported as a tie rather than resolved, because picking between brothers is worse.
+ const tied=applyOperation(state,{type:'photoVote',person:'Boston',day,id:'p1'},boston);
+ assert.deepEqual(photoOfTheDay(tied,day).winners.map(p=>p.id).sort(),['p1','p2']);
+ assert.equal(photoOfTheDay(tied,day).votes,1);
+ // A vote can be taken back.
+ const withdrawn=applyOperation(state,{type:'photoVote',person:'Nate',day,id:null},child);
+ assert.deepEqual(photoVotesFor(withdrawn,day),{Boston:'p2'});
+ // Your own vote only, a real photo, a real day.
+ assert.throws(()=>applyOperation(state,{type:'photoVote',person:'Boston',day,id:'p1'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'photoVote',person:'Nate',day,id:'nope'},child),e=>e.status===404);
+ assert.throws(()=>applyOperation(state,{type:'photoVote',person:'Nate',day,id:'p3'},child),e=>e.status===404,'a photo from another day is not on this ballot');
+ assert.throws(()=>applyOperation(state,{type:'photoVote',person:'Nate',day:'2099-01-01',id:'p1'},child),/trip day/);
+ // Removing a photo takes its votes with it rather than leaving them pointing at nothing.
+ const removed=applyOperation(state,{type:'photoRemove',id:'p2'},boston);
+ assert.deepEqual(removed.photos.map(p=>p.id),['p1','p3']);
+ assert.deepEqual(photoVotesFor(removed,day),{},'both votes for it are gone');
+ assert.throws(()=>applyOperation(state,{type:'photoRemove',id:'p2'},child),e=>e.status===403,'and only your own');
+ assert.deepEqual(applyOperation(state,{type:'photoRemove',id:'p1'},parent).photos.map(p=>p.id),['p2','p3'],'a parent can remove any');
+});
+
+test('the photo coach talks to the child, and never about who is in the picture',async()=>{
+ const {createServer}=await import('node:http');
+ let seen=null;
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{seen=JSON.parse(body);res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'end_turn',
+    usage:{input_tokens:900,output_tokens:200},content:[{type:'text',text:JSON.stringify({readable:true,title:'Deer at the gate',
+     subject:'A deer beside a torii gate',good:['You waited until the deer looked up.'],tip:'Next time crouch to its height and see what happens.',score:14})}]}));});
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const key=process.env.ANTHROPIC_API_KEY,url=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {coachPhoto,coachReady}=await import('../server/photo-coach.mjs');
+  assert.equal(coachReady(),true);
+  const data=Buffer.from('a photo').toString('base64');
+  const out=await coachPhoto({image:data,mediaType:'image/jpeg',age:5});
+  // The age reaches the prompt, because feedback for a five-year-old is not feedback for an adult.
+  assert.match(seen.system,/taken by a 5-year-old/);
+  assert.match(seen.system,/never guess who they are/i,'and it is told not to describe people');
+  assert.match(seen.system,/against what a child of this age could manage/);
+  assert.equal(seen.messages[0].content[0].type,'image');
+  // A score outside the scale is brought back onto it rather than shown as 14 out of 10.
+  assert.equal(out.score,10);
+  assert.equal(out.title,'Deer at the gate');
+  // An age nobody could be falls back rather than being passed on.
+  await coachPhoto({image:data,mediaType:'image/jpeg',age:99});
+  assert.match(seen.system,/taken by a 8-year-old/);
+  await assert.rejects(()=>coachPhoto({image:'',mediaType:'image/jpeg'}),/Choose a photo/);
+  await assert.rejects(()=>coachPhoto({image:data,mediaType:'image/gif'}),/JPEG, PNG or WebP/);
+ }finally{
+  if(key===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=key;
+  if(url===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=url;
+  await new Promise(r=>upstream.close(r));
+ }
+});

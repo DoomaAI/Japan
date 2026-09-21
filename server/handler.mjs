@@ -14,6 +14,7 @@ import {researchPlace,researchReady} from './research.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {nearbyPlaces,nearbyReady} from './nearby.mjs';
 import {readDocument,readerReady} from './document-reader.mjs';
+import {coachPhoto,coachReady} from './photo-coach.mjs';
 const json=(res,data,status=200)=>{res.statusCode=status;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));};
 async function body(req,max=1000000){if(req.body&&typeof req.body==='object')return req.body;let s='';for await(const c of req){s+=c;if(Buffer.byteLength(s)>max)throw new AppError('Request too large.',413);}try{return JSON.parse(s||'{}');}catch{throw new AppError('Invalid request.');}}
 const parent=u=>{if(u.role!=='parent')throw new AppError('A parent can do this.',403);};
@@ -27,13 +28,13 @@ export default async function handler(req,res){
  res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');
  try{
   const url=new URL(req.url,'http://localhost'),route=url.pathname.replace(/^\/api\/?/,'');
-  const post=req.method==='POST';let b=post?await body(req,['menu','read-document'].includes(route)?6000000:1000000):{};
+  const post=req.method==='POST';let b=post?await body(req,['menu','read-document','photo-feedback'].includes(route)?6000000:1000000):{};
   // Blob callbacks carry a signature verified by the SDK. They do not mutate itinerary data.
   if(route==='upload'&&post&&b.type==='blob.upload-completed'){
    const result=await handleUpload({body:b,request:req,onBeforeGenerateToken:async()=>{throw new Error('Not a token request');},onUploadCompleted:async()=>{}});return json(res,result);
   }
   if(post)checkOrigin(req);
-  if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),research:researchReady(),suggest:suggestReady(),nearby:nearbyReady()});
+  if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),nearby:nearbyReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -79,6 +80,38 @@ export default async function handler(req,res){
    parent(user);
    return json(res,await readDocument(b));
   }
+  // Feedback on a photograph. The boys ask for this themselves, so it is not parent-only.
+  if(route==='photo-feedback'&&post)return json(res,await coachPhoto(b));
+  // Recording the photo itself, once it is in storage.
+  if(route==='photo'&&post){
+   const current=await readTrip();
+   if(typeof b.pathname!=='string'||!b.pathname.startsWith(`photos/${user.id}/`)||b.pathname.includes('..'))throw new AppError('Invalid photo.');
+   if(!b.day||!current.state.days.some(d=>d.date===b.day))throw new AppError('Choose a trip day.');
+   if(b.title!==undefined&&(typeof b.title!=='string'||b.title.length>200))throw new AppError('Keep the title short.');
+   if(current.state.photos.filter(p=>p.by===user.name&&p.day===b.day).length>=12)throw new AppError('That is twelve photos for one day already. Remove one first.');
+   const blob=await head(b.pathname);
+   validateFile(blob.contentType,blob.size,'memory');
+   if(current.state.photos.some(p=>p.pathname===b.pathname))return json(res,visibleEnvelope(current,user));
+   const feedback=b.feedback&&typeof b.feedback==='object'?{
+    title:String(b.feedback.title||'').slice(0,200),
+    subject:String(b.feedback.subject||'').slice(0,200),
+    good:(Array.isArray(b.feedback.good)?b.feedback.good:[]).slice(0,3).map(g=>String(g).slice(0,300)),
+    tip:String(b.feedback.tip||'').slice(0,400),
+    score:Number.isInteger(b.feedback.score)?Math.max(1,Math.min(10,b.feedback.score)):null
+   }:null;
+   current.state.photos=[...current.state.photos,{id:randomUUID(),by:user.name,day:b.day,
+    title:(b.title||'').trim(),pathname:b.pathname,type:blob.contentType,size:blob.size,feedback,at:new Date().toISOString()}];
+   return json(res,visibleEnvelope(await writeTrip(current.state,current.revision),user));
+  }
+  if(route==='photo'&&req.method==='GET'){
+   const {state}=await readTrip();const shot=state.photos?.find(p=>p.id===url.searchParams.get('id')&&p.pathname);
+   if(!shot)throw new AppError('Photo not found.',404);
+   const result=await get(shot.pathname,{access:'private',useCache:false});
+   if(!result||!result.stream)throw new AppError('Photo unavailable.',404);
+   res.setHeader('Content-Type',shot.type);res.setHeader('Content-Disposition','inline');
+   const length=result.headers.get('content-length');if(length)res.setHeader('content-length',length);
+   const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
+  }
   if(route==='invites'&&req.method==='GET'){
    parent(user);if(localDemo())return json(res,{invites:[]});const db=await database();return json(res,{invites:await db`SELECT id,name,role,revoked,expires_at FROM japan_grants ORDER BY created_at`});
   }
@@ -99,11 +132,13 @@ export default async function handler(req,res){
   }
   if(route==='upload'&&post){
    // Everyone records their own voice notes; only a parent uploads documents and media.
-   if(!String(b.pathname||'').startsWith(`voice/${user.id}/`))parent(user);
+   const own=p=>String(p||'').startsWith(`voice/${user.id}/`)||String(p||'').startsWith(`photos/${user.id}/`);
+   if(!own(b.pathname))parent(user);
    if(localDemo())throw new AppError('Connect private Blob storage to upload documents.',503);
    const result=await handleUpload({body:b,request:req,onBeforeGenerateToken:async pathname=>{
-    const voice=pathname.startsWith(`voice/${user.id}/`);
-    if(pathname.includes('..')||!(voice||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
+    const voice=pathname.startsWith(`voice/${user.id}/`),photo=pathname.startsWith(`photos/${user.id}/`);
+    if(pathname.includes('..')||!(voice||photo||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
+    if(photo)return {allowedContentTypes:['image/jpeg','image/png','image/webp'],maximumSizeInBytes:25*1024*1024,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
     if(voice)return {allowedContentTypes:AUDIO_TYPES,maximumSizeInBytes:VOICE_MAX_BYTES,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
     parent(user);
     return {allowedContentTypes:FILE_TYPES,maximumSizeInBytes:100*1024*1024,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
