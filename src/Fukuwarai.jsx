@@ -1,5 +1,5 @@
 import React,{useState,useRef} from 'react';
-import {Trophy,RotateCcw,Eye} from 'lucide-react';
+import {Trophy,RotateCcw,Eye,EyeOff} from 'lucide-react';
 import {FACES,faceById,PARTS,targetFor,fukuwaraiScore,verdictOf,PERFECT} from './fukuwarai-data.js';
 import {bestScore} from './trip-features.js';
 const INK='#16383b';
@@ -39,9 +39,13 @@ const piece={
 };
 export default function Fukuwarai({user,state,mutate,busy}){
  const [faceId,setFaceId]=useState('otafuku');
- const [placed,setPlaced]=useState({}),[revealed,setRevealed]=useState(false);
+ // Three states, and they are the three a person is actually in: looking at the board, wearing
+ // the blindfold, and looking at what they have done. The middle one is the game.
+ const [phase,setPhase]=useState('look');
+ const [placed,setPlaced]=useState({});
  const board=useRef(null);
  const face=faceById(faceId);
+ const blind=phase==='blind',revealed=phase==='off';
  const done=PARTS.filter(p=>placed[p.id]).length;
  const next=PARTS[done]||null;
  const result=fukuwaraiScore(faceId,placed);
@@ -49,7 +53,7 @@ export default function Fukuwarai({user,state,mutate,busy}){
  // Where the finger landed, turned into a spot on the hundred-square. The board is square, so
  // one number does for both, and a tap on the very edge is still on the picture.
  function put(e){
-  if(!next||revealed)return;
+  if(!next||!blind)return;
   const box=board.current?.getBoundingClientRect();
   if(!box)return;
   const x=Math.max(0,Math.min(100,((e.clientX-box.left)/box.width)*100));
@@ -57,20 +61,24 @@ export default function Fukuwarai({user,state,mutate,busy}){
   setPlaced(p=>({...p,[next.id]:[x,y]}));
  }
  function reveal(){
-  setRevealed(true);
+  setPhase('off');
   mutate({type:'gameScore',person:user.name,game,score:Math.max(1,result.total)});
  }
- const again=(id=faceId)=>{setFaceId(id);setPlaced({});setRevealed(false);};
+ const again=(id=faceId)=>{setFaceId(id);setPlaced({});setPhase('look');};
  return <>
-  <p>Somebody hands you an eyebrow and you cannot see a thing. Put each piece where you think
-   it goes — <strong>nothing appears until the blindfold comes off</strong>, and there is no
-   going back. Then look at what you have done.</p>
+  <p>Look at the face. Then the blindfold goes on and <strong>the face goes with it</strong> —
+   somebody hands you an eyebrow and you put it where you remember the face being. Six pieces,
+   one at a time, no going back, and nothing to look at until it is all over.</p>
   <div className="segmented game-picker">{FACES.map(f=>
    <button key={f.id} className={faceId===f.id?'selected':''} onClick={()=>again(f.id)} lang="ja">{f.ja}</button>)}</div>
   <p><small>{face.who}</small></p>
-  <div className="fuku-board" ref={board} onPointerDown={put}>
-   <svg viewBox="0 0 100 100" role="img" aria-label={`${face.romaji}, a blank face`}>
-    {blank[faceId](face)}
+  <div className={`fuku-board${blind?' blind':''}`} ref={board} onPointerDown={put}>
+   <svg viewBox="0 0 100 100" role="img"
+    aria-label={blind?'The blindfold is on. Tap where you think the piece goes.'
+     :revealed?`${face.romaji}, with the pieces where you put them`:`${face.romaji}, a blank face`}>
+    {/* The blindfold takes the face with it, the way it does at a table: what is left is the
+        edge of the board, which you could feel with your other hand. */}
+    {!blind&&blank[faceId](face)}
     {/* Where it belongs, shown only once it is too late to matter. */}
     {revealed&&result.parts.map(p=>
      <circle key={`t-${p.id}`} cx={p.target[0]} cy={p.target[1]} r="3" fill="none"
@@ -79,7 +87,8 @@ export default function Fukuwarai({user,state,mutate,busy}){
      const spot=placed[part.id];
      if(!spot)return null;
      // Blindfolded, a piece leaves nothing but the knowledge that you put it somewhere. The
-     // numbered mark is there so a five-year-old can see his tap landed, and no more than that.
+     // numbered mark is the hand you can still feel where you last put it — it says a tap
+     // landed and roughly where, which is what you get at a table, and nothing more.
      return revealed
       ?<g key={part.id} transform={`translate(${spot[0]} ${spot[1]})`}>{piece[faceId][part.id]}</g>
       :<g key={part.id} transform={`translate(${spot[0]} ${spot[1]})`} opacity=".3">
@@ -88,7 +97,12 @@ export default function Fukuwarai({user,state,mutate,busy}){
     })}
    </svg>
   </div>
-  {revealed
+  {phase==='look'
+   ?<div className="fuku-ready">
+     <p>Have a good look at where everything goes. Once the blindfold is on, this is gone.</p>
+     <button className="primary" onClick={()=>setPhase('blind')}><EyeOff size={16}/> Blindfold on</button>
+    </div>
+   :revealed
    ?<>
      <p className="game-status"><Trophy size={16}/> {result.total} out of {PERFECT}. {verdictOf(result.total)}</p>
      <div className="ladder-grid notes fuku-marks">{result.parts.map(p=>
@@ -102,7 +116,7 @@ export default function Fukuwarai({user,state,mutate,busy}){
       <small lang="ja">{next.ja}</small><small>{done} of {PARTS.length} on</small></p>
     :<p className="game-status">All six on. Nobody has looked yet.</p>}
   <div className="row wrap game-actions">
-   {!revealed&&<button className="primary" disabled={!!next} onClick={reveal}><Eye size={16}/> Take the blindfold off</button>}
+   {blind&&<button className="primary" disabled={!!next} onClick={reveal}><Eye size={16}/> Take the blindfold off</button>}
    <button onClick={()=>again()}><RotateCcw size={16}/> Another go</button>
   </div>
   <p className="game-status">Your best on {face.romaji}: {bestScore(state,user.name,game)||'—'}</p>

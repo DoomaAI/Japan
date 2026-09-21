@@ -64,8 +64,20 @@ export function useReadAloud(){
  }
  return {supported,reading,read,problem,dismissProblem:()=>setProblem('')};
 }
-export function ReadAloudButton({id,text,reading,read}){
- return <button type="button" className="read-aloud" aria-label={reading===id?'Stop reading':'Read this mission aloud'} onClick={()=>read(id,text)}>{reading===id?<><Square size={15}/>Stop</>:<><Volume2 size={16}/>Read to me</>}</button>;
+export function ReadAloudButton({id,text,reading,read,what='this mission'}){
+ return <button type="button" className="read-aloud" aria-label={reading===id?'Stop reading':`Read ${what} aloud`} onClick={()=>read(id,text)}>{reading===id?<><Square size={15}/>Stop</>:<><Volume2 size={16}/>Read to me</>}</button>;
+}
+// The same thing for a page or a game, for somebody who cannot read the page it is on. What it
+// says is not the screen read back — the writing on screen is for whoever can read it, and
+// SPOKEN_RULES is the same thing said to a five-year-old. It is a little slower than the app
+// reads anything else, because instructions heard once have to land the first time.
+export function SpeakRules({id,text,label='How to play'}){
+ const {supported,reading,read}=useReadAloud();
+ if(!supported||!text)return null;
+ const going=reading===id;
+ return <button type="button" className={`speak-rules${going?' going':''}`}
+  aria-label={going?'Stop reading':`${label}, read aloud`} onClick={()=>read(id,text,'en-AU',0.8)}>
+  {going?<><Square size={15}/> Stop</>:<><Volume2 size={17}/> {label}</>}</button>;
 }
 export function Challenges({state,user,day,mutate,busy,initialId}){
  const {supported:canRead,reading,read}=useReadAloud();

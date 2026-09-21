@@ -5,6 +5,8 @@ import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-feat
 import SpotDifference from './SpotDifference.jsx';
 import Origami from './Origami.jsx';
 import {useKanaVoice} from './SayIt.jsx';
+import {SpeakRules} from './AdventurePages.jsx';
+import {gameRule} from './spoken-rules.js';
 import Karuta from './Karuta.jsx';
 import AnimalShogi from './AnimalShogi.jsx';
 import Fukuwarai from './Fukuwarai.jsx';
@@ -880,6 +882,8 @@ export default function Games(props){
    <button key={g.id} className={game===g.id?'selected':''} onClick={()=>setGame(g.id)}
     aria-label={ORIGINS[g.origin]?`${g.title} — ${ORIGINS[g.origin].tag.toLowerCase()}`:undefined}>{g.title}
     {ORIGINS[g.origin]&&<i className={`game-tag ${g.origin}`} aria-hidden="true"/>}</button>)}</div>
+  {/* Before anything else on the page, because the person who needs it cannot read the rest. */}
+  <SpeakRules id={`rules-${current.id}`} text={gameRule(current.id)} label={`How to play ${current.title}`}/>
   {origin&&<p className="game-origin">
    <b className={current.origin}>{origin.tag}</b>
    {current.ja&&<em lang="ja">{current.ja}</em>}

@@ -3186,6 +3186,48 @@ test('a game that really is Japanese says so, and one that only looks it says no
   assert.match(source,new RegExp(`id:'${g.id}'[\\s\\S]{0,600}?story:'`),`${g.title} must say why`);
 });
 
+test('every page and every game can be heard rather than read, in words a five-year-old follows',async()=>{
+ const {GAME_RULES,PAGE_RULES,gameRule,pageRule}=await import('../src/spoken-rules.js');
+ const {PAGES}=await import('../src/nav-data.js');
+ const games=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const ids=[...games.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:/g)].map(([,id,title])=>({id,title}));
+ // The one he presses is always the one nobody remembered to write, so nothing is allowed to
+ // ship without it — every page in the registry and every game in the picker, and no strays.
+ assert.deepEqual(Object.keys(PAGE_RULES).sort(),Object.keys(PAGES).sort());
+ assert.deepEqual(Object.keys(GAME_RULES).sort(),ids.map(g=>g.id).sort());
+ const all=[...Object.entries(PAGE_RULES),...Object.entries(GAME_RULES)];
+ for(const [id,text] of all){
+  // This is spoken, not read. A phone says a dash as nothing and Japanese script in an
+  // Australian voice as nothing useful, so neither belongs in a line meant to be heard.
+  assert.doesNotMatch(text,/[　-鿿＀-￯]/,`${id} has Japanese script in it`);
+  assert.doesNotMatch(text,/[—–()\[\]/*_#]/,`${id} has something unspeakable in it`);
+  assert.doesNotMatch(text,/\b(otherwise|therefore|via|per|ensure|approximately)\b/i,`${id} is not five-year-old English`);
+  assert.match(text,/\.$/,`${id} must end in a full stop so the voice stops`);
+  assert.ok(text.length>60&&text.length<700,`${id} is ${text.length} characters, which is the wrong length to listen to`);
+  // Short sentences. Anything much over thirty words is a sentence a five-year-old loses.
+  for(const sentence of text.split(/(?<=\.)\s+/))
+   assert.ok(sentence.split(/\s+/).length<=34,`${id} has a sentence too long to follow: "${sentence.slice(0,60)}"`);
+ }
+ // It is the same thing said differently, not the screen read back, so no two are identical.
+ assert.equal(new Set(all.map(([,t])=>t)).size,all.length,'two of them say exactly the same thing');
+ // Each game's rules name the game, so a child who pressed the wrong button hears that at once.
+ for(const {id,title} of ids)
+  assert.ok(gameRule(id).toLowerCase().startsWith(title.toLowerCase().split(' ')[0]),
+   `${title} must say what it is first`);
+ assert.equal(gameRule('nothing-like-this'),'');
+ assert.equal(pageRule('nothing-like-this'),'');
+ // And the button is actually on the screen: one per page, one per game, both before anything
+ // else on it, because the person who needs it cannot read what would otherwise come first.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/<main>\s*(\{\/\*[\s\S]*?\*\/\}\s*)?<SpeakRules id=\{`page-\$\{tab\}`\} text=\{pageRule\(tab\)\}/);
+ assert.match(games,/<SpeakRules id=\{`rules-\$\{current\.id\}`\} text=\{gameRule\(current\.id\)\}/);
+ const pages=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ // Read at a slower pace than the app reads anything else, and in English rather than the
+ // page's own language, because these are instructions and they have to land the first time.
+ assert.match(pages,/read\(id,text,'en-AU',0\.8\)/);
+ assert.match(pages,/if\(!supported\|\|!text\)return null;/,'a phone with no voice is offered nothing');
+});
+
 test('fukuwarai hands the pieces over one at a time, and marks how far each one landed from home',async()=>{
  const {FACES,faceById,PARTS,TARGETS,targetFor,partPoints,fukuwaraiScore,verdictOf,PART_PAR,PART_REACH,PERFECT}=await import('../src/fukuwarai-data.js');
  // The two faces it is always played with, and six pieces handed over in a fixed order,
@@ -3221,6 +3263,14 @@ test('fukuwarai hands the pieces over one at a time, and marks how far each one 
  assert.notEqual(verdictOf(0),verdictOf(PERFECT));
  for(const total of [0,40,80,PERFECT])assert.ok(verdictOf(total).length>10);
  assert.equal(faceById('nonsense').id,'otafuku');
+ // The blindfold takes the face with it, which is the game: you look, it goes, and you place
+ // six pieces onto an empty board from memory. A screen that leaves the face up is a guessing
+ // game with the answer printed on it.
+ const screen=await readFile(new URL('../src/Fukuwarai.jsx',import.meta.url),'utf8');
+ assert.match(screen,/const blind=phase==='blind',revealed=phase==='off';/);
+ assert.match(screen,/\{!blind&&blank\[faceId\]\(face\)\}/,'the face is drawn only when it is not hidden');
+ assert.match(screen,/if\(!next\|\|!blind\)return;/,'and nothing is placed before the blindfold is on');
+ assert.match(screen,/onClick=\{\(\)=>setPhase\('blind'\)\}/);
 });
 
 test('the daruma chant is ten syllables, and anybody still moving when he turns is caught',async()=>{
