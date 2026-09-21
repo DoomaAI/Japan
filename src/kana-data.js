@@ -370,3 +370,50 @@ export function sumoAction(b,action){
  if(next.over!=='won')next.won='';
  return next;
 }
+
+// A career on the banzuke, which is the ranking sheet the whole sport hangs off. Four unpaid
+// divisions to climb a bout at a time, and at juryo you are a sekitori: paid, on the sheet,
+// and in the tournament. Everything below is arithmetic — who you meet, and what a record
+// does to your rank — so the ring only has to play the bout.
+export const SEKITORI=5;              // juryo, the rank the tournament opens at
+export const BASHO_DAYS=7;            // a lower-division tournament really is seven bouts
+export const KACHIKOSHI=4;            // four of seven is a winning record, and a promotion
+// The six tournaments of the year, in order. A career starts at the Autumn one in Ryogoku,
+// because that is the one on in Tokyo while we are there.
+export const BASHO=[
+ {en:'New Year',ja:'初場所',romaji:'Hatsu basho',where:'Tokyo',month:'January'},
+ {en:'Spring',ja:'春場所',romaji:'Haru basho',where:'Osaka',month:'March'},
+ {en:'Summer',ja:'夏場所',romaji:'Natsu basho',where:'Tokyo',month:'May'},
+ {en:'Nagoya',ja:'名古屋場所',romaji:'Nagoya basho',where:'Nagoya',month:'July'},
+ {en:'Autumn',ja:'秋場所',romaji:'Aki basho',where:'Ryogoku, Tokyo',month:'September'},
+ {en:'Kyushu',ja:'九州場所',romaji:'Kyūshū basho',where:'Fukuoka',month:'November'}
+];
+export const AKI=4;
+export const bashoAt=n=>BASHO[((n%BASHO.length)+BASHO.length)%BASHO.length];
+export const newCareer=()=>({rank:1,day:0,wins:0,losses:0,basho:AKI,titles:0,run:0,form:''});
+// A rank is a speed: the higher he is, the less time you have to think.
+export const rankRate=level=>Math.round(1150-Math.max(1,Math.min(TOP_RANK,level))*80);
+// The climb: win and you go up a rung, lose and you go back down one. Nobody falls out of
+// the bottom, and nobody climbs past juryo this way — the rest is decided in the tournament.
+export function climb(rank,won){
+ return Math.max(1,Math.min(SEKITORI,(won?rank+1:rank-1)));
+}
+// Who you meet on each day. The first days are below you and the last two above, which is
+// how a real torikumi is built: the big names are saved for senshuraku, the final day.
+export const bashoOpponent=(rank,day)=>
+ Math.max(1,Math.min(TOP_RANK,rank+(day<2?-1:day<5?0:day===5?1:2)));
+// A tournament is worth the bouts you won times the rank you won them at, and a perfect
+// seven — a zensho-yusho — is worth three times more again.
+export const bashoWorth=(wins,rank)=>wins*rank+(wins>=BASHO_DAYS?rank*3:0);
+// One day of the tournament. Seven of them, and then the record decides: four wins is
+// kachi-koshi and a promotion, three is make-koshi and a demotion. A sekitori stays one.
+export function bashoDay(career,won){
+ const day=career.day+1,wins=career.wins+(won?1:0),losses=career.losses+(won?0:1);
+ const form=(career.form||'')+(won?'w':'l');
+ if(day<BASHO_DAYS)return {...career,day,wins,losses,form,last:null};
+ const kachikoshi=wins>=KACHIKOSHI,title=wins>=BASHO_DAYS;
+ const to=Math.max(SEKITORI,Math.min(TOP_RANK,career.rank+(kachikoshi?1:-1)));
+ return {...career,rank:to,day:0,wins:0,losses:0,form:'',basho:career.basho+1,
+  titles:career.titles+(title?1:0),run:kachikoshi?career.run+1:0,
+  last:{wins,losses,form,kachikoshi,title,from:career.rank,to,at:bashoAt(career.basho)}};
+}

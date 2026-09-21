@@ -2568,6 +2568,68 @@ test('a sumo bout is won by reading him, not by tapping',async()=>{
  assert.equal(pushedOut.won,'');
 });
 
+test('a sumo career climbs the banzuke, and the tournament decides the rest',async()=>{
+ const {newCareer,SEKITORI,TOP_RANK,BASHO_DAYS,KACHIKOSHI,BASHO,AKI,bashoAt,climb,rankRate,bashoOpponent,bashoDay,bashoWorth}=await import('../src/kana-data.js');
+ // A career starts at the bottom, unpaid, with the Autumn tournament next — the one that is
+ // on in Ryogoku while we are there.
+ const start=newCareer();
+ assert.equal(start.rank,1);
+ assert.equal(bashoAt(start.basho).romaji,'Aki basho');
+ assert.equal(BASHO.length,6,'six tournaments a year, like the real calendar');
+ for(const b of BASHO)for(const k of ['en','ja','romaji','where','month'])assert.ok(b[k],`${b.en} has no ${k}`);
+ assert.equal(bashoAt(AKI+BASHO.length).romaji,'Aki basho','and the year comes round again');
+ // The climb: up a rung for a win, down one for a loss, stopping at juryo either way.
+ assert.equal(climb(1,true),2);
+ assert.equal(climb(2,false),1);
+ assert.equal(climb(1,false),1,'nobody falls out of the bottom');
+ assert.equal(climb(SEKITORI,true),SEKITORI,'and nobody climbs past juryo this way');
+ // A higher rank is a faster opponent, all the way up.
+ for(let level=2;level<=TOP_RANK;level++)assert.ok(rankRate(level)<rankRate(level-1),`${level} is no faster than ${level-1}`);
+ // The schedule is built like a real torikumi: below you to start with, above you at the
+ // end, and the worst of them saved for senshuraku.
+ assert.deepEqual(Array.from({length:BASHO_DAYS},(_,d)=>bashoOpponent(6,d)),[5,5,6,6,6,7,8]);
+ assert.equal(bashoOpponent(TOP_RANK,6),TOP_RANK,'there is nobody above a yokozuna');
+ assert.equal(bashoOpponent(1,0),1,'and nobody below the bottom');
+ // Seven days, each going onto the record in the order it happened.
+ let mid={...newCareer(),rank:SEKITORI};
+ for(const won of [true,false,true])mid=bashoDay(mid,won);
+ assert.equal(mid.day,3);
+ assert.equal(mid.form,'wlw');
+ assert.equal(mid.wins,2);assert.equal(mid.losses,1);
+ assert.equal(mid.last,null,'a tournament is not over until the seventh day');
+ // Four of seven is kachi-koshi and a promotion, and the record starts again after it.
+ let up={...newCareer(),rank:SEKITORI};
+ for(const won of [true,true,false,true,false,true,false])up=bashoDay(up,won);
+ assert.equal(up.last.wins,4);
+ assert.equal(up.last.kachikoshi,true);
+ assert.equal(up.rank,SEKITORI+1);
+ assert.equal(up.day,0);assert.equal(up.form,'');assert.equal(up.wins,0);
+ assert.equal(up.basho,newCareer().basho+1,'and the next tournament is the next one of the year');
+ assert.ok(KACHIKOSHI>BASHO_DAYS/2,'a winning record has to be most of them');
+ // Three is make-koshi and the name moves down the sheet — but a sekitori stays a sekitori.
+ let down={...newCareer(),rank:SEKITORI+1};
+ for(let d=0;d<BASHO_DAYS;d++)down=bashoDay(down,d<3);
+ assert.equal(down.last.kachikoshi,false);
+ assert.equal(down.rank,SEKITORI);
+ let bottom={...newCareer(),rank:SEKITORI};
+ for(let d=0;d<BASHO_DAYS;d++)bottom=bashoDay(bottom,false);
+ assert.equal(bottom.rank,SEKITORI,'nobody is demoted out of the tournament they earned');
+ // A perfect seven is a zensho-yusho, and it is the thing worth keeping.
+ let perfect={...newCareer(),rank:TOP_RANK};
+ for(let d=0;d<BASHO_DAYS;d++)perfect=bashoDay(perfect,true);
+ assert.equal(perfect.last.title,true);
+ assert.equal(perfect.titles,1);
+ assert.equal(perfect.rank,TOP_RANK,'there is nowhere above yokozuna');
+ assert.equal(bashoWorth(0,SEKITORI),0);
+ assert.ok(bashoWorth(4,TOP_RANK)>bashoWorth(4,SEKITORI),'the same record higher up is worth more');
+ assert.ok(bashoWorth(BASHO_DAYS,TOP_RANK)>bashoWorth(BASHO_DAYS-1,TOP_RANK)*1.5,'and a perfect one pays for being perfect');
+ // Four ways into the ring, and the one that is practice writes nothing down.
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ for(const mode of ['keiko','one','climb','basho'])assert.ok(source.includes(`id:'${mode}'`),`no ${mode} to choose`);
+ assert.ok(source.includes('if(result.drill)return;'),'a drill must never be scored');
+ assert.ok(source.includes("game:'sumo-rank'")&&source.includes("game:'sumo-basho'"),'a career has to be worth keeping');
+});
+
 test('photo of the day: one vote each, and a tie stays a tie',async()=>{
  const {ensureFeatures,photosFor,photoVotesFor,photoOfTheDay}=await import('../src/trip-features.js');
  const boston={name:'Boston',role:'child'};
