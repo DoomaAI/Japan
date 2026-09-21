@@ -2561,3 +2561,99 @@ test('the photo coach talks to the child, and never about who is in the picture'
   await new Promise(r=>upstream.close(r));
  }
 });
+
+test('the sumo card is read from the official schedule and kept for a basement with no signal',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures,sumo,sumoCard,currentBout,boutResult,SUMO_DAY}=await import('../src/trip-features.js');
+ assert.ok(seed.steps.some(s=>s.day===SUMO_DAY&&/sumo/i.test(s.title)),'the sumo day is a real day on this trip');
+ let seen=null;
+ const card={found:true,basho:'Aki Basho 2026 (September, Tokyo)',dayNumber:11,venue:'Ryogoku Kokugikan',
+  date:SUMO_DAY,doorsOpen:'08:00',notes:'The top division starts about 16:00, after the ring-entering ceremonies.',
+  bouts:[
+   {division:'makuuchi',order:40,time:'17:55',east:{name:'Hoshoryu',rank:'Ozeki',stable:'Tatsunami'},west:{name:'Kirishima',rank:'Sekiwake',stable:'Michinoku'}},
+   {division:'juryo',order:20,time:'15:10',east:{name:'Tomokaze',rank:'Juryo 3',stable:'Oguruma'},west:{name:'Chiyoshoma',rank:'Juryo 5',stable:'Kokonoe'}},
+   {division:'makuuchi',order:38,time:'17:40',east:{name:'Wakatakakage',rank:'Maegashira 1',stable:'Arashio'},west:{name:'Abi',rank:'Maegashira 2',stable:'Shikoroyama'}},
+   // Junk, to prove the same gate runs here as everywhere else.
+   {division:'teleport',order:0,time:'99:99',east:{name:''},west:{name:'Nobody'}}],
+  sources:[{title:'Japan Sumo Association — torikumi',url:'https://www.sumo.or.jp/EnHonbashoMain/torikumi/'},{title:'A blog',url:'http://insecure.example.com'}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{seen=JSON.parse(body);
+   const wants=(seen.tools||[]).some(t=>t.name==='record_wrestler');
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:9000,output_tokens:900,server_tool_use:{web_search_requests:4}},
+    content:[{type:'tool_use',id:'c1',name:wants?'record_wrestler':'record_sumo_day',
+     input:wants?{found:true,name:'Hoshoryu',japanese:'豊昇龍',rank:'Ozeki',stable:'Tatsunami',hometown:'Ulaanbaatar, Mongolia',
+      heightCm:187,weightKg:145,record:'8-3 after day 11',about:'Nephew of a great yokozuna. Throws rather than pushes.',
+      sources:[{title:'JSA profile',url:'https://www.sumo.or.jp/EnSumoDataRikishi/profile/'}]}:card}]}));});
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {fetchSumoDay,fetchWrestler,sumoReady}=await import('../server/sumo.mjs');
+  assert.equal(sumoReady(),true);
+  let state=ensureFeatures(structuredClone(seed));
+  const fetched=await fetchSumoDay({date:SUMO_DAY},state);
+
+  assert.equal(seen.model,'claude-opus-5');
+  assert.equal(seen.tools.find(t=>t.name==='web_search').type,'web_search_20260209');
+  assert.equal(seen.tools.find(t=>t.name==='record_sumo_day').strict,true);
+  assert.match(seen.system,/sumo\.or\.jp/,'the official site is the source that matters');
+  assert.match(seen.system,/published the afternoon before/);
+  assert.match(seen.messages[0].content,new RegExp(SUMO_DAY));
+
+  // The bout with nobody on one side of it is not a bout; the rest come back in running order.
+  assert.deepEqual(fetched.bouts.map(b=>b.id),['juryo-20','makuuchi-38','makuuchi-40']);
+  assert.equal(fetched.bouts[0].time,'15:10');
+  assert.equal(fetched.dayNumber,11);assert.equal(fetched.doorsOpen,'08:00');
+  assert.deepEqual(fetched.sources.map(s=>s.url),['https://www.sumo.or.jp/EnHonbashoMain/torikumi/'],'a plain http source is dropped');
+
+  // Saved into the trip, which is what makes it work in a basement with no signal.
+  state=applyOperation(state,{type:'sumoUpdate',...fetched},parent);
+  assert.equal(sumo(state).bouts.length,3);assert.equal(sumo(state).by,'Damien');
+  // Grouped the way the afternoon runs: the top division last.
+  assert.deepEqual(sumoCard(state).map(g=>g.id),['juryo','makuuchi']);
+  // Which bout is on, so the screen says "this one" rather than leaving you counting rows.
+  assert.equal(currentBout(state,'17:45')?.id,'makuuchi-38');
+  assert.equal(currentBout(state,'09:00'),null,'nothing has started yet');
+  assert.equal(currentBout(state,'23:00')?.id,'makuuchi-40','the last one that started');
+
+  // Anyone marks who won as they watch, and it survives the card being fetched again.
+  state=applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:'Hoshoryu'},child);
+  assert.equal(boutResult(state,'makuuchi-40').winner,'Hoshoryu');
+  assert.equal(boutResult(state,'makuuchi-40').by,'Nate');
+  assert.equal(boutResult(applyOperation(state,{type:'sumoUpdate',...fetched},parent),'makuuchi-40').winner,'Hoshoryu');
+  assert.equal(boutResult(applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:null},parent),'makuuchi-40'),null);
+  assert.throws(()=>applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:'Somebody else'},parent),/One of the two/);
+  assert.throws(()=>applyOperation(state,{type:'sumoResult',id:'nope',winner:'Hoshoryu'},parent),e=>e.status===404);
+  // Fetching the card and looking a man up cost money, so they are a parent's.
+  for(const op of [{type:'sumoUpdate',...fetched},{type:'sumoWrestler',profile:{name:'Hoshoryu'}}])
+   assert.throws(()=>applyOperation(state,op,child),e=>e.status===403);
+
+  // And the man whose name is on the card.
+  const man=await fetchWrestler({name:'Hoshoryu'});
+  assert.equal(man.heightCm,187);assert.equal(man.weightKg,145);
+  assert.match(man.about,/Throws rather than pushes/);
+  assert.match(seen.system,/Boston is eight/);
+  const withMan=applyOperation(state,{type:'sumoWrestler',profile:man},parent);
+  const {wrestlerProfile}=await import('../src/trip-features.js');
+  assert.equal(wrestlerProfile(withMan,'hoshoryu').japanese,'豊昇龍','looked up once, then on everyone’s phone');
+  assert.equal(wrestlerProfile(withMan,'HOSHORYU').rank,'Ozeki','the name is matched however it is typed');
+  // Nothing believable is invented: a nonsense size is dropped rather than shown.
+  assert.throws(()=>applyOperation(state,{type:'sumoWrestler',profile:{name:'X',heightCm:4}},parent),/believable size/);
+  await assert.rejects(()=>fetchSumoDay({date:'2099-01-01'},state),/Choose a trip day/);
+  await assert.rejects(()=>fetchWrestler({name:'   '}),/Choose a wrestler/);
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ // Marking who won is a record of what happened, so it keeps on a dead phone.
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ assert.ok(list.includes('sumoResult'));
+ assert.ok(!list.includes('sumoUpdate'),'fetching a card needs the latest revision');
+});

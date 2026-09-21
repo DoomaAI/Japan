@@ -4,7 +4,7 @@ import {FOOD,FOOD_KINDS} from '../src/food-data.js';
 import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
-import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
 const MAX_PROPOSALS=300;
 const https=v=>{try{return new URL(v).protocol==='https:';}catch{return false;}};
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
@@ -396,6 +396,63 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:item.title};
   }
   fail('Unknown to-do action.');
+ }else if(typeof op.type==='string'&&op.type.startsWith('sumo')){
+  // The day's card, kept in the trip. The arena is a basement full of phones, so what one
+  // person fetched has to still be on screen for everyone when the signal is not.
+  const current=sumo(state);
+  if(op.type==='sumoUpdate'){
+   if(!parent)fail('A parent fetches the card.',403);
+   if(!Array.isArray(op.bouts)||!op.bouts.length||op.bouts.length>60)fail('That is not a day of sumo.');
+   const seen=new Set();
+   const bouts=op.bouts.map(b=>{
+    if(!SUMO_DIVISIONS.some(([id])=>id===b?.division))fail('Unknown division.');
+    if(!Number.isInteger(b?.order)||b.order<1||b.order>999)fail('Invalid running order.');
+    if(b.time&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(b.time))fail('Invalid bout time.');
+    if(!string(b?.id,60)||!b.id||seen.has(b.id))fail('Invalid bout.');
+    seen.add(b.id);
+    const side=p=>{if(!string(p?.name,80)||!p.name.trim())fail('A bout needs two names.');
+     requireText(p.rank??'',80,'rank');requireText(p.stable??'',80,'stable');
+     return {name:p.name.trim(),rank:(p.rank||'').trim(),stable:(p.stable||'').trim()};};
+    return {id:b.id,division:b.division,order:b.order,time:b.time||'',east:side(b.east),west:side(b.west)};
+   });
+   for(const [key,max] of [['basho',120],['venue',120],['notes',2000],['doorsOpen',5]])requireText(op[key]??'',max,key);
+   if(op.doorsOpen&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(op.doorsOpen))fail('Invalid opening time.');
+   if(op.date&&!state.days.some(d=>d.date===op.date))fail('Choose a trip day.');
+   if(op.dayNumber!==null&&op.dayNumber!==undefined&&(!Number.isInteger(op.dayNumber)||op.dayNumber<1||op.dayNumber>15))fail('A basho is fifteen days.');
+   const sources=(Array.isArray(op.sources)?op.sources:[]).slice(0,6).map(x=>{
+    requireText(x?.title??'',200,'source');
+    try{if(new URL(x?.url).protocol!=='https:')fail('Use an HTTPS source.');}catch{fail('Use an HTTPS source.');}
+    return {title:(x.title||'').trim(),url:x.url};});
+   // Results recorded in the arena survive a re-fetch, as long as the bout is still on the card.
+   const results=Object.fromEntries(Object.entries(current.results).filter(([id])=>seen.has(id)));
+   state.sumo={...current,basho:op.basho||'',dayNumber:op.dayNumber??null,venue:op.venue||'',
+    date:op.date||null,doorsOpen:op.doorsOpen||'',notes:op.notes||'',bouts,sources,results,at:now,by:user.name};
+   return {summary:`${user.name} loaded the sumo card for ${op.date||'the day'} — ${bouts.length} bouts`,important:true,title:'Sumo card'};
+  }
+  if(op.type==='sumoWrestler'){
+   if(!parent)fail('A parent looks a wrestler up.',403);
+   const p=op.profile;
+   if(!p||typeof p!=='object'||!string(p.name,80)||!p.name.trim())fail('Nothing to save about him.');
+   for(const [key,max] of [['name',80],['japanese',80],['rank',80],['stable',80],['hometown',120],['record',120],['about',2000]])requireText(p[key]??'',max,key);
+   const size=(v,lo,hi)=>v===null||v===undefined?null:(Number.isInteger(v)&&v>=lo&&v<=hi?v:fail('That is not a believable size.'));
+   const wrestlers={...current.wrestlers};
+   if(Object.keys(wrestlers).length>=80)fail('That is eighty wrestlers already.');
+   wrestlers[wrestlerKey(p.name)]={name:p.name.trim(),japanese:p.japanese||'',rank:p.rank||'',stable:p.stable||'',
+    hometown:p.hometown||'',heightCm:size(p.heightCm,120,250),weightKg:size(p.weightKg,50,400),
+    record:p.record||'',about:p.about||'',sources:(Array.isArray(p.sources)?p.sources:[]).slice(0,6),at:now,by:user.name};
+   state.sumo={...current,wrestlers};
+   return {summary:null,important:false,title:`Sumo · ${p.name.trim()}`};
+  }
+  if(op.type==='sumoResult'){
+   const bout=current.bouts.find(b=>b.id===op.id);if(!bout)fail('That bout is not on the card.',404);
+   if(op.winner!==null&&op.winner!==bout.east.name&&op.winner!==bout.west.name)fail('One of the two, or nobody.');
+   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+   const results={...current.results};
+   if(op.winner)results[op.id]={winner:op.winner,by:user.name,at};else delete results[op.id];
+   state.sumo={...current,results};
+   return {summary:null,important:false,title:`Sumo · ${bout.east.name} v ${bout.west.name}`};
+  }
+  fail('Unknown sumo action.');
  }else if(op.type==='meeting'){
   dayCheck(op.day);if(!op.day)fail('Choose a day.');
   const m={place:op.place||'',japanese:op.japanese||'',time:op.time||'',notes:op.notes||'',hotelJapanese:op.hotelJapanese||'',hotelAddress:op.hotelAddress||''};
