@@ -49,7 +49,15 @@ export const MORE_SECTIONS=[
  ['Just for you',['personalise','settings','thanks']],
  ['For the boys',['challenges','games','spending','facts','mascot']]
 ];
-const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(id!=='inbox'||user?.role==='parent');
+// Some screens only exist where the deployment can do the thing they are about. Forwarded email
+// needs a mail provider connected to it; until there is one the screen would be a page about a
+// setting nobody has set, so it is not offered at all — not on the bar, not in the menu, not in
+// the list of pages you can add. The app tells this module what the deployment can do when its
+// config arrives, so connecting a provider brings the screen back on its own with no code change.
+let available={inbox:false};
+export const setAvailable=next=>{available={...available,...next};};
+export const isAvailable=id=>id!=='inbox'||available.inbox;
+const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(id!=='inbox'||user?.role==='parent')&&isAvailable(id);
 export const pagesFor=user=>Object.keys(PAGES).filter(id=>allowed(id,user));
 // The menu, as this person has arranged it. Four of us carry the same app and want different
 // things out of it: Lauren lives on tickets and the plan, Boston on his missions and his money,
