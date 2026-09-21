@@ -1237,3 +1237,101 @@ test('our own phrases are checked here, not trusted because a model produced the
  const {ALL_PHRASES}=await import('../src/phrasebook-data.js');
  assert.ok(!ALL_PHRASES().some(p=>p.id===kept.id),'our phrases stay out of the book');
 });
+
+test('kana, loanwords and a shuffle that every phone agrees on',async()=>{
+ const {HIRAGANA,KATAKANA,KANA,LOANWORDS,shuffled,THROWS,jankenWinner,findThrow}=await import('../src/kana-data.js');
+ assert.equal(HIRAGANA.length,46);assert.equal(KATAKANA.length,46);assert.equal(KANA.length,92);
+ // Every kana is a single character, with a romaji, and the two sets line up sound for sound.
+ for(const k of KANA){assert.equal([...k.kana].length,1,k.romaji);assert.match(k.romaji,/^[a-z]{1,3}$/);}
+ assert.deepEqual(HIRAGANA.map(k=>k.romaji),KATAKANA.map(k=>k.romaji));
+ assert.equal(new Set(KATAKANA.map(k=>k.kana)).size,46,'no kana repeated');
+ // The loanwords have to be katakana, or the game teaches the wrong thing.
+ assert.ok(LOANWORDS.length>=35);
+ for(const w of LOANWORDS){
+  assert.match(w.ja,/^[ァ-ヿー]+$/u,`${w.en} is not written in katakana`);
+  assert.ok(w.en&&w.romaji,`${w.ja} is missing its English or romaji`);
+ }
+ assert.equal(new Set(LOANWORDS.map(w=>w.ja)).size,LOANWORDS.length);
+ assert.ok(LOANWORDS.some(w=>w.en==='Toilet')&&LOANWORDS.some(w=>w.en==='Curry'));
+ // Same seed, same board — so a shuffle is repeatable rather than jumping about on redraw.
+ assert.deepEqual(shuffled(LOANWORDS,42).map(w=>w.ja),shuffled(LOANWORDS,42).map(w=>w.ja));
+ assert.notDeepEqual(shuffled(LOANWORDS,42).map(w=>w.ja),shuffled(LOANWORDS,43).map(w=>w.ja));
+ assert.equal(shuffled(LOANWORDS,7).length,LOANWORDS.length,'nothing is lost in the shuffle');
+ assert.deepEqual([...shuffled(LOANWORDS,7)].map(w=>w.ja).sort(),LOANWORDS.map(w=>w.ja).sort());
+ assert.deepEqual(shuffled([],5),[]);
+ // Janken: the three hands, and who beats whom.
+ assert.deepEqual(THROWS.map(t=>t.id),['rock','scissors','paper']);
+ assert.equal(jankenWinner('rock','scissors'),'a');
+ assert.equal(jankenWinner('scissors','rock'),'b');
+ assert.equal(jankenWinner('paper','rock'),'a');
+ assert.equal(jankenWinner('rock','rock'),null,'a draw');
+ assert.equal(jankenWinner('rock','nonsense'),undefined);
+ assert.equal(findThrow('paper').ja,'パー');
+});
+
+test('janken is played across two phones without either seeing the other hand',async()=>{
+ const {ensureFeatures,jankenRound,jankenScores,roundComplete}=await import('../src/trip-features.js');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ const boston={name:'Boston',role:'child'};
+ let state=ensureFeatures(structuredClone(seed));
+ const players=['Boston','Nate'];
+ // Nate throws first. What Boston's phone is sent must not contain Nate's hand.
+ state=applyOperation(state,{type:'jankenThrow',person:'Nate',choice:'rock',players},child);
+ assert.equal(jankenRound(state).throws.Nate,'rock');
+ assert.equal(roundComplete(jankenRound(state),players),false);
+ const toBoston=visibleTrip(state,boston),toNate=visibleTrip(state,child);
+ assert.equal(toBoston.games.janken.round.throws.Nate,'hidden','Boston cannot see it');
+ assert.equal(toNate.games.janken.round.throws.Nate,'rock','Nate still sees his own');
+ assert.doesNotMatch(JSON.stringify(toBoston.games),/"rock"/,'and it is nowhere in what he is sent');
+ // Boston answers. Now the round is done and both hands are shown to everyone.
+ state=applyOperation(state,{type:'jankenThrow',person:'Boston',choice:'scissors',players},boston);
+ const done=jankenRound(state);
+ assert.equal(done.done,true);assert.equal(done.winner,'Nate','rock beats scissors');
+ assert.equal(jankenScores(state).Nate,1);
+ assert.equal(visibleTrip(state,boston).games.janken.round.throws.Nate,'rock','a finished round is open');
+ // Throwing again after a finished round starts the next one rather than reopening it.
+ const nextRound=applyOperation(state,{type:'jankenThrow',person:'Nate',choice:'paper',players},child);
+ assert.notEqual(jankenRound(nextRound).id,done.id);
+ assert.deepEqual(jankenRound(nextRound).throws,{Nate:'paper'});
+ assert.equal(jankenScores(nextRound).Nate,1,'the score so far survives');
+ // One hand per round, your own hand only, and two real players.
+ assert.throws(()=>applyOperation(nextRound,{type:'jankenThrow',person:'Nate',choice:'rock',players},child),/already thrown/);
+ assert.throws(()=>applyOperation(state,{type:'jankenThrow',person:'Boston',choice:'rock',players},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'jankenThrow',person:'Nate',choice:'dynamite',players},child),/rock, paper or scissors/);
+ assert.throws(()=>applyOperation(state,{type:'jankenThrow',person:'Nate',choice:'rock',players:['Nate','Nate']},child),/two players/);
+ assert.throws(()=>applyOperation(state,{type:'jankenThrow',person:'Nate',choice:'rock',players:['Damien','Lauren']},child),e=>e.status===403);
+ // A draw scores nobody and can be thrown again.
+ let drawn=applyOperation(applyOperation(ensureFeatures(structuredClone(seed)),{type:'jankenThrow',person:'Nate',choice:'paper',players},child),
+  {type:'jankenThrow',person:'Boston',choice:'paper',players},boston);
+ assert.equal(jankenRound(drawn).winner,null);
+ assert.deepEqual(jankenScores(drawn),{});
+ assert.equal(jankenRound(applyOperation(drawn,{type:'jankenNewRound'},child)),null);
+ // Only a parent wipes the running score.
+ assert.throws(()=>applyOperation(state,{type:'jankenReset'},child),e=>e.status===403);
+ assert.deepEqual(jankenScores(applyOperation(state,{type:'jankenReset'},parent)),{});
+});
+
+test('a best score only ever goes up, and only your own',async()=>{
+ const {ensureFeatures,bestScore}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.games.scores,{});
+ const first=applyOperation(state,{type:'gameScore',person:'Nate',game:'kana-hiragana',score:24},child);
+ assert.equal(bestScore(first,'Nate','kana-hiragana'),24);
+ assert.equal(bestScore(applyOperation(first,{type:'gameScore',person:'Nate',game:'kana-hiragana',score:9},child),'Nate','kana-hiragana'),24,'a worse round does not erase a best');
+ assert.equal(bestScore(applyOperation(first,{type:'gameScore',person:'Nate',game:'kana-hiragana',score:30},child),'Nate','kana-hiragana'),30);
+ assert.equal(bestScore(first,'Boston','kana-hiragana'),0,'each their own');
+ assert.equal(bestScore(first,'Nate','katakana-decoder'),0,'each game its own');
+ assert.throws(()=>applyOperation(state,{type:'gameScore',person:'Boston',game:'x',score:1},child),e=>e.status===403);
+ for(const score of [-1,1.5,10000,'12'])assert.throws(()=>applyOperation(state,{type:'gameScore',person:'Nate',game:'kana-hiragana',score},child),/Invalid score/);
+ assert.throws(()=>applyOperation(state,{type:'gameScore',person:'Nate',game:'',score:1},child),/Unknown game/);
+});
+
+test('every page in the registry is a tab the app will actually open',async()=>{
+ const {PAGES}=await import('../src/nav-data.js');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // The list of openable tabs is derived from the registry rather than typed out beside it,
+ // which is what let a new page be reachable in the menu but not by its own link.
+ assert.match(source,/const TABS=\[\.\.\.Object\.keys\(PAGES\),'more'\]/);
+ for(const id of Object.keys(PAGES))
+  assert.match(source,new RegExp(`tab==='${id}'`),`${id} is in the menu but nothing renders it`);
+});

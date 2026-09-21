@@ -2,6 +2,8 @@ import {randomUUID} from 'node:crypto';
 import {findRide} from '../src/park-data.js';
 import {FOOD,FOOD_KINDS} from '../src/food-data.js';
 import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
+import {THROWS,jankenWinner} from '../src/kana-data.js';
+const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO} from '../src/trip-features.js';
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
 export function extraOperation(state,op,user,fail,now){
@@ -86,6 +88,46 @@ export function extraOperation(state,op,user,fail,now){
    }
    state.phraseLog={...state.phraseLog,[op.person]:log};
   }
+ }else if(op.type==='gameScore'){
+  // Only ever your own, and only ever upwards: a best score is a best score.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Keep your own score.',403);
+  if(!string(op.game,40)||!op.game)fail('Unknown game.');
+  if(!Number.isInteger(op.score)||op.score<0||op.score>9999)fail('Invalid score.');
+  const mine={...(state.games.scores[op.person]||{})};
+  mine[op.game]=Math.max(mine[op.game]||0,op.score);
+  state.games={...state.games,scores:{...state.games.scores,[op.person]:mine}};
+ }else if(op.type==='jankenThrow'){
+  // Both hands land in the same round, and neither is sent to the other phone until both
+  // are in — see server/visibility.mjs. Changing a thrown hand is not a thing.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Throw your own hand.',403);
+  if(!JANKEN_THROWS.includes(op.choice))fail('Choose rock, paper or scissors.');
+  if(!Array.isArray(op.players)||op.players.length!==2||op.players.some(p=>!state.members.includes(p))||op.players[0]===op.players[1])fail('Choose two players.');
+  if(!op.players.includes(op.person))fail('You are not in this round.',403);
+  const current=state.games.janken.round;
+  const same=current&&!current.done&&current.players.length===op.players.length&&current.players.every(p=>op.players.includes(p));
+  const round=same?{...current,throws:{...current.throws}}:{id:randomUUID(),players:[...op.players],throws:{},at:now};
+  if(round.throws[op.person])fail('You have already thrown this round.');
+  round.throws[op.person]=op.choice;
+  const [a,b]=round.players;
+  if(round.throws[a]&&round.throws[b]){
+   const winner=jankenWinner(round.throws[a],round.throws[b]);
+   round.done=true;round.at=now;
+   round.winner=winner===null?null:winner==='a'?a:b;
+   if(round.winner){
+    const scores={...state.games.janken.scores};
+    scores[round.winner]=(scores[round.winner]||0)+1;
+    state.games={...state.games,janken:{...state.games.janken,scores}};
+   }
+  }
+  state.games={...state.games,janken:{...state.games.janken,round}};
+ }else if(op.type==='jankenNewRound'){
+  if(!parent&&!BOYS.includes(user.name))fail('Play your own game.',403);
+  state.games={...state.games,janken:{...state.games.janken,round:null}};
+ }else if(op.type==='jankenReset'){
+  if(!parent)fail('A parent can clear the scores.',403);
+  state.games={...state.games,janken:{round:null,scores:{}}};
  }else if(op.type==='phraseAdd'||op.type==='phraseEdit'){
   // A phrase the family wanted and the book did not have. Typed or translated, it is checked
   // here either way — nothing is trusted because a model produced it.
