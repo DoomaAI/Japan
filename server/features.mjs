@@ -6,6 +6,7 @@ import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
+import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 const MAX_PROPOSALS=300;
 const https=v=>{try{return new URL(v).protocol==='https:';}catch{return false;}};
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
@@ -714,6 +715,30 @@ export function extraOperation(state,op,user,fail,now){
   for(const c of plan.changes)state.steps.find(s=>s.id===c.id).time=c.time;
   for(const item of plan.backlog){const s=state.steps.find(s=>s.id===item.id);s.backlogFrom={day:s.day,time:s.time,bookingTime:s.bookingTime,status:s.status};Object.assign(s,{day:null,time:null,bookingTime:null,group:'',option:'',status:'todo'});}
   return {summary:`Revised ${op.day} for a ${op.delay}-minute delay. ${plan.backlog.length} activities saved to Options.`,important:true};
+ }else if(typeof op.type==='string'&&op.type.startsWith('mascot')){
+  // Everybody owns their own character; a parent can sit with one of the boys and help with
+  // his. Only ids this app knows how to draw are accepted, so a saved character can never
+  // arrive as a picture the phone cannot draw.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Design your own character.',403);
+  if(op.type==='mascotRemove'){
+   if(!state.mascots?.[op.person])fail('There is no character to remove.',404);
+   const {[op.person]:removed,...rest}=state.mascots;state.mascots=rest;
+   return {summary:null,important:false,title:`${op.person}’s character removed`};
+  }
+  if(op.type!=='mascotSave')fail('Unknown character action.');
+  if(!op.mascot||typeof op.mascot!=='object'||Array.isArray(op.mascot))fail('Invalid character.');
+  const character={};
+  for(const field of CHOICE_FIELDS){if(!validChoice(field,op.mascot[field]))fail(`Choose a ${field} from the list.`);character[field]=op.mascot[field];}
+  for(const [field,max] of Object.entries(TEXT_FIELDS)){
+   const value=String(op.mascot[field]??'').trim();
+   if(!string(value,max))fail(`Keep the ${field} under ${max} characters.`);
+   character[field]=value;
+  }
+  if(!character.name)fail('Give the character a name.');
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+  state.mascots={...state.mascots,[op.person]:{...character,updatedAt:at,updatedBy:user.name}};
+  return {summary:null,important:false,title:`${op.person}’s character · ${character.name}`};
  }else return false;
  return {summary:op.type==='meeting'?`Meeting point updated for ${op.day}: ${op.place}${op.time?' at '+op.time:''}`:null,important:op.type==='meeting'};
 }
