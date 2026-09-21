@@ -2,6 +2,7 @@ import React,{useState,useEffect,useRef} from 'react';
 import {Trophy,RotateCcw} from 'lucide-react';
 import {SIZES,EMPTY,BLACK,WHITE,newBoard,place,winsAt,full,aiMove,LEVELS,levelById,gomokuWorth,idx} from './gomoku.js';
 import {bestScore} from './trip-features.js';
+import {WinBurst} from './Win.jsx';
 // Gomoku. You are black and you go first, which is how it is played and is also a real
 // advantage — worth knowing rather than worth hiding.
 export default function Gomoku({user,state,mutate,busy}){
@@ -48,7 +49,8 @@ export default function Gomoku({user,state,mutate,busy}){
   <div className="segmented game-picker">{SIZES.map(s=>
    <button key={s} className={size===s?'selected':''} onClick={()=>restart(s,levelId)}>{s} × {s}</button>)}</div>
   <div className="segmented game-picker">{LEVELS.map(l=>
-   <button key={l.id} className={levelId===l.id?'selected':''} onClick={()=>restart(size,l.id)} lang="ja">{l.ja}</button>)}</div>
+   <button key={l.id} className={`two-line${levelId===l.id?' selected':''}`} onClick={()=>restart(size,l.id)}>
+    <b lang="ja">{l.ja}</b><small>{l.en}</small></button>)}</div>
   <p><small>{level.en} — {level.how}</small></p>
   <div className="goban" style={{'--n':size}}>
    {board.map((v,i)=>
@@ -56,6 +58,7 @@ export default function Gomoku({user,state,mutate,busy}){
      onClick={()=>put(i)} disabled={!!over||thinking||v!==EMPTY}
      aria-label={`Row ${Math.floor(i/size)+1} column ${i%size+1}${v===BLACK?', your stone':v===WHITE?', his stone':', empty'}`}/>)}
   </div>
+  <WinBurst on={over?.winner===BLACK} label="Five in a row!" sub={`In ${Math.ceil(stones/2)} stones`}/>
   <p className="game-status">{over
    ?over.winner===BLACK?<><Trophy size={16}/> Five in a row. You win in {Math.ceil(stones/2)} stones — {gomokuWorth(level.id,stones)} points.</>
     :over.winner===WHITE?'He got five. Have another go.'

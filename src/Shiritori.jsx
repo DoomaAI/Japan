@@ -3,6 +3,7 @@ import {Trophy,RotateCcw,X} from 'lucide-react';
 import {WORDS,OPENER,LEVELS,levelById,optionsFor,phoneReply,shiritoriScore,DEAD} from './shiritori-data.js';
 import {bestScore} from './trip-features.js';
 import {useKanaVoice} from './SayIt.jsx';
+import {WinBurst} from './Win.jsx';
 // Shiritori. The chain opens on the word しりとり itself, which is how it is really started,
 // and the letter you owe is always the last sound of whatever was just said — so the game
 // makes a child look at the end of a word, which is the half of it nobody ever reads.
@@ -63,6 +64,7 @@ export default function Shiritori({user,state,mutate,busy}){
   {!over&&<p className="shiri-need">Now a word starting with <strong lang="ja">{letter}</strong></p>}
   {over
    ?<div className={`shiri-over${over.won?' won':''}`}>
+     <WinBurst on={!!over.won} label="He is out of words!" sub={`A chain ${chain.length} words long`}/>
      <p className="janken-verdict">{over.won?'He has run out of words. You win.'
       :over.how==='dry'?'The words have run out. Nobody lost — that happens.'
       :<>You said <b lang="ja">{over.word.ja}</b>, and it ends in {DEAD}.</>}</p>

@@ -2,6 +2,7 @@ import React,{useState,useEffect,useRef} from 'react';
 import {Trophy,RotateCcw} from 'lucide-react';
 import {RING,TICK,EDGE,TOPS,topById,RIVALS,rivalAt,SPIN,newBout,beigomaTick,beigomaWorth,rng} from './beigoma.js';
 import {bestScore} from './trip-features.js';
+import {WinBurst} from './Win.jsx';
 const INK='#16383b';
 // A beigoma seen from above, which is how you watch one: a small iron disc with a notched rim
 // and a mark on the crown. The one in MissionArt is drawn from the side, which is right for a
@@ -70,7 +71,8 @@ export default function Beigoma({user,state,mutate,busy}){
    which way you flick is where yours comes in from, and how far you flick is how hard it was
    wound. Then you watch, because that is all anybody does once it has left their hand.</p>
   <div className="segmented game-picker">{TOPS.map(t=>
-   <button key={t.id} className={mine===t.id?'selected':''} disabled={!!running} onClick={()=>reset(t.id)} lang="ja">{t.ja} {t.en}</button>)}</div>
+   <button key={t.id} className={`two-line${mine===t.id?' selected':''}`} disabled={!!running} onClick={()=>reset(t.id)}>
+    <b lang="ja">{t.ja}</b><small>{t.en}</small></button>)}</div>
   <p><small>{topById(mine).how}</small></p>
   <div className="bei-rival">
    <small>Facing</small><b lang="ja">{rival.ja}</b><span>{rival.en}</span>
@@ -98,6 +100,7 @@ export default function Beigoma({user,state,mutate,busy}){
    <span><small>Yours</small><i style={{width:`${Math.max(0,Math.min(100,bout.mine.spin/SPIN*100))}%`}}/></span>
    <span><small>His</small><i className="his" style={{width:`${Math.max(0,Math.min(100,bout.theirs.spin/SPIN*100))}%`}}/></span>
   </div>}
+  <WinBurst on={!!bout?.over?.won} label="Last one spinning!" sub={bout?.over?.how==='knocked'?'Knocked clean out of the ring':'His stopped first'}/>
   <p className="game-status">{
    bout?.over
     ?bout.over.won

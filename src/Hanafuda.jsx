@@ -3,6 +3,7 @@ import {Trophy,RotateCcw} from 'lucide-react';
 import {YAKU,HIKARI,TANE,TAN,KASU,deal,step,stop,koikoi,hisMove,heStops,scoreOf,matches,payout,monthOf} from './hanafuda.js';
 import HanafudaCard from './HanafudaCard.jsx';
 import {bestScore} from './trip-features.js';
+import {WinBurst} from './Win.jsx';
 const rng=seed=>{let n=seed>>>0||1;return()=>{n^=n<<13;n>>>=0;n^=n>>17;n^=n<<5;n>>>=0;return n/4294967296;};};
 const KINDS=[[HIKARI,'Brights'],[TANE,'Animals'],[TAN,'Ribbons'],[KASU,'Plains']];
 const Pile=({cards,who})=><div className="fuda-pile">{KINDS.map(([kind,en])=>{
@@ -78,6 +79,7 @@ export default function Hanafuda({user,state,mutate,busy}){
      </div>
      <small>Saying koi-koi banks nothing and doubles what the round finally pays, to whoever stops.</small>
     </div>}
+    <WinBurst on={game.over?.winner==='me'} label="The round is yours!" sub={game.over?.winner==='me'?`${game.over.points} points`:''}/>
     <p className="game-status">{
      game.over
       ?game.over.winner==='me'?<><Trophy size={16}/> You stopped on {game.over.raw}{game.koi?`, doubled ${game.koi} time${game.koi>1?'s':''}`:''} — {game.over.points} points.</>

@@ -2,6 +2,7 @@ import React,{useState,useMemo,useEffect,useRef} from 'react';
 import {Trophy,RotateCcw,Check,X} from 'lucide-react';
 import {PICTURES,SIZES,picturesOf,pictureById,puzzleFor,picrossScore} from './picross.js';
 import {bestScore} from './trip-features.js';
+import {WinBurst} from './Win.jsx';
 // Picross. The numbers say how many squares in that line are filled and in what order; working
 // out which is the game, and the picture is what you get for doing it. The name of the picture
 // is kept back until it is solved, because a puzzle that tells you what you are drawing has
@@ -80,6 +81,7 @@ export default function Picross({user,state,mutate,busy}){
    <button className={mode===FILL?'selected':''} onClick={()=>setMode(FILL)}>■ Fill in</button>
    <button className={mode===CROSS?'selected':''} onClick={()=>setMode(CROSS)}>✕ Cross off</button>
   </div>
+  <WinBurst on={solved} label="A picture!" sub={picture.en}/>
   <p className="game-status">{solved
    ?<><Trophy size={16}/> It is {picture.en} — <b lang="ja">{picture.ja}</b>. {Math.round(seconds)} seconds{wrong?`, ${wrong} squares filled that should not have been`:', and nothing filled in that should not have been'} — {picrossScore(n,seconds,wrong)} points.</>
    :began===null?'Tap a square to start. The clock starts with you.'

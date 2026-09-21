@@ -931,7 +931,7 @@ test('the yen converter works from a shared rate, set by a parent',async()=>{
 });
 
 test('every screen is reachable exactly once, from the bar or from More',async()=>{
- const {PAGES,PRIMARY,primaryNav,moreSections,moreIds,navActive}=await import('../src/nav-data.js');
+ const {PAGES,PRIMARY,MORE_SECTIONS,primaryNav,moreSections,moreIds,navActive}=await import('../src/nav-data.js');
  const damien={name:'Damien',role:'parent'},lauren={name:'Lauren',role:'parent'},nate={name:'Nate',role:'child'};
  for(const user of [damien,lauren,nate]){
   const bar=primaryNav(user),more=moreIds(user),all=[...bar,...more];
@@ -955,6 +955,18 @@ test('every screen is reachable exactly once, from the bar or from More',async()
  // Parents reach for tickets and prices; the boys reach for their missions.
  assert.deepEqual(PRIMARY.parent,['today','days','tickets','food','money']);
  assert.deepEqual(PRIMARY.child,['today','days','challenges','food','diary']);
+ // And the menu is ordered by whose screen it is. The practical half — the weather on the way
+ // out, the ticket at the gate, what is still to buy — is at the top, where the thumb of
+ // whoever is navigating lands first. The boys' own screens are the last block, all together,
+ // rather than their missions sitting between the bookings and the paperwork.
+ assert.equal(MORE_SECTIONS.at(-1)[0],'For the boys');
+ for(const id of ['challenges','games','spending','facts','mascot'])
+  assert.ok(MORE_SECTIONS.at(-1)[1].includes(id),`${id} is the boys' and belongs at the bottom`);
+ const order=MORE_SECTIONS.flatMap(([,ids])=>ids),theirs=order.indexOf('challenges');
+ for(const id of ['weather','places','tickets','inbox','todo','planning','shopping','guide','help'])
+  assert.ok(order.indexOf(id)<theirs,`${id} is practical and belongs above the boys' block`);
+ for(const user of [damien,lauren,nate])
+  assert.equal(moreSections(user).at(-1)[0],'For the boys',`${user.name} is shown the boys' block last`);
  // The bug this replaces: on a sub-page nothing used to be highlighted, so you lost your place.
  for(const [tab,expected] of [['food','food'],['today','today'],['parks','more'],['guide','more'],['thanks','more'],['search','more']]){
   const lit=[...primaryNav(damien),'more'].filter(id=>navActive(tab,id,damien));
@@ -964,6 +976,115 @@ test('every screen is reachable exactly once, from the bar or from More',async()
  assert.equal(navActive('challenges','challenges',nate),true);
  assert.equal(navActive('challenges','more',nate),false);
  assert.equal(navActive('tickets','more',nate),true,'tickets live under More for the boys');
+});
+
+test('each phone arranges its own menu, and nothing put away is lost',async()=>{
+ const {PAGES,PRIMARY,BAR_MIN,BAR_MAX,FIXED,emptyNav,cleanNav,primaryNav,hiddenNav,moreIds,moreSections,addableNav,pagesFor,menuOrder,navActive}
+  =await import('../src/nav-data.js');
+ const damien={name:'Damien',role:'parent'},lauren={name:'Lauren',role:'parent'},nate={name:'Nate',role:'child'};
+ // Nobody has touched it: everything is exactly where it was before any of this existed.
+ for(const user of [damien,lauren,nate]){
+  assert.deepEqual(primaryNav(user,emptyNav()),primaryNav(user));
+  assert.deepEqual(moreIds(user,emptyNav()),moreIds(user));
+ }
+ // A bar somebody set is used, in the order they set it.
+ const mine={bar:['today','games','spending','challenges'],hidden:[]};
+ assert.deepEqual(primaryNav(nate,mine),['today','games','spending','challenges']);
+ // What comes back out of localStorage is whatever was last written there by any version of
+ // this app, so everything is cleaned on the way in rather than trusted.
+ assert.deepEqual(primaryNav(nate,{bar:['today','games','nothing-like-this','games','spending']}),
+  ['today','games','spending'],'unknown and repeated screens are dropped');
+ assert.deepEqual(primaryNav(nate,{bar:['today','days','thanks','inbox','food','diary']}),
+  ['today','days','food','diary'],'and so are the ones this person is not allowed');
+ assert.deepEqual(primaryNav(nate,{bar:['today','games']}),primaryNav(nate),
+  'a bar that came out too short is thrown away rather than left half empty');
+ assert.equal(primaryNav(damien,{bar:pagesFor(damien)}).length,BAR_MAX,'and a greedy one is trimmed');
+ for(const rubbish of [null,undefined,'today',{bar:'today'},{bar:[1,2,3]},{hidden:'guide'},{bar:null,hidden:null}])
+  assert.deepEqual(primaryNav(lauren,rubbish),PRIMARY.parent,`${JSON.stringify(rubbish)} took the bar down`);
+ // Putting a screen away takes it off the bar and out of More, both.
+ const away={bar:['today','days','tickets','food','money'],hidden:['parks','guide']};
+ assert.ok(!moreIds(lauren,away).includes('parks'));
+ assert.ok(!moreIds(lauren,away).includes('guide'));
+ assert.deepEqual(primaryNav(lauren,{bar:['today','days','parks','food','money'],hidden:['parks']}),
+  ['today','days','food','money'],'and it cannot be on the bar and away at the same time');
+ assert.deepEqual(hiddenNav(lauren,away).sort(),['guide','parks']);
+ // But nothing put away is lost: My menu lists it, and My menu is one of the two screens that
+ // can never be put away — the other is Home, the way back from a bad arrangement.
+ assert.deepEqual(FIXED,['today','personalise']);
+ for(const id of FIXED){
+  assert.deepEqual(hiddenNav(damien,{hidden:[id]}),[],`${id} must never be hideable`);
+  assert.ok(PAGES[id],`${id} is a real screen`);
+ }
+ assert.ok(moreIds(nate,emptyNav()).includes('personalise'),'and every phone can reach it');
+ // What is left to put on the bar is everything this person can see and has not already got.
+ const spare=addableNav(damien,away);
+ for(const id of primaryNav(damien,away))assert.ok(!spare.includes(id),`${id} is already on the bar`);
+ for(const id of hiddenNav(damien,away))assert.ok(!spare.includes(id),`${id} was put away`);
+ assert.ok(!addableNav(nate,emptyNav()).includes('inbox'),'a boy is never offered the parents’ email');
+ // Sections that empty out are not left as headings with nothing under them.
+ for(const [title,ids] of moreSections(lauren,away))assert.ok(title&&ids.length);
+ // And whatever the bar holds, More stands in for everything it does not.
+ assert.equal(navActive('games','more',nate,mine),false,'a screen on the bar lights the bar');
+ assert.equal(navActive('weather','more',nate,mine),true,'and everything else lights More');
+ assert.ok(BAR_MIN>=3&&BAR_MAX<=8&&BAR_MIN<BAR_MAX);
+ assert.deepEqual(cleanNav(undefined,nate),{bar:null,hidden:[]});
+ // Home is on the bar wherever they put it. It can be moved along the row but not off it: a
+ // swipe down the bar lands on whatever is first, and that has to be somewhere to land.
+ assert.deepEqual(primaryNav(lauren,{bar:['games','weather','places','food']}),
+  ['today','games','weather','places','food']);
+ assert.ok(primaryNav(damien,{bar:pagesFor(damien).filter(id=>id!=='today')}).includes('today'));
+ // A screen put away cannot come back through the back door. Without a bar of their own the
+ // one for their role is used, minus anything they put away, topped up in the order the menu
+ // itself is in rather than left as two buttons and a gap.
+ const bare=primaryNav(lauren,{hidden:['tickets','food','money']});
+ for(const id of ['tickets','food','money'])assert.ok(!bare.includes(id),`${id} came back on the bar`);
+ assert.ok(bare.length>=BAR_MIN,'and the row is never left short');
+ assert.deepEqual(bare,['today','days','weather'],'topped up from the top of the menu');
+ // The order things are offered in is the order they already know from More.
+ const order=menuOrder(damien);
+ assert.deepEqual([...new Set(order)],order,'nothing is offered twice');
+ assert.deepEqual([...order].sort(),[...pagesFor(damien)].sort(),'and nothing is left out');
+ assert.ok(order.indexOf('weather')<order.indexOf('games'),'the practical half first, as in More');
+});
+
+test('the bottom bar swipes up for the rest of the menu, and is the one each person arranged',async()=>{
+ const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const screen=await readFile(new URL('../src/Personalise.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ const {swipeVertical,SWIPE_UP}=await import('../src/swipe.js');
+ // Up for everything else, down to come back. A diagonal drag is a scroll, not a swipe, and a
+ // mostly sideways one belongs to the strip of tabs, which was already swiping that way.
+ assert.equal(swipeVertical({x:0,y:200},{x:0,y:200-SWIPE_UP.up-1}),1);
+ assert.equal(swipeVertical({x:0,y:200},{x:0,y:200+SWIPE_UP.up+1}),-1);
+ assert.equal(swipeVertical({x:0,y:200},{x:0,y:190}),0,'a nudge is not a swipe');
+ assert.equal(swipeVertical({x:0,y:200},{x:SWIPE_UP.across+1,y:200-SWIPE_UP.up-1}),0,'a diagonal is a scroll');
+ assert.equal(swipeVertical(null,{x:0,y:0}),0);
+ assert.match(nav,/const way=swipeVertical\(from,/);
+ assert.match(nav,/if\(way===1&&!moreOn\)go\('more'\);/);
+ assert.match(nav,/else if\(way===-1&&moreOn\)go\(bar\[0\]\);/);
+ // A gesture nobody can see is a gesture nobody uses, and it is never the only way through:
+ // the handle is a button, and the More button beside it still does the same job.
+ assert.match(nav,/className="nav-grip"/);
+ assert.match(nav,/aria-label=\{moreOn\?'Close the menu':'Open the whole menu'\}/);
+ assert.match(nav,/className=\{`nav-more\$\{moreOn\?' active':''\}`\}/);
+ assert.match(css,/\.bottom-nav \.nav-grip\{position:absolute/);
+ // The bar is the one this person arranged, and so is what More has left to show.
+ assert.match(nav,/const bar=primaryNav\(user,prefs\);/);
+ assert.match(nav,/moreSections\(user,prefs\)/);
+ assert.match(main,/<BottomNav tab=\{tab\} user=\{user\} go=\{go\} prefs=\{navPrefs\}/);
+ assert.match(main,/<MorePage user=\{user\} tab=\{tab\} go=\{go\} prefs=\{navPrefs\}>/);
+ // Kept on the phone, per person, and cleaned on the way in as well as on the way out.
+ assert.match(main,/localStorage\.setItem\(`japan\.nav\.\$\{user\.name\}`/);
+ assert.match(main,/setNavPrefs\(cleanNav\(stored\(`japan\.nav\.\$\{user\.name\}`,emptyNav\(\)\),user\)\)/);
+ // Arrows rather than dragging: a drag list fights the page scroll and needs a steady hand,
+ // and the person most likely to be rearranging this is five.
+ assert.match(screen,/aria-label=\{`Move \$\{PAGES\[id\]\.label\} up`\}/);
+ assert.match(screen,/aria-label=\{`Move \$\{PAGES\[id\]\.label\} down`\}/);
+ assert.doesNotMatch(screen,/draggable/);
+ // And a way out of any arrangement at all.
+ assert.match(screen,/setPrefs\(emptyNav\(\)\)/);
+ assert.match(main,/tab==='personalise'&&<Personalise/);
 });
 
 test('every row in the menu draws an icon, and the bar swipes across the bottom',async()=>{
@@ -3986,6 +4107,122 @@ test('every page and every game can be heard rather than read, in words a five-y
  // page's own language, because these are instructions and they have to land the first time.
  assert.match(pages,/read\(id,text,'en-AU',0\.8\)/);
  assert.match(pages,/if\(!supported\|\|!text\)return null;/,'a phone with no voice is offered nothing');
+});
+
+test('the games are offered easiest first, and can be narrowed to the Japanese ones',async()=>{
+ const games=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const rows=[...games.matchAll(/\{id:'([a-z]+)',title:'([^']+)',ease:(\d),[^\n]*?(origin:'(\w+)')?[^\n]*?needs:/g)]
+  .map(([line,id,title,ease])=>({id,title,ease:Number(ease),traditional:/origin:'traditional'/.test(line)}));
+ assert.ok(rows.length>=21,'every game is in the picker with a difficulty on it');
+ const easeOf=id=>rows.find(r=>r.id===id)?.ease;
+ // Three bands, and which game is in which is the whole point of the ordering: band one is
+ // what Nate plays without anybody sitting next to him, band three is what an adult has to
+ // think about. A picker that opens on sumo is a picker he scrolls past.
+ for(const r of rows)assert.ok(r.ease>=1&&r.ease<=3,`${r.title} has no band`);
+ for(const id of ['match','sights','fukuwarai','kitchen','draw','daruma','snake','janken'])
+  assert.equal(easeOf(id),1,`${id} is one a five-year-old plays on his own`);
+ for(const id of ['picross','gomoku','shogi','sumo','hanafuda'])
+  assert.equal(easeOf(id),3,`${id} is one of the hard ones`);
+ assert.equal(easeOf('beigoma'),1,'one flick and then watching');
+ assert.equal(easeOf('kendama'),2,'the pull and the catch both have to be right');
+ assert.match(games,/const \[game,setGame\]=useState\('match'\)/,'and it opens on an easy one');
+ // Easiest first inside each band, and the bands walked in order rather than sorted by hand.
+ assert.match(games,/\.sort\(\(a,b\)=>a\.ease-b\.ease\)/);
+ assert.match(games,/const BANDS=\[\n \[1,/);
+ assert.match(games,/BANDS\.map\(\(\[level,label,note\]\)=>\{/);
+ // "Show me a real Japanese one" is a thing both boys ask, and the marks to answer it were
+ // already on every card — this turns them into a way to choose.
+ assert.match(games,/\['traditional','Traditional Japanese',g=>g\.origin==='traditional'\]/);
+ assert.match(games,/\['rest','Everything else',g=>g\.origin!=='traditional'\]/);
+ assert.ok(rows.filter(r=>r.traditional).length>=8,'the traditional filter has something in it');
+ assert.ok(rows.filter(r=>!r.traditional).length>=8,'and so does everything else');
+ // The filter changes what is on offer, so it changes what you are playing rather than leaving
+ // a board up that nothing in the picker points at any more.
+ assert.match(games,/if\(!list\.some\(g=>g\.id===game\)\)setGame\(list\[0\]\.id\)/);
+});
+
+test('winning is celebrated once, and only where there is something to win',async()=>{
+ // Win.jsx is JSX and cannot be imported here, so the rules are checked where they are written.
+ const win=await readFile(new URL('../src/Win.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // On the edge, not on the flag: every game holds its finished state while the winning board
+ // sits there, so a re-render must not set the confetti off a second time.
+ assert.match(win,/if\(was\.current\)return;/);
+ assert.match(win,/setTimeout\(\(\)=>setGoing\(false\),WIN_MS\)/);
+ assert.match(win,/export const WIN_MS=(\d+);/);
+ assert.ok(Number(win.match(/export const WIN_MS=(\d+);/)[1])<=3000,'and it gets out of the way');
+ // Said in words as well as in paper, because a burst nobody can see is not an announcement.
+ assert.match(win,/role="status"/);
+ assert.match(win,/className="win-paper" aria-hidden="true"/);
+ assert.match(css,/@media\(prefers-reduced-motion:reduce\)\{\.win-paper\{display:none\}/,
+  'a phone that asked for less movement gets the words and none of the paper');
+ assert.match(css,/pointer-events:none/,'and it never swallows the tap for the next round');
+ // Every game with a win says so.
+ for(const file of ['Karuta','AnimalShogi','Fukuwarai','Daruma','Shiritori','Picross','Gomoku','SpotDifference','Origami','Kendama','Beigoma','Hanafuda']){
+  const source=await readFile(new URL(`../src/${file}.jsx`,import.meta.url),'utf8');
+  assert.match(source,/<WinBurst on=\{/,`${file} never celebrates`);
+ }
+ const games=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ assert.ok((games.match(/<WinBurst on=\{/g)||[]).length>=8,'the games on the page itself celebrate too');
+ // And the ones you cannot win do not pretend you did. The goldfish stall ends when the paper
+ // tears, which it always does, and a fanfare for that teaches the wrong thing.
+ const kingyo=await readFile(new URL('../src/Kingyo.jsx',import.meta.url),'utf8');
+ assert.doesNotMatch(kingyo,/WinBurst/);
+});
+
+test('every game is written out in full, in words that need no Japanese',async()=>{
+ const {GAME_GUIDES,gameGuide}=await import('../src/game-guide.js');
+ const games=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const ids=[...games.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:/g)].map(([,id,title])=>({id,title}));
+ // The written rules are the ones a parent reads out when somebody says "but can he take it
+ // back?", so a game without them is a game nobody can settle an argument about.
+ assert.deepEqual(Object.keys(GAME_GUIDES).sort(),ids.map(g=>g.id).sort());
+ for(const {id,title} of ids){
+  const guide=gameGuide(id);
+  // Four parts, always: what you are trying to do, what to set up, how it goes, how it ends.
+  assert.ok(guide.objective&&guide.win,`${title} is missing what it is for or how it ends`);
+  assert.ok(Array.isArray(guide.setup)&&guide.setup.length,`${title} does not say how to set it up`);
+  assert.ok(Array.isArray(guide.rules)&&guide.rules.length>=3,`${title} has too few rules to play by`);
+  for(const line of [guide.objective,guide.win,...guide.setup,...guide.rules]){
+   // No kana and no kanji anywhere. The boy reading this cannot read them, and neither can a
+   // grandparent — anything Japanese worth knowing is spelt the way it sounds, with what it
+   // means straight after it.
+   assert.doesNotMatch(line,/[\u3040-\u30ff\u3400-\u9fff\uff00-\uffef]/,`${title} makes you read Japanese: "${line.slice(0,50)}"`);
+   assert.match(line,/[.!?]$/,`${title} has a line that does not finish: "${line.slice(0,50)}"`);
+   // Short sentences, because these are read out to a five-year-old.
+   for(const sentence of line.split(/(?<=[.!?])\s+/))
+    assert.ok(sentence.split(/\s+/).length<=36,`${title} has a sentence too long to follow: "${sentence.slice(0,60)}"`);
+  }
+ }
+ assert.equal(gameGuide('nothing-like-this'),null);
+ // And it is on the screen, under the game's own name, with all four headings on it.
+ assert.match(games,/<GameGuide game=\{current\}\/>/,'the guide is rendered on the games page');
+ for(const heading of ['What you are trying to do','Set up','The rules','How to win'])
+  assert.ok(games.includes(`<h3>${heading}</h3>`),`the guide is missing its "${heading}" heading`);
+ // The speaker button still comes first: the person who cannot read the guide needs the
+ // spoken one before anything else on the page.
+ assert.ok(games.indexOf('<SpeakRules')<games.indexOf('<GameGuide'),'the guide is above the speaker button');
+});
+
+test('a game whose choices are named in Japanese says what they are in English too',async()=>{
+ // The bug this replaces: the goldfish stall offered a choice of four-go, five-go and six-go
+ // paper, written in kanji and nothing else, so a player who cannot read it picked a
+ // difficulty by guessing. Every picker like it now carries the English underneath.
+ for(const [file,data,field] of [
+  ['Kingyo','kingyo.js','LEVELS'],
+  ['Daruma','daruma.js','LEVELS'],
+  ['Gomoku','gomoku.js','LEVELS'],
+  ['Karuta','karuta-data.js','KARUTA_DECKS'],
+  ['Fukuwarai','fukuwarai-data.js','FACES'],
+  ['Beigoma','beigoma.js','TOPS']
+ ]){
+  const source=await readFile(new URL(`../src/${file}.jsx`,import.meta.url),'utf8');
+  const list=(await import(`../src/${data}`))[field];
+  for(const item of list)assert.ok(item.en,`${field} ${item.id} has no English name`);
+  assert.match(source,/<b lang="ja">\{[a-z]\.ja\}<\/b><small>/,`${file} names its choices in Japanese alone`);
+ }
+ const games=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ assert.match(games,/<b lang="ja">ひらがな<\/b><small>Hiragana/,'even the two alphabets say which is which');
 });
 
 test('fukuwarai hands the pieces over one at a time, and marks how far each one landed from home',async()=>{

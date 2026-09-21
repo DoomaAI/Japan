@@ -63,7 +63,8 @@ export const PAGE_RULES={
  updates:'Family updates. Anything that has changed about the plan, and who has seen it.',
  search:'Search everything. Type anything at all and it looks through the whole app for it.',
  mascot:'Our characters. Make your own Japanese character. Pick what it is, then its colours, its eyes, its mouth and what it holds, and give it a name.',
- thanks:'Notes for Lauren. This one is Dad writing notes for Mum, so there is nothing in here for you.'
+ thanks:'Notes for Lauren. This one is Dad writing notes for Mum, so there is nothing in here for you.',
+ personalise:'My menu. This is where you choose the buttons along the bottom of the screen. You can move them up and down so your favourite one is first, take off the ones you never press, and put away any whole page you do not want to see. If it all goes wrong, press start again, and everything comes back.'
 };
 export const gameRule=id=>GAME_RULES[id]||'';
 export const pageRule=id=>PAGE_RULES[id]||'';
