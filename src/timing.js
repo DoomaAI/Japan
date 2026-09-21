@@ -54,3 +54,40 @@ export function stayPlan(step,at=new Date()){
  const until=new Date(Math.max(targeted??when.getTime(),when.getTime())+duration*60000);
  return {minutes:duration,until:japanClock(until),text:`We plan to stay about ${spanWords(duration)}, moving on around ${japanClock(until)}.`};
 }
+// What happens after this one. It is the question anybody standing in a place actually has —
+// what is next, when does it start, how long does it run, and how long have we got here — and
+// until now the answer was three fields on a card nobody opens.
+//
+// "Next" is positional: the next stop in the day's order. That is what the word means when you
+// are looking at a card, and it stays the same whether or not the stop after it has been ticked
+// off, so the answer does not move around while somebody is reading it. A skipped stop is the
+// one exception, because it is not happening at all.
+export function whatsNext(steps,step){
+ const list=Array.isArray(steps)?steps:[];
+ const at=list.findIndex(s=>s?.id&&s.id===step?.id);
+ if(at<0)return null;
+ const next=list.slice(at+1).find(s=>s.status!=='skipped');
+ if(!next)return null;
+ const runs=Math.max(next.duration||0,0);
+ // Measured from when this stop is due to FINISH rather than when it starts: the time you have
+ // here is the time before the next thing begins, and the plan already says how long we meant
+ // to be here. Only where both have a target time, because two unknowns make no gap.
+ const from=step?.time?minutes(step.time)+Math.max(step?.duration||0,0):null;
+ const to=next.time?minutes(next.time):null;
+ const gap=from!==null&&to!==null?to-from:null;
+ // Where the next thing starts before this one is due to end, the gap is negative and saying so
+ // helps nobody: most stops carry a default half hour rather than a measured one, so "20 min
+ // before this one is due to finish" would cry overlap all day about a number nobody set. Fall
+ // back to the fact that is certainly true either way — how long after this one starts — and
+ // keep the alarm for the genuinely out of order.
+ const fromStart=step?.time&&to!==null?to-minutes(step.time):null;
+ const after=gap===null?''
+  :gap>0?`${spanWords(gap)} after this one`
+  :gap===0?'straight after this one'
+  :fromStart>0?`${spanWords(fromStart)} after this one starts`
+  :fromStart===0?'at the same time as this one'
+  :`${spanWords(fromStart)} before this one`;
+ const howLong=runs?`about ${spanWords(runs)}`:'no length set';
+ return {step:next,at:next.time||null,minutes:runs,runs:runs?spanWords(runs):null,gap,fromStart,after,howLong,
+  text:`${next.time||'Any time'} · ${next.title} — ${howLong}${after?`, ${after}`:''}.`};
+}

@@ -50,8 +50,8 @@ import {MascotBadge} from './Mascot.jsx';
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
-import {ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Archive,ArchiveRestore,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon} from 'lucide-react';
-import {activeSteps,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent,scheduleVariance,stayPlan} from './timing.js';
+import {ArrowLeft,ArrowRight,ArrowRightCircle,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Archive,ArchiveRestore,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon} from 'lucide-react';
+import {activeSteps,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent,scheduleVariance,stayPlan,whatsNext} from './timing.js';
 import {todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,ticketList,isArchived,attachmentsOf,documentSteps,documentStepList,documentServesStep} from './trip-features.js';
 import {armPlayback} from './speech.js';
 import {PhraseAudio} from './PhraseAudio.jsx';
@@ -201,6 +201,7 @@ function App(){
  const changeSetting=(id,value)=>{writeSetting(user?.name,id,value);bumpSettings(n=>n+1);};
  const forecast=useForecastCheck({state:visibleState||{days:[]},day:null,mutate,notice});
  const today=state?.days.find(d=>d.date===day),steps=visibleState?activeSteps(visibleState,day):[],current=steps.find(s=>s.id===selected)||steps.find(s=>!['done','skipped'].includes(s.status))||steps.at(-1),index=steps.findIndex(s=>s.id===current?.id);
+ const upNext=whatsNext(steps,current);
  const done=steps.filter(s=>s.status==='done').length,nextFixed=steps.find(s=>s.locked&&!['done','skipped'].includes(s.status)&&s.id!==current?.id),groups=state?[...new Set(state.steps.filter(s=>s.day===day&&s.group).map(s=>s.group))]:[];
  function go(id,d,item){setFocus(item||null);if(d&&state.days.some(x=>x.date===d)){setDay(d);setSelected(null);}setTab(id);setQuery('');setModal(null);history.replaceState(null,'','/?'+new URLSearchParams({tab:id,day:d||day,...(item?{item}:{})}));}
  function selectDay(d){setDay(d);setSelected(null);setTab('today');updateUrl(d);}
@@ -338,6 +339,14 @@ function App(){
      // now stands as well: ticking off is the one moment we know both what was planned and what
      // actually happened, and twelve minutes in hand is worth hearing before the next step.
      setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);}}}>Done</Button></>}{parent&&<button className="icon" aria-label="Edit or skip activity" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal/></button>}</div>
+    {/* The question you have while standing in a place, answered where you are standing rather
+        than in a duration field nobody opens: what is next, when it starts, how long it runs,
+        and how long there is before it. Tapping it goes there. */}
+    {upNext&&<button className="whats-next" onClick={()=>selectStep(upNext.step)}>
+     <ArrowRightCircle size={22}/>
+     <span>What’s next<strong>{upNext.at||'Any time'} · {upNext.step.title}</strong>
+      <small>{upNext.howLong[0].toUpperCase()+upNext.howLong.slice(1)}{upNext.after?` · ${upNext.after}`:''}{upNext.step.status==='done'?' · already done':''}</small></span>
+     <ChevronRight size={18}/></button>}
     <StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore step</button></p>}
    </article>:<div className="empty"><h2>A little room for discovery.</h2><p>Add your first stop for this day.</p></div>}

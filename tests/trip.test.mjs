@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createServer} from 'node:http';
 import {applyOperation,AppError} from '../server/model.mjs';
-import {activeSteps,scheduleProposal,japanClock,japanDate,scheduleVariance,stayPlan} from '../src/timing.js';
+import {activeSteps,scheduleProposal,japanClock,japanDate,scheduleVariance,stayPlan,whatsNext} from '../src/timing.js';
 import handler from '../server/handler.mjs';
 import {htmlToText,parseInbound,addToInbox,MAX_INBOX} from '../server/email.mjs';
 const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url)));
@@ -6532,4 +6532,64 @@ test('arriving says how long we plan to stay, and arriving early does not shorte
  const open={day:'2026-09-21',time:null,duration:0};
  assert.equal(stayPlan(open,new Date('2026-09-21T05:20:00Z')).until,null);
  assert.match(stayPlan(open,new Date('2026-09-21T05:20:00Z')).text,/No length set/);
+});
+
+test('every step says what is next, when it starts and how long it runs',async()=>{
+ const day=[
+  {id:'a',time:'09:00',duration:60,title:'Breakfast',status:'todo'},
+  {id:'b',time:'10:30',duration:90,title:'Tōdai-ji',status:'todo'},
+  {id:'c',time:'12:00',duration:0,title:'Wander',status:'todo'},
+  {id:'d',time:null,duration:45,title:'Lunch somewhere',status:'todo'}];
+ // What it is, when it starts, how long it runs, and — the number that decides everything —
+ // how long there is here before it.
+ const first=whatsNext(day,day[0]);
+ assert.equal(first.step.id,'b');
+ assert.equal(first.at,'10:30');
+ assert.equal(first.runs,'1 hr 30 min');
+ assert.equal(first.gap,30,'measured from when this stop is due to finish, not when it starts');
+ assert.equal(first.text,'10:30 · Tōdai-ji — about 1 hr 30 min, 30 min after this one.');
+ // A stop with no length set says so rather than inventing one, the way arriving already does.
+ assert.equal(whatsNext(day,day[1]).howLong,'no length set');
+ assert.equal(whatsNext(day,day[1]).gap,0);
+ assert.match(whatsNext(day,day[1]).text,/straight after this one/);
+ // No target time on either side is no gap at all, rather than a made-up one.
+ assert.equal(whatsNext(day,day[2]).gap,null);
+ assert.equal(whatsNext(day,day[2]).after,'');
+ assert.equal(whatsNext(day,day[2]).text,'Any time · Lunch somewhere — about 45 min.');
+ // The last stop of the day has nothing after it, and neither does a step that is not in the day.
+ assert.equal(whatsNext(day,day[3]),null);
+ assert.equal(whatsNext(day,{id:'nope'}),null);
+ assert.equal(whatsNext(null,day[0]),null);
+ // Where the next thing starts before this one is due to end, crying overlap would be crying
+ // wolf: almost every stop carries a default half hour rather than a measured one. Fall back to
+ // the fact that is true either way — how long after this one starts.
+ const tight=[{id:'a',time:'09:00',duration:90,title:'Breakfast',status:'todo'},
+  {id:'b',time:'10:00',duration:30,title:'Train',status:'todo'}];
+ assert.equal(whatsNext(tight,tight[0]).gap,-30,'the plan really does have them overlapping');
+ assert.equal(whatsNext(tight,tight[0]).after,'1 hr after this one starts');
+ assert.doesNotMatch(whatsNext(tight,tight[0]).text,/overlap|due to finish/);
+ // Two at once is two at once, and genuinely out of order is still worth saying.
+ const same=[{id:'a',time:'11:15',duration:30,title:'Pizza',status:'todo'},
+  {id:'b',time:'11:15',duration:30,title:'Market',status:'todo'}];
+ assert.equal(whatsNext(same,same[0]).after,'at the same time as this one');
+ const backwards=[{id:'a',time:'11:00',duration:30,title:'Market',status:'todo'},
+  {id:'b',time:'10:00',duration:30,title:'Somehow earlier',status:'todo'}];
+ assert.equal(whatsNext(backwards,backwards[0]).after,'1 hr before this one');
+ // A skipped stop is not happening, so it is not what is next. A completed one still is:
+ // "next" is the next thing in the day, and an answer that moves while you read it is worse.
+ const mixed=[{id:'a',time:'09:00',duration:30,title:'Breakfast',status:'todo'},
+  {id:'b',time:'10:00',duration:30,title:'Skipped shrine',status:'skipped'},
+  {id:'c',time:'11:00',duration:30,title:'Market',status:'done'},
+  {id:'d',time:'12:00',duration:30,title:'Lunch',status:'todo'}];
+ assert.equal(whatsNext(mixed,mixed[0]).step.id,'c');
+ assert.equal(whatsNext(mixed,mixed[2]).step.id,'d');
+ // On the card, tappable, and saying the done one is done rather than pretending otherwise.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/const upNext=whatsNext\(steps,current\)/,'worked out once, not twice a render');
+ assert.match(main,/className="whats-next" onClick=\{\(\)=>selectStep\(upNext\.step\)\}/);
+ assert.match(main,/upNext\.step\.status==='done'\?' · already done':''/);
+ // And every row of the day at a glance says how long it takes, which is the same question
+ // asked of the whole day at once.
+ const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
+ assert.match(timeline,/s\.duration>0&&s\.status!=='skipped'\?` · \$\{spanWords\(s\.duration\)\}`:''/);
 });
