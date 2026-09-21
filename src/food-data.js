@@ -16,7 +16,9 @@ export const FOOD=[
  {id:'udon',en:'Udon — thick wheat noodles',ja:'うどん',romaji:'udon',say:'oo-don',variants:[{en:'Plain hot udon',ja:'かけうどん',romaji:'kake udon',say:'ka-keh oo-don'},{en:'Beef udon',ja:'肉うどん',romaji:'niku udon',say:'nee-koo oo-don'},{en:'Prawn tempura udon',ja:'天ぷらうどん',romaji:'tenpura udon',say:'ten-poo-ra oo-don'}],kind:'meal',note:'Soft and mild. Usually the gentlest noodle on a menu.'},
  {id:'soba',en:'Soba — buckwheat noodles',ja:'そば',romaji:'soba',say:'so-ba',kind:'meal',note:'Hot in broth, or cold on a tray to dip.'},
  {id:'zarusoba',en:'Zaru soba — cold soba to dip',ja:'ざるそば',romaji:'zaru soba',say:'za-roo so-ba',kind:'meal',note:'Served cold on a bamboo tray with a dipping cup.'},
- {id:'sushi',en:'Sushi',ja:'寿司',romaji:'sushi',say:'soo-shee',kind:'meal',note:'Conveyor-belt places are the easy version with children.'},
+ {id:'sushi',en:'Sushi',ja:'寿司',romaji:'sushi',say:'soo-shee',variants:[{en:'Cucumber roll — no fish',ja:'かっぱ巻き',romaji:'kappamaki',say:'kap-pa-ma-kee'},{en:'Avocado roll',ja:'アボカド巻き',romaji:'abokado maki',say:'a-bo-ka-do ma-kee'},{en:'Avocado and prawn roll',ja:'エビアボカド巻き',romaji:'ebi abokado maki',say:'eh-bee a-bo-ka-do ma-kee'},{en:'Egg — cooked, sweet',ja:'玉子',romaji:'tamago',say:'ta-ma-go'},{en:'Salmon',ja:'サーモン',romaji:'sāmon',say:'sah-mon'},{en:'Tuna',ja:'まぐろ',romaji:'maguro',say:'ma-goo-ro'},{en:'Prawn — cooked',ja:'エビ',romaji:'ebi',say:'eh-bee'},{en:'Fried chicken roll',ja:'唐揚げ巻き',romaji:'karaage maki',say:'ka-rah-a-geh ma-kee'}],kind:'meal',note:'Conveyor-belt places are the easy version with children. Cucumber, avocado and egg are the no-fish ones.'},
+ {id:'makizushi',en:'Maki — rolled sushi',ja:'巻き寿司',romaji:'makizushi',say:'ma-kee-zoo-shee',variants:[{en:'Cucumber roll',ja:'かっぱ巻き',romaji:'kappamaki',say:'kap-pa-ma-kee'},{en:'Avocado roll',ja:'アボカド巻き',romaji:'abokado maki',say:'a-bo-ka-do ma-kee'},{en:'Pickled radish roll',ja:'新香巻き',romaji:'shinkomaki',say:'sheen-ko-ma-kee'},{en:'Tuna roll',ja:'鉄火巻き',romaji:'tekkamaki',say:'tek-ka-ma-kee'},{en:'Salmon and avocado roll',ja:'サーモンアボカド巻き',romaji:'sāmon abokado maki',say:'sah-mon a-bo-ka-do ma-kee'}],kind:'meal',note:'Rice and filling rolled in seaweed, cut into six. The cucumber one is the safest order on any sushi menu.'},
+ {id:'inari',en:'Inari — sweet tofu pocket of rice',ja:'いなり寿司',romaji:'inarizushi',say:'ee-na-ree-zoo-shee',kind:'meal',note:'No fish at all. Sweet, soft and sold in every convenience store.'},
  {id:'tempura',en:'Tempura — light battered prawns and vegetables',ja:'天ぷら',romaji:'tenpura',say:'ten-poo-ra',variants:[{en:'Prawn tempura',ja:'エビ天ぷら',romaji:'ebi tenpura',say:'eh-bee ten-poo-ra'},{en:'Vegetable tempura',ja:'野菜天ぷら',romaji:'yasai tenpura',say:'ya-sigh ten-poo-ra'}],kind:'meal',note:'Crisp, not greasy. Dip it in the sauce or the salt.'},
  {id:'oyakodon',en:'Oyakodon — chicken and egg on rice',ja:'親子丼',romaji:'oyakodon',say:'oh-ya-ko-don',variants:[{en:'Beef on rice',ja:'牛丼',romaji:'gyūdon',say:'gyoo-don'},{en:'Pork cutlet on rice',ja:'カツ丼',romaji:'katsudon',say:'kat-soo-don'},{en:'Tempura on rice',ja:'天丼',romaji:'tendon',say:'ten-don'}],kind:'meal',note:'Soft, savoury and easy. A very good child order.'},
  {id:'gyudon',en:'Gyudon — beef on rice',ja:'牛丼',romaji:'gyūdon',say:'gyoo-don',kind:'meal',note:'Fast, cheap and everywhere.'},
@@ -79,6 +81,8 @@ export const ORDERING=[
  {id:'nomeat',en:'I do not eat meat',ja:'肉を食べません',romaji:'niku o tabemasen',say:'nee-koo oh ta-beh-ma-sen'},
  {id:'meatinthis',en:'Is there meat in this?',ja:'これに肉は入っていますか？',romaji:'kore ni niku wa haitte imasu ka?',say:'ko-reh nee nee-koo wa ha-eet-teh ee-mass ka'},
  {id:'vegetarian',en:'Do you have a vegetarian dish?',ja:'ベジタリアンの料理はありますか？',romaji:'bejitarian no ryōri wa arimasu ka?',say:'beh-jee-ta-ree-an no ryoh-ree wa a-ree-mass ka'},
+ {id:'cucumberroll',en:'A cucumber roll, please',ja:'かっぱ巻きをください',romaji:'kappamaki o kudasai',say:'kap-pa-ma-kee oh koo-da-sigh'},
+ {id:'norawfish',en:'No raw fish, please',ja:'生の魚は入れないでください',romaji:'nama no sakana wa irenaide kudasai',say:'na-ma no sa-ka-na wa ee-reh-nigh-deh koo-da-sigh'},
  {id:'delicious',en:'It was delicious — thank you',ja:'ごちそうさまでした',romaji:'gochisōsama deshita',say:'go-chee-soh-sa-ma desh-ta'}
 ];
 // The handful of words that tell you what is in something. Worth recognising on a menu.
@@ -94,6 +98,9 @@ export const MENU_WORDS=[
  {id:'noodles',en:'Noodles',ja:'麺',romaji:'men',say:'men'},
  {id:'rice',en:'Rice',ja:'ご飯',romaji:'gohan',say:'go-han'},
  {id:'spicy',en:'Spicy',ja:'辛い',romaji:'karai',say:'ka-rye'},
- {id:'raw',en:'Raw',ja:'生',romaji:'nama',say:'na-ma'}
+ {id:'raw',en:'Raw',ja:'生',romaji:'nama',say:'na-ma'},
+ {id:'cucumber',en:'Cucumber',ja:'きゅうり / かっぱ',romaji:'kyūri / kappa',say:'kyoo-ree / kap-pa'},
+ {id:'avocado',en:'Avocado',ja:'アボカド',romaji:'abokado',say:'a-bo-ka-do'},
+ {id:'roll',en:'Roll (rolled in seaweed)',ja:'巻き',romaji:'maki',say:'ma-kee'}
 ];
 export const FOOD_KIND_LABEL=id=>FOOD_KINDS.find(([k])=>k===id)?.[1]||'Other';

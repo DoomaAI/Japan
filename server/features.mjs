@@ -72,6 +72,16 @@ export function extraOperation(state,op,user,fail,now){
   const seen={...(state.phraseSeen[op.day]||{})};
   seen[op.person]=seen[op.person]||at;
   state.phraseSeen={...state.phraseSeen,[op.day]:seen};
+ }else if(op.type==='voiceNoteRemove'){
+  // Your own voice is yours to take back; a parent can remove any of them.
+  const note=state.voiceNotes.find(v=>v.id===op.id);if(!note)fail('Voice note not found.',404);
+  if(!parent&&note.by!==user.name)fail('You can only remove your own voice notes.',403);
+  state.voiceNotes=state.voiceNotes.filter(v=>v.id!==op.id);
+ }else if(op.type==='voiceNoteLabel'){
+  const note=state.voiceNotes.find(v=>v.id===op.id);if(!note)fail('Voice note not found.',404);
+  if(!parent&&note.by!==user.name)fail('You can only label your own voice notes.',403);
+  if(typeof op.title!=='string'||op.title.length>200)fail('Keep the label short.');
+  note.title=op.title.trim();
  }else if(op.type==='exchangeRate'){
   if(!parent)fail('A parent can set the rate.',403);
   if(!Number.isFinite(op.perAud)||op.perAud<1||op.perAud>1000)fail('Enter how many yen one Australian dollar buys.');

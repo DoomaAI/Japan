@@ -860,8 +860,8 @@ test('every Japanese word and phrase in the app carries a sound-it-out',async()=
   // that is only one sound ("hye", "men") has nothing to chunk.
   assert.ok(/-/.test(item.say)||item.say.length<=4,`${id} phonics is not chunked`);
  }
- assert.equal(FOOD.length+ORDERING.length,64);
- assert.equal(variants.length,34,'the chicken/pork/prawn/vege choices under the dishes');
+ assert.equal(FOOD.length+ORDERING.length,68);
+ assert.equal(variants.length,47,'the chicken/pork/prawn/vege/cucumber/avocado choices under the dishes');
  assert.ok(SAY_TIP.includes('evenly'));
  // The endings a learner would otherwise get wrong, because the vowel goes silent.
  assert.equal(ORDERING.find(o=>o.id==='four').say,'yo-neen dess','desu is said "dess"');
@@ -929,8 +929,13 @@ test('the dishes carry the chicken, pork, prawn and vegetarian choices, and how 
  assert.ok(FOOD.find(f=>f.id==='gyoza').variants.some(v=>/prawn/i.test(v.en)));
  assert.ok(FOOD.find(f=>f.id==='tonkatsu').variants.some(v=>/pork/i.test(v.en)));
  // The words to spot on a menu, and the questions to ask about what is in a dish.
- for(const id of ['chicken','pork','prawn','beef','egg'])assert.ok(MENU_WORDS.find(w=>w.id===id),`${id} missing from the menu words`);
- for(const id of ['chickenplease','nomeat','meatinthis','vegetarian'])assert.ok(ORDERING.find(o=>o.id===id),`${id} missing from ordering`);
+ for(const id of ['chicken','pork','prawn','beef','egg','cucumber','avocado'])assert.ok(MENU_WORDS.find(w=>w.id===id),`${id} missing from the menu words`);
+ for(const id of ['chickenplease','nomeat','meatinthis','vegetarian','cucumberroll','norawfish'])assert.ok(ORDERING.find(o=>o.id===id),`${id} missing from ordering`);
+ // The no-fish sushi orders, which are the point of the sushi list for a five-year-old.
+ const sushi=FOOD.find(f=>f.id==='sushi').variants.map(v=>v.en.toLowerCase());
+ for(const want of ['cucumber','avocado','egg'])assert.ok(sushi.some(v=>v.includes(want)),`sushi has no ${want}`);
+ assert.ok(FOOD.find(f=>f.id==='makizushi').variants.some(v=>/cucumber/i.test(v.en)));
+ assert.ok(FOOD.find(f=>f.id==='inari'),'a sushi with no fish in it at all');
 });
 
 test('searching works from an English keyboard — no macrons, no punctuation',async()=>{
@@ -943,4 +948,94 @@ test('searching works from an English keyboard — no macrons, no punctuation',a
  assert.ok(find('こんにちは').some(p=>p.id==='hello'),'and Japanese still searches as itself');
  assert.equal(searchText('  Arigatō  gozaimasu? '),'arigato gozaimasu');
  assert.equal(searchText(undefined),'');
+});
+
+test('a voice note is checked before it is ever stored',async()=>{
+ const {validateAudio,VOICE_MAX_BYTES}=await import('../server/files.mjs');
+ // What a phone's own recorder produces, and nothing else.
+ validateAudio('audio/webm;codecs=opus',40000);validateAudio('audio/mp4',900000);
+ for(const bad of [['application/pdf',1000],['image/jpeg',1000],['audio/webm',0],['audio/webm',VOICE_MAX_BYTES+1],[undefined,1000]])
+  assert.throws(()=>validateAudio(...bad),/five minutes/,`${bad[0]} ${bad[1]} should be refused`);
+});
+
+test('API: a voice note is refused unless it belongs to you, a real day and a real activity',async()=>{
+ process.env.LOCAL_DEMO='1';delete process.env.VERCEL;
+ const server=createServer(handler);await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
+ try{
+  const post=(path,data)=>fetch(base+'/api/'+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify(data)});
+  const {state}=await(await fetch(base+'/api/state')).json();
+  const day=state.days[0].date,stepToday=state.steps.find(s=>s.day===day),other=state.steps.find(s=>s.day&&s.day!==day);
+  const good={pathname:'voice/preview/note.webm',day,seconds:12};
+  const fails=async (body,pattern)=>{
+   const r=await post('voice',body);assert.equal(r.status>=400,true,JSON.stringify(body));
+   assert.match((await r.json()).error,pattern);
+  };
+  // Someone else's folder, or a way out of it.
+  await fails({...good,pathname:'voice/someone-else/note.webm'},/Invalid voice note/);
+  await fails({...good,pathname:'tickets/preview/note.webm'},/Invalid voice note/);
+  await fails({...good,pathname:'voice/preview/../../secret.webm'},/Invalid voice note/);
+  // A day we are not in Japan, and an activity that is not on the day claimed.
+  await fails({...good,day:'2099-01-01'},/trip day/);
+  await fails({...good,stepId:other.id},/Activity not found/);
+  await fails({...good,stepId:'no-such-step'},/Activity not found/);
+  // Lengths that cannot be real, and a label nobody wants to read.
+  for(const seconds of [0,-5,301,'abc'])await fails({...good,seconds},/one second and five minutes/);
+  await fails({...good,title:'x'.repeat(201)},/label short/);
+  // A valid request gets past validation and only then reaches storage, which is not connected here.
+  const r=await post('voice',{...good,stepId:stepToday.id});
+  assert.equal(r.status>=400,true);assert.doesNotMatch((await r.json()).error,/trip day|Activity|Invalid voice note/);
+  // A child may upload a voice note; everything else in the upload route stays parent-only.
+  assert.equal((await post('upload',{pathname:'voice/preview/x.webm'})).status,503,'voice uploads reach storage');
+ }finally{delete process.env.LOCAL_DEMO;await new Promise(r=>server.close(r));}
+});
+
+test('voice notes belong to the person who recorded them',async()=>{
+ const {ensureFeatures,voiceNotesFor,voiceLength}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.voiceNotes,[]);
+ const day=seed.days[0].date,step=seed.steps.find(s=>s.day===day);
+ state.voiceNotes=[
+  {id:'v1',by:'Nate',day,stepId:step.id,title:'The deer',seconds:65,at:'2026-09-21T02:00:00.000Z',pathname:'voice/n/1.webm',type:'audio/webm'},
+  {id:'v2',by:'Damien',day,stepId:null,title:'End of day',seconds:9,at:'2026-09-21T11:00:00.000Z',pathname:'voice/d/2.webm',type:'audio/webm'},
+  {id:'v3',by:'Lauren',day:seed.days[1].date,stepId:null,title:'',seconds:30,at:'2026-09-22T11:00:00.000Z',pathname:'voice/l/3.webm',type:'audio/webm'}
+ ];
+ // Newest first, and a day shows the activity notes with it.
+ assert.deepEqual(voiceNotesFor(state,{day}).map(v=>v.id),['v2','v1']);
+ assert.deepEqual(voiceNotesFor(state,{stepId:step.id}).map(v=>v.id),['v1']);
+ assert.deepEqual(voiceNotesFor(state,{day,stepId:null}).map(v=>v.id),['v2'],'the day itself, without the activity notes');
+ assert.equal(voiceNotesFor(state).length,3);
+ assert.equal(voiceLength(65),'1:05');assert.equal(voiceLength(9),'0:09');assert.equal(voiceLength(300),'5:00');
+ // A child removes and labels his own; he cannot touch anyone else's.
+ assert.deepEqual(applyOperation(state,{type:'voiceNoteRemove',id:'v1'},child).voiceNotes.map(v=>v.id),['v2','v3']);
+ assert.equal(applyOperation(state,{type:'voiceNoteLabel',id:'v1',title:'  The deer at Nara  '},child).voiceNotes[0].title,'The deer at Nara');
+ for(const op of [{type:'voiceNoteRemove',id:'v2'},{type:'voiceNoteLabel',id:'v2',title:'no'}])
+  assert.throws(()=>applyOperation(state,op,child),e=>e.status===403);
+ // A parent can clear up any of them.
+ assert.deepEqual(applyOperation(state,{type:'voiceNoteRemove',id:'v1'},parent).voiceNotes.map(v=>v.id),['v2','v3']);
+ assert.throws(()=>applyOperation(state,{type:'voiceNoteRemove',id:'nope'},parent),e=>e.status===404);
+ assert.throws(()=>applyOperation(state,{type:'voiceNoteLabel',id:'v2',title:'x'.repeat(201)},parent),/label short/);
+});
+
+test('saving a voice note trusts storage, not the phone, for what the file is',async()=>{
+ const {checkVoiceNote,addVoiceNote}=await import('../server/voice.mjs');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const nate={id:'grant-nate',name:'Nate',role:'child'};
+ const day=seed.days[0].date,step=seed.steps.find(s=>s.day===day);
+ const body={pathname:`voice/${nate.id}/abc.webm`,day,stepId:step.id,title:'  The bamboo  ',seconds:'42.4'};
+ const checked=checkVoiceNote(state,body,nate);
+ assert.deepEqual(checked,{pathname:body.pathname,day,stepId:step.id,title:'The bamboo',seconds:42});
+ const blob={contentType:'audio/webm',size:120000};
+ const saved=addVoiceNote(state,checked,nate,blob,'2026-09-21T03:00:00.000Z');
+ assert.equal(saved.voiceNotes.length,1);
+ assert.deepEqual({...saved.voiceNotes[0],id:'x'},{id:'x',by:'Nate',pathname:body.pathname,day,stepId:step.id,title:'The bamboo',seconds:42,type:'audio/webm',size:120000,at:'2026-09-21T03:00:00.000Z'});
+ // A second save of the same recording is the same note, not a duplicate.
+ assert.equal(addVoiceNote(saved,checked,nate,blob),saved);
+ // A phone claiming a photo is a voice note gets nowhere: the type comes from storage.
+ assert.throws(()=>addVoiceNote(state,checked,nate,{contentType:'image/jpeg',size:120000}),/five minutes/);
+ assert.throws(()=>addVoiceNote(state,checked,nate,{contentType:'audio/webm',size:0}),/five minutes/);
+ // A note with no activity belongs to the day itself.
+ assert.equal(checkVoiceNote(state,{...body,stepId:undefined},nate).stepId,null);
+ // And one person cannot write into another's folder.
+ assert.throws(()=>checkVoiceNote(state,body,{id:'grant-boston',name:'Boston',role:'child'}),/Invalid voice note/);
 });
