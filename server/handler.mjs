@@ -1,4 +1,5 @@
-import {FILE_TYPES,validateFile} from './files.mjs';
+import {FILE_TYPES,AUDIO_TYPES,VOICE_MAX_BYTES,validateFile} from './files.mjs';
+import {checkVoiceNote,addVoiceNote} from './voice.mjs';
 import {readFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {Readable} from 'node:stream';
@@ -65,11 +66,33 @@ export default async function handler(req,res){
    const bytes=await readFile(new URL(`../data/guide/${page}.jpg`,import.meta.url));res.setHeader('Content-Type','image/jpeg');return res.end(bytes);
   }
   if(route==='upload'&&post){
-   parent(user);if(localDemo())throw new AppError('Connect private Blob storage to upload documents.',503);
+   // Everyone records their own voice notes; only a parent uploads documents and media.
+   if(!String(b.pathname||'').startsWith(`voice/${user.id}/`))parent(user);
+   if(localDemo())throw new AppError('Connect private Blob storage to upload documents.',503);
    const result=await handleUpload({body:b,request:req,onBeforeGenerateToken:async pathname=>{
-    if(!pathname.startsWith(`tickets/${user.id}/`)||pathname.includes('..'))throw new AppError('Invalid upload path.');
+    const voice=pathname.startsWith(`voice/${user.id}/`);
+    if(pathname.includes('..')||!(voice||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
+    if(voice)return {allowedContentTypes:AUDIO_TYPES,maximumSizeInBytes:VOICE_MAX_BYTES,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
+    parent(user);
     return {allowedContentTypes:FILE_TYPES,maximumSizeInBytes:100*1024*1024,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
    },onUploadCompleted:async()=>{}});return json(res,result);
+  }
+  // A voice note anyone in the family can leave, on a day or on one activity.
+  if(route==='voice'&&post){
+   const current=await readTrip();
+   const checked=checkVoiceNote(current.state,b,user);
+   const state=addVoiceNote(current.state,checked,user,await head(checked.pathname));
+   if(state===current.state)return json(res,visibleEnvelope(current,user));
+   return json(res,visibleEnvelope(await writeTrip(state,current.revision),user));
+  }
+  if(route==='voice'&&req.method==='GET'){
+   const {state}=await readTrip();const note=state.voiceNotes?.find(v=>v.id===url.searchParams.get('id')&&v.pathname);if(!note)throw new AppError('Voice note not found.',404);
+   const range=req.headers.range;if(range&&!/^bytes=\d*-\d*$/.test(range))throw new AppError('Invalid byte range.',416);
+   const result=await get(note.pathname,{access:'private',useCache:false,...(range?{headers:{Range:range}}:{})});if(!result||!result.stream)throw new AppError('Voice note unavailable.',404);
+   res.setHeader('Content-Type',note.type);res.setHeader('Content-Disposition','inline');
+   for(const h of ['content-length','content-range','accept-ranges']){const value=result.headers.get(h);if(value)res.setHeader(h,value);}
+   if(result.headers.has('content-range'))res.statusCode=206;
+   const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
   }
   if(route==='document'&&post){
    parent(user);const current=await readTrip();
