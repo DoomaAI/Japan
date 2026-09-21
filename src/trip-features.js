@@ -415,7 +415,7 @@ export function proposalPlacement(state,p){
 export function proposalDraft(op){
  const number=(v,fallback)=>v===''||v===null||v===undefined?fallback:Number(v);
  return {title:String(op.title??'').trim(),place:String(op.place??'').trim(),japanese:String(op.japanese??'').trim(),
-  website:String(op.website??'').trim(),mapUrl:String(op.mapUrl??'').trim(),notes:String(op.notes??''),
+  website:String(op.website??'').trim(),ticketUrl:String(op.ticketUrl??'').trim(),mapUrl:String(op.mapUrl??'').trim(),notes:String(op.notes??''),
   cost:number(op.cost,null),costNote:String(op.costNote??'').trim(),category:op.category??'place',
   suitableFor:[...new Set(Array.isArray(op.suitableFor)?op.suitableFor:[])],
   tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))],

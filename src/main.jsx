@@ -234,7 +234,7 @@ function App(){
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal}/></>}
   {tab==='thanks'&&user.name===THANK_YOU_FROM&&<ThankYouEditor state={state} mutate={mutate} busy={busy}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
-  {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go}/>}
+  {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}
   {tab==='more'&&<MorePage user={user} tab={tab} go={go}><div className="row wrap"><Button icon={ImageIcon} onClick={()=>setModal({type:'media'})}>Family gallery</Button><Button icon={Mic} onClick={()=>setModal({type:'voice'})}>Voice notes</Button><Button icon={Download} onClick={()=>setModal({type:'offline'})}>Offline readiness</Button>{parent&&<Button icon={Plus} onClick={()=>setModal({type:'capture'})}>Quick capture</Button>}</div></MorePage>}
   {tab==='tickets'&&<><p className="eyebrow">ALL THE DETAILS, TOGETHER</p><h1>Tickets & reservations</h1><Tickets state={state} user={user} config={config} busy={busy} setBusy={setBusy} accept={accept} mutate={mutate} notice={notice} saved={saved} saveOffline={saveOffline} selectStep={selectStep}/></>}

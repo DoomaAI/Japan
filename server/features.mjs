@@ -77,8 +77,8 @@ export function extraOperation(state,op,user,fail,now){
   if(op.type==='proposalAdd'||op.type==='proposalEdit'){
    const draft=proposalDraft(op);
    if(!draft.title)fail('Give the idea a name.');
-   for(const [key,max] of [['title',250],['place',250],['japanese',250],['costNote',250],['availability',250],['notes',4000],['website',2000],['mapUrl',2000]])if(!string(draft[key],max))fail(`Keep the ${key} under ${max} characters.`);
-   for(const key of ['website','mapUrl'])if(draft[key]&&!https(draft[key]))fail('Use an HTTPS link.');
+   for(const [key,max] of [['title',250],['place',250],['japanese',250],['costNote',250],['availability',250],['notes',4000],['website',2000],['ticketUrl',2000],['mapUrl',2000]])if(!string(draft[key],max))fail(`Keep the ${key} under ${max} characters.`);
+   for(const key of ['website','ticketUrl','mapUrl'])if(draft[key]&&!https(draft[key]))fail('Use an HTTPS link.');
    if(!PROPOSAL_KINDS.some(([id])=>id===draft.category))fail('Choose what kind of idea this is.');
    if(!PROPOSAL_TIMING.some(([id])=>id===draft.timing))fail('Say whether it is flexible, only at certain times, or a fixed time.');
    if(draft.day!==null&&!state.days.some(d=>d.date===draft.day))fail('Choose a trip day, or leave the day open.');
@@ -140,7 +140,7 @@ export function extraOperation(state,op,user,fail,now){
    if(locked&&!time)fail('A locked time needs a time.');
    const participants=p.suitableFor.length?[...p.suitableFor]:[...state.members];
    state.steps.push({id:randomUUID(),title:p.title,day:op.day,time,originalTime:time,duration:p.duration||30,
-    notes:proposalStepNotes(p),place:p.place,japanese:p.japanese,website:p.website,phone:'',
+    notes:proposalStepNotes(p),place:p.place,japanese:p.japanese,website:p.ticketUrl||p.website,phone:'',
     page:state.days.find(d=>d.date===op.day)?.pages?.[0]||1,kind,group:'',option:'',participants,
     order:Math.max(0,...state.steps.filter(s=>s.day===op.day).map(s=>s.order))+10,
     travelMinutes:20,arrivalBuffer:15,locationId:null,locked,bookingTime:locked?time:null,status:'todo',
