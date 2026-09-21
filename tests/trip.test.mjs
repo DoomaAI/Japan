@@ -2344,3 +2344,53 @@ test('the guide turns like a book, and stops at both covers',async()=>{
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  assert.match(css,/\.guide-view\{touch-action:pan-y\}/);
 });
+
+test('the snake quickens with every piece of sushi, but stays steerable',async()=>{
+ const {snakeTick}=await import('../src/Games.jsx').catch(()=>({snakeTick:null}));
+ // Games.jsx cannot be imported here, so the rule is checked where it is written.
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ assert.match(source,/export const snakeTick=eaten=>Math\.max\(110,SNAKE_TICK-eaten\*12\)/);
+ const tick=eaten=>Math.max(110,260-eaten*12);
+ assert.equal(tick(0),260,'it starts gentle');
+ assert.ok(tick(5)<tick(0)&&tick(10)<tick(5),'and quickens as it goes');
+ assert.equal(tick(20),110,'down to a floor');
+ assert.equal(tick(80),110,'that holds however long it gets');
+ // The loop has to notice the score changing, or the speed never actually changes.
+ assert.match(source,/\},\[running,over,food,score\]\)/);
+ assert.match(source,/snakeTick\(scoreRef\.current\)/);
+});
+
+test('a tile can be dragged onto another, and a tap still means a tap',async()=>{
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ // A drag under ten pixels is a tap, so the old way of playing still works.
+ assert.match(source,/if\(!d\.moved&&Math\.hypot\(e\.clientX-d\.x,e\.clientY-d\.y\)>10\)d\.moved=true/);
+ assert.match(source,/if\(!d\.moved\)return d\.i/,'a tap comes back as the tile that was tapped');
+ // The target is where the finger lifted, not where it started.
+ assert.match(source,/document\.elementFromPoint\(x,y\)\?\.closest\('\[data-tile\]'\)/);
+ // Both merge games use it, and both mark the tile being dragged over.
+ assert.equal((source.match(/useDragTiles\(/g)||[]).length,3,'the helper and its two users');
+ assert.equal((source.match(/drag\.over===i\?' over':''/g)||[]).length,2);
+ assert.equal((source.match(/onPointerCancel=\{drag\.cancel\}/g)||[]).length,2,'a cancelled drag lets go');
+ // Dragging a board must not scroll the page under it.
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/\.stable-grid,\.kitchen-grid\{touch-action:none\}/);
+});
+
+test('sumo has a speed for everyone, and the pairs boards can be sized',async()=>{
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const levels=[...source.matchAll(/\['(\w+)','([^']+)',(\d+),(\d+)\]/g)].map(m=>({id:m[1],label:m[2],rate:+m[3],worth:+m[4]}));
+ assert.ok(levels.length>=7,`only ${levels.length} sumo speeds`);
+ // Faster opponents, worth more, in order — a harder bout has to pay better or nobody picks it.
+ for(let i=1;i<levels.length;i++){
+  assert.ok(levels[i].rate<levels[i-1].rate,`${levels[i].id} is not faster than ${levels[i-1].id}`);
+  assert.ok(levels[i].worth>levels[i-1].worth,`${levels[i].id} is not worth more than ${levels[i-1].id}`);
+ }
+ assert.equal(levels[0].label,'Beginner');
+ assert.equal(levels.at(-1).id,'yokozuna');
+ // Both memory boards can be made smaller for Nate or bigger for Boston, and a best score
+ // is kept per size so a four-pair round cannot flatter an eighteen-pair one.
+ assert.match(source,/\[4,6,8,12,18\]\.map/,'Japan pairs sizes');
+ assert.match(source,/\[4,6,8,10\]\.map/,'kana sizes');
+ assert.match(source,/game:`sights-\$\{pairs\}`/);
+ assert.match(source,/game:`kana-\$\{set\}-\$\{pairs\}`/);
+});
