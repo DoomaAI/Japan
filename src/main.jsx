@@ -47,11 +47,13 @@ function Button({icon:Icon,children,...props}){return <button {...props}>{Icon&&
 function Dialog({title,children,onClose,wide=false}){const ref=useRef();useEffect(()=>{const d=ref.current;d.showModal();return()=>d.close();},[]);return <dialog ref={ref} onCancel={onClose} onClick={e=>{if(e.target===ref.current)onClose();}} className={wide?'wide':''}><header><h2>{title}</h2><button className="icon" aria-label="Close" onClick={onClose}><X/></button></header><div className="dialog-body">{children}</div></dialog>;}
 async function copyOrShare(url,title,share=false){if(share&&navigator.share){await navigator.share({title,url});return;}await navigator.clipboard.writeText(url);}
 const TABS=[...Object.keys(PAGES),'more'];
-// What a phone can do with no signal and hand over later. Everything here is progress —
-// something that happened — rather than a change to the plan, which needs the latest
-// revision to be safe. Janken is deliberately absent: a hand thrown into a queue is not a
-// game, it is a message.
-const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore'];
+// What a phone can do with no signal and hand over later. Everything here either records
+// something that happened or adds something new, so it is still right whenever it lands.
+// What is missing is deliberate: anything that reshapes the plan needs the latest revision
+// to be safe, a stale exchange rate or forecast overwriting a fresh one is worse than not
+// saving it, and a janken hand thrown into a queue is not a game, it is a message.
+const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore',
+ 'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove'];
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
@@ -95,8 +97,19 @@ function App(){
   working.current=true;
   try{let e=await request('state');
    if(!force&&e.revision!==queueRef.current[0].revision){accept(e);setConflict(true);return;}
-   while(queueRef.current.length){const q=queueRef.current[0];e=await request('mutate',{revision:e.revision,operation:q.operation});accept(e);saveQueue(queueRef.current.slice(1));}
-   setConflict(false);notice('Your updates are synced with the family.');
+   const dropped=[];
+   while(queueRef.current.length){
+    const q=queueRef.current[0];
+    try{e=await request('mutate',{revision:e.revision,operation:q.operation});accept(e);saveQueue(queueRef.current.slice(1));}
+    catch(err){
+     // A change the server will never accept — the activity was deleted while we were out of
+     // signal, say — must not sit at the head of the queue blocking everything behind it.
+     if(!err.status||err.status===409||err.status>=500)throw err;
+     dropped.push(err.message||'One update could not be saved.');saveQueue(queueRef.current.slice(1));
+    }
+   }
+   setConflict(false);
+   notice(dropped.length?`Synced, except ${dropped.length} update${dropped.length>1?'s':''} the family plan had moved past: ${dropped[0]}`:'Your updates are synced with the family.');
   }catch(e){if(e.status===409)setConflict(true);notice(e.message);}finally{working.current=false;}
  }
  useEffect(()=>{if(!envelope||!online)return;flush();const t=setInterval(()=>{if(!working.current&&!queueRef.current.length)refresh().catch(()=>{});},15000);return()=>clearInterval(t);},[!!envelope,online]);

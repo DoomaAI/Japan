@@ -84,6 +84,13 @@ The attached image-based `Japan Travel Guide.pdf` is the source. Guide pages are
 
 ## Offline behaviour
 
+**What a phone can do with no signal at all.** Anything that records what happened, or adds something new, is saved on the phone and handed over when there is signal — it is still right whenever it lands. That covers ticking off activities and missions, skipping a mission, Eye Spy, ride checklists, food ticks and ratings, the phrase of the day, game scores, a diary reflection, adding to the shopping list and marking something bought, acknowledging a family update, Lauren marking her note read, adding a phrase or a dish, and saving a written note or link. What is left out is deliberate: anything that **reshapes the plan** needs the latest revision to be safe, a stale exchange rate or forecast **overwriting a fresher one** is worse than not saving it, and a janken hand thrown into a queue is not a game.
+
+**One bad update cannot jam the queue.** If the family plan has moved past a queued change — the activity it belongs to was deleted while a phone was out of signal — that one is dropped with an explanation and everything behind it still syncs, instead of sitting at the head of the queue blocking the rest forever.
+
+**Voice notes wait on the phone.** A recording is megabytes of audio, so it cannot go in the little JSON queue; it goes into the phone's own IndexedDB store instead, survives the app being closed, and is uploaded on its own once there is signal. The panel shows what is waiting and lets you delete one unsent. If the signal drops mid-upload the recording is kept rather than lost. Where a phone refuses storage altogether — a private window, storage switched off — the app says so plainly instead of pretending to have saved it.
+
+
 The build script precaches the app shell and versioned CSS/JS. A signed-in itinerary is saved on the device after successful loading. Guide pages and tickets are downloaded only when the user chooses Save. Downloads are network-first while connected; an authentication failure does not fall back to private cached content. With no connection, explicitly cached pages/tickets remain accessible.
 
 Offline progress stores an operation ID, original revision and timestamp. When reconnecting, a changed server revision prompts review. Repeating a successfully submitted operation does not apply it twice. Other edits require connectivity and are never silently merged. Mobile browsers can evict site data: before travel, check that the app and selected tickets reopen in airplane mode. Keep critical tickets available through their official provider too.

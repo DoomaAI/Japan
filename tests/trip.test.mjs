@@ -1341,11 +1341,18 @@ test('what a boy can do with no signal at all, and what has to wait',async()=>{
  const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
  // Everything the boys do on their own is progress, and progress keeps on a dead phone.
- for(const op of ['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore'])
+ // Anything that records what happened, or adds something new, is still right whenever it
+ // lands, so it can wait on the phone.
+ for(const op of ['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore',
+                  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote'])
   assert.ok(list.includes(op),`${op} should survive with no signal`);
  // A janken hand is not progress — it is a move in a game the other phone is waiting on.
  assert.ok(!list.includes('jankenThrow'),'a hand thrown into a queue is not a game');
- for(const op of ['add','patch','remove','challengeNew','phraseAdd','voiceNoteRemove','exchangeRate'])
+ // A stale reading overwriting a fresh one is worse than not saving it at all.
+ for(const op of ['exchangeRate','weatherUpdate'])
+  assert.ok(!list.includes(op),`${op} would overwrite a fresher answer`);
+ // And anything that reshapes the plan needs the latest revision to be safe.
+ for(const op of ['add','patch','remove','schedule','reschedule','choose','lock','backlog','challengeNew'])
   assert.ok(!list.includes(op),`${op} changes the plan and needs the latest revision`);
  // And the phone shows queued progress straight away rather than looking like it did nothing.
  const state=ensureFeatures(structuredClone(seed));
@@ -1409,4 +1416,33 @@ test('a forecast is read, sanity-checked, and kept for when there is no signal',
  bad({city:'Tokyo',code:61,max:24,min:19,rain:400});
  bad(null);
  assert.throws(()=>applyOperation(state,{type:'weatherUpdate',days:[]},parent),/Invalid forecast/);
+});
+
+test('a queue cannot be jammed by one update the family plan has moved past',async()=>{
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const flush=source.slice(source.indexOf('async function flush'),source.indexOf('async function mutate'));
+ // A 404 at the head of the queue used to block everything behind it forever.
+ assert.match(flush,/if\(!err\.status\|\|err\.status===409\|\|err\.status>=500\)throw err/,
+  'a permanent refusal must be dropped, not retried forever');
+ assert.match(flush,/dropped\.push/);
+ assert.match(flush,/saveQueue\(queueRef\.current\.slice\(1\)\)/);
+ // A conflict and a server having a moment are both still worth retrying.
+ assert.match(flush,/409/);
+});
+
+test('a recording waits on the phone in its own store, not in the little JSON queue',async()=>{
+ const source=await readFile(new URL('../src/pending-store.js',import.meta.url),'utf8');
+ const voice=await readFile(new URL('../src/VoiceNotes.jsx',import.meta.url),'utf8');
+ // Audio is megabytes; the queue lives in localStorage and would not survive it.
+ assert.match(source,/indexedDB/);
+ assert.doesNotMatch(source,/localStorage\./,'the audio must not go near the little JSON queue');
+ // Every path out of the store has to cope with a phone that will not give us one.
+ for(const fn of ['listPending','dropPending','pendingSupported'])assert.match(source,new RegExp(`export (async )?function ${fn}|export const ${fn}`),`${fn} is missing`);
+ assert.match(source,/catch\{return \[\];\}/,'listing must degrade to nothing pending');
+ // Losing signal keeps the recording rather than throwing it away.
+ assert.match(voice,/if\(!navigator\.onLine\)return hold\(/);
+ assert.match(voice,/if\(!navigator\.onLine\)await hold\('The signal went while it was uploading\.'\)/);
+ // And what is waiting is sent on its own once there is signal.
+ assert.match(voice,/if\(waiting\.length&&navigator\.onLine&&config\?\.uploads\)sendWaiting\(\)/);
+ assert.match(voice,/await dropPending\(entry\.id\)/);
 });
