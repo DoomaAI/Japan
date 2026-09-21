@@ -3146,8 +3146,8 @@ test('a spot-the-difference score is one the server will actually take',async()=
 
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
- const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',needs:(OFFLINE|'[^']+'),Component:(\w+)\}/g)];
- assert.equal(entries.length,12);
+ const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:(OFFLINE|'[^']+'),Component:(\w+)/g)];
+ assert.equal(entries.length,14);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -3163,6 +3163,156 @@ test('every game in the picker says what it needs, and spot the difference is on
  // Nothing about a round leaves the phone: no request, no upload, only the photo coming down.
  assert.doesNotMatch(game,/\brequest\(/);
  assert.doesNotMatch(game,/upload\(/);
+});
+
+test('a game that really is Japanese says so, and one that only looks it says nothing',async()=>{
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',([^\n]*?)needs:/g)]
+  .map(([,id,title,middle])=>({id,title,
+   ja:middle.match(/ja:'([^']+)'/)?.[1]||null,
+   origin:middle.match(/origin:'([a-z]+)'/)?.[1]||null}));
+ // The ones that are genuinely Japanese games, and nothing else. Sumo stable and Onigiri to
+ // Fuji are games about Japan, which is a different claim and is not made.
+ assert.deepEqual(entries.filter(g=>g.origin==='traditional').map(g=>g.id).sort(),
+  ['janken','karuta','origami','sumo']);
+ assert.deepEqual(entries.filter(g=>g.origin==='modern').map(g=>g.id),['shogi']);
+ for(const g of entries.filter(g=>g.origin))
+  assert.ok(g.ja,`${g.title} claims to be Japanese, so it must say what it is called in Japanese`);
+ for(const g of entries.filter(g=>!g.origin))
+  assert.equal(g.ja,null,`${g.title} makes no claim, so it carries no Japanese name either`);
+ // Only two kinds of claim exist, and each game that makes one carries its own story.
+ assert.match(source,/const ORIGINS=\{\n traditional:.*\n modern:.*\n\};/);
+ for(const g of entries.filter(g=>g.origin))
+  assert.match(source,new RegExp(`id:'${g.id}'[\\s\\S]{0,600}?story:'`),`${g.title} must say why`);
+});
+
+test('karuta deals the same round from the same seed, and every proverb is filed under its own letter',async()=>{
+ const {KOTOWAZA,KARUTA_DECKS,KARUTA_SIZES,karutaRound,karutaScore,KARUTA_PAR,OTETSUKI}=await import('../src/karuta-data.js');
+ // The card is found by the letter the reading opens with. That is the whole game, so every
+ // proverb must actually begin with the letter it is filed under, and no two may share one.
+ assert.equal(new Set(KOTOWAZA.map(p=>p.kana)).size,KOTOWAZA.length,'one card per letter');
+ for(const p of KOTOWAZA){
+  assert.ok(p.ja&&p.romaji&&p.en&&p.literal&&p.icon,`${p.kana} is missing something`);
+  assert.equal(p.kana.length,1);
+ }
+ assert.ok(KOTOWAZA.length>=KARUTA_SIZES.at(-1),'the biggest round must be dealable');
+ // Two phones on the same seed get the same floor and the same reading order, so the boys can
+ // race it properly rather than arguing about who got the easier one.
+ const a=karutaRound('kotowaza',10,4242),b=karutaRound('kotowaza',10,4242);
+ assert.deepEqual(a.cards.map(c=>c.id),b.cards.map(c=>c.id));
+ assert.deepEqual(a.calls,b.calls);
+ assert.notDeepEqual(a.calls,karutaRound('kotowaza',10,9999).calls);
+ // Every card is called exactly once, and the call is never written on the card it belongs to.
+ assert.equal(a.calls.length,a.cards.length);
+ assert.deepEqual([...a.calls].sort(),a.cards.map(c=>c.id).sort());
+ for(const size of KARUTA_SIZES)for(const deck of KARUTA_DECKS)
+  assert.equal(karutaRound(deck.id,size,7).cards.length,size,`${deck.id} must deal ${size}`);
+ // A clean fast round beats a slow one, otetsuki costs, and the worst round still scores.
+ assert.equal(karutaScore(10,0,0),10*KARUTA_PAR);
+ assert.ok(karutaScore(10,8,0)>karutaScore(10,20,0));
+ assert.equal(karutaScore(10,8,1),karutaScore(10,8,0)-OTETSUKI);
+ assert.equal(karutaScore(6,9999,40),1,'a terrible round is still worth showing up for');
+ assert.ok(karutaScore(16,0,0)<=9999);
+});
+
+test('animal shogi is shogi: a taken piece changes sides and comes back as yours',async()=>{
+ const S=await import('../src/shogi.js');
+ const blank=()=>({board:Array(S.SQUARES).fill(null),hands:{me:[],them:[]},turn:'me',over:null,ply:0});
+ const start=S.newGame();
+ assert.equal(start.board[S.at(3,1)].piece,'lion');
+ assert.equal(start.board[S.at(0,1)].piece,'lion');
+ assert.equal(S.legalMoves(start).length,4,'the opening really is that narrow');
+ // A chick that reaches the far row is a hen and has no say in it; a hen that is taken goes
+ // back to being a chick in the hand, which is the rule that stops one side running away.
+ let g=blank();
+ g.board[S.at(1,0)]={piece:'chick',side:'me'};g.board[S.at(3,2)]={piece:'lion',side:'me'};g.board[S.at(0,2)]={piece:'lion',side:'them'};
+ assert.equal(S.play(g,{from:S.at(1,0),to:S.at(0,0)}).board[S.at(0,0)].piece,'hen');
+ g=blank();
+ g.board[S.at(2,1)]={piece:'hen',side:'them'};g.board[S.at(3,1)]={piece:'giraffe',side:'me'};
+ g.board[S.at(3,0)]={piece:'lion',side:'me'};g.board[S.at(0,0)]={piece:'lion',side:'them'};
+ const took=S.play(g,{from:S.at(3,1),to:S.at(2,1)});
+ assert.deepEqual(took.hands.me,['chick']);
+ // And back on the board as one of mine, on any empty square, still a chick even on the far row.
+ const mine={...took,turn:'me'};
+ const dropped=S.play(mine,{drop:'chick',to:S.at(0,1)});
+ assert.deepEqual(dropped.board[S.at(0,1)],{piece:'chick',side:'me'});
+ assert.deepEqual(dropped.hands.me,[]);
+ assert.equal(S.play(mine,{drop:'chick',to:S.at(0,0)}),mine,'a drop never lands on a piece');
+ // Each animal moves its own way and no other.
+ const only=(piece,square)=>{const b=Array(S.SQUARES).fill(null);b[square]={piece,side:'me'};return S.movesFor(b,square).sort((x,y)=>x-y);};
+ assert.deepEqual(only('giraffe',S.at(2,1)),[S.at(1,1),S.at(2,0),S.at(2,2),S.at(3,1)]);
+ assert.deepEqual(only('elephant',S.at(2,1)),[S.at(1,0),S.at(1,2),S.at(3,0),S.at(3,2)]);
+ assert.deepEqual(only('chick',S.at(2,1)),[S.at(1,1)]);
+ assert.equal(only('lion',S.at(2,1)).length,8);
+ assert.equal(only('hen',S.at(2,1)).length,6,'everywhere but backwards on the diagonal');
+ // His chick walks the other way, because forward is not a direction, it is a side.
+ const his=Array(S.SQUARES).fill(null);his[S.at(1,1)]={piece:'chick',side:'them'};
+ assert.deepEqual(S.movesFor(his,S.at(1,1)),[S.at(2,1)]);
+});
+
+test('a lion taken ends it, and a lion that walks the board ends it only if it survives there',async()=>{
+ const S=await import('../src/shogi.js');
+ const blank=()=>({board:Array(S.SQUARES).fill(null),hands:{me:[],them:[]},turn:'me',over:null,ply:0});
+ let g=blank();
+ g.board[S.at(1,1)]={piece:'lion',side:'me'};g.board[S.at(0,1)]={piece:'lion',side:'them'};
+ assert.deepEqual(S.play(g,{from:S.at(1,1),to:S.at(0,1)}).over,{winner:'me',how:'capture'});
+ // The try: reach his back row and you have won — unless something there can take you, in
+ // which case you have merely walked your lion somewhere silly.
+ g=blank();g.board[S.at(1,0)]={piece:'lion',side:'me'};g.board[S.at(3,2)]={piece:'lion',side:'them'};
+ assert.deepEqual(S.play(g,{from:S.at(1,0),to:S.at(0,0)}).over,{winner:'me',how:'try'});
+ g.board[S.at(1,1)]={piece:'elephant',side:'them'};
+ const walked=S.play(g,{from:S.at(1,0),to:S.at(0,0)});
+ assert.equal(walked.over,null,'an elephant is looking straight at that square');
+ assert.deepEqual(S.play(walked,{from:S.at(1,1),to:S.at(0,0)}).over,{winner:'them',how:'capture'});
+ // Nobody sits through two lions shuffling at each other for ever.
+ assert.equal(S.play({...blank(),ply:S.MAX_PLY-1,board:(()=>{const b=Array(S.SQUARES).fill(null);
+  b[S.at(2,0)]={piece:'lion',side:'me'};b[S.at(0,2)]={piece:'lion',side:'them'};return b;})()},
+  {from:S.at(2,0),to:S.at(2,1)}).over.how,'draw');
+});
+
+test('the harder opponent is harder, and a win pays for how hard he was',async()=>{
+ const S=await import('../src/shogi.js');
+ // He never plays an illegal move, whatever depth he is set to.
+ for(const level of S.LEVELS){
+  let g=S.newGame();
+  for(let i=0;i<8&&!g.over;i++){
+   const move=S.aiMove(g,level.depth);
+   assert.ok(S.legalMoves(g).some(m=>m.from===move.from&&m.to===move.to&&m.drop===move.drop),
+    `${level.en} played something he is not allowed to`);
+   g=S.play(g,move);
+  }
+ }
+ // A lion he can take, he takes. His own lion sits on his own back row, out of the way: put it
+ // on mine and the position is already won by the try rule, and he is spoilt for choice.
+ const board=Array(S.SQUARES).fill(null);
+ board[S.at(1,1)]={piece:'lion',side:'me'};board[S.at(2,1)]={piece:'giraffe',side:'them'};board[S.at(0,0)]={piece:'lion',side:'them'};
+ const hanging={board,hands:{me:[],them:[]},turn:'them',over:null,ply:4};
+ // Which piece he takes it with is his business — his giraffe and his lion can both reach it,
+ // and he picks between two winning moves at random. That it ends up taken is the test.
+ const chosen=S.aiMove(hanging,2);
+ assert.equal(chosen.to,S.at(1,1),'he must go for the lion');
+ assert.deepEqual(S.play(hanging,chosen).over,{winner:'them',how:'capture'});
+ // And the deeper he looks the better he does, which is the only thing the levels promise. He
+ // picks between equal-looking moves at random, so the dice are handed to him here rather than
+ // left to chance — a test of three levels that passes four times in five is not a test.
+ const rng=seed=>{let n=seed>>>0||1;return()=>{n^=n<<13;n>>>=0;n^=n>>17;n^=n<<5;n>>>=0;return n/4294967296;};};
+ const beats=(mine,theirs,games)=>{
+  let won=0;
+  for(let i=1;i<=games;i++){
+   const rand=rng(i*7919);
+   let g=S.newGame();
+   while(!g.over)g=S.play(g,S.aiMove(g,g.turn==='me'?mine:theirs,rand));
+   if(g.over.winner==='me')won++;
+  }
+  return won;
+ };
+ const [chick,giraffe,lion]=S.LEVELS.map(l=>l.depth);
+ assert.equal(beats(giraffe,chick,10),10,'the giraffe must beat the chick every time');
+ assert.equal(beats(lion,chick,10),10,'and so must the lion');
+ assert.ok(beats(lion,giraffe,10)>=8,'and the lion must have the better of the giraffe');
+ assert.ok(S.shogiWorth(5,10)>S.shogiWorth(1,10),'a harder opponent is worth more');
+ assert.ok(S.shogiWorth(3,8)>S.shogiWorth(3,60),'and a short game is worth more than a long one');
+ assert.equal(S.shogiWorth(3,900),60,'but a long one never goes negative');
 });
 
 test('a change is never hidden in the sky when there is a photograph underneath it',async()=>{

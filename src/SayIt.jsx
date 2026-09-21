@@ -19,6 +19,15 @@ export function useJapaneseVoice(){
  },[state]);
  return state;
 }
+// Say the Japanese aloud where the phone can, because a child matching a shape learns more if
+// the shape has a sound. Silence is fine; nothing that uses this depends on it. Slow for a
+// single letter, ordinary speed for a whole line — a proverb read at half speed is a dirge.
+export function useKanaVoice(slow=true){
+ const {supported,read}=useReadAloud();
+ const japanese=useJapaneseVoice();
+ const can=canOffer(supported,japanese);
+ return (text,id)=>{if(can)read(id,text,'ja-JP',speechRate('ja',slow));};
+}
 // Japanese, what it means, and how to say it. The phone reads the Japanese aloud unless it
 // has told us it has no Japanese voice, in which case the button is not offered.
 export default function SayIt({phrase,size='',showRomaji=true}){
