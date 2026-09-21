@@ -15,10 +15,11 @@ const SCHEMA={
   note:{type:'string',description:'One or two sentences of practical advice for this family at this restaurant.'},
   suggestions:{type:'array',description:'Up to eight dishes from this menu, best first.',items:{
    type:'object',additionalProperties:false,
-   required:['ja','en','why','forWhom','matchesOurList','spicy','price'],
+   required:['ja','en','dish','why','forWhom','matchesOurList','spicy','price'],
    properties:{
     ja:{type:'string',description:'The dish exactly as written on the menu, in Japanese.'},
     en:{type:'string',description:'A short English name.'},
+    dish:{type:'string',description:'The plain common name of the same dish in Japanese, with the restaurant\'s wording stripped off: 唐揚げ rather than 名物!若鶏の唐揚げ定食. This is what a picture of it is looked up under. Empty if the dish has no common name.'},
     why:{type:'string',description:'One sentence on why this family would like it.'},
     forWhom:{type:'array',items:{type:'string',enum:['Damien','Lauren','Nate','Boston']}},
     matchesOurList:{type:'string',description:'The id of the matching dish on the family food list, or an empty string.'},
@@ -48,6 +49,7 @@ Nate is five: nothing spicy, nothing challenging in texture, and he needs a plai
 Rules:
 - Only suggest dishes that are actually on this menu. Never invent one. If you cannot read a dish clearly, leave it out.
 - Copy the Japanese exactly as printed, including any kanji you can read. This is what they will point at.
+- "dish" is the same dish under its plain common name, in Japanese, with the restaurant's flourishes, the set-meal wording and the size dropped — 唐揚げ from 名物!若鶏の唐揚げ定食. A picture of the dish is looked up under it, so it has to be the ordinary name people would write an article about. Leave it empty if the dish has no name of its own.
 - Prefer dishes the family already rated highly, and dishes still on their want-to-try list. Set matchesOurList to that dish's id when it is the same dish; otherwise leave it empty.
 - Always include at least one thing Nate will eat, if the menu has one. Say so in "why".
 - forWhom names who each dish suits. Use it honestly; a dish can suit everyone.
