@@ -46,6 +46,75 @@ export function claimPlayback(nav=typeof navigator!=='undefined'?navigator:null)
 // Only for tests, which need each case from a clean start.
 export const resetPlaybackClaim=()=>{claimed=null;};
 export const playbackClaim=()=>claimed;
+// A WAV built here rather than shipped as a file, because the only two sounds the app needs
+// to make on its own are a second of silence and a short beep, and neither is worth
+// downloading. Sixteen-bit mono PCM, which every phone plays.
+export function wavDataUri(samples,rate=8000){
+ const size=samples.length*2,buffer=new ArrayBuffer(44+size),view=new DataView(buffer);
+ const text=(at,s)=>{for(let i=0;i<s.length;i++)view.setUint8(at+i,s.charCodeAt(i));};
+ text(0,'RIFF');view.setUint32(4,36+size,true);text(8,'WAVE');
+ text(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);
+ view.setUint32(24,rate,true);view.setUint32(28,rate*2,true);view.setUint16(32,2,true);view.setUint16(34,16,true);
+ text(36,'data');view.setUint32(40,size,true);
+ for(let i=0;i<samples.length;i++)view.setInt16(44+i*2,Math.round(Math.max(-1,Math.min(1,samples[i]))*32767),true);
+ const bytes=new Uint8Array(buffer);let binary='';
+ for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
+ return `data:audio/wav;base64,${btoa(binary)}`;
+}
+export const silenceUri=(seconds=1,rate=8000)=>wavDataUri(new Float32Array(Math.round(seconds*rate)),rate);
+// Something you can actually hear, for the sound check. Faded at both ends, because a square
+// start is a click on a phone speaker and a click is not an answer to 'can you hear this'.
+export function toneUri(seconds=0.7,freq=440,rate=8000){
+ const n=Math.round(seconds*rate),data=new Float32Array(n),edge=Math.max(1,rate*0.02);
+ for(let i=0;i<n;i++)
+  data[i]=Math.sin(2*Math.PI*freq*i/rate)*0.35*Math.min(1,i/edge,(n-i)/edge);
+ return wavDataUri(data,rate);
+}
+// THE THING THAT ACTUALLY MUTES AN IPHONE.
+//
+// Setting the audio session to 'playback' is not enough on its own: iOS only treats the page
+// as playing media while something really is playing. A one-shot sample is over before the
+// speaking starts, so it holds nothing. This keeps a second of silence looping for as long as
+// there is something to say, which is what keeps the page out of the ambient category the
+// ring switch mutes.
+//
+// It counts holders rather than tracking one, so two phrases overlapping cannot have the
+// first one to finish pull the session out from under the second.
+let holder=null,holding=0;
+export function holdPlayback(make=typeof Audio!=='undefined'?src=>new Audio(src):null){
+ if(!make)return false;
+ try{
+  if(!holder){holder=make(silenceUri(1));holder.loop=true;}
+  holding++;
+  const played=holder.play?.();
+  if(played?.catch)played.catch(()=>{});
+  return true;
+ }catch{holding=Math.max(0,holding-1);return false;}
+}
+export function releasePlayback(){
+ holding=Math.max(0,holding-1);
+ if(holding)return false;
+ try{holder?.pause?.();}catch{}
+ return true;
+}
+export const playbackHeld=()=>holding>0;
+export const resetHold=()=>{holder=null;holding=0;};
+// iOS ignores an audio session claimed before anyone has touched the page, and it will not
+// let a media element play later unless it was first played inside a real gesture. So both
+// happen on the first touch anywhere in the app, once, and then never again — which is also
+// why the very first 'Hear it' works rather than being the tap that arms it.
+export function armPlayback(win=typeof window!=='undefined'?window:null){
+ if(!win?.addEventListener||armPlayback.armed)return false;
+ armPlayback.armed=true;
+ const arm=()=>{
+  claimPlayback(win.navigator);
+  holdPlayback();releasePlayback();
+  for(const event of ['pointerdown','touchend'])win.removeEventListener(event,arm,true);
+ };
+ for(const event of ['pointerdown','touchend'])win.addEventListener(event,arm,true);
+ return true;
+}
+export const resetArm=()=>{armPlayback.armed=false;};
 // Safari will ignore the very first thing a page tries to say. Spending that on a silent
 // utterance means the first phrase anyone taps is the one they actually hear.
 export function warmUp(synth,Utterance){
@@ -67,6 +136,7 @@ export function soundCheckLines(facts){
   ['Speech support',facts.supported?'yes':'no — this browser cannot speak'],
   ['Voices found',v.count?`${v.count}${v.japanese.length?` · Japanese: ${v.japanese.join(', ')}`:' · none of them Japanese'}`:'none yet'],
   ['Silent-switch override',facts.audioSession||'not supported'],
+  ['A recording played',facts.tone===null||facts.tone===undefined?'not tested':facts.tone==='played'?'yes — so recorded phrases will be heard':`no — ${facts.tone}`],
   ['It started speaking',facts.started===null?'not tested':facts.started?`yes, after ${facts.startedAfter}ms`:'no — nothing began'],
   ['It finished',facts.ended===null?'not tested':facts.ended?'yes':'no'],
   ['Reported fault',facts.error||'none']
@@ -82,25 +152,6 @@ export function phonicChunks(say,hold){
   .map(text=>({text,hold:marks.has(text.toLowerCase())}));
 }
 export const holdsOf=item=>Array.isArray(item?.hold)?item.hold:item?.hold?[item.hold]:[];
-// The lever for an iPhone too old for the Audio Session API (before iOS 16.4). Playing a
-// moment of silence through an <audio> element inside a real tap moves the page off the
-// ambient category, which is the one the ring/silent switch mutes. It is a nudge rather than
-// a guarantee — unlike claimPlayback there is nothing to read back — so it runs once, quietly,
-// and never reports success it cannot verify.
-const SILENCE='data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQQAAAAAAAAA';
-let nudged=false;
-export function nudgeOffAmbient(make=typeof Audio!=='undefined'?()=>new Audio(SILENCE):null){
- if(nudged||!make)return false;
- nudged=true;
- try{
-  const el=make();
-  el.volume=0.01;
-  const played=el.play?.();
-  if(played?.catch)played.catch(()=>{});
-  return true;
- }catch{return false;}
-}
-export const resetNudge=()=>{nudged=false;};
 // Two things silence iOS that have nothing to do with the mute switch.
 //
 // The first: speech often does not work at all inside a Home Screen app. WebKit's speech
@@ -124,12 +175,17 @@ export function wakeSpeech(win=typeof window!=='undefined'?window:null){
  }catch{return false;}
 }
 // What to tell someone whose phone said nothing, given what the phone just did.
-export function silenceAdvice({started,standalone}){
+export function silenceAdvice({started,standalone,tone}){
+ // The most useful answer there is, and only this test can produce it: the phone plays a
+ // recording perfectly well and will not speak for itself. Nothing about the phone will fix
+ // that — recording the phrases will, and it says so instead of blaming the switch again.
+ if(tone==='played'&&started===false)return 'record-instead';
  if(started===false&&standalone)return 'standalone';
  if(started===false)return 'never-started';
  return 'muted';
 }
 export const SILENCE_HELP={
+ 'record-instead':'This device plays a recording perfectly well but will not speak for itself, and no setting on it will change that. Record the phrases from something that does speak — the iPad, off silent, is ideal — and every phone will play the recording instead, silent switch or not.',
  standalone:'iPhones often will not speak inside an app added to the Home Screen — the same page in Safari does. Open it in Safari for the Japanese, or use headphones.',
  'never-started':'The phone took the words and did nothing. Close the app fully and open it again — iOS stops speaking once it has been in the background.',
  muted:'The phone says it spoke, so this is the sound getting out: headphones always work, or flick the side switch off silent and turn the volume up.'
