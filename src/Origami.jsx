@@ -2,6 +2,7 @@ import React,{useState,useRef,useEffect,useMemo} from 'react';
 import {ArrowLeft,ArrowRight,Check,RotateCcw,Trophy,Hand} from 'lucide-react';
 import {ORIGAMI,modelById,stepFrames,origamiGame,foldSpec,creaseInBox,clipToSide,reflect,boundsOf} from './origami-data.js';
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
+import {WinBurst} from './Win.jsx';
 import {scoresFor,bestScore} from './trip-features.js';
 // One diagram. The paper is drawn layer by layer, oldest underneath, with the crease you are
 // about to make dashed across it and an arrow showing which way the flap goes.
@@ -104,6 +105,7 @@ export default function Origami({state,user,mutate,busy}){
     const delta=swipeDelta(start,{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY});
     if(delta)move(delta);
    }}>
+   <WinBurst on={done} label="You made it!" sub={model.name}/>
    <p className="eyebrow">{done?'FINISHED':`FOLD ${step.index+1} OF ${steps.length-1}`}</p>
    <Diagram step={step}/>
    <p className="origami-say">{step.say}</p>

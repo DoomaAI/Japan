@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
 import {Download,ExternalLink,RefreshCw,Search,Trophy,AlertCircle,User,Clock,X,Check,Lock} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {SUMO_SITE,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders} from './trip-features.js';
+import {SUMO_SITE,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,predictionLadder,tippingTable} from './trip-features.js';
 import {japanClock} from './timing.js';
 const Side=({man,onLook,won,lost})=><button className={`sumo-side ${won?'won':''} ${lost?'lost':''}`} onClick={()=>onLook(man)}>
  <strong>{man.name}</strong>
@@ -39,6 +39,57 @@ function Picks({state,bout,result,members,mutate,busy,open,onToggle}){
   </div>}
  </div>;
 }
+// The ladder, which is the half of a tipping comp people actually argue about: where everybody
+// sits, how many each has called right, and how much is still to come. Everybody is on it from
+// the first bout, including whoever has not called one yet, and a tie is a shared place.
+function Ladder({ladder,leaders}){
+ return <div className="sumo-tally">
+  <p className="eyebrow">THE TIPPING TABLE</p>
+  <table className="tipping-ladder">
+   <thead><tr>
+    <th scope="col" className="place">#</th><th scope="col" className="who">Who</th>
+    <th scope="col">Right</th><th scope="col">Wrong</th><th scope="col">To come</th><th scope="col">Hit rate</th>
+   </tr></thead>
+   <tbody>{ladder.map(row=><tr key={row.name} className={leaders.includes(row.name)?'leader':''}>
+    <td className="place">{row.place}</td>
+    <th scope="row" className="who">{leaders.includes(row.name)&&<Trophy size={13}/>}{row.name}</th>
+    <td className="score">{row.right}</td><td>{row.wrong}</td><td>{row.waiting||'—'}</td>
+    <td>{row.percent===null?'—':`${row.percent}%`}</td>
+   </tr>)}</tbody>
+  </table>
+ </div>;
+}
+// The sheet under it: every bout anybody called, and what each of them said. A phone held in one
+// hand in a basement will not hold four columns of names like Kotozakura, so a pick is the side
+// of the card it was on — east or west — with the two names spelled out in the bout column.
+function Sheet({table}){
+ if(!table.rows.length)return null;
+ return <details className="sumo-sheet"><summary>The sheet — who called what</summary>
+  <div className="sumo-sheet-scroll"><table>
+   <thead><tr><th scope="col" className="bout">Bout</th>
+    {table.people.map(name=><th scope="col" key={name}>{name}</th>)}</tr></thead>
+   <tbody>{table.rows.map(row=><tr key={row.id}>
+    <th scope="row" className="bout">
+     <small>{row.time||'—'}</small>
+     <b className={row.winner?(row.winner===row.east?'won':'lost'):''}>E&nbsp;{row.east}</b>
+     <b className={row.winner?(row.winner===row.west?'won':'lost'):''}>W&nbsp;{row.west}</b>
+    </th>
+    {row.picks.map(pick=><td key={pick.name} className={pick.outcome}>
+     {pick.pick?<>
+      <span aria-hidden="true">{pick.side==='east'?'E':'W'}</span>
+      {pick.outcome==='right'&&<Check size={12}/>}{pick.outcome==='wrong'&&<X size={12}/>}
+      <span className="said">{pick.name} called {pick.pick}
+       {pick.outcome==='right'?' and was right':pick.outcome==='wrong'?' and was wrong':', still to come'}</span>
+     </>:<><span aria-hidden="true">·</span><span className="said">{pick.name} did not call this one</span></>}
+    </td>)}
+   </tr>)}</tbody>
+   <tfoot><tr><th scope="row" className="bout">Called right</th>
+    {table.totals.map(total=><td key={total.name}>{total.right}<small>/{total.called}</small></td>)}</tr></tfoot>
+  </table></div>
+  <p><small>E is the east side of the card and W the west, so a pick fits beside three others. The
+   winner is the name in green, and the bottom row is how many each of us has called right.</small></p>
+ </details>;
+}
 // The day's card, fetched from the official schedule before we go and then kept in the trip.
 // The arena is a basement full of phones, so everything here has to work with the list already
 // on the device: only fetching needs a connection.
@@ -48,6 +99,7 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
  const [looking,setLooking]=useState(null),[lookupError,setLookupError]=useState('');
  const [picking,setPicking]=useState(null);
  const tally=predictionTally(state),leaders=predictionLeaders(state);
+ const ladder=predictionLadder(state,state.members),sheet=tippingTable(state,state.members);
  const clock=japanClock(now||new Date()),onNow=currentBout(state,clock);
  async function load(){
   setFetching(true);setError('');
@@ -74,12 +126,7 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
     <small>{card.doorsOpen?`Doors ${card.doorsOpen} · `:''}{card.bouts.length} bouts{card.at?` · loaded ${japanClock(new Date(card.at))} by ${card.by}`:''}</small></div>
   </div>}
   {card.notes&&<p className="sumo-notes">{card.notes}</p>}
-  {!!tally.length&&<div className="sumo-tally">
-   <p className="eyebrow">WHO IS CALLING THEM RIGHT</p>
-   <div className="row wrap">{tally.map(t=><span className={`tag ${leaders.includes(t.name)?'must':''}`} key={t.name}>
-    {t.name}{t.right+t.wrong>0?<> {t.right}<small>&nbsp;of {t.right+t.wrong}</small></>:''}
-    {t.waiting?<small>{t.right+t.wrong>0?' · ':' '}{t.waiting} to come</small>:''}</span>)}</div>
-  </div>}
+  {!!tally.length&&<><Ladder ladder={ladder} leaders={leaders}/><Sheet table={sheet}/></>}
   {onNow&&<p className="sumo-now"><Clock size={16}/>About now: <strong>{onNow.east.name}</strong> v <strong>{onNow.west.name}</strong> · {divisionLabel(onNow.division)}</p>}
   {parent&&config?.sumo&&<div className="row wrap">
    <button className="primary" disabled={busy||fetching} onClick={load}>

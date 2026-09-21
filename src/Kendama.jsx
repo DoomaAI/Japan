@@ -2,6 +2,7 @@ import React,{useState,useEffect,useRef} from 'react';
 import {Trophy,RotateCcw,Check} from 'lucide-react';
 import {TRICKS,MOSHIKAME,HANG,trickById,trickAt,airtime,judge,moshikameWindow,kendamaScore,moshikameScore} from './kendama.js';
 import {bestScore} from './trip-features.js';
+import {WinBurst} from './Win.jsx';
 const INK='#16383b',WOOD='#c9884a',DARK='#9c6433';
 // The kendama itself: the crosspiece with the big cup one side and the small cup the other,
 // the base cup underneath, and the spike on top. Drawn rather than photographed, like
@@ -103,7 +104,8 @@ export default function Kendama({user,state,mutate,busy}){
    catch</strong> at the moment it comes down onto the cup. Both have to be right.</p>
   <div className="segmented game-picker">
    <button className={mode==='tricks'?'selected':''} onClick={()=>reset('tricks')}>Tricks</button>
-   <button className={mode==='moshikame'?'selected':''} onClick={()=>reset('moshikame')} lang="ja">もしかめ</button>
+   <button className={`two-line${mode==='moshikame'?' selected':''}`} onClick={()=>reset('moshikame')}>
+    <b lang="ja">もしかめ</b><small>Moshikame · over and over</small></button>
   </div>
   <div className="kendama-trick">
    <b lang="ja">{trick.ja}</b><em>{trick.romaji}</em><span>{trick.en}</span>
@@ -120,6 +122,7 @@ export default function Kendama({user,state,mutate,busy}){
   {phase==='flying'
    ?<button className="kendama-catch" onClick={grab}>Catch</button>
    :<button className="kendama-catch" disabled>Catch</button>}
+  <WinBurst on={finished} label="Every trick landed!" sub="The whole list, done"/>
   <p className="game-status">{
    said?.rep?`${said.rep} in a row. Keep going.`
    :said?.landed?<><Trophy size={16}/> {trick.ja} landed. {trick.en.toLowerCase()} — {trick.worth} points.</>

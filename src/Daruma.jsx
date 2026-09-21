@@ -3,6 +3,7 @@ import {Trophy,RotateCcw,Heart} from 'lucide-react';
 import {CHANT,CHANT_SAY,LEVELS,levelById,TRACK,TICK,newRun,start,darumaTick,resume,darumaWorth} from './daruma.js';
 import {bestScore} from './trip-features.js';
 import {useKanaVoice} from './SayIt.jsx';
+import {WinBurst} from './Win.jsx';
 const INK='#16383b';
 // The daruma himself. Facing the wall he is a red dome and nothing else; turned round he has
 // the eyes, and by then it is too late to be moving. One inline drawing, two faces.
@@ -81,7 +82,8 @@ export default function Daruma({user,state,mutate,busy}){
    move</strong> — and let go before he turns round, because anybody still moving is caught.
    Touch him and you have won.</p>
   <div className="segmented game-picker">{LEVELS.map(l=>
-   <button key={l.id} className={levelId===l.id?'selected':''} onClick={()=>reset(l.id)} lang="ja">{l.ja}</button>)}</div>
+   <button key={l.id} className={`two-line${levelId===l.id?' selected':''}`} onClick={()=>reset(l.id)}>
+    <b lang="ja">{l.ja}</b><small>{l.en}</small></button>)}</div>
   <p><small>{level.en} — {level.how}</small></p>
   <div className={`daruma-scene${watching?' watching':''}${turning?' turning':''}`}>
    <Doll watching={watching}/>
@@ -96,6 +98,7 @@ export default function Daruma({user,state,mutate,busy}){
   <button type="button" className={`daruma-hold${holding?' down':''}`} disabled={!playing}
    onPointerDown={grab(true)} onPointerUp={grab(false)} onPointerLeave={grab(false)} onPointerCancel={grab(false)}>
    {playing?'Hold to creep up':'Not started'}</button>
+  <WinBurst on={!!run.over?.won} label="You got him!" sub={`${run.lives} ${run.lives===1?'life':'lives'} left`}/>
   <p className="game-status">
    {run.over?run.over.won?<><Trophy size={16}/> You got him, in {seconds.toFixed(1)} seconds with {run.lives} {run.lives===1?'life':'lives'} left — {darumaWorth(level,seconds,run.lives)} points.</>
      :'Caught for the third time. Back to the wall.'

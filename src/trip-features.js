@@ -550,6 +550,49 @@ export const predictionLeaders=state=>{
  const tally=predictionTally(state).filter(t=>t.right>0);
  return tally.length?tally.filter(t=>t.right===tally[0].right).map(t=>t.name):[];
 };
+// The columns of the tipping sheet, in the order the family is listed rather than in the order
+// they are winning: a column that moves between bouts is a column nobody can follow.
+export const predictionPeople=(state,members=[])=>{
+ const picked=new Set(Object.values(sumo(state).predictions).flatMap(picks=>Object.keys(picks)));
+ return [...members.filter(Boolean),...[...picked].filter(name=>!members.includes(name)).sort()];
+};
+// The ladder, read the way a tipping comp's is: everybody on it from the first bout whether or
+// not they have called anything, a place rather than a row number, and a hit rate off what has
+// actually been watched. Two people on the same record share the place — 1, 1, 3 — because
+// breaking a tie by alphabet is how you lose a five-year-old.
+export function predictionLadder(state,members=[]){
+ const scored=Object.fromEntries(predictionTally(state).map(t=>[t.name,t]));
+ const rows=predictionPeople(state,members)
+  .map(name=>scored[name]||{name,right:0,wrong:0,waiting:0,called:0})
+  .sort((a,b)=>b.right-a.right||a.wrong-b.wrong||a.name.localeCompare(b.name));
+ let place=0,previous='';
+ return rows.map((row,i)=>{
+  const record=`${row.right}/${row.wrong}`;
+  if(record!==previous){place=i+1;previous=record;}
+  const decided=row.right+row.wrong;
+  return {...row,place,decided,percent:decided?Math.round(row.right*100/decided):null};
+ });
+}
+// The sheet itself: one row per bout, one column per person, the totals along the bottom. Only
+// the bouts the comp is actually about — somebody called it, or we watched it — because the
+// card runs to forty-odd bouts and nobody has an opinion about the ones before lunch.
+export function tippingTable(state,members=[]){
+ const people=predictionPeople(state,members);
+ const totals=Object.fromEntries(people.map(name=>[name,{name,right:0,wrong:0,waiting:0,called:0}]));
+ const rows=[];
+ for(const bout of sumoBouts(state)){
+  const picks=boutPredictions(state,bout.id),result=boutResult(state,bout.id);
+  if(!result&&!Object.keys(picks).length)continue;
+  rows.push({id:bout.id,time:bout.time||'',division:bout.division,
+   east:bout.east?.name||'',west:bout.west?.name||'',winner:result?.winner||null,
+   picks:people.map(name=>{
+    const pick=picks[name]||null,outcome=!pick?'none':!result?'waiting':result.winner===pick?'right':'wrong';
+    if(pick){totals[name].called++;totals[name][outcome]++;}
+    return {name,pick,side:pick?(pick===bout.east?.name?'east':'west'):null,outcome};
+   })});
+ }
+ return {people,rows,totals:people.map(name=>totals[name])};
+}
 export const wrestlerKey=name=>String(name||'').trim().toLowerCase();
 export const wrestlerProfile=(state,name)=>sumo(state).wrestlers[wrestlerKey(name)]||null;
 export const boutResult=(state,id)=>sumo(state).results[id]||null;

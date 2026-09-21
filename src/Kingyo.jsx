@@ -67,7 +67,8 @@ export default function Kingyo({user,state,mutate,busy}){
    The paper is soaking the whole time it is under, tears if you drag it about, and two fish at
    once is far worse than twice one fish. It always goes in the end. That is the game.</p>
   <div className="segmented game-picker">{LEVELS.map(l=>
-   <button key={l.id} className={levelId===l.id?'selected':''} onClick={()=>reset(l.id)} lang="ja">{l.ja}</button>)}</div>
+   <button key={l.id} className={`two-line${levelId===l.id?' selected':''}`} onClick={()=>reset(l.id)}>
+    <b lang="ja">{l.ja}</b><small>{l.en}</small></button>)}</div>
   <p><small>{level.en} — {level.how}</small></p>
   <div className="kingyo-tank" ref={box} onPointerDown={press(true)} onPointerMove={move}
    onPointerUp={press(false)} onPointerLeave={press(false)} onPointerCancel={press(false)}>

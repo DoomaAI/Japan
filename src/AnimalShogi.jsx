@@ -2,6 +2,7 @@ import React,{useState,useEffect,useMemo} from 'react';
 import {Trophy,RotateCcw} from 'lucide-react';
 import {newGame,play,movesFor,dropsFor,aiMove,pieceById,PIECES,LEVELS,levelById,shogiWorth} from './shogi.js';
 import {bestScore} from './trip-features.js';
+import {WinBurst} from './Win.jsx';
 // Dōbutsu shōgi. Your side is the bottom of the board and his is the top, always, because a
 // board that turns around between moves is how a child loses track of which lion is his.
 const HELD=['giraffe','elephant','chick'];
@@ -77,6 +78,7 @@ export default function AnimalShogi({user,state,mutate,busy}){
      onClick={()=>setPicked(picked?.drop===h.piece?null:{drop:h.piece})}>
      {pieceById(h.piece).icon}{h.count>1?<b>×{h.count}</b>:null}</button>):<em>nothing</em>}
   </div>
+  <WinBurst on={game.over?.winner==='me'} label="You win!" sub={game.over?.winner==='me'?verdict:''}/>
   <p className="game-status">{game.over?<><Trophy size={16}/> {verdict}</>
    :mine?picked?.drop?`Put the ${pieceById(picked.drop).en.toLowerCase()} on any empty square.`
     :picked?'Now tap where he goes.':'Your move.'
