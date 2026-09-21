@@ -230,6 +230,10 @@ The supplied `Japan_2026_Google_Maps_Master_List_SELECTED_ADDITIONS.xlsx` contai
 Validation now includes 20 automated test groups: all 209 rows retained; URL encoding and mode validated for 627 direction links; exact branch matching, custom destination detachment, guide-page associations and invalid location rejection covered. Both new location components rendered direction links in a server-render smoke check. Live iPhone navigation remains a deployment check.
 
 
+### Turning the guide
+
+All 72 pages turn like a book: **swipe the page sideways**, or use the arrow keys, as well as the buttons. Every way of turning goes through one place, so a swipe, a key and a button cannot drift apart, and it **stops at both covers** rather than wrapping — page 1 arriving after page 72 is disorienting when you are hunting for something. A swipe has to be sideways rather than a scroll (55px across, under 45px down), the page still scrolls up and down normally, an arrow key typed into the page box or the day list is not a page turn, and the keys are only listened for while the guide is open.
+
 ### Day guide previews and ticket attachments
 Each day now shows a swipeable strip of its original guide pages above the activities. The guide reader includes a day selector and return-to-day button.
 
