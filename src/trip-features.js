@@ -1,5 +1,6 @@
 import {activeSteps,minutes,asClock,japanDate,japanClock} from './timing.js';
 import {ORDERED_PHRASES,phraseForDay} from './phrasebook-data.js';
+import {ALL_FACTS,orderedFacts} from './fact-data.js';
 export const BOYS=['Nate','Boston'];
 export const THANK_YOU_FROM='Damien',THANK_YOU_TO='Lauren';
 export function initialThankYou(){
@@ -182,6 +183,23 @@ export function phraseQueue(state,person,day){
  const seen=phrasesSeenBy(state,person),todays=day?phraseForDay(state.days,day):null;
  const rest=ORDERED_PHRASES().filter(p=>p.id!==todays?.id&&!seen[p.id]);
  return [todays,...rest].filter(Boolean);
+}
+// Who has already had a fun fact on a given day, so it pops up once each rather than once
+// a phone. Kept apart from the log below: this one answers "is today done".
+export const factSeenBy=(state,day)=>state.factSeen?.[day]||{};
+// Every fact a person has actually been shown, and when they first met it.
+export const factsSeenBy=(state,person)=>state.factLog?.[person]||{};
+export const factLogFor=(state,person)=>{
+ const seen=factsSeenBy(state,person);
+ return ALL_FACTS().filter(f=>seen[f.id]).map(f=>({...f,at:seen[f.id]}))
+  .sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+};
+// What to show next: the day's own facts first, because those are the ones about what is
+// actually coming up, then the rest of the book — and never one this person has already met.
+export function factQueue(state,person,day){
+ const seen=factsSeenBy(state,person),ordered=orderedFacts(state.days,day);
+ const lead=ordered.find(f=>!seen[f.id])||ordered[0];
+ return lead?[lead,...ordered.filter(f=>f.id!==lead.id&&!seen[f.id])]:[];
 }
 // Searching for Japanese on an English keyboard: nobody types the macron in "arigatō",
 // and a question mark or a hyphen should not decide whether a phrase is found.
@@ -379,7 +397,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -783,6 +801,10 @@ export function pendingProgress(state,queue){
    if(o.day){const e={...(next.phraseSeen[o.day]||{})};e[o.person]=e[o.person]||o.at;next.phraseSeen={...next.phraseSeen,[o.day]:e};}
    if(o.phraseIds?.length){const log={...(next.phraseLog[o.person]||{})};for(const id of o.phraseIds)log[id]=log[id]||o.at;next.phraseLog={...next.phraseLog,[o.person]:log};}
   }
+  if(o.type==='factSeen'){
+   if(o.day){const e={...(next.factSeen[o.day]||{})};e[o.person]=e[o.person]||o.at;next.factSeen={...next.factSeen,[o.day]:e};}
+   if(o.factIds?.length){const log={...(next.factLog[o.person]||{})};for(const id of o.factIds)log[id]=log[id]||o.at;next.factLog={...next.factLog,[o.person]:log};}
+  }
   if(o.type==='gameScore'){
    const mine={...(next.games.scores[o.person]||{})};
    mine[o.game]=Math.max(mine[o.game]||0,o.score);
@@ -811,6 +833,10 @@ export function pendingProgress(state,queue){
   if(o.type==='sumoResult'){const next_sumo={...next.sumo,results:{...(next.sumo.results||{})}};
    if(o.winner)next_sumo.results[o.id]={winner:o.winner,by:o.by||'',at:o.at};else delete next_sumo.results[o.id];
    next.sumo=next_sumo;}
+  // A character is only ever your own to design, so one made with no signal can stand beside
+  // your name straight away rather than waiting for the family plan to catch up.
+  if(o.type==='mascotSave')next.mascots={...next.mascots,[o.person]:{...o.mascot,updatedAt:o.at,pending:true}};
+  if(o.type==='mascotRemove'){const {[o.person]:removed,...rest}=next.mascots;next.mascots=rest;}
   if(o.type==='todoAdd')next.todos=[...next.todos,{id:`pending-${o.operationId}`,title:String(o.title||'').trim(),kind:o.kind==='buy'?'buy':'do',day:o.day??null,person:o.person||'Family',notes:String(o.notes||''),createdBy:o.by||'',createdAt:o.at,doneAt:null,doneBy:null,pending:true}];
   if(o.type==='todoStatus'){const t=next.todos.find(t=>t.id===o.id);if(t){t.doneAt=o.done?o.at:null;t.doneBy=o.done?o.by||t.doneBy:null;t.pending=true;}}
   // Something wanted, and something bought, both with no signal: additions and a record of what

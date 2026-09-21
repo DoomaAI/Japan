@@ -2,9 +2,11 @@ import {randomUUID} from 'node:crypto';
 import {findRide} from '../src/park-data.js';
 import {FOOD,FOOD_KINDS} from '../src/food-data.js';
 import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
+import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
+import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 const MAX_PROPOSALS=300;
 const https=v=>{try{return new URL(v).protocol==='https:';}catch{return false;}};
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
@@ -196,6 +198,29 @@ export function extraOperation(state,op,user,fail,now){
     log[id]=log[id]||at;
    }
    state.phraseLog={...state.phraseLog,[op.person]:log};
+  }
+ }else if(op.type==='factSeen'){
+  // The fun fact works exactly like the phrase: everyone gets the day's one, and each person
+  // marks off their own, so the boys are not tied to their parents' pace.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Mark your own fact as seen.',403);
+  if(op.day!==null&&op.day!==undefined&&!state.days.some(d=>d.date===op.day))fail('Choose a trip day.');
+  if(!op.day&&!op.factIds?.length)fail('Choose a trip day.');
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid fact time.');at=new Date(op.at).toISOString();}
+  if(op.day){
+   const seen={...(state.factSeen[op.day]||{})};
+   seen[op.person]=seen[op.person]||at;
+   state.factSeen={...state.factSeen,[op.day]:seen};
+  }
+  // Every fact actually put in front of someone goes in their own log, once.
+  if(op.factIds!==undefined){
+   if(!Array.isArray(op.factIds)||op.factIds.length>ALL_FACTS().length)fail('Invalid fact list.');
+   const log={...(state.factLog[op.person]||{})};
+   for(const id of op.factIds){
+    if(!findFact(id))fail('Unknown fact.',404);
+    log[id]=log[id]||at;
+   }
+   state.factLog={...state.factLog,[op.person]:log};
   }
  }else if(op.type==='weatherUpdate'){
   // A cache of what a free forecast service said, kept in the trip so one phone's lookup
@@ -696,6 +721,30 @@ export function extraOperation(state,op,user,fail,now){
   for(const c of plan.changes)state.steps.find(s=>s.id===c.id).time=c.time;
   for(const item of plan.backlog){const s=state.steps.find(s=>s.id===item.id);s.backlogFrom={day:s.day,time:s.time,bookingTime:s.bookingTime,status:s.status};Object.assign(s,{day:null,time:null,bookingTime:null,group:'',option:'',status:'todo'});}
   return {summary:`Revised ${op.day} for a ${op.delay}-minute delay. ${plan.backlog.length} activities saved to Options.`,important:true};
+ }else if(typeof op.type==='string'&&op.type.startsWith('mascot')){
+  // Everybody owns their own character; a parent can sit with one of the boys and help with
+  // his. Only ids this app knows how to draw are accepted, so a saved character can never
+  // arrive as a picture the phone cannot draw.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Design your own character.',403);
+  if(op.type==='mascotRemove'){
+   if(!state.mascots?.[op.person])fail('There is no character to remove.',404);
+   const {[op.person]:removed,...rest}=state.mascots;state.mascots=rest;
+   return {summary:null,important:false,title:`${op.person}’s character removed`};
+  }
+  if(op.type!=='mascotSave')fail('Unknown character action.');
+  if(!op.mascot||typeof op.mascot!=='object'||Array.isArray(op.mascot))fail('Invalid character.');
+  const character={};
+  for(const field of CHOICE_FIELDS){if(!validChoice(field,op.mascot[field]))fail(`Choose a ${field} from the list.`);character[field]=op.mascot[field];}
+  for(const [field,max] of Object.entries(TEXT_FIELDS)){
+   const value=String(op.mascot[field]??'').trim();
+   if(!string(value,max))fail(`Keep the ${field} under ${max} characters.`);
+   character[field]=value;
+  }
+  if(!character.name)fail('Give the character a name.');
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+  state.mascots={...state.mascots,[op.person]:{...character,updatedAt:at,updatedBy:user.name}};
+  return {summary:null,important:false,title:`${op.person}’s character · ${character.name}`};
  }else return false;
  return {summary:op.type==='meeting'?`Meeting point updated for ${op.day}: ${op.place}${op.time?' at '+op.time:''}`:null,important:op.type==='meeting'};
 }

@@ -12,6 +12,9 @@ import SayIt from './SayIt.jsx';
 import Phrasebook,{PhraseOfDay} from './Phrasebook.jsx';
 import {phraseForDay} from './phrasebook-data.js';
 import {phraseSeenBy,phraseQueue} from './trip-features.js';
+import FunFacts,{FactOfDay} from './FunFacts.jsx';
+import {factForDay} from './fact-data.js';
+import {factSeenBy,factQueue} from './trip-features.js';
 import {PHRASES} from './phrases.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
 import {primaryNav,moreIds,PAGES} from './nav-data.js';
@@ -37,6 +40,8 @@ import Weather,{MorningNeeds} from './Weather.jsx';
 import DocumentReader from './DocumentReader.jsx';
 import EmailInbox from './EmailInbox.jsx';
 import PhotoDay from './PhotoDay.jsx';
+import MascotMaker from './MascotMaker.jsx';
+import {MascotBadge} from './Mascot.jsx';
 import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
@@ -67,9 +72,9 @@ const TABS=[...Object.keys(PAGES),'more'];
 // What is missing is deliberate: anything that reshapes the plan needs the latest revision
 // to be safe, a stale exchange rate or forecast overwriting a fresh one is worse than not
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
-const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore',
+const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove',
- 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','spendAdd','spendBought','spendRequest','sumoResult','sumoPredict','stepRating','stepThought'];
+ 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','spendAdd','spendBought','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove'];
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
@@ -79,7 +84,7 @@ function App(){
  const state=envelope?.state,user=envelope?.user,parent=user?.role==='parent';
  const directions=(place,mode='transit')=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(target)+'&travelmode='+mode;};
  const maps=place=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(target);};
- const envRef=useRef(envelope),queueRef=useRef(queue),working=useRef(false),touch=useRef(null),noteShown=useRef(''),phraseSeen=useRef(''),landed=useRef(false);
+ const envRef=useRef(envelope),queueRef=useRef(queue),working=useRef(false),touch=useRef(null),noteShown=useRef(''),phraseSeen=useRef(''),factShown=useRef(''),landed=useRef(false);
  envRef.current=envelope;queueRef.current=queue;
  function notice(s){setToast(s);}
  function accept(e){e={...e,state:ensureFeatures(e.state)};envRef.current=e;setEnvelope(e);localStorage.setItem('japan.snapshot',JSON.stringify({...e,savedAt:Date.now()}));}
@@ -209,21 +214,38 @@ function App(){
   const link=new URLSearchParams(location.search);
   if(user.role==='child'&&!link.get('tab')&&!link.get('step')&&!link.get('page'))setTab('challenges');
  },[user?.name]);
- // Today's phrase, once per person per day. Lauren's private note takes precedence, so the
- // two never stack up on the same screen.
+ // Whether today is a day of the trip at all. The daily pop-ups hang off this: the phrase
+ // first, then the fun fact, each once per person per day, and Lauren's private note ahead of
+ // both — so they queue rather than stacking up on the same screen.
  const todayJapan=japanDate(now);
- const phraseDay=state?.days.some(d=>d.date===todayJapan)?todayJapan:null;
- const todaysPhrase=phraseDay?phraseForDay(state.days,phraseDay):null;
- const phraseDone=!todaysPhrase||!!phraseSeenBy(state,phraseDay)[user?.name]||localStorage.getItem(`japan.phrase.${phraseDay}`)==='seen';
+ const dayOnTrip=state?.days.some(d=>d.date===todayJapan)?todayJapan:null;
+ const todaysPhrase=dayOnTrip?phraseForDay(state.days,dayOnTrip):null;
+ const phraseDone=!todaysPhrase||!!phraseSeenBy(state,dayOnTrip)[user?.name]||localStorage.getItem(`japan.phrase.${dayOnTrip}`)==='seen';
  useEffect(()=>{
   // It waits for a clear screen, so it lands after her note is closed rather than on top of it.
-  if(!todaysPhrase||phraseDone||modal||phraseSeen.current===phraseDay)return;
+  if(!todaysPhrase||phraseDone||modal||phraseSeen.current===dayOnTrip)return;
   if(noteForMe&&!noteRead)return;
-  phraseSeen.current=phraseDay;setModal({type:'phrase',phrase:todaysPhrase,day:phraseDay});
+  phraseSeen.current=dayOnTrip;setModal({type:'phrase',phrase:todaysPhrase,day:dayOnTrip});
  },[todaysPhrase?.id,phraseDone,noteForMe?.day,noteRead,modal]);
  async function seePhrase(day,phraseIds=[]){
   localStorage.setItem(`japan.phrase.${day}`,'seen');
   await mutate({type:'phraseSeen',day,person:user.name,phraseIds});
+  setModal(null);
+ }
+ // Today's fun fact, once per person per day, about what that day actually holds. It queues
+ // behind Lauren's note and the phrase rather than stacking on top of either, so a morning
+ // never opens onto three pop-ups at once.
+ const todaysFact=dayOnTrip?factForDay(state.days,dayOnTrip):null;
+ const factDone=!todaysFact||!!factSeenBy(state,dayOnTrip)[user?.name]||localStorage.getItem(`japan.fact.${dayOnTrip}`)==='seen';
+ useEffect(()=>{
+  if(!todaysFact||factDone||modal||factShown.current===dayOnTrip)return;
+  if(noteForMe&&!noteRead)return;
+  if(todaysPhrase&&!phraseDone)return;
+  factShown.current=dayOnTrip;setModal({type:'fact',day:dayOnTrip});
+ },[todaysFact?.id,factDone,todaysPhrase?.id,phraseDone,noteForMe?.day,noteRead,modal]);
+ async function seeFact(day,factIds=[]){
+  localStorage.setItem(`japan.fact.${day}`,'seen');
+  await mutate({type:'factSeen',day,person:user.name,factIds});
   setModal(null);
  }
  async function readNote(note){
@@ -237,7 +259,7 @@ function App(){
  // family's own recording where there is one without being handed props down five levels.
  return <PhraseAudio.Provider value={{clips:visibleState?.phraseAudio||{},user,request,accept,notice,config,busy}}>
   <div className="app">
-  <header className="topbar"><a className="brand" href="/" onClick={e=>{e.preventDefault();setTab('today');}}><span className="brand-mark" aria-hidden="true">✿</span><span>Japan <b>2026</b><small>THE PASFIELD FAMILY</small></span></a><div className="top-actions">{noteForMe&&<button className="icon thank-you-button" aria-label={`A note from ${THANK_YOU_FROM}`} onClick={()=>setModal({type:'thankyou',note:noteForMe})}><Heart size={20}/>{!noteRead&&<i/>}</button>}<button className="icon" aria-label="Search everything" onClick={()=>go('search')}><Search size={20}/></button><button className="icon notification-button" aria-label="Family updates" onClick={()=>go('updates')}><Bell size={20}/>{state.alerts.some(a=>!a.seenBy?.[user.name])&&<i/>}</button><span className="local-clock"><Clock size={14}/>{japanClock(now)}<small>JAPAN</small></span><button className="avatar" aria-label="Family settings" onClick={()=>setModal({type:'family'})}>{user.name[0]}</button></div></header>
+  <header className="topbar"><a className="brand" href="/" onClick={e=>{e.preventDefault();setTab('today');}}><span className="brand-mark" aria-hidden="true">✿</span><span>Japan <b>2026</b><small>THE PASFIELD FAMILY</small></span></a><div className="top-actions">{noteForMe&&<button className="icon thank-you-button" aria-label={`A note from ${THANK_YOU_FROM}`} onClick={()=>setModal({type:'thankyou',note:noteForMe})}><Heart size={20}/>{!noteRead&&<i/>}</button>}<button className="icon" aria-label="Search everything" onClick={()=>go('search')}><Search size={20}/></button><button className="icon notification-button" aria-label="Family updates" onClick={()=>go('updates')}><Bell size={20}/>{state.alerts.some(a=>!a.seenBy?.[user.name])&&<i/>}</button><span className="local-clock"><Clock size={14}/>{japanClock(now)}<small>JAPAN</small></span><button className="avatar" aria-label="Family settings" onClick={()=>setModal({type:'family'})}><MascotBadge state={state} person={user.name} size={38}/></button></div></header>
   <div className="syncbar">{!online?<><WifiOff size={14}/> Offline · saved on this phone</>:user.demo?<><AlertCircle size={14}/> Local preview · family sharing needs setup</>:queue.length?<><Clock size={14}/>{queue.length} update{queue.length!==1?'s':''} waiting to sync</>:<><Cloud size={14}/> Shared family plan <span>Signed in as {user.name}</span></>}</div>
   {conflict&&<div className="conflict"><strong>The family changed the plan while you were offline.</strong><p>Your {queue.length} progress update(s) are still saved. Review them against the latest itinerary.</p><div className="row"><Button onClick={()=>setModal({type:'pending'})}>Review updates</Button><Button onClick={()=>{saveQueue([]);setConflict(false);}}>Discard my pending updates</Button></div></div>}
   <main>
@@ -285,7 +307,9 @@ function App(){
   {tab==='meeting'&&<MeetingCard key={day} state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='updates'&&<Updates state={state} user={user} mutate={mutate} busy={busy}/>}
   {tab==='photos'&&<><p className="eyebrow">THROUGH THEIR EYES</p><h1>Photos</h1>{!photoPerson&&<div className="form-row"><label>Day<select value={day} onChange={e=>selectPhotoDay(e.target.value)}>{state.days.map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)} · {d.title}</option>)}</select></label></div>}<PhotoDay state={visibleState} user={user} day={day} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay} person={photoPerson} setPerson={choosePhotoPerson}/></>}
+  {tab==='mascot'&&<MascotMaker state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice} go={go}/>}
   {tab==='games'&&<Games state={visibleState} user={user} day={day} mutate={mutate} busy={busy} setBusy={setBusy} online={online} refresh={refresh} dayLabel={fmtDay} config={config} request={request} accept={accept} notice={notice}/>}
+  {tab==='facts'&&<><p className="eyebrow">SOMETHING WORTH KNOWING EVERY DAY</p><h1>Fun facts</h1><p>A fact a day about what is actually coming up, taken out of the guide. Swipe for more whenever you want another.</p><FunFacts state={visibleState} user={user} day={japanDate(now)} mutate={mutate} busy={busy} openPage={openPage}/></>}
   {tab==='phrases'&&<><p className="eyebrow">A LITTLE JAPANESE GOES A LONG WAY</p><h1>Phrases</h1><Phrasebook state={visibleState} user={user} day={japanDate(now)} mutate={mutate} busy={busy} request={request} notice={notice} config={config}/></>}
   {tab==='money'&&<><p className="eyebrow">WHAT DOES THAT COST?</p><h1>Yen converter</h1><Currency state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice}/></>}
   {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><FoodList state={visibleState} user={user} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
@@ -309,13 +333,14 @@ function App(){
   <BottomNav tab={tab} user={user} go={go} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
   {toast&&<div className="toast" role="status">{toast}<button aria-label="Dismiss" onClick={()=>setToast('')}><X size={16}/></button></div>}
-  {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:'Food & amenities near here',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',eyespy:'Window I spy',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${THANK_YOU_FROM}`}[modal.type]} onClose={()=>setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo'].includes(modal.type)}>
+  {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:'Food & amenities near here',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',eyespy:'Window I spy',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${THANK_YOU_FROM}`}[modal.type]} onClose={()=>setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo'].includes(modal.type)}>
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)}/>}
    {modal.type==='voice'&&<VoiceNotes state={visibleState} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay}/>}
    {modal.type==='foodcard'&&<FoodCard item={modal.item} notice={notice}/>}
    {modal.type==='park'&&<ParkGuide state={visibleState} user={user} park={modal.park} mutate={mutate} busy={busy} open={setModal}/>}
    {modal.type==='phrase'&&<PhraseOfDay queue={phraseQueue(visibleState,user.name,modal.day)} day={modal.day} dateLabel={fmtDay(modal.day)} busy={busy} dismiss={ids=>seePhrase(modal.day,ids)}/>}
+   {modal.type==='fact'&&<FactOfDay queue={factQueue(visibleState,user.name,modal.day)} dateLabel={fmtDay(modal.day)} busy={busy} young={user.name==='Nate'} dismiss={ids=>seeFact(modal.day,ids)} openPage={async(page,ids)=>{await seeFact(modal.day,ids);openPage(page);}}/>}
    {modal.type==='eyespy'&&<EyeSpy state={visibleState} user={user} step={modal.step} mutate={mutate} busy={busy}/>}
    {modal.type==='thankyou'&&<ThankYouNote note={modal.note} seenAt={state.thankYou.seen?.[modal.note.day]} busy={busy} dismiss={()=>readNote(modal.note)}/>}
    {modal.type==='late'&&<RunningLate state={state} day={day} mutate={mutate} busy={busy} close={()=>setModal(null)}/>}
@@ -384,7 +409,7 @@ function Tickets({state,user,step,initialSearch='',config,busy,setBusy,accept,mu
  {view&&<TicketViewer documents={state.documents} tickets={docs} view={view} setView={setView}/>}
  {parent&&<details key={editing?.id||`new-${reset}`} open={!!editing||!state.documents.length}><summary>{editing?'Edit details and tags':'Add a ticket, reservation or luggage tag'}</summary>{!config?.uploads&&<p className="callout">File uploads will work after private Blob storage is connected. Links and written details can be added now.</p>}<form onSubmit={submit}><label>Type<select name="category" defaultValue={editing?.category||'ticket'}><option value="ticket">Ticket / QR code</option><option value="reservation">Reservation</option><option value="luggage">Luggage tag / forwarding receipt</option><option value="other">Other</option></select></label><label>Title<input name="title" defaultValue={editing?.title||''} required placeholder="Blue suitcase tag / dinner reservation" maxLength={250}/></label><div className="form-row"><label>For<select name="person" defaultValue={editing?.person||'Family'}><option>Family</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label><label>Attach to<select name="stepId" defaultValue={editing?.stepId||step?.id||''}><option value="">General trip document</option>{state.steps.map(s=><option key={s.id} value={s.id}>{s.day?s.day.slice(5):'Options'} · {s.title}</option>)}</select></label></div><label>Reference / tag / collection number<input name="reference" defaultValue={editing?.reference||''} maxLength={250} placeholder="Bag tag or booking number"/></label><label>Notes<textarea name="notes" defaultValue={editing?.notes||''} maxLength={4000} placeholder="Which bag, collection place, delivery hotel or reservation details"/></label><label>Tags (comma-separated)<input name="tags" defaultValue={(editing?.tags||[]).join(', ')} placeholder="Tokyo, dinner, flight, blue bag"/></label>{!editing&&<><label>First PDF or photo (up to 25 MB)<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!config?.uploads||busy} onChange={e=>{setFile(e.target.files[0]);setFailedUpload(null);}}/></label><label>Take a photo now<input type="file" accept="image/jpeg,image/png" capture="environment" disabled={!config?.uploads||busy} onChange={e=>{setFile(e.target.files[0]);setFailedUpload(null);}}/></label>{file&&<p>Selected: {file.name}</p>}<label>Or paste a booking link<input name="url" type="url" placeholder="https://…"/></label></>}<Button className="primary" disabled={busy}>{busy?`Uploading ${Math.round(progress)}%…`:failedUpload?'Retry saving attachment':editing?'Save changes':'Save to family trip'}</Button>{editing&&<Button type="button" onClick={()=>setEditing(null)}>Cancel edit</Button>}<p>After saving, use ‘Add photos / files to this ticket’ to attach multiple images and label each person. For rotating QR codes, add the official ticket link or app. Downloaded screenshots may not be valid.</p></form></details>}</>;
 }
-function Family({user,state,notice,onLogout}){const [invites,setInvites]=useState([]),[link,setLink]=useState(''),[name,setName]=useState('Lauren'),[busy,setBusy]=useState(false);const load=()=>request('invites').then(r=>setInvites(r.invites)).catch(e=>notice(e.message));useEffect(()=>{if(user.role==='parent')load();},[]);return <><p>You’re using the trip as <strong>{user.name}</strong> · {user.role==='parent'?'Parent editor':'Family member'}</p><div className="family-people">{state.members.map(n=><span key={n}><b>{n[0]}</b>{n}</span>)}</div>{user.role==='parent'&&<><h3>Invite the family</h3><p>Each person gets their own private link. Anyone holding a parent link can edit the trip and see tickets. Links expire after 45 days.</p><label>Family member<select value={name} onChange={e=>setName(e.target.value)}>{state.members.map(n=><option key={n}>{n}</option>)}</select></label><Button className="primary" icon={Share2} disabled={busy} onClick={async()=>{setBusy(true);try{const r=await request('invites',{name,role:['Damien','Lauren'].includes(name)?'parent':'child'});setLink(r.url);await load();}catch(e){notice(e.message);}finally{setBusy(false);}}}>Create private invite link</Button>{link&&<><textarea readOnly value={link}/><Button icon={Copy} onClick={()=>navigator.clipboard.writeText(link).then(()=>notice('Private invite copied.')).catch(()=>notice('Select and copy the link.'))}>Copy link</Button></>}{invites.map(i=><div className="list-row" key={i.id}><span>{i.name} · {i.role}{i.revoked?' · revoked':''}</span>{i.id!=='owner'&&i.id!==user.id&&!i.revoked&&<button className="danger" onClick={async()=>{if(!confirm('Revoke this invite and its online sessions? Offline downloads cannot be remotely removed.'))return;try{await request('revoke',{id:i.id});load();}catch(e){notice(e.message);}}}>Revoke</button>}</div>)}</>}<details><summary>Recent family changes</summary>{(state.history||[]).slice(0,30).map(h=><p key={h.id}><strong>{h.by}</strong> · {h.title}<small>{japanClock(new Date(h.at))} · {h.type}</small></p>)}</details><Button icon={Download} onClick={()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='japan-trip-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}}>Download itinerary backup</Button><hr/><Button className="danger" onClick={()=>{if(confirm('Sign out and remove saved itinerary and tickets from this phone?'))onLogout();}}>Sign out and clear this phone</Button></>;}
+function Family({user,state,notice,onLogout}){const [invites,setInvites]=useState([]),[link,setLink]=useState(''),[name,setName]=useState('Lauren'),[busy,setBusy]=useState(false);const load=()=>request('invites').then(r=>setInvites(r.invites)).catch(e=>notice(e.message));useEffect(()=>{if(user.role==='parent')load();},[]);return <><p>You’re using the trip as <strong>{user.name}</strong> · {user.role==='parent'?'Parent editor':'Family member'}</p><div className="family-people">{state.members.map(n=><span key={n}><MascotBadge state={state} person={n} size={45}/>{n}</span>)}</div>{user.role==='parent'&&<><h3>Invite the family</h3><p>Each person gets their own private link. Anyone holding a parent link can edit the trip and see tickets. Links expire after 45 days.</p><label>Family member<select value={name} onChange={e=>setName(e.target.value)}>{state.members.map(n=><option key={n}>{n}</option>)}</select></label><Button className="primary" icon={Share2} disabled={busy} onClick={async()=>{setBusy(true);try{const r=await request('invites',{name,role:['Damien','Lauren'].includes(name)?'parent':'child'});setLink(r.url);await load();}catch(e){notice(e.message);}finally{setBusy(false);}}}>Create private invite link</Button>{link&&<><textarea readOnly value={link}/><Button icon={Copy} onClick={()=>navigator.clipboard.writeText(link).then(()=>notice('Private invite copied.')).catch(()=>notice('Select and copy the link.'))}>Copy link</Button></>}{invites.map(i=><div className="list-row" key={i.id}><span>{i.name} · {i.role}{i.revoked?' · revoked':''}</span>{i.id!=='owner'&&i.id!==user.id&&!i.revoked&&<button className="danger" onClick={async()=>{if(!confirm('Revoke this invite and its online sessions? Offline downloads cannot be remotely removed.'))return;try{await request('revoke',{id:i.id});load();}catch(e){notice(e.message);}}}>Revoke</button>}</div>)}</>}<details><summary>Recent family changes</summary>{(state.history||[]).slice(0,30).map(h=><p key={h.id}><strong>{h.by}</strong> · {h.title}<small>{japanClock(new Date(h.at))} · {h.type}</small></p>)}</details><Button icon={Download} onClick={()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='japan-trip-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}}>Download itinerary backup</Button><hr/><Button className="danger" onClick={()=>{if(confirm('Sign out and remove saved itinerary and tickets from this phone?'))onLogout();}}>Sign out and clear this phone</Button></>;}
 
 createRoot(document.getElementById('root')).render(<App/>);
 

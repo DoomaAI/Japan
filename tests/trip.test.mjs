@@ -953,6 +953,142 @@ test('marking the daily phrase seen is per person, per day, and keeps the first 
  assert.throws(()=>applyOperation(state,{type:'phraseSeen',person:'Grandma',day},parent),/family member/);
 });
 
+test('a fun fact a day, tied to the guide page for what is actually coming up',async()=>{
+ const {FACTS,ALL_FACTS,ANYTIME_FACTS,findFact,factsForDay,factForDay,orderedFacts}=await import('../src/fact-data.js');
+ const all=ALL_FACTS();
+ assert.equal(new Set(all.map(f=>f.id)).size,all.length,'fact ids must be unique');
+ assert.ok(all.every(f=>f.title&&f.text&&f.icon),'every fact has a headline, a fact and a picture');
+ assert.ok(all.every(f=>f.page>=1&&f.page<=72),'every fact names a real guide page');
+ // A fact belongs to a day through the guide page it came from. Anything the guide's opening
+ // pages carry belongs to no single day and fills in behind whatever the day has of its own.
+ const dayPages=new Set(seed.days.flatMap(d=>d.pages||[]));
+ for(const f of all)assert.equal(dayPages.has(f.page),!f.anytime,`${f.id} is on the wrong side of the day split`);
+ assert.ok(ANYTIME_FACTS().length>=15,'enough facts that fit any day');
+ // Every one of the sixteen days has its own facts, and no fact lands on two days.
+ const landed=[];
+ for(const d of seed.days){
+  const todays=factsForDay(seed.days,d.date);
+  assert.ok(todays.length>=3,`${d.date} needs facts of its own`);
+  assert.equal(factForDay(seed.days,d.date),todays[0],'the day opens on its first fact');
+  landed.push(...todays.map(f=>f.id));
+ }
+ assert.equal(new Set(landed).size,landed.length,'a fact belongs to one day only');
+ // The ones that matter are the ones about what is coming up: sumo on sumo day, the lucky
+ // cats on the morning we go and find them.
+ assert.equal(factForDay(seed.days,'2026-09-23').id,'sumo-old');
+ assert.equal(factForDay(seed.days,'2026-10-06').id,'maneki-neko');
+ assert.equal(factForDay(seed.days,'2099-01-01'),null,'a day off the trip gets nothing of its own');
+ // "One more" works through the day's own facts first, then the anytime ones, then the rest,
+ // and it offers the whole collection exactly once.
+ const ordered=orderedFacts(seed.days,'2026-09-23');
+ assert.equal(ordered.length,all.length);
+ assert.equal(new Set(ordered.map(f=>f.id)).size,all.length);
+ assert.deepEqual(ordered.slice(0,6).map(f=>f.id),factsForDay(seed.days,'2026-09-23').map(f=>f.id));
+ assert.ok(ordered[6].anytime,'the anytime facts come next');
+ assert.deepEqual(orderedFacts(seed.days,'2099-01-01').map(f=>f.id).slice(0,ANYTIME_FACTS().length),ANYTIME_FACTS().map(f=>f.id));
+ for(const f of FACTS)assert.equal(findFact(f.id),f);
+ assert.equal(findFact('nonsense'),null);
+});
+
+test('marking the daily fun fact seen is per person, per day, and keeps the first time',async()=>{
+ const {ensureFeatures,factSeenBy}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const day=seed.days[0].date,at='2026-09-19T01:00:00.000Z';
+ const seen=applyOperation(state,{type:'factSeen',person:'Nate',day,at},child);
+ assert.equal(factSeenBy(seen,day).Nate,at);
+ const again=applyOperation(seen,{type:'factSeen',person:'Nate',day,at:'2026-09-19T09:00:00.000Z'},child);
+ assert.equal(factSeenBy(again,day).Nate,at);
+ assert.equal(factSeenBy(again,day).Damien,undefined);
+ const both=applyOperation(again,{type:'factSeen',person:'Damien',day},parent);
+ assert.ok(both.factSeen[day].Damien);
+ // You tick your own, on a real trip day, for a real member of the family.
+ assert.throws(()=>applyOperation(state,{type:'factSeen',person:'Damien',day},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'factSeen',person:'Nate',day:'2099-01-01'},child),/trip day/);
+ assert.throws(()=>applyOperation(state,{type:'factSeen',person:'Grandma',day},parent),/family member/);
+ assert.throws(()=>applyOperation(state,{type:'factSeen',person:'Nate',day,factIds:['nonsense']},child),e=>e.status===404);
+});
+
+test('the fun fact log records what was swiped through, once each, and never repeats one',async()=>{
+ const {ensureFeatures,factLogFor,factsSeenBy,factQueue}=await import('../src/trip-features.js');
+ const {ALL_FACTS,factsForDay}=await import('../src/fact-data.js');
+ const state=ensureFeatures(structuredClone(seed)),day='2026-09-23',at='2026-09-19T01:00:00.000Z';
+ assert.deepEqual(state.factLog,{});
+ // Opening on sumo day offers the sumo facts first, in the order they are written.
+ const opened=factQueue(state,'Nate',day);
+ assert.equal(opened.length,ALL_FACTS().length);
+ assert.deepEqual(opened.slice(0,3).map(f=>f.id),factsForDay(seed.days,day).slice(0,3).map(f=>f.id));
+ // Closing the pop-up hands back every fact actually put on screen, and marks the day done.
+ const swiped=opened.slice(0,3).map(f=>f.id);
+ const first=applyOperation(state,{type:'factSeen',person:'Nate',day,factIds:swiped,at},child);
+ assert.deepEqual(Object.keys(factsSeenBy(first,'Nate')),swiped);
+ assert.ok(first.factSeen[day].Nate);
+ // Meeting one twice keeps the first time, and one person's log is not another's.
+ const later='2026-09-19T23:30:00.000Z';
+ const again=applyOperation(first,{type:'factSeen',person:'Nate',factIds:[swiped[0],'bins'],at:later},child);
+ assert.equal(factsSeenBy(again,'Nate')[swiped[0]],at,'the first time it was met is kept');
+ assert.equal(factsSeenBy(again,'Nate').bins,later);
+ assert.deepEqual(factsSeenBy(again,'Boston'),{});
+ // Newest first in the log, and the queue never offers back a fact this person has met.
+ assert.equal(factLogFor(again,'Nate')[0].id,'bins');
+ assert.equal(factLogFor(again,'Nate').length,4);
+ assert.deepEqual(factLogFor(again,'Boston'),[]);
+ const next=factQueue(again,'Nate',day);
+ assert.equal(next.length,ALL_FACTS().length-4);
+ assert.ok(!next.some(f=>factsSeenBy(again,'Nate')[f.id]),'nothing already met comes round again');
+ assert.equal(next[0].id,factsForDay(seed.days,day)[3].id,'still the day’s own facts first');
+ // Once the whole collection has been met there is nothing new left, so the pop-up falls
+ // back to the day's own first fact rather than opening onto nothing.
+ const everything=applyOperation(state,{type:'factSeen',person:'Boston',day,factIds:ALL_FACTS().map(f=>f.id),at},{name:'Boston',role:'child'});
+ const exhausted=factQueue(everything,'Boston',day);
+ assert.equal(exhausted.length,1);
+ assert.equal(exhausted[0].id,factsForDay(seed.days,day)[0].id);
+});
+
+test('every fun fact can be read aloud, and Nate gets it slower and first',async()=>{
+ const {ALL_FACTS,factForDay,factAloud}=await import('../src/fact-data.js');
+ const {YOUNG_RATE,SLOW_RATE,speechRate}=await import('../src/speech.js');
+ // The headline then the fact, and never the picture: a phone saying "aeroplane" before the
+ // sentence helps nobody.
+ const sumo=factForDay(seed.days,'2026-09-23');
+ assert.equal(factAloud(sumo),`${sumo.title}. ${sumo.text}`);
+ assert.doesNotMatch(factAloud(sumo),/\p{Extended_Pictographic}/u);
+ // Every fact has to survive being spoken by an English voice at a five-year-old: plain
+ // English all the way through, and short enough to still be listening at the end.
+ for(const f of ALL_FACTS()){
+  const said=factAloud(f);
+  assert.doesNotMatch(said,/\p{Extended_Pictographic}/u,`${f.id} would be read out as a picture`);
+  assert.doesNotMatch(said,/[　-ヿ一-鿿]/,`${f.id} has Japanese an English voice would mangle`);
+  assert.ok(said.length<=360,`${f.id} is too long to be read to a five-year-old`);
+ }
+ // Slower than talking pace for Nate, but still a sentence rather than the phrase drill.
+ assert.ok(YOUNG_RATE<speechRate('en-AU')&&YOUNG_RATE>SLOW_RATE,'a story speed, between talking and the drill');
+ const facts=await readFile(new URL('../src/FunFacts.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // The pop-up and every row on the page both offer it, whoever is holding the phone — a
+ // parent sitting with Nate needs the button as much as he does.
+ assert.equal(facts.match(/<ReadAloudButton/g)?.length,2,'the pop-up and the row both offer it');
+ assert.match(facts,/const \{supported:canRead,reading,read,problem\}=useReadAloud\(\)/,'and it says so when the phone stays silent');
+ assert.match(facts,/what="fact"/);
+ // Nate is the reason it exists, so he gets the slower voice and a button he cannot miss.
+ assert.match(facts,/young=user\?\.name==='Nate'/);
+ assert.match(facts,/rate=\{young\?YOUNG_RATE:undefined\}/);
+ assert.match(facts,/className=\{young\?'young':''\}/);
+ assert.match(main,/<FactOfDay[^>]*young=\{user\.name==='Nate'\}/,'the pop-up is told whose phone it is on');
+ // The missions the button started on keep the wording they had.
+ const adventure=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ assert.match(adventure,/what='mission'/,'missions keep their own label by default');
+});
+
+test('a fun fact ticked off with no signal is kept on the phone and lands when it syncs',async()=>{
+ const {ensureFeatures,pendingProgress,factSeenBy,factsSeenBy}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed)),day='2026-09-27',at='2026-09-19T00:30:00.000Z';
+ const queued=[{operation:{type:'factSeen',person:'Nate',day,factIds:['deer-bow','deer-crackers'],at}}];
+ const shown=pendingProgress(state,queued);
+ assert.equal(factSeenBy(shown,day).Nate,at);
+ assert.deepEqual(Object.keys(factsSeenBy(shown,'Nate')),['deer-bow','deer-crackers']);
+ assert.deepEqual(factsSeenBy(state,'Nate'),{},'the queue does not touch the trip until it lands');
+});
+
 test('the dishes carry the chicken, pork, prawn and vegetarian choices, and how to ask',async()=>{
  const {FOOD,ORDERING,MENU_WORDS}=await import('../src/food-data.js');
  const withVariants=FOOD.filter(f=>f.variants?.length);
@@ -4527,6 +4663,92 @@ test('the planes are planes: a rectangle, a centre line, and two wings',async()=
   // It says how to throw it, which is the half everybody gets wrong.
   assert.match(plane.finish,/throw|let it go/i);
  }
+});
+
+test('a boy designs his own character, and it is nobody else’s to change',async()=>{
+ const {mascotFor,mascotReady,describeMascot}=await import('../src/mascot-data.js');
+ const boston={name:'Boston',role:'child'};
+ const character={theme:'kitsune',shape:'fox',palette:'kitsune',eyes:'sparkle',mouth:'grin',marking:'whiskers',headwear:'flame',item:'bell',pattern:'asahi',
+  name:'コン',romaji:'Kon',meaning:'the sound a fox makes',saying:'いくぞ！ Ikuzo — let’s go!',power:'Fox-fire that lights a dark lane'};
+ let state=applyOperation(seed,{type:'mascotSave',person:'Nate',mascot:character},child);
+ assert.equal(mascotFor(state,'Nate').name,'コン');
+ assert.equal(mascotFor(state,'Nate').updatedBy,'Nate');
+ assert.ok(mascotReady(mascotFor(state,'Nate')));
+ assert.equal(mascotFor(state,'Boston'),null,'one boy’s character is not the other’s');
+ assert.match(describeMascot(mascotFor(state,'Nate')),/Kon.*Fox spirit.*fox orange/);
+ // Your own character only. A parent can sit with a boy and help him with his.
+ assert.throws(()=>applyOperation(state,{type:'mascotSave',person:'Nate',mascot:character},boston),e=>e.status===403);
+ state=applyOperation(state,{type:'mascotSave',person:'Boston',mascot:{...character,theme:'kappa',name:'キュウ'}},parent);
+ assert.equal(state.mascots.Boston.updatedBy,'Damien','a parent can help a boy with his');
+ // Only parts the app knows how to draw, so a saved character can never arrive unrenderable.
+ for(const broken of [{shape:'unicorn'},{palette:'neon'},{headwear:'sombrero'},{pattern:'tartan'},{theme:'vampire'}])
+  assert.throws(()=>applyOperation(state,{type:'mascotSave',person:'Nate',mascot:{...character,...broken}},child),/from the list/);
+ assert.throws(()=>applyOperation(state,{type:'mascotSave',person:'Nate',mascot:{...character,name:'   '}},child),/name/);
+ assert.throws(()=>applyOperation(state,{type:'mascotSave',person:'Nate',mascot:{...character,power:'x'.repeat(200)}},child),/under 140/);
+ assert.throws(()=>applyOperation(state,{type:'mascotSave',person:'Ryu',mascot:character},parent),/family member/);
+ // Changing it is changing it, not collecting a second one.
+ state=applyOperation(state,{type:'mascotSave',person:'Nate',mascot:{...character,palette:'ai',name:' ホムラ '}},child);
+ assert.equal(Object.keys(state.mascots).length,2);
+ assert.equal(state.mascots.Nate.name,'ホムラ','a name is stored trimmed');
+ assert.equal(state.mascots.Nate.palette,'ai');
+ state=applyOperation(state,{type:'mascotRemove',person:'Nate'},child);
+ assert.equal(mascotFor(state,'Nate'),null);
+ assert.ok(mascotFor(state,'Boston'),'removing one leaves the rest alone');
+ assert.throws(()=>applyOperation(state,{type:'mascotRemove',person:'Nate'},child),e=>e.status===404);
+});
+
+test('every part a character can be made of is a part the app can draw',async()=>{
+ const data=await import('../src/mascot-data.js');
+ const art=await readFile(new URL('../src/Mascot.jsx',import.meta.url),'utf8');
+ const block=name=>{const from=art.indexOf(`const ${name}={`);assert.ok(from>0,`${name} is drawn`);return art.slice(from,art.indexOf('\n};',from));};
+ for(const [field,map] of [['shape','SHAPES'],['marking','MARKINGS'],['eyes','EYES'],['mouth','MOUTHS'],['headwear','HEADWEAR'],['item','ITEMS'],['pattern','PATTERNS']]){
+  const drawn=block(map);
+  for(const option of data.CHOICES[field])assert.match(drawn,new RegExp(`[\\s{]${option.id}:`),`${field} · ${option.id} has no drawing`);
+ }
+ // Every spirit arrives with a look, a story, names and powers, all of them drawable.
+ for(const theme of data.THEMES){
+  assert.ok(theme.lore.length>60&&theme.known.length>20,`${theme.id} explains itself`);
+  assert.ok(theme.names.length>=3&&theme.powers.length>=3,`${theme.id} offers suggestions`);
+  assert.ok(theme.names.every(n=>n.name&&n.romaji&&n.meaning),`${theme.id} says what its names mean`);
+  assert.ok(data.VIBES.some(([id])=>id===theme.vibe));
+  for(const field of data.CHOICE_FIELDS)if(field!=='theme')assert.ok(data.validChoice(field,theme.suggest[field]),`${theme.id} suggests a real ${field}`);
+ }
+ // Surprise me has to produce something the server will accept, every time.
+ for(let i=0;i<200;i++){
+  const m=data.randomMascot();
+  for(const field of data.CHOICE_FIELDS)assert.ok(data.validChoice(field,m[field]),`random ${field}`);
+  for(const [field,max] of Object.entries(data.TEXT_FIELDS))assert.ok(m[field].length<=max,`random ${field} fits`);
+  assert.ok(data.mascotReady(m));
+ }
+});
+
+test('the character stands in for you wherever your name is, and is designed without a signal',async()=>{
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {PAGES,moreIds}=await import('../src/nav-data.js');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const maker=await readFile(new URL('../src/MascotMaker.jsx',import.meta.url),'utf8');
+ const missions=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ const spending=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ assert.ok(moreIds({name:'Nate',role:'child'}).includes('mascot'),'the boys can reach it');
+ assert.ok(moreIds({name:'Lauren',role:'parent'}).includes('mascot'));
+ assert.match(PAGES.mascot.note,/character/);
+ assert.deepEqual(ensureFeatures({...seed}).mascots,{},'a trip with no characters still loads');
+ assert.equal(ensureFeatures({...seed,mascots:{Nate:{name:'コン'}}}).mascots.Nate.name,'コン');
+ // Designing one is recording something new, so it waits on the phone like any other progress,
+ // and it stands beside the name straight away rather than waiting for the sync.
+ assert.match(main,/'mascotSave','mascotRemove'\]/);
+ const {pendingProgress}=await import('../src/trip-features.js');
+ const queued=[{operation:{type:'mascotSave',person:'Nate',mascot:{name:'コン',shape:'fox'},at:'2026-09-21T02:00:00.000Z'}}];
+ assert.equal(pendingProgress(seed,queued).mascots.Nate.name,'コン');
+ assert.equal(pendingProgress({...seed,mascots:{Nate:{name:'コン'}}},[{operation:{type:'mascotRemove',person:'Nate'}}]).mascots.Nate,undefined);
+ // The avatar, the family list, the missions and the purse all show it rather than a letter.
+ assert.match(main,/<MascotBadge state=\{state\} person=\{user\.name\} size=\{38\}\/>/);
+ assert.match(main,/family-people.*MascotBadge/);
+ assert.match(missions,/<MascotBadge state=\{state\} person=\{n\} size=\{26\}\/>/);
+ assert.match(spending,/<MascotBadge state=\{state\} person=\{n\} size=\{26\}\/>/);
+ // Guided: a spirit lays out a whole look, and re-choosing the one you have keeps your changes.
+ assert.match(maker,/const chooseTheme=id=>set\(id===draft\.theme\?\{theme:id\}:\{theme:id,\.\.\.themeFor\(id\)\.suggest\}\);/);
+ assert.match(maker,/type:'mascotSave',person,mascot/);
 });
 
 test('a drawing is shapes rather than a picture, so the same beast fits a page and a forge disc',async()=>{
