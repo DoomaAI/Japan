@@ -32,6 +32,8 @@ import {MeetingCard,QuickCapture,GlobalSearch,Diary} from './PracticalPages.jsx'
 import MediaGallery from './MediaGallery.jsx';
 import Planning from './Planning.jsx';
 import Nearby from './Nearby.jsx';
+import AskTrip from './AskTrip.jsx';
+import {hasAskHistory} from './ask-thread.js';
 import TodoList,{DayTodos} from './TodoList.jsx';
 import Spending from './Spending.jsx';
 import Sumo from './Sumo.jsx';
@@ -90,7 +92,7 @@ function App(){
  // The menu can only offer what this deployment can do. Anything already waiting keeps the
  // screen reachable too, so email that arrived before a key was removed is never stranded
  // behind a menu item that has gone.
- setAvailable({inbox:!!config?.emailInbox||(state?inboxWaiting(state):0)>0});
+ setAvailable({inbox:!!config?.emailInbox||(state?inboxWaiting(state):0)>0,ask:!!config?.ask||hasAskHistory(user)});
  // How this person has arranged their own menu. It lives on the phone beside the sumo rank and
  // the downloaded guide pages: it is about the phone in your hand rather than about the trip,
  // so it does not sync, does not need signal, and cannot be argued about. Loaded once the app
@@ -239,6 +241,7 @@ function App(){
  },[noteForMe?.day,noteForMe?.id,noteRead]);
  useEffect(()=>{if(tab==='thanks'&&user&&user.name!==THANK_YOU_FROM)setTab('today');},[tab,user?.name]);
  useEffect(()=>{if(tab==='inbox'&&user&&!(parent&&isAvailable('inbox')))setTab('today');},[tab,user?.role,config?.emailInbox]);
+ useEffect(()=>{if(tab==='ask'&&user&&!isAvailable('ask'))setTab('today');},[tab,user?.name,config?.ask]);
  // Nate and Boston open straight onto their own missions, unless a link names a screen.
  useEffect(()=>{
   if(!user||landed.current)return;landed.current=true;
@@ -365,6 +368,7 @@ function App(){
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go}/>}
   {tab==='spending'&&<Spending state={visibleState} user={user} mutate={mutate} busy={busy} go={go} notice={notice} today={japanDate(now)}/>}
   {tab==='inbox'&&parent&&isAvailable('inbox')&&<EmailInbox state={state} config={config} busy={busy} mutate={mutate} request={request} accept={accept} notice={notice} go={go}/>}
+  {tab==='ask'&&<AskTrip state={visibleState} user={user} day={day} config={config} online={online} request={request} go={go} selectDay={selectDay} notice={notice}/>}
   {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}
   {tab==='personalise'&&<Personalise user={user} prefs={navPrefs} setPrefs={saveNav}/>}

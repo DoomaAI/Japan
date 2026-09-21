@@ -53,6 +53,7 @@ export const PAGE_RULES={
  phrases:'Phrases. Japanese to say out loud. Each one shows you how to say it, and there is a button to hear it. Try one on somebody today.',
  help:'Help and useful apps. Other apps and phone numbers for when something goes wrong. This one is for Mum and Dad.',
  options:'Options and ideas. Places we might go if we have time, saved for later.',
+ ask:'Ask about our trip. You can type a question here, like is it better to go today or tomorrow, or what should we do if it rains. It reads our plan and then tells you what it thinks. It cannot change anything, so nothing you ask will move the day about. Mum and Dad do that bit.',
  planning:'Planning board. Everybody puts up ideas for things to do, and then we all vote on them. You can add one too.',
  todo:'To do list. Jobs and things to buy, put on the day we are going to do them.',
  spending:'Spending money. How much money you have left, what you have spent it on, and how much is still there. You can ask for something, and Mum or Dad says yes or no.',

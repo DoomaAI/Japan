@@ -8,11 +8,12 @@ import {get,head,del} from '@vercel/blob';
 import {handleUpload} from '@vercel/blob/client';
 import {AppError,applyOperation,MEMBERS,documentDetails,documentAssociation,ticketParent} from './model.mjs';
 import {database,readTrip,writeTrip,updateTrip,session,localDemo,hash,token,setCookie} from './store.mjs';
-import {visibleEnvelope} from './visibility.mjs';
+import {visibleEnvelope,visibleTrip} from './visibility.mjs';
 import {readMenu,menuReaderReady} from './menu.mjs';
 import {translatePhrase,translatorReady,translateTicketText,TICKET_FIELDS,TICKET_DIRECTIONS,ticketTranslationKey} from './translate.mjs';
 import {researchPlace,researchReady} from './research.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
+import {askTrip,askReady} from './ask.mjs';
 import {nearbyPlaces,nearbyReady} from './nearby.mjs';
 import {fetchSumoDay,fetchWrestler,sumoReady} from './sumo.mjs';
 import {readDocument,readerReady} from './document-reader.mjs';
@@ -53,7 +54,7 @@ export default async function handler(req,res){
    return json(res,{ok:true,filed:true,id:received.item.id});
   }
   if(post)checkOrigin(req);
-  if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender()});
+  if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -152,6 +153,15 @@ export default async function handler(req,res){
   if(route==='suggest'&&post){
    parent(user);const {state}=await readTrip();
    return json(res,await suggestIdeas(b,state));
+  }
+  // A question about their own trip, asked in ordinary words — is this better today or tomorrow,
+  // what does the rain do to Thursday, when should we go and see that. Anyone asks: the boys
+  // want to know what is happening as much as anybody. It is answered from the plan as that
+  // person is allowed to see it, so a question can never read back what the screen hides, and
+  // nothing it says is written anywhere — the family makes every change themselves.
+  if(route==='ask'&&post){
+   const {state}=await readTrip();
+   return json(res,await askTrip(b,visibleTrip(state,user),user));
   }
   // What is near enough to walk to, right now. This one is not a parent's: the person who needs
   // a toilet or a plain bowl of rice is whoever is holding the phone. The position is rounded

@@ -933,9 +933,10 @@ test('the yen converter works from a shared rate, set by a parent',async()=>{
 test('every screen is reachable exactly once, from the bar or from More',async()=>{
  const {PAGES,PRIMARY,MORE_SECTIONS,primaryNav,moreSections,moreIds,navActive,setAvailable}=await import('../src/nav-data.js');
  const damien={name:'Damien',role:'parent'},lauren={name:'Lauren',role:'parent'},nate={name:'Nate',role:'child'};
- // Forwarded email is only offered where a mail provider is connected to the deployment. The
- // rest of this is about a menu with that connected, so it is switched on for the check.
- setAvailable({inbox:true});
+ // Forwarded email is only offered where a mail provider is connected to the deployment, and
+ // asking about the trip only where there is a key to answer with. The rest of this is about a
+ // menu with both connected, so both are switched on for the check.
+ setAvailable({inbox:true,ask:true});
  for(const user of [damien,lauren,nate]){
   const bar=primaryNav(user),more=moreIds(user),all=[...bar,...more];
   // Nothing appears twice, and nothing is stranded.
@@ -955,18 +956,19 @@ test('every screen is reachable exactly once, from the bar or from More',async()
  // parents' screen and the boys are never sent to it.
  assert.ok(moreIds(lauren).includes('inbox'));
  assert.ok(!moreIds(nate).includes('inbox'));
- // With no mail provider connected there is no screen about forwarding email: it is not on
- // anyone's menu, and not something a link or an old bar setting can reach either.
- setAvailable({inbox:false});
+ // With no mail provider connected there is no screen about forwarding email, and with no key
+ // to answer with there is no screen for asking about the trip: neither is on anyone's menu, and
+ // neither is something a link or an old bar setting can reach either.
+ setAvailable({inbox:false,ask:false});
  try{
-  for(const user of [damien,lauren,nate]){
-   assert.ok(!moreIds(user).includes('inbox'),`${user.name} is offered a screen this deployment cannot use`);
-   assert.ok(!primaryNav(user).includes('inbox'),user.name);
+  for(const user of [damien,lauren,nate])for(const id of ['inbox','ask']){
+   assert.ok(!moreIds(user).includes(id),`${user.name} is offered a screen this deployment cannot use`);
+   assert.ok(!primaryNav(user).includes(id),user.name);
   }
   // Everything else is still exactly where it was: hiding one page strands none of the others.
-  const expected=Object.keys(PAGES).filter(id=>id!=='inbox'&&(id!=='thanks'||'Damien'==='Damien'));
+  const expected=Object.keys(PAGES).filter(id=>!['inbox','ask'].includes(id)&&(id!=='thanks'||'Damien'==='Damien'));
   assert.deepEqual([...primaryNav(damien),...moreIds(damien)].sort(),expected.sort());
- }finally{setAvailable({inbox:true});}
+ }finally{setAvailable({inbox:true,ask:true});}
  // Parents reach for tickets and prices; the boys reach for their missions.
  assert.deepEqual(PRIMARY.parent,['today','days','tickets','food','money']);
  assert.deepEqual(PRIMARY.child,['today','days','challenges','food','diary']);
@@ -978,7 +980,7 @@ test('every screen is reachable exactly once, from the bar or from More',async()
  for(const id of ['challenges','games','spending','facts','mascot'])
   assert.ok(MORE_SECTIONS.at(-1)[1].includes(id),`${id} is the boys' and belongs at the bottom`);
  const order=MORE_SECTIONS.flatMap(([,ids])=>ids),theirs=order.indexOf('challenges');
- for(const id of ['weather','places','tickets','inbox','todo','planning','shopping','guide','help'])
+ for(const id of ['weather','ask','places','tickets','inbox','todo','planning','shopping','guide','help'])
   assert.ok(order.indexOf(id)<theirs,`${id} is practical and belongs above the boys' block`);
  for(const user of [damien,lauren,nate])
   assert.equal(moreSections(user).at(-1)[0],'For the boys',`${user.name} is shown the boys' block last`);
@@ -998,8 +1000,9 @@ test('each phone arranges its own menu, and nothing put away is lost',async()=>{
   =await import('../src/nav-data.js');
  const damien={name:'Damien',role:'parent'},lauren={name:'Lauren',role:'parent'},nate={name:'Nate',role:'child'};
  // This is about arranging a menu, not about which screens a deployment has, so forwarded email
- // is switched on rather than left to whatever an earlier test happened to leave behind.
- setAvailable({inbox:true});
+ // and asking about the trip are switched on rather than left to whatever an earlier test
+ // happened to leave behind.
+ setAvailable({inbox:true,ask:true});
  // Nobody has touched it: everything is exactly where it was before any of this existed.
  for(const user of [damien,lauren,nate]){
   assert.deepEqual(primaryNav(user,emptyNav()),primaryNav(user));
@@ -6532,4 +6535,172 @@ test('arriving says how long we plan to stay, and arriving early does not shorte
  const open={day:'2026-09-21',time:null,duration:0};
  assert.equal(stayPlan(open,new Date('2026-09-21T05:20:00Z')).until,null);
  assert.match(stayPlan(open,new Date('2026-09-21T05:20:00Z')).text,/No length set/);
+});
+
+test('a question about the trip is answered out of the plan, and cannot change a thing',async()=>{
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ let seen=null;
+ const answer={
+  verdict:'Do Fushimi Inari tomorrow morning, not today.',
+  answer:'Today is the Kyoto travel day and the Nozomi is booked for 12:30, so the afternoon is already spoken for.',
+  because:['70% chance of rain on the 24th, wettest around 15:00.','The 12:30 Nozomi is booked and cannot move.','A'.repeat(900)],
+  days:['2026-09-24','2026-09-25','2099-01-01','2026-09-24'],
+  checkFirst:'The shrine is open at all hours but the little shops on the path are not. Check before you rely on breakfast up there.',
+  sources:[{title:'Fushimi Inari Taisha',url:'https://inari.jp/'},{title:'A blog',url:'http://not-secure.example'},{title:'No link at all',url:'not a url'}]
+ };
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen=JSON.parse(body);
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m1',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:9000,output_tokens:600,server_tool_use:{web_search_requests:1}},
+    content:[{type:'tool_use',id:'c1',name:'record_answer',input:answer}]}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {askTrip,askReady,tripBrief,normaliseAnswer,conversation,MAX_QUESTION}=await import('../server/ask.mjs');
+  assert.equal(askReady(),true);
+  let state=ensureFeatures(structuredClone(seed));
+  state=applyOperation(state,{type:'weatherUpdate',days:{'2026-09-24':{city:'Kyoto',code:61,max:24,min:18,rain:70}},
+   hours:{'2026-09-24':[{h:9,temp:20,rain:30},{h:15,temp:24,rain:80}]}},parent);
+  state=applyOperation(state,{type:'proposalAdd',title:'Fushimi Inari at dawn',place:'Kyoto',cost:0},parent);
+  state=applyOperation(state,{type:'todoAdd',title:'Buy an umbrella',day:'2026-09-24'},parent);
+  state=applyOperation(state,{type:'partyPerson',name:'Boston',age:8,interests:['sport','trains']},parent);
+  const now=new Date('2026-09-24T01:00:00Z');
+  const result=await askTrip({question:'Is Fushimi Inari better today or tomorrow?',day:'2026-09-24',
+   history:[{role:'user',text:'What is the weather doing in Kyoto?'},{role:'assistant',text:'Wet on Thursday afternoon.'}]},state,parent,now);
+
+  // The request the SDK actually put on the wire.
+  assert.equal(seen.model,'claude-opus-5');
+  assert.deepEqual(seen.thinking,{type:'adaptive'});
+  const search=seen.tools.find(t=>t.name==='web_search');
+  assert.equal(search.max_uses,5);
+  assert.equal(search.user_location.country,'JP');
+  const record=seen.tools.find(t=>t.name==='record_answer');
+  assert.equal(record.strict,true);
+  assert.deepEqual(record.input_schema.required.sort(),['answer','because','checkFirst','days','sources','verdict']);
+  assert.match(seen.system,/cannot change their plan, move an activity, book anything/);
+  assert.match(seen.system,/Never invent a web address/);
+  // What was said before comes back as plain text, in order, before the new question.
+  assert.equal(seen.messages.length,3);
+  assert.deepEqual(seen.messages.slice(0,2),[{role:'user',content:'What is the weather doing in Kyoto?'},{role:'assistant',content:'Wet on Thursday afternoon.'}]);
+  const ask=seen.messages[2].content;
+  assert.match(ask,/Their question: Is Fushimi Inari better today or tomorrow\?$/);
+  assert.match(ask,/Damien is asking\./);
+
+  // The day asked about is written out activity by activity, with its notes.
+  assert.match(ask,/12:30 · Nozomi 33 to Kyoto · Tokyo Station · 30 min · booked for 12:30/);
+  assert.match(ask,/note: Green Car 8/);
+  // Every other day is still there, but only its shape and whatever is booked and cannot move.
+  assert.match(ask,/2026-10-03 · Tokyo · Harajuku & a Giants night/);
+  assert.match(ask,/18:00 · Giants vs DeNA/);
+  assert.doesNotMatch(ask,/Harajuku Takeshita Street/,'an unbooked activity on a far-off day is not worth the tokens');
+  // The forecast, how fresh it is, the board, the jobs and who is going all go with it.
+  assert.match(ask,/light rain, 18–24°C, 70% chance of rain, wettest around 15:00/);
+  assert.match(ask,/The forecast above was checked .*, by Damien\./);
+  assert.match(ask,/Fushimi Inari at dawn · Kyoto · free/);
+  assert.match(ask,/Buy an umbrella · on 2026-09-24/);
+  assert.match(ask,/Boston, 8 — likes Sport & sumo, Trains & engineering/);
+  assert.match(ask,/In Japan it is 2026-09-24, 10:00\./);
+
+  // What comes back is cut to what the screen can draw, and nothing else survives.
+  assert.equal(result.verdict,'Do Fushimi Inari tomorrow morning, not today.');
+  assert.equal(result.about,'2026-09-24');
+  assert.equal(result.question,'Is Fushimi Inari better today or tomorrow?');
+  assert.deepEqual(result.days,['2026-09-24','2026-09-25'],'a date that is not a trip day, or is said twice, is dropped');
+  assert.equal(result.because.length,3);
+  assert.equal(result.because[2].length,400,'a reason that ran away is cut rather than dropped');
+  assert.deepEqual(result.sources,[{title:'Fushimi Inari Taisha',url:'https://inari.jp/'}],'only HTTPS pages survive');
+  assert.equal(result.usage.searches,1);
+  // Nothing was written anywhere: the answer is handed back and the family changes the plan.
+  assert.deepEqual(state.proposals.length,1);
+  assert.equal(state.steps.find(s=>s.title==='Nozomi 33 to Kyoto').time,'12:30');
+
+  // A boy asking is told he is a boy asking, so the answer is not about money or bookings.
+  await askTrip({question:'Can we do the monkeys?'},state,{name:'Boston',role:'child'},now);
+  assert.match(seen.messages.at(-1).content,/Boston is asking, and he is one of the boys/);
+  // No day chosen means the whole trip, anchored on the Japan day it actually is.
+  assert.match(seen.messages.at(-1).content,/They are asking about 2026-09-24/);
+
+  // Half a conversation is not a conversation. Anything that would make the API refuse the
+  // call — a dangling question, two of the same speaker in a row, an empty turn — is dropped
+  // here rather than sent and rejected.
+  assert.deepEqual(conversation([{role:'assistant',text:'Out of nowhere.'}]),[]);
+  assert.deepEqual(conversation([{role:'user',text:'One.'}]),[]);
+  assert.deepEqual(conversation([{role:'user',text:'One.'},{role:'user',text:'Two.'},{role:'assistant',text:'Both.'}]),
+   [{role:'user',content:'One.'},{role:'assistant',content:'Both.'}]);
+  assert.deepEqual(conversation([{role:'user',text:'  '},{role:'user',text:'Real.'},{role:'assistant',text:'Yes.'},{role:'user',text:'And this one?'}]),
+   [{role:'user',content:'Real.'},{role:'assistant',content:'Yes.'}]);
+  assert.deepEqual(conversation('nonsense'),[]);
+  assert.ok(conversation(Array.from({length:40},(_,i)=>({role:i%2?'assistant':'user',text:`turn ${i}`}))).length<=8);
+
+  // Guards, before anything is sent anywhere.
+  await assert.rejects(()=>askTrip({question:'   '},state,parent),/Type a question first/);
+  await assert.rejects(()=>askTrip({question:'a'.repeat(MAX_QUESTION+1)},state,parent),/one at a time/);
+  await assert.rejects(()=>askTrip({question:'When?',day:'2099-01-01'},state,parent),/Choose a trip day/);
+  // And the brief is built for whatever day is asked about, not only for today.
+  assert.match(tripBrief(state,{day:'2026-10-05',now}),/They are asking about 2026-10-05/);
+  assert.equal(normaliseAnswer({},state).verdict,'');
+  assert.deepEqual(normaliseAnswer({days:['2026-09-24'],sources:'rubbish',because:'rubbish'},state).sources,[]);
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ const {askReady}=await import('../server/ask.mjs');
+ assert.equal(askReady(),false,'with no key there is nothing to answer with');
+ // Asked by whoever is holding the phone, not only by a parent — and answered from the trip as
+ // that person is allowed to see it, so a question cannot read back what the screen hides.
+ const handlerSource=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handlerSource,/route==='ask'&&post\)\{[\s\S]{0,200}askTrip\(b,visibleTrip\(state,user\),user\)/);
+ assert.doesNotMatch(handlerSource,/route==='ask'&&post\)\{\s*\n?\s*parent\(user\)/);
+ assert.match(handlerSource,/ask:askReady\(\)/);
+ // And the screen is only offered where there is a key behind it, like forwarded email.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/ask:!!config\?\.ask\|\|hasAskHistory\(user\)/);
+ assert.match(main,/tab==='ask'&&<AskTrip/);
+ // A link to it, or an old bar setting holding it, cannot strand somebody on a screen this
+ // deployment cannot answer with: they land back on Home, the way forwarded email works.
+ assert.match(main,/if\(tab==='ask'&&user&&!isAvailable\('ask'\)\)setTab\('today'\);\},\[tab,user\?\.name,config\?\.ask\]\)/);
+ const screen=await readFile(new URL('../src/AskTrip.jsx',import.meta.url),'utf8');
+ // The one line that has to be on the screen rather than only in the prompt: a box that answers
+ // questions looks like a box that does things, and nobody should find that out by asking it to.
+ assert.match(screen,/It cannot move an activity, change a booking or tell anybody anything/);
+});
+
+test('the questions offered first are built out of the day in front of them',async()=>{
+ const {askStarters,askHistory,THREAD_KEEP,ASK_HISTORY}=await import('../src/ask-thread.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ let state=ensureFeatures(structuredClone(seed));
+ state=applyOperation(state,{type:'weatherUpdate',days:{'2026-09-24':{city:'Kyoto',code:61,max:24,min:18,rain:70}}},parent);
+ state=applyOperation(state,{type:'proposalAdd',title:'Fushimi Inari at dawn',place:'Kyoto'},parent);
+ const starters=askStarters(state,'2026-09-24',new Date('2026-09-24T01:00:00Z'));
+ assert.ok(starters.length>=3&&starters.length<=4);
+ // Every one of them names something that is actually on the plan, so the first question is a
+ // tap rather than a blank box.
+ // Something they would actually weigh up moving — not a booking, and not breakfast at the
+ // hotel they are standing in.
+ assert.ok(starters.some(q=>/better on Thu, 24 Sept or the day after\?$/.test(q)),'the next thing that can still be moved');
+ assert.ok(!starters.some(q=>/Breakfast|Check out|Pack and final/.test(q)),'and nothing nobody would ever move');
+ assert.ok(starters.some(q=>/rain forecast for/.test(q)),'the forecast they last checked');
+ assert.ok(starters.some(q=>/Nozomi 33 to Kyoto/.test(q)),'and what is booked and cannot be late');
+ for(const q of starters)assert.ok(q.endsWith('?'),`"${q}" is not a question`);
+ // A day with nothing on it still offers something rather than an empty row.
+ assert.ok(askStarters(state,'2099-01-01').length,'an unknown day falls back rather than blanking');
+ assert.deepEqual(askStarters({days:[]},'2026-09-24'),[]);
+ assert.deepEqual(askStarters(undefined,'2026-09-24'),[]);
+ // Only whole exchanges go back with the next question, oldest first, and only the last few of
+ // them. A question waiting for its answer is not one of them.
+ const thread=Array.from({length:9},(_,i)=>({id:`${i}`,question:`q${i}`,verdict:`v${i}`,answer:`a${i}`}));
+ const history=askHistory(thread);
+ assert.equal(history.length,ASK_HISTORY*2);
+ assert.deepEqual(history.slice(0,2),[{role:'user',text:'q3'},{role:'assistant',text:'v3 a3'}]);
+ assert.deepEqual(history.at(-1),{role:'assistant',text:'v0 a0'});
+ for(let i=0;i<history.length;i++)assert.equal(history[i].role,i%2?'assistant':'user','it has to alternate or the API refuses it');
+ assert.ok(THREAD_KEEP>=ASK_HISTORY,'more is kept on the phone than is ever sent back');
 });

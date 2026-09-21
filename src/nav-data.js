@@ -18,6 +18,7 @@ export const PAGES={
  help:{label:'Help & useful apps',note:'Translation, hotel directions, reminders'},
  options:{label:'Options & ideas',note:'Places and activities saved for later'},
  planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, and voting on them'},
+ ask:{label:'Ask about our trip',note:'Better today or tomorrow? Ask, and get an answer out of our own plan'},
  todo:{label:'To-do list',note:'Things to do or buy, on the day we will do them'},
  spending:{label:'Spending money',note:'What the boys have, what they bought and what is left'},
  weather:{label:'Weather',note:'Every day and every hour, with the graphs'},
@@ -43,7 +44,7 @@ export const PRIMARY={
 // as one block they can scroll to and recognise, rather than their missions being stranded
 // between the bookings and the paperwork.
 export const MORE_SECTIONS=[
- ['Out and about',['weather','places','money','food','phrases','meeting','help']],
+ ['Out and about',['weather','ask','places','money','food','phrases','meeting','help']],
  ['The plan',['todo','planning','options','parks','shopping','tickets','inbox']],
  ['Looking back',['photos','diary','updates','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
@@ -54,9 +55,13 @@ export const MORE_SECTIONS=[
 // setting nobody has set, so it is not offered at all — not on the bar, not in the menu, not in
 // the list of pages you can add. The app tells this module what the deployment can do when its
 // config arrives, so connecting a provider brings the screen back on its own with no code change.
-let available={inbox:false};
+//
+// Asking about the trip is the same shape: it needs an Anthropic key, and without one the screen
+// would be a box that always answers "not switched on". So the registry holds one flag per such
+// screen rather than a rule per screen, and a page with no flag is simply always there.
+let available={inbox:false,ask:false};
 export const setAvailable=next=>{available={...available,...next};};
-export const isAvailable=id=>id!=='inbox'||available.inbox;
+export const isAvailable=id=>!(id in available)||available[id];
 const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(id!=='inbox'||user?.role==='parent')&&isAvailable(id);
 export const pagesFor=user=>Object.keys(PAGES).filter(id=>allowed(id,user));
 // The menu, as this person has arranged it. Four of us carry the same app and want different
