@@ -2782,3 +2782,78 @@ test('a change is never hidden in the sky when there is a photograph underneath 
  for(const e of round.edits.filter(e=>e.from))
   assert.ok(e.from.y+e.h>SKY,`and it cannot be copied out of the sky — ${e.from.y}`);
 });
+
+test('a dish on a menu can be seen as well as read, and only Wikimedia can put it on the screen',async()=>{
+ const {pictureQueries,pictureSearchUrl,pickPicture,findDishPicture,imageSearchUrl}=await import('../src/dish-picture.js');
+ // The plain name the model stripped out of the menu's wording is asked for first: the menu
+ // line itself has no article behind it, and the English name is the last resort.
+ assert.deepEqual(pictureQueries({dish:'唐揚げ',ja:'名物!若鶏の唐揚げ定食',en:'Fried chicken set'}),
+  [['ja','唐揚げ'],['ja','名物!若鶏の唐揚げ定食'],['en','Fried chicken set']]);
+ // A dish whose plain name is what the menu printed is not looked up twice.
+ assert.deepEqual(pictureQueries({dish:'親子丼',ja:'親子丼',en:'Chicken and egg rice bowl'}),
+  [['ja','親子丼'],['en','Chicken and egg rice bowl']]);
+ assert.deepEqual(pictureQueries({dish:'',ja:'',en:''}),[]);
+ assert.deepEqual(pictureQueries(),[]);
+
+ const url=new URL(pictureSearchUrl('ja','唐揚げ'));
+ assert.equal(url.origin,'https://ja.wikipedia.org');
+ assert.equal(url.searchParams.get('gsrsearch'),'唐揚げ');
+ assert.equal(url.searchParams.get('origin'),'*','without this the browser is refused by CORS');
+ assert.equal(url.searchParams.get('formatversion'),'2');
+ // Three results asked for, and three thumbnails — pageimages hands back one by default, which
+ // is how a dish with a picture looks like a dish without one.
+ assert.equal(url.searchParams.get('gsrlimit'),'3');
+ assert.equal(url.searchParams.get('pilimit'),'3');
+ assert.equal(new URL(pictureSearchUrl('en','Tonkatsu')).origin,'https://en.wikipedia.org');
+
+ const page=(index,title,source,extra={})=>({index,title,...(source?{thumbnail:{source}}:{}),...extra});
+ const img='https://upload.wikimedia.org/wikipedia/commons/thumb/a/karaage.jpg/640px-karaage.jpg';
+ // The best-ranked result that actually carries a photograph, not the best-ranked result.
+ const found=pickPicture({query:{pages:[page(2,'鶏肉',img),page(1,'唐揚げ')]}},'ja');
+ assert.equal(found.title,'鶏肉');
+ assert.equal(found.src,img);
+ assert.equal(found.page,'https://ja.wikipedia.org/wiki/%E9%B6%8F%E8%82%89','a page link is built when the API gives none');
+ assert.equal(pickPicture({query:{pages:[page(1,'唐揚げ',img,{fullurl:'https://ja.wikipedia.org/wiki/%E5%94%90%E6%8F%9A%E3%81%92'})]}},'ja').page,
+  'https://ja.wikipedia.org/wiki/%E5%94%90%E6%8F%9A%E3%81%92');
+ // Nothing but a Wikimedia photograph over HTTPS is put in front of the family.
+ for(const bad of ['http://upload.wikimedia.org/a.jpg','https://example.com/a.jpg','not a url','javascript:alert(1)'])
+  assert.equal(pickPicture({query:{pages:[page(1,'唐揚げ',bad)]}},'ja'),null,bad);
+ for(const empty of [{},{query:{}},{query:{pages:[]}},null])assert.equal(pickPicture(empty,'ja'),null);
+
+ // Japanese is tried before English, and the first language with a picture wins.
+ const asked=[];
+ const reply=body=>({ok:true,json:async()=>body});
+ const picture=await findDishPicture({dish:'ロースかつ',ja:'ロースかつ膳',en:'Pork loin katsu'},async u=>{
+  asked.push(new URL(u));
+  return reply(asked.length<3?{query:{pages:[page(1,'なにか')]}}:{query:{pages:[page(1,'とんかつ',img)]}});
+ });
+ assert.equal(picture.title,'とんかつ');
+ assert.deepEqual(asked.map(u=>[u.hostname,u.searchParams.get('gsrsearch')]),
+  [['ja.wikipedia.org','ロースかつ'],['ja.wikipedia.org','ロースかつ膳'],['en.wikipedia.org','Pork loin katsu']]);
+
+ // A dish nobody has written about comes back as no picture, and is not asked for twice.
+ let calls=0;
+ const none=async()=>{calls++;return reply({query:{pages:[]}});};
+ assert.equal(await findDishPicture({dish:'秘伝の一皿',ja:'秘伝の一皿',en:'House special'},none),null);
+ assert.equal(calls,2);
+ assert.equal(await findDishPicture({dish:'秘伝の一皿',ja:'秘伝の一皿',en:'House special'},none),null);
+ assert.equal(calls,2,'the answer is kept for the rest of the meal');
+
+ // A Wikipedia nobody could reach is a different answer from a dish with no picture, because
+ // the screen offers to search the web for one only in the second case.
+ await assert.rejects(()=>findDishPicture({dish:'寿司',ja:'寿司',en:'Sushi'},async()=>{throw new Error('offline');}),
+  /could not be reached/);
+ assert.match(imageSearchUrl('唐揚げ'),/^https:\/\/www\.google\.com\/search\?tbm=isch&q=%E5%94%90%E6%8F%9A%E3%81%92$/);
+
+ // The screen asks for a picture only when somebody presses for one, and the menu reader gets
+ // the plain dish name out of the model to look it up with.
+ const menu=await readFile(new URL('../src/MenuReader.jsx',import.meta.url),'utf8');
+ assert.match(menu,/onClick=\{\(\)=>picture\(i,item\)\}/);
+ assert.match(menu,/shot\?'Hide the picture':'See a picture'/);
+ assert.doesNotMatch(menu,/useEffect/,'nothing fetches a picture on its own');
+ assert.match(menu,/setAdded\(\[\]\);setPictures\(\{\}\)/,'a new menu clears the old pictures');
+ assert.match(menu,/A picture of <span lang=\{shot\.found\.language\}>\{shot\.found\.title\}<\/span> from Wikipedia — the dish in general/);
+ const server=await readFile(new URL('../server/menu.mjs',import.meta.url),'utf8');
+ assert.match(server,/required:\['ja','en','dish',/);
+ assert.match(server,/dish:\{type:'string',description:'The plain common name/);
+});
