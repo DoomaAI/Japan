@@ -2562,6 +2562,209 @@ test('the photo coach talks to the child, and never about who is in the picture'
  }
 });
 
+test('the sumo card is read from the official schedule and kept for a basement with no signal',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures,sumo,sumoCard,currentBout,boutResult,SUMO_DAY}=await import('../src/trip-features.js');
+ assert.ok(seed.steps.some(s=>s.day===SUMO_DAY&&/sumo/i.test(s.title)),'the sumo day is a real day on this trip');
+ let seen=null;
+ const card={found:true,basho:'Aki Basho 2026 (September, Tokyo)',dayNumber:11,venue:'Ryogoku Kokugikan',
+  date:SUMO_DAY,doorsOpen:'08:00',notes:'The top division starts about 16:00, after the ring-entering ceremonies.',
+  bouts:[
+   {division:'makuuchi',order:40,time:'17:55',east:{name:'Hoshoryu',rank:'Ozeki',stable:'Tatsunami'},west:{name:'Kirishima',rank:'Sekiwake',stable:'Michinoku'}},
+   {division:'juryo',order:20,time:'15:10',east:{name:'Tomokaze',rank:'Juryo 3',stable:'Oguruma'},west:{name:'Chiyoshoma',rank:'Juryo 5',stable:'Kokonoe'}},
+   {division:'makuuchi',order:38,time:'17:40',east:{name:'Wakatakakage',rank:'Maegashira 1',stable:'Arashio'},west:{name:'Abi',rank:'Maegashira 2',stable:'Shikoroyama'}},
+   // Junk, to prove the same gate runs here as everywhere else.
+   {division:'teleport',order:0,time:'99:99',east:{name:''},west:{name:'Nobody'}}],
+  sources:[{title:'Japan Sumo Association — torikumi',url:'https://www.sumo.or.jp/EnHonbashoMain/torikumi/'},{title:'A blog',url:'http://insecure.example.com'}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{seen=JSON.parse(body);
+   const wants=(seen.tools||[]).some(t=>t.name==='record_wrestler');
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:9000,output_tokens:900,server_tool_use:{web_search_requests:4}},
+    content:[{type:'tool_use',id:'c1',name:wants?'record_wrestler':'record_sumo_day',
+     input:wants?{found:true,name:'Hoshoryu',japanese:'豊昇龍',rank:'Ozeki',stable:'Tatsunami',hometown:'Ulaanbaatar, Mongolia',
+      heightCm:187,weightKg:145,record:'8-3 after day 11',about:'Nephew of a great yokozuna. Throws rather than pushes.',
+      sources:[{title:'JSA profile',url:'https://www.sumo.or.jp/EnSumoDataRikishi/profile/'}]}:card}]}));});
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {fetchSumoDay,fetchWrestler,sumoReady}=await import('../server/sumo.mjs');
+  assert.equal(sumoReady(),true);
+  let state=ensureFeatures(structuredClone(seed));
+  const fetched=await fetchSumoDay({date:SUMO_DAY},state);
+
+  assert.equal(seen.model,'claude-opus-5');
+  assert.equal(seen.tools.find(t=>t.name==='web_search').type,'web_search_20260209');
+  assert.equal(seen.tools.find(t=>t.name==='record_sumo_day').strict,true);
+  assert.match(seen.system,/sumo\.or\.jp/,'the official site is the source that matters');
+  assert.match(seen.system,/published the afternoon before/);
+  assert.match(seen.messages[0].content,new RegExp(SUMO_DAY));
+
+  // The bout with nobody on one side of it is not a bout; the rest come back in running order.
+  assert.deepEqual(fetched.bouts.map(b=>b.id),['juryo-20','makuuchi-38','makuuchi-40']);
+  assert.equal(fetched.bouts[0].time,'15:10');
+  assert.equal(fetched.dayNumber,11);assert.equal(fetched.doorsOpen,'08:00');
+  assert.deepEqual(fetched.sources.map(s=>s.url),['https://www.sumo.or.jp/EnHonbashoMain/torikumi/'],'a plain http source is dropped');
+
+  // Saved into the trip, which is what makes it work in a basement with no signal.
+  state=applyOperation(state,{type:'sumoUpdate',...fetched},parent);
+  assert.equal(sumo(state).bouts.length,3);assert.equal(sumo(state).by,'Damien');
+  // Grouped the way the afternoon runs: the top division last.
+  assert.deepEqual(sumoCard(state).map(g=>g.id),['juryo','makuuchi']);
+  // Which bout is on, so the screen says "this one" rather than leaving you counting rows.
+  assert.equal(currentBout(state,'17:45')?.id,'makuuchi-38');
+  assert.equal(currentBout(state,'09:00'),null,'nothing has started yet');
+  assert.equal(currentBout(state,'23:00')?.id,'makuuchi-40','the last one that started');
+
+  // Anyone marks who won as they watch, and it survives the card being fetched again.
+  state=applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:'Hoshoryu'},child);
+  assert.equal(boutResult(state,'makuuchi-40').winner,'Hoshoryu');
+  assert.equal(boutResult(state,'makuuchi-40').by,'Nate');
+  assert.equal(boutResult(applyOperation(state,{type:'sumoUpdate',...fetched},parent),'makuuchi-40').winner,'Hoshoryu');
+  assert.equal(boutResult(applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:null},parent),'makuuchi-40'),null);
+  assert.throws(()=>applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:'Somebody else'},parent),/One of the two/);
+  assert.throws(()=>applyOperation(state,{type:'sumoResult',id:'nope',winner:'Hoshoryu'},parent),e=>e.status===404);
+  // Fetching the card and looking a man up cost money, so they are a parent's.
+  for(const op of [{type:'sumoUpdate',...fetched},{type:'sumoWrestler',profile:{name:'Hoshoryu'}}])
+   assert.throws(()=>applyOperation(state,op,child),e=>e.status===403);
+
+  // And the man whose name is on the card.
+  const man=await fetchWrestler({name:'Hoshoryu'});
+  assert.equal(man.heightCm,187);assert.equal(man.weightKg,145);
+  assert.match(man.about,/Throws rather than pushes/);
+  assert.match(seen.system,/Boston is eight/);
+  const withMan=applyOperation(state,{type:'sumoWrestler',profile:man},parent);
+  const {wrestlerProfile}=await import('../src/trip-features.js');
+  assert.equal(wrestlerProfile(withMan,'hoshoryu').japanese,'豊昇龍','looked up once, then on everyone’s phone');
+  assert.equal(wrestlerProfile(withMan,'HOSHORYU').rank,'Ozeki','the name is matched however it is typed');
+  // Nothing believable is invented: a nonsense size is dropped rather than shown.
+  assert.throws(()=>applyOperation(state,{type:'sumoWrestler',profile:{name:'X',heightCm:4}},parent),/believable size/);
+  await assert.rejects(()=>fetchSumoDay({date:'2099-01-01'},state),/Choose a trip day/);
+  await assert.rejects(()=>fetchWrestler({name:'   '}),/Choose a wrestler/);
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ // Marking who won is a record of what happened, so it keeps on a dead phone.
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ assert.ok(list.includes('sumoResult'));
+ assert.ok(!list.includes('sumoUpdate'),'fetching a card needs the latest revision');
+});
+
+test('we rate an activity and say what we thought, each of us for ourselves',async()=>{
+ const {ensureFeatures,stepAverage,stepRatings,stepThoughts,ratedSteps,dayRating,diaryDays,pendingProgress}=await import('../src/trip-features.js');
+ const step=seed.steps.find(s=>s.day==='2026-09-23'),other=seed.steps.find(s=>s.day==='2026-09-23'&&s.id!==step.id);
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'stepRating',id:step.id,person:'Nate',rating:5},child);
+ state=applyOperation(state,{type:'stepRating',id:step.id,person:'Lauren',rating:2},parent);
+ state=applyOperation(state,{type:'stepThought',id:step.id,person:'Nate',thought:'The deer bowed back.'},child);
+ assert.equal(stepAverage(state,step.id),3.5);
+ assert.deepEqual(stepRatings(state,step.id),{Nate:5,Lauren:2});
+ assert.equal(stepThoughts(state,step.id).Nate.text,'The deer bowed back.');
+ assert.ok(stepThoughts(state,step.id).Nate.at,'and when he said it');
+ // Nobody's stars average away anybody else's — the two numbers are the interesting bit.
+ assert.equal(stepAverage(applyOperation(state,{type:'stepRating',id:step.id,person:'Lauren',rating:4},parent),step.id),4.5);
+ // Changing your mind replaces your stars; zero takes them back.
+ const cleared=applyOperation(state,{type:'stepRating',id:step.id,person:'Nate',rating:0},child);
+ assert.deepEqual(stepRatings(cleared,step.id),{Lauren:2});
+ assert.equal(stepThoughts(cleared,step.id).Nate.text,'The deer bowed back.','clearing stars is not deleting what he said');
+ assert.deepEqual(stepThoughts(applyOperation(state,{type:'stepThought',id:step.id,person:'Nate',thought:'  '},child),step.id),{});
+ // It is our own opinion, not each other's — and only for real activities.
+ assert.throws(()=>applyOperation(state,{type:'stepRating',id:step.id,person:'Boston',rating:5},child),e=>e.status===403);
+ for(const bad of [{type:'stepRating',id:step.id,person:'Nate',rating:6},{type:'stepRating',id:step.id,person:'Nate',rating:2.5},
+  {type:'stepRating',id:'nope',person:'Nate',rating:3},{type:'stepRating',id:step.id,person:'Grandma',rating:3},
+  {type:'stepThought',id:step.id,person:'Nate',thought:'x'.repeat(2001)}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,46)} should be refused`);
+ // These are opinions about a day that happened, not the plan — the step's own notes are untouched.
+ assert.equal(state.steps.find(s=>s.id===step.id).notes,step.notes);
+ assert.ok(!state.alerts.some(a=>/deer bowed/.test(a.summary||'')));
+ // The days we would do again, best first, and what the day came to overall.
+ state=applyOperation(state,{type:'stepRating',id:other.id,person:'Damien',rating:5},parent);
+ assert.deepEqual(ratedSteps(state).map(r=>r.step.id),[other.id,step.id]);
+ assert.equal(dayRating(state,'2026-09-23'),4.3,'a day is the average of its rated activities, to one place');
+ assert.equal(dayRating(state,'2026-09-21'),null,'a day nobody rated has no score, rather than a zero');
+ assert.deepEqual(ratedSteps(state,{min:4}).map(r=>r.step.id),[other.id]);
+ // The diary is where it pays off.
+ const diary=diaryDays(state,'2026-09-23')[0];
+ assert.equal(diary.rating,4.3);assert.equal(diary.reviews.length,2);
+ // Stars given on a mountain with no signal wait on the phone and show straight away.
+ const queue=[{operation:{type:'stepRating',operationId:'q1',id:step.id,person:'Boston',rating:4}},
+              {operation:{type:'stepThought',operationId:'q2',id:step.id,person:'Boston',thought:'Better than the temple.',at:'2026-09-19T02:00:00.000Z'}}];
+ const preview=pendingProgress(state,queue);
+ assert.equal(stepRatings(preview,step.id).Boston,4);
+ assert.equal(stepThoughts(preview,step.id).Boston.text,'Better than the temple.');
+ assert.equal(stepRatings(state,step.id).Boston,undefined,'the shared trip is untouched until it syncs');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ for(const op of ['stepRating','stepThought'])assert.ok(list.includes(op),`${op} should survive with no signal`);
+ assert.match(source,/<StepReview state=\{visibleState\} user=\{user\} step=\{current\}/,'and it is on the activity card');
+ // Finishing something used to move the card on, which is the one moment anybody has an
+ // opinion about it. It now stays put, as the message has always promised it would.
+ assert.match(source,/setSelected\(done\);updateUrl\(day,done\)/);
+});
+
+test('the forecast comes back by the hour, and the graph is drawn from checked numbers',async()=>{
+ const {forecastUrl,parseHourly,parseForecast,daySummary,hoursFor,hoursAhead,hourLabel,pointFor}=await import('../src/weather-data.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const day=seed.days[3].date;
+ // One request carries both the daily numbers and the hourly ones — the trip moves cities, so
+ // asking twice per place would double a lookup that is already once per city.
+ const url=forecastUrl(pointFor('Kyoto'),day,day);
+ assert.match(url,/hourly=temperature_2m%2Capparent_temperature%2Cprecipitation_probability%2Cweather_code/);
+ assert.match(url,/daily=weather_code/);
+ assert.match(url,/timezone=Asia%2FTokyo/);
+ const hourly={time:[],temperature_2m:[],apparent_temperature:[],precipitation_probability:[],weather_code:[]};
+ for(let h=0;h<24;h++){hourly.time.push(`${day}T${String(h).padStart(2,'0')}:00`);
+  hourly.temperature_2m.push(h===14?24.4:12+h*0.4);hourly.apparent_temperature.push(11+h*0.4);
+  hourly.precipitation_probability.push(h>=16&&h<=18?70:5);hourly.weather_code.push(h>=16?61:1);}
+ // Readings that cannot be true are dropped rather than drawn.
+ hourly.time.push(`${day}T24:00`,'rubbish',`${seed.days[4].date}T09:00`);
+ hourly.temperature_2m.push(999,10,18);hourly.apparent_temperature.push(0,0,17);
+ hourly.precipitation_probability.push(0,0,500);hourly.weather_code.push(0,0,2);
+ const hours=parseHourly({hourly});
+ assert.equal(hours[day].length,24,'one entry per hour, and nothing that is not an hour');
+ assert.equal(hours[day][0].h,0);assert.equal(hours[day][14].temp,24);
+ assert.equal(hours[day][16].rain,70);
+ assert.equal(hours[seed.days[4].date][0].rain,null,'a percentage over a hundred is not a percentage');
+ assert.deepEqual(parseHourly({}),{});
+ // The shape of the day in a line, which is what the unopened card shows.
+ const shape=daySummary(hours[day]);
+ assert.equal(shape.warmest,14);assert.equal(shape.coldest,0);
+ assert.equal(shape.peakRain,70);assert.equal(shape.wettestHour,16);
+ assert.equal(daySummary([]),null);
+ assert.equal(hourLabel(7),'07:00');
+ // Kept in the trip beside the daily numbers, checked again on the way in.
+ let state=ensureFeatures(structuredClone(seed));
+ state=applyOperation(state,{type:'weatherUpdate',days:parseForecast({daily:{time:[day],weather_code:[61],
+  temperature_2m_max:[24],temperature_2m_min:[12],precipitation_probability_max:[70]}},'Kyoto'),hours},parent);
+ assert.equal(hoursFor(state,day).length,24);
+ assert.equal(hoursFor(state,seed.days[0].date),null,'a day nobody asked about stays empty');
+ assert.equal(hoursAhead(state,day,15).length,9,'from this hour to the end of the day');
+ assert.equal(hoursAhead(state,seed.days[0].date,0),null);
+ // A graph drawn from nonsense is a more convincing kind of wrong, so the hours are gated too.
+ for(const bad of [{[day]:[{h:24,temp:20}]},{[day]:[{h:1,temp:900}]},{[day]:[{h:1,temp:20,rain:200}]},
+  {[day]:[]},{[day]:'nope'},{[day]:Array.from({length:25},(_,h)=>({h:h%24,temp:20}))}])
+  assert.throws(()=>applyOperation(state,{type:'weatherUpdate',days:{},hours:bad},parent),/forecast/i,JSON.stringify(bad).slice(0,44));
+ // Checking the forecast has always been anybody's job, and still is.
+ assert.ok(applyOperation(state,{type:'weatherUpdate',days:{},hours:{[day]:hours[day]}},child));
+ // Two measures on one pair of axes would be a lie, so the chart is two charts over one x-axis.
+ const chart=await readFile(new URL('../src/WeatherCharts.jsx',import.meta.url),'utf8');
+ assert.match(chart,/Deliberately not one chart with\n\/\/ two scales/);
+ assert.equal((chart.match(/className="chart-line"/g)||[]).length,1,'one temperature series, so no legend box to disambiguate');
+ assert.ok(!/<legend|className="legend"/.test(chart));
+ assert.match(chart,/HourlyTable/,'and everything drawn is available as a table');
+ const nav=await import('../src/nav-data.js');
+ assert.ok(nav.PAGES.weather?.label&&nav.PAGES.weather?.note,'weather has its own screen');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(source,/tab==='weather'/);
+});
+
 // Spot the difference, built out of the boys' own photographs. The puzzle is made on the
 // phone, so all of this runs without a canvas, a network or an API key.
 const spotImage=(width,height,fill)=>{
@@ -2781,6 +2984,47 @@ test('a change is never hidden in the sky when there is a photograph underneath 
  // And what it copies from is not sky either, or a patch would paint a blue square.
  for(const e of round.edits.filter(e=>e.from))
   assert.ok(e.from.y+e.h>SKY,`and it cannot be copied out of the sky — ${e.from.y}`);
+});
+
+test('a rank name is cut to what fits on a tile, and the long one is kept for the list',async()=>{
+ const {SUMO_RANKS,shortRank,rankAt}=await import('../src/kana-data.js');
+ // The only one with a long name, and the reason this exists at all.
+ assert.equal(rankAt(5).en,'Juryo — now paid');
+ assert.equal(shortRank(rankAt(5)),'Juryo');
+ for(const rank of SUMO_RANKS){
+  assert.ok(shortRank(rank).length<=12,`${shortRank(rank)} is too long for a tile`);
+  assert.ok(rank.en.startsWith(shortRank(rank)),'the short name is the start of the real one');
+ }
+ assert.equal(shortRank(null),'');
+});
+
+test('the two boards say which squares are empty, and both ladders are laid out the same way',async()=>{
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // One component draws both ladders, so the ranks and the merge ladder cannot drift apart,
+ // and neither is left as a ragged run of inline text.
+ assert.equal([...source.matchAll(/<Ladder /g)].length,2);
+ assert.equal([...source.matchAll(/<details className="merge-ladder">/g)].length,1,
+  'only the shared component draws one — no game writes its own');
+ assert.match(css,/\.ladder-grid\{display:grid/);
+ // An empty square has to look empty. Before this the empty and filled squares were within a
+ // few percent of each other and the board read as one blank slab.
+ for(const [empty,filled] of [['.merge-tile','.merge-tile.filled'],['.stable-cell','.stable-cell.filled']]){
+  const last=name=>[...css.matchAll(new RegExp(`\\${name}\\{([^}]*)\\}`,'g'))]
+   .map(m=>/background:(#[0-9a-f]{3,6})\b/.exec(m[1])?.[1]).filter(Boolean).pop();
+  const [a,b]=[last(empty),last(filled)];
+  assert.ok(a&&b,`${empty} and ${filled} must both set a background`);
+  // #fff and #ffffff are the same colour written two ways.
+  const channels=hex=>{
+   const full=hex.length===4?`#${[...hex.slice(1)].map(c=>c+c).join('')}`:hex;
+   return [1,3,5].map(i=>parseInt(full.slice(i,i+2),16));
+  };
+  const gap=Math.max(...channels(a).map((v,i)=>Math.abs(v-channels(b)[i])));
+  assert.ok(gap>=24,`${empty} and ${filled} are too close to tell apart (${a} v ${b}, ${gap})`);
+ }
+ // Every number on a games screen goes through the one figures block rather than being
+ // written into a sentence, so they line up instead of wrapping.
+ assert.ok([...source.matchAll(/<Stats /g)].length>=2);
 });
 
 test('a dish on a menu can be seen as well as read, and only Wikimedia can put it on the screen',async()=>{
