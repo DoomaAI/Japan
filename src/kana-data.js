@@ -29,45 +29,45 @@ export const KANA=[...HIRAGANA,...KATAKANA];
 // word written in katakana, which is why it can be sounded out rather than learned.
 export const LOANWORDS=[
  {ja:'コーヒー',romaji:'kōhii',en:'Coffee',where:'Every café and vending machine.'},
- {ja:'ジュース',romaji:'jūsu',en:'Juice',where:''},
- {ja:'ミルク',romaji:'miruku',en:'Milk',where:''},
+ {ja:'ジュース',romaji:'jūsu',en:'Juice',where:'On a vending machine, and on the children\'s page of any family restaurant.'},
+ {ja:'ミルク',romaji:'miruku',en:'Milk',where:'At a coffee counter. ミルクティー is a milk tea.'},
  {ja:'コーラ',romaji:'kōra',en:'Cola',where:'Vending machines everywhere.'},
- {ja:'アイス',romaji:'aisu',en:'Ice cream',where:'Short for アイスクリーム.'},
- {ja:'アイスクリーム',romaji:'aisukurīmu',en:'Ice cream',where:''},
- {ja:'チョコレート',romaji:'chokorēto',en:'Chocolate',where:''},
- {ja:'ケーキ',romaji:'kēki',en:'Cake',where:''},
- {ja:'パン',romaji:'pan',en:'Bread',where:'A bakery is a パン屋.'},
+ {ja:'アイス',romaji:'aisu',en:'Ice cream',where:'Short for アイスクリーム, and the one actually written on a freezer cabinet.'},
+ {ja:'アイスクリーム',romaji:'aisukurīmu',en:'Ice cream',where:'The long way of writing アイス. ソフトクリーム is a soft serve.'},
+ {ja:'チョコレート',romaji:'chokorēto',en:'Chocolate',where:'Convenience store shelves. チョコ on its own is the short version.'},
+ {ja:'ケーキ',romaji:'kēki',en:'Cake',where:'Bakery windows, and the cabinet beside the till in a café.'},
+ {ja:'パン',romaji:'pan',en:'Bread',where:'A bakery is a パン屋. 食パン is the sliced white loaf and メロンパン is the sweet bun.'},
  {ja:'カレー',romaji:'karē',en:'Curry',where:'On nearly every family menu.'},
- {ja:'ラーメン',romaji:'rāmen',en:'Ramen',where:''},
- {ja:'ハンバーガー',romaji:'hanbāgā',en:'Hamburger',where:''},
- {ja:'ピザ',romaji:'piza',en:'Pizza',where:''},
- {ja:'サンドイッチ',romaji:'sandoitchi',en:'Sandwich',where:'Convenience stores.'},
- {ja:'サラダ',romaji:'sarada',en:'Salad',where:''},
- {ja:'スープ',romaji:'sūpu',en:'Soup',where:''},
- {ja:'パスタ',romaji:'pasuta',en:'Pasta',where:''},
- {ja:'ステーキ',romaji:'sutēki',en:'Steak',where:''},
- {ja:'チキン',romaji:'chikin',en:'Chicken',where:''},
- {ja:'ポテト',romaji:'poteto',en:'Chips / potato',where:'フライドポテト is hot chips.'},
- {ja:'チーズ',romaji:'chīzu',en:'Cheese',where:''},
- {ja:'ヨーグルト',romaji:'yōguruto',en:'Yoghurt',where:''},
- {ja:'バナナ',romaji:'banana',en:'Banana',where:''},
- {ja:'オレンジ',romaji:'orenji',en:'Orange',where:''},
- {ja:'メロン',romaji:'meron',en:'Melon',where:''},
- {ja:'トマト',romaji:'tomato',en:'Tomato',where:''},
+ {ja:'ラーメン',romaji:'rāmen',en:'Ramen',where:'Usually on the curtain hanging in the doorway — if it is there, that is a ramen shop.'},
+ {ja:'ハンバーガー',romaji:'hanbāgā',en:'Hamburger',where:'McDonald\'s is マクドナルド, and everybody shortens it to マック.'},
+ {ja:'ピザ',romaji:'piza',en:'Pizza',where:'On a delivery leaflet through the hotel door as often as on a menu.'},
+ {ja:'サンドイッチ',romaji:'sandoitchi',en:'Sandwich',where:'Convenience stores, in the chilled cabinet by the door. カツサンド is a pork cutlet one.'},
+ {ja:'サラダ',romaji:'sarada',en:'Salad',where:'Every set meal lists one. ポテトサラダ is potato salad.'},
+ {ja:'スープ',romaji:'sūpu',en:'Soup',where:'On a set menu, often as スープ付き — comes with soup.'},
+ {ja:'パスタ',romaji:'pasuta',en:'Pasta',where:'A page of its own in a family restaurant.'},
+ {ja:'ステーキ',romaji:'sutēki',en:'Steak',where:'Usually with a weight in grams beside it rather than a cut.'},
+ {ja:'チキン',romaji:'chikin',en:'Chicken',where:'On fried chicken — フライドチキン — and on a burger menu. On a Japanese menu it is 鶏.'},
+ {ja:'ポテト',romaji:'poteto',en:'Chips / potato',where:'フライドポテト is hot chips, and ポテト on its own on a burger menu means the same.'},
+ {ja:'チーズ',romaji:'chīzu',en:'Cheese',where:'On a burger, on a pizza, and surprisingly often on a slice of cake.'},
+ {ja:'ヨーグルト',romaji:'yōguruto',en:'Yoghurt',where:'In the convenience store fridge, beside the milk.'},
+ {ja:'バナナ',romaji:'banana',en:'Banana',where:'On a crêpe stand. チョコバナナ is the one the boys will want.'},
+ {ja:'オレンジ',romaji:'orenji',en:'Orange',where:'On the juice more often than on the fruit — オレンジジュース.'},
+ {ja:'メロン',romaji:'meron',en:'Melon',where:'On expensive fruit, and on メロンパン, which is a bun with no melon in it.'},
+ {ja:'トマト',romaji:'tomato',en:'Tomato',where:'On a pizza, a pasta and a salad.'},
  {ja:'トイレ',romaji:'toire',en:'Toilet',where:'The most useful word on this list.'},
- {ja:'ホテル',romaji:'hoteru',en:'Hotel',where:''},
- {ja:'バス',romaji:'basu',en:'Bus',where:''},
- {ja:'タクシー',romaji:'takushii',en:'Taxi',where:''},
- {ja:'エレベーター',romaji:'erebētā',en:'Lift',where:'On the button panel.'},
- {ja:'エスカレーター',romaji:'esukarētā',en:'Escalator',where:''},
- {ja:'レストラン',romaji:'resutoran',en:'Restaurant',where:''},
- {ja:'スーパー',romaji:'sūpā',en:'Supermarket',where:''},
- {ja:'コンビニ',romaji:'konbini',en:'Convenience store',where:'7-Eleven, Lawson, FamilyMart.'},
- {ja:'カメラ',romaji:'kamera',en:'Camera',where:''},
- {ja:'ゲーム',romaji:'gēmu',en:'Game',where:'Game arcades are ゲームセンター.'},
- {ja:'アニメ',romaji:'anime',en:'Anime',where:''},
- {ja:'ポケモン',romaji:'pokemon',en:'Pokémon',where:''},
- {ja:'チケット',romaji:'chiketto',en:'Ticket',where:''}
+ {ja:'ホテル',romaji:'hoteru',en:'Hotel',where:'On the front of the building, and on the sign at the station exit pointing to it.'},
+ {ja:'バス',romaji:'basu',en:'Bus',where:'バス停 is a bus stop. The same word also means bath, so read the rest of the sign.'},
+ {ja:'タクシー',romaji:'takushii',en:'Taxi',where:'On the rank outside a station — タクシー乗り場.'},
+ {ja:'エレベーター',romaji:'erebētā',en:'Lift',where:'On the button panel, and on the floor guide beside エスカレーター.'},
+ {ja:'エスカレーター',romaji:'esukarētā',en:'Escalator',where:'On the floor guide in a department store, next to エレベーター.'},
+ {ja:'レストラン',romaji:'resutoran',en:'Restaurant',where:'On the floor guide. レストラン街 is the whole restaurant floor, usually near the top.'},
+ {ja:'スーパー',romaji:'sūpā',en:'Supermarket',where:'Short for スーパーマーケット. On the sign outside and on the bag.'},
+ {ja:'コンビニ',romaji:'konbini',en:'Convenience store',where:'7-Eleven, Lawson and FamilyMart. Short for コンビニエンスストア, and there is one on nearly every corner.'},
+ {ja:'カメラ',romaji:'kamera',en:'Camera',where:'On shops the size of department stores — Yodobashi and Bic are カメラ shops that sell everything.'},
+ {ja:'ゲーム',romaji:'gēmu',en:'Game',where:'Game arcades are ゲームセンター, and everyone calls them ゲーセン for short.'},
+ {ja:'アニメ',romaji:'anime',en:'Anime',where:'On a whole floor of a shop in Akihabara, and on every merchandise shelf.'},
+ {ja:'ポケモン',romaji:'pokemon',en:'Pokémon',where:'Short for ポケットモンスター. On the Pokémon Centre sign, which is worth finding.'},
+ {ja:'チケット',romaji:'chiketto',en:'Ticket',where:'On the booth outside an attraction, and on the machine in a cinema.'}
 ];
 // A round of the match game: a handful of pairs, shuffled, from a seed so every phone that
 // opens the same round sees the same board.
@@ -240,6 +240,9 @@ export const SUMO_RANKS=[
  {level:10,icon:'🌅',en:'Yokozuna',ja:'横綱',romaji:'yokozuna'}
 ];
 export const rankAt=level=>SUMO_RANKS.find(r=>r.level===level)||null;
+// 'Juryo — now paid' does not fit on a tile the size of a thumbnail. The full name is in the
+// list of ranks underneath, which is where you go to read them anyway.
+export const shortRank=rank=>String(rank?.en||'').replace(/\s+—.*$/,'');
 export const TOP_RANK=SUMO_RANKS.length;
 export const STABLE_SIZE=16;
 export const emptyStable=()=>Array(STABLE_SIZE).fill(0);
@@ -278,11 +281,11 @@ export const challengerFor=(best,cleared)=>Math.max(1,Math.min(TOP_RANK,Math.max
 // into the ring. None of them pays points directly, which is the point: they buy you wind,
 // a longer look at an opening, and ground you already own when the two of them meet.
 export const SUMO_RITUALS=[
- {id:'shiko',en:'The stamps',ja:'四股',romaji:'shiko',how:'Stamp on the beat — left, right, left, right.',
+ {id:'shiko',icon:'🦶',en:'The stamps',ja:'四股',romaji:'shiko',how:'Stamp on the beat — left, right, left, right.',
   buys:'A deep stance is a long wind: more to push with, and quicker to get it back.'},
- {id:'shio',en:'The salt',ja:'塩まき',romaji:'shio-maki',how:'Stop the sweep on the sweet spot and the salt goes high.',
+ {id:'shio',icon:'🧂',en:'The salt',ja:'塩まき',romaji:'shio-maki',how:'Stop the sweep on the sweet spot and the salt goes high.',
   buys:'A good throw brings the crowd with you, and an opening stays open longer.'},
- {id:'tachiai',en:'The charge',ja:'立合い',romaji:'tachi-ai',how:'Crouch and hold. Go the moment the gyoji calls — not before.',
+ {id:'tachiai',icon:'🤜',en:'The charge',ja:'立合い',romaji:'tachi-ai',how:'Crouch and hold. Go the moment the gyoji calls — not before.',
   buys:'Ground you already own when the bout starts. Go early and it is a matta.'}
 ];
 export const STOMPS=4,STOMP_WINDOW=320;

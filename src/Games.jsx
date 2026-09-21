@@ -1,7 +1,9 @@
 import React,{useState,useMemo,useEffect,useRef} from 'react';
 import {Trophy,RotateCcw,Check,X,Wifi,WifiOff} from 'lucide-react';
-import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER,SIGHTS,ELEMENTS,elementById,startingElements,combine,discoverable,SUMO_RANKS,rankAt,TOP_RANK,STABLE_SIZE,emptyStable,recruit,promote,bestRank,stableFull,oddsOf,bout,challengerFor,SUMO_RITUALS,STOMPS,STOMP_WINDOW,stompScore,SALT_BAND,saltScore,MATTA,chargeScore,leadUpEffect,ceremonyScore,KIMARITE,kimariteById,SUMO_TICK,SURGE_TICKS,TAKEN_AS_READ,theirWeight,startBout,sumoAction,SEKITORI,BASHO_DAYS,bashoAt,newCareer,rankRate,climb,bashoOpponent,bashoWorth,bashoDay} from './kana-data.js';
+import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER,SIGHTS,ELEMENTS,elementById,startingElements,combine,discoverable,SUMO_RANKS,rankAt,TOP_RANK,STABLE_SIZE,emptyStable,recruit,promote,shortRank,bestRank,stableFull,oddsOf,bout,challengerFor,SUMO_RITUALS,STOMPS,STOMP_WINDOW,stompScore,SALT_BAND,saltScore,MATTA,chargeScore,leadUpEffect,ceremonyScore,KIMARITE,kimariteById,SUMO_TICK,SURGE_TICKS,TAKEN_AS_READ,theirWeight,startBout,sumoAction,SEKITORI,BASHO_DAYS,bashoAt,newCareer,rankRate,climb,bashoOpponent,bashoWorth,bashoDay} from './kana-data.js';
 import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-features.js';
+import SpotDifference from './SpotDifference.jsx';
+import Origami from './Origami.jsx';
 import {useReadAloud} from './AdventurePages.jsx';
 import {useJapaneseVoice} from './SayIt.jsx';
 import {canOffer,speechRate} from './speech.js';
@@ -34,6 +36,18 @@ function useDragTiles(onDrop){
   cancel:()=>{drag.current=null;setOver(null);}
  };
 }
+// A row of figures rather than a sentence of them: short numbers are read at a glance, and
+// they line up in columns instead of wrapping into a paragraph. How many there are decides
+// the shape — four read better two by two than three across with one stranded underneath.
+const Stats=({items})=><div className={`game-stats cols-${items.length}`}>{items.map(([label,value])=>
+ <span key={label}><small>{label}</small><strong>{value}</strong></span>)}</div>;
+// What turns into what. Small cards on a grid, so the icon, the English and the Japanese
+// line up down the page rather than running together in a ragged block of text.
+const Ladder=({title,items,notes})=><details className="merge-ladder"><summary>{title}</summary>
+ <div className={`ladder-grid${notes?' notes':''}`}>{items.map(item=>
+  <span key={item.key}><b aria-hidden="true">{item.icon}</b>{item.en}<small lang="ja">{item.ja}</small>
+   {item.note&&<small>{item.note}</small>}</span>)}</div>
+</details>;
 // Say the kana aloud where the phone can, because a five-year-old matching shapes learns
 // more if the shape has a sound. Silence is fine; the game does not depend on it.
 function useKanaVoice(){
@@ -189,12 +203,14 @@ function Merge({user,mutate,busy,state}){
    {[['up','↑'],['left','←'],['down','↓'],['right','→']].map(([d,a])=>
     <button key={d} type="button" aria-label={`Slide ${d}`} disabled={over} onClick={()=>move(d)}>{a}</button>)}
   </div>
-  <p className="game-status">{over?<><Trophy size={16}/> No moves left — {score}.</>:`${score}`}{top?` · best so far ${top.en} ${top.icon}`:''}
-   {bestScore(state,user.name,'merge')>0?` · your best ${bestScore(state,user.name,'merge')}`:''}</p>
+  {over&&<p className="game-status"><Trophy size={16}/> No moves left.</p>}
+  <Stats items={[
+   ['Score',score],
+   ['Best tile',top?<>{top.icon} {top.en}</>:'—'],
+   ['Your best ever',bestScore(state,user.name,'merge')||'—']
+  ]}/>
   <button className="primary" onClick={again}><RotateCcw size={16}/> New game</button>
-  <details className="merge-ladder"><summary>What turns into what</summary>
-   {MERGE_LADDER.map(t=><span key={t.value}>{t.icon} {t.en} <small lang="ja">{t.ja}</small></span>)}
-  </details>
+  <Ladder title="What turns into what" items={MERGE_LADDER.map(t=>({key:t.value,icon:t.icon,en:t.en,ja:t.ja}))}/>
  </>;
 }
 // Pairs made from the trip itself: the thing we did, and the day we did it.
@@ -686,20 +702,21 @@ function Sumo({user,state,mutate,busy}){
      ?career.day>0?`Sekitori. Day ${career.day+1} of the ${basho.romaji}, ${career.wins}–${career.losses}.`
       :`Sekitori — on the banzuke. Next up: the ${basho.romaji}, ${basho.month}, ${basho.where}.`
      :`${SEKITORI-career.rank} more win${SEKITORI-career.rank===1?'':'s'} and you are a sekitori — paid, on the banzuke, and in the tournament.`}</p>
-    <small>{highest.level>career.rank?`Highest reached: ${highest.en}. `:''}{career.titles>0?`🏆 ${career.titles} tournament${career.titles===1?'':'s'} won.`:''}</small>
    </div>
+   <Stats items={[
+    ['Highest rank',highest.level>1?<>{highest.icon} {shortRank(highest)}</>:'—'],
+    ['Tournaments won',career.titles||'—'],
+    ['Best single bout',bestScore(state,user.name,'sumo')||'—'],
+    ['Best tournament',bestScore(state,user.name,'sumo-basho')||'—']
+   ]}/>
    <div className="sumo-rituals">{SUMO_MODES.map(m=>
     <button key={m.id} className="sumo-choice" disabled={m.id==='basho'&&!sekitori} onClick={()=>m.id==='quick'?go('keiko','quick'):go(m.id)}>
      <b>{m.en} <small lang="ja">{m.ja} · {m.romaji}</small></b>
      <small>{m.id==='basho'&&!sekitori?'Climb to juryo first. Nobody enters the tournament off the street.':m.why}</small></button>)}</div>
-   <details className="merge-ladder"><summary>The three rituals, and what each one buys</summary>
-    {SUMO_RITUALS.map(r=><span key={r.id}>{r.en} <small lang="ja">{r.ja} · {r.romaji}</small> <small>{r.how} {r.buys}</small></span>)}
-   </details>
-   <details className="merge-ladder"><summary>The moves, and the tell that calls for them</summary>
-    {KIMARITE.map(k=><span key={k.id}>{k.icon} {k.en} <small lang="ja">{k.ja} · {k.romaji}</small> <small>{k.tell}</small></span>)}
-   </details>
-   {bestScore(state,user.name,'sumo')>0&&<p className="game-status">Best single bout worth {bestScore(state,user.name,'sumo')}
-    {bestScore(state,user.name,'sumo-basho')>0?` · best tournament ${bestScore(state,user.name,'sumo-basho')}`:''}</p>}
+   <Ladder notes title="The three rituals, and what each one buys"
+    items={SUMO_RITUALS.map(r=>({key:r.id,icon:r.icon,en:r.en,ja:`${r.ja} · ${r.romaji}`,note:`${r.how} ${r.buys}`}))}/>
+   <Ladder notes title="The moves, and the tell that calls for them"
+    items={KIMARITE.map(k=>({key:k.id,icon:k.icon,en:k.en,ja:`${k.ja} · ${k.romaji}`,note:k.tell}))}/>
   </>}
   {mode&&!fighting&&<>
    {mode==='one'&&<>
@@ -712,30 +729,30 @@ function Sumo({user,state,mutate,busy}){
     <p>Beat the man on the rung above and you take his rank. Lose and you go back down one — nobody falls out of the bottom, and the climb stops at juryo, where the tournament starts.</p>
     <div className="sumo-ladder">{SUMO_RANKS.slice(0,SEKITORI).map(r=>
      <span key={r.level} className={r.level===career.rank?'now':r.level<career.rank?'passed':''}>
-      {r.icon} {r.en} <small lang="ja">{r.ja}</small></span>)}</div>
-    <p className="game-status">Next: {rankAt(meeting).icon} {rankAt(meeting).en} <small lang="ja">{rankAt(meeting).ja}</small></p>
+      {r.icon} {shortRank(r)} <small lang="ja">{r.ja}</small></span>)}</div>
+    <p className="game-status">Next: {rankAt(meeting).icon} {shortRank(rankAt(meeting))} <small lang="ja">{rankAt(meeting).ja}</small></p>
    </>}
    {mode==='basho'&&<>
     <p>The <strong lang="ja">{basho.ja}</strong> {basho.romaji} — {basho.month}, {basho.where}. Seven days, one bout a day. Four wins is <strong>kachi-koshi</strong>, a winning record and a promotion; three or fewer is <strong>make-koshi</strong>, and your name moves down the sheet.</p>
     <div className="sumo-record">{Array.from({length:BASHO_DAYS},(_,i)=>
      <span key={i} className={career.form?.[i]==='w'?'won':career.form?.[i]==='l'?'lost':i===career.day?'now':''}>{i+1}</span>)}</div>
     <p className="game-status">{senshuraku?'Senshuraku — the final day. ':`Day ${career.day+1}. `}
-     {career.wins}–{career.losses} · against {rankAt(meeting).icon} {rankAt(meeting).en} <small lang="ja">{rankAt(meeting).ja}</small></p>
+     {career.wins}–{career.losses} · against {rankAt(meeting).icon} {shortRank(rankAt(meeting))} <small lang="ja">{rankAt(meeting).ja}</small></p>
    </>}
    <button className="primary sumo-push" onClick={enter}>
-    {mode==='one'?'Enter the ring':mode==='climb'?`Fight the ${rankAt(meeting).en}`:senshuraku?'Fight senshuraku':`Fight day ${career.day+1}`}</button>
+    {mode==='one'?'Enter the ring':mode==='climb'?`Fight the ${shortRank(rankAt(meeting))}`:senshuraku?'Fight senshuraku':`Fight day ${career.day+1}`}</button>
    <button onClick={()=>go('')}>Back to the stable</button>
   </>}
   {mode&&fighting&&<>
-   {mode!=='one'&&<p className="eyebrow">{mode==='climb'?`FOR THE RANK OF ${rankAt(meeting).en.toUpperCase()}`:`${basho.romaji.toUpperCase()} · ${senshuraku?'SENSHURAKU':`DAY ${career.day+1}`}`}</p>}
+   {mode!=='one'&&<p className="eyebrow">{mode==='climb'?`FOR THE RANK OF ${shortRank(rankAt(meeting)).toUpperCase()}`:`${basho.romaji.toUpperCase()} · ${senshuraku?'SENSHURAKU':`DAY ${career.day+1}`}`}</p>}
    <SumoBout key={attempt} rate={rate} named={named} onDone={finish}/>
    {after&&<div className={`stable-bout${after.won?' won':''}`}>
     <p className="janken-verdict">{after.won?`Out of the ring${after.by?` — ${kimariteById(after.by).romaji}`:''}.`:'Pushed out.'}</p>
     {mode==='one'&&<p>{after.won?`Worth ${after.worth}.`:'The ceremony decides more than you think.'}</p>}
     {mode==='climb'&&<p>{after.sekitori?'Juryo. You are a sekitori — paid, on the banzuke, and in the tournament.'
-     :after.won?`Promoted: ${rankAt(after.to).en}.`:after.to<after.from?`Back down to ${rankAt(after.to).en}.`:`Still ${rankAt(after.to).en}.`}</p>}
+     :after.won?`Promoted: ${shortRank(rankAt(after.to))}.`:after.to<after.from?`Back down to ${shortRank(rankAt(after.to))}.`:`Still ${shortRank(rankAt(after.to))}.`}</p>}
     {mode==='basho'&&<p>{after.basho.kachikoshi!==undefined
-     ?`${after.basho.wins}–${after.basho.losses}. ${after.basho.title?'A perfect seven — the tournament is yours.':after.basho.kachikoshi?'Kachi-koshi, and a promotion.':'Make-koshi. Your name moves down the sheet.'} ${rankAt(after.basho.to).en}.`
+     ?`${after.basho.wins}–${after.basho.losses}. ${after.basho.title?'A perfect seven — the tournament is yours.':after.basho.kachikoshi?'Kachi-koshi, and a promotion.':'Make-koshi. Your name moves down the sheet.'} ${shortRank(rankAt(after.basho.to))}.`
      :`Day ${after.day} of ${BASHO_DAYS} · ${after.basho.wins}–${after.basho.losses}.`}</p>}
    </div>}
    <div className="row wrap">
@@ -798,38 +815,45 @@ function Stable({user,state,mutate,busy}){
    const rank=rankAt(level);
    return <button key={i} data-tile={i} className={`stable-cell${level?' filled':''}${picked===i?' picked':''}${drag.over===i?' over':''}${level===TOP_RANK?' top':''}`}
     disabled={fighting} onPointerDown={drag.down(i)}>
-    {rank&&<><span aria-hidden="true">{rank.icon}</span><small>{rank.en}</small></>}</button>;})}</div>
-  <div className="row wrap">
+    {rank&&<><span aria-hidden="true">{rank.icon}</span><small>{shortRank(rank)}</small></>}</button>;})}</div>
+  <div className="row wrap game-actions">
    <button type="button" onClick={add} disabled={fighting||full}>+ New recruit</button>
    <button type="button" className="primary" disabled={fighting||!best} onClick={fight}>
-    Fight {rankAt(challenger)?.icon} {rankAt(challenger)?.en}</button>
+    Fight {rankAt(challenger)?.icon} {shortRank(rankAt(challenger))}</button>
   </div>
-  {best>0&&<p className="game-status">Your best: {rankAt(best).icon} {rankAt(best).en} <small lang="ja">{rankAt(best).ja}</small> · {Math.round(odds*100)}% against this one</p>}
+  {best>0&&<p className="game-odds">Your {rankAt(best).en.toLowerCase()} has a <strong>{Math.round(odds*100)}%</strong> chance against this one.</p>}
   {last?.promoted&&<p className="callout">Promoted to <strong>{last.promoted.icon} {last.promoted.en}</strong> <small lang="ja">{last.promoted.ja} · {last.promoted.romaji}</small></p>}
   {last?.note&&<p className="callout">{last.note}</p>}
   {last?.bout&&<div className={`stable-bout${last.bout.won?' won':''}`}>
    <p><strong>{last.mine.icon} {last.mine.en}</strong> v <strong>{last.against.icon} {last.against.en}</strong></p>
    <p className="janken-verdict">{last.bout.won?`Won — ${last.bout.reward} points.`:'Beaten, and demoted a rank.'}</p>
   </div>}
-  <p className="game-status">{score} points · {cleared} bout{cleared===1?'':'s'} won
-   {bestScore(state,user.name,'stable')>0?` · your best ${bestScore(state,user.name,'stable')}`:''}</p>
+  <Stats items={[
+   ['Best wrestler',best?<>{rankAt(best).icon} {shortRank(rankAt(best))} <small lang="ja">{rankAt(best).ja}</small></>:'—'],
+   ['Points',score],
+   ['Bouts won',cleared],
+   ['Your best ever',bestScore(state,user.name,'stable')||'—']
+  ]}/>
   <button onClick={again}><RotateCcw size={16}/> New stable</button>
-  <details className="merge-ladder"><summary>The ranks</summary>
-   {SUMO_RANKS.map(r=><span key={r.level}>{r.icon} {r.en} <small lang="ja">{r.ja}</small></span>)}
-  </details>
+  <Ladder title="The ranks" items={SUMO_RANKS.map(r=>({key:r.level,icon:r.icon,en:r.en,ja:r.ja}))}/>
  </>;
 }
+// What each one needs, said plainly rather than as a yes-or-no: most of these work in a
+// tunnel, one needs the other phone, and one needs the photo to come down once.
+const OFFLINE='Works with no signal at all.';
 const GAMES=[
- {id:'match',title:'Match the letters',offline:true,Component:KanaMatch},
- {id:'decode',title:'Read the sign',offline:true,Component:Decoder},
- {id:'merge',title:'Onigiri to Fuji',offline:true,Component:Merge},
- {id:'remember',title:'What we did',offline:true,Component:Remember},
- {id:'sights',title:'Japan pairs',offline:true,Component:Sights},
- {id:'kitchen',title:'Make it',offline:true,Component:Kitchen},
- {id:'snake',title:'Sushi snake',offline:true,Component:Snake},
- {id:'stable',title:'Sumo stable',offline:true,Component:Stable},
- {id:'sumo',title:'Sumo',offline:true,Component:Sumo},
- {id:'janken',title:'Janken',offline:false,Component:Janken}
+ {id:'match',title:'Match the letters',needs:OFFLINE,Component:KanaMatch},
+ {id:'decode',title:'Read the sign',needs:OFFLINE,Component:Decoder},
+ {id:'merge',title:'Onigiri to Fuji',needs:OFFLINE,Component:Merge},
+ {id:'remember',title:'What we did',needs:OFFLINE,Component:Remember},
+ {id:'sights',title:'Japan pairs',needs:OFFLINE,Component:Sights},
+ {id:'kitchen',title:'Make it',needs:OFFLINE,Component:Kitchen},
+ {id:'snake',title:'Sushi snake',needs:OFFLINE,Component:Snake},
+ {id:'stable',title:'Sumo stable',needs:OFFLINE,Component:Stable},
+ {id:'sumo',title:'Sumo',needs:OFFLINE,Component:Sumo},
+ {id:'origami',title:'Origami',needs:'Works with no signal. You need a square of paper.',Component:Origami},
+ {id:'spot',title:'Spot the difference',needs:'Needs signal once, to fetch the photo. The puzzle is made on the phone.',Component:SpotDifference},
+ {id:'janken',title:'Janken',needs:'Needs both phones online.',Component:Janken}
 ];
 export default function Games(props){
  const [game,setGame]=useState('match');
@@ -838,7 +862,7 @@ export default function Games(props){
   <p className="eyebrow">SOMETHING TO DO IN A QUEUE</p><h1>Games</h1>
   <div className="segmented game-picker">{GAMES.map(g=>
    <button key={g.id} className={game===g.id?'selected':''} onClick={()=>setGame(g.id)}>{g.title}</button>)}</div>
-  <p><small>{current.offline?'Works with no signal at all.':'Needs both phones online.'}</small></p>
+  <p><small>{current.needs}</small></p>
   <current.Component {...props}/>
  </>;
 }

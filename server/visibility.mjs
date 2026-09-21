@@ -14,8 +14,12 @@ function hideUnthrownHands(state,user){
  for(const [person,choice] of Object.entries(round.throws||{}))throws[person]=person===user?.name?choice:'hidden';
  return {...state,games:{...state.games,janken:{...state.games.janken,round:{...round,throws}}}};
 }
+// Forwarded email is whatever an email happened to carry — a booking, a bank reference, a
+// letter from a school. Hiding the screen from the boys would not do: the state behind it is
+// one fetch away, so the inbox is removed here, for anyone who is not a parent.
+const hideInbox=(state,user)=>user?.role==='parent'?state:{...state,inbox:[]};
 export function visibleTrip(state,user,now=new Date()){
- state=hideUnthrownHands(state,user);
+ state=hideInbox(hideUnthrownHands(state,user),user);
  if(user?.name===THANK_YOU_FROM)return state;
  if(user?.name!==THANK_YOU_TO)return {...state,thankYou:{seen:{},today:null}};
  const day=japanDate(now),note=thankYouForDay(state,day);

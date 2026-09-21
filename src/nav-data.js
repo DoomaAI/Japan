@@ -4,11 +4,12 @@ export const PAGES={
  today:{label:'Home',note:'What’s next today'},
  days:{label:'Days',note:'All sixteen days of the trip'},
  tickets:{label:'Tickets',note:'Bookings, luggage tags and QR codes'},
+ inbox:{label:'Forwarded email',note:'Booking emails you sent in, waiting to be filed'},
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
  money:{label:'Yen',note:'What a price is in dollars, signal or not'},
  challenges:{label:'Missions',note:'Daily missions and whole-trip quests'},
- games:{label:'Games',note:'Japanese letters, reading signs, and janken'},
- photos:{label:'Photo of the day',note:'The boys\u2019 photos, feedback and the daily vote'},
+ games:{label:'Games',note:'Letters, sumo, snake, and spot the difference in our own photos'},
+ photos:{label:'Photos',note:'Everyone\u2019s photos, whose is whose, and the daily vote'},
  diary:{label:'Diary',note:'Completed activities, discoveries and photos'},
  places:{label:'Places & our map',note:'Directions and our Google My Map'},
  meeting:{label:'Meeting card',note:'If we get separated'},
@@ -17,6 +18,7 @@ export const PAGES={
  options:{label:'Options & ideas',note:'Places and activities saved for later'},
  planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, and voting on them'},
  todo:{label:'To-do list',note:'Things to do or buy, on the day we will do them'},
+ weather:{label:'Weather',note:'Every day and every hour, with the graphs'},
  parks:{label:'Theme park rides',note:'Checklists, height limits and park maps'},
  shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need'},
  guide:{label:'Original travel guide',note:'All 72 pages, linked and searchable'},
@@ -31,13 +33,13 @@ export const PRIMARY={
  child:['today','days','challenges','food','diary']
 };
 export const MORE_SECTIONS=[
- ['Out and about',['places','money','food','phrases','meeting','help']],
- ['The plan',['todo','planning','options','parks','shopping','challenges','games','tickets','guide']],
+ ['Out and about',['weather','places','money','food','phrases','meeting','help']],
+ ['The plan',['todo','planning','options','parks','shopping','challenges','games','tickets','inbox','guide']],
  ['Looking back',['photos','diary','updates','search']],
  ['Just for you',['thanks']]
 ];
 export const primaryNav=user=>PRIMARY[user?.role==='child'?'child':'parent'];
-const allowed=(id,user)=>id!=='thanks'||user?.name==='Damien';
+const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(id!=='inbox'||user?.role==='parent');
 // Whatever the bottom bar does not already show, grouped so a long list stays scannable.
 export const moreSections=user=>{
  const shown=new Set(primaryNav(user));

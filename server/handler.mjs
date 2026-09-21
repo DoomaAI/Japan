@@ -1,20 +1,23 @@
 import {FILE_TYPES,AUDIO_TYPES,VOICE_MAX_BYTES,validateFile} from './files.mjs';
 import {checkVoiceNote,addVoiceNote} from './voice.mjs';
+import {checkPhraseClip,addPhraseClip,removePhraseClip} from './phrase-audio.mjs';
 import {readFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {Readable} from 'node:stream';
-import {get,head} from '@vercel/blob';
+import {get,head,del} from '@vercel/blob';
 import {handleUpload} from '@vercel/blob/client';
 import {AppError,applyOperation,MEMBERS,documentDetails,documentAssociation,ticketParent} from './model.mjs';
-import {database,readTrip,writeTrip,session,localDemo,hash,token,setCookie} from './store.mjs';
+import {database,readTrip,writeTrip,updateTrip,session,localDemo,hash,token,setCookie} from './store.mjs';
 import {visibleEnvelope} from './visibility.mjs';
 import {readMenu,menuReaderReady} from './menu.mjs';
 import {translatePhrase,translatorReady} from './translate.mjs';
 import {researchPlace,researchReady} from './research.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {nearbyPlaces,nearbyReady} from './nearby.mjs';
+import {fetchSumoDay,fetchWrestler,sumoReady} from './sumo.mjs';
 import {readDocument,readerReady} from './document-reader.mjs';
 import {coachPhoto,coachReady} from './photo-coach.mjs';
+import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady} from './email.mjs';
 const json=(res,data,status=200)=>{res.statusCode=status;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));};
 async function body(req,max=1000000){if(req.body&&typeof req.body==='object')return req.body;let s='';for await(const c of req){s+=c;if(Buffer.byteLength(s)>max)throw new AppError('Request too large.',413);}try{return JSON.parse(s||'{}');}catch{throw new AppError('Invalid request.');}}
 const parent=u=>{if(u.role!=='parent')throw new AppError('A parent can do this.',403);};
@@ -28,13 +31,27 @@ export default async function handler(req,res){
  res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');
  try{
   const url=new URL(req.url,'http://localhost'),route=url.pathname.replace(/^\/api\/?/,'');
-  const post=req.method==='POST';let b=post?await body(req,['menu','read-document','photo-feedback'].includes(route)?6000000:1000000):{};
+  const post=req.method==='POST',base=route.split('/')[0];
+  // A forwarded email carries its attachments inline. Vercel stops a request body at about
+  // 4.5 MB, so this is the real ceiling on what can arrive by email at all.
+  let b=post?await body(req,['menu','read-document','photo-feedback'].includes(base)?6000000:base==='email-in'?4400000:1000000):{};
   // Blob callbacks carry a signature verified by the SDK. They do not mutate itinerary data.
   if(route==='upload'&&post&&b.type==='blob.upload-completed'){
    const result=await handleUpload({body:b,request:req,onBeforeGenerateToken:async()=>{throw new Error('Not a token request');},onUploadCompleted:async()=>{}});return json(res,result);
   }
+  // The one route with no session and no browser origin behind it: a mail provider posting an
+  // email the family forwarded in. It is answered with 200 even when the message is dropped, so
+  // a rejected sender is not retried for hours, and nothing it says reaches the itinerary — it
+  // waits in the inbox for a parent to read and file.
+  if(base==='email-in'&&post){
+   authoriseInbound(req,route);
+   const received=await receiveEmail(b);
+   if(!received.filed)return json(res,{ok:true,filed:false,reason:received.reason});
+   await updateTrip(state=>addToInbox(state,received.item));
+   return json(res,{ok:true,filed:true,id:received.item.id});
+  }
   if(post)checkOrigin(req);
-  if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),nearby:nearbyReady()});
+  if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -47,7 +64,44 @@ export default async function handler(req,res){
   if(route==='state'&&req.method==='GET')return json(res,visibleEnvelope(await readTrip(),user));
   if(route==='mutate'&&post){
    const current=await readTrip();if(b.operation?.operationId&&current.state.appliedOperationIds?.includes(b.operation.operationId))return json(res,visibleEnvelope(current,user));if(b.revision!==current.revision)throw new AppError('The family updated the trip. Review your change against the latest plan.',409);
-   const state=applyOperation(current.state,b.operation,user);return json(res,visibleEnvelope(await writeTrip(state,current.revision),user));
+   const state=applyOperation(current.state,b.operation,user);
+   const saved=await writeTrip(state,current.revision);
+   // A discarded email leaves no attachments behind in private storage. The files are gone
+   // from the trip either way, so a failed delete is not worth failing the change over.
+   if(b.operation?.type==='inboxDiscard')for(const pathname of inboxFiles(current.state,b.operation.id))await del(pathname).catch(()=>{});
+   return json(res,visibleEnvelope(saved,user));
+  }
+  // Reading a forwarded email into English. It is done when a parent opens the inbox rather
+  // than when the email lands, because a mail provider will not wait for a careful translation
+  // and an email nobody opens is not worth paying to translate.
+  if(route==='inbox-read'&&post){
+   parent(user);
+   const {state}=await readTrip();
+   const item=(state.inbox||[]).find(i=>i.id===b.id);
+   if(!item)throw new AppError('That email is no longer in the inbox.',404);
+   if(item.reading)return json(res,visibleEnvelope(await readTrip(),user));
+   let reading=null,readError=null;
+   try{reading=await readInboxItem(item);}
+   catch(e){if(!(e instanceof AppError))throw e;readError=e.message;}
+   return json(res,visibleEnvelope(await updateTrip(next=>{
+    const found=(next.inbox||[]).find(i=>i.id===b.id);
+    if(!found||found.reading)return null;
+    found.reading=reading;found.readError=readError;found.readAt=new Date().toISOString();
+    return next;
+   }),user));
+  }
+  // An attachment still in the inbox, before it has been filed as a ticket. Only a parent sees
+  // one, and only by the id of a file that is actually waiting there.
+  if(route==='inbox-file'&&req.method==='GET'){
+   parent(user);
+   const {state}=await readTrip();
+   const file=(state.inbox||[]).flatMap(i=>i.attachments||[]).find(f=>f.id===url.searchParams.get('id')&&f.pathname);
+   if(!file)throw new AppError('That attachment is not in the inbox.',404);
+   const result=await get(file.pathname,{access:'private',useCache:false});
+   if(!result||!result.stream)throw new AppError('That attachment could not be opened.',404);
+   res.setHeader('Content-Type',file.type);res.setHeader('Content-Disposition','inline');
+   const length=result.headers.get('content-length');if(length)res.setHeader('content-length',length);
+   const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
   }
   if(route==='menu'&&post){
    parent(user);const {state}=await readTrip();
@@ -72,6 +126,16 @@ export default async function handler(req,res){
   // What is near enough to walk to, right now. This one is not a parent's: the person who needs
   // a toilet or a plain bowl of rice is whoever is holding the phone. The position is rounded
   // before it leaves the browser and again here, and is never written into the trip.
+  // The day's sumo card, and the man whose name is on it. Read once by a parent and kept in
+  // the trip, because the arena is a basement and the list has to still be there without signal.
+  if(route==='sumo-card'&&post){
+   parent(user);const {state}=await readTrip();
+   return json(res,await fetchSumoDay(b,state));
+  }
+  if(route==='sumo-wrestler'&&post){
+   parent(user);
+   return json(res,await fetchWrestler(b));
+  }
   if(route==='nearby'&&post){
    const {state}=await readTrip();
    return json(res,await nearbyPlaces(b,state));
@@ -88,7 +152,13 @@ export default async function handler(req,res){
    if(typeof b.pathname!=='string'||!b.pathname.startsWith(`photos/${user.id}/`)||b.pathname.includes('..'))throw new AppError('Invalid photo.');
    if(!b.day||!current.state.days.some(d=>d.date===b.day))throw new AppError('Choose a trip day.');
    if(b.title!==undefined&&(typeof b.title!=='string'||b.title.length>200))throw new AppError('Keep the title short.');
-   if(current.state.photos.filter(p=>p.by===user.name&&p.day===b.day).length>=12)throw new AppError('That is twelve photos for one day already. Remove one first.');
+   // Whose photo it is, which is not always who put it on. A parent takes a picture on their
+   // own phone of something a boy did and hands it to him; the boys can only speak for
+   // themselves. The cap of twelve a day is per owner, because it is their allowance.
+   const owner=b.for==null||b.for===''?user.name:String(b.for);
+   if(!current.state.members.includes(owner))throw new AppError('Choose who the photo belongs to.');
+   if(user.role!=='parent'&&owner!==user.name)throw new AppError('That is not your photo to add.',403);
+   if(current.state.photos.filter(p=>(p.for||p.by)===owner&&p.day===b.day).length>=12)throw new AppError('That is twelve photos for one day already. Remove one first.');
    const blob=await head(b.pathname);
    validateFile(blob.contentType,blob.size,'memory');
    if(current.state.photos.some(p=>p.pathname===b.pathname))return json(res,visibleEnvelope(current,user));
@@ -99,7 +169,7 @@ export default async function handler(req,res){
     tip:String(b.feedback.tip||'').slice(0,400),
     score:Number.isInteger(b.feedback.score)?Math.max(1,Math.min(10,b.feedback.score)):null
    }:null;
-   current.state.photos=[...current.state.photos,{id:randomUUID(),by:user.name,day:b.day,
+   current.state.photos=[...current.state.photos,{id:randomUUID(),by:user.name,for:owner,day:b.day,
     title:(b.title||'').trim(),pathname:b.pathname,type:blob.contentType,size:blob.size,feedback,at:new Date().toISOString()}];
    return json(res,visibleEnvelope(await writeTrip(current.state,current.revision),user));
   }
@@ -137,7 +207,10 @@ export default async function handler(req,res){
    if(localDemo())throw new AppError('Connect private Blob storage to upload documents.',503);
    const result=await handleUpload({body:b,request:req,onBeforeGenerateToken:async pathname=>{
     const voice=pathname.startsWith(`voice/${user.id}/`),photo=pathname.startsWith(`photos/${user.id}/`);
-    if(pathname.includes('..')||!(voice||photo||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
+    // A recorded phrase is the family's reference pronunciation, so a parent makes it.
+    const said=pathname.startsWith(`phrases/${user.id}/`);
+    if(pathname.includes('..')||!(voice||photo||said||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
+    if(said){parent(user);return {allowedContentTypes:AUDIO_TYPES,maximumSizeInBytes:VOICE_MAX_BYTES,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};}
     if(photo)return {allowedContentTypes:['image/jpeg','image/png','image/webp'],maximumSizeInBytes:25*1024*1024,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
     if(voice)return {allowedContentTypes:AUDIO_TYPES,maximumSizeInBytes:VOICE_MAX_BYTES,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
     parent(user);
@@ -159,6 +232,27 @@ export default async function handler(req,res){
    res.setHeader('Content-Type',note.type);res.setHeader('Content-Disposition','inline');
    for(const h of ['content-length','content-range','accept-ranges']){const value=result.headers.get(h);if(value)res.setHeader(h,value);}
    if(result.headers.has('content-range'))res.statusCode=206;
+   const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
+  }
+  // A phrase said aloud once and kept, because an iPhone's ring switch silences the phone's
+  // own voice but not a recording.
+  if(route==='phrase-audio'&&post){
+   parent(user);
+   const current=await readTrip();
+   if(b.remove)return json(res,visibleEnvelope(await writeTrip(removePhraseClip(current.state,String(b.phraseId||'')),current.revision),user));
+   const checked=checkPhraseClip(b,user);
+   const state=addPhraseClip(current.state,checked,user,await head(checked.pathname));
+   if(state===current.state)return json(res,visibleEnvelope(current,user));
+   return json(res,visibleEnvelope(await writeTrip(state,current.revision),user));
+  }
+  if(route==='phrase-audio'&&req.method==='GET'){
+   const {state}=await readTrip();
+   const clip=state.phraseAudio?.[url.searchParams.get('phrase')];
+   if(!clip?.pathname)throw new AppError('No recording for that phrase.',404);
+   const result=await get(clip.pathname,{access:'private',useCache:false});
+   if(!result||!result.stream)throw new AppError('Recording unavailable.',404);
+   res.setHeader('Content-Type',clip.type);res.setHeader('Content-Disposition','inline');
+   const length=result.headers.get('content-length');if(length)res.setHeader('content-length',length);
    const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
   }
   if(route==='document'&&post){

@@ -1,12 +1,26 @@
 import React,{useState} from 'react';
-import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X} from 'lucide-react';
+import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,party,personProfile,partyInterests,profileFilled,interestLabel,paceLabel,yenPerAud,yenToAud} from './trip-features.js';
+import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,party,personProfile,partyInterests,profileFilled,interestLabel,paceLabel,yenPerAud,yenToAud,photosOf} from './trip-features.js';
+import {photoUrl} from './PhotoDay.jsx';
 const kindLabel=id=>(PROPOSAL_KINDS.find(([key])=>key===id)||PROPOSAL_KINDS.at(-1))[1];
 const flavourLabel=id=>(SUGGEST_KINDS.find(([key])=>key===id)||SUGGEST_KINDS[1])[1];
 // Who is going, and what each of them would actually want out of a day. The boys fill in their
 // own — a five-year-old who has ticked playgrounds gets a different list back from a brother who
 // has ticked trains. None of it is on the plan; it is what the suggestions are built from.
+// The newest few of this person's photographs, on their own profile, with the way through to
+// all of them. A link rather than a button because it is a place, and the back button should
+// behave like one.
+function PersonPhotos({state,name}){
+ const theirs=photosOf(state,name);
+ if(!theirs.length)return null;
+ return <div className="person-photos">
+  <a href={`/?tab=photos&who=${encodeURIComponent(name)}`}>
+   <Camera size={14}/> {theirs.length} photo{theirs.length===1?'':'s'} <ChevronRight size={14}/></a>
+  <div className="person-photo-strip">{theirs.slice(0,4).map(p=>
+   <img key={p.id} loading="lazy" src={photoUrl(p)} alt={p.feedback?.subject||`A photo by ${name}`}/>)}</div>
+ </div>;
+}
 export function TravelParty({state,user,mutate,busy}){
  const [editing,setEditing]=useState(null);
  const parent=user.role==='parent',us=party(state),shared=partyInterests(state);
@@ -34,6 +48,7 @@ export function TravelParty({state,user,mutate,busy}){
      {me.avoid&&<p><small><strong>Would rather avoid:</strong> {me.avoid}</small></p>}
      {me.dietary&&<p><small><strong>Food:</strong> {me.dietary}</small></p>}
      {me.notes&&<p><small>{me.notes}</small></p>}
+     <PersonPhotos state={state} name={name}/>
     </>}
     {editing===name&&<form onSubmit={e=>savePerson(e,name)}>
      <label>Age<input name="age" type="number" min="0" max="120" defaultValue={me.age??''}/></label>

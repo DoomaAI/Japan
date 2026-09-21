@@ -1,15 +1,17 @@
 import React,{useState,useRef,useEffect} from 'react';
-import {MessageSquare,Search,ArrowLeft,ArrowRight,Sparkles,Check,Languages,Trash2} from 'lucide-react';
+import {MessageSquare,Search,ArrowLeft,ArrowRight,Sparkles,Check,Languages,Trash2,Layers,List,Baby} from 'lucide-react';
 import {PHRASEBOOK,ALL_PHRASES} from './phrasebook-data.js';
 import {japanDate} from './timing.js';
 import {dayLabel,SILENT_HINT} from './AdventurePages.jsx';
 import {MENU_WORDS,SAY_TIP} from './food-data.js';
 import {searchText,phraseLogFor,phrasesSeenBy,phraseQueue,ourPhrases} from './trip-features.js';
+import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
+import SoundOut,{MouthKey} from './SoundOut.jsx';
 import SayIt from './SayIt.jsx';
 import SoundCheck from './SoundCheck.jsx';
 export function PhraseRow({phrase,size='small'}){
  return <article className="phrase-row">
-  <strong>{phrase.en}</strong>
+  <strong>{phrase.icon&&<span className="phrase-icon" aria-hidden="true">{phrase.icon}</span>}{phrase.en}</strong>
   <SayIt phrase={{...phrase,en:''}} size={size}/>
   {phrase.note&&<small className="phrase-note">{phrase.note}</small>}
  </article>;
@@ -102,24 +104,97 @@ function OurPhrases({state,user,mutate,busy,request,notice,config,q}){
   </div>)}
  </section>;
 }
+// One phrase at a time, turned with a finger. The long list is still there and still the way
+// to look something up — this is the way to go through them, which is a different job, and on
+// a phone in a queue it is the better one.
+function PhraseDeck({phrases,onList,young=false}){
+ const [index,setIndex]=useState(0);
+ const touch=useRef(null);
+ const at=Math.min(index,Math.max(0,phrases.length-1));
+ const phrase=phrases[at];
+ // A new search is a new deck, so it starts at the top rather than somewhere in the middle
+ // of results that no longer exist.
+ useEffect(()=>{setIndex(0);},[phrases.length,phrases[0]?.id]);
+ const move=delta=>setIndex(i=>stepIndex(Math.min(i,phrases.length-1),delta,phrases.length));
+ useEffect(()=>{
+  const onKey=e=>{
+   if(typesText(e.target))return;
+   if(e.key==='ArrowLeft')move(-1);else if(e.key==='ArrowRight')move(1);
+  };
+  window.addEventListener('keydown',onKey);
+  return()=>window.removeEventListener('keydown',onKey);
+ },[phrases.length]);
+ if(!phrase)return null;
+ return <section className="phrase-deck"
+  onTouchStart={e=>{touch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
+  onTouchEnd={e=>{
+   const start=touch.current;touch.current=null;
+   if(!start||isControl(e.target?.tagName))return;
+   const delta=swipeDelta(start,{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY});
+   if(delta)move(delta);
+  }}>
+  {young
+   ?<div className="phrase-card young" key={phrase.id}>
+     <p className="eyebrow">{at+1} of {phrases.length}</p>
+     <span className="phrase-picture" role="img" aria-label={phrase.en}>{phrase.icon||'💬'}</span>
+     <strong className="phrase-en">{phrase.en}</strong>
+     <p className="japanese" lang="ja">{phrase.ja}</p>
+     <SoundOut phrase={phrase}/>
+    </div>
+   :<div className="phrase-card" key={phrase.id}>
+     <p className="eyebrow">{phrase.icon?`${phrase.icon} `:''}{phrase.section||'Phrase'} · {at+1} of {phrases.length}</p>
+     <strong className="phrase-en">{phrase.en}</strong>
+     <SayIt phrase={{...phrase,en:''}}/>
+     {phrase.note&&<p className="callout">{phrase.note}</p>}
+    </div>}
+  <div className="swipe-controls">
+   <button type="button" disabled={at<=0} onClick={()=>move(-1)}><ArrowLeft size={16}/> Back</button>
+   <span>Swipe the card</span>
+   <button type="button" disabled={at>=phrases.length-1} onClick={()=>move(1)}>Next <ArrowRight size={16}/></button>
+  </div>
+  {!young&&<button type="button" className="phrase-mode" onClick={onList}><List size={15}/> See them all as a list</button>}
+ </section>;
+}
 export default function Phrasebook({state,user,day,mutate,busy,request,notice,config}){
  const [query,setQuery]=useState(''),[section,setSection]=useState('');
+ // Which way you like to go through them is a preference, so the phone remembers it. The
+ // list stays the default: it is what search and the section filter are for.
+ // Nate starts on his own, because a list of fifty-three written phrases is no use to
+ // somebody who cannot read one. Anybody can change it, and the phone remembers.
+ const suits=user?.name==='Nate'?'nate':'list';
+ const [mode,setMode]=useState(()=>{try{return localStorage.getItem('japan.phrasemode')||suits;}catch{return suits;}});
+ const choose=next=>{setMode(next);try{localStorage.setItem('japan.phrasemode',next);}catch{}};
  const q=searchText(query);
  const matches=p=>!q||searchText([p.en,p.ja,p.romaji,p.say,p.note].join(' ')).includes(q);
  const sections=PHRASEBOOK.filter(s=>!section||s.id===section)
   .map(s=>({...s,phrases:s.phrases.filter(matches)})).filter(s=>s.phrases.length);
  // The menu words are their own section, so a section filter puts them away too.
  const words=section?[]:MENU_WORDS.filter(w=>!q||searchText([w.en,w.ja,w.romaji,w.say].join(' ')).includes(q));
+ // The same phrases the list is showing, flattened into one deck and carrying the section
+ // they came from, so swiping and reading show exactly the same set.
+ const deck=[
+  ...sections.flatMap(s=>s.phrases.map(p=>({...p,section:s.title}))),
+  ...(section?[]:ourPhrases(state||{}).filter(p=>!q||searchText([p.en,p.ja,p.romaji,p.say,p.note].join(' ')).includes(q))
+   .map(p=>({...p,section:'Ours'})))
+ ];
  return <>
   <p>{SAY_TIP} Tap <strong>Hear it</strong> where your phone has a Japanese voice, <strong>Slowly</strong> to take it a chunk at a time, or hold the screen up and let someone read the Japanese. {SILENT_HINT}</p>
   <SoundCheck/>
   {state&&user&&<MyPhrases state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   {state&&user&&<OurPhrases state={state} user={user} mutate={mutate} busy={busy} request={request} notice={notice} config={config} q={q}/>}
+  <div className="segmented game-picker phrase-modes">
+   <button className={mode==='list'?'selected':''} onClick={()=>choose('list')}><List size={15}/> As a list</button>
+   <button className={mode==='swipe'?'selected':''} onClick={()=>choose('swipe')}><Layers size={15}/> One at a time</button>
+   <button className={mode==='nate'?'selected':''} onClick={()=>choose('nate')}><Baby size={15}/> For Nate</button>
+  </div>
+  {mode==='nate'&&<><p>Pictures rather than words. Tap a mouth to hear that piece on its own, then the big button for the whole thing. Nothing on this card has to be read.</p><MouthKey/></>}
   <div className="document-filters">
    <label>Search<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="English, Japanese or how it sounds"/></label>
    <label>Section<select value={section} onChange={e=>setSection(e.target.value)}><option value="">Everything</option>{PHRASEBOOK.map(s=><option key={s.id} value={s.id}>{s.title}</option>)}</select></label>
   </div>
-  {sections.map(s=><section className="phrase-section" key={s.id}>
+  {mode==='swipe'||mode==='nate'
+   ?<PhraseDeck phrases={deck} young={mode==='nate'} onList={()=>choose('list')}/>
+   :sections.map(s=><section className="phrase-section" key={s.id}>
    <h2>{s.title}</h2>{s.note&&<p>{s.note}</p>}
    {s.phrases.map(p=><PhraseRow key={p.id} phrase={p}/>)}
   </section>)}
@@ -129,6 +204,7 @@ export default function Phrasebook({state,user,day,mutate,busy,request,notice,co
    <p>Not phrases — just the words that tell you what something is.</p>
    <div className="menu-words">{words.map(w=><div className="menu-word" key={w.id}>
     <span className="japanese" lang="ja">{w.ja}</span><strong>{w.en}</strong><small>{w.say}</small>
+    {w.note&&<small className="menu-word-note">{w.note}</small>}
    </div>)}</div>
   </section>}
   <p><small>{ALL_PHRASES().length} phrases. Written the way they are usually said to a stranger — polite, and safe to use with anyone.</small></p>
@@ -154,6 +230,7 @@ export function PhraseOfDay({queue,day,dateLabel,busy,dismiss}){
    touch.current=null;
   }}>
   <p className="eyebrow"><MessageSquare size={14}/> {index?`ONE MORE · ${index+1} OF ${queue.length}`:`TODAY’S PHRASE · ${dateLabel}`}</p>
+  {phrase.icon&&<span className="phrase-picture small" role="img" aria-label={phrase.en}>{phrase.icon}</span>}
   <strong className="phrase-en">{phrase.en}</strong>
   <SayIt phrase={{...phrase,en:''}}/>
   {phrase.note&&<p className="callout">{phrase.note}</p>}

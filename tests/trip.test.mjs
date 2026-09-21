@@ -5,8 +5,9 @@ import {createServer} from 'node:http';
 import {applyOperation,AppError} from '../server/model.mjs';
 import {activeSteps,scheduleProposal,japanClock,japanDate} from '../src/timing.js';
 import handler from '../server/handler.mjs';
+import {htmlToText,parseInbound,addToInbox,MAX_INBOX} from '../server/email.mjs';
 const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url)));
-const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'};
+const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'},child_=child;
 
 test('every day, activity and alternative is linked to a real guide page',()=>{
  assert.equal(seed.days.length,16);assert.equal(seed.steps.length,237);assert.equal(new Set(seed.steps.map(s=>s.id)).size,237);
@@ -313,6 +314,32 @@ test('the full-screen ticket viewer groups a ticket with its attached files, ski
  assert.deepEqual(attachmentGroup(docs,other).map(d=>d.id),['elsewhere']);
  assert.deepEqual(attachmentGroup(docs,{id:'gone',pathname:'z'}).map(d=>d.id),['gone']);
  assert.deepEqual(attachmentGroup(docs,null),[]);
+});
+
+test('the viewer reads the whole Tickets page as one strip, ticket after ticket',async()=>{
+ const {attachmentReel}=await import('../src/trip-features.js');
+ const flight={id:'flight',title:'Flights',pathname:'a',type:'application/pdf'};
+ const boarding={id:'boarding',parentDocumentId:'flight',pathname:'b',type:'image/png'};
+ const dinner={id:'dinner',title:'Dinner',type:'note'};
+ const dinnerShot={id:'dinner-shot',parentDocumentId:'dinner',pathname:'c',type:'image/jpeg'};
+ const bagTag={id:'bag',title:'Blue bag',type:'link',url:'https://example.com'};
+ const park={id:'park',title:'Disney',pathname:'d',type:'image/png'};
+ const loose={id:'loose',title:'Somewhere else',pathname:'e',type:'image/png'};
+ const docs=[flight,boarding,dinner,dinnerShot,bagTag,park,loose];
+ const listed=[flight,dinner,bagTag,park];
+ // Each ticket's own file first, then its attachments, then straight on into the next ticket,
+ // in the order the page is listing them. A link holds no file, so it is not a page in between.
+ const reel=attachmentReel(docs,listed,flight);
+ assert.deepEqual(reel.map(e=>e.file.id),['flight','boarding','dinner-shot','park']);
+ assert.deepEqual(reel.map(e=>e.ticket.id),['flight','flight','dinner','park']);
+ // Opening an attachment reads the same strip, so Previous still reaches the ticket before it.
+ assert.deepEqual(attachmentReel(docs,listed,dinnerShot).map(e=>e.file.id),['flight','boarding','dinner-shot','park']);
+ // A file whose ticket is not on the page - it was filtered away underneath the viewer - keeps
+ // its own ticket's set rather than emptying out.
+ assert.deepEqual(attachmentReel(docs,listed,loose).map(e=>e.file.id),['loose']);
+ assert.deepEqual(attachmentReel(docs,[],flight).map(e=>e.file.id),['flight','boarding']);
+ // Nothing listed and nothing open is an empty strip, not a crash.
+ assert.deepEqual(attachmentReel(docs,[],null),[]);
 });
 
 test('read receipts report whether Lauren opened each note, and when she opened it late',async()=>{
@@ -685,8 +712,9 @@ test('the menu reader sends a well-formed vision request and reads the answer ba
    res.end(JSON.stringify({id:'msg_1',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'end_turn',
     usage:{input_tokens:1500,output_tokens:400},
     content:[{type:'text',text:JSON.stringify({readable:true,place:'Maisen',note:'Order the rice separately for Nate.',
-     suggestions:[{ja:'ロースかつ膳',en:'Pork loin katsu set',why:'The dish this place is known for.',forWhom:['Damien','Lauren','Boston'],matchesOurList:'tonkatsu',spicy:false,price:'¥2,100'},
-                  {ja:'白ごはん',en:'Plain rice',why:'Nate will always eat this.',forWhom:['Nate'],matchesOurList:'gohan',spicy:false,price:''}],
+     suggestions:[{ja:'ロースかつ膳',en:'Pork loin katsu set',why:'The dish this place is known for.',forWhom:['Damien','Lauren','Boston'],matchesOurList:'tonkatsu',ingredients:['Pork loin','Wheat flour','Egg','Panko'],spicy:false,heat:'none',spiceNote:'',price:'¥2,100'},
+                  {ja:'白ごはん',en:'Plain rice',why:'Nate will always eat this.',forWhom:['Nate'],matchesOurList:'gohan',ingredients:['Short-grain rice'],spicy:false,heat:'none',spiceNote:'',price:''},
+                  {ja:'辛味噌ラーメン',en:'Spicy miso ramen',why:'The one the parents will want.',forWhom:['Damien','Lauren'],matchesOurList:'',ingredients:['Wheat noodles','Miso','Chilli oil','Pork'],spicy:true,heat:'hot',spiceNote:'Dressed in chilli oil before it leaves the kitchen.',price:'¥1,150'}],
      avoid:[{en:'Karashi mustard',why:'Very sharp for a child.'}]})}]}));
   });
  });
@@ -723,7 +751,12 @@ test('the menu reader sends a well-formed vision request and reads the answer ba
   // And the answer comes back in the shape the screen expects.
   assert.equal(answer.readable,true);
   assert.equal(answer.place,'Maisen');
-  assert.equal(answer.suggestions.length,2);
+  assert.equal(answer.suggestions.length,3);
+  // What is usually in the dish, and how hot it usually is, both come back per dish.
+  assert.deepEqual(answer.suggestions[0].ingredients,['Pork loin','Wheat flour','Egg','Panko']);
+  assert.equal(answer.suggestions[2].heat,'hot');
+  assert.match(answer.suggestions[2].spiceNote,/chilli oil/);
+  assert.deepEqual(answer.suggestions.filter(s=>s.spicy).map(s=>s.en),['Spicy miso ramen']);
   assert.equal(answer.suggestions[0].matchesOurList,'tonkatsu');
   assert.equal(answer.suggestions[1].forWhom[0],'Nate');
   assert.deepEqual(answer.usage,{input:1500,output:400});
@@ -816,7 +849,7 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   const bar=primaryNav(user),more=moreIds(user),all=[...bar,...more];
   // Nothing appears twice, and nothing is stranded.
   assert.equal(new Set(all).size,all.length,`${user.name} lists a page twice`);
-  const expected=Object.keys(PAGES).filter(id=>id!=='thanks'||user.name==='Damien');
+  const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(id!=='inbox'||user.role==='parent'));
   assert.deepEqual([...all].sort(),[...expected].sort(),`${user.name} cannot reach every page`);
   // The bar holds five, plus More, which is what the layout has room for.
   assert.equal(bar.length,5,user.name);
@@ -827,6 +860,10 @@ test('every screen is reachable exactly once, from the bar or from More',async()
  // Lauren's private notes belong to Damien's phone alone.
  assert.ok(moreIds(damien).includes('thanks'));
  for(const user of [lauren,nate])assert.ok(!moreIds(user).includes('thanks'),user.name);
+ // Forwarded email carries bookings and whatever else an email brought with it, so it is a
+ // parents' screen and the boys are never sent to it.
+ assert.ok(moreIds(lauren).includes('inbox'));
+ assert.ok(!moreIds(nate).includes('inbox'));
  // Parents reach for tickets and prices; the boys reach for their missions.
  assert.deepEqual(PRIMARY.parent,['today','days','tickets','food','money']);
  assert.deepEqual(PRIMARY.child,['today','days','challenges','food','diary']);
@@ -2261,31 +2298,20 @@ test('the stable promotes on a match, and a bout can be lost by anyone',async()=
   }
 });
 
-test('the silent nudge fires once, inside a tap, and never claims more than it did',async()=>{
- const {nudgeOffAmbient,resetNudge}=await import('../src/speech.js');
- resetNudge();
- const played=[];
- const make=()=>{const el={volume:1,play(){played.push(this.volume);return Promise.resolve();}};return el;};
- assert.equal(nudgeOffAmbient(make),true);
- assert.equal(played.length,1,'a moment of silence, once');
- assert.ok(played[0]<=0.01,'and inaudible');
- assert.equal(nudgeOffAmbient(make),false,'never again in this session');
- assert.equal(played.length,1);
- // A phone with no Audio at all, and one that refuses to play, are both survivable.
- resetNudge();assert.equal(nudgeOffAmbient(null),false);
- resetNudge();assert.equal(nudgeOffAmbient(()=>{throw new Error('blocked');}),false);
- resetNudge();
- assert.equal(nudgeOffAmbient(()=>({volume:1,play(){return Promise.reject(new Error('gesture required'));}})),true,
-  'a rejected play is handled rather than thrown');
-});
-
-test('the session is claimed at the start, not before every phrase',async()=>{
+test('the session is claimed on the first touch, and never flipped after that',async()=>{
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const speech=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
- // Set once, early. Flipping the type part-way through is what makes iOS play nothing.
- assert.match(main,/useEffect\(\(\)=>\{claimPlayback\(\);\},\[\]\)/,'claimed once when the app starts');
- assert.doesNotMatch(speech,/claimPlayback\(\)/,'and never again from inside the speaking path');
- assert.match(speech,/nudgeOffAmbient\(\)/,'the older-iPhone nudge still runs inside the tap');
+ // iOS ignores a session claimed before anybody has touched the page, so the claim is armed
+ // at startup and spent on the first gesture rather than at load.
+ assert.match(main,/useEffect\(\(\)=>\{armPlayback\(\);\},\[\]\)/,'armed once when the app starts');
+ assert.doesNotMatch(main,/claimPlayback\(\)/,'main does not claim it directly any more');
+ // The invariant that has not changed: the type is never set from inside the speaking path.
+ // Flipping it part-way through is what makes iOS play nothing at all.
+ assert.doesNotMatch(speech,/claimPlayback\(/,'never claimed from inside the speaking path');
+ // What runs inside the tap now is the hold, and every hold is matched by a release.
+ assert.match(speech,/holdPlayback\(\)/,'the session is held while the phone is talking');
+ assert.match(speech,/releasePlayback\(\)/,'and let go afterwards');
+ assert.doesNotMatch(speech,/nudgeOffAmbient/,'the one-shot nudge held nothing and is gone');
 });
 
 test('the advice matches what the phone actually did, not what we assume',async()=>{
@@ -2296,6 +2322,13 @@ test('the advice matches what the phone actually did, not what we assume',async(
  // Nothing started, in the browser: the synthesiser is wedged from being in the background.
  assert.equal(silenceAdvice({started:false,standalone:false}),'never-started');
  assert.match(SILENCE_HELP['never-started'],/background/);
+ // The answer only this test can give: it plays a recording and will not speak for itself.
+ assert.equal(silenceAdvice({started:false,standalone:true,tone:'played'}),'record-instead');
+ assert.equal(silenceAdvice({started:false,standalone:false,tone:'played'}),'record-instead');
+ assert.match(SILENCE_HELP['record-instead'],/iPad/,'and names the device that will do it');
+ assert.match(SILENCE_HELP['record-instead'],/no setting on it will change that/,'without blaming the switch again');
+ // A recording that would not play says nothing new, so the older advice still stands.
+ assert.equal(silenceAdvice({started:false,standalone:true,tone:'the phone would not allow it'}),'standalone');
  // It did start, so the sound is being blocked on its way out.
  assert.equal(silenceAdvice({started:true,standalone:true}),'muted');
  assert.equal(silenceAdvice({started:true,standalone:false}),'muted');
@@ -2336,7 +2369,7 @@ test('the guide turns like a book, and stops at both covers',async()=>{
  assert.doesNotMatch(source,/setGuidePage\(guidePage[-+]1\)/,'nothing sets the page behind its back');
  // A swipe is a sideways movement, not a scroll, and typing in the page box is not a turn.
  assert.match(source,/Math\.abs\(dx\)>55&&Math\.abs\(dy\)<45/);
- assert.match(source,/\['INPUT','SELECT','TEXTAREA'\]\.includes\(e\.target\.tagName\)\)return/);
+ assert.match(source,/if\(typesText\(e\.target\)\)return/);
  // The keys are only listened for while the guide is open, and let go of afterwards.
  assert.match(source,/if\(tab!=='guide'\)return;/);
  assert.match(source,/removeEventListener\('keydown',onKey\)/);
@@ -2485,7 +2518,7 @@ test('the sumo lead-up is a game of its own, and pays into the bout rather than 
  // Three rituals, each with the Japanese for it, because the point is knowing what you are
  // looking at when the real one does it in Ryogoku.
  assert.deepEqual(SUMO_RITUALS.map(r=>r.id),['shiko','shio','tachiai']);
- for(const r of SUMO_RITUALS)for(const k of ['en','ja','romaji','how','buys'])assert.ok(r[k],`${r.id} has no ${k}`);
+ for(const r of SUMO_RITUALS)for(const k of ['icon','en','ja','romaji','how','buys'])assert.ok(r[k],`${r.id} has no ${k}`);
  // Stamps are scored out of four however few you hit, so a beat nobody stamped is not free.
  assert.equal(stompScore([0,0,0,0]),1);
  assert.equal(stompScore([0,0]),0.5,'two beats out of four is half a stance');
@@ -2723,4 +2756,1240 @@ test('the photo coach talks to the child, and never about who is in the picture'
   if(url===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=url;
   await new Promise(r=>upstream.close(r));
  }
+});
+
+test('the sumo card is read from the official schedule and kept for a basement with no signal',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures,sumo,sumoCard,currentBout,boutResult,SUMO_DAY}=await import('../src/trip-features.js');
+ assert.ok(seed.steps.some(s=>s.day===SUMO_DAY&&/sumo/i.test(s.title)),'the sumo day is a real day on this trip');
+ let seen=null;
+ const card={found:true,basho:'Aki Basho 2026 (September, Tokyo)',dayNumber:11,venue:'Ryogoku Kokugikan',
+  date:SUMO_DAY,doorsOpen:'08:00',notes:'The top division starts about 16:00, after the ring-entering ceremonies.',
+  bouts:[
+   {division:'makuuchi',order:40,time:'17:55',east:{name:'Hoshoryu',rank:'Ozeki',stable:'Tatsunami'},west:{name:'Kirishima',rank:'Sekiwake',stable:'Michinoku'}},
+   {division:'juryo',order:20,time:'15:10',east:{name:'Tomokaze',rank:'Juryo 3',stable:'Oguruma'},west:{name:'Chiyoshoma',rank:'Juryo 5',stable:'Kokonoe'}},
+   {division:'makuuchi',order:38,time:'17:40',east:{name:'Wakatakakage',rank:'Maegashira 1',stable:'Arashio'},west:{name:'Abi',rank:'Maegashira 2',stable:'Shikoroyama'}},
+   // Junk, to prove the same gate runs here as everywhere else.
+   {division:'teleport',order:0,time:'99:99',east:{name:''},west:{name:'Nobody'}}],
+  sources:[{title:'Japan Sumo Association — torikumi',url:'https://www.sumo.or.jp/EnHonbashoMain/torikumi/'},{title:'A blog',url:'http://insecure.example.com'}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{seen=JSON.parse(body);
+   const wants=(seen.tools||[]).some(t=>t.name==='record_wrestler');
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:9000,output_tokens:900,server_tool_use:{web_search_requests:4}},
+    content:[{type:'tool_use',id:'c1',name:wants?'record_wrestler':'record_sumo_day',
+     input:wants?{found:true,name:'Hoshoryu',japanese:'豊昇龍',rank:'Ozeki',stable:'Tatsunami',hometown:'Ulaanbaatar, Mongolia',
+      heightCm:187,weightKg:145,record:'8-3 after day 11',about:'Nephew of a great yokozuna. Throws rather than pushes.',
+      sources:[{title:'JSA profile',url:'https://www.sumo.or.jp/EnSumoDataRikishi/profile/'}]}:card}]}));});
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {fetchSumoDay,fetchWrestler,sumoReady}=await import('../server/sumo.mjs');
+  assert.equal(sumoReady(),true);
+  let state=ensureFeatures(structuredClone(seed));
+  const fetched=await fetchSumoDay({date:SUMO_DAY},state);
+
+  assert.equal(seen.model,'claude-opus-5');
+  assert.equal(seen.tools.find(t=>t.name==='web_search').type,'web_search_20260209');
+  assert.equal(seen.tools.find(t=>t.name==='record_sumo_day').strict,true);
+  assert.match(seen.system,/sumo\.or\.jp/,'the official site is the source that matters');
+  assert.match(seen.system,/published the afternoon before/);
+  assert.match(seen.messages[0].content,new RegExp(SUMO_DAY));
+
+  // The bout with nobody on one side of it is not a bout; the rest come back in running order.
+  assert.deepEqual(fetched.bouts.map(b=>b.id),['juryo-20','makuuchi-38','makuuchi-40']);
+  assert.equal(fetched.bouts[0].time,'15:10');
+  assert.equal(fetched.dayNumber,11);assert.equal(fetched.doorsOpen,'08:00');
+  assert.deepEqual(fetched.sources.map(s=>s.url),['https://www.sumo.or.jp/EnHonbashoMain/torikumi/'],'a plain http source is dropped');
+
+  // Saved into the trip, which is what makes it work in a basement with no signal.
+  state=applyOperation(state,{type:'sumoUpdate',...fetched},parent);
+  assert.equal(sumo(state).bouts.length,3);assert.equal(sumo(state).by,'Damien');
+  // Grouped the way the afternoon runs: the top division last.
+  assert.deepEqual(sumoCard(state).map(g=>g.id),['juryo','makuuchi']);
+  // Which bout is on, so the screen says "this one" rather than leaving you counting rows.
+  assert.equal(currentBout(state,'17:45')?.id,'makuuchi-38');
+  assert.equal(currentBout(state,'09:00'),null,'nothing has started yet');
+  assert.equal(currentBout(state,'23:00')?.id,'makuuchi-40','the last one that started');
+
+  // Anyone marks who won as they watch, and it survives the card being fetched again.
+  state=applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:'Hoshoryu'},child);
+  assert.equal(boutResult(state,'makuuchi-40').winner,'Hoshoryu');
+  assert.equal(boutResult(state,'makuuchi-40').by,'Nate');
+  assert.equal(boutResult(applyOperation(state,{type:'sumoUpdate',...fetched},parent),'makuuchi-40').winner,'Hoshoryu');
+  assert.equal(boutResult(applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:null},parent),'makuuchi-40'),null);
+  assert.throws(()=>applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:'Somebody else'},parent),/One of the two/);
+  assert.throws(()=>applyOperation(state,{type:'sumoResult',id:'nope',winner:'Hoshoryu'},parent),e=>e.status===404);
+  // Fetching the card and looking a man up cost money, so they are a parent's.
+  for(const op of [{type:'sumoUpdate',...fetched},{type:'sumoWrestler',profile:{name:'Hoshoryu'}}])
+   assert.throws(()=>applyOperation(state,op,child),e=>e.status===403);
+
+  // And the man whose name is on the card.
+  const man=await fetchWrestler({name:'Hoshoryu'});
+  assert.equal(man.heightCm,187);assert.equal(man.weightKg,145);
+  assert.match(man.about,/Throws rather than pushes/);
+  assert.match(seen.system,/Boston is eight/);
+  const withMan=applyOperation(state,{type:'sumoWrestler',profile:man},parent);
+  const {wrestlerProfile}=await import('../src/trip-features.js');
+  assert.equal(wrestlerProfile(withMan,'hoshoryu').japanese,'豊昇龍','looked up once, then on everyone’s phone');
+  assert.equal(wrestlerProfile(withMan,'HOSHORYU').rank,'Ozeki','the name is matched however it is typed');
+  // Nothing believable is invented: a nonsense size is dropped rather than shown.
+  assert.throws(()=>applyOperation(state,{type:'sumoWrestler',profile:{name:'X',heightCm:4}},parent),/believable size/);
+  await assert.rejects(()=>fetchSumoDay({date:'2099-01-01'},state),/Choose a trip day/);
+  await assert.rejects(()=>fetchWrestler({name:'   '}),/Choose a wrestler/);
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ // Marking who won is a record of what happened, so it keeps on a dead phone.
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ assert.ok(list.includes('sumoResult'));
+ assert.ok(!list.includes('sumoUpdate'),'fetching a card needs the latest revision');
+});
+
+test('we rate an activity and say what we thought, each of us for ourselves',async()=>{
+ const {ensureFeatures,stepAverage,stepRatings,stepThoughts,ratedSteps,dayRating,diaryDays,pendingProgress}=await import('../src/trip-features.js');
+ const step=seed.steps.find(s=>s.day==='2026-09-23'),other=seed.steps.find(s=>s.day==='2026-09-23'&&s.id!==step.id);
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'stepRating',id:step.id,person:'Nate',rating:5},child);
+ state=applyOperation(state,{type:'stepRating',id:step.id,person:'Lauren',rating:2},parent);
+ state=applyOperation(state,{type:'stepThought',id:step.id,person:'Nate',thought:'The deer bowed back.'},child);
+ assert.equal(stepAverage(state,step.id),3.5);
+ assert.deepEqual(stepRatings(state,step.id),{Nate:5,Lauren:2});
+ assert.equal(stepThoughts(state,step.id).Nate.text,'The deer bowed back.');
+ assert.ok(stepThoughts(state,step.id).Nate.at,'and when he said it');
+ // Nobody's stars average away anybody else's — the two numbers are the interesting bit.
+ assert.equal(stepAverage(applyOperation(state,{type:'stepRating',id:step.id,person:'Lauren',rating:4},parent),step.id),4.5);
+ // Changing your mind replaces your stars; zero takes them back.
+ const cleared=applyOperation(state,{type:'stepRating',id:step.id,person:'Nate',rating:0},child);
+ assert.deepEqual(stepRatings(cleared,step.id),{Lauren:2});
+ assert.equal(stepThoughts(cleared,step.id).Nate.text,'The deer bowed back.','clearing stars is not deleting what he said');
+ assert.deepEqual(stepThoughts(applyOperation(state,{type:'stepThought',id:step.id,person:'Nate',thought:'  '},child),step.id),{});
+ // It is our own opinion, not each other's — and only for real activities.
+ assert.throws(()=>applyOperation(state,{type:'stepRating',id:step.id,person:'Boston',rating:5},child),e=>e.status===403);
+ for(const bad of [{type:'stepRating',id:step.id,person:'Nate',rating:6},{type:'stepRating',id:step.id,person:'Nate',rating:2.5},
+  {type:'stepRating',id:'nope',person:'Nate',rating:3},{type:'stepRating',id:step.id,person:'Grandma',rating:3},
+  {type:'stepThought',id:step.id,person:'Nate',thought:'x'.repeat(2001)}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,46)} should be refused`);
+ // These are opinions about a day that happened, not the plan — the step's own notes are untouched.
+ assert.equal(state.steps.find(s=>s.id===step.id).notes,step.notes);
+ assert.ok(!state.alerts.some(a=>/deer bowed/.test(a.summary||'')));
+ // The days we would do again, best first, and what the day came to overall.
+ state=applyOperation(state,{type:'stepRating',id:other.id,person:'Damien',rating:5},parent);
+ assert.deepEqual(ratedSteps(state).map(r=>r.step.id),[other.id,step.id]);
+ assert.equal(dayRating(state,'2026-09-23'),4.3,'a day is the average of its rated activities, to one place');
+ assert.equal(dayRating(state,'2026-09-21'),null,'a day nobody rated has no score, rather than a zero');
+ assert.deepEqual(ratedSteps(state,{min:4}).map(r=>r.step.id),[other.id]);
+ // The diary is where it pays off.
+ const diary=diaryDays(state,'2026-09-23')[0];
+ assert.equal(diary.rating,4.3);assert.equal(diary.reviews.length,2);
+ // Stars given on a mountain with no signal wait on the phone and show straight away.
+ const queue=[{operation:{type:'stepRating',operationId:'q1',id:step.id,person:'Boston',rating:4}},
+              {operation:{type:'stepThought',operationId:'q2',id:step.id,person:'Boston',thought:'Better than the temple.',at:'2026-09-19T02:00:00.000Z'}}];
+ const preview=pendingProgress(state,queue);
+ assert.equal(stepRatings(preview,step.id).Boston,4);
+ assert.equal(stepThoughts(preview,step.id).Boston.text,'Better than the temple.');
+ assert.equal(stepRatings(state,step.id).Boston,undefined,'the shared trip is untouched until it syncs');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ for(const op of ['stepRating','stepThought'])assert.ok(list.includes(op),`${op} should survive with no signal`);
+ assert.match(source,/<StepReview state=\{visibleState\} user=\{user\} step=\{current\}/,'and it is on the activity card');
+ // Finishing something used to move the card on, which is the one moment anybody has an
+ // opinion about it. It now stays put, as the message has always promised it would.
+ assert.match(source,/setSelected\(done\);updateUrl\(day,done\)/);
+});
+
+test('the forecast comes back by the hour, and the graph is drawn from checked numbers',async()=>{
+ const {forecastUrl,parseHourly,parseForecast,daySummary,hoursFor,hoursAhead,hourLabel,pointFor}=await import('../src/weather-data.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const day=seed.days[3].date;
+ // One request carries both the daily numbers and the hourly ones — the trip moves cities, so
+ // asking twice per place would double a lookup that is already once per city.
+ const url=forecastUrl(pointFor('Kyoto'),day,day);
+ assert.match(url,/hourly=temperature_2m%2Capparent_temperature%2Cprecipitation_probability%2Cweather_code/);
+ assert.match(url,/daily=weather_code/);
+ assert.match(url,/timezone=Asia%2FTokyo/);
+ const hourly={time:[],temperature_2m:[],apparent_temperature:[],precipitation_probability:[],weather_code:[]};
+ for(let h=0;h<24;h++){hourly.time.push(`${day}T${String(h).padStart(2,'0')}:00`);
+  hourly.temperature_2m.push(h===14?24.4:12+h*0.4);hourly.apparent_temperature.push(11+h*0.4);
+  hourly.precipitation_probability.push(h>=16&&h<=18?70:5);hourly.weather_code.push(h>=16?61:1);}
+ // Readings that cannot be true are dropped rather than drawn.
+ hourly.time.push(`${day}T24:00`,'rubbish',`${seed.days[4].date}T09:00`);
+ hourly.temperature_2m.push(999,10,18);hourly.apparent_temperature.push(0,0,17);
+ hourly.precipitation_probability.push(0,0,500);hourly.weather_code.push(0,0,2);
+ const hours=parseHourly({hourly});
+ assert.equal(hours[day].length,24,'one entry per hour, and nothing that is not an hour');
+ assert.equal(hours[day][0].h,0);assert.equal(hours[day][14].temp,24);
+ assert.equal(hours[day][16].rain,70);
+ assert.equal(hours[seed.days[4].date][0].rain,null,'a percentage over a hundred is not a percentage');
+ assert.deepEqual(parseHourly({}),{});
+ // The shape of the day in a line, which is what the unopened card shows.
+ const shape=daySummary(hours[day]);
+ assert.equal(shape.warmest,14);assert.equal(shape.coldest,0);
+ assert.equal(shape.peakRain,70);assert.equal(shape.wettestHour,16);
+ assert.equal(daySummary([]),null);
+ assert.equal(hourLabel(7),'07:00');
+ // Kept in the trip beside the daily numbers, checked again on the way in.
+ let state=ensureFeatures(structuredClone(seed));
+ state=applyOperation(state,{type:'weatherUpdate',days:parseForecast({daily:{time:[day],weather_code:[61],
+  temperature_2m_max:[24],temperature_2m_min:[12],precipitation_probability_max:[70]}},'Kyoto'),hours},parent);
+ assert.equal(hoursFor(state,day).length,24);
+ assert.equal(hoursFor(state,seed.days[0].date),null,'a day nobody asked about stays empty');
+ assert.equal(hoursAhead(state,day,15).length,9,'from this hour to the end of the day');
+ assert.equal(hoursAhead(state,seed.days[0].date,0),null);
+ // A graph drawn from nonsense is a more convincing kind of wrong, so the hours are gated too.
+ for(const bad of [{[day]:[{h:24,temp:20}]},{[day]:[{h:1,temp:900}]},{[day]:[{h:1,temp:20,rain:200}]},
+  {[day]:[]},{[day]:'nope'},{[day]:Array.from({length:25},(_,h)=>({h:h%24,temp:20}))}])
+  assert.throws(()=>applyOperation(state,{type:'weatherUpdate',days:{},hours:bad},parent),/forecast/i,JSON.stringify(bad).slice(0,44));
+ // Checking the forecast has always been anybody's job, and still is.
+ assert.ok(applyOperation(state,{type:'weatherUpdate',days:{},hours:{[day]:hours[day]}},child));
+ // Two measures on one pair of axes would be a lie, so the chart is two charts over one x-axis.
+ const chart=await readFile(new URL('../src/WeatherCharts.jsx',import.meta.url),'utf8');
+ assert.match(chart,/Deliberately not one chart with\n\/\/ two scales/);
+ assert.equal((chart.match(/className="chart-line"/g)||[]).length,1,'one temperature series, so no legend box to disambiguate');
+ assert.ok(!/<legend|className="legend"/.test(chart));
+ assert.match(chart,/HourlyTable/,'and everything drawn is available as a table');
+ const nav=await import('../src/nav-data.js');
+ assert.ok(nav.PAGES.weather?.label&&nav.PAGES.weather?.note,'weather has its own screen');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(source,/tab==='weather'/);
+});
+
+// Spot the difference, built out of the boys' own photographs. The puzzle is made on the
+// phone, so all of this runs without a canvas, a network or an API key.
+const spotImage=(width,height,fill)=>{
+ const data=new Uint8ClampedArray(width*height*4);
+ for(let i=0;i<width*height;i++){
+  const [r,g,b]=fill(i%width,Math.floor(i/width));
+  data[i*4]=r;data[i*4+1]=g;data[i*4+2]=b;data[i*4+3]=255;
+ }
+ return {data,width,height};
+};
+// Something going on in every part of it, and something plain enough that no honest puzzle
+// can be made from it at all.
+const busyPhoto=spotImage(320,240,(x,y)=>{const n=(x*7919+y*104729)%256;return [n,(n*3)%256,(n*7)%256];});
+const plainPhoto=spotImage(320,240,()=>[128,128,128]);
+
+test('the same photo makes the same puzzle on every phone, and a different one for each level',async()=>{
+ const {planRound,levelFor,hashSeed}=await import('../src/spot-data.js');
+ const id='7c62d139-abcd-4000-9000-000000000000';
+ const round=()=>planRound(busyPhoto,{level:levelFor('normal'),seed:hashSeed(`${id}:normal`),aspect:4/3});
+ assert.deepEqual(round().edits,round().edits,'two phones opening the same photo must get the same board');
+ assert.equal(round().edits.length,5);
+ const harder=planRound(busyPhoto,{level:levelFor('hard'),seed:hashSeed(`${id}:hard`),aspect:4/3});
+ assert.equal(harder.edits.length,7);
+ assert.notDeepEqual(harder.edits,round().edits);
+ // A different photo is a different puzzle, or the second one would already be solved.
+ const other=planRound(busyPhoto,{level:levelFor('normal'),seed:hashSeed('another-photo:normal'),aspect:4/3});
+ assert.notDeepEqual(other.edits.map(e=>`${e.x},${e.y}`),round().edits.map(e=>`${e.x},${e.y}`));
+});
+
+test('nothing is hidden where a child could not find it',async()=>{
+ const {planRound,levelFor,pickCells,detailMap,kindsFor,DETAIL_FLOOR,COLOUR_FLOOR}=await import('../src/spot-data.js');
+ // A flat photo is refused outright rather than being given changes nobody could see.
+ const plain=planRound(plainPhoto,{level:levelFor('normal'),seed:1,aspect:4/3});
+ assert.equal(plain.tooPlain,true);
+ assert.equal(plain.edits.length,0);
+ const busy=planRound(busyPhoto,{level:levelFor('normal'),seed:1,aspect:4/3});
+ assert.equal(busy.tooPlain,false);
+ // Every change lands somewhere with enough going on, and inside the picture.
+ const cells=detailMap(busyPhoto,6,5);
+ for(const cell of cells)assert.ok(cell.detail>=DETAIL_FLOOR);
+ for(const cell of detailMap(plainPhoto,6,5))assert.ok(cell.detail<DETAIL_FLOOR);
+ for(const e of busy.edits){
+  assert.ok(e.x>=0&&e.x+e.w<=1.0001,'a change cannot run off the side of the photo');
+  assert.ok(e.y>=0&&e.y+e.h<=1.0001);
+  if(e.from){assert.ok(e.from.x>=0&&e.from.x+e.w<=1.0001);assert.ok(e.from.y>=0&&e.from.y+e.h<=1.0001);}
+ }
+ // Recolouring something grey is not a difference, so it is not offered there.
+ assert.ok(!kindsFor({colour:COLOUR_FLOOR-1}).includes('recolour'));
+ assert.ok(kindsFor({colour:COLOUR_FLOOR+1}).includes('recolour'));
+ // Spread out: five differences in one corner is a worse game than five across the picture.
+ const chosen=pickCells(cells,{count:5,random:()=>0.5});
+ for(const a of chosen)for(const b of chosen)
+  if(a!==b)assert.ok(Math.abs(a.col-b.col)>=2||Math.abs(a.row-b.row)>=2,'two changes cannot sit on top of each other');
+});
+
+test('a finger is not a pixel, and being sure of an answer you already gave costs nothing',async()=>{
+ const {hitTest,hintFor}=await import('../src/spot-data.js');
+ const edits=[{id:'d1',x:0.1,y:0.1,w:0.2,h:0.2},{id:'d2',x:0.6,y:0.6,w:0.2,h:0.2}];
+ assert.equal(hitTest(edits,{x:0.2,y:0.2}).id,'d1','a tap in the middle of it counts');
+ assert.equal(hitTest(edits,{x:0.305,y:0.2}).id,'d1','and just outside it, because a finger is wide');
+ assert.equal(hitTest(edits,{x:0.45,y:0.2}),null,'but not halfway across the photo');
+ assert.equal(hitTest(edits,{x:0.7,y:0.7}).id,'d2');
+ // Tapping one already found is neither a hit nor a miss: it must not cost a five-year-old.
+ assert.deepEqual(hitTest(edits,{x:0.2,y:0.2},{found:['d1']}),{id:'d1',already:true});
+ assert.equal(hitTest(edits,{x:NaN,y:0.2}),null);
+ assert.equal(hitTest(edits,null),null);
+ // A hint is always one they have not got yet, and runs out rather than repeating itself.
+ assert.equal(hintFor(edits,[]).id,'d1');
+ assert.equal(hintFor(edits,['d1']).id,'d2');
+ assert.equal(hintFor(edits,['d1','d2']),null);
+});
+
+test('the two pictures go side by side or one above the other, whichever shows more of them',async()=>{
+ const {paneLayout,paneBox}=await import('../src/spot-data.js');
+ // A phone held upright, with an ordinary landscape photo: one above the other.
+ assert.equal(paneLayout({width:390,height:500,aspect:4/3}),'rows');
+ // The same phone turned sideways: side by side, without being asked.
+ assert.equal(paneLayout({width:844,height:320,aspect:4/3}),'columns');
+ // A tall photo on an upright phone is better off side by side, and says so.
+ assert.equal(paneLayout({width:390,height:500,aspect:0.5}),'columns');
+ assert.equal(paneLayout({width:0,height:0,aspect:0}),'rows','and nonsense falls back to stacked');
+ // The box a tap is measured against is exactly the shape of the photo in it.
+ const box=paneBox({width:390,height:500,aspect:4/3,mode:'rows'});
+ assert.ok(Math.abs(box.width/box.height-4/3)<0.02);
+ assert.ok(box.height<=250,'and both panes fit in the room they were given');
+ const side=paneBox({width:844,height:320,aspect:4/3,mode:'columns'});
+ assert.ok(side.width<=(844-12)/2&&side.height<=320);
+});
+
+test('looking is never punished into not looking, and a revealed round cannot be banked',async()=>{
+ const {spotScore,SPOT_SCORE}=await import('../src/spot-data.js');
+ const base={total:5,misses:0,hints:0,seconds:20};
+ // A find is always worth more than a miss costs, so a guess is worth making.
+ assert.ok(SPOT_SCORE.find>SPOT_SCORE.miss);
+ for(let found=0;found<5;found++)
+  assert.ok(spotScore({...base,found:found+1})>spotScore({...base,found}),'more found is always more');
+ assert.ok(spotScore({...base,found:4,misses:3})<spotScore({...base,found:4}),'a wrong tap always costs');
+ assert.ok(spotScore({...base,found:4,hints:1})<spotScore({...base,found:4}),'and so does a hint');
+ // The time bonus is only paid for finishing — there is no prize for giving up quickly.
+ assert.equal(spotScore({total:5,found:4,seconds:0}),spotScore({total:5,found:4,seconds:400}));
+ assert.ok(spotScore({total:5,found:5,seconds:1})>spotScore({total:5,found:5,seconds:200}));
+ // Never below nothing, and never above what the server will accept.
+ assert.equal(spotScore({total:5,found:0,misses:99}),0);
+ assert.ok(spotScore({total:99,found:99,seconds:0})<=9999);
+ assert.equal(spotScore(),0);
+});
+
+test('each change is painted on its own and faded in at the edges, and the original is left alone',async()=>{
+ const {applyEdits,rotateChannels}=await import('../src/spot-data.js');
+ const recorder=()=>{
+  const calls=[];
+  const ctx={calls,
+   drawImage:(...a)=>calls.push(['drawImage',...a]),
+   translate:(...a)=>calls.push(['translate',...a]),
+   scale:(...a)=>calls.push(['scale',...a]),
+   setTransform:(...a)=>calls.push(['setTransform',...a]),
+   fillRect:(...a)=>calls.push(['fillRect',...a]),
+   createRadialGradient:()=>({addColorStop(){}}),
+   getImageData:(x,y,w,h)=>({data:Uint8ClampedArray.from({length:w*h*4},(_,i)=>[200,50,10,255][i%4]),width:w,height:h}),
+   putImageData:img=>calls.push(['putImageData',img]),
+   set globalCompositeOperation(v){calls.push(['composite',v]);},get globalCompositeOperation(){return 'source-over';},
+   set fillStyle(v){calls.push(['fillStyle']);},get fillStyle(){return '';}};
+  return ctx;
+ };
+ const main=recorder(),tiles=[];
+ const makeCanvas=(w,h)=>{const ctx=recorder();const tile={width:w,height:h,getContext:()=>ctx,ctx};tiles.push(tile);return tile;};
+ const edits=[
+  {id:'d1',kind:'patch',x:0.1,y:0.1,w:0.2,h:0.2,from:{x:0.4,y:0.1}},
+  {id:'d2',kind:'flip',x:0.5,y:0.5,w:0.2,h:0.2},
+  {id:'d3',kind:'recolour',x:0.1,y:0.6,w:0.2,h:0.2,shift:1},
+  {id:'d4',kind:'grow',x:0.6,y:0.1,w:0.2,h:0.2,scale:1.25}
+ ];
+ const source={width:400,height:300};
+ const painted=applyEdits(main.ctx||main,source,edits,{width:400,height:300,makeCanvas});
+ assert.deepEqual(painted,['d1','d2','d3','d4']);
+ assert.equal(tiles.length,4,'each change is built on its own canvas so it disturbs nothing around it');
+ // Every tile lands back on the picture at exactly the place it came from.
+ const landed=main.calls.filter(c=>c[0]==='drawImage');
+ assert.equal(landed.length,4);
+ assert.deepEqual(landed.map(c=>[c[2],c[3]]),[[40,30],[200,150],[40,180],[240,30]]);
+ // A patch is taken from somewhere else in the photo — that is what makes a thing vanish.
+ const patch=tiles[0].ctx.calls.find(c=>c[0]==='drawImage');
+ assert.deepEqual([patch[2],patch[3]],[160,30]);
+ assert.notDeepEqual([patch[2],patch[3]],[40,30]);
+ // A flip is mirrored and then puts the brush back where it found it.
+ assert.deepEqual(tiles[1].ctx.calls.find(c=>c[0]==='scale'),['scale',-1,1]);
+ assert.ok(tiles[1].ctx.calls.some(c=>c[0]==='setTransform'));
+ // A recolour really does change the colours, rather than only claiming to.
+ const put=tiles[2].ctx.calls.find(c=>c[0]==='putImageData');
+ assert.deepEqual([...put[1].data.slice(0,4)],[50,10,200,255]);
+ // A grow takes a smaller piece of the photo and fills the same hole with it.
+ const grown=tiles[3].ctx.calls.find(c=>c[0]==='drawImage');
+ assert.ok(grown[4]<80&&grown[5]<60,'the piece taken is smaller than the hole it fills');
+ // Every change is faded out at its edges before it lands, so there is no tell-tale seam.
+ for(const tile of tiles)assert.ok(tile.ctx.calls.some(c=>c[0]==='composite'&&c[1]==='destination-in'));
+ // A change too small to see is not made at all.
+ const tiny=[];
+ assert.deepEqual(applyEdits(recorder(),source,[{id:'x',kind:'flip',x:0,y:0,w:0.005,h:0.005}],
+  {width:400,height:300,makeCanvas:(w,h)=>{tiny.push([w,h]);return makeCanvas(w,h);}}),[]);
+ assert.equal(tiny.length,0);
+ // The channel rotation on its own: red, green and blue move round, nothing is invented.
+ const solo=recorder();
+ rotateChannels(solo,1,1,2);
+ assert.deepEqual([...solo.calls.find(c=>c[0]==='putImageData')[1].data.slice(0,3)],[10,200,50]);
+});
+
+test('a spot-the-difference score is one the server will actually take',async()=>{
+ const {spotGame,spotScore}=await import('../src/spot-data.js');
+ const {ensureFeatures,scoresFor,bestScore}=await import('../src/trip-features.js');
+ const game=spotGame('7c62d139-abcd-4000-9000-000000000000',7);
+ assert.ok(game.length<=40,'the server refuses a game name longer than this');
+ const score=spotScore({found:7,total:7,misses:2,hints:0,seconds:30});
+ let state=ensureFeatures(structuredClone(seed));
+ state=applyOperation(state,{type:'gameScore',person:'Nate',game,score},child);
+ assert.equal(bestScore(state,'Nate',game),score);
+ // The head-to-head: everyone's best on this photo, and nobody who has not had a go yet.
+ state=applyOperation(state,{type:'gameScore',person:'Boston',game,score:score-50},{name:'Boston',role:'child'});
+ assert.deepEqual(scoresFor(state,game),{Nate:score,Boston:score-50});
+ assert.deepEqual(scoresFor(state,'spot-nobody-5'),{});
+ // A boy cannot post a score for his brother.
+ assert.throws(()=>applyOperation(state,{type:'gameScore',person:'Boston',game,score:9999},child),/your own/i);
+});
+
+test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',needs:(OFFLINE|'[^']+'),Component:(\w+)\}/g)];
+ assert.equal(entries.length,12);
+ for(const [,id,title,needs,component]of entries){
+  assert.ok(needs.trim(),`${id} must say what it needs`);
+  assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
+   `${title} must have a component that exists`);
+ }
+ assert.ok(entries.some(([,id])=>id==='spot'));
+ assert.match(source,/import SpotDifference from '\.\/SpotDifference\.jsx'/);
+ // The old yes-or-no is gone: one of these needs the other phone and one needs a photo.
+ assert.doesNotMatch(source,/offline:(true|false)/);
+ const game=await readFile(new URL('../src/SpotDifference.jsx',import.meta.url),'utf8');
+ // A revealed round is not scored, and the score is only ever saved once.
+ assert.match(game,/if\(!finished\|\|revealed\|\|!game\|\|saved\.current===game\)return/);
+ // Nothing about a round leaves the phone: no request, no upload, only the photo coming down.
+ assert.doesNotMatch(game,/\brequest\(/);
+ assert.doesNotMatch(game,/upload\(/);
+});
+
+test('a change is never hidden in the sky when there is a photograph underneath it',async()=>{
+ const {planRound,levelFor}=await import('../src/spot-data.js');
+ // The shape of a real photograph: flat sky across the top half, everything worth looking at
+ // below it. Nothing may be hidden in a patch that is entirely sky.
+ const SKY=0.5;
+ const photo=spotImage(320,240,(x,y)=>y<240*SKY?[150,180,215]
+  :[(x*7919+y*104729)%256,(x*31+y*17)%256,(y*7)%256]);
+ const round=planRound(photo,{level:levelFor('normal'),seed:99,aspect:4/3});
+ assert.equal(round.tooPlain,false,'half a photograph is still a photograph');
+ assert.equal(round.edits.length,5);
+ for(const e of round.edits)
+  assert.ok(e.y+e.h>SKY,`a change with nothing but sky in it cannot be found — ${e.y}..${e.y+e.h}`);
+ // And what it copies from is not sky either, or a patch would paint a blue square.
+ for(const e of round.edits.filter(e=>e.from))
+  assert.ok(e.from.y+e.h>SKY,`and it cannot be copied out of the sky — ${e.from.y}`);
+});
+
+test('a rank name is cut to what fits on a tile, and the long one is kept for the list',async()=>{
+ const {SUMO_RANKS,shortRank,rankAt}=await import('../src/kana-data.js');
+ // The only one with a long name, and the reason this exists at all.
+ assert.equal(rankAt(5).en,'Juryo — now paid');
+ assert.equal(shortRank(rankAt(5)),'Juryo');
+ for(const rank of SUMO_RANKS){
+  assert.ok(shortRank(rank).length<=12,`${shortRank(rank)} is too long for a tile`);
+  assert.ok(rank.en.startsWith(shortRank(rank)),'the short name is the start of the real one');
+ }
+ assert.equal(shortRank(null),'');
+});
+
+test('the two boards say which squares are empty, and both ladders are laid out the same way',async()=>{
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // One component draws every ladder — the merge one, the ranks, the rituals and the tells —
+ // so they cannot drift apart, and none is left as a ragged run of inline text.
+ assert.equal([...source.matchAll(/<Ladder /g)].length,4);
+ assert.equal([...source.matchAll(/<details className="merge-ladder">/g)].length,1,
+  'only the shared component draws one — no game writes its own');
+ assert.match(css,/\.ladder-grid\{display:grid/);
+ // An empty square has to look empty. Before this the empty and filled squares were within a
+ // few percent of each other and the board read as one blank slab.
+ for(const [empty,filled] of [['.merge-tile','.merge-tile.filled'],['.stable-cell','.stable-cell.filled']]){
+  const last=name=>[...css.matchAll(new RegExp(`\\${name}\\{([^}]*)\\}`,'g'))]
+   .map(m=>/background:(#[0-9a-f]{3,6})\b/.exec(m[1])?.[1]).filter(Boolean).pop();
+  const [a,b]=[last(empty),last(filled)];
+  assert.ok(a&&b,`${empty} and ${filled} must both set a background`);
+  // #fff and #ffffff are the same colour written two ways.
+  const channels=hex=>{
+   const full=hex.length===4?`#${[...hex.slice(1)].map(c=>c+c).join('')}`:hex;
+   return [1,3,5].map(i=>parseInt(full.slice(i,i+2),16));
+  };
+  const gap=Math.max(...channels(a).map((v,i)=>Math.abs(v-channels(b)[i])));
+  assert.ok(gap>=24,`${empty} and ${filled} are too close to tell apart (${a} v ${b}, ${gap})`);
+ }
+ // Every number on a games screen goes through the one figures block rather than being
+ // written into a sentence, so they line up instead of wrapping.
+ assert.ok([...source.matchAll(/<Stats /g)].length>=2);
+});
+
+test('the app can build the two sounds it needs without shipping a file',async()=>{
+ const {wavDataUri,silenceUri,toneUri}=await import('../src/speech.js');
+ const decode=uri=>{
+  assert.match(uri,/^data:audio\/wav;base64,/);
+  return Buffer.from(uri.slice(uri.indexOf(',')+1),'base64');
+ };
+ const wav=decode(silenceUri(1,8000));
+ // A real WAV header, or a phone will not play it — which is the whole point of the thing.
+ assert.equal(wav.slice(0,4).toString('ascii'),'RIFF');
+ assert.equal(wav.slice(8,12).toString('ascii'),'WAVE');
+ assert.equal(wav.slice(12,16).toString('ascii'),'fmt ');
+ assert.equal(wav.slice(36,40).toString('ascii'),'data');
+ assert.equal(wav.readUInt16LE(20),1,'PCM');
+ assert.equal(wav.readUInt16LE(22),1,'mono');
+ assert.equal(wav.readUInt32LE(24),8000);
+ assert.equal(wav.readUInt16LE(34),16,'16-bit');
+ assert.equal(wav.readUInt32LE(40),8000*2,'a second of it');
+ assert.equal(wav.length,44+8000*2);
+ assert.equal(wav.readUInt32LE(4),36+8000*2,'the size in the header matches the file');
+ // Silence really is silent, and the beep really is not — a beep you cannot hear answers
+ // nothing when someone is trying to find out whether their phone makes a sound.
+ const loudest=buffer=>{let peak=0;for(let i=44;i<buffer.length;i+=2)peak=Math.max(peak,Math.abs(buffer.readInt16LE(i)));return peak;};
+ assert.equal(loudest(wav),0);
+ assert.ok(loudest(decode(toneUri()))>8000);
+ // It fades in rather than starting square, because a click is not an answer either.
+ const tone=decode(toneUri());
+ assert.ok(Math.abs(tone.readInt16LE(44))<1500,'starts quietly');
+ assert.equal(wavDataUri(new Float32Array(0),8000).length>40,true);
+});
+
+test('the playback session is held for as long as there is something to say',async()=>{
+ const {holdPlayback,releasePlayback,playbackHeld,resetHold,armPlayback,resetArm,resetPlaybackClaim,playbackClaim}=await import('../src/speech.js');
+ resetHold();
+ const made=[];
+ const make=src=>{const el={src,loop:false,plays:0,pauses:0,play(){this.plays++;},pause(){this.pauses++;}};made.push(el);return el;};
+ assert.equal(holdPlayback(make),true);
+ assert.equal(made.length,1);
+ assert.equal(made[0].loop,true,'a one-shot ends before the speaking starts and holds nothing');
+ assert.match(made[0].src,/^data:audio\/wav/);
+ // Two phrases overlapping: the first to finish must not pull the session out from under
+ // the second.
+ holdPlayback(make);
+ assert.equal(made.length,1,'the same element is reused');
+ assert.equal(playbackHeld(),true);
+ releasePlayback();
+ assert.equal(playbackHeld(),true);
+ assert.equal(made[0].pauses,0);
+ releasePlayback();
+ assert.equal(playbackHeld(),false);
+ assert.equal(made[0].pauses,1);
+ // Letting go more often than you took hold cannot drive it negative.
+ releasePlayback();releasePlayback();
+ assert.equal(playbackHeld(),false);
+ // Arming: iOS ignores a session claimed before anyone has touched the page, and will not
+ // play a media element later that was never played inside a gesture. Both happen on the
+ // first touch, once.
+ resetHold();resetArm();resetPlaybackClaim();
+ const listeners={};
+ const session={type:'ambient'};
+ const win={navigator:{audioSession:session},
+  addEventListener:(e,fn)=>{listeners[e]=fn;},
+  removeEventListener:e=>{delete listeners[e];}};
+ assert.equal(armPlayback(win),true);
+ assert.equal(armPlayback(win),false,'armed once, not on every render');
+ assert.deepEqual(Object.keys(listeners).sort(),['pointerdown','touchend']);
+ assert.equal(playbackClaim(),null,'nothing is claimed before anyone touches anything');
+ listeners.pointerdown();
+ assert.equal(session.type,'playback');
+ assert.equal(playbackClaim(),'playback');
+ assert.deepEqual(Object.keys(listeners),[],'and it lets go of the page afterwards');
+ resetHold();resetArm();resetPlaybackClaim();
+});
+
+test('a recorded phrase is the family’s own, one per phrase, described by storage',async()=>{
+ const {checkPhraseClip,addPhraseClip,removePhraseClip,phraseClip,PHRASE_CLIP_SECONDS}=await import('../server/phrase-audio.mjs');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const mum={name:'Lauren',role:'parent',id:'grant-lauren'},dad={name:'Damien',role:'parent',id:'grant-damien'};
+ const good={phraseId:'hello',pathname:'phrases/grant-lauren/a.m4a',seconds:2};
+ assert.deepEqual(checkPhraseClip(good,mum),{phraseId:'hello',pathname:'phrases/grant-lauren/a.m4a',seconds:2});
+ // You cannot write into somebody else's folder, or out of the folder at all.
+ assert.throws(()=>checkPhraseClip(good,dad),/Invalid recording/);
+ assert.throws(()=>checkPhraseClip({...good,pathname:'phrases/grant-lauren/../x.m4a'},mum),/Invalid recording/);
+ assert.throws(()=>checkPhraseClip({...good,pathname:'voice/grant-lauren/a.m4a'},mum),/Invalid recording/);
+ assert.throws(()=>checkPhraseClip({...good,phraseId:''},mum),/Choose a phrase/);
+ assert.throws(()=>checkPhraseClip({...good,seconds:0},mum),/second or two/);
+ assert.throws(()=>checkPhraseClip({...good,seconds:PHRASE_CLIP_SECONDS+1},mum),/second or two/);
+ const blob={contentType:'audio/mp4',size:9000};
+ let state=ensureFeatures(structuredClone(seed));
+ state=addPhraseClip(state,checkPhraseClip(good,mum),mum,blob,'2026-09-22T01:00:00.000Z');
+ const kept=phraseClip(state,'hello');
+ assert.equal(kept.by,'Lauren');
+ assert.equal(kept.type,'audio/mp4','the file is described by storage, not by the phone');
+ assert.equal(kept.size,9000);
+ assert.equal(kept.seconds,2);
+ // Saving the very same recording twice is the same recording.
+ assert.equal(addPhraseClip(state,checkPhraseClip(good,mum),mum,blob),state);
+ // Recording it again replaces it — this is a reference pronunciation, not a conversation,
+ // and two of them only raise the question of which one is right.
+ const again={phraseId:'hello',pathname:'phrases/grant-lauren/b.m4a',seconds:3};
+ const redone=addPhraseClip(state,checkPhraseClip(again,mum),mum,blob);
+ assert.equal(Object.keys(redone.phraseAudio).length,1);
+ assert.equal(phraseClip(redone,'hello').pathname,'phrases/grant-lauren/b.m4a');
+ assert.equal(phraseClip(redone,'hello').replaced,'phrases/grant-lauren/a.m4a');
+ // A file storage says is not audio is refused however it was uploaded.
+ assert.throws(()=>addPhraseClip(state,checkPhraseClip({...good,phraseId:'bye'},mum),mum,{contentType:'text/html',size:20}),/./);
+ // Removing it puts the phrase back to the phone saying it itself.
+ assert.equal(phraseClip(removePhraseClip(redone,'hello'),'hello'),null);
+ assert.throws(()=>removePhraseClip(redone,'nothing-here'),/no recording/i);
+ // Nothing else in the trip is disturbed by any of it.
+ assert.equal(redone.steps,state.steps);
+});
+
+test('the sound check reports the recording and the speaking apart',async()=>{
+ const {soundCheckLines}=await import('../src/speech.js');
+ const read=facts=>Object.fromEntries(soundCheckLines(facts));
+ assert.equal(read({}) ['A recording played'],'not tested');
+ assert.match(read({tone:'played'})['A recording played'],/yes — so recorded phrases will be heard/);
+ assert.match(read({tone:'the phone would not allow it'})['A recording played'],/^no — the phone would not allow it/);
+ // The two questions stay apart: a phone that plays a recording but will not speak is the
+ // exact case the recordings exist for, and the report has to be able to say so.
+ const both=read({tone:'played',started:false,supported:true,voices:[]});
+ assert.match(both['A recording played'],/yes/);
+ assert.match(both['It started speaking'],/no/);
+});
+
+test('we call the bouts from one phone, and the picks close once it has been watched',async()=>{
+ const {ensureFeatures,sumo,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,pendingProgress}=await import('../src/trip-features.js');
+ const card={type:'sumoUpdate',basho:'Aki Basho 2026',dayNumber:11,venue:'Ryogoku Kokugikan',date:'2026-09-23',
+  doorsOpen:'08:00',notes:'',sources:[],bouts:[
+   {id:'makuuchi-38',division:'makuuchi',order:38,time:'17:40',east:{name:'Kirishima',rank:'Sekiwake',stable:'Michinoku'},west:{name:'Daieisho',rank:'Komusubi',stable:'Oitekaze'}},
+   {id:'makuuchi-40',division:'makuuchi',order:40,time:'17:55',east:{name:'Hoshoryu',rank:'Ozeki',stable:'Tatsunami'},west:{name:'Kotozakura',rank:'Ozeki',stable:'Sadogatake'}}]};
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),card,parent);
+ // One phone is out and four people are shouting at it, so whoever holds it enters all four.
+ // This is the one place in the app where you record somebody else's answer.
+ for(const [person,pick] of [['Damien','Hoshoryu'],['Lauren','Kotozakura'],['Nate','Hoshoryu'],['Boston','Kotozakura']])
+  state=applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person,winner:pick},child);
+ assert.deepEqual(boutPredictions(state,'makuuchi-40'),{Damien:'Hoshoryu',Lauren:'Kotozakura',Nate:'Hoshoryu',Boston:'Kotozakura'});
+ assert.equal(predictionsClosed(state,'makuuchi-40'),false);
+ // Before anything is watched, nobody is losing — a pick with no result yet is still to come.
+ assert.deepEqual(predictionTally(state).map(t=>[t.name,t.right,t.wrong,t.waiting]),
+  [['Boston',0,0,1],['Damien',0,0,1],['Lauren',0,0,1],['Nate',0,0,1]]);
+ assert.deepEqual(predictionLeaders(state),[],'and nobody is leading');
+ // Changing your mind before the bout is fine; tapping your own pick again takes it back.
+ state=applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person:'Nate',winner:'Kotozakura'},child);
+ assert.equal(boutPredictions(state,'makuuchi-40').Nate,'Kotozakura');
+ const withdrawn=applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person:'Nate',winner:null},child);
+ assert.equal(boutPredictions(withdrawn,'makuuchi-40').Nate,undefined);
+ assert.equal(Object.keys(boutPredictions(withdrawn,'makuuchi-40')).length,3);
+ // Then it happens.
+ state=applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:'Kotozakura'},child);
+ assert.equal(predictionsClosed(state,'makuuchi-40'),true);
+ assert.deepEqual(predictionTally(state).map(t=>[t.name,t.right,t.wrong]),
+  [['Boston',1,0],['Lauren',1,0],['Nate',1,0],['Damien',0,1]]);
+ assert.deepEqual(predictionLeaders(state),['Boston','Lauren','Nate']);
+ // You cannot call a bout you have already watched — that is the whole point of a sweepstake.
+ assert.throws(()=>applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person:'Damien',winner:'Kotozakura'},parent),/has been watched/);
+ // Unless the result went in by mistake, which is why clearing it reopens them.
+ const reopened=applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:null},parent);
+ assert.equal(predictionsClosed(reopened,'makuuchi-40'),false);
+ assert.ok(applyOperation(reopened,{type:'sumoPredict',id:'makuuchi-40',person:'Damien',winner:'Kotozakura'},parent));
+ assert.deepEqual(boutPredictions(reopened,'makuuchi-40'),boutPredictions(state,'makuuchi-40'),'and the picks were never thrown away');
+ // Only the two men in the ring, only real people, only bouts on the card.
+ for(const bad of [{type:'sumoPredict',id:'makuuchi-38',person:'Damien',winner:'Hoshoryu'},
+  {type:'sumoPredict',id:'makuuchi-38',person:'Grandma',winner:'Kirishima'},
+  {type:'sumoPredict',id:'nope',person:'Damien',winner:'Kirishima'}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,52)} should be refused`);
+ // Picks survive the card being fetched again on the day, the same way results do.
+ const refetched=applyOperation(state,card,parent);
+ assert.deepEqual(boutPredictions(refetched,'makuuchi-40'),boutPredictions(state,'makuuchi-40'));
+ // A bout dropped from a refreshed card takes its picks with it rather than haunting the tally.
+ const shorter=applyOperation(state,{...card,bouts:[card.bouts[0]]},parent);
+ assert.deepEqual(sumo(shorter).predictions,{});
+ // Called in the arena with no signal, which is exactly where this happens.
+ const queue=[{operation:{type:'sumoPredict',operationId:'q1',id:'makuuchi-38',person:'Boston',winner:'Daieisho'}}];
+ assert.equal(boutPredictions(pendingProgress(state,queue),'makuuchi-38').Boston,'Daieisho');
+ assert.equal(boutPredictions(state,'makuuchi-38').Boston,undefined,'the shared trip waits until it syncs');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ assert.ok(list.includes('sumoPredict'));
+});
+
+test('a dish on a menu can be seen as well as read, and only Wikimedia can put it on the screen',async()=>{
+ const {pictureQueries,pictureSearchUrl,pickPicture,findDishPicture,imageSearchUrl}=await import('../src/dish-picture.js');
+ // The plain name the model stripped out of the menu's wording is asked for first: the menu
+ // line itself has no article behind it, and the English name is the last resort.
+ assert.deepEqual(pictureQueries({dish:'唐揚げ',ja:'名物!若鶏の唐揚げ定食',en:'Fried chicken set'}),
+  [['ja','唐揚げ'],['ja','名物!若鶏の唐揚げ定食'],['en','Fried chicken set']]);
+ // A dish whose plain name is what the menu printed is not looked up twice.
+ assert.deepEqual(pictureQueries({dish:'親子丼',ja:'親子丼',en:'Chicken and egg rice bowl'}),
+  [['ja','親子丼'],['en','Chicken and egg rice bowl']]);
+ assert.deepEqual(pictureQueries({dish:'',ja:'',en:''}),[]);
+ assert.deepEqual(pictureQueries(),[]);
+
+ const url=new URL(pictureSearchUrl('ja','唐揚げ'));
+ assert.equal(url.origin,'https://ja.wikipedia.org');
+ assert.equal(url.searchParams.get('gsrsearch'),'唐揚げ');
+ assert.equal(url.searchParams.get('origin'),'*','without this the browser is refused by CORS');
+ assert.equal(url.searchParams.get('formatversion'),'2');
+ // Three results asked for, and three thumbnails — pageimages hands back one by default, which
+ // is how a dish with a picture looks like a dish without one.
+ assert.equal(url.searchParams.get('gsrlimit'),'3');
+ assert.equal(url.searchParams.get('pilimit'),'3');
+ assert.equal(new URL(pictureSearchUrl('en','Tonkatsu')).origin,'https://en.wikipedia.org');
+
+ const page=(index,title,source,extra={})=>({index,title,...(source?{thumbnail:{source}}:{}),...extra});
+ const img='https://upload.wikimedia.org/wikipedia/commons/thumb/a/karaage.jpg/640px-karaage.jpg';
+ // The best-ranked result that actually carries a photograph, not the best-ranked result.
+ const found=pickPicture({query:{pages:[page(2,'鶏肉',img),page(1,'唐揚げ')]}},'ja');
+ assert.equal(found.title,'鶏肉');
+ assert.equal(found.src,img);
+ assert.equal(found.page,'https://ja.wikipedia.org/wiki/%E9%B6%8F%E8%82%89','a page link is built when the API gives none');
+ assert.equal(pickPicture({query:{pages:[page(1,'唐揚げ',img,{fullurl:'https://ja.wikipedia.org/wiki/%E5%94%90%E6%8F%9A%E3%81%92'})]}},'ja').page,
+  'https://ja.wikipedia.org/wiki/%E5%94%90%E6%8F%9A%E3%81%92');
+ // Nothing but a Wikimedia photograph over HTTPS is put in front of the family.
+ for(const bad of ['http://upload.wikimedia.org/a.jpg','https://example.com/a.jpg','not a url','javascript:alert(1)'])
+  assert.equal(pickPicture({query:{pages:[page(1,'唐揚げ',bad)]}},'ja'),null,bad);
+ for(const empty of [{},{query:{}},{query:{pages:[]}},null])assert.equal(pickPicture(empty,'ja'),null);
+
+ // Japanese is tried before English, and the first language with a picture wins.
+ const asked=[];
+ const reply=body=>({ok:true,json:async()=>body});
+ const picture=await findDishPicture({dish:'ロースかつ',ja:'ロースかつ膳',en:'Pork loin katsu'},async u=>{
+  asked.push(new URL(u));
+  return reply(asked.length<3?{query:{pages:[page(1,'なにか')]}}:{query:{pages:[page(1,'とんかつ',img)]}});
+ });
+ assert.equal(picture.title,'とんかつ');
+ assert.deepEqual(asked.map(u=>[u.hostname,u.searchParams.get('gsrsearch')]),
+  [['ja.wikipedia.org','ロースかつ'],['ja.wikipedia.org','ロースかつ膳'],['en.wikipedia.org','Pork loin katsu']]);
+
+ // A dish nobody has written about comes back as no picture, and is not asked for twice.
+ let calls=0;
+ const none=async()=>{calls++;return reply({query:{pages:[]}});};
+ assert.equal(await findDishPicture({dish:'秘伝の一皿',ja:'秘伝の一皿',en:'House special'},none),null);
+ assert.equal(calls,2);
+ assert.equal(await findDishPicture({dish:'秘伝の一皿',ja:'秘伝の一皿',en:'House special'},none),null);
+ assert.equal(calls,2,'the answer is kept for the rest of the meal');
+
+ // A Wikipedia nobody could reach is a different answer from a dish with no picture, because
+ // the screen offers to search the web for one only in the second case.
+ await assert.rejects(()=>findDishPicture({dish:'寿司',ja:'寿司',en:'Sushi'},async()=>{throw new Error('offline');}),
+  /could not be reached/);
+ assert.match(imageSearchUrl('唐揚げ'),/^https:\/\/www\.google\.com\/search\?tbm=isch&q=%E5%94%90%E6%8F%9A%E3%81%92$/);
+
+ // The screen asks for a picture only when somebody presses for one, and the menu reader gets
+ // the plain dish name out of the model to look it up with.
+ const menu=await readFile(new URL('../src/MenuReader.jsx',import.meta.url),'utf8');
+ assert.match(menu,/onClick=\{\(\)=>picture\(i,item\)\}/);
+ assert.match(menu,/shot\?'Hide the picture':'See a picture'/);
+ assert.doesNotMatch(menu,/useEffect/,'nothing fetches a picture on its own');
+ assert.match(menu,/setAdded\(\[\]\);setPictures\(\{\}\)/,'a new menu clears the old pictures');
+ assert.match(menu,/A picture of <span lang=\{shot\.found\.language\}>\{shot\.found\.title\}<\/span> from Wikipedia — the dish in general/);
+ const server=await readFile(new URL('../server/menu.mjs',import.meta.url),'utf8');
+ assert.match(server,/required:\['ja','en','dish',/);
+ assert.match(server,/dish:\{type:'string',description:'The plain common name/);
+});
+
+test('what is usually in a dish, and a warning on the ones a five-year-old cannot eat',async()=>{
+ const server=await readFile(new URL('../server/menu.mjs',import.meta.url),'utf8');
+ // Both come back with the dish rather than costing a second read of the menu.
+ assert.match(server,/required:\['ja','en','dish','why','forWhom','matchesOurList','ingredients','spicy','heat','spiceNote','price'\]/);
+ // Four grades, and the two that are not spicy at all are the same answer as spicy:false.
+ const heat=server.match(/heat:\{type:'string',enum:(\[[^\]]+\])/);
+ assert.deepEqual(JSON.parse(heat[1].replace(/'/g,'"')),['none','mild','hot','very hot']);
+ // The reader is told what an ingredient list is not, because this is the one place in the app
+ // where a wrong answer could matter to somebody with an allergy.
+ assert.match(server,/never read as the kitchen's own recipe, never complete, and never evidence that something is absent/);
+ assert.match(server,/never present a list of ingredients as complete/);
+ assert.doesNotMatch(server,/free of an allergen[^;]*;(?! if it matters)/,'the allergen rule is not softened');
+ // What counts as too hot for Nate is spelled out rather than left to the model's taste.
+ for(const heat of ['chilli oil','karashi','shichimi','kimchi','mapo'])assert.ok(server.includes(heat),`${heat} is not named as a reason a dish is spicy`);
+
+ const menu=await readFile(new URL('../src/MenuReader.jsx',import.meta.url),'utf8');
+ // The warning is on the card, and the ones to watch are counted before any card is opened.
+ assert.match(menu,/const hot=\(result\?\.suggestions\|\|\[\]\)\.filter\(i=>i\.spicy\)/);
+ assert.match(menu,/hot\.length===1\?'One of these is likely spicy'/);
+ assert.match(menu,/hot\.map\(i=>i\.en\)\.join\(', '\)\} — not for Nate/);
+ assert.match(menu,/item\.spicy&&<p className=\{`dish-warning/);
+ // A dish with no note of its own still warns rather than showing an empty warning.
+ assert.match(menu,/item\.spiceNote\|\|'Ask how hot it is before you order it for the boys\.'/);
+ // The list is offered only when there is one, and opening it is the reader's own choice.
+ assert.match(menu,/\{!!\(item\.ingredients\|\|\[\]\)\.length&&<button aria-expanded=\{!!open\}/);
+ assert.match(menu,/open\?'Hide ingredients':'See ingredients'/);
+ assert.match(menu,/setPictures\(\{\}\);setOpened\(\{\}\)/,'a new menu closes the old lists');
+ // And it says on the screen, next to the list itself, what the list is not.
+ assert.match(menu,/not read off the menu, and not this kitchen's own recipe/);
+ assert.match(menu,/ask the staff about anything allergy-related/);
+
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ for(const rule of ['.menu-spicy','.dish-warning','.dish-ingredients'])assert.ok(css.includes(rule),`${rule} has no style`);
+});
+
+test('a swipe is a swipe, a scroll is a scroll, and a drag on a button is neither',async()=>{
+ const {swipeDelta,isControl,typesText,stepIndex,SWIPE}=await import('../src/swipe.js');
+ const from={x:200,y:300};
+ assert.equal(swipeDelta(from,{x:200-SWIPE.across-1,y:300}),1,'left takes you on');
+ assert.equal(swipeDelta(from,{x:200+SWIPE.across+1,y:300}),-1,'right takes you back');
+ // Not far enough across is a tap that moved, not a swipe.
+ assert.equal(swipeDelta(from,{x:200-SWIPE.across+1,y:300}),0);
+ // Far enough across but a long way down is somebody scrolling the page.
+ assert.equal(swipeDelta(from,{x:0,y:300+SWIPE.down+1}),0);
+ assert.equal(swipeDelta(from,{x:0,y:300-SWIPE.down-1}),0);
+ assert.equal(swipeDelta(null,{x:0,y:0}),0);
+ assert.equal(swipeDelta(from,{x:NaN,y:0}),0);
+ // Whether an arrow key belongs to what has focus is a DIFFERENT question from whether a
+ // drag started on a control. A focused button does nothing with an arrow key, so swallowing
+ // it there leaves the keyboard dead after every tap — which is what it did.
+ for(const tag of ['INPUT','textarea','Select'])assert.ok(typesText({tagName:tag}),tag);
+ for(const tag of ['BUTTON','A','AUDIO','DIV','SUMMARY'])assert.ok(!typesText({tagName:tag}),tag);
+ assert.ok(typesText({tagName:'DIV',isContentEditable:true}),'and a box you can type in');
+ assert.ok(!typesText(null));
+ // A drag that began on something you press is not a page turn. Audio is in there because a
+ // recorded phrase has a scrub bar and dragging it must not turn the card.
+ for(const tag of ['BUTTON','a','Input','SELECT','TEXTAREA','AUDIO','summary','LABEL'])assert.ok(isControl(tag),tag);
+ for(const tag of ['DIV','P','STRONG','SPAN',''])assert.ok(!isControl(tag),tag);
+ assert.ok(!isControl(undefined));
+ // It stops at both ends rather than wrapping, and a move that goes nowhere goes nowhere.
+ assert.equal(stepIndex(0,-1,10),0);
+ assert.equal(stepIndex(9,1,10),9);
+ assert.equal(stepIndex(4,1,10),5);
+ assert.equal(stepIndex(4,-1,10),3);
+ assert.equal(stepIndex(0,0,10),0);
+ assert.equal(stepIndex(5,1,0),0,'an empty deck has nowhere to go');
+});
+
+test('the phrases can be gone through one at a time, over exactly what the list is showing',async()=>{
+ const source=await readFile(new URL('../src/Phrasebook.jsx',import.meta.url),'utf8');
+ // Both ways of going through them, and the phone remembers which you like.
+ assert.match(source,/localStorage\.getItem\('japan\.phrasemode'\)/);
+ // The list is still the default for everyone who can read one; Nate is the exception, and
+ // he is the reason the exception exists.
+ assert.match(source,/const suits=user\?\.name==='Nate'\?'nate':'list'/);
+ // The deck is built from the same filtered sections the list renders, so a search cannot
+ // show one set and swipe through another.
+ assert.match(source,/const deck=\[\s*\.\.\.sections\.flatMap/);
+ assert.match(source,/<PhraseDeck phrases=\{deck\}/);
+ // One place decides which card is showing, so the swipe, the keys and the buttons cannot
+ // drift apart. Inside the deck the only other setIndex is the reset a new search needs.
+ const body=source.slice(source.indexOf('function PhraseDeck'),source.indexOf('export default function Phrasebook'));
+ assert.match(body,/const move=delta=>setIndex\(i=>stepIndex\(/);
+ assert.deepEqual([...body.matchAll(/setIndex\(([^)]*)/g)].map(m=>m[1]),['0','i=>stepIndex(Math.min(i,phrases.length-1'],
+  'every turn goes through move, and nothing sets the card behind its back');
+ for(const caller of ['if(delta)move(delta)',"e.key==='ArrowLeft')move(-1)",'onClick={()=>move(-1)}','onClick={()=>move(1)}'])
+  assert.ok(body.includes(caller),caller);
+ // A drag on a control is not a turn, and the keys are let go of again.
+ assert.match(source,/isControl\(e\.target\?\.tagName\)/,'a drag on a control is not a turn');
+ assert.match(source,/typesText\(e\.target\)/,'and an arrow key in a field stays in the field');
+ assert.match(source,/removeEventListener\('keydown',onKey\)/);
+ // The card scrolls up and down normally while taking a sideways swipe.
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/\.phrase-deck\{[^}]*touch-action:pan-y/);
+});
+
+test('a Japanese email body survives the trip from HTML entities to readable text',()=>{
+ const html='<p>&#20104;&#32004;&#30906;&#35469;</p><div>Check-in&nbsp;15:00<br>Room&#x20;A</div><script>alert(1)</script><style>p{color:red}</style>';
+ const text=htmlToText(html);
+ assert.equal(text,'予約確認\nCheck-in 15:00\nRoom A');
+ assert.ok(!/alert|color:red/.test(text));
+ // An email that is already plain text is left exactly as the sender wrote it.
+ assert.equal(parseInbound({FromFull:{Email:'Damien@Example.com'},Subject:'Hotel',TextBody:'  Line one\n\nLine two  '}).text,'Line one\n\nLine two');
+});
+test('an inbound email is read defensively: sender, spam and shape are all checked before anything is kept',()=>{
+ const base={FromFull:{Email:'damien.pasfield@gmail.com'},Subject:'Booking',TextBody:'Confirmed.'};
+ const mail=parseInbound(base);
+ assert.equal(mail.from,'damien.pasfield@gmail.com');assert.equal(mail.spam,false);
+ // The From header, not just FromFull, and with the display name stripped off it.
+ assert.equal(parseInbound({From:'Damien Pasfield <Damien.Pasfield@Gmail.com>',TextBody:'x'}).from,'damien.pasfield@gmail.com');
+ // A body that is HTML only still arrives as words.
+ assert.equal(parseInbound({...base,TextBody:'',HtmlBody:'<p>Hello</p>'}).text,'Hello');
+ assert.equal(parseInbound({...base,Headers:[{Name:'X-Spam-Status',Value:'Yes, score=9.1'}]}).spam,true);
+ assert.equal(parseInbound({Subject:'No sender',TextBody:'x'}),null);
+ assert.equal(parseInbound('not an object'),null);
+ // Ten attachments is the ceiling, and an empty one is not an attachment.
+ const many=parseInbound({...base,Attachments:[...Array(14)].map((_,i)=>({Name:`f${i}.pdf`,ContentType:'application/pdf',Content:'AAAA'}))});
+ assert.equal(many.attachments.length,10);
+ assert.equal(parseInbound({...base,Attachments:[{Name:'empty.pdf',ContentType:'application/pdf',Content:''}]}).attachments.length,0);
+ // A filename from an email never becomes a path.
+ assert.equal(parseInbound({...base,Attachments:[{Name:'../../etc/passwd',ContentType:'application/pdf',Content:'AAAA'}]}).attachments[0].filename,'.._.._etc_passwd');
+});
+test('API: a forwarded email waits in the inbox, and only the right secret and the right sender get in',async()=>{
+ process.env.LOCAL_DEMO='1';delete process.env.VERCEL;
+ process.env.EMAIL_INBOX_SECRET='s3cret-forwarding-key';
+ process.env.EMAIL_INBOX_SENDERS='damien.pasfield@gmail.com, lauren@example.com';
+ const server=createServer(handler);await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
+ const email=(secret,mail,init={})=>fetch(`${base}/api/email-in/${secret}`,{method:'POST',headers:{'Content-Type':'application/json',...init.headers},body:JSON.stringify(mail)});
+ const hotel={FromFull:{Email:'Damien.Pasfield@gmail.com'},Subject:'ホテル予約確認',TextBody:'チェックインは15時です。',Date:'2026-09-20T09:00:00Z'};
+ try{
+  const config=await(await fetch(base+'/api/config')).json();assert.equal(config.emailInbox,true);
+  // A wrong secret is answered like a wrong address: nothing to learn from it.
+  assert.equal((await email('wrong-key',hotel)).status,404);
+  assert.equal((await fetch(base+'/api/email-in',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(hotel)})).status,404);
+  // The provider's own way of carrying the secret works too.
+  const basic=await email('nope',hotel,{headers:{Authorization:'Basic '+Buffer.from('postmark:s3cret-forwarding-key').toString('base64')}});
+  assert.equal((await basic.json()).filed,true);
+  // Somebody else's email is dropped, but answered 200 so it is not retried all day.
+  const stranger=await email('s3cret-forwarding-key',{FromFull:{Email:'spammer@elsewhere.test'},Subject:'You have won',TextBody:'Click here'});
+  assert.equal(stranger.status,200);assert.equal((await stranger.json()).reason,'sender');
+  const spam=await email('s3cret-forwarding-key',{...hotel,Headers:[{Name:'X-Spam-Status',Value:'Yes, score=12'}]});
+  assert.equal((await spam.json()).reason,'spam');
+  const accepted=await email('s3cret-forwarding-key',{...hotel,Attachments:[{Name:'voucher.pdf',ContentType:'application/pdf',Content:Buffer.from('%PDF-1.4 voucher').toString('base64')}]});
+  assert.equal((await accepted.json()).filed,true);
+  const {state,revision}=await(await fetch(base+'/api/state')).json();
+  assert.equal(state.inbox.length,2);
+  const item=state.inbox.find(i=>i.attachments.length);
+  assert.equal(item.from,'damien.pasfield@gmail.com');assert.equal(item.subject,'ホテル予約確認');
+  assert.equal(item.text,'チェックインは15時です。');assert.equal(item.reading,null);
+  // With no Blob store connected the file cannot be kept, and the email says so rather than
+  // pretending it has one.
+  assert.equal(item.attachments[0].pathname,null);assert.match(item.attachments[0].skipped,/storage/i);
+  // Filing it is a person's decision, and it is what puts it on the trip.
+  const filed=await fetch(base+'/api/mutate',{method:'POST',headers:{'Content-Type':'application/json',Origin:base},
+   body:JSON.stringify({revision,operation:{type:'inboxFile',id:item.id,title:'Kyoto hotel',category:'reservation',person:'Family',day:state.days[2].date,notes:'Check in from 15:00.'}})});
+  assert.equal(filed.status,200);
+  const after=(await filed.json()).state;
+  assert.equal(after.inbox.length,1);
+  const doc=after.documents.find(d=>d.title==='Kyoto hotel');
+  assert.equal(doc.category,'reservation');assert.equal(doc.day,state.days[2].date);assert.equal(doc.source,'email');
+  assert.equal(doc.from,'damien.pasfield@gmail.com');assert.equal(doc.type,'note');assert.equal(doc.notes,'Check in from 15:00.');
+  assert.equal((await(await fetch(base+'/api/inbox-file?id=nothing')).json()).error,'That attachment is not in the inbox.');
+ }finally{
+  delete process.env.LOCAL_DEMO;delete process.env.EMAIL_INBOX_SECRET;delete process.env.EMAIL_INBOX_SENDERS;
+  await new Promise(r=>server.close(r));
+ }
+});
+test('filing a forwarded email keeps its files together and its English where the phone can read it',()=>{
+ const files=[{id:'f1',filename:'ticket.pdf',type:'application/pdf',size:120,pathname:'inbox/a/0-ticket.pdf'},
+  {id:'f2',filename:'map.png',type:'image/png',size:90,pathname:'inbox/a/1-map.png'},
+  {id:'f3',filename:'huge.mov',type:'video/quicktime',size:1,pathname:null,skipped:'This kind of file, or its size, is not accepted.'}];
+ const item={id:'mail-1',from:'lauren@example.com',subject:'新幹線',receivedAt:'2026-09-25T02:00:00.000Z',text:'原文',
+  attachments:files,reading:{readable:true,kind:'train ticket',language:'Japanese',title:'Nozomi 33 tickets',
+   summary:['Two adults, two children.'],translation:'Nozomi 33, car 7.',actions:[{what:'Collect at the machine',when:'27 Sep'}]}};
+ const seeded={...structuredClone(seed),inbox:[item]};
+ const next=applyOperation(seeded,{type:'inboxFile',id:'mail-1',title:'Nozomi 33 tickets',category:'ticket',person:'Family'},parent);
+ assert.equal(next.inbox.length,0);
+ const root=next.documents.find(d=>d.title==='Nozomi 33 tickets');
+ assert.equal(root.pathname,'inbox/a/0-ticket.pdf');assert.equal(root.category,'ticket');
+ // The English is written into the ticket itself, so it is still readable with no signal.
+ assert.match(root.notes,/Nozomi 33, car 7\./);assert.match(root.notes,/Collect at the machine — 27 Sep/);
+ assert.match(root.notes,/Forwarded from lauren@example\.com on 2026-09-25/);
+ const child=next.documents.find(d=>d.parentDocumentId===root.id);
+ assert.equal(child.pathname,'inbox/a/1-map.png');assert.equal(child.notes,'');
+ // The file that could not be kept does not become a document pointing at nothing.
+ assert.equal(next.documents.filter(d=>d.source==='email').length,2);
+ // A child cannot file or discard one, and neither can be aimed at a day and an activity at once.
+ assert.throws(()=>applyOperation(seeded,{type:'inboxFile',id:'mail-1',title:'x'},child_),/parent/i);
+ assert.throws(()=>applyOperation(seeded,{type:'inboxDiscard',id:'mail-1'},child_),/parent/i);
+ assert.throws(()=>applyOperation(seeded,{type:'inboxFile',id:'mail-1',title:'x',day:seed.days[0].date,stepId:seed.steps[0].id},parent),/activity or a day/);
+ assert.throws(()=>applyOperation(seeded,{type:'inboxFile',id:'gone',title:'x'},parent),/no longer in the inbox/);
+ assert.throws(()=>applyOperation(seeded,{type:'inboxFile',id:'mail-1',title:'  '},parent),/title/i);
+ assert.equal(applyOperation(seeded,{type:'inboxDiscard',id:'mail-1'},parent).inbox.length,0);
+ // The inbox is a queue to work through, not an archive that grows without end.
+ const many={...structuredClone(seed),inbox:[]};
+ let piled=many;for(let i=0;i<MAX_INBOX+6;i++)piled=addToInbox(piled,{...item,id:`mail-${i}`});
+ assert.equal(piled.inbox.length,MAX_INBOX);assert.equal(piled.inbox[0].id,`mail-${MAX_INBOX+5}`);
+});
+test('a forwarded email is a parent\'s to read, and the boys\' phones are never sent it',async()=>{
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ const item={id:'mail-1',from:'damien.pasfield@gmail.com',subject:'Bank reference',text:'Account 1234.',attachments:[],reading:null};
+ const state={...structuredClone(seed),inbox:[item],games:{scores:{},janken:{round:null,scores:{}}}};
+ assert.equal(visibleTrip(state,parent).inbox.length,1);
+ assert.equal(visibleTrip(state,{name:'Lauren',role:'parent'}).inbox.length,1);
+ // Not hidden in the screen — removed from the answer, so no phone can fetch its way to it.
+ assert.deepEqual(visibleTrip(state,child).inbox,[]);
+ assert.deepEqual(visibleTrip(state,{name:'Boston',role:'child'}).inbox,[]);
+ // Redacting a copy never touches what is stored for the family.
+ assert.equal(state.inbox.length,1);
+});
+test('a forwarded email goes where the parent sends it, not only into Tickets',()=>{
+ const file={id:'f1',filename:'voucher.pdf',type:'application/pdf',size:120,pathname:'inbox/m1/0-voucher.pdf'};
+ const item={id:'m1',from:'damien.pasfield@gmail.com',subject:'ご予約',receivedAt:'2026-09-20T00:00:00.000Z',
+  text:'Original',attachments:[file],reading:{readable:true,kind:'hotel letter',title:'Kyoto ryokan',
+   summary:['Check in from 15:00.'],translation:'Check in from 15:00.',actions:[]}};
+ const seeded={...structuredClone(seed),inbox:[item]},day=seed.days[3].date;
+ const file_=(extra)=>applyOperation(seeded,{type:'inboxFile',id:'m1',title:'Kyoto ryokan',...extra},parent);
+ // On a day, with a time: the same locked step as one typed in by hand, and the email's file
+ // travels with it instead of being left behind in Tickets on its own.
+ const onDay=file_({destination:'activity',day,time:'14:30'});
+ const step=onDay.steps.find(s=>s.title==='Kyoto ryokan');
+ assert.equal(step.day,day);assert.equal(step.time,'14:30');assert.equal(step.locked,true);
+ assert.equal(step.bookingTime,'14:30');assert.equal(step.status,'todo');
+ assert.match(step.notes,/Check in from 15:00\./);
+ const carried=onDay.documents.find(d=>d.source==='email');
+ assert.equal(carried.stepId,step.id);assert.equal(carried.day,null);assert.equal(carried.pathname,file.pathname);
+ assert.ok(onDay.alerts[0].summary.includes('Kyoto ryokan'));
+ // Options: the same activity with no day, and no time it could not honour.
+ const options=file_({destination:'options'});
+ const parked=options.steps.find(s=>s.title==='Kyoto ryokan');
+ assert.equal(parked.day,null);assert.equal(parked.time,null);assert.equal(parked.locked,false);
+ // The planning board, where the family votes on it before it gets a day.
+ const idea=file_({destination:'idea',ideaKind:'food',day});
+ const proposal=idea.proposals.at(-1);
+ assert.equal(proposal.title,'Kyoto ryokan');assert.equal(proposal.category,'food');
+ assert.equal(proposal.day,day);assert.equal(proposal.addedBy,'Damien');assert.equal(proposal.stepId,null);
+ assert.match(idea.alerts[0].summary,/added Kyoto ryokan to the planning board/);
+ // The to-do list, with the file still findable in Tickets against that day.
+ const todo=file_({destination:'todo',todoKind:'buy',day,title:'Pay the balance'});
+ assert.equal(todo.todos.at(-1).kind,'buy');assert.equal(todo.todos.at(-1).day,day);
+ assert.equal(todo.documents.find(d=>d.source==='email').day,day);
+ // With nothing attached, only a ticket needs a document: everywhere else already holds the
+ // English on the thing that was just created.
+ const bare={...structuredClone(seed),inbox:[{...item,attachments:[]}]};
+ const bareTodo=applyOperation(bare,{type:'inboxFile',id:'m1',title:'Pay the balance',destination:'todo'},parent);
+ assert.equal(bareTodo.documents.length,seed.documents.length);
+ assert.match(bareTodo.todos.at(-1).notes,/Check in from 15:00\./);
+ assert.equal(applyOperation(bare,{type:'inboxFile',id:'m1',title:'Kyoto ryokan'},parent).documents.length,seed.documents.length+1);
+ // Nowhere invented, and an activity always lands on a real day.
+ assert.throws(()=>file_({destination:'somewhere-else'}),/where this email goes/);
+ assert.throws(()=>file_({destination:'activity'}),/trip day/);
+ assert.throws(()=>file_({destination:'activity',day:'2020-01-01'}),/trip day/);
+ // Whichever door it went through, it leaves the inbox exactly once.
+ for(const d of ['ticket','activity','options','idea','todo'])assert.equal(file_({destination:d,day}).inbox.length,0);
+});
+
+test('a photo belongs to somebody, which is not always whoever put it on',async()=>{
+ const {ensureFeatures,photoOwner,photosOf,photoCounts,photosFor}=await import('../src/trip-features.js');
+ const boston={name:'Boston',role:'child'};
+ let state=ensureFeatures(structuredClone(seed));
+ const day=state.days[0].date,other=state.days[1].date;
+ state.photos=[
+  {id:'a',by:'Damien',for:'Nate',day,at:'2026-09-21T01:00:00.000Z'},
+  {id:'b',by:'Boston',for:'Boston',day,at:'2026-09-21T02:00:00.000Z'},
+  // Written before photos could be handed over: it belongs to whoever added it, which is not
+  // a guess, it is what was true at the time.
+  {id:'c',by:'Nate',day:other,at:'2026-09-21T03:00:00.000Z'}
+ ];
+ assert.equal(photoOwner(state.photos[0]),'Nate','a parent can take one for a boy');
+ assert.equal(photoOwner(state.photos[2]),'Nate','and an older one is still his');
+ assert.equal(photoOwner(null),'');
+ // A name gets you the whole trip, newest first, not one day of it.
+ assert.deepEqual(photosOf(state,'Nate').map(p=>p.id),['c','a']);
+ assert.deepEqual(photosOf(state,'Nate',day).map(p=>p.id),['a']);
+ assert.deepEqual(photosOf(state,'Lauren'),[]);
+ assert.deepEqual(photoCounts(state),{Nate:2,Boston:1});
+ assert.deepEqual(photoCounts(state,day),{Nate:1,Boston:1});
+ // Handing one over afterwards, because whose it is gets worked out once everyone has seen it.
+ let handed=applyOperation(state,{type:'photoAssign',id:'b',person:'Nate'},parent);
+ assert.equal(photoOwner(handed.photos.find(p=>p.id==='b')),'Nate');
+ assert.equal(handed.photos.find(p=>p.id==='b').by,'Boston','and who added it is not rewritten');
+ // A boy can hand over one he added, and nobody else's.
+ assert.equal(photoOwner(applyOperation(state,{type:'photoAssign',id:'b',person:'Nate'},boston).photos.find(p=>p.id==='b')),'Nate');
+ assert.throws(()=>applyOperation(state,{type:'photoAssign',id:'a',person:'Boston'},boston),/parent/i);
+ assert.throws(()=>applyOperation(state,{type:'photoAssign',id:'b',person:'Nobody'},parent),/family member/i);
+ assert.throws(()=>applyOperation(state,{type:'photoAssign',id:'gone',person:'Nate'},parent),/not found/i);
+ // Removing: yours if it is your photo OR you are the one who put it on.
+ assert.equal(applyOperation(state,{type:'photoRemove',id:'b'},boston).photos.length,2);
+ assert.equal(applyOperation(state,{type:'photoRemove',id:'a'},{name:'Nate',role:'child'}).photos.length,2,
+  'a boy can remove a photo that was handed to him');
+ assert.throws(()=>applyOperation(state,{type:'photoRemove',id:'a'},boston),/only remove your own/i);
+ // The vote still names the owner rather than the uploader.
+ const {photoOfTheDay}=await import('../src/trip-features.js');
+ const voted={...state,photoVotes:{[day]:{Damien:'a',Lauren:'a'}}};
+ assert.deepEqual(photoOfTheDay(voted,day).winners.map(photoOwner),['Nate']);
+});
+
+test('the photos live behind a filter rather than another entry in the menu',async()=>{
+ const {PAGES,moreIds}=await import('../src/nav-data.js');
+ const page=await readFile(new URL('../src/PhotoDay.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ // One entry, not two: twenty-two is already a long menu.
+ assert.equal(Object.keys(PAGES).filter(id=>/photo/i.test(id)).length,1);
+ assert.match(PAGES.photos.note,/whose is whose/);
+ // Whose photos you are looking at is in the address, so a profile links straight to it and
+ // the back button does what it looks like it does.
+ assert.match(main,/get\('who'\)/);
+ assert.match(main,/\{tab:'photos',who:name\}/);
+ assert.match(party,/href=\{`\/\?tab=photos&who=\$\{encodeURIComponent\(name\)\}`\}/);
+ // A named person is their whole trip; nobody named is today, which is what the vote is for.
+ assert.match(page,/const whole=!!person;/);
+ assert.match(page,/whole\?photosOf\(state,person\):photosFor\(state,day\)/);
+ // Voting is a thing you do to a day, so it is not offered on a whole-trip view.
+ assert.match(page,/\{!whole&&<button type="button" className=\{myVote===p\.id\?'primary':''\}/);
+ // The twelve-a-day allowance is the owner's, not the uploader's.
+ const handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handler,/p\.for\|\|p\.by\)===owner&&p\.day===b\.day\).length>=12/);
+ assert.match(handler,/user\.role!=='parent'&&owner!==user\.name/,'a boy can only speak for himself');
+});
+
+test('every phrase, katakana word and menu word says when you would actually use it',async()=>{
+ const {PHRASEBOOK,ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ const {LOANWORDS}=await import('../src/kana-data.js');
+ const {MENU_WORDS}=await import('../src/food-data.js');
+ const lists=[
+  ['phrase',ALL_PHRASES(),p=>p.note,p=>p.en],
+  ['katakana word',LOANWORDS,w=>w.where,w=>w.ja],
+  ['menu word',MENU_WORDS,w=>w.note,w=>w.en]
+ ];
+ for(const [kind,items,explain,name] of lists){
+  for(const item of items){
+   const said=explain(item);
+   assert.ok(said&&said.trim(),`the ${kind} "${name(item)}" does not say when you would use it`);
+   assert.ok(said.length>=20,`"${name(item)}" is explained too thinly: ${said}`);
+   assert.ok(said.length<=320,`"${name(item)}" runs on: ${said}`);
+   assert.ok(/[.!?]$/.test(said.trim()),`"${name(item)}" is not a finished sentence: ${said}`);
+  }
+  // A note copied from one entry to another is worse than none: it reads as an answer and
+  // is not one.
+  const said=items.map(explain);
+  assert.equal(new Set(said).size,said.length,`two ${kind}s share an explanation`);
+ }
+ // Every section says what it is for as well.
+ for(const section of PHRASEBOOK)assert.ok(section.note?.trim(),`${section.title} has no line`);
+ assert.equal(new Set(PHRASEBOOK.map(s=>s.note)).size,PHRASEBOOK.length);
+ // The one about allergies has to keep pointing at the staff rather than at us.
+ const allergy=ALL_PHRASES().find(p=>p.id==='allergy');
+ assert.match(allergy.note,/confirm/i);
+ assert.match(allergy.note,/never trust a translation/i);
+ // And the explanation is shown wherever the word is, not just on the phrases.
+ const page=await readFile(new URL('../src/Phrasebook.jsx',import.meta.url),'utf8');
+ assert.match(page,/\{w\.note&&<small className="menu-word-note">\{w\.note\}<\/small>\}/);
+});
+
+test('a five-year-old can sound anything out without reading a word of it',async()=>{
+ const {VOWELS,MOUTH,CHUNK_VOWEL,vowelOf,soundBubbles,bubbleRows}=await import('../src/phonics.js');
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ const {MENU_WORDS}=await import('../src/food-data.js');
+ const {phonicChunks}=await import('../src/speech.js');
+ // Five vowels, five mouths, five colours — the whole idea is that there are only five.
+ assert.equal(VOWELS.length,5);
+ assert.deepEqual(VOWELS.map(v=>v.id),['a','i','u','e','o']);
+ assert.equal(new Set(VOWELS.map(v=>v.colour)).size,5,'a colour each, or they cannot be told apart');
+ for(const v of VOWELS){
+  assert.ok(MOUTH[v.id],`${v.id} has no mouth to make`);
+  assert.ok(v.hint.length>20,`${v.id} does not say what the mouth does`);
+ }
+ // The mouths have to differ from each other, or the picture says nothing.
+ assert.equal(new Set(Object.values(MOUTH).map(m=>`${m.rx}x${m.ry}`)).size,5);
+ // "ee" is the widest and flattest, "oo" the smallest — if that ever stops being true the
+ // pictures are lying about the sound.
+ assert.ok(MOUTH.i.rx>MOUTH.u.rx&&MOUTH.i.ry<MOUTH.u.ry);
+ assert.ok(MOUTH.a.ry>MOUTH.i.ry,'“ah” is the open one');
+ // Every syllable anywhere in the phrasebook or on a menu has a mouth. A bubble with no
+ // picture is a bubble he has to read, which is the thing this exists to avoid.
+ for(const item of [...ALL_PHRASES(),...MENU_WORDS])
+  for(const bubble of soundBubbles(item.say))
+   assert.ok(bubble.vowel,`“${bubble.text}” in “${item.en}” has no mouth`);
+ // Written out rather than guessed from the spelling, because the tricky ones are the common
+ // ones: ます swallows its u, and あい opens on the a.
+ assert.equal(vowelOf('mass'),'a');
+ assert.equal(vowelOf('dess'),'e');
+ assert.equal(vowelOf('guy'),'a');
+ assert.equal(vowelOf('sigh'),'a');
+ assert.equal(vowelOf('koo'),'u');
+ assert.equal(vowelOf('SHEE'),'i','however it is capitalised');
+ assert.equal(vowelOf('nonsense'),null);
+ assert.equal(vowelOf(''),null);
+ for(const v of Object.values(CHUNK_VOWEL))assert.ok(MOUTH[v],v);
+ // The bubbles are the same syllables the written sounding-out uses, with the dashes gone.
+ const say='soo-mee-ma-sen';
+ assert.deepEqual(soundBubbles(say).map(b=>b.text),phonicChunks(say).filter(c=>/[a-z]/i.test(c.text)).map(c=>c.text));
+ assert.deepEqual(soundBubbles(say).map(b=>b.vowel),['u','i','a','e']);
+ assert.deepEqual(soundBubbles(say).map(b=>b.index),[0,1,2,3]);
+ // Four to a row: more than that and a five-year-old stops seeing them.
+ assert.deepEqual(bubbleRows('a-b-c-d-e-f').map(r=>r.length),[4,2]);
+ assert.deepEqual(bubbleRows(''),[]);
+});
+
+test('every phrase has a picture of what it means, so it can be found without reading',async()=>{
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ const all=ALL_PHRASES();
+ for(const p of all){
+  assert.ok(p.icon,`“${p.en}” has no picture`);
+  // A flag is two code points and a variation selector is a third. Anything longer is a
+  // joined sequence, which falls apart into separate people on a phone that lacks it.
+  assert.ok([...p.icon].length<=3,`“${p.en}” uses a joined emoji: ${[...p.icon].length} code points`);
+  assert.ok(!p.icon.includes('\u200d'),`“${p.en}” uses a zero-width joiner`);
+ }
+ // Two phrases wearing the same picture is worse than none — he picks by picture.
+ const icons=all.map(p=>p.icon);
+ assert.equal(new Set(icons).size,icons.length,'two phrases share a picture');
+ const page=await readFile(new URL('../src/Phrasebook.jsx',import.meta.url),'utf8');
+ const out=await readFile(new URL('../src/SoundOut.jsx',import.meta.url),'utf8');
+ // Nate's card carries the picture, the Japanese and the mouths — and no romaji, no notes,
+ // and no sounding-out line to read.
+ assert.match(page,/<span className="phrase-picture"/);
+ assert.match(page,/mode==='nate'/);
+ assert.match(page,/<SoundOut phrase=\{phrase\}\/>/);
+ const young=page.slice(page.indexOf('phrase-card young'),page.indexOf(':<div className="phrase-card"'));
+ assert.doesNotMatch(young,/SayIt|phrase\.note|romaji/,'nothing on his card has to be read');
+ // A tapped mouth says that syllable on its own and slowly; the big button says the lot.
+ assert.match(out,/read\(`chunk-\$\{phrase\.id\}-\$\{bubble\.index\}`,bubble\.text,'en-AU',SLOW_RATE\)/);
+ // Where somebody has recorded the phrase, that is what "all together" plays.
+ assert.match(out,/clip\s*\?<ClipButton clip=\{clip\} label="All together"\/>/);
+ // The daily pop-up is where he actually meets a phrase, so it carries the picture too.
+ assert.match(page,/\{phrase\.icon&&<span className="phrase-picture small"/);
+ // And he starts on his own mode rather than on a list of fifty-three written phrases.
+ assert.match(page,/const suits=user\?\.name==='Nate'\?'nate':'list'/);
+ assert.match(page,/localStorage\.getItem\('japan\.phrasemode'\)\|\|suits/,'and anybody can change it');
+});
+
+test('the origami diagrams are folded rather than drawn, so they cannot disagree with each other',async()=>{
+ const o=await import('../src/origami-data.js');
+ // A fold is a reflection. Get that wrong and every diagram after it is wrong too.
+ assert.deepEqual(o.reflect([0,0],[5,0],[5,9]).map(Math.round),[10,0]);
+ assert.deepEqual(o.reflect([2,8],[0,0],[10,0]).map(Math.round),[2,-8]);
+ assert.deepEqual(o.reflect([3,4],[0,0],[0,0]),[3,4],'a crease with no length folds nothing');
+ assert.equal(o.sideOf([1,1],[0,0],[10,0]),-o.sideOf([1,-1],[0,0],[10,0]));
+ assert.equal(o.sideOf([5,0],[0,0],[10,0]),0,'on the crease is neither side');
+ // Half a square, cut along the middle.
+ const half=o.clipToSide([[0,0],[10,0],[10,10],[0,10]],[0,5],[10,5],o.sideOf([5,0],[0,5],[10,5]));
+ assert.equal(half.length,4);
+ assert.ok(half.every(([,y])=>y<=5.0001));
+ // "Fold this corner onto that one" lands the corner exactly on the other one — which is what
+ // the instruction says, so the picture has to agree with the words.
+ const crease=o.creaseBringing([0,0],[10,10]);
+ assert.deepEqual(o.reflect([0,0],crease[0],crease[1]).map(n=>Math.round(n*1e6)/1e6),[10,10]);
+ assert.equal(o.creaseBringing([4,4],[4,4]),null);
+ // Which side moves is worked out from the corner being folded, never written down: a sign
+ // copied wrongly is invisible in the source and obvious in the diagram.
+ const spec=o.foldSpec({bring:[10,10],to:[90,90]});
+ assert.equal(o.sideOf([10,10],spec.crease[0],spec.crease[1]),spec.move);
+ assert.equal(o.foldSpec({through:[[0,50],[100,50]]}),null,'a fold with nothing moving is not a fold');
+ assert.equal(o.foldSpec(null),null);
+ // Folding a square in half leaves two layers lying on top of each other.
+ const folded=o.foldLayers([o.PAPER],[0,50],[100,50],o.sideOf([50,10],[0,50],[100,50]));
+ assert.equal(folded.length,2);
+ for(const layer of folded)assert.ok(layer.every(([,y])=>y>=49.999),'both layers end up on the same side');
+ // Turning it over is a mirror — a fold made on the back lands in the mirrored place, and a
+ // diagram that forgot that would teach the wrong crease.
+ assert.deepEqual(o.flipLayers([[[10,20]]]),[[[90,20]]]);
+ // A rotation is re-fitted, or the step that needs looking at hardest walks off the card.
+ const spun=o.fitLayers(o.rotateLayers([o.PAPER],37));
+ const b=o.boundsOf(spun);
+ assert.ok(b.minX>=9.99&&b.maxX<=90.01&&b.minY>=9.99&&b.maxY<=90.01);
+ assert.equal(o.boundsOf([]),null);
+ // The crease is trimmed to the paper: a perpendicular bisector is an infinite line and drawn
+ // as one it stops looking like a fold in a sheet.
+ const trimmed=o.creaseInBox([[-400,50],[400,50]],{minX:10,maxX:90,minY:10,maxY:90});
+ assert.deepEqual(trimmed.map(p=>p.map(n=>Math.round(n*1e6)/1e6)),[[10,50],[90,50]]);
+ assert.equal(o.creaseInBox([[5,0],[5,100]],{minX:10,maxX:90,minY:10,maxY:90}),null,'and misses entirely when it should');
+ assert.equal(o.creaseInBox(null,{minX:0,maxX:1,minY:0,maxY:1}),null);
+});
+
+test('every origami model folds all the way to something, with a sentence at each step',async()=>{
+ const {ORIGAMI,modelById,stepFrames,foldSpec,origamiGame,boundsOf}=await import('../src/origami-data.js');
+ assert.ok(ORIGAMI.length>=1);
+ assert.equal(new Set(ORIGAMI.map(m=>m.id)).size,ORIGAMI.length);
+ for(const model of ORIGAMI){
+  assert.ok(model.name&&model.ja&&model.icon,model.id);
+  assert.ok(model.about.length>40&&model.finish.length>20,`${model.id} does not say what it becomes`);
+  assert.ok(origamiGame(model.id).length<=40,'the server refuses a longer game name');
+  const steps=stepFrames(model);
+  assert.equal(steps.length,model.steps.length+1,'the finished thing is a step of its own');
+  assert.ok(steps.at(-1).done);
+  for(const step of steps){
+   assert.ok(step.say&&step.say.trim().length>20,`a step of ${model.id} says too little: ${step.say}`);
+   assert.ok(/[.!?]$/.test(step.say.trim()));
+   assert.ok(step.layers.length,`a step of ${model.id} has no paper left`);
+   // Every picture stays inside the frame — nothing is drawn off the edge of the card.
+   const b=boundsOf(step.layers);
+   assert.ok(b.minX>=-0.01&&b.maxX<=100.01&&b.minY>=-0.01&&b.maxY<=100.01,`${model.id} runs off the card`);
+  }
+  // Each fold really folds: the paper after it is not the paper before it.
+  for(const step of model.steps){
+   if(!step.fold)continue;
+   assert.ok(foldSpec(step.fold),`a fold of ${model.id} does not describe a crease and a side`);
+  }
+  const before=steps.map(s=>JSON.stringify(s.layers));
+  assert.equal(new Set(before).size,before.length,`${model.id} has a step that changes nothing`);
+  // Paper only ever gets more layers, never fewer: that is what folding is.
+  for(let i=1;i<steps.length;i++)
+   assert.ok(steps[i].layers.length>=steps[i-1].layers.length,`${model.id} loses a layer at step ${i}`);
+ }
+ const hat=modelById('hat');
+ assert.ok(hat,'the hat is the one that is finished');
+ assert.equal(modelById('nothing-like-this'),null);
+ // It folds in half first, so the sheet it starts from is not square — a hat from a square has
+ // no brim, and the diagram would quietly stop matching the words.
+ const [[x0],[x1]]=[hat.paper[0],hat.paper[1]];
+ assert.ok(Math.abs(x1-x0)<Math.abs(hat.paper[2][1]-hat.paper[1][1]),'the hat starts from a tall sheet');
 });
