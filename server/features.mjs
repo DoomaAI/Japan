@@ -3,6 +3,7 @@ import {findRide} from '../src/park-data.js';
 import {FOOD,FOOD_KINDS} from '../src/food-data.js';
 import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {ALL_FACTS,findFact} from '../src/fact-data.js';
+import {MONEY} from '../src/money-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
@@ -398,6 +399,20 @@ export function extraOperation(state,op,user,fail,now){
   if(op.done)found[op.person]=found[op.person]||at;else delete found[op.person];
   state.eyeSpy={...state.eyeSpy,[key]:found};
   if(!Object.keys(found).length)delete state.eyeSpy[key];
+ }else if(op.type==='moneyFound'){
+  // The boys' own collection of the coins and notes. It is theirs, so a boy ticks his own and
+  // a parent can tick for either of them; nobody else has a set to fill. Keeping the first time
+  // it was found means moving one up from "saw it" to "had it" does not restamp the day he
+  // first laid eyes on it.
+  if(!MONEY.some(m=>m.id===op.id))fail('Unknown coin or note.',404);
+  if(!BOYS.includes(op.person)||(!parent&&op.person!==user.name))fail('Tick only your own money.',403);
+  if(!['had','saw','no'].includes(op.state))fail('Invalid money tick.');
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid money time.');at=new Date(op.at).toISOString();}
+  const found={...(state.money[op.id]||{})};
+  if(op.state==='no')delete found[op.person];
+  else found[op.person]={at:found[op.person]?.at||at,had:op.state==='had',by:user.name};
+  state.money={...state.money,[op.id]:found};
+  if(!Object.keys(found).length)delete state.money[op.id];
  }else if(op.type==='challengeRemove'){
   state.challenges=state.challenges.filter(c=>c.id!==op.id);
  }else if(op.type==='challengeStatus'){

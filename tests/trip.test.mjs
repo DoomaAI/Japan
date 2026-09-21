@@ -6098,7 +6098,7 @@ test('the money pictures are our own drawing, both sides, and Nate can press one
  // Yen for the shop and dollars for working out whether it was worth it, the same as the rest
  // of the page, at the family's own rate rather than a made-up one.
  assert.match(page,/\{yen\(item\.yen\)\}/);assert.match(page,/\{dollars\(item\.yen,rate\)\}/);
- assert.match(spending,/<MoneyPictures user=\{user\} rate=\{rate\}\/>/,'the spending page carries it');
+ assert.match(spending,/<MoneyPictures state=\{state\} user=\{user\} rate=\{rate\} person=\{person\} mine=\{mine\}/,'the spending page carries it, for whichever boy is on screen');
  // Nate is why the speaker is there, so he gets the story speed and a button he cannot miss.
  assert.match(page,/const young=user\?\.name==='Nate'/);
  assert.match(page,/rate:young\?YOUNG_RATE:undefined/);
@@ -6110,4 +6110,79 @@ test('the money pictures are our own drawing, both sides, and Nate can press one
  assert.match(page,/\{SILENT_HINT\}/);
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  assert.match(css,/\.money-hear\.young\{/,'the button he presses is bigger than the one a parent presses');
+});
+
+test('the boys tick off each coin and note as they get one or see one, and it is their own set',async()=>{
+ const {ensureFeatures,moneyFind,moneyTally}=await import('../src/trip-features.js');
+ const {MONEY,COINS}=await import('../src/money-data.js');
+ const boston={name:'Boston',role:'child'};
+ const base=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(base.money,{},'nobody has found anything before the trip starts');
+ // Seeing one and getting one are different things, and a ten thousand yen note is only ever
+ // going to be one of them, so the set records which it was rather than flattening it to a tick.
+ const saw=applyOperation(base,{type:'moneyFound',id:'note-10000',person:'Nate',state:'saw'},child);
+ assert.equal(moneyFind(saw,'note-10000','Nate').had,false);
+ const had=applyOperation(saw,{type:'moneyFound',id:'coin-500',person:'Nate',state:'had'},child);
+ assert.equal(moneyFind(had,'coin-500','Nate').had,true);
+ assert.deepEqual(moneyTally(had,'Nate'),{total:MONEY.length,found:2,had:1,saw:1});
+ assert.deepEqual(moneyTally(had,'Nate',COINS),{total:6,found:1,had:1,saw:0});
+ // One boy's collection is his own: what Nate has found says nothing about Boston.
+ assert.deepEqual(moneyTally(had,'Boston'),{total:MONEY.length,found:0,had:0,saw:0});
+ // A coin seen in a shop window in Tokyo and finally handed over in Kyoto is still first seen
+ // in Tokyo, so moving it up from seen to had keeps the day it was first found.
+ const first=moneyFind(had,'note-10000','Nate').at;
+ const kept=applyOperation(had,{type:'moneyFound',id:'note-10000',person:'Nate',state:'had'},child);
+ assert.equal(moneyFind(kept,'note-10000','Nate').at,first,'the day he first saw it is not restamped');
+ assert.equal(moneyFind(kept,'note-10000','Nate').had,true);
+ // A mis-tap by a five-year-old has to be undoable, and an empty entry is not left lying about.
+ const undone=applyOperation(kept,{type:'moneyFound',id:'note-10000',person:'Nate',state:'no'},child);
+ assert.equal(moneyFind(undone,'note-10000','Nate'),null);
+ assert.ok(!('note-10000'in undone.money),'the last boy to un-tick it takes the entry with him');
+ // It is the boys' own money, so a boy ticks his own and a parent can tick for either of them.
+ assert.throws(()=>applyOperation(base,{type:'moneyFound',id:'coin-100',person:'Boston',state:'had'},child),e=>e.status===403);
+ assert.equal(moneyFind(applyOperation(base,{type:'moneyFound',id:'coin-100',person:'Boston',state:'had'},boston),'coin-100','Boston').had,true);
+ assert.equal(moneyFind(applyOperation(base,{type:'moneyFound',id:'coin-100',person:'Nate',state:'saw'},parent),'coin-100','Nate').had,false);
+ // Nobody else has a set to fill, and nothing can be ticked that is not really money.
+ assert.throws(()=>applyOperation(base,{type:'moneyFound',id:'coin-100',person:'Damien',state:'had'},parent),e=>e.status===403);
+ assert.throws(()=>applyOperation(base,{type:'moneyFound',id:'coin-3',person:'Nate',state:'had'},parent),e=>e.status===404);
+ assert.throws(()=>applyOperation(base,{type:'moneyFound',id:'coin-100',person:'Nate',state:'maybe'},parent),/Invalid money tick/);
+});
+
+test('a coin ticked off in a shop with no signal shows up at once and lands when it syncs',async()=>{
+ const {ensureFeatures,pendingProgress,moneyFind,moneyTally}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed)),at='2026-09-25T04:10:00.000Z';
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // A shop is the one place on this trip with no signal worth relying on, so this is exactly
+ // the tick that has to survive it.
+ assert.match(main,/const OFFLINE_OPS=\[[^\]]*'moneyFound'/s,'ticking a coin off is queued rather than lost');
+ const queued=[{operation:{type:'moneyFound',id:'coin-5',person:'Nate',state:'had',at}},
+  {operation:{type:'moneyFound',id:'coin-50',person:'Nate',state:'saw',at}}];
+ const shown=pendingProgress(state,queued);
+ assert.equal(moneyFind(shown,'coin-5','Nate').had,true);
+ assert.equal(moneyFind(shown,'coin-5','Nate').pending,true,'and it says so until it lands');
+ assert.deepEqual(moneyTally(shown,'Nate').found,2);
+ assert.deepEqual(moneyTally(state,'Nate').found,0,'the queue does not touch the trip until it syncs');
+ // And taking one back off works the same way round.
+ const off=pendingProgress(state,[...queued,{operation:{type:'moneyFound',id:'coin-5',person:'Nate',state:'no',at}}]);
+ assert.equal(moneyFind(off,'coin-5','Nate'),null);
+});
+
+test('the ticks are two buttons a five-year-old can press, and the set has a bar to fill',async()=>{
+ const page=await readFile(new URL('../src/MoneyPictures.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // Pressing the one that is already on takes it back off: that is how a five-year-old undoes
+ // a mis-tap without finding a menu.
+ assert.match(page,/const set=want=>mutate\(\{type:'moneyFound',id:item\.id,person,state:on\(want\)\?'no':want\}\)/);
+ assert.match(page,/aria-pressed=\{on\('had'\)\}/);assert.match(page,/aria-pressed=\{on\('saw'\)\}/);
+ // A boy looking at his brother's page sees how his brother is going and cannot touch it.
+ assert.match(page,/if\(!mine\)return found\?/,'the other boy reads it rather than ticks it');
+ // Having one in your hand counts as having seen it, so the bar fills once and the darker part
+ // of it is the money that actually turned up.
+ assert.match(page,/className="money-had" style=\{\{width:`\$\{\(whole\.had\/whole\.total\)\*100\}%`\}\}/);
+ assert.match(page,/className="money-saw" style=\{\{width:`\$\{\(whole\.saw\/whole\.total\)\*100\}%`\}\}/);
+ assert.match(page,/full=whole\.found===whole\.total/,'and finishing the set is worth saying');
+ // The meter's stripe and the button must not share a class, or the stripe paints the button.
+ assert.doesNotMatch(page,/className=\{`money-saw\$/);
+ assert.match(css,/\.money-tick button\.on\{/);
+ assert.match(css,/\.money-progress\.full\{/);
 });

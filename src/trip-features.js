@@ -1,6 +1,7 @@
 import {activeSteps,minutes,asClock,japanDate,japanClock} from './timing.js';
 import {ORDERED_PHRASES,phraseForDay} from './phrasebook-data.js';
 import {ALL_FACTS,orderedFacts} from './fact-data.js';
+import {MONEY} from './money-data.js';
 export const BOYS=['Nate','Boston'];
 export const THANK_YOU_FROM='Damien',THANK_YOU_TO='Lauren';
 export function initialThankYou(){
@@ -82,6 +83,19 @@ export const isTrainLeg=step=>/nozomi|shinkansen/i.test(step?.title||'');
 export const trainLegs=state=>state.steps.filter(isTrainLeg);
 export const eyeSpyKey=(stepId,itemId)=>`${stepId}|${itemId}`;
 export const eyeSpySpotted=(state,stepId,person)=>EYE_SPY.filter(item=>state.eyeSpy?.[eyeSpyKey(stepId,item.id)]?.[person]);
+// The boys' own collection of the money itself. Two ways to find a coin: one turns up in your
+// change and you keep it, and one you only ever get to look at — a ¥10,000 note is not going in
+// a five-year-old's purse. Both count as found, and which of the two it was is the whole
+// interest of it, so it is remembered rather than flattened into a tick.
+export const MONEY_STATES=['had','saw'];
+export const moneyFind=(state,id,person)=>state.money?.[id]?.[person]||null;
+// How far through the set a boy is, over whichever pieces are in front of him. Having one in
+// your hand is also having seen it, so `found` is the total and `had` is the better half of it.
+export function moneyTally(state,person,list=MONEY){
+ const finds=list.map(m=>moneyFind(state,m.id,person));
+ return {total:list.length,found:finds.filter(Boolean).length,
+  had:finds.filter(f=>f?.had).length,saw:finds.filter(f=>f&&!f.had).length};
+}
 // Fuji sits south of the line, so it is on the right heading west and the left heading back —
 // and it passes about 40 minutes from the Tokyo end of the journey, whichever way you travel.
 export const towardsTokyo=step=>/tokyo/i.test(step?.title||'');
@@ -397,7 +411,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},money:state.money??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -886,6 +900,15 @@ export function pendingProgress(state,queue){
   if(o.type==='foodRating'){const e=next.food[o.itemId]||{},ratings={...(e.ratings||{})};if(o.rating)ratings[o.person]=o.rating;else delete ratings[o.person];next.food={...next.food,[o.itemId]:{...e,ratings}};}
   if(o.type==='parkRide'){const e=next.parkRides[o.rideId]||{},ridden={...(e.ridden||{})};if(o.done)ridden[o.person]=ridden[o.person]||o.at;else delete ridden[o.person];next.parkRides={...next.parkRides,[o.rideId]:{...e,ridden}};}
   if(o.type==='eyeSpy'){const key=eyeSpyKey(o.stepId,o.item),found={...(next.eyeSpy[key]||{})};if(o.done)found[o.person]=found[o.person]||o.at;else delete found[o.person];next.eyeSpy={...next.eyeSpy,[key]:found};}
+  // A coin is ticked off in a shop, which is the one place on this trip with no signal worth
+  // relying on, so the collection has to fill in on the phone and land later.
+  if(o.type==='moneyFound'){
+   const found={...(next.money[o.id]||{})};
+   if(o.state==='no')delete found[o.person];
+   else found[o.person]={at:found[o.person]?.at||o.at,had:o.state==='had',pending:true};
+   next.money={...next.money,[o.id]:found};
+   if(!Object.keys(found).length)delete next.money[o.id];
+  }
   // An idea thought of on a train with no signal, and the votes cast on one, are additions:
   // they are still right whenever they land, so the board shows them straight away.
   if(o.type==='proposalAdd')next.proposals=[...next.proposals,{id:`pending-${o.operationId}`,...proposalDraft(o),addedBy:o.person,createdAt:o.at,votes:{},musts:{},parked:false,stepId:null,pending:true}];

@@ -74,7 +74,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // What is missing is deliberate: anything that reshapes the plan needs the latest revision
 // to be safe, a stale exchange rate or forecast overwriting a fresh one is worse than not
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
-const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
+const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','moneyFound','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove',
  'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','spendAdd','spendBought','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove'];
 function App(){

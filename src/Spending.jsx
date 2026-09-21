@@ -255,7 +255,7 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
   <div className="row wrap"><button className="primary" disabled={busy}>{edit.id?'Save':'Add it'}</button><button type="button" onClick={()=>setEdit(null)}>Cancel</button></div>
  </form>}
 
- <MoneyPictures user={user} rate={rate}/>
+ <MoneyPictures state={state} user={user} rate={rate} person={person} mine={mine} busy={busy} mutate={mutate}/>
 
  {go&&<p className="callout"><ShoppingBag size={18}/><span>Things the whole family is buying — with shops, links and quantities — live on the <button onClick={()=>go('shopping')}>Shopping list</button>. This page is the boys’ own money.</span></p>}
  </>;
