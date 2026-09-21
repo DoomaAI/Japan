@@ -3406,7 +3406,7 @@ test('a spot-the-difference score is one the server will actually take',async()=
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:(OFFLINE|'[^']+'),Component:(\w+)/g)];
- assert.equal(entries.length,20);
+ assert.equal(entries.length,21);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -3433,7 +3433,7 @@ test('a game that really is Japanese says so, and one that only looks it says no
  // The ones that are genuinely Japanese games, and nothing else. Sumo stable and Onigiri to
  // Fuji are games about Japan, which is a different claim and is not made.
  assert.deepEqual(entries.filter(g=>g.origin==='traditional').map(g=>g.id).sort(),
-  ['daruma','fukuwarai','janken','karuta','kingyo','origami','shiritori','sumo']);
+  ['daruma','fukuwarai','gomoku','janken','karuta','kingyo','origami','shiritori','sumo']);
  assert.deepEqual(entries.filter(g=>g.origin==='modern').map(g=>g.id).sort(),['picross','shogi']);
  for(const g of entries.filter(g=>g.origin))
   assert.ok(g.ja,`${g.title} claims to be Japanese, so it must say what it is called in Japanese`);
@@ -3443,6 +3443,98 @@ test('a game that really is Japanese says so, and one that only looks it says no
  assert.match(source,/const ORIGINS=\{\n traditional:.*\n modern:.*\n\};/);
  for(const g of entries.filter(g=>g.origin))
   assert.match(source,new RegExp(`id:'${g.id}'[\\s\\S]{0,600}?story:'`),`${g.title} must say why`);
+});
+
+test('gomoku knows a five when it sees one, and the harder opponent really is harder',async()=>{
+ const G=await import('../src/gomoku.js');
+ const rng=seed=>{let n=seed>>>0||1;return()=>{n^=n<<13;n>>>=0;n^=n>>17;n^=n<<5;n>>>=0;return n/4294967296;};};
+ // Nine was measured and thrown out: two engines that both block well drew most games on it.
+ assert.deepEqual(G.SIZES,[11,13]);
+ const size=11,at=(r,c)=>G.idx(size,r,c);
+ // Five in a row wins, in every direction, and four does not.
+ for(const [dr,dc] of [[0,1],[1,0],[1,1],[1,-1]]){
+  let board=G.newBoard(size);
+  const from=[5,5];
+  for(let k=0;k<4;k++)board=G.place(board,at(from[0]+dr*k,from[1]+dc*k),G.BLACK);
+  const fourth=at(from[0]+dr*3,from[1]+dc*3);
+  assert.equal(G.winsAt(board,size,fourth,G.BLACK),false,'four is not five');
+  const fifth=at(from[0]+dr*4,from[1]+dc*4);
+  board=G.place(board,fifth,G.BLACK);
+  assert.equal(G.winsAt(board,size,fifth,G.BLACK),true,`five must win going ${dr},${dc}`);
+  assert.equal(G.winsAt(board,size,fifth,G.WHITE),false,'and it must be your five, not his');
+ }
+ // An open three is worth more than a blocked four, which is the one judgement the whole
+ // evaluation rests on.
+ assert.ok(G.shapeValue({count:3,open:2})>G.shapeValue({count:4,open:1}));
+ assert.ok(G.shapeValue({count:4,open:2})>G.shapeValue({count:3,open:2}));
+ assert.equal(G.shapeValue({count:4,open:0}),0,'a line shut at both ends is worth nothing');
+ assert.equal(G.shapeValue({count:5,open:0}),G.SHAPE[5],'except when it is already five');
+ // Only squares near a stone are considered, and on an empty board that is the middle.
+ assert.deepEqual(G.candidates(G.newBoard(size),size),[at(5,5)]);
+ assert.ok(G.candidates(G.place(G.newBoard(size),at(5,5),G.BLACK),size).length<=24);
+ // He takes a win when it is there, and blocks yours when it is not.
+ let board=G.newBoard(size);
+ for(let k=0;k<4;k++)board=G.place(board,at(2,2+k),G.WHITE);
+ assert.ok([at(2,1),at(2,6)].includes(G.aiMove(board,size,G.WHITE,'child',rng(1))),'he must finish his own five');
+ board=G.newBoard(size);
+ for(let k=0;k<4;k++)board=G.place(board,at(2,2+k),G.BLACK);
+ assert.ok([at(2,1),at(2,6)].includes(G.aiMove(board,size,G.WHITE,'child',rng(1))),'and block yours');
+ // Taking the win comes before blocking, when both are on offer.
+ board=G.newBoard(size);
+ for(let k=0;k<4;k++){board=G.place(board,at(2,2+k),G.BLACK);board=G.place(board,at(6,2+k),G.WHITE);}
+ assert.ok([at(6,1),at(6,6)].includes(G.aiMove(board,size,G.WHITE,'master',rng(1))),'winning beats blocking');
+ // He never plays on top of a stone or off the board, at any level.
+ for(const level of G.LEVELS){
+  let live=G.newBoard(13),side=G.BLACK;
+  for(let i=0;i<40;i++){
+   const move=G.aiMove(live,13,side,level.id,rng(i+3));
+   assert.ok(Number.isInteger(move)&&move>=0&&move<169,`${level.id} played off the board`);
+   assert.equal(live[move],G.EMPTY,`${level.id} played on top of a stone`);
+   live=G.place(live,move,side);
+   if(G.winsAt(live,13,move,side))break;
+   side=G.other(side);
+  }
+ }
+ // And the levels really are a ladder. They differ only in how often they MISS something — a
+ // search and a threat ladder were both written here first and both made him play worse, and
+ // varying the block weight by level put the ladder out of order on the bigger board. So this
+ // is the only thing making them levels, and it is measured rather than asserted. Both colours
+ // are played in every pairing, because going first in gomoku is a real advantage.
+ const play=(a,b,seed)=>{
+  const rand=rng(seed);let live=G.newBoard(11),side=G.BLACK,stones=0;
+  while(stones<121){
+   const move=G.aiMove(live,11,side,side===G.BLACK?a:b,rand);
+   live=G.place(live,move,side);stones++;
+   if(G.winsAt(live,11,move,side))return side;
+   side=G.other(side);
+  }
+  return null;
+ };
+ const duel=(a,b,n=18)=>{
+  let aWins=0,bWins=0;
+  for(let s=1;s<=n;s++)for(const [x,y] of [[a,b],[b,a]]){
+   const won=play(x,y,s*104729);
+   if(won===G.BLACK){x===a?aWins++:bWins++;}else if(won){y===a?aWins++:bWins++;}
+  }
+  return [aWins,bWins];
+ };
+ const [masterOverChild,childOverMaster]=duel('master','child');
+ assert.ok(masterOverChild>=childOverMaster*2,
+  `master ${masterOverChild} child ${childOverMaster}: the hard one must be clearly harder`);
+ const [grownOverChild,childOverGrown]=duel('grown','child');
+ assert.ok(grownOverChild>childOverGrown,`grown ${grownOverChild} child ${childOverGrown}`);
+ const [masterOverGrown,grownOverMaster]=duel('master','grown');
+ assert.ok(masterOverGrown>grownOverMaster,`master ${masterOverGrown} grown ${grownOverMaster}`);
+ // Missing a four is the lever, so the easy one has to actually do it and the hard one must not.
+ assert.equal(G.levelById('master').misses,0);
+ assert.ok(G.levelById('child').misses>G.levelById('grown').misses);
+ // And the block weight belongs to the engine, not the level, for the reason above.
+ for(const level of G.LEVELS)assert.equal(level.block,undefined,`${level.id} must not carry its own block weight`);
+ // A win pays by who you beat and how few stones it took.
+ assert.ok(G.gomokuWorth('master',20)>G.gomokuWorth('child',20));
+ assert.ok(G.gomokuWorth('grown',12)>G.gomokuWorth('grown',50),'a short win is worth more');
+ assert.ok(G.gomokuWorth('child',999)>=G.levelById('child').pays,'but a long one still pays');
+ assert.ok(G.gomokuWorth('master',0)<=9999);
 });
 
 test('no picross puzzle can reach a child unless it can be worked out without guessing',async()=>{
