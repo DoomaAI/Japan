@@ -1105,3 +1105,26 @@ test('a queued phrase log still shows on the phone before it syncs',async()=>{
  assert.deepEqual(Object.keys(phrasesSeenBy(preview,'Nate')),['hello','thanks']);
  assert.ok(preview.phraseSeen[day].Nate);
 });
+
+test('two speeds, and the quirks that make a phone say nothing at all',async()=>{
+ const {speechRate,speechKey,needsSettle,isRealFailure,SLOW_RATE}=await import('../src/speech.js');
+ // Japanese is read a little under pace already; the snail is slower again.
+ assert.equal(speechRate('ja-JP'),.8);
+ assert.equal(speechRate('en-AU'),.85);
+ assert.equal(speechRate('ja-JP',true),SLOW_RATE);
+ assert.ok(SLOW_RATE<.8,'the slow one has to be properly slower to be worth a button');
+ assert.equal(speechRate(undefined),.85);
+ // Each speed is its own button, so tapping the other one switches rather than stops.
+ assert.notEqual(speechKey('こんにちは','slow'),speechKey('こんにちは','normal'));
+ // Speaking straight after a cancel is what silences Safari, so we only wait when we must.
+ assert.equal(needsSettle({speaking:true,pending:false}),true);
+ assert.equal(needsSettle({speaking:false,pending:true}),true,'queued counts as busy');
+ assert.equal(needsSettle({speaking:false,pending:false}),false,'a quiet engine speaks now, inside the tap');
+ assert.equal(needsSettle(null),false);
+ // Interrupting one phrase with another is not a fault to report.
+ assert.equal(isRealFailure('interrupted'),false);
+ assert.equal(isRealFailure('canceled'),false);
+ assert.equal(isRealFailure('cancelled'),false);
+ assert.equal(isRealFailure('synthesis-failed'),true);
+ assert.equal(isRealFailure(undefined),false);
+});
