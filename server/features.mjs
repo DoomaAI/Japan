@@ -466,8 +466,9 @@ export function extraOperation(state,op,user,fail,now){
     return {title:(x.title||'').trim(),url:x.url};});
    // Results recorded in the arena survive a re-fetch, as long as the bout is still on the card.
    const results=Object.fromEntries(Object.entries(current.results).filter(([id])=>seen.has(id)));
+   const predictions=Object.fromEntries(Object.entries(current.predictions).filter(([id])=>seen.has(id)));
    state.sumo={...current,basho:op.basho||'',dayNumber:op.dayNumber??null,venue:op.venue||'',
-    date:op.date||null,doorsOpen:op.doorsOpen||'',notes:op.notes||'',bouts,sources,results,at:now,by:user.name};
+    date:op.date||null,doorsOpen:op.doorsOpen||'',notes:op.notes||'',bouts,sources,results,predictions,at:now,by:user.name};
    return {summary:`${user.name} loaded the sumo card for ${op.date||'the day'} — ${bouts.length} bouts`,important:true,title:'Sumo card'};
   }
   if(op.type==='sumoWrestler'){
@@ -483,6 +484,19 @@ export function extraOperation(state,op,user,fail,now){
     record:p.record||'',about:p.about||'',sources:(Array.isArray(p.sources)?p.sources:[]).slice(0,6),at:now,by:user.name};
    state.sumo={...current,wrestlers};
    return {summary:null,important:false,title:`Sumo · ${p.name.trim()}`};
+  }
+  if(op.type==='sumoPredict'){
+   // Whoever is holding the phone enters everybody's pick, because in the arena there is one
+   // phone out and four people shouting at it. That is why this one is not "your own only".
+   const bout=current.bouts.find(b=>b.id===op.id);if(!bout)fail('That bout is not on the card.',404);
+   if(!state.members.includes(op.person))fail('Choose a family member.');
+   if(current.results[op.id])fail('That one has been watched. Clear the result if you want to reopen the picks.');
+   if(op.winner!==null&&op.winner!==bout.east.name&&op.winner!==bout.west.name)fail('One of the two, or nobody.');
+   const predictions={...current.predictions},forBout={...(predictions[op.id]||{})};
+   if(op.winner)forBout[op.person]=op.winner;else delete forBout[op.person];
+   if(Object.keys(forBout).length)predictions[op.id]=forBout;else delete predictions[op.id];
+   state.sumo={...current,predictions};
+   return {summary:null,important:false,title:`Sumo · ${bout.east.name} v ${bout.west.name}`};
   }
   if(op.type==='sumoResult'){
    const bout=current.bouts.find(b=>b.id===op.id);if(!bout)fail('That bout is not on the card.',404);
