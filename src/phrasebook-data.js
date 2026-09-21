@@ -76,3 +76,9 @@ export function phraseForDay(days,day){
  if(index<0)return null;
  return findPhrase(DAILY_ORDER[index%DAILY_ORDER.length]);
 }
+// The rota first, because those are the ones chosen as most worth knowing, then the rest of
+// the book in the order it is written. This is the order "one more" works through.
+export const ORDERED_PHRASES=()=>{
+ const all=ALL_PHRASES(),rota=DAILY_ORDER.map(id=>all.find(p=>p.id===id)).filter(Boolean);
+ return [...rota,...all.filter(p=>!DAILY_ORDER.includes(p.id))];
+};
