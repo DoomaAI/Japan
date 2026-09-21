@@ -132,3 +132,16 @@
 .picross-grid{grid-column:2;grid-row:2;display:grid;grid-template-columns:repeat(var(--n),1fr);gap:1px;background:#c9c2b4;border:2px solid #7d766a;border-radius:4px;overflow:hidden}
 .picross-cell{display:grid;place-items:center;aspect-ratio:1;min-height:0;padding:0;background:#fffdf8;border:0;border-radius:0;color:#a79f92}.picross-cell.on{background:#2f3b38}.picross-cell.off{background:#f1ece2}.picross-cell.rule{box-shadow:1px 0 0 #7d766a}.picross-cell.ruleb{box-shadow:0 1px 0 #7d766a}.picross-cell.rule.ruleb{box-shadow:1px 0 0 #7d766a,0 1px 0 #7d766a}
 .picross-mode button{flex:1 1 40%}
+/* Gomoku. A board rather than a grid of buttons: warm wood, thin lines, and the stone sitting
+   on top of it. The last stone played is ringed, because on a board this size it is easy to
+   lose track of what he just did. */
+.goban{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:0;width:min(100%,360px);margin:.8rem auto;padding:6px;background:#e5c98f;border:3px solid #b99a5e;border-radius:8px;touch-action:manipulation}
+.goban-spot{position:relative;aspect-ratio:1;min-height:0;padding:0;background:none;border:0;border-radius:0}
+.goban-spot::before{content:'';position:absolute;left:50%;top:0;width:1px;height:100%;background:#a8874f;transform:translateX(-50%)}
+.goban-spot::after{content:'';position:absolute;top:50%;left:0;height:1px;width:100%;background:#a8874f;transform:translateY(-50%)}
+.goban-spot.black,.goban-spot.white{z-index:1}
+.goban-spot.black::before,.goban-spot.white::before,.goban-spot.black::after,.goban-spot.white::after{z-index:-1}
+.goban-spot.black{background:radial-gradient(circle at 36% 32%,#5d5f61,#16181a 62%);border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.35)}
+.goban-spot.white{background:radial-gradient(circle at 36% 32%,#fff,#d8d2c6 68%);border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.goban-spot.last{outline:2px solid var(--green);outline-offset:-3px;border-radius:50%}
+.goban-spot.won{outline:2px solid #c0392b;outline-offset:-3px;border-radius:50%}
