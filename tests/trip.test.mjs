@@ -685,8 +685,9 @@ test('the menu reader sends a well-formed vision request and reads the answer ba
    res.end(JSON.stringify({id:'msg_1',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'end_turn',
     usage:{input_tokens:1500,output_tokens:400},
     content:[{type:'text',text:JSON.stringify({readable:true,place:'Maisen',note:'Order the rice separately for Nate.',
-     suggestions:[{ja:'ロースかつ膳',en:'Pork loin katsu set',why:'The dish this place is known for.',forWhom:['Damien','Lauren','Boston'],matchesOurList:'tonkatsu',spicy:false,price:'¥2,100'},
-                  {ja:'白ごはん',en:'Plain rice',why:'Nate will always eat this.',forWhom:['Nate'],matchesOurList:'gohan',spicy:false,price:''}],
+     suggestions:[{ja:'ロースかつ膳',en:'Pork loin katsu set',why:'The dish this place is known for.',forWhom:['Damien','Lauren','Boston'],matchesOurList:'tonkatsu',ingredients:['Pork loin','Wheat flour','Egg','Panko'],spicy:false,heat:'none',spiceNote:'',price:'¥2,100'},
+                  {ja:'白ごはん',en:'Plain rice',why:'Nate will always eat this.',forWhom:['Nate'],matchesOurList:'gohan',ingredients:['Short-grain rice'],spicy:false,heat:'none',spiceNote:'',price:''},
+                  {ja:'辛味噌ラーメン',en:'Spicy miso ramen',why:'The one the parents will want.',forWhom:['Damien','Lauren'],matchesOurList:'',ingredients:['Wheat noodles','Miso','Chilli oil','Pork'],spicy:true,heat:'hot',spiceNote:'Dressed in chilli oil before it leaves the kitchen.',price:'¥1,150'}],
      avoid:[{en:'Karashi mustard',why:'Very sharp for a child.'}]})}]}));
   });
  });
@@ -723,7 +724,12 @@ test('the menu reader sends a well-formed vision request and reads the answer ba
   // And the answer comes back in the shape the screen expects.
   assert.equal(answer.readable,true);
   assert.equal(answer.place,'Maisen');
-  assert.equal(answer.suggestions.length,2);
+  assert.equal(answer.suggestions.length,3);
+  // What is usually in the dish, and how hot it usually is, both come back per dish.
+  assert.deepEqual(answer.suggestions[0].ingredients,['Pork loin','Wheat flour','Egg','Panko']);
+  assert.equal(answer.suggestions[2].heat,'hot');
+  assert.match(answer.suggestions[2].spiceNote,/chilli oil/);
+  assert.deepEqual(answer.suggestions.filter(s=>s.spicy).map(s=>s.en),['Spicy miso ramen']);
   assert.equal(answer.suggestions[0].matchesOurList,'tonkatsu');
   assert.equal(answer.suggestions[1].forWhom[0],'Nate');
   assert.deepEqual(answer.usage,{input:1500,output:400});
@@ -3100,4 +3106,39 @@ test('a dish on a menu can be seen as well as read, and only Wikimedia can put i
  const server=await readFile(new URL('../server/menu.mjs',import.meta.url),'utf8');
  assert.match(server,/required:\['ja','en','dish',/);
  assert.match(server,/dish:\{type:'string',description:'The plain common name/);
+});
+
+test('what is usually in a dish, and a warning on the ones a five-year-old cannot eat',async()=>{
+ const server=await readFile(new URL('../server/menu.mjs',import.meta.url),'utf8');
+ // Both come back with the dish rather than costing a second read of the menu.
+ assert.match(server,/required:\['ja','en','dish','why','forWhom','matchesOurList','ingredients','spicy','heat','spiceNote','price'\]/);
+ // Four grades, and the two that are not spicy at all are the same answer as spicy:false.
+ const heat=server.match(/heat:\{type:'string',enum:(\[[^\]]+\])/);
+ assert.deepEqual(JSON.parse(heat[1].replace(/'/g,'"')),['none','mild','hot','very hot']);
+ // The reader is told what an ingredient list is not, because this is the one place in the app
+ // where a wrong answer could matter to somebody with an allergy.
+ assert.match(server,/never read as the kitchen's own recipe, never complete, and never evidence that something is absent/);
+ assert.match(server,/never present a list of ingredients as complete/);
+ assert.doesNotMatch(server,/free of an allergen[^;]*;(?! if it matters)/,'the allergen rule is not softened');
+ // What counts as too hot for Nate is spelled out rather than left to the model's taste.
+ for(const heat of ['chilli oil','karashi','shichimi','kimchi','mapo'])assert.ok(server.includes(heat),`${heat} is not named as a reason a dish is spicy`);
+
+ const menu=await readFile(new URL('../src/MenuReader.jsx',import.meta.url),'utf8');
+ // The warning is on the card, and the ones to watch are counted before any card is opened.
+ assert.match(menu,/const hot=\(result\?\.suggestions\|\|\[\]\)\.filter\(i=>i\.spicy\)/);
+ assert.match(menu,/hot\.length===1\?'One of these is likely spicy'/);
+ assert.match(menu,/hot\.map\(i=>i\.en\)\.join\(', '\)\} — not for Nate/);
+ assert.match(menu,/item\.spicy&&<p className=\{`dish-warning/);
+ // A dish with no note of its own still warns rather than showing an empty warning.
+ assert.match(menu,/item\.spiceNote\|\|'Ask how hot it is before you order it for the boys\.'/);
+ // The list is offered only when there is one, and opening it is the reader's own choice.
+ assert.match(menu,/\{!!\(item\.ingredients\|\|\[\]\)\.length&&<button aria-expanded=\{!!open\}/);
+ assert.match(menu,/open\?'Hide ingredients':'See ingredients'/);
+ assert.match(menu,/setPictures\(\{\}\);setOpened\(\{\}\)/,'a new menu closes the old lists');
+ // And it says on the screen, next to the list itself, what the list is not.
+ assert.match(menu,/not read off the menu, and not this kitchen's own recipe/);
+ assert.match(menu,/ask the staff about anything allergy-related/);
+
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ for(const rule of ['.menu-spicy','.dish-warning','.dish-ingredients'])assert.ok(css.includes(rule),`${rule} has no style`);
 });

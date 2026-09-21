@@ -15,7 +15,7 @@ const SCHEMA={
   note:{type:'string',description:'One or two sentences of practical advice for this family at this restaurant.'},
   suggestions:{type:'array',description:'Up to eight dishes from this menu, best first.',items:{
    type:'object',additionalProperties:false,
-   required:['ja','en','dish','why','forWhom','matchesOurList','spicy','price'],
+   required:['ja','en','dish','why','forWhom','matchesOurList','ingredients','spicy','heat','spiceNote','price'],
    properties:{
     ja:{type:'string',description:'The dish exactly as written on the menu, in Japanese.'},
     en:{type:'string',description:'A short English name.'},
@@ -23,7 +23,10 @@ const SCHEMA={
     why:{type:'string',description:'One sentence on why this family would like it.'},
     forWhom:{type:'array',items:{type:'string',enum:['Damien','Lauren','Nate','Boston']}},
     matchesOurList:{type:'string',description:'The id of the matching dish on the family food list, or an empty string.'},
-    spicy:{type:'boolean'},
+    ingredients:{type:'array',description:'What a dish of this name usually contains, up to eight short entries, the main things first: Pork loin, Egg, Wheat flour, Soy sauce. What the dish is normally made of, never a claim about this kitchen and never a claim that anything is absent. Empty if you do not know what is in it.',items:{type:'string'}},
+    spicy:{type:'boolean',description:'True if this dish is normally served hot enough that a five-year-old could not eat it.'},
+    heat:{type:'string',enum:['none','mild','hot','very hot'],description:'How hot the dish normally is. none whenever spicy is false.'},
+    spiceNote:{type:'string',description:'One short line on what makes it hot and how hot it usually is — the chilli oil it is dressed in, the karashi on the side. Empty when spicy is false.'},
     price:{type:'string',description:'The price as printed, or an empty string.'}}}},
   avoid:{type:'array',description:'Up to three things on this menu worth knowing about before ordering.',items:{
    type:'object',additionalProperties:false,required:['en','why'],
@@ -53,9 +56,11 @@ Rules:
 - Prefer dishes the family already rated highly, and dishes still on their want-to-try list. Set matchesOurList to that dish's id when it is the same dish; otherwise leave it empty.
 - Always include at least one thing Nate will eat, if the menu has one. Say so in "why".
 - forWhom names who each dish suits. Use it honestly; a dish can suit everyone.
+- "ingredients" is what a dish of that name is normally made of, from the name and from what is printed — never read as the kitchen's own recipe, never complete, and never evidence that something is absent. A restaurant varies its recipe and the menu does not print one. Leave it empty rather than guess at a dish you do not recognise.
+- Mark "spicy" for anything normally served hot enough that Nate could not eat it: chilli, chilli oil, karashi, wasabi worked through the dish, shichimi stirred in, kimchi, mapo, curry above a mild grade. "heat" grades it and "spiceNote" says in one line what makes it hot. A sauce served on the side is not the same as a dish cooked hot, and the note should say which it is. When it is not spicy, spicy is false, heat is none and spiceNote is empty.
 - "avoid" is for things worth knowing before ordering: very spicy dishes, raw items, whole small fish, natto, anything a child would find a shock. Not a list of dislikes.
 - If the photo is unreadable or is not a menu, set readable to false and leave the arrays empty.
-- You cannot verify allergens from a photograph. Never state that something is free of an allergen; if it matters, say to ask the staff.`;
+- You cannot verify allergens from a photograph, and the ingredients you list do not change that. Never state that something is free of an allergen, and never present a list of ingredients as complete; if it matters, say to ask the staff.`;
 export async function readMenu({image,mediaType},state){
  if(!menuReaderReady())throw new AppError('The menu reader is not switched on. Add an Anthropic API key to the deployment.',503);
  if(typeof image!=='string'||!image)throw new AppError('Take or choose a photo of the menu.');
