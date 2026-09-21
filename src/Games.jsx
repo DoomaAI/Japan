@@ -1,6 +1,6 @@
-import React,{useState,useMemo,useEffect} from 'react';
+import React,{useState,useMemo,useEffect,useRef} from 'react';
 import {Trophy,RotateCcw,Check,X,Wifi,WifiOff} from 'lucide-react';
-import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled} from './kana-data.js';
+import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER} from './kana-data.js';
 import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-features.js';
 import {useReadAloud} from './AdventurePages.jsx';
 import {useJapaneseVoice} from './SayIt.jsx';
@@ -122,9 +122,92 @@ function Janken({user,state,mutate,busy,online,refresh}){
   {user.role==='parent'&&!!Object.keys(scores).length&&<button onClick={()=>{if(confirm('Clear the janken scores?'))mutate({type:'jankenReset'});}}>Clear scores</button>}
  </>;
 }
+// Two of the same become the next one up, from a rice ball to Fuji. Swipe, or use the keys.
+function Merge({user,mutate,busy,state}){
+ const [board,setBoard]=useState(()=>addTile(addTile(emptyBoard(),Date.now()),Date.now()+1));
+ const [score,setScore]=useState(0),[over,setOver]=useState(false);
+ const touch=useRef(null);
+ const move=direction=>{
+  if(over)return;
+  const {board:next,gained,changed}=slide(board,direction);
+  if(!changed)return;
+  const grown=addTile(next,Date.now()+gained);
+  setBoard(grown);
+  const total=score+gained;setScore(total);
+  if(!canMove(grown)){setOver(true);if(total)mutate({type:'gameScore',person:user.name,game:'merge',score:Math.min(9999,total)});}
+ };
+ useEffect(()=>{
+  const onKey=e=>{const d={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down'}[e.key];if(d){e.preventDefault();move(d);}};
+  window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);
+ });
+ const again=()=>{setBoard(addTile(addTile(emptyBoard(),Date.now()),Date.now()+1));setScore(0);setOver(false);};
+ const top=mergeTile(bestTile(board));
+ return <>
+  <p>Two of the same become the next one up. Swipe the board. It starts at a rice ball and ends at Fuji.</p>
+  <div className="merge-board"
+   onTouchStart={e=>{touch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
+   onTouchEnd={e=>{
+    if(!touch.current)return;
+    const dx=e.changedTouches[0].clientX-touch.current.x,dy=e.changedTouches[0].clientY-touch.current.y;
+    if(Math.max(Math.abs(dx),Math.abs(dy))>28)move(Math.abs(dx)>Math.abs(dy)?(dx<0?'left':'right'):(dy<0?'up':'down'));
+    touch.current=null;
+   }}>
+   {board.map((v,i)=>{const tile=mergeTile(v);
+    return <div className={`merge-tile${v?' filled':''}`} key={i}>{tile&&<><span aria-hidden="true">{tile.icon}</span><small>{tile.en}</small></>}</div>;})}
+  </div>
+  <div className="row wrap merge-keys">
+   {[['up','↑'],['left','←'],['down','↓'],['right','→']].map(([d,a])=>
+    <button key={d} type="button" aria-label={`Slide ${d}`} disabled={over} onClick={()=>move(d)}>{a}</button>)}
+  </div>
+  <p className="game-status">{over?<><Trophy size={16}/> No moves left — {score}.</>:`${score}`}{top?` · best so far ${top.en} ${top.icon}`:''}
+   {bestScore(state,user.name,'merge')>0?` · your best ${bestScore(state,user.name,'merge')}`:''}</p>
+  <button className="primary" onClick={again}><RotateCcw size={16}/> New game</button>
+  <details className="merge-ladder"><summary>What turns into what</summary>
+   {MERGE_LADDER.map(t=><span key={t.value}>{t.icon} {t.en} <small lang="ja">{t.ja}</small></span>)}
+  </details>
+ </>;
+}
+// Pairs made from the trip itself: the thing we did, and the day we did it.
+function Remember({user,state,mutate,busy,dayLabel}){
+ const [seed,setSeed]=useState(()=>Date.now()%100000);
+ const [picked,setPicked]=useState([]),[done,setDone]=useState([]),[taps,setTaps]=useState(0);
+ const doneSteps=state.steps.filter(s=>s.status==='done'&&s.day);
+ const pairs=Math.min(6,doneSteps.length);
+ const cards=useMemo(()=>{
+  const chosen=shuffled(doneSteps,seed).slice(0,pairs);
+  return shuffled(chosen.flatMap(s=>[
+   {key:`${s.id}-what`,pair:s.id,face:s.title,kind:'what'},
+   {key:`${s.id}-when`,pair:s.id,face:`${dayLabel(s.day).replace(/,.*/,'')} · ${state.days.find(d=>d.date===s.day)?.city||''}`,kind:'when'}
+  ]),seed+5);
+ },[seed,pairs,doneSteps.length]);
+ const finished=pairs>0&&done.length===pairs;
+ useEffect(()=>{if(finished)mutate({type:'gameScore',person:user.name,game:'remember',score:Math.max(1,pairs*2*3-taps)});},[finished]);
+ function tap(card){
+  if(done.includes(card.pair)||picked.some(p=>p.key===card.key))return;
+  const next=[...picked,card];setTaps(t=>t+1);
+  if(next.length<2){setPicked(next);return;}
+  setPicked(next);
+  const hit=next[0].pair===next[1].pair&&next[0].kind!==next[1].kind;
+  setTimeout(()=>{if(hit)setDone(d=>[...d,next[0].pair]);setPicked([]);},hit?350:800);
+ }
+ if(pairs<2)return <><p>This one is built out of the trip itself — match the thing we did to the day we did it.</p>
+  <p className="callout">Once we have finished a few activities, they show up here. {doneSteps.length?`Only ${doneSteps.length} so far.`:'None ticked off yet.'}</p></>;
+ return <>
+  <p>Match the thing we did to the day we did it. It grows as the trip does.</p>
+  <div className="remember-grid">{cards.map(c=>{
+   const matched=done.includes(c.pair),up=matched||picked.some(p=>p.key===c.key);
+   return <button key={c.key} className={`remember-card${matched?' matched':''}${up?' up':''}`} disabled={matched} onClick={()=>tap(c)}>
+    <span>{up?c.face:'?'}</span></button>;})}</div>
+  <p className="game-status">{finished?<><Trophy size={16}/> All {pairs} in {taps} taps.</>:`${done.length} of ${pairs} matched`}
+   {bestScore(state,user.name,'remember')>0?` · your best ${bestScore(state,user.name,'remember')}`:''}</p>
+  <button className="primary" onClick={()=>{setSeed(Date.now()%100000);setPicked([]);setDone([]);setTaps(0);}}><RotateCcw size={16}/> New board</button>
+ </>;
+}
 const GAMES=[
  {id:'match',title:'Match the letters',offline:true,Component:KanaMatch},
  {id:'decode',title:'Read the sign',offline:true,Component:Decoder},
+ {id:'merge',title:'Onigiri to Fuji',offline:true,Component:Merge},
+ {id:'remember',title:'What we did',offline:true,Component:Remember},
  {id:'janken',title:'Janken',offline:false,Component:Janken}
 ];
 export default function Games(props){

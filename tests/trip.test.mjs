@@ -1446,3 +1446,40 @@ test('a recording waits on the phone in its own store, not in the little JSON qu
  assert.match(voice,/if\(waiting\.length&&navigator\.onLine&&config\?\.uploads\)sendWaiting\(\)/);
  assert.match(voice,/await dropPending\(entry\.id\)/);
 });
+
+test('the merge board slides, merges once, and knows when it is stuck',async()=>{
+ const {slideLine,slide,addTile,canMove,emptyBoard,mergeTile,MERGE_LADDER,bestTile}=await import('../src/kana-data.js');
+ // A pair merges, and the result does not merge again in the same move.
+ assert.deepEqual(slideLine([2,2,4,0]),{line:[4,4,0,0],gained:4});
+ assert.deepEqual(slideLine([2,2,2,2]),{line:[4,4,0,0],gained:8},'two separate pairs, not one chain');
+ assert.deepEqual(slideLine([4,2,2,0]),{line:[4,4,0,0],gained:4});
+ assert.deepEqual(slideLine([0,0,0,2]),{line:[2,0,0,0],gained:0});
+ assert.deepEqual(slideLine([0,0,0,0]),{line:[0,0,0,0],gained:0});
+ assert.deepEqual(slideLine([2048,2048,0,0]),{line:[2048,2048,0,0],gained:0},'the top of the ladder is the top');
+ // Every direction works, and a move that changes nothing is refused.
+ let board=emptyBoard();board[0]=2;board[3]=2;
+ assert.deepEqual(slide(board,'left').board.slice(0,4),[4,0,0,0]);
+ assert.deepEqual(slide(board,'right').board.slice(0,4),[0,0,0,4]);
+ assert.equal(slide(slide(board,'left').board,'left').changed,false,'nothing to do is not a move');
+ let column=emptyBoard();column[0]=2;column[4]=2;
+ assert.equal(slide(column,'up').board[0],4);
+ assert.equal(slide(column,'down').board[12],4);
+ assert.equal(slide(emptyBoard(),'up').changed,false);
+ // A new tile lands on a free square and never on top of something.
+ const full=Array(16).fill(2);
+ assert.deepEqual(addTile(full,5),full,'a full board stays as it is');
+ const one=addTile(emptyBoard(),7);
+ assert.equal(one.filter(Boolean).length,1);
+ assert.ok([2,4].includes(one.find(Boolean)));
+ // Stuck means no space and no pair anywhere.
+ const stuck=[2,4,2,4, 4,2,4,2, 2,4,2,4, 4,2,4,2];
+ assert.equal(canMove(stuck),false);
+ assert.equal(canMove(full),true,'a full board of pairs can still move');
+ assert.equal(canMove(emptyBoard()),true);
+ // The ladder climbs by doubling, all the way to Fuji.
+ MERGE_LADDER.forEach((t,i)=>{assert.equal(t.value,2**(i+1));assert.ok(t.icon&&t.en&&t.ja);});
+ assert.equal(MERGE_LADDER.at(-1).en,'Mount Fuji');
+ assert.equal(mergeTile(64).en,'Cherry blossom');
+ assert.equal(mergeTile(3),null);
+ assert.equal(bestTile(stuck),4);
+});
