@@ -4780,6 +4780,18 @@ test('a drawing is shapes rather than a picture, so the same beast fits a page a
  assert.equal(d.bothSides([{circle:[20,30,5]}]).length,2);
  assert.deepEqual(d.boundsOf([{circle:[50,50,10]},{line:[0,0,5,5]}]),{minX:0,maxX:60,minY:0,maxY:60});
  assert.equal(d.boundsOf([]),null);
+ // What a shape is filled with, and how heavy its line is, survive being shrunk and mirrored:
+ // a beast whose eyes are filled in loses the eyes otherwise the moment it becomes a decal.
+ const eye={curve:[[10,10],[20,14],[30,10],[20,6]],fill:'#16383b',weight:1.3};
+ assert.equal(d.scaleShape(eye,0.3,35,35).fill,'#16383b');
+ assert.equal(d.scaleShape(eye,0.3,35,35).weight,1.3);
+ assert.equal(d.mirrorShape(eye).fill,'#16383b');
+ assert.equal(d.mirrorShape(eye).weight,1.3);
+ // A run of points along a circle, so a curved outer edge is written as a curve rather than
+ // as a straight line between two blade tips.
+ const along=d.arcPoints(50,50,20,0,180,4);
+ assert.equal(along.length,5);
+ for(const [x,y] of along)assert.ok(Math.abs(Math.hypot(x-50,y-50)-20)<0.01);
 });
 
 test('every drawing goes one step at a time, and every step says what to draw',async()=>{
@@ -4821,6 +4833,17 @@ test('every drawing goes one step at a time, and every step says what to draw',a
  }
  assert.equal(subjectById('nothing-like-this'),null);
  assert.equal(stepFrames(null).length,0);
+ // A drawing is not a wireframe: an eye, a stripe or a visor is filled in, and the outline of
+ // a thing is heavier than the detail inside it. Both are what stopped these looking like
+ // diagrams of an animal rather than a drawing of one.
+ const solid=SUBJECTS.filter(s=>s.steps.some(st=>st.shapes.some(sh=>sh.fill)));
+ assert.ok(solid.length>=10,`only ${solid.length} of the drawings have anything filled in`);
+ const weighted=SUBJECTS.filter(s=>s.steps.some(st=>st.shapes.some(sh=>sh.weight>1)));
+ assert.ok(weighted.length>=10,`only ${weighted.length} of the drawings have a heavier outline`);
+ for(const subject of SUBJECTS)for(const step of subject.steps)for(const shape of step.shapes){
+  if(shape.fill)assert.match(shape.fill,/^#[0-9a-f]{6}$/i,`${subject.id} has a fill that is not a colour`);
+  if(shape.weight!==undefined)assert.ok(shape.weight>0&&shape.weight<=3,`${subject.id} has a silly line weight`);
+ }
 });
 
 test('a spinner top is built rather than drawn, so one nobody has drawn yet still comes out right',async()=>{
@@ -4828,12 +4851,20 @@ test('a spinner top is built rather than drawn, so one nobody has drawn yet stil
  for(const blades of [3,5,8]){
   for(const ring of d.RINGS){
    const steps=d.topSteps({ring:ring.id,blades,crest:'dragon',name:'Test'});
-   // The blades are counted off the design rather than drawn in, so the ring and the blades
-   // cannot disagree about how many points there are.
-   const bladeStep=steps.find(s=>/blades from the middle/.test(s.say));
+   // The blades are counted off the design rather than drawn in, so the picture and the
+   // sentence cannot disagree about how many there are.
+   const bladeStep=steps.find(s=>s.say.includes(`the ${blades} blades`));
    assert.equal(bladeStep.shapes.length,blades,`${ring.id} with ${blades} blades`);
-   const ringStep=steps[1];
-   assert.ok(d.pathOf(ringStep.shapes[0]),`${ring.id} has no ring`);
+   // A blade is a chunk with a gap after it, not a spoke: it reaches the rim, it is rooted on
+   // the hub, and half of each turn of the circle is left empty.
+   for(const blade of bladeStep.shapes){
+    const reach=blade.poly.map(([x,y])=>Math.hypot(x-50,y-50));
+    assert.ok(Math.max(...reach)>=d.TOP_RADIUS.out-0.01,`${ring.id} blades fall short of the rim`);
+    assert.ok(Math.min(...reach)<=d.TOP_RADIUS.hub+0.01,`${ring.id} blades float off the hub`);
+    assert.ok(Math.max(...reach)<=d.TOP_RADIUS.out+4.01,`${ring.id} blades run off the card`);
+   }
+   const hubStep=steps[1];
+   assert.deepEqual(hubStep.shapes.map(s=>s.circle[2]),[d.TOP_RADIUS.hub,d.TOP_RADIUS.core],'the hub is drawn before anything goes in it');
    // The beast sits inside the forge disc rather than over the blades.
    const crest=d.boundsOf(steps.filter(s=>s.crest).flatMap(s=>s.shapes));
    const reach=Math.max(50-crest.minX,crest.maxX-50,50-crest.minY,crest.maxY-50);
@@ -4897,6 +4928,7 @@ test('a drawing is the child’s own work: kept on the phone first, and never in
 test('the pad keeps the lines, not the pixels, and the drawing that is saved has the lines in it',async()=>{
  const game=await readFile(new URL('../src/Drawing.jsx',import.meta.url),'utf8');
  const store=await readFile(new URL('../src/drawing-store.js',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  // Strokes are fractions of the pad rather than pixels, so turning the phone does not shear
  // everything drawn so far — and undo is then dropping the last one and drawing the rest.
  assert.match(game,/\(event\.clientX-box\.left\)\/box\.width/);
@@ -4904,8 +4936,12 @@ test('the pad keeps the lines, not the pixels, and the drawing that is saved has
  // The line being drawn arrives along itself. pathLength makes one keyframe do it whatever
  // the length of the line, so a whisker and a head outline take the same time.
  assert.match(game,/pathLength="1"/);
- assert.match(game,/className="draw-now"/);
- const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(game,/className=\{shape\.fill\?'draw-now filled':'draw-now'\}/);
+ // A filled shape — a pupil, a stripe, a visor — is inked along its outline and then floods,
+ // rather than arriving as a solid blob with no line drawn.
+ assert.match(css,/@keyframes draw-fill\{0%,70%\{fill-opacity:0\}100%\{fill-opacity:1\}\}/);
+ assert.match(game,/fill=\{shape\.fill\|\|'none'\}/);
+ assert.match(game,/strokeWidth=\{\(shape\.guide\?0\.9:1\.6\)\*\(shape\.weight\|\|1\)\}/,'an outline is heavier than the details inside it');
  assert.match(css,/@keyframes draw-line\{from\{stroke-dashoffset:1\}to\{stroke-dashoffset:0\}\}/);
  assert.match(css,/prefers-reduced-motion:reduce\)\{\.draw-now\{animation:none/);
  // Tracing and colouring in are the same line work used two ways, and neither of them traces
