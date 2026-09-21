@@ -91,3 +91,59 @@ export function jankenWinner(a,b){
  if(a===b)return null;
  return findThrow(a).beats===b?'a':'b';
 }
+// The merge ladder: two of the same become the next one up. It climbs from a rice ball to
+// Fuji, so a boy who gets to the top has built the whole trip out of snacks.
+export const MERGE_LADDER=[
+ {value:2,icon:'🍙',en:'Onigiri',ja:'おにぎり'},
+ {value:4,icon:'🍡',en:'Dango',ja:'だんご'},
+ {value:8,icon:'🍜',en:'Ramen',ja:'ラーメン'},
+ {value:16,icon:'🍣',en:'Sushi',ja:'すし'},
+ {value:32,icon:'🍁',en:'Maple leaf',ja:'もみじ'},
+ {value:64,icon:'🌸',en:'Cherry blossom',ja:'さくら'},
+ {value:128,icon:'⛩️',en:'Torii gate',ja:'とりい'},
+ {value:256,icon:'🦌',en:'Nara deer',ja:'しか'},
+ {value:512,icon:'🏯',en:'Castle',ja:'しろ'},
+ {value:1024,icon:'🚅',en:'Shinkansen',ja:'しんかんせん'},
+ {value:2048,icon:'🗻',en:'Mount Fuji',ja:'ふじさん'}
+];
+export const mergeTile=value=>MERGE_LADDER.find(t=>t.value===value)||null;
+export const MERGE_SIZE=4;
+export const emptyBoard=()=>Array(MERGE_SIZE*MERGE_SIZE).fill(0);
+const rows=board=>Array.from({length:MERGE_SIZE},(_,r)=>board.slice(r*MERGE_SIZE,r*MERGE_SIZE+MERGE_SIZE));
+const flat=rows_=>rows_.flat();
+// Slide one line towards the start, merging each pair once. Returns the line and what it scored.
+export function slideLine(line){
+ const kept=line.filter(Boolean);
+ const out=[];let gained=0;
+ for(let i=0;i<kept.length;i++){
+  if(kept[i]===kept[i+1]&&kept[i]*2<=2048){out.push(kept[i]*2);gained+=kept[i]*2;i++;}
+  else out.push(kept[i]);
+ }
+ while(out.length<MERGE_SIZE)out.push(0);
+ return {line:out,gained};
+}
+const turn=board=>{const r=rows(board);return flat(r[0].map((_,c)=>r.map(row=>row[c])));};
+const mirror=board=>flat(rows(board).map(row=>[...row].reverse()));
+// Left, right, up and down all become "slide every row left" on a turned or mirrored board.
+export function slide(board,direction){
+ let work=board,gained=0;
+ if(direction==='right')work=mirror(work);
+ else if(direction==='up')work=turn(work);
+ else if(direction==='down')work=mirror(turn(work));
+ const moved=rows(work).map(row=>{const {line,gained:g}=slideLine(row);gained+=g;return line;});
+ work=flat(moved);
+ if(direction==='right')work=mirror(work);
+ else if(direction==='up')work=turn(work);
+ else if(direction==='down')work=turn(mirror(work));
+ return {board:work,gained,changed:work.some((v,i)=>v!==board[i])};
+}
+// A new tile lands on a free square, chosen from the seed so a board can be replayed.
+export function addTile(board,seed){
+ const free=board.map((v,i)=>v?-1:i).filter(i=>i>=0);
+ if(!free.length)return board;
+ const n=(seed>>>0)||1,pick=free[n%free.length];
+ const next=[...board];next[pick]=n%10===0?4:2;
+ return next;
+}
+export const canMove=board=>board.some(v=>!v)||['left','up'].some(d=>slide(board,d).changed);
+export const bestTile=board=>Math.max(0,...board);
