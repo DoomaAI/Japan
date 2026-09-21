@@ -35,11 +35,17 @@ export const PRIMARY={
  parent:['today','days','tickets','food','money'],
  child:['today','days','challenges','food','diary']
 };
+// Ordered by whose hands the screen is for, top to bottom. The practical half of the trip is
+// what Lauren and I open a menu for — the weather on the way out, the ticket at the gate, what
+// is still to buy — so it sits at the top where a thumb lands first. The boys' half is last,
+// as one block they can scroll to and recognise, rather than their missions being stranded
+// between the bookings and the paperwork.
 export const MORE_SECTIONS=[
- ['Out and about',['weather','places','money','spending','food','phrases','facts','meeting','help']],
- ['The plan',['todo','planning','options','parks','shopping','challenges','games','tickets','inbox','guide']],
- ['Looking back',['photos','diary','updates','search']],
- ['Just for you',['mascot','thanks']]
+ ['Out and about',['weather','places','money','food','phrases','meeting','help']],
+ ['The plan',['todo','planning','options','parks','shopping','tickets','inbox']],
+ ['Looking back',['photos','diary','updates','search','guide']],
+ ['Just for you',['thanks']],
+ ['For the boys',['challenges','games','spending','facts','mascot']]
 ];
 export const primaryNav=user=>PRIMARY[user?.role==='child'?'child':'parent'];
 const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(id!=='inbox'||user?.role==='parent');

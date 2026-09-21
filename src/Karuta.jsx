@@ -52,7 +52,8 @@ export default function Karuta({user,state,mutate,busy}){
  return <>
   <p>The reader calls one card. Find it and take it before the clock does. {round.deck.how}</p>
   <div className="segmented game-picker">{KARUTA_DECKS.map(d=>
-   <button key={d.id} className={deckId===d.id?'selected':''} onClick={()=>reset({deckId:d.id})} lang="ja">{d.ja}</button>)}</div>
+   <button key={d.id} className={`two-line${deckId===d.id?' selected':''}`} onClick={()=>reset({deckId:d.id})}>
+    <b lang="ja">{d.ja}</b><small>{d.en}</small></button>)}</div>
   <div className="segmented game-picker">{KARUTA_SIZES.map(n=>
    <button key={n} className={size===n?'selected':''} onClick={()=>reset({size:n})}>{n} cards</button>)}</div>
   {started===null

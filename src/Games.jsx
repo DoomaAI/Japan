@@ -8,6 +8,7 @@ import Drawing from './Drawing.jsx';
 import {useKanaVoice} from './SayIt.jsx';
 import {SpeakRules} from './AdventurePages.jsx';
 import {gameRule} from './spoken-rules.js';
+import {gameGuide} from './game-guide.js';
 import Karuta from './Karuta.jsx';
 import AnimalShogi from './AnimalShogi.jsx';
 import Fukuwarai from './Fukuwarai.jsx';
@@ -86,8 +87,10 @@ function KanaMatch({user,mutate,busy,state}){
  const again=()=>{setSeed(Date.now()%100000);setPicked([]);setDone([]);setTaps(0);};
  return <>
   <div className="segmented">
-   <button className={set==='hiragana'?'selected':''} onClick={()=>{setSet('hiragana');again();}}>ひらがな</button>
-   <button className={set==='katakana'?'selected':''} onClick={()=>{setSet('katakana');again();}}>カタカナ</button>
+   <button className={`two-line${set==='hiragana'?' selected':''}`} onClick={()=>{setSet('hiragana');again();}}>
+    <b lang="ja">ひらがな</b><small>Hiragana · everyday</small></button>
+   <button className={`two-line${set==='katakana'?' selected':''}`} onClick={()=>{setSet('katakana');again();}}>
+    <b lang="ja">カタカナ</b><small>Katakana · signs</small></button>
   </div>
   <div className="segmented game-picker">{[4,6,8,10].map(n=>
    <button key={n} className={pairs===n?'selected':''} onClick={()=>{setPairs(n);again();}}>{n} pairs</button>)}</div>
@@ -839,6 +842,27 @@ function Stable({user,state,mutate,busy}){
   <Ladder title="The ranks" items={SUMO_RANKS.map(r=>({key:r.level,icon:r.icon,en:r.en,ja:r.ja}))}/>
  </>;
 }
+// The rules in writing, in the four parts a game has: what you are trying to do, what to set
+// up, how it goes, and how it ends. It is folded away rather than printed above every board,
+// because the boy who has played it forty times should not have to scroll past it — and the
+// one who has never played it has all four parts in front of him rather than a hint.
+function GameGuide({game}){
+ const guide=gameGuide(game.id);
+ if(!guide)return null;
+ return <details className="game-guide">
+  <summary>How to play {game.title}</summary>
+  <div className="guide-body">
+   <h3>What you are trying to do</h3>
+   <p>{guide.objective}</p>
+   <h3>Set up</h3>
+   <ol>{guide.setup.map(step=><li key={step}>{step}</li>)}</ol>
+   <h3>The rules</h3>
+   <ul>{guide.rules.map(rule=><li key={rule}>{rule}</li>)}</ul>
+   <h3>How to win</h3>
+   <p>{guide.win}</p>
+  </div>
+ </details>;
+}
 // What each one needs, said plainly rather than as a yes-or-no: most of these work in a
 // tunnel, one needs the other phone, and one needs the photo to come down once.
 const OFFLINE='Works with no signal at all.';
@@ -902,6 +926,7 @@ export default function Games(props){
    <b className={current.origin}>{origin.tag}</b>
    {current.ja&&<em lang="ja">{current.ja}</em>}
    <small>{current.story||origin.what}</small></p>}
+  <GameGuide game={current}/>
   <p><small>{current.needs}</small></p>
   <current.Component {...props}/>
  </>;

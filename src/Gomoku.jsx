@@ -48,7 +48,8 @@ export default function Gomoku({user,state,mutate,busy}){
   <div className="segmented game-picker">{SIZES.map(s=>
    <button key={s} className={size===s?'selected':''} onClick={()=>restart(s,levelId)}>{s} × {s}</button>)}</div>
   <div className="segmented game-picker">{LEVELS.map(l=>
-   <button key={l.id} className={levelId===l.id?'selected':''} onClick={()=>restart(size,l.id)} lang="ja">{l.ja}</button>)}</div>
+   <button key={l.id} className={`two-line${levelId===l.id?' selected':''}`} onClick={()=>restart(size,l.id)}>
+    <b lang="ja">{l.ja}</b><small>{l.en}</small></button>)}</div>
   <p><small>{level.en} — {level.how}</small></p>
   <div className="goban" style={{'--n':size}}>
    {board.map((v,i)=>

@@ -931,7 +931,7 @@ test('the yen converter works from a shared rate, set by a parent',async()=>{
 });
 
 test('every screen is reachable exactly once, from the bar or from More',async()=>{
- const {PAGES,PRIMARY,primaryNav,moreSections,moreIds,navActive}=await import('../src/nav-data.js');
+ const {PAGES,PRIMARY,MORE_SECTIONS,primaryNav,moreSections,moreIds,navActive}=await import('../src/nav-data.js');
  const damien={name:'Damien',role:'parent'},lauren={name:'Lauren',role:'parent'},nate={name:'Nate',role:'child'};
  for(const user of [damien,lauren,nate]){
   const bar=primaryNav(user),more=moreIds(user),all=[...bar,...more];
@@ -955,6 +955,18 @@ test('every screen is reachable exactly once, from the bar or from More',async()
  // Parents reach for tickets and prices; the boys reach for their missions.
  assert.deepEqual(PRIMARY.parent,['today','days','tickets','food','money']);
  assert.deepEqual(PRIMARY.child,['today','days','challenges','food','diary']);
+ // And the menu is ordered by whose screen it is. The practical half — the weather on the way
+ // out, the ticket at the gate, what is still to buy — is at the top, where the thumb of
+ // whoever is navigating lands first. The boys' own screens are the last block, all together,
+ // rather than their missions sitting between the bookings and the paperwork.
+ assert.equal(MORE_SECTIONS.at(-1)[0],'For the boys');
+ for(const id of ['challenges','games','spending','facts','mascot'])
+  assert.ok(MORE_SECTIONS.at(-1)[1].includes(id),`${id} is the boys' and belongs at the bottom`);
+ const order=MORE_SECTIONS.flatMap(([,ids])=>ids),theirs=order.indexOf('challenges');
+ for(const id of ['weather','places','tickets','inbox','todo','planning','shopping','guide','help'])
+  assert.ok(order.indexOf(id)<theirs,`${id} is practical and belongs above the boys' block`);
+ for(const user of [damien,lauren,nate])
+  assert.equal(moreSections(user).at(-1)[0],'For the boys',`${user.name} is shown the boys' block last`);
  // The bug this replaces: on a sub-page nothing used to be highlighted, so you lost your place.
  for(const [tab,expected] of [['food','food'],['today','today'],['parks','more'],['guide','more'],['thanks','more'],['search','more']]){
   const lit=[...primaryNav(damien),'more'].filter(id=>navActive(tab,id,damien));
@@ -3776,6 +3788,60 @@ test('every page and every game can be heard rather than read, in words a five-y
  // page's own language, because these are instructions and they have to land the first time.
  assert.match(pages,/read\(id,text,'en-AU',0\.8\)/);
  assert.match(pages,/if\(!supported\|\|!text\)return null;/,'a phone with no voice is offered nothing');
+});
+
+test('every game is written out in full, in words that need no Japanese',async()=>{
+ const {GAME_GUIDES,gameGuide}=await import('../src/game-guide.js');
+ const games=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const ids=[...games.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:/g)].map(([,id,title])=>({id,title}));
+ // The written rules are the ones a parent reads out when somebody says "but can he take it
+ // back?", so a game without them is a game nobody can settle an argument about.
+ assert.deepEqual(Object.keys(GAME_GUIDES).sort(),ids.map(g=>g.id).sort());
+ for(const {id,title} of ids){
+  const guide=gameGuide(id);
+  // Four parts, always: what you are trying to do, what to set up, how it goes, how it ends.
+  assert.ok(guide.objective&&guide.win,`${title} is missing what it is for or how it ends`);
+  assert.ok(Array.isArray(guide.setup)&&guide.setup.length,`${title} does not say how to set it up`);
+  assert.ok(Array.isArray(guide.rules)&&guide.rules.length>=3,`${title} has too few rules to play by`);
+  for(const line of [guide.objective,guide.win,...guide.setup,...guide.rules]){
+   // No kana and no kanji anywhere. The boy reading this cannot read them, and neither can a
+   // grandparent — anything Japanese worth knowing is spelt the way it sounds, with what it
+   // means straight after it.
+   assert.doesNotMatch(line,/[\u3040-\u30ff\u3400-\u9fff\uff00-\uffef]/,`${title} makes you read Japanese: "${line.slice(0,50)}"`);
+   assert.match(line,/[.!?]$/,`${title} has a line that does not finish: "${line.slice(0,50)}"`);
+   // Short sentences, because these are read out to a five-year-old.
+   for(const sentence of line.split(/(?<=[.!?])\s+/))
+    assert.ok(sentence.split(/\s+/).length<=36,`${title} has a sentence too long to follow: "${sentence.slice(0,60)}"`);
+  }
+ }
+ assert.equal(gameGuide('nothing-like-this'),null);
+ // And it is on the screen, under the game's own name, with all four headings on it.
+ assert.match(games,/<GameGuide game=\{current\}\/>/,'the guide is rendered on the games page');
+ for(const heading of ['What you are trying to do','Set up','The rules','How to win'])
+  assert.ok(games.includes(`<h3>${heading}</h3>`),`the guide is missing its "${heading}" heading`);
+ // The speaker button still comes first: the person who cannot read the guide needs the
+ // spoken one before anything else on the page.
+ assert.ok(games.indexOf('<SpeakRules')<games.indexOf('<GameGuide'),'the guide is above the speaker button');
+});
+
+test('a game whose choices are named in Japanese says what they are in English too',async()=>{
+ // The bug this replaces: the goldfish stall offered a choice of four-go, five-go and six-go
+ // paper, written in kanji and nothing else, so a player who cannot read it picked a
+ // difficulty by guessing. Every picker like it now carries the English underneath.
+ for(const [file,data,field] of [
+  ['Kingyo','kingyo.js','LEVELS'],
+  ['Daruma','daruma.js','LEVELS'],
+  ['Gomoku','gomoku.js','LEVELS'],
+  ['Karuta','karuta-data.js','KARUTA_DECKS'],
+  ['Fukuwarai','fukuwarai-data.js','FACES']
+ ]){
+  const source=await readFile(new URL(`../src/${file}.jsx`,import.meta.url),'utf8');
+  const list=(await import(`../src/${data}`))[field];
+  for(const item of list)assert.ok(item.en,`${field} ${item.id} has no English name`);
+  assert.match(source,/<b lang="ja">\{[a-z]\.ja\}<\/b><small>/,`${file} names its choices in Japanese alone`);
+ }
+ const games=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ assert.match(games,/<b lang="ja">ひらがな<\/b><small>Hiragana/,'even the two alphabets say which is which');
 });
 
 test('fukuwarai hands the pieces over one at a time, and marks how far each one landed from home',async()=>{

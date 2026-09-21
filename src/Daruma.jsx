@@ -81,7 +81,8 @@ export default function Daruma({user,state,mutate,busy}){
    move</strong> — and let go before he turns round, because anybody still moving is caught.
    Touch him and you have won.</p>
   <div className="segmented game-picker">{LEVELS.map(l=>
-   <button key={l.id} className={levelId===l.id?'selected':''} onClick={()=>reset(l.id)} lang="ja">{l.ja}</button>)}</div>
+   <button key={l.id} className={`two-line${levelId===l.id?' selected':''}`} onClick={()=>reset(l.id)}>
+    <b lang="ja">{l.ja}</b><small>{l.en}</small></button>)}</div>
   <p><small>{level.en} — {level.how}</small></p>
   <div className={`daruma-scene${watching?' watching':''}${turning?' turning':''}`}>
    <Doll watching={watching}/>
