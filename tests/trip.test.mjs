@@ -1621,3 +1621,69 @@ test('a document is read as a document, a photo as a photo, and neither is trust
   await new Promise(r=>upstream.close(r));
  }
 });
+
+test('a photograph reaches the reader as base64, not as the object around it',async()=>{
+ const source=await readFile(new URL('../src/DocumentReader.jsx',import.meta.url),'utf8');
+ const menu=await readFile(new URL('../src/MenuReader.jsx',import.meta.url),'utf8');
+ // shrinkPhoto returns {image,mediaType,preview}. Sending the whole object was the
+ // difference between a photograph working and being refused as "choose a photo or a PDF".
+ assert.match(menu,/return \{image:url\.slice/,'shrinkPhoto still hands back an object');
+ assert.match(source,/\(await shrinkPhoto\(file\)\)\.image/,'the base64 is taken out of it');
+ assert.doesNotMatch(source,/await shrinkPhoto\(file\),/);
+ // An iPhone stores its photos as HEIC, so a picker that only offers JPEG is no use on the
+ // phone this app is for.
+ const accepts=[...source.matchAll(/accept="([^"]+)"/g)].map(m=>m[1]);
+ assert.equal(accepts.length,2);
+ assert.ok(accepts.every(a=>a.includes('image/*')),`a picker still refuses an iPhone photo: ${accepts}`);
+ assert.ok(accepts.some(a=>a.includes('application/pdf')),'and one of them takes a PDF');
+ assert.ok(accepts.some((a,i)=>!source.split('accept="')[i+1].startsWith('image/*" capture')===false),'one opens the camera');
+ // The server accepts exactly the types the phone can produce.
+ const reader=await readFile(new URL('../server/document-reader.mjs',import.meta.url),'utf8');
+ assert.match(reader,/IMAGE_TYPES=\['image\/jpeg','image\/png','image\/webp'\]/,'anything else is converted to JPEG on the phone first');
+});
+
+test('the stable promotes on a match, and a bout can be lost by anyone',async()=>{
+ const {SUMO_RANKS,rankAt,TOP_RANK,emptyStable,recruit,promote,bestRank,stableFull,oddsOf,bout,challengerFor,STABLE_SIZE}=await import('../src/kana-data.js');
+ // The ladder is the real one, in order, with both names.
+ SUMO_RANKS.forEach((r,i)=>{assert.equal(r.level,i+1);assert.ok(r.icon&&r.en&&r.ja&&r.romaji);});
+ assert.equal(SUMO_RANKS.at(-1).romaji,'yokozuna');
+ assert.equal(rankAt(99),null);
+ // A recruit lands on a free square, never on an occupied one, and never on a full stable.
+ let stable=emptyStable();
+ assert.equal(stable.length,STABLE_SIZE);
+ stable=recruit(stable,3);
+ assert.equal(stable.filter(Boolean).length,1);
+ assert.ok([1,2].includes(stable.find(Boolean)),'and starts at or near the bottom');
+ assert.equal(recruit(Array(STABLE_SIZE).fill(4),1),null,'a full stable takes nobody');
+ // Two of the same become one of the next, and the other square is emptied.
+ const pair=[2,2,0,0];
+ const up=promote(pair,0,1);
+ assert.deepEqual(up.stable,[0,3,0,0]);
+ assert.equal(up.level,3);
+ // Everything that is not a match is refused rather than fudged.
+ assert.equal(promote([1,2,0,0],0,1),null,'different ranks');
+ assert.equal(promote([1,0,0,0],0,1),null,'an empty square');
+ assert.equal(promote([1,1,0,0],0,0),null,'the same square twice');
+ assert.equal(promote([TOP_RANK,TOP_RANK,0,0],0,1),null,'there is nothing above a yokozuna');
+ assert.equal(bestRank([0,3,7,2]),7);
+ assert.equal(bestRank(emptyStable()),0);
+ assert.equal(stableFull([1,1]),true);
+ assert.equal(stableFull([1,0]),false);
+ // Rank decides a bout, but never decides it entirely — an upset stays possible both ways.
+ assert.equal(oddsOf(5,5),0.5);
+ assert.ok(oddsOf(9,2)<=0.95&&oddsOf(9,2)>=0.9,'a yokozuna is not certain');
+ assert.ok(oddsOf(2,9)>=0.05,'and a beginner is not hopeless');
+ assert.equal(bout(5,4,0).won,true);
+ assert.equal(bout(5,4,0.999).won,false);
+ assert.equal(bout(5,4,0).reward,40,'beating a higher rank is worth more');
+ assert.equal(bout(5,1,0).reward,10);
+ assert.equal(bout(5,4,0.999).reward,0);
+ assert.equal(bout(0,4,0.1),null);
+ // The challenger tracks your best rather than running away from it.
+ for(const best of [1,3,6,10])
+  for(const cleared of [0,1,2,3]){
+   const c=challengerFor(best,cleared);
+   assert.ok(c>=1&&c<=TOP_RANK,`challenger ${c} is off the ladder`);
+   assert.ok(Math.abs(c-best)<=1,'and is somewhere near you');
+  }
+});

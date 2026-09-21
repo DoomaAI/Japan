@@ -1,6 +1,6 @@
 import React,{useState,useMemo,useEffect,useRef} from 'react';
 import {Trophy,RotateCcw,Check,X,Wifi,WifiOff} from 'lucide-react';
-import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER,SIGHTS,ELEMENTS,elementById,startingElements,combine,discoverable} from './kana-data.js';
+import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER,SIGHTS,ELEMENTS,elementById,startingElements,combine,discoverable,SUMO_RANKS,rankAt,TOP_RANK,STABLE_SIZE,emptyStable,recruit,promote,bestRank,stableFull,oddsOf,bout,challengerFor} from './kana-data.js';
 import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-features.js';
 import {useReadAloud} from './AdventurePages.jsx';
 import {useJapaneseVoice} from './SayIt.jsx';
@@ -376,6 +376,75 @@ function Sumo({user,state,mutate,busy}){
   <button onClick={start}>{playing?'Restart':'Start the bout'}</button>
  </>;
 }
+// Merge two wrestlers of the same rank and one of them is promoted. Build one big enough to
+// win a bout, then send him out. The ladder is the real one, bottom to top.
+function Stable({user,state,mutate,busy}){
+ const [stable,setStable]=useState(()=>recruit(recruit(emptyStable(),Date.now()),Date.now()+3)||emptyStable());
+ const [picked,setPicked]=useState(null),[score,setScore]=useState(0),[cleared,setCleared]=useState(0);
+ const [last,setLast]=useState(null),[fighting,setFighting]=useState(false);
+ const best=bestRank(stable),full=stableFull(stable);
+ const challenger=challengerFor(best,cleared);
+ const odds=best?oddsOf(best,challenger):0;
+ function tap(i){
+  if(fighting)return;
+  if(picked===null)return setPicked(stable[i]?i:null);
+  if(picked===i)return setPicked(null);
+  const merged=promote(stable,picked,i);
+  setPicked(null);
+  if(!merged){setLast({note:stable[i]&&stable[i]===stable[picked]?'That one is already at the top.':'Two of the same rank only.'});return;}
+  setStable(merged.stable);
+  setLast({promoted:rankAt(merged.level)});
+ }
+ function add(){
+  const next=recruit(stable,Date.now()+score);
+  if(!next)return setLast({note:'The stable is full. Merge some of them, or send one out.'});
+  setStable(next);setLast(null);
+ }
+ function fight(){
+  if(!best)return;
+  setFighting(true);
+  const result=bout(best,challenger,Math.random());
+  setTimeout(()=>{
+   const index=stable.lastIndexOf(best);
+   const next=[...stable];next[index]=result.won?0:Math.max(0,best-1);
+   setStable(next);
+   if(result.won){
+    const total=score+result.reward;setScore(total);setCleared(c=>c+1);
+    mutate({type:'gameScore',person:user.name,game:'stable',score:Math.min(9999,total)});
+   }
+   setLast({bout:result,against:rankAt(challenger),mine:rankAt(best)});
+   setFighting(false);
+  },700);
+ }
+ const again=()=>{setStable(recruit(recruit(emptyStable(),Date.now()),Date.now()+3)||emptyStable());
+  setPicked(null);setScore(0);setCleared(0);setLast(null);};
+ return <>
+  <p>Tap two wrestlers of the same rank and one of them is promoted. Build one big enough, then send him out to fight.</p>
+  <div className="stable-grid">{stable.map((level,i)=>{
+   const rank=rankAt(level);
+   return <button key={i} className={`stable-cell${level?' filled':''}${picked===i?' picked':''}${level===TOP_RANK?' top':''}`}
+    disabled={fighting} onClick={()=>tap(i)}>
+    {rank&&<><span aria-hidden="true">{rank.icon}</span><small>{rank.en}</small></>}</button>;})}</div>
+  <div className="row wrap">
+   <button type="button" onClick={add} disabled={fighting||full}>+ New recruit</button>
+   <button type="button" className="primary" disabled={fighting||!best} onClick={fight}>
+    Fight {rankAt(challenger)?.icon} {rankAt(challenger)?.en}</button>
+  </div>
+  {best>0&&<p className="game-status">Your best: {rankAt(best).icon} {rankAt(best).en} <small lang="ja">{rankAt(best).ja}</small> · {Math.round(odds*100)}% against this one</p>}
+  {last?.promoted&&<p className="callout">Promoted to <strong>{last.promoted.icon} {last.promoted.en}</strong> <small lang="ja">{last.promoted.ja} · {last.promoted.romaji}</small></p>}
+  {last?.note&&<p className="callout">{last.note}</p>}
+  {last?.bout&&<div className={`stable-bout${last.bout.won?' won':''}`}>
+   <p><strong>{last.mine.icon} {last.mine.en}</strong> v <strong>{last.against.icon} {last.against.en}</strong></p>
+   <p className="janken-verdict">{last.bout.won?`Won — ${last.bout.reward} points.`:'Beaten, and demoted a rank.'}</p>
+  </div>}
+  <p className="game-status">{score} points · {cleared} bout{cleared===1?'':'s'} won
+   {bestScore(state,user.name,'stable')>0?` · your best ${bestScore(state,user.name,'stable')}`:''}</p>
+  <button onClick={again}><RotateCcw size={16}/> New stable</button>
+  <details className="merge-ladder"><summary>The ranks</summary>
+   {SUMO_RANKS.map(r=><span key={r.level}>{r.icon} {r.en} <small lang="ja">{r.ja}</small></span>)}
+  </details>
+ </>;
+}
 const GAMES=[
  {id:'match',title:'Match the letters',offline:true,Component:KanaMatch},
  {id:'decode',title:'Read the sign',offline:true,Component:Decoder},
@@ -384,6 +453,7 @@ const GAMES=[
  {id:'sights',title:'Japan pairs',offline:true,Component:Sights},
  {id:'kitchen',title:'Make it',offline:true,Component:Kitchen},
  {id:'snake',title:'Sushi snake',offline:true,Component:Snake},
+ {id:'stable',title:'Sumo stable',offline:true,Component:Stable},
  {id:'sumo',title:'Sumo',offline:true,Component:Sumo},
  {id:'janken',title:'Janken',offline:false,Component:Janken}
 ];
