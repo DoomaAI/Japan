@@ -3283,7 +3283,7 @@ test('a spot-the-difference score is one the server will actually take',async()=
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:(OFFLINE|'[^']+'),Component:(\w+)/g)];
- assert.equal(entries.length,15);
+ assert.equal(entries.length,17);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -3310,7 +3310,7 @@ test('a game that really is Japanese says so, and one that only looks it says no
  // The ones that are genuinely Japanese games, and nothing else. Sumo stable and Onigiri to
  // Fuji are games about Japan, which is a different claim and is not made.
  assert.deepEqual(entries.filter(g=>g.origin==='traditional').map(g=>g.id).sort(),
-  ['janken','karuta','origami','sumo']);
+  ['daruma','fukuwarai','janken','karuta','origami','sumo']);
  assert.deepEqual(entries.filter(g=>g.origin==='modern').map(g=>g.id),['shogi']);
  for(const g of entries.filter(g=>g.origin))
   assert.ok(g.ja,`${g.title} claims to be Japanese, so it must say what it is called in Japanese`);
@@ -3320,6 +3320,160 @@ test('a game that really is Japanese says so, and one that only looks it says no
  assert.match(source,/const ORIGINS=\{\n traditional:.*\n modern:.*\n\};/);
  for(const g of entries.filter(g=>g.origin))
   assert.match(source,new RegExp(`id:'${g.id}'[\\s\\S]{0,600}?story:'`),`${g.title} must say why`);
+});
+
+test('every page and every game can be heard rather than read, in words a five-year-old follows',async()=>{
+ const {GAME_RULES,PAGE_RULES,gameRule,pageRule}=await import('../src/spoken-rules.js');
+ const {PAGES}=await import('../src/nav-data.js');
+ const games=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const ids=[...games.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:/g)].map(([,id,title])=>({id,title}));
+ // The one he presses is always the one nobody remembered to write, so nothing is allowed to
+ // ship without it — every page in the registry and every game in the picker, and no strays.
+ assert.deepEqual(Object.keys(PAGE_RULES).sort(),Object.keys(PAGES).sort());
+ assert.deepEqual(Object.keys(GAME_RULES).sort(),ids.map(g=>g.id).sort());
+ const all=[...Object.entries(PAGE_RULES),...Object.entries(GAME_RULES)];
+ for(const [id,text] of all){
+  // This is spoken, not read. A phone says a dash as nothing and Japanese script in an
+  // Australian voice as nothing useful, so neither belongs in a line meant to be heard.
+  assert.doesNotMatch(text,/[　-鿿＀-￯]/,`${id} has Japanese script in it`);
+  assert.doesNotMatch(text,/[—–()\[\]/*_#]/,`${id} has something unspeakable in it`);
+  assert.doesNotMatch(text,/\b(otherwise|therefore|via|per|ensure|approximately)\b/i,`${id} is not five-year-old English`);
+  assert.match(text,/\.$/,`${id} must end in a full stop so the voice stops`);
+  assert.ok(text.length>60&&text.length<700,`${id} is ${text.length} characters, which is the wrong length to listen to`);
+  // Short sentences. Anything much over thirty words is a sentence a five-year-old loses.
+  for(const sentence of text.split(/(?<=\.)\s+/))
+   assert.ok(sentence.split(/\s+/).length<=34,`${id} has a sentence too long to follow: "${sentence.slice(0,60)}"`);
+ }
+ // It is the same thing said differently, not the screen read back, so no two are identical.
+ assert.equal(new Set(all.map(([,t])=>t)).size,all.length,'two of them say exactly the same thing');
+ // Each game's rules name the game, so a child who pressed the wrong button hears that at once.
+ for(const {id,title} of ids)
+  assert.ok(gameRule(id).toLowerCase().startsWith(title.toLowerCase().split(' ')[0]),
+   `${title} must say what it is first`);
+ assert.equal(gameRule('nothing-like-this'),'');
+ assert.equal(pageRule('nothing-like-this'),'');
+ // And the button is actually on the screen: one per page, one per game, both before anything
+ // else on it, because the person who needs it cannot read what would otherwise come first.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/<main>\s*(\{\/\*[\s\S]*?\*\/\}\s*)?<SpeakRules id=\{`page-\$\{tab\}`\} text=\{pageRule\(tab\)\}/);
+ assert.match(games,/<SpeakRules id=\{`rules-\$\{current\.id\}`\} text=\{gameRule\(current\.id\)\}/);
+ const pages=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ // Read at a slower pace than the app reads anything else, and in English rather than the
+ // page's own language, because these are instructions and they have to land the first time.
+ assert.match(pages,/read\(id,text,'en-AU',0\.8\)/);
+ assert.match(pages,/if\(!supported\|\|!text\)return null;/,'a phone with no voice is offered nothing');
+});
+
+test('fukuwarai hands the pieces over one at a time, and marks how far each one landed from home',async()=>{
+ const {FACES,faceById,PARTS,TARGETS,targetFor,partPoints,fukuwaraiScore,verdictOf,PART_PAR,PART_REACH,PERFECT}=await import('../src/fukuwarai-data.js');
+ // The two faces it is always played with, and six pieces handed over in a fixed order,
+ // because there is no going back in this game and a child needs to know what is coming.
+ assert.deepEqual(FACES.map(f=>f.id),['otafuku','hyottoko']);
+ assert.deepEqual(PARTS.map(p=>p.id),['brow-l','brow-r','eye-l','eye-r','nose','mouth']);
+ for(const p of PARTS)assert.ok(p.en&&p.ja&&p.romaji,`${p.id} is missing a name`);
+ for(const face of FACES)for(const part of PARTS){
+  const [x,y]=targetFor(face.id,part.id);
+  assert.ok(x>10&&x<90&&y>10&&y<90,`${face.id} keeps its ${part.id} off the picture`);
+ }
+ // The face's left is on the right of the screen, the same way round as on a real person.
+ assert.ok(targetFor('otafuku','eye-l')[0]>targetFor('otafuku','eye-r')[0]);
+ // And his mouth is off to one side on purpose: putting it in the middle is the mistake.
+ assert.equal(TARGETS.otafuku.mouth[0],50);
+ assert.ok(TARGETS.hyottoko.mouth[0]<50,'a hyottoko is blowing sideways');
+ // On the spot is full marks, a third of a face away is nothing, and nothing goes negative.
+ assert.equal(partPoints([50,50],[50,50]).points,PART_PAR);
+ assert.equal(partPoints([50,50],[50,50+PART_REACH]).points,0);
+ assert.equal(partPoints([0,0],[99,99]).points,0,'a piece on the floor still scores nothing rather than minus');
+ assert.ok(partPoints([50,50],[50,56]).points<PART_PAR);
+ const spot=Object.fromEntries(PARTS.map(p=>[p.id,targetFor('otafuku',p.id)]));
+ assert.equal(fukuwaraiScore('otafuku',spot).total,PERFECT);
+ // A piece never placed is not a piece worth points, and it does not crash the marking either.
+ const half=fukuwaraiScore('otafuku',{'brow-l':spot['brow-l']});
+ assert.equal(half.total,PART_PAR);
+ assert.equal(half.parts.find(p=>p.id==='mouth').away,null);
+ // The perfect face is scored against the face being played, not against the other one.
+ const hisSpots=Object.fromEntries(PARTS.map(p=>[p.id,targetFor('hyottoko',p.id)]));
+ assert.equal(fukuwaraiScore('hyottoko',hisSpots).total,PERFECT);
+ assert.ok(fukuwaraiScore('otafuku',hisSpots).total<PERFECT);
+ // And the verdict is kind at the bottom, because a face that has gone wrong is the good bit.
+ assert.notEqual(verdictOf(0),verdictOf(PERFECT));
+ for(const total of [0,40,80,PERFECT])assert.ok(verdictOf(total).length>10);
+ assert.equal(faceById('nonsense').id,'otafuku');
+ // The blindfold takes the face with it, which is the game: you look, it goes, and you place
+ // six pieces onto an empty board from memory. A screen that leaves the face up is a guessing
+ // game with the answer printed on it.
+ const screen=await readFile(new URL('../src/Fukuwarai.jsx',import.meta.url),'utf8');
+ assert.match(screen,/const blind=phase==='blind',revealed=phase==='off';/);
+ assert.match(screen,/\{!blind&&blank\[faceId\]\(face\)\}/,'the face is drawn only when it is not hidden');
+ assert.match(screen,/if\(!next\|\|!blind\)return;/,'and nothing is placed before the blindfold is on');
+ assert.match(screen,/onClick=\{\(\)=>setPhase\('blind'\)\}/);
+});
+
+test('the daruma chant is ten syllables, and anybody still moving when he turns is caught',async()=>{
+ const D=await import('../src/daruma.js');
+ assert.equal(D.CHANT.join(''),'だるまさんがころんだ');
+ assert.equal(D.CHANT.length,10);
+ // Each syllable gets its own length, leaning slower at the start and quicker at the end —
+ // which is how a child chants it, and is the only reason the game is hard.
+ for(const level of D.LEVELS){
+  const tempo=D.chantTempo(level,D.rng(5));
+  assert.equal(tempo.length,D.CHANT.length);
+  for(const beat of tempo)assert.ok(beat>=90&&beat<level.beat[1]*2,`${level.id} beat out of range: ${beat}`);
+  assert.notDeepEqual(tempo,D.chantTempo(level,D.rng(99)),'two chants are not the same chant');
+ }
+ // Crossing must take several chants. One chant that gets you there means letting go is never
+ // a decision, and letting go is the whole game.
+ for(const level of D.LEVELS){
+  const chant=D.chantTempo(level,D.rng(5)).reduce((a,b)=>a+b,0);
+  const inOneChant=(chant/D.TICK)*level.step;
+  assert.ok(inOneChant<D.TRACK*0.5,`${level.id} crosses too much of the track in one chant`);
+ }
+ // Playing it out with no screen. A player who lets go while the chant is still running walks
+ // it; one who never lets go is caught three times and that is the end of it.
+ const play=(levelId,style)=>{
+  let run=D.start(D.newRun(levelId,D.rng(3)),0),now=0,guard=0;
+  while(!run.over&&guard++<20000){
+   now+=D.TICK;
+   const left=run.phase==='chant'?run.tempo.slice(run.index).reduce((a,b)=>a+b,0):0;
+   const held=style==='never'?true:run.phase==='chant'&&left>400;
+   run=D.darumaTick(run,{held,now,rand:D.rng(now+7)});
+   if(run.phase==='caught')run=D.resume(run,now,D.rng(now));
+  }
+  return run;
+ };
+ for(const level of D.LEVELS){
+  const careful=play(level.id,'careful');
+  assert.deepEqual(careful.over,{won:true,how:'touched'},`${level.id} must be winnable`);
+  assert.equal(careful.distance,D.TRACK);
+  const greedy=play(level.id,'never');
+  assert.deepEqual(greedy.over,{won:false,how:'caught'},`${level.id} must punish a finger that never lifts`);
+  assert.equal(greedy.lives,0);
+  assert.equal(greedy.caught,3);
+ }
+ // The rules themselves, one at a time. Moving while he is watching is caught, at once.
+ const watching={...D.newRun('gentle',D.rng(1)),phase:'watch',at:0,lives:3,distance:40};
+ assert.equal(D.darumaTick(watching,{held:true,now:10,rand:D.rng(1)}).phase,'caught');
+ assert.equal(D.darumaTick(watching,{held:true,now:10,rand:D.rng(1)}).distance,0,'and you go back to the wall');
+ assert.equal(D.darumaTick(watching,{held:false,now:10,rand:D.rng(1)}).phase,'watch','standing still is safe');
+ // Still moving when the grace runs out is caught; stopping inside it is not.
+ const turning={...D.newRun('gentle',D.rng(1)),phase:'turn',at:0,lives:3,distance:40};
+ const grace=D.levelById('gentle').grace;
+ assert.equal(D.darumaTick(turning,{held:true,now:grace-50,rand:D.rng(1)}).phase,'turn','the brave get a step out of the turn');
+ assert.equal(D.darumaTick(turning,{held:true,now:grace+50,rand:D.rng(1)}).phase,'caught');
+ assert.equal(D.darumaTick(turning,{held:false,now:grace+50,rand:D.rng(1)}).phase,'watch');
+ // Nothing happens at all until it has been started.
+ const ready=D.newRun('gentle',D.rng(1));
+ assert.equal(ready.phase,'ready');
+ assert.equal(D.darumaTick(ready,{held:true,now:9999,rand:D.rng(1)}),ready);
+ assert.equal(ready.lives,3);
+ // A win always pays for the level it was won on, however long it took.
+ for(const level of D.LEVELS){
+  assert.ok(D.darumaWorth(level,9999,0)>=level.pays);
+  assert.ok(D.darumaWorth(level,5,3)<=9999);
+  assert.ok(D.darumaWorth(level,5,3)>D.darumaWorth(level,50,3),'quicker is worth more');
+  assert.ok(D.darumaWorth(level,20,3)>D.darumaWorth(level,20,1),'and so is not being caught');
+ }
+ assert.ok(D.darumaWorth(D.LEVELS[2],20,3)>D.darumaWorth(D.LEVELS[0],20,3),'the demon pays more than the gentle one');
 });
 
 test('karuta deals the same round from the same seed, and every proverb is filed under its own letter',async()=>{

@@ -2,7 +2,7 @@ import TicketAttachments from './TicketAttachments.jsx';
 import LocationDirectory,{GuideLocations} from './LocationDirectory.jsx';
 import {destinationFor,resolveLocation,showLocationDetails} from './locations.js';
 import {ensureFeatures,pendingProgress,phoneLinks,isTrainLeg,EYE_SPY,eyeSpySpotted} from './trip-features.js';
-import {Challenges,Shopping} from './AdventurePages.jsx';
+import {Challenges,Shopping,SpeakRules} from './AdventurePages.jsx';
 import {NextUp,RunningLate,OfflineReadiness,Updates} from './HomeFeatures.jsx';
 import {ThankYouNote,ThankYouEditor} from './ThankYou.jsx';
 import TicketViewer from './TicketViewer.jsx';
@@ -18,6 +18,7 @@ import {factSeenBy,factQueue} from './trip-features.js';
 import {PHRASES} from './phrases.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
 import {primaryNav,moreIds,PAGES} from './nav-data.js';
+import {pageRule} from './spoken-rules.js';
 import EyeSpy from './EyeSpy.jsx';
 import ParkGuide from './ParkGuide.jsx';
 import FoodList,{FoodCard} from './FoodList.jsx';
@@ -263,6 +264,9 @@ function App(){
   <div className="syncbar">{!online?<><WifiOff size={14}/> Offline · saved on this phone</>:user.demo?<><AlertCircle size={14}/> Local preview · family sharing needs setup</>:queue.length?<><Clock size={14}/>{queue.length} update{queue.length!==1?'s':''} waiting to sync</>:<><Cloud size={14}/> Shared family plan <span>Signed in as {user.name}</span></>}</div>
   {conflict&&<div className="conflict"><strong>The family changed the plan while you were offline.</strong><p>Your {queue.length} progress update(s) are still saved. Review them against the latest itinerary.</p><div className="row"><Button onClick={()=>setModal({type:'pending'})}>Review updates</Button><Button onClick={()=>{saveQueue([]);setConflict(false);}}>Discard my pending updates</Button></div></div>}
   <main>
+  {/* One of these on every page, first thing, for the five-year-old holding the phone. It says
+      what this screen is for in words he can follow rather than reading the heading at him. */}
+  <SpeakRules id={`page-${tab}`} text={pageRule(tab)} label="What is this page?"/>
   {tab==='today'&&<>
    <div className="day-heading"><div><p className="eyebrow">{today?.city} / {fmtDay(day)}</p><h1>{today?.title}</h1></div><button className="icon" aria-label="Choose day" onClick={()=>setTab('days')}><CalendarDays/></button></div>
    <div className="date-strip" aria-label="Trip days">{state.days.map(d=><button key={d.date} className={day===d.date?'selected':''} onClick={()=>selectDay(d.date)}><span>{fmtDay(d.date,{weekday:'short'})}</span><strong>{d.date.slice(-2)}</strong>{d.date===japanDate()&&<i aria-label="Today"/>}</button>)}</div>

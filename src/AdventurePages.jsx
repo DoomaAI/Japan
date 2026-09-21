@@ -69,6 +69,20 @@ export function useReadAloud(){
 export function ReadAloudButton({id,text,reading,read,what='mission',rate,className=''}){
  return <button type="button" className={`read-aloud${className?' '+className:''}`} aria-label={reading===id?'Stop reading':`Read this ${what} aloud`} onClick={()=>read(id,text,'en-AU',rate)}>{reading===id?<><Square size={15}/>Stop</>:<><Volume2 size={16}/>Read to me</>}</button>;
 }
+// The same thing for a page or a game, for somebody who cannot read the page it is on. Where
+// ReadAloudButton reads a thing that is on the screen — a mission, a fact — this reads what
+// the screen is FOR, and what it says is deliberately not the screen read back: the writing
+// on the page is for whoever can read it, and spoken-rules.js is the same thing said to a
+// five-year-old. Slower than the app reads anything else, because instructions heard once
+// have to land the first time.
+export function SpeakRules({id,text,label='How to play'}){
+ const {supported,reading,read}=useReadAloud();
+ if(!supported||!text)return null;
+ const going=reading===id;
+ return <button type="button" className={`speak-rules${going?' going':''}`}
+  aria-label={going?'Stop reading':`${label}, read aloud`} onClick={()=>read(id,text,'en-AU',0.8)}>
+  {going?<><Square size={15}/> Stop</>:<><Volume2 size={17}/> {label}</>}</button>;
+}
 export function Challenges({state,user,day,mutate,busy,initialId}){
  const {supported:canRead,reading,read}=useReadAloud();
  const initial=state.challenges.find(c=>c.id===initialId);
