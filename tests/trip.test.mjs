@@ -5678,6 +5678,51 @@ test('the asking and approving is on the page, and only a parent sees the answer
  for(const rule of ['.ask-row{','.ask-row.open{','.ask-dot{'])assert.ok(css.includes(rule),`${rule} is missing`);
 });
 
+test('a parent can stand where a boy stands on the spending page, and act for him from there',async()=>{
+ const page=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ // Standing in takes a parent's own powers off the screen rather than adding a second flag beside
+ // every one of them, so the page a parent is shown is the page the boy is shown.
+ assert.match(page,/const standing=grownUp&&standIn,parent=grownUp&&!standing;/);
+ // What he can do, a parent standing there can still do for him: "mine" follows being a parent,
+ // not the view, so nothing a boy can do is lost by looking at it his way.
+ assert.match(page,/const rate=yenPerAud\(state\),mine=grownUp\|\|person===user\.name;/);
+ assert.match(page,/className="segmented view-as"/,'the toggle is on the page');
+ assert.match(page,/What \{person\} sees/);
+ assert.match(page,/aria-pressed=\{standIn\}/,'and it says which way round it is to a screen reader');
+ // The money-in panel and the answering buttons are exactly what standing in puts away.
+ assert.match(page,/\{parent&&<><button className="spend-toggle"/);
+ assert.match(page,/onClick=\{\(\)=>\{setStandIn\(true\);setShowMoney\(false\);setEdit\(null\);\}\}/,
+  'and the money-in panel is not left open behind it');
+ // Whose money it is and whose hands typed it are two different questions on every screen it shows on.
+ assert.match(page,/ask\.by&&ask\.by!==ask\.person\?` · Put in by \$\{ask\.by\}`:''/);
+ assert.match(page,/item\.createdBy&&item\.createdBy!==item\.person\?` · Written down by \$\{item\.createdBy\}`:''/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ for(const rule of ['.view-as{','.standing-in{'])assert.ok(css.includes(rule),`${rule} is missing`);
+ // And the server already agrees: a parent writing an ask down for a boy is his ask, still open,
+ // still moving no money, with the parent's name against it rather than words in the boy's mouth.
+ const {purse,requestsFor,requestedFor}=await import('../src/trip-features.js');
+ const day=seed.days[1].date;
+ let state=applyOperation(seed,{type:'spendTopUp',person:'Nate',yen:1000},parent);
+ state=applyOperation(state,{type:'spendRequest',person:'Nate',yen:2400,reason:'The Beyblade at the counter'},parent);
+ const ask=requestsFor(state,'Nate')[0];
+ assert.equal(ask.person,'Nate');assert.equal(ask.by,'Damien');assert.equal(ask.status,'open');
+ assert.equal(purse(state,'Nate',day).paidIn,1000,'writing it down is not saying yes to it');
+ assert.equal(requestedFor(state,'Nate'),2400);
+ assert.ok(state.alerts.some(a=>/Damien put in an ask for Nate: ¥2,400/.test(a.summary||'')));
+ assert.ok(!state.alerts.some(a=>/Nate is asking for ¥2,400/.test(a.summary||'')),'nobody puts words in his mouth');
+ // Answering it is still a separate act, back in the parent's own view.
+ const yes=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true},parent);
+ assert.equal(purse(yes,'Nate',day).paidIn,3400);
+ // And a parent can take a boy's open ask back for him, which a boy can only do to his own.
+ assert.equal(requestsFor(applyOperation(state,{type:'spendRequestCancel',id:ask.id},parent),'Nate').length,0);
+ // A parent can write something down on his list and tick it off for him, and it says who did.
+ const added=applyOperation(state,{type:'spendAdd',person:'Nate',title:'A Gachapon go',estimate:400},parent);
+ const bought=applyOperation(added,{type:'spendBought',id:added.spending.items.at(-1).id,done:true,spent:300},parent);
+ const item=bought.spending.items.at(-1);
+ assert.equal(item.person,'Nate');assert.equal(item.createdBy,'Damien');assert.equal(item.boughtBy,'Damien');
+ assert.equal(purse(bought,'Nate',day).spent,300);
+});
+
 test('a part-approval reads as a part-approval, and a generous one does not',async()=>{
  const page=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
  // Approving ¥400 of an ask for ¥600 is "¥400 of it". Approving ¥1,400 of an ask for ¥600 is

@@ -543,7 +543,13 @@ export function extraOperation(state,op,user,fail,now){
    let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
    purse.requests=[...purse.requests,{id:randomUUID(),person,yen:amount,reason,at,by:user.name,
     status:'open',decidedBy:null,decidedAt:null,approvedYen:null,reply:''}];
-   return {summary:`${person} is asking for \u00a5${amount.toLocaleString('en-AU')} more spending money${reason?` \u00b7 ${reason}`:''}`,important:true,title:`${person}\u2019s spending money`};
+   // A parent can write an ask down for a boy — the ask he made out loud at the counter — and the
+   // news says who typed it, because "Nate is asking" would be putting words in his mouth. It is
+   // still his ask and still unanswered: writing it down is not the same as saying yes to it.
+   return {summary:user.name===person
+    ?`${person} is asking for \u00a5${amount.toLocaleString('en-AU')} more spending money${reason?` \u00b7 ${reason}`:''}`
+    :`${user.name} put in an ask for ${person}: \u00a5${amount.toLocaleString('en-AU')} more spending money${reason?` \u00b7 ${reason}`:''}`,
+    important:true,title:`${person}\u2019s spending money`};
   }
   if(op.type==='spendRequestDecide'){
    if(!parent)fail('Mum or Dad answers this one.',403);
