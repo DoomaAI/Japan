@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import {MascotBadge} from './Mascot.jsx';
-import {PiggyBank,Plus,Trash2,ShoppingBag,ListChecks,CalendarDays,Check,AlertCircle,Wallet,X,HandCoins,ThumbsUp} from 'lucide-react';
+import {PiggyBank,Plus,Trash2,ShoppingBag,ListChecks,CalendarDays,Check,AlertCircle,Wallet,X,HandCoins,ThumbsUp,Eye,UserCog} from 'lucide-react';
 import {BOYS,purse,spendItemsFor,topUpsFor,allowanceFor,allowanceDays,spendCost,buyTodosFor,requestsFor,requestedFor,openRequests,yenPerAud,yenToAud} from './trip-features.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {japanClock,japanDate} from './timing.js';
@@ -50,6 +50,7 @@ function SpendRow({item,user,rate,mine,busy,mutate,onEdit}){
     ?`Bought by ${item.boughtBy}${item.boughtAt?` at ${japanClock(new Date(item.boughtAt))}`:''}`
     :item.estimate===null?'No price guessed yet':`About ${both(item.estimate,rate)}`}
     {item.day?` · ${dayLabel(item.day)}`:''}
+    {item.createdBy&&item.createdBy!==item.person?` · Written down by ${item.createdBy}`:''}
     {item.todoId?' · From the to-do list':''}
     {item.pending?' · Waiting to sync':''}</small>
    {item.notes&&<p>{item.notes}</p>}
@@ -73,7 +74,9 @@ function SpendRow({item,user,rate,mine,busy,mutate,onEdit}){
 
 // One ask and, once it has been answered, the answer. A parent can say yes to a different figure
 // than the one asked for, because "you can have half of that" is a real answer and pretending
-// otherwise would have a boy reading "approved" against a number he never got.
+// otherwise would have a boy reading "approved" against a number he never got. An ask a parent
+// wrote down for a boy says so on its face: whose money it is and whose hands typed it are two
+// different questions, and the boy should not read his own name against something he did not send.
 function RequestRow({ask,rate,parent,mine,busy,mutate}){
  const [answering,setAnswering]=useState(''),open=ask.status==='open';
  async function decide(e){
@@ -85,6 +88,7 @@ function RequestRow({ask,rate,parent,mine,busy,mutate}){
   <div className="ask-body">
    <strong><HandCoins size={15}/>{ask.person} asked for {both(ask.yen,rate)}</strong>
    <small>{japanDate(new Date(ask.at))}
+    {ask.by&&ask.by!==ask.person?` · Put in by ${ask.by}`:''}
     {open?' · Waiting on Mum or Dad':ask.status==='approved'
      ?` · ${ask.decidedBy} approved ${both(ask.approvedYen,rate)}${ask.approvedYen<ask.yen?' of it':''}`
      :` · ${ask.decidedBy} said not this time`}
@@ -111,14 +115,21 @@ function RequestRow({ask,rate,parent,mine,busy,mutate}){
 }
 
 export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=japanDate()}){
- const parent=user.role==='parent';
+ const grownUp=user.role==='parent';
  const boys=BOYS.filter(n=>state.members.includes(n));
  const [person,setPerson]=useState(BOYS.includes(user.name)?user.name:boys[0]);
  const [edit,setEdit]=useState(null),[showMoney,setShowMoney]=useState(false);
- const [asking,setAsking]=useState(false);
+ const [asking,setAsking]=useState(false),[standIn,setStandIn]=useState(false);
  // Every hook has run before this: the page is drawn the same way whoever is holding the phone.
  if(!person)return <><p className="eyebrow">THEIR OWN MONEY</p><h1>Spending money</h1><div className="empty"><PiggyBank/><h2>Nobody has a purse here.</h2><p>Spending money belongs to Nate and Boston, and neither is on this trip.</p></div></>;
- const rate=yenPerAud(state),mine=parent||person===user.name;
+ // A parent can stand where the boy stands. Standing there puts the parent's own buttons away —
+ // no money in, no answering asks — so what is on the screen is what he actually gets, and a
+ // promise made over his shoulder is a promise about the page he is holding. Everything he can
+ // do, a parent standing there can still do for him: write one down, edit it, tick it off, ask.
+ // "parent" from here on means a parent's own powers showing on this screen, which is why
+ // standing in takes them away rather than a second flag having to be checked beside every one.
+ const standing=grownUp&&standIn,parent=grownUp&&!standing;
+ const rate=yenPerAud(state),mine=grownUp||person===user.name;
  const money=purse(state,person,today),items=spendItemsFor(state,person);
  const plan=allowanceFor(state,person),days=allowanceDays(state,person,today);
  const tops=topUpsFor(state,person),waiting=buyTodosFor(state,person);
@@ -149,8 +160,16 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
  <p className="eyebrow">THEIR OWN MONEY, THEIR OWN CHOICES</p><h1>Spending money</h1>
  <p>What Nate and Boston have to spend, what they have already spent it on, and what is left. Money goes in by hand or as an amount a day that fills up by itself as the trip runs. Ticking something off is what turns it into money out, and that works with no signal.</p>
  <div className="segmented spend-people with-mascots">{boys.map(n=>
-  <button key={n} className={person===n?'selected':''} onClick={()=>{setPerson(n);setEdit(null);}}><MascotBadge state={state} person={n} size={26}/>{n}
+  <button key={n} className={person===n?'selected':''} onClick={()=>{setPerson(n);setEdit(null);setAsking(false);}}><MascotBadge state={state} person={n} size={26}/>{n}
    {unanswered.some(r=>r.person===n)&&<i className="ask-dot" aria-label="Waiting on an answer"/>}</button>)}</div>
+
+ {grownUp&&<><div className="segmented view-as" role="group" aria-label="Whose view of this page">
+  <button className={!standIn?'selected':''} aria-pressed={!standIn}
+   onClick={()=>{setStandIn(false);setAsking(false);setEdit(null);}}><UserCog size={16}/>Your view</button>
+  <button className={standIn?'selected':''} aria-pressed={standIn}
+   onClick={()=>{setStandIn(true);setShowMoney(false);setEdit(null);}}><Eye size={16}/>What {person} sees</button>
+ </div>
+ {standing&&<p className="callout standing-in"><Eye size={18}/><span><strong>You are looking at {person}’s page as {person} gets it.</strong> Putting money in and answering asks are back in your view. You can still write something down, change it, tick it off and ask for more on his behalf — all of it goes in as his, with your name against it.</span></p>}</>}
 
  <section className="purse-card">
   <p className="eyebrow">{person.toUpperCase()}’S PURSE</p>
@@ -207,11 +226,12 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
 
  {(!!asks.length||mine)&&<section className="ask-section">
   <div className="section-heading">
-   <div><p className="eyebrow">ASKING FOR MORE</p><h2>{person===user.name?'Ask Mum or Dad':`${person}’s asks`}</h2></div>
-   {mine&&!parent&&<button onClick={()=>setAsking(a=>!a)}><HandCoins size={16}/>{asking?'Not now':'Ask for more'}</button>}
+   <div><p className="eyebrow">ASKING FOR MORE</p><h2>{person===user.name?'Ask Mum or Dad':standing?`Ask for ${person}`:`${person}’s asks`}</h2></div>
+   {mine&&!parent&&<button onClick={()=>setAsking(a=>!a)}><HandCoins size={16}/>{asking?'Not now':standing?`Ask for ${person}`:'Ask for more'}</button>}
   </div>
   <p><small>A boy cannot put money into his own purse, so this is the way it moves in his favour: ask, and a parent answers. Nothing reaches the purse until one of them says yes.</small></p>
   {mine&&asking&&<form className="spend-form ask-form" onSubmit={askFor}>
+   {standing&&<p><small>An ask you write down here is {person}’s, in your name — the ask a boy made out loud at the counter, written down where it counts. It still waits on an answer, which is back in your own view: writing it down is not saying yes to it.</small></p>}
    <div className="form-row">
     <label>How much, in yen<input name="yen" inputMode="numeric" autoFocus placeholder="2000" required/></label>
     <label>What is it for<input name="reason" maxLength={500} placeholder="The Beyblade is ¥2,400 and I have ¥900"/></label>
