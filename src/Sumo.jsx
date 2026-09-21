@@ -1,13 +1,44 @@
 import React,{useState} from 'react';
-import {Download,ExternalLink,RefreshCw,Search,Trophy,AlertCircle,User,Clock,X} from 'lucide-react';
+import {Download,ExternalLink,RefreshCw,Search,Trophy,AlertCircle,User,Clock,X,Check,Lock} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {SUMO_SITE,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout} from './trip-features.js';
+import {SUMO_SITE,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders} from './trip-features.js';
 import {japanClock} from './timing.js';
 const Side=({man,onLook,won,lost})=><button className={`sumo-side ${won?'won':''} ${lost?'lost':''}`} onClick={()=>onLook(man)}>
  <strong>{man.name}</strong>
  <small>{[man.rank,man.stable].filter(Boolean).join(' · ')||'Tap to look him up'}</small>
  {won&&<span className="sumo-won"><Trophy size={13}/>Won</span>}
 </button>;
+// Four picks, one phone. In the arena there is a single phone out and everybody shouting at
+// it, so whoever is holding it enters all four — this is the one place in the app where you
+// record somebody else's answer. Picks close the moment the result goes in: you cannot call a
+// bout you have already watched.
+function Picks({state,bout,result,members,mutate,busy,open,onToggle}){
+ const picks=boutPredictions(state,bout.id),closed=predictionsClosed(state,bout.id);
+ const made=members.filter(n=>picks[n]);
+ return <div className="sumo-picks">
+  <div className="row wrap">
+   <button className="sumo-pick-toggle" onClick={onToggle} aria-expanded={open}>
+    {closed?<Lock size={13}/>:<Trophy size={13}/>}
+    {made.length?`${made.length} of ${members.length} called it`:closed?'Nobody called this one':'Who do we think?'}
+   </button>
+   {made.map(name=>{
+    const right=result&&result.winner===picks[name];
+    return <span className={`tag pick ${result?(right?'up':'down'):''}`} key={name}>
+     {result&&(right?<Check size={12}/>:<X size={12}/>)}{name}: {picks[name]}</span>;
+   })}
+  </div>
+  {open&&<div className="sumo-pick-grid">
+   {closed
+    ?<p><small>This one has been watched, so the picks are closed. Clear the result above to reopen them.</small></p>
+    :members.map(name=><div className="sumo-pick-row" key={name}>
+      <span>{name}</span>
+      {[bout.east.name,bout.west.name].map(side=>
+       <button key={side} className={picks[name]===side?'selected':''} disabled={busy}
+        onClick={()=>mutate({type:'sumoPredict',id:bout.id,person:name,winner:picks[name]===side?null:side})}>{side}</button>)}
+     </div>)}
+  </div>}
+ </div>;
+}
 // The day's card, fetched from the official schedule before we go and then kept in the trip.
 // The arena is a basement full of phones, so everything here has to work with the list already
 // on the device: only fetching needs a connection.
@@ -15,6 +46,8 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
  const card=sumo(state),groups=sumoCard(state),parent=user.role==='parent';
  const [fetching,setFetching]=useState(false),[error,setError]=useState('');
  const [looking,setLooking]=useState(null),[lookupError,setLookupError]=useState('');
+ const [picking,setPicking]=useState(null);
+ const tally=predictionTally(state),leaders=predictionLeaders(state);
  const clock=japanClock(now||new Date()),onNow=currentBout(state,clock);
  async function load(){
   setFetching(true);setError('');
@@ -41,6 +74,12 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
     <small>{card.doorsOpen?`Doors ${card.doorsOpen} · `:''}{card.bouts.length} bouts{card.at?` · loaded ${japanClock(new Date(card.at))} by ${card.by}`:''}</small></div>
   </div>}
   {card.notes&&<p className="sumo-notes">{card.notes}</p>}
+  {!!tally.length&&<div className="sumo-tally">
+   <p className="eyebrow">WHO IS CALLING THEM RIGHT</p>
+   <div className="row wrap">{tally.map(t=><span className={`tag ${leaders.includes(t.name)?'must':''}`} key={t.name}>
+    {t.name}{t.right+t.wrong>0?<> {t.right}<small>&nbsp;of {t.right+t.wrong}</small></>:''}
+    {t.waiting?<small>{t.right+t.wrong>0?' · ':' '}{t.waiting} to come</small>:''}</span>)}</div>
+  </div>}
   {onNow&&<p className="sumo-now"><Clock size={16}/>About now: <strong>{onNow.east.name}</strong> v <strong>{onNow.west.name}</strong> · {divisionLabel(onNow.division)}</p>}
   {parent&&config?.sumo&&<div className="row wrap">
    <button className="primary" disabled={busy||fetching} onClick={load}>
@@ -70,6 +109,8 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
        <button key={name} className={result?.winner===name?'selected':''} disabled={busy}
         onClick={()=>mutate({type:'sumoResult',id:bout.id,winner:result?.winner===name?null:name,by:user.name})}>{name}</button>)}
      </div>
+     <Picks state={state} bout={bout} result={result} members={state.members} mutate={mutate} busy={busy}
+      open={picking===bout.id} onToggle={()=>setPicking(picking===bout.id?null:bout.id)}/>
     </article>;})}
   </section>)}
   {!!card.sources.length&&<details className="sumo-sources"><summary>Where this came from</summary>

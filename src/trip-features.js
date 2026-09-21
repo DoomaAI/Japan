@@ -395,11 +395,28 @@ export function offlineManifest(state,day){
 }
 // A ticket and its attached files are read as one set: the ticket itself first, then each
 // file attached to it. Written details and external links hold no file, so they are skipped.
+export const ticketFiles=(documents,ticket)=>ticket
+ ?[...(ticket.pathname?[ticket]:[]),...documents.filter(d=>d.parentDocumentId===ticket.id&&d.pathname)]
+ :[];
 export function attachmentGroup(documents,view){
  if(!view)return [];
- const rootId=view.parentDocumentId||view.id,root=documents.find(d=>d.id===rootId);
- const group=[...(root?.pathname?[root]:[]),...documents.filter(d=>d.parentDocumentId===rootId&&d.pathname)];
+ const rootId=view.parentDocumentId||view.id;
+ const group=ticketFiles(documents,documents.find(d=>d.id===rootId)||{id:rootId});
  return group.some(d=>d.id===view.id)?group:[view];
+}
+// The ticket a file belongs to: itself, when it is the ticket, else the one it is attached to.
+export const ticketOf=(documents,view)=>view?documents.find(d=>d.id===(view.parentDocumentId||view.id))||view:null;
+// Every file the Tickets page is showing, in one strip: each ticket's own file, then the files
+// attached to it, then straight on into the next ticket, so swiping past the end of one booking
+// carries on into the next rather than stopping dead. A booking held only as written details or
+// as a link has nothing to draw, so it drops out of the strip rather than turning up as a blank
+// page. If the open file is not among the tickets listed — the page was filtered underneath it,
+// say — the strip falls back to that one ticket's set, so the viewer never loses its place.
+export function attachmentReel(documents,tickets,view){
+ const reel=(tickets||[]).flatMap(t=>ticketFiles(documents,t).map(file=>({file,ticket:t})));
+ if(view&&reel.some(e=>e.file.id===view.id))return reel;
+ const ticket=ticketOf(documents,view);
+ return attachmentGroup(documents,view).map(file=>({file,ticket}));
 }
 // HEIC and HEIF are accepted uploads but most browsers cannot draw them in an <img>, so they
 // never stand in as a thumbnail — they are offered as a link to the original instead.
@@ -440,9 +457,10 @@ export const SUMO_DIVISIONS=[['makuuchi','Makuuchi · the top division'],['juryo
 export const divisionLabel=id=>(SUMO_DIVISIONS.find(([key])=>key===id)||SUMO_DIVISIONS.at(-1))[1];
 export const SUMO_DAY='2026-09-23';
 export const SUMO_SITE='https://www.sumo.or.jp/EnHonbashoMain/torikumi/';
-export const EMPTY_SUMO={basho:'',dayNumber:null,venue:'',date:null,doorsOpen:'',notes:'',bouts:[],sources:[],wrestlers:{},results:{},at:null,by:null};
+export const EMPTY_SUMO={basho:'',dayNumber:null,venue:'',date:null,doorsOpen:'',notes:'',bouts:[],sources:[],wrestlers:{},results:{},predictions:{},at:null,by:null};
 export const sumo=state=>({...EMPTY_SUMO,...(state.sumo||{}),bouts:[...((state.sumo||{}).bouts||[])],
- wrestlers:{...((state.sumo||{}).wrestlers||{})},results:{...((state.sumo||{}).results||{})}});
+ wrestlers:{...((state.sumo||{}).wrestlers||{})},results:{...((state.sumo||{}).results||{})},
+ predictions:{...((state.sumo||{}).predictions||{})}});
 export const sumoBouts=state=>[...sumo(state).bouts].sort((a,b)=>(a.order??0)-(b.order??0));
 // Bouts grouped the way the afternoon actually runs: the lower divisions first, the top last.
 export function sumoCard(state){
@@ -450,6 +468,28 @@ export function sumoCard(state){
  return SUMO_DIVISIONS.map(([id,label])=>({id,label,bouts:bouts.filter(b=>b.division===id)}))
   .filter(g=>g.bouts.length).sort((a,b)=>order.indexOf(b.id)-order.indexOf(a.id));
 }
+export const boutPredictions=(state,id)=>sumo(state).predictions[id]||{};
+// Everybody picks before the bout, on whichever phone is out — so a pick is locked the moment
+// the result goes in. You cannot call it after you have watched it.
+export const predictionsClosed=(state,id)=>!!boutResult(state,id);
+// Who is calling them right. A bout nobody has watched yet is still to come rather than wrong,
+// which matters when you are three bouts in and the tally would otherwise read as a thrashing.
+export function predictionTally(state){
+ const {predictions,results}=sumo(state),tally={};
+ for(const [id,picks] of Object.entries(predictions))
+  for(const [person,pick] of Object.entries(picks)){
+   const score=tally[person]||={name:person,right:0,wrong:0,waiting:0,called:0};
+   score.called++;
+   if(!results[id])score.waiting++;
+   else if(results[id].winner===pick)score.right++;
+   else score.wrong++;
+  }
+ return Object.values(tally).sort((a,b)=>b.right-a.right||a.wrong-b.wrong||a.name.localeCompare(b.name));
+}
+export const predictionLeaders=state=>{
+ const tally=predictionTally(state).filter(t=>t.right>0);
+ return tally.length?tally.filter(t=>t.right===tally[0].right).map(t=>t.name):[];
+};
 export const wrestlerKey=name=>String(name||'').trim().toLowerCase();
 export const wrestlerProfile=(state,name)=>sumo(state).wrestlers[wrestlerKey(name)]||null;
 export const boutResult=(state,id)=>sumo(state).results[id]||null;
@@ -665,6 +705,11 @@ export function pendingProgress(state,queue){
    else{const thoughts={...(entry.thoughts||{})};if(String(o.thought||'').trim())thoughts[o.person]={text:String(o.thought).trim(),at:o.at};else delete thoughts[o.person];entry.thoughts=thoughts;}
    next.stepReviews={...next.stepReviews,[o.id]:entry};
   }
+  if(o.type==='sumoPredict'){const next_sumo={...next.sumo,predictions:{...(next.sumo.predictions||{})}};
+   const forBout={...(next_sumo.predictions[o.id]||{})};
+   if(o.winner)forBout[o.person]=o.winner;else delete forBout[o.person];
+   if(Object.keys(forBout).length)next_sumo.predictions[o.id]=forBout;else delete next_sumo.predictions[o.id];
+   next.sumo=next_sumo;}
   if(o.type==='sumoResult'){const next_sumo={...next.sumo,results:{...(next.sumo.results||{})}};
    if(o.winner)next_sumo.results[o.id]={winner:o.winner,by:o.by||'',at:o.at};else delete next_sumo.results[o.id];
    next.sumo=next_sumo;}

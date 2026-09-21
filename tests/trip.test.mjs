@@ -315,6 +315,32 @@ test('the full-screen ticket viewer groups a ticket with its attached files, ski
  assert.deepEqual(attachmentGroup(docs,null),[]);
 });
 
+test('the viewer reads the whole Tickets page as one strip, ticket after ticket',async()=>{
+ const {attachmentReel}=await import('../src/trip-features.js');
+ const flight={id:'flight',title:'Flights',pathname:'a',type:'application/pdf'};
+ const boarding={id:'boarding',parentDocumentId:'flight',pathname:'b',type:'image/png'};
+ const dinner={id:'dinner',title:'Dinner',type:'note'};
+ const dinnerShot={id:'dinner-shot',parentDocumentId:'dinner',pathname:'c',type:'image/jpeg'};
+ const bagTag={id:'bag',title:'Blue bag',type:'link',url:'https://example.com'};
+ const park={id:'park',title:'Disney',pathname:'d',type:'image/png'};
+ const loose={id:'loose',title:'Somewhere else',pathname:'e',type:'image/png'};
+ const docs=[flight,boarding,dinner,dinnerShot,bagTag,park,loose];
+ const listed=[flight,dinner,bagTag,park];
+ // Each ticket's own file first, then its attachments, then straight on into the next ticket,
+ // in the order the page is listing them. A link holds no file, so it is not a page in between.
+ const reel=attachmentReel(docs,listed,flight);
+ assert.deepEqual(reel.map(e=>e.file.id),['flight','boarding','dinner-shot','park']);
+ assert.deepEqual(reel.map(e=>e.ticket.id),['flight','flight','dinner','park']);
+ // Opening an attachment reads the same strip, so Previous still reaches the ticket before it.
+ assert.deepEqual(attachmentReel(docs,listed,dinnerShot).map(e=>e.file.id),['flight','boarding','dinner-shot','park']);
+ // A file whose ticket is not on the page - it was filtered away underneath the viewer - keeps
+ // its own ticket's set rather than emptying out.
+ assert.deepEqual(attachmentReel(docs,listed,loose).map(e=>e.file.id),['loose']);
+ assert.deepEqual(attachmentReel(docs,[],flight).map(e=>e.file.id),['flight','boarding']);
+ // Nothing listed and nothing open is an empty strip, not a crash.
+ assert.deepEqual(attachmentReel(docs,[],null),[]);
+});
+
 test('read receipts report whether Lauren opened each note, and when she opened it late',async()=>{
  const {noteReadState}=await import('../src/trip-features.js');
  const today='2026-09-25';
@@ -3031,6 +3057,62 @@ test('the two boards say which squares are empty, and both ladders are laid out 
  // Every number on a games screen goes through the one figures block rather than being
  // written into a sentence, so they line up instead of wrapping.
  assert.ok([...source.matchAll(/<Stats /g)].length>=2);
+});
+
+test('we call the bouts from one phone, and the picks close once it has been watched',async()=>{
+ const {ensureFeatures,sumo,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,pendingProgress}=await import('../src/trip-features.js');
+ const card={type:'sumoUpdate',basho:'Aki Basho 2026',dayNumber:11,venue:'Ryogoku Kokugikan',date:'2026-09-23',
+  doorsOpen:'08:00',notes:'',sources:[],bouts:[
+   {id:'makuuchi-38',division:'makuuchi',order:38,time:'17:40',east:{name:'Kirishima',rank:'Sekiwake',stable:'Michinoku'},west:{name:'Daieisho',rank:'Komusubi',stable:'Oitekaze'}},
+   {id:'makuuchi-40',division:'makuuchi',order:40,time:'17:55',east:{name:'Hoshoryu',rank:'Ozeki',stable:'Tatsunami'},west:{name:'Kotozakura',rank:'Ozeki',stable:'Sadogatake'}}]};
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),card,parent);
+ // One phone is out and four people are shouting at it, so whoever holds it enters all four.
+ // This is the one place in the app where you record somebody else's answer.
+ for(const [person,pick] of [['Damien','Hoshoryu'],['Lauren','Kotozakura'],['Nate','Hoshoryu'],['Boston','Kotozakura']])
+  state=applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person,winner:pick},child);
+ assert.deepEqual(boutPredictions(state,'makuuchi-40'),{Damien:'Hoshoryu',Lauren:'Kotozakura',Nate:'Hoshoryu',Boston:'Kotozakura'});
+ assert.equal(predictionsClosed(state,'makuuchi-40'),false);
+ // Before anything is watched, nobody is losing — a pick with no result yet is still to come.
+ assert.deepEqual(predictionTally(state).map(t=>[t.name,t.right,t.wrong,t.waiting]),
+  [['Boston',0,0,1],['Damien',0,0,1],['Lauren',0,0,1],['Nate',0,0,1]]);
+ assert.deepEqual(predictionLeaders(state),[],'and nobody is leading');
+ // Changing your mind before the bout is fine; tapping your own pick again takes it back.
+ state=applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person:'Nate',winner:'Kotozakura'},child);
+ assert.equal(boutPredictions(state,'makuuchi-40').Nate,'Kotozakura');
+ const withdrawn=applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person:'Nate',winner:null},child);
+ assert.equal(boutPredictions(withdrawn,'makuuchi-40').Nate,undefined);
+ assert.equal(Object.keys(boutPredictions(withdrawn,'makuuchi-40')).length,3);
+ // Then it happens.
+ state=applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:'Kotozakura'},child);
+ assert.equal(predictionsClosed(state,'makuuchi-40'),true);
+ assert.deepEqual(predictionTally(state).map(t=>[t.name,t.right,t.wrong]),
+  [['Boston',1,0],['Lauren',1,0],['Nate',1,0],['Damien',0,1]]);
+ assert.deepEqual(predictionLeaders(state),['Boston','Lauren','Nate']);
+ // You cannot call a bout you have already watched — that is the whole point of a sweepstake.
+ assert.throws(()=>applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person:'Damien',winner:'Kotozakura'},parent),/has been watched/);
+ // Unless the result went in by mistake, which is why clearing it reopens them.
+ const reopened=applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:null},parent);
+ assert.equal(predictionsClosed(reopened,'makuuchi-40'),false);
+ assert.ok(applyOperation(reopened,{type:'sumoPredict',id:'makuuchi-40',person:'Damien',winner:'Kotozakura'},parent));
+ assert.deepEqual(boutPredictions(reopened,'makuuchi-40'),boutPredictions(state,'makuuchi-40'),'and the picks were never thrown away');
+ // Only the two men in the ring, only real people, only bouts on the card.
+ for(const bad of [{type:'sumoPredict',id:'makuuchi-38',person:'Damien',winner:'Hoshoryu'},
+  {type:'sumoPredict',id:'makuuchi-38',person:'Grandma',winner:'Kirishima'},
+  {type:'sumoPredict',id:'nope',person:'Damien',winner:'Kirishima'}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,52)} should be refused`);
+ // Picks survive the card being fetched again on the day, the same way results do.
+ const refetched=applyOperation(state,card,parent);
+ assert.deepEqual(boutPredictions(refetched,'makuuchi-40'),boutPredictions(state,'makuuchi-40'));
+ // A bout dropped from a refreshed card takes its picks with it rather than haunting the tally.
+ const shorter=applyOperation(state,{...card,bouts:[card.bouts[0]]},parent);
+ assert.deepEqual(sumo(shorter).predictions,{});
+ // Called in the arena with no signal, which is exactly where this happens.
+ const queue=[{operation:{type:'sumoPredict',operationId:'q1',id:'makuuchi-38',person:'Boston',winner:'Daieisho'}}];
+ assert.equal(boutPredictions(pendingProgress(state,queue),'makuuchi-38').Boston,'Daieisho');
+ assert.equal(boutPredictions(state,'makuuchi-38').Boston,undefined,'the shared trip waits until it syncs');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ assert.ok(list.includes('sumoPredict'));
 });
 
 test('a dish on a menu can be seen as well as read, and only Wikimedia can put it on the screen',async()=>{
