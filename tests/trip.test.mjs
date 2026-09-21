@@ -2984,7 +2984,7 @@ test('a spot-the-difference score is one the server will actually take',async()=
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',needs:(OFFLINE|'[^']+'),Component:(\w+)\}/g)];
- assert.equal(entries.length,11);
+ assert.equal(entries.length,12);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -3747,4 +3747,86 @@ test('every phrase has a picture of what it means, so it can be found without re
  // And he starts on his own mode rather than on a list of fifty-three written phrases.
  assert.match(page,/const suits=user\?\.name==='Nate'\?'nate':'list'/);
  assert.match(page,/localStorage\.getItem\('japan\.phrasemode'\)\|\|suits/,'and anybody can change it');
+});
+
+test('the origami diagrams are folded rather than drawn, so they cannot disagree with each other',async()=>{
+ const o=await import('../src/origami-data.js');
+ // A fold is a reflection. Get that wrong and every diagram after it is wrong too.
+ assert.deepEqual(o.reflect([0,0],[5,0],[5,9]).map(Math.round),[10,0]);
+ assert.deepEqual(o.reflect([2,8],[0,0],[10,0]).map(Math.round),[2,-8]);
+ assert.deepEqual(o.reflect([3,4],[0,0],[0,0]),[3,4],'a crease with no length folds nothing');
+ assert.equal(o.sideOf([1,1],[0,0],[10,0]),-o.sideOf([1,-1],[0,0],[10,0]));
+ assert.equal(o.sideOf([5,0],[0,0],[10,0]),0,'on the crease is neither side');
+ // Half a square, cut along the middle.
+ const half=o.clipToSide([[0,0],[10,0],[10,10],[0,10]],[0,5],[10,5],o.sideOf([5,0],[0,5],[10,5]));
+ assert.equal(half.length,4);
+ assert.ok(half.every(([,y])=>y<=5.0001));
+ // "Fold this corner onto that one" lands the corner exactly on the other one — which is what
+ // the instruction says, so the picture has to agree with the words.
+ const crease=o.creaseBringing([0,0],[10,10]);
+ assert.deepEqual(o.reflect([0,0],crease[0],crease[1]).map(n=>Math.round(n*1e6)/1e6),[10,10]);
+ assert.equal(o.creaseBringing([4,4],[4,4]),null);
+ // Which side moves is worked out from the corner being folded, never written down: a sign
+ // copied wrongly is invisible in the source and obvious in the diagram.
+ const spec=o.foldSpec({bring:[10,10],to:[90,90]});
+ assert.equal(o.sideOf([10,10],spec.crease[0],spec.crease[1]),spec.move);
+ assert.equal(o.foldSpec({through:[[0,50],[100,50]]}),null,'a fold with nothing moving is not a fold');
+ assert.equal(o.foldSpec(null),null);
+ // Folding a square in half leaves two layers lying on top of each other.
+ const folded=o.foldLayers([o.PAPER],[0,50],[100,50],o.sideOf([50,10],[0,50],[100,50]));
+ assert.equal(folded.length,2);
+ for(const layer of folded)assert.ok(layer.every(([,y])=>y>=49.999),'both layers end up on the same side');
+ // Turning it over is a mirror — a fold made on the back lands in the mirrored place, and a
+ // diagram that forgot that would teach the wrong crease.
+ assert.deepEqual(o.flipLayers([[[10,20]]]),[[[90,20]]]);
+ // A rotation is re-fitted, or the step that needs looking at hardest walks off the card.
+ const spun=o.fitLayers(o.rotateLayers([o.PAPER],37));
+ const b=o.boundsOf(spun);
+ assert.ok(b.minX>=9.99&&b.maxX<=90.01&&b.minY>=9.99&&b.maxY<=90.01);
+ assert.equal(o.boundsOf([]),null);
+ // The crease is trimmed to the paper: a perpendicular bisector is an infinite line and drawn
+ // as one it stops looking like a fold in a sheet.
+ const trimmed=o.creaseInBox([[-400,50],[400,50]],{minX:10,maxX:90,minY:10,maxY:90});
+ assert.deepEqual(trimmed.map(p=>p.map(n=>Math.round(n*1e6)/1e6)),[[10,50],[90,50]]);
+ assert.equal(o.creaseInBox([[5,0],[5,100]],{minX:10,maxX:90,minY:10,maxY:90}),null,'and misses entirely when it should');
+ assert.equal(o.creaseInBox(null,{minX:0,maxX:1,minY:0,maxY:1}),null);
+});
+
+test('every origami model folds all the way to something, with a sentence at each step',async()=>{
+ const {ORIGAMI,modelById,stepFrames,foldSpec,origamiGame,boundsOf}=await import('../src/origami-data.js');
+ assert.ok(ORIGAMI.length>=1);
+ assert.equal(new Set(ORIGAMI.map(m=>m.id)).size,ORIGAMI.length);
+ for(const model of ORIGAMI){
+  assert.ok(model.name&&model.ja&&model.icon,model.id);
+  assert.ok(model.about.length>40&&model.finish.length>20,`${model.id} does not say what it becomes`);
+  assert.ok(origamiGame(model.id).length<=40,'the server refuses a longer game name');
+  const steps=stepFrames(model);
+  assert.equal(steps.length,model.steps.length+1,'the finished thing is a step of its own');
+  assert.ok(steps.at(-1).done);
+  for(const step of steps){
+   assert.ok(step.say&&step.say.trim().length>20,`a step of ${model.id} says too little: ${step.say}`);
+   assert.ok(/[.!?]$/.test(step.say.trim()));
+   assert.ok(step.layers.length,`a step of ${model.id} has no paper left`);
+   // Every picture stays inside the frame — nothing is drawn off the edge of the card.
+   const b=boundsOf(step.layers);
+   assert.ok(b.minX>=-0.01&&b.maxX<=100.01&&b.minY>=-0.01&&b.maxY<=100.01,`${model.id} runs off the card`);
+  }
+  // Each fold really folds: the paper after it is not the paper before it.
+  for(const step of model.steps){
+   if(!step.fold)continue;
+   assert.ok(foldSpec(step.fold),`a fold of ${model.id} does not describe a crease and a side`);
+  }
+  const before=steps.map(s=>JSON.stringify(s.layers));
+  assert.equal(new Set(before).size,before.length,`${model.id} has a step that changes nothing`);
+  // Paper only ever gets more layers, never fewer: that is what folding is.
+  for(let i=1;i<steps.length;i++)
+   assert.ok(steps[i].layers.length>=steps[i-1].layers.length,`${model.id} loses a layer at step ${i}`);
+ }
+ const hat=modelById('hat');
+ assert.ok(hat,'the hat is the one that is finished');
+ assert.equal(modelById('nothing-like-this'),null);
+ // It folds in half first, so the sheet it starts from is not square — a hat from a square has
+ // no brim, and the diagram would quietly stop matching the words.
+ const [[x0],[x1]]=[hat.paper[0],hat.paper[1]];
+ assert.ok(Math.abs(x1-x0)<Math.abs(hat.paper[2][1]-hat.paper[1][1]),'the hat starts from a tall sheet');
 });

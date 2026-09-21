@@ -3,6 +3,7 @@ import {Trophy,RotateCcw,Check,X,Wifi,WifiOff} from 'lucide-react';
 import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER,SIGHTS,ELEMENTS,elementById,startingElements,combine,discoverable,SUMO_RANKS,rankAt,TOP_RANK,STABLE_SIZE,emptyStable,recruit,promote,shortRank,bestRank,stableFull,oddsOf,bout,challengerFor} from './kana-data.js';
 import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-features.js';
 import SpotDifference from './SpotDifference.jsx';
+import Origami from './Origami.jsx';
 import {useReadAloud} from './AdventurePages.jsx';
 import {useJapaneseVoice} from './SayIt.jsx';
 import {canOffer,speechRate} from './speech.js';
@@ -529,6 +530,7 @@ const GAMES=[
  {id:'snake',title:'Sushi snake',needs:OFFLINE,Component:Snake},
  {id:'stable',title:'Sumo stable',needs:OFFLINE,Component:Stable},
  {id:'sumo',title:'Sumo',needs:OFFLINE,Component:Sumo},
+ {id:'origami',title:'Origami',needs:'Works with no signal. You need a square of paper.',Component:Origami},
  {id:'spot',title:'Spot the difference',needs:'Needs signal once, to fetch the photo. The puzzle is made on the phone.',Component:SpotDifference},
  {id:'janken',title:'Janken',needs:'Needs both phones online.',Component:Janken}
 ];
