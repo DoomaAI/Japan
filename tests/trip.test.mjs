@@ -2657,3 +2657,54 @@ test('the sumo card is read from the official schedule and kept for a basement w
  assert.ok(list.includes('sumoResult'));
  assert.ok(!list.includes('sumoUpdate'),'fetching a card needs the latest revision');
 });
+
+test('we rate an activity and say what we thought, each of us for ourselves',async()=>{
+ const {ensureFeatures,stepAverage,stepRatings,stepThoughts,ratedSteps,dayRating,diaryDays,pendingProgress}=await import('../src/trip-features.js');
+ const step=seed.steps.find(s=>s.day==='2026-09-23'),other=seed.steps.find(s=>s.day==='2026-09-23'&&s.id!==step.id);
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'stepRating',id:step.id,person:'Nate',rating:5},child);
+ state=applyOperation(state,{type:'stepRating',id:step.id,person:'Lauren',rating:2},parent);
+ state=applyOperation(state,{type:'stepThought',id:step.id,person:'Nate',thought:'The deer bowed back.'},child);
+ assert.equal(stepAverage(state,step.id),3.5);
+ assert.deepEqual(stepRatings(state,step.id),{Nate:5,Lauren:2});
+ assert.equal(stepThoughts(state,step.id).Nate.text,'The deer bowed back.');
+ assert.ok(stepThoughts(state,step.id).Nate.at,'and when he said it');
+ // Nobody's stars average away anybody else's — the two numbers are the interesting bit.
+ assert.equal(stepAverage(applyOperation(state,{type:'stepRating',id:step.id,person:'Lauren',rating:4},parent),step.id),4.5);
+ // Changing your mind replaces your stars; zero takes them back.
+ const cleared=applyOperation(state,{type:'stepRating',id:step.id,person:'Nate',rating:0},child);
+ assert.deepEqual(stepRatings(cleared,step.id),{Lauren:2});
+ assert.equal(stepThoughts(cleared,step.id).Nate.text,'The deer bowed back.','clearing stars is not deleting what he said');
+ assert.deepEqual(stepThoughts(applyOperation(state,{type:'stepThought',id:step.id,person:'Nate',thought:'  '},child),step.id),{});
+ // It is our own opinion, not each other's — and only for real activities.
+ assert.throws(()=>applyOperation(state,{type:'stepRating',id:step.id,person:'Boston',rating:5},child),e=>e.status===403);
+ for(const bad of [{type:'stepRating',id:step.id,person:'Nate',rating:6},{type:'stepRating',id:step.id,person:'Nate',rating:2.5},
+  {type:'stepRating',id:'nope',person:'Nate',rating:3},{type:'stepRating',id:step.id,person:'Grandma',rating:3},
+  {type:'stepThought',id:step.id,person:'Nate',thought:'x'.repeat(2001)}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,46)} should be refused`);
+ // These are opinions about a day that happened, not the plan — the step's own notes are untouched.
+ assert.equal(state.steps.find(s=>s.id===step.id).notes,step.notes);
+ assert.ok(!state.alerts.some(a=>/deer bowed/.test(a.summary||'')));
+ // The days we would do again, best first, and what the day came to overall.
+ state=applyOperation(state,{type:'stepRating',id:other.id,person:'Damien',rating:5},parent);
+ assert.deepEqual(ratedSteps(state).map(r=>r.step.id),[other.id,step.id]);
+ assert.equal(dayRating(state,'2026-09-23'),4.3,'a day is the average of its rated activities, to one place');
+ assert.equal(dayRating(state,'2026-09-21'),null,'a day nobody rated has no score, rather than a zero');
+ assert.deepEqual(ratedSteps(state,{min:4}).map(r=>r.step.id),[other.id]);
+ // The diary is where it pays off.
+ const diary=diaryDays(state,'2026-09-23')[0];
+ assert.equal(diary.rating,4.3);assert.equal(diary.reviews.length,2);
+ // Stars given on a mountain with no signal wait on the phone and show straight away.
+ const queue=[{operation:{type:'stepRating',operationId:'q1',id:step.id,person:'Boston',rating:4}},
+              {operation:{type:'stepThought',operationId:'q2',id:step.id,person:'Boston',thought:'Better than the temple.',at:'2026-09-19T02:00:00.000Z'}}];
+ const preview=pendingProgress(state,queue);
+ assert.equal(stepRatings(preview,step.id).Boston,4);
+ assert.equal(stepThoughts(preview,step.id).Boston.text,'Better than the temple.');
+ assert.equal(stepRatings(state,step.id).Boston,undefined,'the shared trip is untouched until it syncs');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ for(const op of ['stepRating','stepThought'])assert.ok(list.includes(op),`${op} should survive with no signal`);
+ assert.match(source,/<StepReview state=\{visibleState\} user=\{user\} step=\{current\}/,'and it is on the activity card');
+ // Finishing something used to move the card on, which is the one moment anybody has an
+ // opinion about it. It now stays put, as the message has always promised it would.
+ assert.match(source,/setSelected\(done\);updateUrl\(day,done\)/);
+});

@@ -355,7 +355,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:state.weather??{at:null,by:null,days:{}},photos:state.photos??[],photoVotes:state.photoVotes??{},voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:state.weather??{at:null,by:null,days:{}},photos:state.photos??[],photoVotes:state.photoVotes??{},voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],stepReviews:state.stepReviews??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -403,6 +403,31 @@ export const DRAWABLE=['image/jpeg','image/png','image/webp'];
 export const isDrawable=doc=>!!doc?.pathname&&DRAWABLE.includes(doc.type);
 // The picture that stands for a ticket: its own photo, else the first photo attached to it.
 export const documentThumbnail=(doc,attachments=[])=>isDrawable(doc)?doc:attachments.find(isDrawable)||null;
+// What we thought of it, afterwards. Separate from a step's own notes, which are the plan —
+// these are four opinions about a thing that has happened, kept per person so nobody's stars
+// average away somebody else's. Rating something also records that you were there.
+export const stepEntry=(state,id)=>state.stepReviews?.[id]||{};
+export const stepRatings=(state,id)=>stepEntry(state,id).ratings||{};
+export const stepThoughts=(state,id)=>stepEntry(state,id).thoughts||{};
+export function stepAverage(state,id){
+ const scores=Object.values(stepRatings(state,id)).filter(n=>Number.isFinite(n));
+ return scores.length?Math.round((scores.reduce((a,b)=>a+b,0)/scores.length)*10)/10:null;
+}
+export const stepRated=(state,id)=>Object.keys(stepRatings(state,id)).length;
+export const STEP_STARS=5;
+// The days we would do again, best first — the trip's own highlights, built out of what the
+// four of them actually said rather than out of what was planned.
+export function ratedSteps(state,{day=null,min=0}={}){
+ return state.steps
+  .filter(s=>(!day||s.day===day)&&stepRated(state,s.id)&&(stepAverage(state,s.id)??0)>=min)
+  .map(s=>({step:s,average:stepAverage(state,s.id),ratings:stepRatings(state,s.id),thoughts:stepThoughts(state,s.id)}))
+  .sort((a,b)=>b.average-a.average||String(a.step.day).localeCompare(String(b.step.day)));
+}
+export const dayRating=(state,day)=>{
+ const rated=ratedSteps(state,{day});
+ if(!rated.length)return null;
+ return Math.round((rated.reduce((sum,r)=>sum+r.average,0)/rated.length)*10)/10;
+};
 // The sumo day. Ryogoku Kokugikan on 23 September, which is inside the Aki basho, so there is a
 // real card that day with real names on it. The match-ups are published the afternoon before, so
 // this is fetched close to the day and kept in the trip: the arena is a basement full of phones
@@ -605,7 +630,7 @@ export function diaryDays(state,day){
   const steps=state.steps.filter(s=>s.day===d.date&&s.status==='done').sort((a,b)=>(a.completedAt||'').localeCompare(b.completedAt||''));
   const media=state.documents.filter(m=>m.category==='memory'&&(m.day===d.date||state.steps.find(s=>s.id===m.stepId)?.day===d.date));
   const challenges=state.challenges.flatMap(c=>Object.entries(c.completions||{}).filter(([,at])=>at&&japanDate(new Date(at))===d.date).map(([name])=>`${name}: ${c.title}${c.responses?.[name]?' — '+c.responses[name]:''}`));
-  return {...d,steps,media,challenges,note:state.journal[d.date]||''};
+  return {...d,steps,media,challenges,note:state.journal[d.date]||'',rating:dayRating(state,d.date),reviews:ratedSteps(state,{day:d.date})};
  });
 }
 export function pendingProgress(state,queue){
@@ -630,6 +655,12 @@ export function pendingProgress(state,queue){
   if(o.type==='proposalAdd')next.proposals=[...next.proposals,{id:`pending-${o.operationId}`,...proposalDraft(o),addedBy:o.person,createdAt:o.at,votes:{},musts:{},parked:false,stepId:null,pending:true}];
   if(o.type==='proposalVote'){const p=next.proposals.find(p=>p.id===o.id);if(p){const votes={...(p.votes||{})};if(o.vote===0)delete votes[o.person];else votes[o.person]=o.vote;p.votes=votes;p.pending=true;}}
   if(o.type==='proposalMust'){const p=next.proposals.find(p=>p.id===o.id);if(p){const musts={...(p.musts||{})};if(o.must)musts[o.person]=musts[o.person]||o.at;else delete musts[o.person];p.musts=musts;p.pending=true;}}
+  if(o.type==='stepRating'||o.type==='stepThought'){
+   const entry={...(next.stepReviews[o.id]||{})};
+   if(o.type==='stepRating'){const ratings={...(entry.ratings||{})};if(o.rating)ratings[o.person]=o.rating;else delete ratings[o.person];entry.ratings=ratings;}
+   else{const thoughts={...(entry.thoughts||{})};if(String(o.thought||'').trim())thoughts[o.person]={text:String(o.thought).trim(),at:o.at};else delete thoughts[o.person];entry.thoughts=thoughts;}
+   next.stepReviews={...next.stepReviews,[o.id]:entry};
+  }
   if(o.type==='sumoResult'){const next_sumo={...next.sumo,results:{...(next.sumo.results||{})}};
    if(o.winner)next_sumo.results[o.id]={winner:o.winner,by:o.by||'',at:o.at};else delete next_sumo.results[o.id];
    next.sumo=next_sumo;}

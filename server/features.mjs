@@ -396,6 +396,27 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:item.title};
   }
   fail('Unknown to-do action.');
+ }else if(op.type==='stepRating'||op.type==='stepThought'){
+  // Four opinions about a thing that has happened. Kept per person, because an average is only
+  // worth reading if you can see whose stars made it. Not the step's own notes, which are the plan.
+  const step=state.steps.find(s=>s.id===op.id);if(!step)fail('Activity not found.',404);
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Rate it for yourself.',403);
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+  const entry={...(state.stepReviews[op.id]||{})};
+  if(op.type==='stepRating'){
+   if(op.rating!==0&&!(Number.isInteger(op.rating)&&op.rating>=1&&op.rating<=5))fail('Rate it from 1 to 5 stars.');
+   const ratings={...(entry.ratings||{})};
+   if(op.rating)ratings[op.person]=op.rating;else delete ratings[op.person];
+   entry.ratings=ratings;
+  }else{
+   const text=(op.thought??'').trim();requireText(text,2000,'what you thought');
+   const thoughts={...(entry.thoughts||{})};
+   if(text)thoughts[op.person]={text,at};else delete thoughts[op.person];
+   entry.thoughts=thoughts;
+  }
+  state.stepReviews={...state.stepReviews,[op.id]:entry};
+  return {summary:null,important:false,title:step.title};
  }else if(typeof op.type==='string'&&op.type.startsWith('sumo')){
   // The day's card, kept in the trip. The arena is a basement full of phones, so what one
   // person fetched has to still be on screen for everyone when the signal is not.

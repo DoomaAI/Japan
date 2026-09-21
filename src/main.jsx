@@ -26,6 +26,7 @@ import Planning from './Planning.jsx';
 import Nearby from './Nearby.jsx';
 import TodoList,{DayTodos} from './TodoList.jsx';
 import Sumo from './Sumo.jsx';
+import StepReview from './StepReview.jsx';
 import DayTimeline from './DayTimeline.jsx';
 import VoiceNotes from './VoiceNotes.jsx';
 import Games from './Games.jsx';
@@ -62,7 +63,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
 const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove',
- 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','sumoResult'];
+ 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','sumoResult','stepRating','stepThought'];
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
@@ -246,7 +247,11 @@ function App(){
     {parkForDay(day)&&<button className="eyespy-invite" onClick={()=>setModal({type:'park',park:parkForDay(day)})}><span className="eyespy-invite-icon" aria-hidden="true">🎢</span><span>Ride checklist and park map<strong>{parkForDay(day).name}</strong></span><ChevronRight size={18}/></button>}
     {day===SUMO_DAY&&<button className="eyespy-invite" onClick={()=>setModal({type:'sumo'})}><span className="eyespy-invite-icon" aria-hidden="true">🥋</span><span>Today's sumo card<strong>{sumoState(state).bouts.length?`${sumoState(state).bouts.length} bouts, times and match-ups`:'Match-ups, times and who is who'}</strong></span><ChevronRight size={18}/></button>}
     {isTrainLeg(current)&&<button className="eyespy-invite" onClick={()=>setModal({type:'eyespy',step:current})}><span className="eyespy-invite-icon" aria-hidden="true">🗻</span><span>Window I spy<strong>{EYE_SPY.length} things to spot from the train</strong></span><ChevronRight size={18}/></button>}
-    <div className="completion-actions">{current.status==='done'?<Button className="done-button" icon={RotateCcw} disabled={busy} onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Completed · Undo</Button>:<><Button icon={Play} disabled={busy||(!parent&&!current.participants.includes(user.name))} onClick={()=>mutate({type:'status',id:current.id,status:'started'})}>{current.status==='started'?'Started':'Started / arrived'}</Button><Button className="done-button" icon={Check} disabled={busy||(!parent&&!current.participants.includes(user.name))} onClick={async()=>{if(await mutate({type:'status',id:current.id,status:'done'}))notice('Completed. Swipe when you’re ready for the next step.');}}>Done</Button></>}{parent&&<button className="icon" aria-label="Edit or skip activity" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal/></button>}</div>
+    <div className="completion-actions">{current.status==='done'?<Button className="done-button" icon={RotateCcw} disabled={busy} onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Completed · Undo</Button>:<><Button icon={Play} disabled={busy||(!parent&&!current.participants.includes(user.name))} onClick={()=>mutate({type:'status',id:current.id,status:'started'})}>{current.status==='started'?'Started':'Started / arrived'}</Button><Button className="done-button" icon={Check} disabled={busy||(!parent&&!current.participants.includes(user.name))} onClick={async()=>{const done=current.id;if(await mutate({type:'status',id:done,status:'done'})){
+     // Stay on the thing that was just finished, which is what the message has always promised
+     // and is the moment anybody has an opinion about it worth recording.
+     setSelected(done);updateUrl(day,done);notice('Completed. Rate it below, or swipe when you’re ready for the next step.');}}}>Done</Button></>}{parent&&<button className="icon" aria-label="Edit or skip activity" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal/></button>}</div>
+    <StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore step</button></p>}
    </article>:<div className="empty"><h2>A little room for discovery.</h2><p>Add your first stop for this day.</p></div>}
    <div className="swipe-controls"><Button icon={ArrowLeft} disabled={index<=0} onClick={()=>move(-1)}>Previous</Button><span>Swipe to explore</span><Button disabled={index>=steps.length-1} onClick={()=>move(1)}>Next <ArrowRight size={18}/></Button></div>
