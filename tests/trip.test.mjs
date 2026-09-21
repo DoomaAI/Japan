@@ -3146,8 +3146,8 @@ test('a spot-the-difference score is one the server will actually take',async()=
 
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
- const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',needs:(OFFLINE|'[^']+'),Component:(\w+)\}/g)];
- assert.equal(entries.length,13);
+ const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:(OFFLINE|'[^']+'),Component:(\w+)/g)];
+ assert.equal(entries.length,15);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -3163,6 +3163,156 @@ test('every game in the picker says what it needs, and spot the difference is on
  // Nothing about a round leaves the phone: no request, no upload, only the photo coming down.
  assert.doesNotMatch(game,/\brequest\(/);
  assert.doesNotMatch(game,/upload\(/);
+});
+
+test('a game that really is Japanese says so, and one that only looks it says nothing',async()=>{
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',([^\n]*?)needs:/g)]
+  .map(([,id,title,middle])=>({id,title,
+   ja:middle.match(/ja:'([^']+)'/)?.[1]||null,
+   origin:middle.match(/origin:'([a-z]+)'/)?.[1]||null}));
+ // The ones that are genuinely Japanese games, and nothing else. Sumo stable and Onigiri to
+ // Fuji are games about Japan, which is a different claim and is not made.
+ assert.deepEqual(entries.filter(g=>g.origin==='traditional').map(g=>g.id).sort(),
+  ['janken','karuta','origami','sumo']);
+ assert.deepEqual(entries.filter(g=>g.origin==='modern').map(g=>g.id),['shogi']);
+ for(const g of entries.filter(g=>g.origin))
+  assert.ok(g.ja,`${g.title} claims to be Japanese, so it must say what it is called in Japanese`);
+ for(const g of entries.filter(g=>!g.origin))
+  assert.equal(g.ja,null,`${g.title} makes no claim, so it carries no Japanese name either`);
+ // Only two kinds of claim exist, and each game that makes one carries its own story.
+ assert.match(source,/const ORIGINS=\{\n traditional:.*\n modern:.*\n\};/);
+ for(const g of entries.filter(g=>g.origin))
+  assert.match(source,new RegExp(`id:'${g.id}'[\\s\\S]{0,600}?story:'`),`${g.title} must say why`);
+});
+
+test('karuta deals the same round from the same seed, and every proverb is filed under its own letter',async()=>{
+ const {KOTOWAZA,KARUTA_DECKS,KARUTA_SIZES,karutaRound,karutaScore,KARUTA_PAR,OTETSUKI}=await import('../src/karuta-data.js');
+ // The card is found by the letter the reading opens with. That is the whole game, so every
+ // proverb must actually begin with the letter it is filed under, and no two may share one.
+ assert.equal(new Set(KOTOWAZA.map(p=>p.kana)).size,KOTOWAZA.length,'one card per letter');
+ for(const p of KOTOWAZA){
+  assert.ok(p.ja&&p.romaji&&p.en&&p.literal&&p.icon,`${p.kana} is missing something`);
+  assert.equal(p.kana.length,1);
+ }
+ assert.ok(KOTOWAZA.length>=KARUTA_SIZES.at(-1),'the biggest round must be dealable');
+ // Two phones on the same seed get the same floor and the same reading order, so the boys can
+ // race it properly rather than arguing about who got the easier one.
+ const a=karutaRound('kotowaza',10,4242),b=karutaRound('kotowaza',10,4242);
+ assert.deepEqual(a.cards.map(c=>c.id),b.cards.map(c=>c.id));
+ assert.deepEqual(a.calls,b.calls);
+ assert.notDeepEqual(a.calls,karutaRound('kotowaza',10,9999).calls);
+ // Every card is called exactly once, and the call is never written on the card it belongs to.
+ assert.equal(a.calls.length,a.cards.length);
+ assert.deepEqual([...a.calls].sort(),a.cards.map(c=>c.id).sort());
+ for(const size of KARUTA_SIZES)for(const deck of KARUTA_DECKS)
+  assert.equal(karutaRound(deck.id,size,7).cards.length,size,`${deck.id} must deal ${size}`);
+ // A clean fast round beats a slow one, otetsuki costs, and the worst round still scores.
+ assert.equal(karutaScore(10,0,0),10*KARUTA_PAR);
+ assert.ok(karutaScore(10,8,0)>karutaScore(10,20,0));
+ assert.equal(karutaScore(10,8,1),karutaScore(10,8,0)-OTETSUKI);
+ assert.equal(karutaScore(6,9999,40),1,'a terrible round is still worth showing up for');
+ assert.ok(karutaScore(16,0,0)<=9999);
+});
+
+test('animal shogi is shogi: a taken piece changes sides and comes back as yours',async()=>{
+ const S=await import('../src/shogi.js');
+ const blank=()=>({board:Array(S.SQUARES).fill(null),hands:{me:[],them:[]},turn:'me',over:null,ply:0});
+ const start=S.newGame();
+ assert.equal(start.board[S.at(3,1)].piece,'lion');
+ assert.equal(start.board[S.at(0,1)].piece,'lion');
+ assert.equal(S.legalMoves(start).length,4,'the opening really is that narrow');
+ // A chick that reaches the far row is a hen and has no say in it; a hen that is taken goes
+ // back to being a chick in the hand, which is the rule that stops one side running away.
+ let g=blank();
+ g.board[S.at(1,0)]={piece:'chick',side:'me'};g.board[S.at(3,2)]={piece:'lion',side:'me'};g.board[S.at(0,2)]={piece:'lion',side:'them'};
+ assert.equal(S.play(g,{from:S.at(1,0),to:S.at(0,0)}).board[S.at(0,0)].piece,'hen');
+ g=blank();
+ g.board[S.at(2,1)]={piece:'hen',side:'them'};g.board[S.at(3,1)]={piece:'giraffe',side:'me'};
+ g.board[S.at(3,0)]={piece:'lion',side:'me'};g.board[S.at(0,0)]={piece:'lion',side:'them'};
+ const took=S.play(g,{from:S.at(3,1),to:S.at(2,1)});
+ assert.deepEqual(took.hands.me,['chick']);
+ // And back on the board as one of mine, on any empty square, still a chick even on the far row.
+ const mine={...took,turn:'me'};
+ const dropped=S.play(mine,{drop:'chick',to:S.at(0,1)});
+ assert.deepEqual(dropped.board[S.at(0,1)],{piece:'chick',side:'me'});
+ assert.deepEqual(dropped.hands.me,[]);
+ assert.equal(S.play(mine,{drop:'chick',to:S.at(0,0)}),mine,'a drop never lands on a piece');
+ // Each animal moves its own way and no other.
+ const only=(piece,square)=>{const b=Array(S.SQUARES).fill(null);b[square]={piece,side:'me'};return S.movesFor(b,square).sort((x,y)=>x-y);};
+ assert.deepEqual(only('giraffe',S.at(2,1)),[S.at(1,1),S.at(2,0),S.at(2,2),S.at(3,1)]);
+ assert.deepEqual(only('elephant',S.at(2,1)),[S.at(1,0),S.at(1,2),S.at(3,0),S.at(3,2)]);
+ assert.deepEqual(only('chick',S.at(2,1)),[S.at(1,1)]);
+ assert.equal(only('lion',S.at(2,1)).length,8);
+ assert.equal(only('hen',S.at(2,1)).length,6,'everywhere but backwards on the diagonal');
+ // His chick walks the other way, because forward is not a direction, it is a side.
+ const his=Array(S.SQUARES).fill(null);his[S.at(1,1)]={piece:'chick',side:'them'};
+ assert.deepEqual(S.movesFor(his,S.at(1,1)),[S.at(2,1)]);
+});
+
+test('a lion taken ends it, and a lion that walks the board ends it only if it survives there',async()=>{
+ const S=await import('../src/shogi.js');
+ const blank=()=>({board:Array(S.SQUARES).fill(null),hands:{me:[],them:[]},turn:'me',over:null,ply:0});
+ let g=blank();
+ g.board[S.at(1,1)]={piece:'lion',side:'me'};g.board[S.at(0,1)]={piece:'lion',side:'them'};
+ assert.deepEqual(S.play(g,{from:S.at(1,1),to:S.at(0,1)}).over,{winner:'me',how:'capture'});
+ // The try: reach his back row and you have won — unless something there can take you, in
+ // which case you have merely walked your lion somewhere silly.
+ g=blank();g.board[S.at(1,0)]={piece:'lion',side:'me'};g.board[S.at(3,2)]={piece:'lion',side:'them'};
+ assert.deepEqual(S.play(g,{from:S.at(1,0),to:S.at(0,0)}).over,{winner:'me',how:'try'});
+ g.board[S.at(1,1)]={piece:'elephant',side:'them'};
+ const walked=S.play(g,{from:S.at(1,0),to:S.at(0,0)});
+ assert.equal(walked.over,null,'an elephant is looking straight at that square');
+ assert.deepEqual(S.play(walked,{from:S.at(1,1),to:S.at(0,0)}).over,{winner:'them',how:'capture'});
+ // Nobody sits through two lions shuffling at each other for ever.
+ assert.equal(S.play({...blank(),ply:S.MAX_PLY-1,board:(()=>{const b=Array(S.SQUARES).fill(null);
+  b[S.at(2,0)]={piece:'lion',side:'me'};b[S.at(0,2)]={piece:'lion',side:'them'};return b;})()},
+  {from:S.at(2,0),to:S.at(2,1)}).over.how,'draw');
+});
+
+test('the harder opponent is harder, and a win pays for how hard he was',async()=>{
+ const S=await import('../src/shogi.js');
+ // He never plays an illegal move, whatever depth he is set to.
+ for(const level of S.LEVELS){
+  let g=S.newGame();
+  for(let i=0;i<8&&!g.over;i++){
+   const move=S.aiMove(g,level.depth);
+   assert.ok(S.legalMoves(g).some(m=>m.from===move.from&&m.to===move.to&&m.drop===move.drop),
+    `${level.en} played something he is not allowed to`);
+   g=S.play(g,move);
+  }
+ }
+ // A lion he can take, he takes. His own lion sits on his own back row, out of the way: put it
+ // on mine and the position is already won by the try rule, and he is spoilt for choice.
+ const board=Array(S.SQUARES).fill(null);
+ board[S.at(1,1)]={piece:'lion',side:'me'};board[S.at(2,1)]={piece:'giraffe',side:'them'};board[S.at(0,0)]={piece:'lion',side:'them'};
+ const hanging={board,hands:{me:[],them:[]},turn:'them',over:null,ply:4};
+ // Which piece he takes it with is his business — his giraffe and his lion can both reach it,
+ // and he picks between two winning moves at random. That it ends up taken is the test.
+ const chosen=S.aiMove(hanging,2);
+ assert.equal(chosen.to,S.at(1,1),'he must go for the lion');
+ assert.deepEqual(S.play(hanging,chosen).over,{winner:'them',how:'capture'});
+ // And the deeper he looks the better he does, which is the only thing the levels promise. He
+ // picks between equal-looking moves at random, so the dice are handed to him here rather than
+ // left to chance — a test of three levels that passes four times in five is not a test.
+ const rng=seed=>{let n=seed>>>0||1;return()=>{n^=n<<13;n>>>=0;n^=n>>17;n^=n<<5;n>>>=0;return n/4294967296;};};
+ const beats=(mine,theirs,games)=>{
+  let won=0;
+  for(let i=1;i<=games;i++){
+   const rand=rng(i*7919);
+   let g=S.newGame();
+   while(!g.over)g=S.play(g,S.aiMove(g,g.turn==='me'?mine:theirs,rand));
+   if(g.over.winner==='me')won++;
+  }
+  return won;
+ };
+ const [chick,giraffe,lion]=S.LEVELS.map(l=>l.depth);
+ assert.equal(beats(giraffe,chick,10),10,'the giraffe must beat the chick every time');
+ assert.equal(beats(lion,chick,10),10,'and so must the lion');
+ assert.ok(beats(lion,giraffe,10)>=8,'and the lion must have the better of the giraffe');
+ assert.ok(S.shogiWorth(5,10)>S.shogiWorth(1,10),'a harder opponent is worth more');
+ assert.ok(S.shogiWorth(3,8)>S.shogiWorth(3,60),'and a short game is worth more than a long one');
+ assert.equal(S.shogiWorth(3,900),60,'but a long one never goes negative');
 });
 
 test('a change is never hidden in the sky when there is a photograph underneath it',async()=>{
@@ -3939,9 +4089,13 @@ test('the origami diagrams are folded rather than drawn, so they cannot disagree
  const folded=o.foldLayers([o.PAPER],[0,50],[100,50],o.sideOf([50,10],[0,50],[100,50]));
  assert.equal(folded.length,2);
  for(const layer of folded)assert.ok(layer.every(([,y])=>y>=49.999),'both layers end up on the same side');
- // Turning it over is a mirror — a fold made on the back lands in the mirrored place, and a
- // diagram that forgot that would teach the wrong crease.
- assert.deepEqual(o.flipLayers([[[10,20]]]),[[[90,20]]]);
+ // Turning it over is a mirror about the PAPER, so it stays where it was rather than jumping
+ // across the card — and the stack reverses, because what was the back is now the front.
+ const over=o.flipLayers([[[10,20],[30,20],[30,40]],[[12,22],[28,22],[28,38]]]);
+ assert.deepEqual(o.boundsOf(over),o.boundsOf([[[10,20],[30,20],[30,40]],[[12,22],[28,22],[28,38]]]),
+  'it does not move');
+ assert.deepEqual(over[0][0],[28,22],'the layer that was underneath is on top now');
+ assert.deepEqual(o.flipLayers(o.flipLayers(over)),over,'and twice is where you started');
  // A rotation is re-fitted, or the step that needs looking at hardest walks off the card.
  const spun=o.fitLayers(o.rotateLayers([o.PAPER],37));
  const b=o.boundsOf(spun);
@@ -3970,16 +4124,20 @@ test('every origami model folds all the way to something, with a sentence at eac
    assert.ok(step.say&&step.say.trim().length>20,`a step of ${model.id} says too little: ${step.say}`);
    assert.ok(/[.!?]$/.test(step.say.trim()));
    assert.ok(step.layers.length,`a step of ${model.id} has no paper left`);
-   // Every picture stays inside the frame — nothing is drawn off the edge of the card.
+   // The picture is framed on the paper rather than on the sheet it started as, so a horn
+   // sticking out past the top is fine — what is not fine is a coordinate that is not a number.
    const b=boundsOf(step.layers);
-   assert.ok(b.minX>=-0.01&&b.maxX<=100.01&&b.minY>=-0.01&&b.maxY<=100.01,`${model.id} runs off the card`);
+   for(const n of [b.minX,b.maxX,b.minY,b.maxY])assert.ok(Number.isFinite(n),`${model.id} has a coordinate that is not a number`);
+   assert.ok(b.maxX-b.minX>5&&b.maxY-b.minY>5,`${model.id} folds away to nothing at step ${step.index}`);
   }
   // Each fold really folds: the paper after it is not the paper before it.
   for(const step of model.steps){
    if(!step.fold)continue;
    assert.ok(foldSpec(step.fold),`a fold of ${model.id} does not describe a crease and a side`);
   }
-  const before=steps.map(s=>JSON.stringify(s.layers));
+  // A step has to change SOMETHING. A crease leaves the paper where it was, so what it
+  // changes is the set of lines on it — but a step that changes neither is a lie.
+  const before=steps.map(s=>JSON.stringify([s.layers,s.creases]));
   assert.equal(new Set(before).size,before.length,`${model.id} has a step that changes nothing`);
   // Paper only ever gets more layers, never fewer: that is what folding is.
   for(let i=1;i<steps.length;i++)
@@ -3992,6 +4150,383 @@ test('every origami model folds all the way to something, with a sentence at eac
  // no brim, and the diagram would quietly stop matching the words.
  const [[x0],[x1]]=[hat.paper[0],hat.paper[1]];
  assert.ok(Math.abs(x1-x0)<Math.abs(hat.paper[2][1]-hat.paper[1][1]),'the hat starts from a tall sheet');
+});
+
+test('a fold can take the front flap only, which is what a cup and a helmet are made of',async()=>{
+ const o=await import('../src/origami-data.js');
+ // Point in polygon, which is how a fold says WHICH flap it means. "The front one" cannot:
+ // once you have folded one horn up, the front layer is that horn.
+ const square=[[0,0],[10,0],[10,10],[0,10]];
+ assert.ok(o.insidePoly(square,[5,5]));
+ assert.ok(!o.insidePoly(square,[15,5]));
+ assert.ok(!o.insidePoly(square,[5,-1]));
+ // A stack of two, folded along the middle. All of it, or only the top, or only the bottom.
+ const stack=[[[0,0],[10,0],[10,10],[0,10]],[[0,0],[10,0],[10,10],[0,10]]];
+ const line=[[0,5],[10,5]],move=o.sideOf([5,0],line[0],line[1]);
+ assert.equal(o.foldLayers(stack,line[0],line[1],move).length,4,'both sheets fold');
+ const front=o.foldLayers(stack,line[0],line[1],move,'front');
+ assert.equal(front.length,3,'one sheet stays whole, the other becomes two');
+ const back=o.foldLayers(stack,line[0],line[1],move,'back');
+ assert.equal(back.length,3);
+ // The fold lands on TOP of the stack, because that is where a folded flap goes.
+ assert.ok(front.at(-1).every(([,y])=>y>=4.999));
+ // 'all' is a string, and 'all'.at is String.prototype.at — a function, not a point. Reaching
+ // into it without checking threw on every model.
+ assert.doesNotThrow(()=>o.foldLayers(stack,line[0],line[1],move,'all'));
+ assert.doesNotThrow(()=>o.foldLayers(stack,line[0],line[1],move));
+ // Naming the flap by a point in it: the topmost layer containing that point moves, and only it.
+ const two=[[[0,0],[10,0],[10,10],[0,10]],[[0,0],[4,0],[4,4],[0,4]]];
+ const named=o.foldLayers(two,line[0],line[1],move,{at:[2,2]});
+ assert.equal(named.length,2,'the small flap moved whole, and the big sheet was left alone');
+ assert.deepEqual(named[0],two[0],'untouched, not even cut');
+ assert.ok(named[1].every(([,y])=>y>=4.999),'and it landed on the other side of the crease');
+ // A point in no layer at all folds nothing, rather than folding something at random.
+ assert.deepEqual(o.foldLayers(two,line[0],line[1],move,{at:[99,99]}),two);
+ // Folding a stack over reverses it — what was underneath ends up on top. A diagram that got
+ // that backwards would put the next front flap in the wrong place.
+ const marked=[[[0,0],[10,0],[10,10],[0,10]],[[1,0],[9,0],[9,9],[1,9]]];
+ const flipped=o.foldLayers(marked,line[0],line[1],move);
+ const width=layer=>Math.max(...layer.map(([x])=>x))-Math.min(...layer.map(([x])=>x));
+ assert.equal(width(flipped.at(-1)),10,'the outer sheet, which was underneath, is on top now');
+ assert.equal(width(flipped.at(-2)),8,'and the inner one is under it');
+ // Every model's single-flap folds actually pick something out: if a fold changes nothing the
+ // step is a lie, and that is already asserted for each model.
+ const helmet=o.modelById('helmet');
+ assert.ok(helmet.steps.some(s=>s.fold&&s.fold.only),'the helmet needs single-flap folds');
+ assert.ok(o.modelById('cup').steps.some(s=>s.fold&&s.fold.only==='front'||s.fold?.only?.at));
+});
+
+test('the origami diagram is framed on the paper, not on the sheet it started as',async()=>{
+ const source=await readFile(new URL('../src/Origami.jsx',import.meta.url),'utf8');
+ // By the eighth fold a fixed frame is showing a postage stamp in the middle of an empty card.
+ assert.match(source,/const paper=boundsOf\(layers\)/);
+ assert.match(source,/viewBox=\{`\$\{view\.x\} \$\{view\.y\} \$\{view\.size\} \$\{view\.size\}`\}/);
+ // Squared off, so a fold that looks like forty-five degrees is forty-five degrees.
+ assert.match(source,/size:Math\.max\(paper\.maxX-paper\.minX,paper\.maxY-paper\.minY\)/);
+ // Every stroke scales with the frame, or the lines get fat as it zooms in.
+ for(const stroke of ['0.8\\*ink','1.1\\*ink','1.4\\*ink'])assert.match(source,new RegExp(stroke));
+});
+
+test('the boys’ spending money: what went in, what went out, and what is left',async()=>{
+ const {purse,spendItemsFor,topUpsFor,allowanceFor,allowanceDays,allowancePaid,spendCost}=await import('../src/trip-features.js');
+ const first=seed.days[0].date,third=seed.days[2].date,last=seed.days.at(-1).date;
+ const boston={name:'Boston',role:'child'};
+ // Money only goes in on a parent's say-so, and only into a boy's purse.
+ let state=applyOperation(seed,{type:'spendTopUp',person:'Nate',yen:3000,note:'Birthday money from Nan'},parent);
+ assert.throws(()=>applyOperation(state,{type:'spendTopUp',person:'Nate',yen:5000},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'spendTopUp',person:'Lauren',yen:5000},parent),/Nate and Boston/);
+ assert.deepEqual(topUpsFor(state,'Nate').map(t=>[t.yen,t.note,t.by]),[[3000,'Birthday money from Nan','Damien']]);
+ assert.equal(topUpsFor(state,'Boston').length,0,'one purse is not the other');
+ // An amount a day is worked out from the trip's own days rather than paid out overnight, so it
+ // is right on a phone that has been switched off — and it never runs ahead of today.
+ state=applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500,from:first},parent);
+ assert.equal(allowanceDays(state,'Nate','2026-09-01'),0,'nothing before the trip starts');
+ assert.equal(allowanceDays(state,'Nate',third),3);
+ assert.equal(allowancePaid(state,'Nate',third),1500);
+ assert.equal(allowanceDays(state,'Nate','2026-12-25'),16,'and it stops at the last day of the trip');
+ // A last day caps it, and a first day is required before any of it counts.
+ const short=applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500,from:first,to:seed.days[1].date},parent);
+ assert.equal(allowancePaid(short,'Nate',last),1000);
+ assert.throws(()=>applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500},parent),/starts/);
+ assert.throws(()=>applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500,from:third,to:first},parent),/before the first/);
+ assert.throws(()=>applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500,from:first},child),e=>e.status===403);
+ // Zero a day is how it stops, rather than a second way of undoing it.
+ assert.equal(allowanceFor(applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:0},parent),'Nate'),null);
+ // A boy writes down what he wants himself, and only for himself.
+ state=applyOperation(state,{type:'spendAdd',person:'Nate',title:'A Beyblade',estimate:1500,day:third},child);
+ state=applyOperation(state,{type:'spendAdd',person:'Nate',title:'Card pack',estimate:800},child);
+ assert.throws(()=>applyOperation(state,{type:'spendAdd',person:'Boston',title:'Not his'},child),e=>e.status===403);
+ assert.deepEqual(spendItemsFor(state,'Nate').map(i=>i.title),['A Beyblade','Card pack']);
+ // Nothing bought yet: everything in is still there, and the list is only a promise against it.
+ let money=purse(state,'Nate',third);
+ assert.deepEqual([money.paidIn,money.spent,money.planned,money.left,money.after],[4500,0,2300,4500,2200]);
+ assert.equal(money.allowance,1500);assert.equal(money.topUps,3000);
+ // Buying it is the moment it becomes money out, and the till receipt beats the guess.
+ const beyblade=spendItemsFor(state,'Nate')[0];
+ state=applyOperation(state,{type:'spendBought',id:beyblade.id,done:true,spent:1980},child);
+ const bought=spendItemsFor(state,'Nate').find(i=>i.id===beyblade.id);
+ assert.equal(bought.spent,1980);assert.equal(bought.boughtBy,'Nate');assert.ok(bought.boughtAt);
+ assert.equal(spendCost(bought),1980);
+ money=purse(state,'Nate',third);
+ assert.deepEqual([money.paidIn,money.spent,money.planned,money.left,money.after],[4500,1980,800,2520,1720]);
+ assert.deepEqual([money.items,money.bought,money.waiting],[2,1,1]);
+ // Bought things drop below the ones still waiting, the way a ticked-off job does.
+ assert.deepEqual(spendItemsFor(state,'Nate').map(i=>i.title),['Card pack','A Beyblade']);
+ // With no figure given it falls back to the guess rather than counting for nothing.
+ const guessed=applyOperation(state,{type:'spendBought',id:spendItemsFor(state,'Nate')[0].id,done:true},child);
+ assert.equal(purse(guessed,'Nate',third).spent,2780);
+ // Putting it back on the list clears the price with it, so an old receipt cannot haunt a new one.
+ const back=applyOperation(state,{type:'spendBought',id:beyblade.id,done:false},child);
+ const returned=spendItemsFor(back,'Nate').find(i=>i.id===beyblade.id);
+ assert.equal(returned.boughtAt,null);assert.equal(returned.spent,null);
+ assert.equal(purse(back,'Nate',third).spent,0);
+ // Wanting more than there is says so rather than showing a tidy figure.
+ const greedy=applyOperation(state,{type:'spendAdd',person:'Nate',title:'A whole Gunpla kit',estimate:9000},child);
+ assert.ok(purse(greedy,'Nate',third).after<0);
+ // One boy cannot reach into the other's list, and a parent can.
+ assert.throws(()=>applyOperation(state,{type:'spendRemove',id:beyblade.id},boston),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'spendEdit',id:beyblade.id,title:'Mine now'},boston),e=>e.status===403);
+ assert.equal(spendItemsFor(applyOperation(state,{type:'spendRemove',id:beyblade.id},parent),'Nate').length,1);
+ // Taking a top-up back off is a parent's, and the balance follows it.
+ const top=topUpsFor(state,'Nate')[0];
+ assert.throws(()=>applyOperation(state,{type:'spendTopUpRemove',id:top.id},child),e=>e.status===403);
+ assert.equal(purse(applyOperation(state,{type:'spendTopUpRemove',id:top.id},parent),'Nate',third).paidIn,1500);
+ for(const bad of [{type:'spendAdd',person:'Nate',title:'   '},{type:'spendAdd',person:'Nate',title:'x'.repeat(251)},
+  {type:'spendAdd',person:'Nate',title:'A',estimate:-5},{type:'spendAdd',person:'Nate',title:'A',estimate:1.5},
+  {type:'spendAdd',person:'Nate',title:'A',day:'2099-01-01'},{type:'spendAdd',person:'Nate',title:'A',notes:'n'.repeat(2001)},
+  {type:'spendAdd',person:'Nate',title:'A',todoId:'nope'},{type:'spendTopUp',person:'Nate',yen:0},
+  {type:'spendTopUp',person:'Nate',yen:20000000},{type:'spendBought',id:'nope',done:true},
+  {type:'spendBought',id:beyblade.id,done:'yes'},{type:'spendTopUpRemove',id:'nope'},{type:'spendWhatever',person:'Nate'}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,52)} should be refused`);
+ // Pocket money is not the itinerary, so it stays out of the family alert feed — except money
+ // going in, which is the one piece of news a boy actually wants.
+ assert.ok(state.alerts.some(a=>/Nate has ¥3,000 more spending money/.test(a.summary||'')));
+ assert.ok(!state.alerts.some(a=>/Beyblade/.test(a.summary||'')));
+ assert.equal(state.history[0].title,'A Beyblade','but the family history still reads properly');
+});
+
+test('a thing to buy moves off the to-do list and onto a boy’s spending money',async()=>{
+ const {buyTodosFor,spendItemsFor,purse}=await import('../src/trip-features.js');
+ const day=seed.days[3].date;
+ let state=applyOperation(seed,{type:'todoAdd',title:'Buy a Beyblade',kind:'buy',day,person:'Nate'},child);
+ state=applyOperation(state,{type:'todoAdd',title:'Buy stamps',kind:'buy',day,person:'Family'},parent);
+ state=applyOperation(state,{type:'todoAdd',title:'Buy Lauren a fan',kind:'buy',day,person:'Lauren'},parent);
+ state=applyOperation(state,{type:'todoAdd',title:'Post the postcards',kind:'do',day,person:'Nate'},parent);
+ state=applyOperation(state,{type:'spendTopUp',person:'Nate',yen:5000},parent);
+ // His own and the family's are offered; somebody else's job and a job that is not a buy are not.
+ assert.deepEqual(buyTodosFor(state,'Nate').map(t=>t.title),['Buy a Beyblade','Buy stamps']);
+ const job=state.todos.find(t=>t.title==='Buy a Beyblade');
+ state=applyOperation(state,{type:'spendAdd',person:'Nate',title:job.title,notes:job.notes,day:job.day,todoId:job.id},child);
+ const item=spendItemsFor(state,'Nate')[0];
+ assert.equal(item.todoId,job.id);assert.equal(item.day,day);
+ // Offered once: counting the same Beyblade against the purse twice is how a balance goes wrong.
+ assert.deepEqual(buyTodosFor(state,'Nate').map(t=>t.title),['Buy stamps']);
+ assert.throws(()=>applyOperation(state,{type:'spendAdd',person:'Nate',title:job.title,todoId:job.id},child),/already on the spending list/);
+ // Buying it finishes the job it came from, so the day's screen is not still asking for it.
+ state=applyOperation(state,{type:'spendBought',id:item.id,done:true,spent:1800},child);
+ const finished=state.todos.find(t=>t.id===job.id);
+ assert.ok(finished.doneAt);assert.equal(finished.doneBy,'Nate');
+ assert.equal(purse(state,'Nate',day).spent,1800);
+ // Putting it back on the spending list does not un-tick the job: it may have been ticked for
+ // reasons of its own, and un-ticking somebody else's work is not ours to do.
+ const back=applyOperation(state,{type:'spendBought',id:item.id,done:false},child);
+ assert.ok(back.todos.find(t=>t.id===job.id).doneAt);
+ assert.equal(purse(back,'Nate',day).spent,0);
+});
+
+test('spending money written down or spent with no signal waits on the phone',async()=>{
+ const {ensureFeatures,pendingProgress,spendItemsFor,purse}=await import('../src/trip-features.js');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ // Wanting something and buying something both still make sense whenever they land.
+ for(const op of ['spendAdd','spendBought'])assert.ok(list.includes(op),`${op} should survive with no signal`);
+ // Money going in, and a purse being emptied, need the latest revision behind them.
+ for(const op of ['spendAllowance','spendTopUp','spendTopUpRemove','spendEdit','spendRemove'])
+  assert.ok(!list.includes(op),`${op} changes the shared purse`);
+ const day=seed.days[2].date,at='2026-09-19T02:00:00.000Z';
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'spendTopUp',person:'Boston',yen:4000},parent);
+ state=applyOperation(state,{type:'spendAdd',person:'Boston',title:'A Gachapon',estimate:400},{name:'Boston',role:'child'});
+ const gacha=spendItemsFor(state,'Boston')[0];
+ const queue=[{operation:{type:'spendAdd',operationId:'q1',person:'Boston',title:'A card pack',estimate:900,day,by:'Boston',at}},
+              {operation:{type:'spendBought',operationId:'q2',id:gacha.id,done:true,spent:500,by:'Boston',at}}];
+ const preview=pendingProgress(state,queue);
+ assert.deepEqual(spendItemsFor(preview,'Boston').map(i=>i.title),['A card pack','A Gachapon']);
+ const fresh=spendItemsFor(preview,'Boston').find(i=>i.title==='A card pack');
+ assert.equal(fresh.estimate,900);assert.equal(fresh.createdBy,'Boston');assert.ok(fresh.pending);
+ const spent=spendItemsFor(preview,'Boston').find(i=>i.id===gacha.id);
+ assert.equal(spent.spent,500);assert.equal(spent.boughtBy,'Boston');assert.ok(spent.pending);
+ // The purse on the screen is right before any of it has reached the family plan.
+ const money=purse(preview,'Boston',day);
+ assert.deepEqual([money.paidIn,money.spent,money.planned,money.left],[4000,500,900,3500]);
+ assert.equal(purse(state,'Boston',day).spent,0,'and the saved trip is untouched until it syncs');
+});
+
+test('spending money has its own screen, and a thing to buy can be handed to it',async()=>{
+ const {PAGES}=await import('../src/nav-data.js');
+ assert.ok(PAGES.spending?.label&&PAGES.spending?.note);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/tab==='spending'&&<Spending/,'the page is rendered');
+ assert.match(main,/today=\{japanDate\(now\)\}/,'and told what day it is, so an amount a day stops at today');
+ // The hand-off is offered on the to-do row itself, which is where a boy is looking when he
+ // remembers he is paying for it.
+ const todo=await readFile(new URL('../src/TodoList.jsx',import.meta.url),'utf8');
+ assert.match(todo,/type:'spendAdd'/);
+ assert.match(todo,/todoId:item\.id/,'and the two stay linked');
+ // The bar is the whole answer, so it has to say the same thing to a screen reader.
+ const page=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ assert.match(page,/role="img"/);
+ assert.match(page,/aria-label=\{`\$\{yen\(spent\)\} spent and \$\{yen\(planned\)\} still to buy/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ for(const rule of ['.purse-meter{','.purse-spent{','.purse-planned{'])assert.ok(css.includes(rule),`${rule} is missing`);
+});
+
+test('a boy asks for more spending money and a parent is the one who approves it',async()=>{
+ const {purse,requestsFor,requestedFor,openRequests,topUpsFor,REQUEST_STATES}=await import('../src/trip-features.js');
+ const day=seed.days[2].date,boston={name:'Boston',role:'child'};
+ let state=applyOperation(seed,{type:'spendTopUp',person:'Nate',yen:1000},parent);
+ // He cannot pay himself, so asking is the only way the balance moves in his favour.
+ assert.throws(()=>applyOperation(state,{type:'spendTopUp',person:'Nate',yen:2000},child),e=>e.status===403);
+ state=applyOperation(state,{type:'spendRequest',person:'Nate',yen:2000,reason:'The Beyblade is ¥2,400 and I have ¥1,000'},child);
+ const ask=requestsFor(state,'Nate')[0];
+ assert.equal(ask.status,'open');assert.equal(ask.by,'Nate');assert.equal(ask.approvedYen,null);
+ assert.equal(ask.decidedBy,null);
+ // Asking does not move any money: that is the whole point of asking.
+ assert.equal(purse(state,'Nate',day).paidIn,1000);
+ assert.equal(requestedFor(state,'Nate'),2000);
+ assert.deepEqual(openRequests(state).map(r=>r.person),['Nate']);
+ // One boy cannot ask out of the other's purse, and cannot answer his own ask.
+ assert.throws(()=>applyOperation(state,{type:'spendRequest',person:'Boston',yen:500},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true},child),e=>e.status===403);
+ // Yes to a different figure is a real answer, and the money moves the moment it is given.
+ const yes=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true,yen:1400,reply:'Half of it, and that is the lot until Kyoto.'},parent);
+ const settled=requestsFor(yes,'Nate')[0];
+ assert.equal(settled.status,'approved');assert.equal(settled.approvedYen,1400);
+ assert.equal(settled.decidedBy,'Damien');assert.ok(settled.decidedAt);
+ assert.equal(purse(yes,'Nate',day).paidIn,2400,'approving is what puts the money in');
+ assert.equal(requestedFor(yes,'Nate'),0,'and it is no longer waiting on anybody');
+ // The top-up it created says a parent approved it rather than looking like a bare gift.
+ const paid=topUpsFor(yes,'Nate').find(t=>t.requestId===ask.id);
+ assert.equal(paid.yen,1400);assert.equal(paid.approvedBy,'Damien');
+ assert.equal(settled.topUpId,paid.id);
+ // Left out, the approved amount is simply what was asked for.
+ const full=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true},parent);
+ assert.equal(purse(full,'Nate',day).paidIn,3000);
+ // No is an answer too, and it moves nothing.
+ const no=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:false,reply:'Not this time.'},parent);
+ assert.equal(requestsFor(no,'Nate')[0].status,'declined');
+ assert.equal(purse(no,'Nate',day).paidIn,1000);
+ assert.equal(topUpsFor(no,'Nate').length,1,'a no leaves no money behind it');
+ // An answer is a record of what happened, so it is answered once and never taken back.
+ for(const already of [yes,no])
+  assert.throws(()=>applyOperation(already,{type:'spendRequestDecide',id:ask.id,approve:true},parent),/already been answered/);
+ assert.throws(()=>applyOperation(yes,{type:'spendRequestCancel',id:ask.id},child),/answered already/);
+ // While it is still waiting, the boy who asked can take it back — and only him.
+ assert.throws(()=>applyOperation(state,{type:'spendRequestCancel',id:ask.id},boston),e=>e.status===403);
+ assert.equal(requestsFor(applyOperation(state,{type:'spendRequestCancel',id:ask.id},child),'Nate').length,0);
+ for(const bad of [{type:'spendRequest',person:'Nate',yen:0},{type:'spendRequest',person:'Nate',yen:-5},
+  {type:'spendRequest',person:'Nate',yen:1.5},{type:'spendRequest',person:'Lauren',yen:500},
+  {type:'spendRequest',person:'Nate',yen:500,reason:'r'.repeat(501)},
+  {type:'spendRequestDecide',id:ask.id,approve:'yes'},{type:'spendRequestDecide',id:'nope',approve:true},
+  {type:'spendRequestDecide',id:ask.id,approve:true,yen:0},{type:'spendRequestCancel',id:'nope'}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,52)} should be refused`);
+ // Ten unanswered asks is enough; a boy cannot bury a parent in them.
+ let many=state;
+ for(let i=0;i<9;i++)many=applyOperation(many,{type:'spendRequest',person:'Nate',yen:100},child);
+ assert.throws(()=>applyOperation(many,{type:'spendRequest',person:'Nate',yen:100},child),/ten asks waiting/);
+ // Both the ask and the answer are family news, which is exactly what the updates feed is for.
+ assert.ok(state.alerts.some(a=>/Nate is asking for ¥2,000/.test(a.summary||'')));
+ assert.ok(yes.alerts.some(a=>/Damien approved ¥1,400 more spending money for Nate/.test(a.summary||'')));
+ assert.ok(no.alerts.some(a=>/said not this time/.test(a.summary||'')));
+ assert.deepEqual(REQUEST_STATES.map(([id])=>id),['open','approved','declined']);
+});
+
+test('an ask made with no signal waits on the phone, but answering it does not',async()=>{
+ const {ensureFeatures,pendingProgress,requestsFor,requestedFor,purse}=await import('../src/trip-features.js');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ // A question asked on a train with no signal is still a fair question whenever it lands.
+ assert.ok(list.includes('spendRequest'),'asking should survive with no signal');
+ // Saying yes moves money, so it needs the latest plan behind it.
+ for(const op of ['spendRequestDecide','spendRequestCancel'])
+  assert.ok(!list.includes(op),`${op} changes the shared purse`);
+ const day=seed.days[1].date,at='2026-09-19T02:00:00.000Z';
+ const state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'spendTopUp',person:'Boston',yen:500},parent);
+ const preview=pendingProgress(state,[{operation:{type:'spendRequest',operationId:'q1',person:'Boston',yen:1500,reason:'A Gunpla kit',by:'Boston',at}}]);
+ const ask=requestsFor(preview,'Boston')[0];
+ assert.equal(ask.yen,1500);assert.equal(ask.status,'open');assert.ok(ask.pending);
+ assert.equal(requestedFor(preview,'Boston'),1500);
+ // It is a question, not money: the purse does not grow just because it was asked.
+ assert.equal(purse(preview,'Boston',day).paidIn,500);
+ assert.equal(requestsFor(state,'Boston').length,0,'and the saved trip is untouched until it syncs');
+});
+
+test('the asking and approving is on the page, and only a parent sees the answer buttons',async()=>{
+ const page=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ assert.match(page,/type:'spendRequest'/,'a boy can ask');
+ assert.match(page,/type:'spendRequestDecide'/,'and a parent can answer');
+ // The Yes button is inside a parent-only branch; a boy only ever gets to take his ask back.
+ assert.match(page,/\{open&&!answering&&<div className="ask-actions">/);
+ assert.match(page,/\{parent&&<>\n    <button className="primary" disabled=\{busy\} onClick=\{\(\)=>setAnswering\('yes'\)\}/);
+ assert.match(page,/\{mine&&!parent&&<button disabled=\{busy\} onClick=\{\(\)=>\{if\(confirm\('Take that ask back\?'\)\)/);
+ // Approving a different figure has to be offered, or "approved" would read against a number
+ // the boy never actually got.
+ assert.match(page,/Approve how much, in yen\?/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ for(const rule of ['.ask-row{','.ask-row.open{','.ask-dot{'])assert.ok(css.includes(rule),`${rule} is missing`);
+});
+
+test('a part-approval reads as a part-approval, and a generous one does not',async()=>{
+ const page=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ // Approving ¥400 of an ask for ¥600 is "¥400 of it". Approving ¥1,400 of an ask for ¥600 is
+ // not part of anything, so it must not claim to be.
+ assert.match(page,/approved \$\{both\(ask\.approvedYen,rate\)\}\$\{ask\.approvedYen<ask\.yen\?' of it':''\}/);
+ // And the server lets a parent name any figure, because both answers are real ones.
+ const {purse,requestsFor}=await import('../src/trip-features.js');
+ const day=seed.days[1].date;
+ let state=applyOperation(seed,{type:'spendRequest',person:'Nate',yen:600,reason:'A Gachapon go'},child);
+ const ask=requestsFor(state,'Nate')[0];
+ const less=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true,yen:400},parent);
+ const more=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true,yen:1400},parent);
+ assert.equal(purse(less,'Nate',day).paidIn,400);
+ assert.equal(purse(more,'Nate',day).paidIn,1400);
+ assert.equal(requestsFor(less,'Nate')[0].yen,600,'what was asked for is not rewritten by the answer');
+});
+
+test('folding and opening out again leaves a line, and the line goes with the paper',async()=>{
+ const o=await import('../src/origami-data.js');
+ const creased={id:'t',name:'t',ja:'t',icon:'x',about:'x'.repeat(50),finish:'y'.repeat(30),steps:[
+  {say:'Fold it in half and open it out again, so there is a line down the middle.',
+   crease:{through:[[50,0],[50,100]],moving:[20,50]}},
+  {say:'Now fold the top left corner in to the line you just made.',fold:{bring:[10,10],to:[50,50]}},
+  {say:'Turn the whole thing over and look at the back of it.',turn:true}
+ ]};
+ const frames=o.foldThrough(creased);
+ // The paper does not move, and there is a line on it now.
+ assert.deepEqual(frames[1].layers,frames[0].layers,'a crease is not a fold');
+ assert.equal(frames[0].creases.length,0);
+ assert.equal(frames[1].creases.length,1);
+ // Trimmed to the paper, like any other crease.
+ const [a,b]=frames[1].creases[0];
+ assert.equal(Math.round(a[0]),50);assert.equal(Math.round(b[0]),50);
+ assert.ok(Math.min(a[1],b[1])>=9.9&&Math.max(a[1],b[1])<=90.1,'it stops at the edge of the sheet');
+ // A real fold after it leaves the line alone.
+ assert.notDeepEqual(frames[2].layers,frames[1].layers);
+ assert.deepEqual(frames[2].creases,frames[1].creases);
+ // Turning it over takes the line with it — a guide line left behind where the paper used to
+ // be is worse than no guide line at all.
+ const over=frames[3].creases[0];
+ assert.equal(frames[3].creases.length,1);
+ for(const point of over)assert.ok(Number.isFinite(point[0])&&Number.isFinite(point[1]));
+ const paper=o.boundsOf(frames[3].layers);
+ assert.ok(over.every(([x])=>x>=paper.minX-1&&x<=paper.maxX+1),'and it lands on the paper');
+ // Every step is drawn with the creases it had at the time, not the ones it ends up with.
+ const shown=o.stepFrames(creased);
+ assert.equal(shown[0].creases.length,0,'the first step has no line yet — you are about to make it');
+ assert.equal(shown[1].creases.length,1);
+});
+
+test('the planes are planes: a rectangle, a centre line, and two wings',async()=>{
+ const {ORIGAMI,modelById,stepFrames}=await import('../src/origami-data.js');
+ const planes=['dart','glider','hammer'].map(modelById);
+ assert.ok(planes.every(Boolean),'all three are there');
+ assert.equal(ORIGAMI.length,7);
+ for(const plane of planes){
+  // A plane wants a rectangle. Folded from a square it comes out stubby and flies badly.
+  const width=plane.paper[1][0]-plane.paper[0][0],height=plane.paper[2][1]-plane.paper[1][1];
+  assert.ok(height>width*1.3,`${plane.id} should start from a long sheet`);
+  // The centre line first, opened out again, because every later fold is lined up on it.
+  assert.ok(plane.steps[0].crease,`${plane.id} should start by creasing the middle`);
+  assert.equal(stepFrames(plane)[1].creases.length,1);
+  // Folded in half, then a wing on each side — and the second one is folded after turning
+  // over, so they end up mirrored rather than stacked.
+  const wings=plane.steps.filter(s=>s.fold?.only==='front');
+  assert.equal(wings.length,2,`${plane.id} needs two wings`);
+  assert.ok(plane.steps.some(s=>s.turn),`${plane.id} has to be turned over between them`);
+  assert.ok(plane.steps.indexOf(wings[0])<plane.steps.findIndex(s=>s.turn),'one wing before the turn');
+  assert.ok(plane.steps.indexOf(wings[1])>plane.steps.findIndex(s=>s.turn),'and one after it');
+  // It says how to throw it, which is the half everybody gets wrong.
+  assert.match(plane.finish,/throw|let it go/i);
+ }
 });
 
 test('a drawing is shapes rather than a picture, so the same beast fits a page and a forge disc',async()=>{

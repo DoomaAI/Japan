@@ -7,10 +7,20 @@ import {scoresFor,bestScore} from './trip-features.js';
 // about to make dashed across it and an arrow showing which way the flap goes.
 function Diagram({step,size=260}){
  const layers=step.layers||[];
- const spec=foldSpec(step.fold),crease=spec?.crease;
- // Trimmed to the paper with a little to spare, so the dashed line reads as a crease in a
- // sheet rather than as a line ruled across the whole picture.
- const drawn=creaseInBox(crease,boundsOf(layers),6);
+ const spec=foldSpec(step.fold||step.crease),crease=spec?.crease;
+ // The picture is framed on the paper as it is now, not on the sheet it started as. Folding
+ // makes the paper smaller every time, and by the eighth fold a fixed frame is showing a
+ // postage stamp in the middle of an empty card.
+ const paper=boundsOf(layers);
+ const pad=Math.max(6,Math.max(paper?paper.maxX-paper.minX:0,paper?paper.maxY-paper.minY:0)*0.12);
+ const view=paper?{
+  x:paper.minX-pad,y:paper.minY-pad,
+  size:Math.max(paper.maxX-paper.minX,paper.maxY-paper.minY)+pad*2
+ }:{x:0,y:0,size:100};
+ // Squared off, so nothing is stretched and a fold that looks like 45 degrees is 45 degrees.
+ const box={minX:view.x,maxX:view.x+view.size,minY:view.y,maxY:view.y+view.size};
+ const drawn=creaseInBox(crease,box);
+ const ink=view.size/100;
  // The arrow runs from the middle of the bit that moves to where that bit ends up, which is
  // the one thing a fold line on its own never tells you.
  const arrow=useMemo(()=>{
@@ -25,21 +35,25 @@ function Diagram({step,size=260}){
    .sort((x,y)=>y.length-x.length)[0];
   if(!moving)return null;
   const from=centre(moving),to=centre(moving.map(p=>reflect(p,a,b)));
-  if(Math.hypot(to[0]-from[0],to[1]-from[1])<4)return null;
+  if(Math.hypot(to[0]-from[0],to[1]-from[1])<view.size*0.05)return null;
   return {from,to,over:mid(from,to)};
- },[step.index]);
- return <svg className="fold-diagram" viewBox="0 0 100 100" width={size} height={size} role="img"
-  aria-label={step.say}>
+ },[step.index,view.size]);
+ return <svg className="fold-diagram" viewBox={`${view.x} ${view.y} ${view.size} ${view.size}`}
+  width={size} height={size} role="img" aria-label={step.say}>
   <defs><marker id="foldhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
    <path d="M0,0 L10,5 L0,10 z" fill="#16383b"/></marker></defs>
   {layers.map((layer,i)=>
    <polygon key={i} points={layer.map(p=>p.join(',')).join(' ')}
-    fill={i?'#ffffff':'#f0e6d2'} stroke="#8aa3a0" strokeWidth="0.8" strokeLinejoin="round"/>)}
+    fill={i?'#ffffff':'#f0e6d2'} stroke="#8aa3a0" strokeWidth={0.8*ink} strokeLinejoin="round"/>)}
+  {(step.creases||[]).map((line,i)=><line key={`c${i}`} x1={line[0][0]} y1={line[0][1]} x2={line[1][0]} y2={line[1][1]}
+   stroke="#b9c9c5" strokeWidth={0.6*ink} strokeDasharray={`${2*ink} ${2*ink}`}/>)}
   {drawn&&<line x1={drawn[0][0]} y1={drawn[0][1]} x2={drawn[1][0]} y2={drawn[1][1]}
-   stroke="#c2523c" strokeWidth="1.1" strokeDasharray="4 3"/>}
+   stroke="#c2523c" strokeWidth={1.1*ink} strokeDasharray={`${4*ink} ${3*ink}`}/>}
   {arrow&&<path d={`M${arrow.from[0]},${arrow.from[1]} Q${arrow.over[0]+(arrow.to[1]-arrow.from[1])*0.32},${arrow.over[1]-(arrow.to[0]-arrow.from[0])*0.32} ${arrow.to[0]},${arrow.to[1]}`}
-   fill="none" stroke="#16383b" strokeWidth="1.4" markerEnd="url(#foldhead)"/>}
-  {step.turn&&<text x="50" y="52" textAnchor="middle" fontSize="16">↻</text>}
+   fill="none" stroke="#16383b" strokeWidth={1.4*ink} markerEnd="url(#foldhead)"/>}
+  {step.crease&&arrow&&<path d={`M${arrow.to[0]},${arrow.to[1]} Q${arrow.over[0]-(arrow.to[1]-arrow.from[1])*0.32},${arrow.over[1]+(arrow.to[0]-arrow.from[0])*0.32} ${arrow.from[0]},${arrow.from[1]}`}
+   fill="none" stroke="#16383b" strokeWidth={1.1*ink} strokeDasharray={`${2*ink} ${2*ink}`} markerEnd="url(#foldhead)"/>}
+  {step.turn&&<text x={view.x+view.size/2} y={view.y+view.size*0.54} textAnchor="middle" fontSize={16*ink}>↻</text>}
  </svg>;
 }
 // The finished thing first, then one fold at a time, swiped. A five-year-old following a
@@ -73,7 +87,7 @@ export default function Origami({state,user,mutate,busy}){
     <small>{m.level} · about {m.minutes} minutes</small>
     {!!Object.keys(made).length&&<small className="origami-made"><Check size={13}/> Made by {Object.keys(made).join(', ')}</small>}
    </button>;})}</div>
-  <p><small>No scissors and no glue. Any square will do — a serviette works, and a sheet of newspaper makes a helmet that fits.</small></p>
+  <p><small>No scissors and no glue. Any square will do — a serviette works, and a sheet of newspaper makes a helmet that fits a boy. The hat wants a rectangle.</small></p>
  </>;
  const done=!!step?.done;
  return <>

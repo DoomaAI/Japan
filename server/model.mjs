@@ -69,7 +69,7 @@ export function applyOperation(input,op,user){
  const state=ensureFeatures(structuredClone(input)),now=new Date().toISOString();
  const parent=user.role==='parent';
  const step=state.steps.find(s=>s.id===op.id);
- if(!parent && !['status','challengeStatus','challengeSkip','challengeNew','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore','weatherUpdate','jankenThrow','jankenNewRound','voiceNoteRemove','voiceNoteLabel','shoppingAdd','shoppingStatus','todoAdd','todoStatus','sumoResult','sumoPredict','stepRating','stepThought','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust','partyPerson','photoVote','photoRemove','photoAssign','drawingRemove'].includes(op.type))throw new AppError('A parent can make this change.',403);
+ if(!parent && !['status','challengeStatus','challengeSkip','challengeNew','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore','weatherUpdate','jankenThrow','jankenNewRound','voiceNoteRemove','voiceNoteLabel','shoppingAdd','shoppingStatus','todoAdd','todoStatus','spendAdd','spendEdit','spendBought','spendRemove','spendRequest','spendRequestCancel','sumoResult','sumoPredict','stepRating','stepThought','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust','partyPerson','photoVote','photoRemove','photoAssign','drawingRemove'].includes(op.type))throw new AppError('A parent can make this change.',403);
  if(['status','patch','lock','remove','backlog','schedule'].includes(op.type)&&!step)throw new AppError('Activity not found.',404);
  const before=step?structuredClone(step):null;
  const fail=(message,status=400)=>{throw new AppError(message,status);};
