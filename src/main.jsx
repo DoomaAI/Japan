@@ -43,6 +43,7 @@ import {activeSteps,japanDate,japanClock,minutes,asClock,scheduleProposal,calend
 import {todoProgress,SUMO_DAY,sumo as sumoState} from './trip-features.js';
 import {armPlayback} from './speech.js';
 import {PhraseAudio} from './PhraseAudio.jsx';
+import {typesText} from './swipe.js';
 import './style.css';
 import './guide-theme.css';
 
@@ -114,7 +115,7 @@ function App(){
  useEffect(()=>{
   if(tab!=='guide')return;
   const onKey=e=>{
-   if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
+   if(typesText(e.target))return;
    if(e.key==='ArrowLeft')turnPage(-1);else if(e.key==='ArrowRight')turnPage(1);
   };
   window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);

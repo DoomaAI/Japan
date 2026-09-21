@@ -2364,7 +2364,7 @@ test('the guide turns like a book, and stops at both covers',async()=>{
  assert.doesNotMatch(source,/setGuidePage\(guidePage[-+]1\)/,'nothing sets the page behind its back');
  // A swipe is a sideways movement, not a scroll, and typing in the page box is not a turn.
  assert.match(source,/Math\.abs\(dx\)>55&&Math\.abs\(dy\)<45/);
- assert.match(source,/\['INPUT','SELECT','TEXTAREA'\]\.includes\(e\.target\.tagName\)\)return/);
+ assert.match(source,/if\(typesText\(e\.target\)\)return/);
  // The keys are only listened for while the guide is open, and let go of afterwards.
  assert.match(source,/if\(tab!=='guide'\)return;/);
  assert.match(source,/removeEventListener\('keydown',onKey\)/);
@@ -3344,4 +3344,63 @@ test('what is usually in a dish, and a warning on the ones a five-year-old canno
 
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  for(const rule of ['.menu-spicy','.dish-warning','.dish-ingredients'])assert.ok(css.includes(rule),`${rule} has no style`);
+});
+
+test('a swipe is a swipe, a scroll is a scroll, and a drag on a button is neither',async()=>{
+ const {swipeDelta,isControl,typesText,stepIndex,SWIPE}=await import('../src/swipe.js');
+ const from={x:200,y:300};
+ assert.equal(swipeDelta(from,{x:200-SWIPE.across-1,y:300}),1,'left takes you on');
+ assert.equal(swipeDelta(from,{x:200+SWIPE.across+1,y:300}),-1,'right takes you back');
+ // Not far enough across is a tap that moved, not a swipe.
+ assert.equal(swipeDelta(from,{x:200-SWIPE.across+1,y:300}),0);
+ // Far enough across but a long way down is somebody scrolling the page.
+ assert.equal(swipeDelta(from,{x:0,y:300+SWIPE.down+1}),0);
+ assert.equal(swipeDelta(from,{x:0,y:300-SWIPE.down-1}),0);
+ assert.equal(swipeDelta(null,{x:0,y:0}),0);
+ assert.equal(swipeDelta(from,{x:NaN,y:0}),0);
+ // Whether an arrow key belongs to what has focus is a DIFFERENT question from whether a
+ // drag started on a control. A focused button does nothing with an arrow key, so swallowing
+ // it there leaves the keyboard dead after every tap — which is what it did.
+ for(const tag of ['INPUT','textarea','Select'])assert.ok(typesText({tagName:tag}),tag);
+ for(const tag of ['BUTTON','A','AUDIO','DIV','SUMMARY'])assert.ok(!typesText({tagName:tag}),tag);
+ assert.ok(typesText({tagName:'DIV',isContentEditable:true}),'and a box you can type in');
+ assert.ok(!typesText(null));
+ // A drag that began on something you press is not a page turn. Audio is in there because a
+ // recorded phrase has a scrub bar and dragging it must not turn the card.
+ for(const tag of ['BUTTON','a','Input','SELECT','TEXTAREA','AUDIO','summary','LABEL'])assert.ok(isControl(tag),tag);
+ for(const tag of ['DIV','P','STRONG','SPAN',''])assert.ok(!isControl(tag),tag);
+ assert.ok(!isControl(undefined));
+ // It stops at both ends rather than wrapping, and a move that goes nowhere goes nowhere.
+ assert.equal(stepIndex(0,-1,10),0);
+ assert.equal(stepIndex(9,1,10),9);
+ assert.equal(stepIndex(4,1,10),5);
+ assert.equal(stepIndex(4,-1,10),3);
+ assert.equal(stepIndex(0,0,10),0);
+ assert.equal(stepIndex(5,1,0),0,'an empty deck has nowhere to go');
+});
+
+test('the phrases can be gone through one at a time, over exactly what the list is showing',async()=>{
+ const source=await readFile(new URL('../src/Phrasebook.jsx',import.meta.url),'utf8');
+ // Both ways of going through them, and the phone remembers which you like.
+ assert.match(source,/localStorage\.getItem\('japan\.phrasemode'\)/);
+ assert.match(source,/\|\|'list'/,'the list stays the default — it is what search is for');
+ // The deck is built from the same filtered sections the list renders, so a search cannot
+ // show one set and swipe through another.
+ assert.match(source,/const deck=\[\s*\.\.\.sections\.flatMap/);
+ assert.match(source,/<PhraseDeck phrases=\{deck\}/);
+ // One place decides which card is showing, so the swipe, the keys and the buttons cannot
+ // drift apart. Inside the deck the only other setIndex is the reset a new search needs.
+ const body=source.slice(source.indexOf('function PhraseDeck'),source.indexOf('export default function Phrasebook'));
+ assert.match(body,/const move=delta=>setIndex\(i=>stepIndex\(/);
+ assert.deepEqual([...body.matchAll(/setIndex\(([^)]*)/g)].map(m=>m[1]),['0','i=>stepIndex(Math.min(i,phrases.length-1'],
+  'every turn goes through move, and nothing sets the card behind its back');
+ for(const caller of ['if(delta)move(delta)',"e.key==='ArrowLeft')move(-1)",'onClick={()=>move(-1)}','onClick={()=>move(1)}'])
+  assert.ok(body.includes(caller),caller);
+ // A drag on a control is not a turn, and the keys are let go of again.
+ assert.match(source,/isControl\(e\.target\?\.tagName\)/,'a drag on a control is not a turn');
+ assert.match(source,/typesText\(e\.target\)/,'and an arrow key in a field stays in the field');
+ assert.match(source,/removeEventListener\('keydown',onKey\)/);
+ // The card scrolls up and down normally while taking a sideways swipe.
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/\.phrase-deck\{[^}]*touch-action:pan-y/);
 });
