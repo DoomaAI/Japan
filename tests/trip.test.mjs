@@ -315,6 +315,32 @@ test('the full-screen ticket viewer groups a ticket with its attached files, ski
  assert.deepEqual(attachmentGroup(docs,null),[]);
 });
 
+test('the viewer reads the whole Tickets page as one strip, ticket after ticket',async()=>{
+ const {attachmentReel}=await import('../src/trip-features.js');
+ const flight={id:'flight',title:'Flights',pathname:'a',type:'application/pdf'};
+ const boarding={id:'boarding',parentDocumentId:'flight',pathname:'b',type:'image/png'};
+ const dinner={id:'dinner',title:'Dinner',type:'note'};
+ const dinnerShot={id:'dinner-shot',parentDocumentId:'dinner',pathname:'c',type:'image/jpeg'};
+ const bagTag={id:'bag',title:'Blue bag',type:'link',url:'https://example.com'};
+ const park={id:'park',title:'Disney',pathname:'d',type:'image/png'};
+ const loose={id:'loose',title:'Somewhere else',pathname:'e',type:'image/png'};
+ const docs=[flight,boarding,dinner,dinnerShot,bagTag,park,loose];
+ const listed=[flight,dinner,bagTag,park];
+ // Each ticket's own file first, then its attachments, then straight on into the next ticket,
+ // in the order the page is listing them. A link holds no file, so it is not a page in between.
+ const reel=attachmentReel(docs,listed,flight);
+ assert.deepEqual(reel.map(e=>e.file.id),['flight','boarding','dinner-shot','park']);
+ assert.deepEqual(reel.map(e=>e.ticket.id),['flight','flight','dinner','park']);
+ // Opening an attachment reads the same strip, so Previous still reaches the ticket before it.
+ assert.deepEqual(attachmentReel(docs,listed,dinnerShot).map(e=>e.file.id),['flight','boarding','dinner-shot','park']);
+ // A file whose ticket is not on the page - it was filtered away underneath the viewer - keeps
+ // its own ticket's set rather than emptying out.
+ assert.deepEqual(attachmentReel(docs,listed,loose).map(e=>e.file.id),['loose']);
+ assert.deepEqual(attachmentReel(docs,[],flight).map(e=>e.file.id),['flight','boarding']);
+ // Nothing listed and nothing open is an empty strip, not a crash.
+ assert.deepEqual(attachmentReel(docs,[],null),[]);
+});
+
 test('read receipts report whether Lauren opened each note, and when she opened it late',async()=>{
  const {noteReadState}=await import('../src/trip-features.js');
  const today='2026-09-25';
