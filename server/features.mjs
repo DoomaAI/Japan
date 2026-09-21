@@ -213,6 +213,24 @@ export function extraOperation(state,op,user,fail,now){
    days[date]={city:e.city,code:e.code,max:e.max,min:e.min,rain:e.rain??null};
   }
   state.weather={at:now,by:user.name,days};
+ }else if(op.type==='photoVote'){
+  // One vote each per day, and you can change your mind. Voting for your own is allowed —
+  // they are brothers, they will vote for their own, and everyone can see who voted.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Vote for yourself, not for someone else.',403);
+  if(!op.day||!state.days.some(d=>d.date===op.day))fail('Choose a trip day.');
+  const entry=state.photos.find(p=>p.id===op.id&&p.day===op.day);
+  if(op.id!==null&&!entry)fail('Photo not found.',404);
+  const votes={...(state.photoVotes[op.day]||{})};
+  if(op.id===null)delete votes[op.person];else votes[op.person]=op.id;
+  state.photoVotes={...state.photoVotes,[op.day]:votes};
+ }else if(op.type==='photoRemove'){
+  const entry=state.photos.find(p=>p.id===op.id);if(!entry)fail('Photo not found.',404);
+  if(!parent&&entry.by!==user.name)fail('You can only remove your own photos.',403);
+  state.photos=state.photos.filter(p=>p.id!==op.id);
+  const votes={...(state.photoVotes[entry.day]||{})};
+  for(const [who,id] of Object.entries(votes))if(id===op.id)delete votes[who];
+  state.photoVotes={...state.photoVotes,[entry.day]:votes};
  }else if(op.type==='gameScore'){
   // Only ever your own, and only ever upwards: a best score is a best score.
   if(!state.members.includes(op.person))fail('Choose a family member.');

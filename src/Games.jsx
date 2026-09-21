@@ -6,6 +6,34 @@ import {useReadAloud} from './AdventurePages.jsx';
 import {useJapaneseVoice} from './SayIt.jsx';
 import {canOffer,speechRate} from './speech.js';
 const PAIRS=6;
+// Dragging one tile onto another, with a tap still meaning what it meant. Pointer events
+// cover a finger and a mouse alike; the target is found from where the finger actually
+// lifted rather than from what the drag started on.
+function useDragTiles(onDrop){
+ const drag=useRef(null),[over,setOver]=useState(null);
+ const tileAt=(x,y)=>{
+  const el=typeof document!=='undefined'?document.elementFromPoint(x,y)?.closest('[data-tile]'):null;
+  return el?Number(el.dataset.tile):null;
+ };
+ return {
+  over,
+  down:i=>e=>{drag.current={i,x:e.clientX,y:e.clientY,moved:false};},
+  move:e=>{
+   const d=drag.current;if(!d)return;
+   if(!d.moved&&Math.hypot(e.clientX-d.x,e.clientY-d.y)>10)d.moved=true;
+   if(d.moved)setOver(tileAt(e.clientX,e.clientY));
+  },
+  up:e=>{
+   const d=drag.current;drag.current=null;setOver(null);
+   if(!d)return null;
+   if(!d.moved)return d.i;
+   const to=tileAt(e.clientX,e.clientY);
+   if(to!==null&&to!==d.i)onDrop(d.i,to);
+   return null;
+  },
+  cancel:()=>{drag.current=null;setOver(null);}
+ };
+}
 // Say the kana aloud where the phone can, because a five-year-old matching shapes learns
 // more if the shape has a sound. Silence is fine; the game does not depend on it.
 function useKanaVoice(){
@@ -16,20 +44,20 @@ function useKanaVoice(){
 }
 // Tap the Japanese letter, then the sound it makes. Nate's game.
 function KanaMatch({user,mutate,busy,state}){
- const [set,setSet]=useState('hiragana'),[seed,setSeed]=useState(()=>Date.now()%100000);
+ const [set,setSet]=useState('hiragana'),[seed,setSeed]=useState(()=>Date.now()%100000),[pairs,setPairs]=useState(PAIRS);
  const [picked,setPicked]=useState([]),[done,setDone]=useState([]),[taps,setTaps]=useState(0);
  const speak=useKanaVoice();
  const source=set==='hiragana'?HIRAGANA:KATAKANA;
  const cards=useMemo(()=>{
-  const chosen=shuffled(source,seed).slice(0,PAIRS);
+  const chosen=shuffled(source,seed).slice(0,pairs);
   return shuffled(chosen.flatMap(k=>[{key:`${k.kana}-ja`,pair:k.kana,face:k.kana,ja:true},{key:`${k.kana}-en`,pair:k.kana,face:k.romaji,ja:false}]),seed+7);
- },[set,seed]);
- const finished=done.length===PAIRS;
+ },[set,seed,pairs]);
+ const finished=done.length===pairs;
  useEffect(()=>{
   if(!finished||!BOYS.includes(user.name)&&user.role!=='parent')return;
   // Fewer taps is better, so the score is what is left of a perfect round.
-  const score=Math.max(1,PAIRS*2*3-taps);
-  mutate({type:'gameScore',person:user.name,game:`kana-${set}`,score});
+  const score=Math.max(1,pairs*2*3-taps);
+  mutate({type:'gameScore',person:user.name,game:`kana-${set}-${pairs}`,score});
  },[finished]);
  function tap(card){
   if(done.includes(card.pair)||picked.some(p=>p.key===card.key))return;
@@ -46,16 +74,18 @@ function KanaMatch({user,mutate,busy,state}){
    <button className={set==='hiragana'?'selected':''} onClick={()=>{setSet('hiragana');again();}}>ひらがな</button>
    <button className={set==='katakana'?'selected':''} onClick={()=>{setSet('katakana');again();}}>カタカナ</button>
   </div>
+  <div className="segmented game-picker">{[4,6,8,10].map(n=>
+   <button key={n} className={pairs===n?'selected':''} onClick={()=>{setPairs(n);again();}}>{n} pairs</button>)}</div>
   <p>Tap a Japanese letter, then the sound it makes. {set==='katakana'?'Katakana is the one on menus and signs.':'Hiragana is the everyday one.'}</p>
   <div className="kana-grid">{cards.map(c=>{
    const matched=done.includes(c.pair),up=matched||picked.some(p=>p.key===c.key);
    return <button key={c.key} className={`kana-card${matched?' matched':''}${up?' up':''}${c.ja?' ja':''}`}
     disabled={matched} onClick={()=>tap(c)} lang={c.ja?'ja':undefined}>{c.face}</button>;
   })}</div>
-  <p className="game-status">{finished?<><Trophy size={16}/> All {PAIRS} matched in {taps} taps.</>:`${done.length} of ${PAIRS} matched`}</p>
+  <p className="game-status">{finished?<><Trophy size={16}/> All {pairs} matched in {taps} taps.</>:`${done.length} of ${pairs} matched`}</p>
   <div className="row wrap">
    <button className="primary" onClick={again}><RotateCcw size={16}/> New board</button>
-   {bestScore(state,user.name,`kana-${set}`)>0&&<span>Your best: {bestScore(state,user.name,`kana-${set}`)}</span>}
+   {bestScore(state,user.name,`kana-${set}-${pairs}`)>0&&<span>Your best: {bestScore(state,user.name,`kana-${set}-${pairs}`)}</span>}
   </div>
  </>;
 }
@@ -208,13 +238,14 @@ function Remember({user,state,mutate,busy,dayLabel}){
 function Sights({user,state,mutate,busy}){
  const [seed,setSeed]=useState(()=>Date.now()%100000);
  const [picked,setPicked]=useState([]),[done,setDone]=useState([]),[taps,setTaps]=useState(0);
- const pairs=8;
+ // How many to find. Four is a board Nate can clear; eighteen is everything we have.
+ const [pairs,setPairs]=useState(8);
  const cards=useMemo(()=>{
   const chosen=shuffled(SIGHTS,seed).slice(0,pairs);
   return shuffled(chosen.flatMap(s=>[{key:`${s.id}-a`,pair:s.id,sight:s},{key:`${s.id}-b`,pair:s.id,sight:s}]),seed+9);
- },[seed]);
+ },[seed,pairs]);
  const finished=done.length===pairs;
- useEffect(()=>{if(finished)mutate({type:'gameScore',person:user.name,game:'sights',score:Math.max(1,pairs*2*3-taps)});},[finished]);
+ useEffect(()=>{if(finished)mutate({type:'gameScore',person:user.name,game:`sights-${pairs}`,score:Math.max(1,pairs*2*3-taps)});},[finished]);
  function tap(card){
   if(done.includes(card.pair)||picked.some(p=>p.key===card.key))return;
   const next=[...picked,card];setTaps(t=>t+1);
@@ -225,12 +256,14 @@ function Sights({user,state,mutate,busy}){
  }
  return <>
   <p>Find the pairs. Every one is something we will actually see.</p>
+  <div className="segmented game-picker">{[4,6,8,12,18].map(n=>
+   <button key={n} className={pairs===n?'selected':''} onClick={()=>{setPairs(n);setSeed(Date.now()%100000);setPicked([]);setDone([]);setTaps(0);}}>{n} pairs</button>)}</div>
   <div className="sight-grid">{cards.map(c=>{
    const matched=done.includes(c.pair),up=matched||picked.some(p=>p.key===c.key);
    return <button key={c.key} className={`sight-card${matched?' matched':''}${up?' up':''}`} disabled={matched} onClick={()=>tap(c)}>
     {up?<><span aria-hidden="true">{c.sight.icon}</span><small>{c.sight.en}<b lang="ja">{c.sight.ja}</b></small></>:<span className="sight-back" aria-hidden="true">🎴</span>}</button>;})}</div>
   <p className="game-status">{finished?<><Trophy size={16}/> All {pairs} in {taps} taps.</>:`${done.length} of ${pairs} found`}
-   {bestScore(state,user.name,'sights')>0?` · your best ${bestScore(state,user.name,'sights')}`:''}</p>
+   {bestScore(state,user.name,`sights-${pairs}`)>0?` · your best at ${pairs} ${bestScore(state,user.name,`sights-${pairs}`)}`:''}</p>
   <button className="primary" onClick={()=>{setSeed(Date.now()%100000);setPicked([]);setDone([]);setTaps(0);}}><RotateCcw size={16}/> New board</button>
  </>;
 }
@@ -239,30 +272,36 @@ function Kitchen({user,state,mutate,busy}){
  const [found,setFound]=useState(()=>startingElements());
  const [first,setFirst]=useState(null),[last,setLast]=useState(null),[tried,setTried]=useState(0);
  const total=ELEMENTS.length;
- function tap(id){
-  if(!first)return setFirst(id);
-  if(first===id)return setFirst(null);
+ function mix(a,bId){
   setTried(t=>t+1);
-  const made=combine(first,id);
+  const made=combine(a,bId);
   setFirst(null);
-  if(!made)return setLast({fail:true,a:first,b:id});
+  if(!made)return setLast({fail:true,a,b:bId});
   const isNew=!found.includes(made);
   if(isNew){
    const next=[...found,made];setFound(next);
    mutate({type:'gameScore',person:user.name,game:'kitchen',score:next.length});
   }
-  setLast({made:elementById(made),isNew,a:first,b:id});
+  setLast({made:elementById(made),isNew,a,b:bId});
+ }
+ const shown=ELEMENTS.filter(e=>found.includes(e.id));
+ const drag=useDragTiles((a,b)=>{if(shown[a]&&shown[b])mix(shown[a].id,shown[b].id);setFirst(null);});
+ function tap(id){
+  if(!first)return setFirst(id);
+  if(first===id)return setFirst(null);
+  mix(first,id);
  }
  const left=total-found.length;
  return <>
-  <p>Two things make a third. Tap one, then another, and see what you have made. There are {discoverable().length} to find.</p>
+  <p>Two things make a third. Drag one onto another, or tap them one after the other, and see what you have made. There are {discoverable().length} to find.</p>
   {last&&<div className={`kitchen-result${last.fail?' nothing':''}`}>
    <span aria-hidden="true">{elementById(last.a)?.icon}{elementById(last.b)?.icon}</span>
    {last.fail?<p>Those two do not make anything. Try another pair.</p>
     :<p>{last.isNew?'New! ':''}<strong>{last.made.icon} {last.made.en}</strong> <small lang="ja">{last.made.ja}</small></p>}
   </div>}
-  <div className="kitchen-grid">{ELEMENTS.filter(e=>found.includes(e.id)).map(e=>
-   <button key={e.id} className={`kitchen-item${first===e.id?' chosen':''}`} onClick={()=>tap(e.id)}>
+  <div className="kitchen-grid" onPointerMove={drag.move} onPointerUp={e=>{const i=drag.up(e);if(i!==null&&shown[i])tap(shown[i].id);}} onPointerCancel={drag.cancel}>
+   {shown.map((e,i)=>
+   <button key={e.id} data-tile={i} className={`kitchen-item${first===e.id?' chosen':''}${drag.over===i?' over':''}`} onPointerDown={drag.down(i)}>
     <span aria-hidden="true">{e.icon}</span><small>{e.en}</small></button>)}</div>
   <p className="game-status">{found.length} of {total} found{left?` · ${left} to go`:' · everything!'}
    {bestScore(state,user.name,'kitchen')>0?` · your best ${bestScore(state,user.name,'kitchen')}`:''}</p>
@@ -276,6 +315,8 @@ const SNAKE_SIZE=12;
 // seconds, instead of the second and a bit a mid-board start gives you.
 const SNAKE_START=[{x:2,y:6},{x:1,y:6},{x:0,y:6}];
 const SNAKE_TICK=260;
+// Quicker with every piece eaten, down to a floor that is still steerable by a five-year-old.
+export const snakeTick=eaten=>Math.max(110,SNAKE_TICK-eaten*12);
 function Snake({user,state,mutate,busy}){
  const [body,setBody]=useState(()=>SNAKE_START.map(p=>({...p})));
  const [food,setFood]=useState({x:8,y:6});
@@ -308,12 +349,12 @@ function Snake({user,state,mutate,busy}){
     const free=[];for(let y=0;y<SNAKE_SIZE;y++)for(let x=0;x<SNAKE_SIZE;x++)if(!next.some(p=>p.x===x&&p.y===y))free.push({x,y});
     setFood(free[Math.floor(Math.random()*free.length)]||food);
    }
-  },SNAKE_TICK);
+  },snakeTick(scoreRef.current));
   return ()=>clearInterval(tick);
- },[running,over,food]);
+ },[running,over,food,score]);
  const again=()=>{setBody(SNAKE_START.map(p=>({...p})));setFood({x:8,y:6});setDir({x:1,y:0});setScore(0);setOver(false);setRunning(true);};
  return <>
-  <p>Eat the sushi. Do not bite yourself, and mind the walls.</p>
+  <p>Eat the sushi. It gets faster with every piece, so mind the walls — and yourself.</p>
   <div className="snake-board" style={{gridTemplateColumns:`repeat(${SNAKE_SIZE},1fr)`}}
    onTouchStart={e=>{touch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
    onTouchEnd={e=>{
@@ -339,7 +380,17 @@ function Snake({user,state,mutate,busy}){
 }
 // Sumo. Tap faster than the other one and push him out of the ring. A win against a faster
 // opponent is worth more, so the best score says who you beat rather than how long it took.
-const SUMO_RATE={nate:900,boston:650,dad:480},SUMO_WORTH={nate:10,boston:20,dad:30};
+const SUMO_LEVELS=[
+ ['jonokuchi','Beginner',1100,5],
+ ['nate','Nate-speed',900,10],
+ ['boston','Boston-speed',650,20],
+ ['mum','Mum-speed',540,25],
+ ['dad','Dad-speed',480,30],
+ ['ozeki','Ozeki',400,45],
+ ['yokozuna','Yokozuna',330,60]
+];
+const SUMO_RATE=Object.fromEntries(SUMO_LEVELS.map(([id,,rate])=>[id,rate]));
+const SUMO_WORTH=Object.fromEntries(SUMO_LEVELS.map(([id,,,worth])=>[id,worth]));
 // Sumo. Tap faster than the other one and push him out of the ring.
 function Sumo({user,state,mutate,busy}){
  const [push,setPush]=useState(0),[playing,setPlaying]=useState(false),[result,setResult]=useState(''),[level,setLevel]=useState('nate');
@@ -363,7 +414,7 @@ function Sumo({user,state,mutate,busy}){
  const position=50-push*4.5;
  return <>
   <p>Tap as fast as you can and push him out of the ring. Call it properly: <strong>nokotta, nokotta!</strong></p>
-  <div className="segmented">{[['nate','Nate-speed'],['boston','Boston-speed'],['dad','Dad-speed']].map(([id,label])=>
+  <div className="segmented game-picker">{SUMO_LEVELS.map(([id,label])=>
    <button key={id} className={level===id?'selected':''} disabled={playing} onClick={()=>setLevel(id)}>{label}</button>)}</div>
   <div className="sumo-ring">
    <div className="sumo-pair" style={{left:`${Math.max(4,Math.min(96,position))}%`}}>
@@ -385,15 +436,18 @@ function Stable({user,state,mutate,busy}){
  const best=bestRank(stable),full=stableFull(stable);
  const challenger=challengerFor(best,cleared);
  const odds=best?oddsOf(best,challenger):0;
+ function join(a,b){
+  const merged=promote(stable,a,b);
+  if(!merged){setLast({note:stable[a]&&stable[a]===stable[b]?'That one is already at the top.':'Two of the same rank only.'});return;}
+  setStable(merged.stable);
+  setLast({promoted:rankAt(merged.level)});
+ }
+ const drag=useDragTiles((a,b)=>{if(!fighting)join(a,b);setPicked(null);});
  function tap(i){
   if(fighting)return;
   if(picked===null)return setPicked(stable[i]?i:null);
   if(picked===i)return setPicked(null);
-  const merged=promote(stable,picked,i);
-  setPicked(null);
-  if(!merged){setLast({note:stable[i]&&stable[i]===stable[picked]?'That one is already at the top.':'Two of the same rank only.'});return;}
-  setStable(merged.stable);
-  setLast({promoted:rankAt(merged.level)});
+  setPicked(null);join(picked,i);
  }
  function add(){
   const next=recruit(stable,Date.now()+score);
@@ -419,11 +473,12 @@ function Stable({user,state,mutate,busy}){
  const again=()=>{setStable(recruit(recruit(emptyStable(),Date.now()),Date.now()+3)||emptyStable());
   setPicked(null);setScore(0);setCleared(0);setLast(null);};
  return <>
-  <p>Tap two wrestlers of the same rank and one of them is promoted. Build one big enough, then send him out to fight.</p>
-  <div className="stable-grid">{stable.map((level,i)=>{
+  <p>Drag one wrestler onto another of the same rank — or tap them one after the other — and one of them is promoted. Build one big enough, then send him out to fight.</p>
+  <div className="stable-grid" onPointerMove={drag.move} onPointerUp={e=>{const tapped=drag.up(e);if(tapped!==null)tap(tapped);}} onPointerCancel={drag.cancel}>
+   {stable.map((level,i)=>{
    const rank=rankAt(level);
-   return <button key={i} className={`stable-cell${level?' filled':''}${picked===i?' picked':''}${level===TOP_RANK?' top':''}`}
-    disabled={fighting} onClick={()=>tap(i)}>
+   return <button key={i} data-tile={i} className={`stable-cell${level?' filled':''}${picked===i?' picked':''}${drag.over===i?' over':''}${level===TOP_RANK?' top':''}`}
+    disabled={fighting} onPointerDown={drag.down(i)}>
     {rank&&<><span aria-hidden="true">{rank.icon}</span><small>{rank.en}</small></>}</button>;})}</div>
   <div className="row wrap">
    <button type="button" onClick={add} disabled={fighting||full}>+ New recruit</button>

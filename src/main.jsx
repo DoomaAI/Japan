@@ -30,6 +30,7 @@ import VoiceNotes from './VoiceNotes.jsx';
 import Games from './Games.jsx';
 import Weather,{MorningNeeds} from './Weather.jsx';
 import DocumentReader from './DocumentReader.jsx';
+import PhotoDay from './PhotoDay.jsx';
 import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
@@ -160,6 +161,7 @@ function App(){
  // Seventy-two pages is a lot of arrow-tapping, so the guide turns like a book: swipe it, or
  // use the arrow keys. Clamped at both ends rather than wrapping, because page 1 coming after
  // page 72 is disorienting when you are looking for something.
+ function selectPhotoDay(d){setDay(d);history.replaceState(null,'','/?'+new URLSearchParams({tab:'photos',day:d}));}
  function turnPage(delta){
   const n=Math.min(72,Math.max(1,guidePage+delta));
   if(n===guidePage)return;
@@ -254,6 +256,7 @@ function App(){
   {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='meeting'&&<MeetingCard key={day} state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='updates'&&<Updates state={state} user={user} mutate={mutate} busy={busy}/>}
+  {tab==='photos'&&<><p className="eyebrow">THROUGH THEIR EYES</p><h1>Photo of the day</h1><div className="form-row"><label>Day<select value={day} onChange={e=>selectPhotoDay(e.target.value)}>{state.days.map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)} · {d.title}</option>)}</select></label></div><PhotoDay state={visibleState} user={user} day={day} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay}/></>}
   {tab==='games'&&<Games state={visibleState} user={user} mutate={mutate} busy={busy} online={online} refresh={refresh} dayLabel={fmtDay}/>}
   {tab==='phrases'&&<><p className="eyebrow">A LITTLE JAPANESE GOES A LONG WAY</p><h1>Phrases</h1><Phrasebook state={visibleState} user={user} day={japanDate(now)} mutate={mutate} busy={busy} request={request} notice={notice} config={config}/></>}
   {tab==='money'&&<><p className="eyebrow">WHAT DOES THAT COST?</p><h1>Yen converter</h1><Currency state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice}/></>}
