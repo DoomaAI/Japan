@@ -1039,3 +1039,24 @@ test('saving a voice note trusts storage, not the phone, for what the file is',a
  // And one person cannot write into another's folder.
  assert.throws(()=>checkVoiceNote(state,body,{id:'grant-boston',name:'Boston',role:'child'}),/Invalid voice note/);
 });
+
+test('a phone that has not listed its voices yet is not treated as having none',async()=>{
+ const {matchVoice,voiceState,settled,canOffer}=await import('../src/speech.js');
+ const ja={lang:'ja-JP',name:'Kyoko'},en={lang:'en-AU',name:'Karen'};
+ assert.equal(matchVoice([en,ja],'ja-JP'),ja);
+ assert.equal(matchVoice([{lang:'ja_JP'}],'ja')?.lang,'ja_JP','an underscore is still Japanese');
+ assert.equal(matchVoice([en],'ja'),null);
+ assert.equal(matchVoice(null,'ja'),null);
+ // The three answers, and the one that matters: an empty list is "not yet", not "never".
+ assert.equal(voiceState([en,ja]),'yes');
+ assert.equal(voiceState([en]),'no');
+ assert.equal(voiceState([]),'unknown','Safari returns an empty list before it is ready');
+ assert.equal(voiceState(null),'unknown');
+ assert.equal(voiceState(undefined),'unknown');
+ assert.ok(settled('yes')&&settled('no')&&!settled('unknown'));
+ // So the button is offered unless the phone has actually told us it cannot.
+ assert.equal(canOffer(true,'yes'),true);
+ assert.equal(canOffer(true,'unknown'),true,'this is the case that was hiding the button');
+ assert.equal(canOffer(true,'no'),false);
+ assert.equal(canOffer(false,'yes'),false,'no speech support at all');
+});
