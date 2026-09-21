@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createServer} from 'node:http';
 import {applyOperation,AppError} from '../server/model.mjs';
-import {activeSteps,scheduleProposal,japanClock,japanDate} from '../src/timing.js';
+import {activeSteps,scheduleProposal,japanClock,japanDate,scheduleVariance,stayPlan} from '../src/timing.js';
 import handler from '../server/handler.mjs';
 import {htmlToText,parseInbound,addToInbox,MAX_INBOX} from '../server/email.mjs';
 const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url)));
@@ -6318,4 +6318,27 @@ test('the sender list can be opened to everyone on purpose, but never by forgett
   set(null,'*');
   assert.equal(emailInboxReady(),false);
  }finally{delete process.env.EMAIL_INBOX_SECRET;delete process.env.EMAIL_INBOX_SENDERS;}
+});
+
+test('ticking an activity off says how far ahead or behind schedule the day is',()=>{
+ const step={day:'2026-09-21',time:'14:00',duration:45};
+ assert.equal(scheduleVariance(step,new Date('2026-09-21T05:33:00Z')).text,'12 min ahead of schedule');
+ assert.equal(scheduleVariance(step,new Date('2026-09-21T06:10:00Z')).text,'25 min behind schedule');
+ assert.equal(scheduleVariance(step,new Date('2026-09-21T05:45:00Z')).text,'right on schedule');
+ assert.equal(scheduleVariance(step,new Date('2026-09-21T05:45:00Z')).target,'14:45');
+ // Long overruns are said in hours, because nobody converts 95 minutes in a station concourse.
+ assert.equal(scheduleVariance(step,new Date('2026-09-21T07:20:00Z')).text,'1 hr 35 min behind schedule');
+ assert.equal(scheduleVariance(step,new Date('2026-09-21T06:45:00Z')).text,'1 hr behind schedule');
+ // Nothing to be ahead or behind of without a target time, and a bad timestamp says nothing.
+ assert.equal(scheduleVariance({day:'2026-09-21',duration:45},new Date()),null);
+ assert.equal(scheduleVariance(step,'not a time'),null);
+});
+test('arriving says how long we plan to stay, and arriving early does not shorten the stop',()=>{
+ const step={day:'2026-09-21',time:'14:00',duration:45};
+ assert.equal(stayPlan(step,new Date('2026-09-21T04:50:00Z')).until,'14:45');
+ assert.equal(stayPlan(step,new Date('2026-09-21T05:20:00Z')).until,'15:05');
+ assert.match(stayPlan(step,new Date('2026-09-21T05:20:00Z')).text,/about 45 min, moving on around 15:05/);
+ const open={day:'2026-09-21',time:null,duration:0};
+ assert.equal(stayPlan(open,new Date('2026-09-21T05:20:00Z')).until,null);
+ assert.match(stayPlan(open,new Date('2026-09-21T05:20:00Z')).text,/No length set/);
 });
