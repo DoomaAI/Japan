@@ -1,6 +1,21 @@
 import React,{useState} from 'react';
-import {CloudSun,RefreshCw} from 'lucide-react';
-import {pointFor,forecastUrl,parseForecast,forecastFor,forecastAge,ageLabel,describe,advice} from './weather-data.js';
+import {CloudSun,RefreshCw,X} from 'lucide-react';
+import {pointFor,forecastUrl,parseForecast,forecastFor,forecastAge,ageLabel,describe,advice,morningNeeds,isMorning} from './weather-data.js';
+// The morning reminder. It is about the jumper and the umbrella, not the meteorology, it only
+// appears while it is still morning in Japan and only for the day we are actually on, and it
+// goes away for the day once someone has read it. It reads the forecast already on the phone,
+// so it works with no signal.
+export function MorningNeeds({state,day,clock,today}){
+ const [hidden,setHidden]=useState(()=>{try{return localStorage.getItem(`japan.needs.${day}`)==='seen';}catch{return false;}});
+ const needs=morningNeeds(forecastFor(state,day));
+ if(!needs||hidden||day!==today||!isMorning(clock))return null;
+ const dismiss=()=>{try{localStorage.setItem(`japan.needs.${day}`,'seen');}catch{}setHidden(true);};
+ return <div className="morning-needs">
+  <span className="morning-icons" aria-hidden="true">{needs.icons}</span>
+  <div><strong>Before we go out</strong><p>{needs.summary}</p></div>
+  <button type="button" aria-label="Dismiss for today" onClick={dismiss}><X size={16}/></button>
+ </div>;
+}
 // The forecast for the days we are actually here, kept in the trip so one phone's lookup
 // serves everyone and the numbers are still on screen with no signal.
 export default function Weather({state,day,mutate,busy,online,notice,dayLabel}){

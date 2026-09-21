@@ -1483,3 +1483,55 @@ test('the merge board slides, merges once, and knows when it is stuck',async()=>
  assert.equal(mergeTile(3),null);
  assert.equal(bestTile(stuck),4);
 });
+
+test('the recipe book is complete, sensible and reachable from the starting six',async()=>{
+ const {ELEMENTS,RECIPES,SIGHTS,elementById,startingElements,combine,discoverable}=await import('../src/kana-data.js');
+ const ids=ELEMENTS.map(e=>e.id);
+ assert.equal(new Set(ids).size,ids.length,'no element defined twice');
+ for(const e of ELEMENTS)assert.ok(e.icon&&e.en&&e.ja,`${e.id} is missing a picture or a name`);
+ // A recipe that makes one of its own ingredients is a dud, and every id has to exist.
+ for(const [a,b,c] of RECIPES){
+  for(const id of [a,b,c])assert.ok(elementById(id),`${id} is in a recipe but not an element`);
+  assert.ok(c!==a&&c!==b,`${a}+${b} makes something it is already made of`);
+ }
+ assert.equal(new Set(RECIPES.map(r=>r.slice(0,2).sort().join('+'))).size,RECIPES.length,'the same pair cannot make two things');
+ // Order does not matter, and a pair with no recipe says so rather than inventing one.
+ assert.equal(combine('rice','water'),'cookedrice');
+ assert.equal(combine('water','rice'),'cookedrice');
+ assert.equal(combine('fish','fish'),null);
+ assert.equal(combine('nonsense','water'),null);
+ // Everything can actually be reached by starting with what you are given.
+ const have=new Set(startingElements());
+ assert.equal(have.size,8);
+ for(let pass=0;pass<ELEMENTS.length;pass++)
+  for(const [a,b,c] of RECIPES)if(have.has(a)&&have.has(b))have.add(c);
+ assert.deepEqual(ids.filter(id=>!have.has(id)),[],'every element must be makeable');
+ assert.equal(discoverable().length,ids.length-startingElements().length);
+ // And ramen is where a child would expect it to be.
+ assert.equal(combine(combine('wheat','water'),combine(combine('bean','fire'),'water')),'ramen');
+ // The picture pairs are real things with both names.
+ assert.ok(SIGHTS.length>=16);
+ assert.equal(new Set(SIGHTS.map(s=>s.id)).size,SIGHTS.length);
+ for(const s of SIGHTS)assert.ok(s.icon&&s.en&&/[぀-ヿ]/.test(s.ja),`${s.id} needs a picture and a Japanese name`);
+});
+
+test('the morning reminder is about the jumper, not the meteorology',async()=>{
+ const {morningNeeds,isMorning}=await import('../src/weather-data.js');
+ // Rain, cold and heat each earn a line; a pleasant day earns silence.
+ assert.deepEqual(morningNeeds({code:61,max:19,min:15,rain:80}).needs.map(n=>n.id),['umbrella']);
+ assert.deepEqual(morningNeeds({code:0,max:14,min:7,rain:0}).needs.map(n=>n.id),['jumper']);
+ assert.match(morningNeeds({code:0,max:14,min:7,rain:0}).summary,/Nate/,'the five-year-old is the one who feels it');
+ assert.deepEqual(morningNeeds({code:63,max:15,min:9,rain:90}).needs.map(n=>n.id),['umbrella','jumper'],'both, when it is both');
+ assert.deepEqual(morningNeeds({code:0,max:33,min:26,rain:0}).needs.map(n=>n.id),['water']);
+ assert.equal(morningNeeds({code:0,max:24,min:18,rain:10}),null,'a fine day says nothing');
+ assert.equal(morningNeeds({code:2,max:22,min:16,rain:0}),null);
+ assert.equal(morningNeeds(null),null);
+ // A high chance of rain counts even when the code is not itself wet.
+ assert.ok(morningNeeds({code:2,max:22,min:18,rain:60}).needs.some(n=>n.id==='umbrella'));
+ // And it is a morning reminder, so it is done by the middle of the day.
+ assert.equal(isMorning('06:30'),true);
+ assert.equal(isMorning('10:59'),true);
+ assert.equal(isMorning('11:00'),false);
+ assert.equal(isMorning('18:00'),false);
+ assert.equal(isMorning(''),false);
+});
