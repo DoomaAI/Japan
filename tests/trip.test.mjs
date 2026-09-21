@@ -1335,3 +1335,24 @@ test('every page in the registry is a tab the app will actually open',async()=>{
  for(const id of Object.keys(PAGES))
   assert.match(source,new RegExp(`tab==='${id}'`),`${id} is in the menu but nothing renders it`);
 });
+
+test('what a boy can do with no signal at all, and what has to wait',async()=>{
+ const {ensureFeatures,pendingProgress,bestScore,phrasesSeenBy}=await import('../src/trip-features.js');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ // Everything the boys do on their own is progress, and progress keeps on a dead phone.
+ for(const op of ['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore'])
+  assert.ok(list.includes(op),`${op} should survive with no signal`);
+ // A janken hand is not progress — it is a move in a game the other phone is waiting on.
+ assert.ok(!list.includes('jankenThrow'),'a hand thrown into a queue is not a game');
+ for(const op of ['add','patch','remove','challengeNew','phraseAdd','voiceNoteRemove','exchangeRate'])
+  assert.ok(!list.includes(op),`${op} changes the plan and needs the latest revision`);
+ // And the phone shows queued progress straight away rather than looking like it did nothing.
+ const state=ensureFeatures(structuredClone(seed));
+ const queue=[{operation:{type:'gameScore',person:'Nate',game:'kana-hiragana',score:28}},
+              {operation:{type:'phraseSeen',person:'Nate',day:seed.days[0].date,phraseIds:['hello'],at:'2026-09-20T23:00:00.000Z'}}];
+ const preview=pendingProgress(state,queue);
+ assert.equal(bestScore(preview,'Nate','kana-hiragana'),28);
+ assert.ok(phrasesSeenBy(preview,'Nate').hello);
+ assert.equal(bestScore(state,'Nate','kana-hiragana'),0,'the real trip is untouched until it syncs');
+});
