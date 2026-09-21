@@ -2345,6 +2345,91 @@ test('the guide turns like a book, and stops at both covers',async()=>{
  assert.match(css,/\.guide-view\{touch-action:pan-y\}/);
 });
 
+test('a to-do belongs to a day, shows on it, and anyone can tick it off',async()=>{
+ const {ensureFeatures,todosFor,todoProgress,unallocatedTodos,TODO_KINDS}=await import('../src/trip-features.js');
+ const day=seed.days[4].date;
+ let state=applyOperation(seed,{type:'todoAdd',title:'Post the postcards',kind:'do',day,person:'Lauren',notes:'The big post office by the station.'},parent);
+ // A boy writes one down himself, with no edit rights anywhere else in the app.
+ state=applyOperation(state,{type:'todoAdd',title:'Buy a Beyblade',kind:'buy',day,person:'Boston'},child);
+ state=applyOperation(state,{type:'todoAdd',title:'Charge the power banks'},parent);
+ assert.equal(state.todos.length,3);
+ // The day's own list is what that day's screen shows.
+ assert.deepEqual(todosFor(state,day).map(t=>t.title),['Post the postcards','Buy a Beyblade']);
+ assert.deepEqual(todoProgress(state,day),{done:0,total:2,open:2});
+ // One with no day sits apart until somebody gives it one.
+ assert.deepEqual(unallocatedTodos(state).map(t=>t.title),['Charge the power banks']);
+ assert.equal(todoProgress(state,seed.days[0].date).total,0,'a day with none shows none');
+ const beyblade=state.todos.find(t=>t.title==='Buy a Beyblade');
+ assert.equal(beyblade.kind,'buy');assert.equal(beyblade.createdBy,'Nate');assert.equal(beyblade.person,'Boston');
+ assert.equal(beyblade.doneAt,null);
+ // Anyone ticks anything off — it is a family list, not a set of private chores.
+ state=applyOperation(state,{type:'todoStatus',id:beyblade.id,done:true},child);
+ const ticked=state.todos.find(t=>t.id===beyblade.id);
+ assert.ok(ticked.doneAt);assert.equal(ticked.doneBy,'Nate');
+ assert.deepEqual(todoProgress(state,day),{done:1,total:2,open:1});
+ // Still-to-do first, so the list reads as a queue rather than a pile.
+ assert.deepEqual(todosFor(state,day).map(t=>t.title),['Post the postcards','Buy a Beyblade']);
+ assert.equal(state.todos.find(t=>t.id===beyblade.id).doneBy,'Nate');
+ // Unticking takes the record off with it.
+ const undone=applyOperation(state,{type:'todoStatus',id:beyblade.id,done:false},parent).todos.find(t=>t.id===beyblade.id);
+ assert.equal(undone.doneAt,null);assert.equal(undone.doneBy,null);
+ // Allocating a day later is what moves it onto that day's screen.
+ const moved=applyOperation(state,{type:'todoEdit',id:state.todos.find(t=>t.title==='Charge the power banks').id,
+  title:'Charge the power banks',kind:'do',day:seed.days[0].date,person:'Damien'},parent);
+ assert.equal(todoProgress(moved,seed.days[0].date).total,1);
+ assert.equal(unallocatedTodos(moved).length,0);
+ // Wording and the bin are a parent's; ticking and adding are not.
+ assert.throws(()=>applyOperation(state,{type:'todoEdit',id:beyblade.id,title:'Something else'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'todoRemove',id:beyblade.id},child),e=>e.status===403);
+ assert.equal(applyOperation(state,{type:'todoRemove',id:beyblade.id},parent).todos.length,2);
+ for(const bad of [{type:'todoAdd',title:'   '},{type:'todoAdd',title:'x'.repeat(251)},
+  {type:'todoAdd',title:'A',day:'2099-01-01'},{type:'todoAdd',title:'A',person:'Grandma'},
+  {type:'todoAdd',title:'A',notes:'n'.repeat(2001)},{type:'todoStatus',id:beyblade.id,done:'yes'},
+  {type:'todoStatus',id:'nope',done:true},{type:'todoWhatever',title:'A'}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,48)} should be refused`);
+ // A kind we do not know is a job to do, not a crash.
+ assert.equal(applyOperation(state,{type:'todoAdd',title:'A',kind:'sing'},parent).todos.at(-1).kind,'do');
+ assert.deepEqual(TODO_KINDS.map(([id])=>id),['do','buy'],'things we want to do, or buy');
+ // None of it is the plan, so it stays out of the family alert feed.
+ assert.ok(!state.alerts.some(a=>/postcards|Beyblade|power banks/.test(a.summary||'')));
+ assert.equal(state.history[0].title,'Buy a Beyblade','but the family history still reads properly');
+});
+test('a job written down or ticked off with no signal waits on the phone',async()=>{
+ const {ensureFeatures,pendingProgress,todosFor,todoProgress}=await import('../src/trip-features.js');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ for(const op of ['todoAdd','todoStatus'])assert.ok(list.includes(op),`${op} should survive with no signal`);
+ // Rewording somebody else's job and taking one off the list both need the latest revision.
+ for(const op of ['todoEdit','todoRemove'])assert.ok(!list.includes(op),`${op} changes the shared list`);
+ const day=seed.days[2].date,at='2026-09-19T02:00:00.000Z';
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'todoAdd',title:'Return the locker key',day},parent);
+ const key=state.todos.at(-1).id;
+ const queue=[{operation:{type:'todoAdd',operationId:'q1',title:'Buy stamps',kind:'buy',day,person:'Family',by:'Boston',at}},
+              {operation:{type:'todoStatus',operationId:'q2',id:key,done:true,by:'Boston',at}}];
+ const preview=pendingProgress(state,queue);
+ assert.deepEqual(todosFor(preview,day).map(t=>t.title),['Buy stamps','Return the locker key']);
+ const fresh=preview.todos.find(t=>t.title==='Buy stamps');
+ assert.equal(fresh.kind,'buy');assert.equal(fresh.createdBy,'Boston');assert.ok(fresh.pending);
+ assert.equal(preview.todos.find(t=>t.id===key).doneBy,'Boston');
+ assert.deepEqual(todoProgress(preview,day),{done:1,total:2,open:1});
+ // And the shared trip is untouched until it syncs.
+ assert.equal(todoProgress(state,day).total,1);
+ assert.equal(state.todos.find(t=>t.id===key).doneAt,null);
+ // What the phone drew is what the server builds when the queue lands.
+ const landed=applyOperation(state,queue[0].operation,{name:'Boston',role:'child'});
+ assert.equal(landed.todos.at(-1).createdAt,at);
+ assert.equal(landed.todos.at(-1).createdBy,'Boston');
+});
+test('the day screen shows its own jobs, and the day tiles say how many are left',async()=>{
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // The panel is on the day, not only on a page you have to go looking for.
+ assert.match(source,/<DayTodos state=\{visibleState\} user=\{user\} day=\{day\}/,'the day screen renders its own to-dos');
+ assert.match(source,/todoProgress\(visibleState,d\.date\)\.open>0/,'and a day tile counts what is left on it');
+ assert.match(source,/tab==='todo'/,'the whole list has its own screen');
+ const {PAGES}=await import('../src/nav-data.js');
+ assert.ok(PAGES.todo?.label&&PAGES.todo?.note);
+});
+
 test('the snake quickens with every piece of sushi, but stays steerable',async()=>{
  const {snakeTick}=await import('../src/Games.jsx').catch(()=>({snakeTick:null}));
  // Games.jsx cannot be imported here, so the rule is checked where it is written.

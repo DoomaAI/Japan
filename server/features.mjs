@@ -363,6 +363,39 @@ export function extraOperation(state,op,user,fail,now){
   item.boughtAt=op.done?now:null;item.boughtBy=op.done?user.name:null;
  }else if(op.type==='shoppingRemove'){
   state.shopping=state.shopping.filter(s=>s.id!==op.id);
+ }else if(typeof op.type==='string'&&op.type.startsWith('todo')){
+  // The to-do list. Anyone adds one and anyone ticks it off, the way the shopping list works;
+  // changing somebody else's wording or removing it is a parent's.
+  const found=()=>{const t=state.todos.find(t=>t.id===op.id);if(!t)fail('That job is no longer on the list.',404);return t;};
+  if(op.type==='todoAdd'||op.type==='todoEdit'){
+   if(op.type==='todoEdit'&&!parent)fail('A parent can change the wording. Tick it off or add your own.',403);
+   if(!string(op.title,250)||!op.title.trim())fail('Write down what needs doing.');
+   dayCheck(op.day??null);
+   const item={title:op.title.trim(),kind:op.kind==='buy'?'buy':'do',day:op.day??null,
+    person:op.person||'Family',notes:(op.notes||'').trim()};
+   if(!['Family',...state.members].includes(item.person))fail('Choose a family member.');
+   requireText(item.notes,2000,'notes');
+   if(op.type==='todoAdd'){
+    if(state.todos.length>=300)fail('That is three hundred jobs already. Tick some off first.');
+    let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+    state.todos.push({id:randomUUID(),...item,createdBy:user.name,createdAt:at,doneAt:null,doneBy:null});
+   }else Object.assign(found(),item);
+   return {summary:null,important:false,title:item.title};
+  }
+  if(op.type==='todoStatus'){
+   const item=found();
+   if(typeof op.done!=='boolean')fail('Invalid tick.');
+   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+   item.doneAt=op.done?at:null;item.doneBy=op.done?user.name:null;
+   return {summary:null,important:false,title:item.title};
+  }
+  if(op.type==='todoRemove'){
+   if(!parent)fail('A parent can take something off the list.',403);
+   const item=found();
+   state.todos=state.todos.filter(t=>t.id!==item.id);
+   return {summary:null,important:false,title:item.title};
+  }
+  fail('Unknown to-do action.');
  }else if(op.type==='meeting'){
   dayCheck(op.day);if(!op.day)fail('Choose a day.');
   const m={place:op.place||'',japanese:op.japanese||'',time:op.time||'',notes:op.notes||'',hotelJapanese:op.hotelJapanese||'',hotelAddress:op.hotelAddress||''};
