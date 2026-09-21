@@ -2623,10 +2623,23 @@ test('a sumo career climbs the banzuke, and the tournament decides the rest',asy
  assert.equal(bashoWorth(0,SEKITORI),0);
  assert.ok(bashoWorth(4,TOP_RANK)>bashoWorth(4,SEKITORI),'the same record higher up is worth more');
  assert.ok(bashoWorth(BASHO_DAYS,TOP_RANK)>bashoWorth(BASHO_DAYS-1,TOP_RANK)*1.5,'and a perfect one pays for being perfect');
- // Four ways into the ring, and the one that is practice writes nothing down.
+ // A quick bout takes the ceremony as read: better than skipping it, short of doing it
+ // properly, so going straight to the pushing is neither a punishment nor a shortcut worth
+ // taking in a tournament.
+ const {TAKEN_AS_READ,leadUpEffect,ceremonyScore}=await import('../src/kana-data.js');
+ const taken=leadUpEffect(TAKEN_AS_READ);
+ assert.ok(taken.stamina>leadUpEffect({}).stamina&&taken.opening>leadUpEffect({}).opening);
+ assert.ok(taken.stamina<leadUpEffect({shiko:1,shio:1,charge:1}).stamina);
+ assert.ok(ceremonyScore(TAKEN_AS_READ)>0&&ceremonyScore(TAKEN_AS_READ)<1);
+ assert.ok(!taken.matta);
+ // Five ways into the ring, and the ones that are practice write nothing down.
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
- for(const mode of ['keiko','one','climb','basho'])assert.ok(source.includes(`id:'${mode}'`),`no ${mode} to choose`);
+ for(const mode of ['quick','keiko','one','climb','basho'])assert.ok(source.includes(`id:'${mode}'`),`no ${mode} to choose`);
+ assert.ok(source.includes("quick?'bout':'shiko'"),'a quick bout has to start in the ring');
  assert.ok(source.includes('if(result.drill)return;'),'a drill must never be scored');
+ // Training is never handed the thing that writes, so it cannot record anything even by
+ // accident — which is what makes it practice.
+ assert.ok(!/function Keiko\(\{[^}]*mutate/.test(source),'keiko must not be given mutate');
  assert.ok(source.includes("game:'sumo-rank'")&&source.includes("game:'sumo-basho'"),'a career has to be worth keeping');
 });
 

@@ -323,6 +323,10 @@ export const KIMARITE=[
  {id:'uwatenage',icon:'🌀',en:'Throw him over',ja:'上手投げ',romaji:'uwatenage',tell:'His arm is high and loose over yours'}
 ];
 export const kimariteById=id=>KIMARITE.find(k=>k.id===id)||null;
+// A quick bout takes the ceremony as read — a fair stance, a fair throw, a fair charge —
+// because the point of one is to get to the pushing, not to be punished for skipping the
+// salt. It is practice, so nothing it does is written down either way.
+export const TAKEN_AS_READ={shiko:0.6,shio:0.6,charge:0.6};
 // The bout. Out of the ring is ten paces from the middle, and every shove costs you
 // something — which is why mashing the button stopped being the whole game.
 export const SUMO_LIMIT=10,SUMO_TICK=240,SHOVE_COST=8,SHOVE_GAIN=0.4,TIRED_GAIN=0.15,TECHNIQUE_GAIN=2,SURGE_TICKS=3;
