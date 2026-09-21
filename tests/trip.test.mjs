@@ -1149,9 +1149,19 @@ test('the sound check turns "nothing happened" into something to act on',async()
  assert.equal(read({})['Build'],'unknown');
  assert.deepEqual(describeVoices([{lang:'ja_JP',name:'K'},{lang:'en-US'}]),{count:2,japanese:['K'],state:'yes'});
  // The two iOS workarounds degrade quietly where the phone has never heard of them.
- assert.equal(claimPlayback(null),'not supported');
- assert.equal(claimPlayback({}),'not supported');
- assert.equal(claimPlayback({audioSession:{type:'auto'}}),'playback','it asks to be treated as playback');
+ const {resetPlaybackClaim,playbackClaim}=await import('../src/speech.js');
+ resetPlaybackClaim();assert.equal(claimPlayback(null),'not supported');
+ resetPlaybackClaim();assert.equal(claimPlayback({}),'not supported');
+ resetPlaybackClaim();
+ const phone={audioSession:{type:'auto'}};
+ assert.equal(claimPlayback(phone),'playback','Safari starts as ambient, which the switch mutes');
+ // Claimed once and then left alone: changing the type mid-session is what makes iOS play
+ // nothing at all, so every call after the first must be a no-op.
+ phone.audioSession.type='ambient';
+ assert.equal(claimPlayback(phone),'playback','the answer is remembered, not asked again');
+ assert.equal(phone.audioSession.type,'ambient','and the phone is not poked a second time');
+ assert.equal(playbackClaim(),'playback');
+ resetPlaybackClaim();
  assert.equal(warmUp(null,null),false);
  warmUp.done=false;
  let spoken=[];
@@ -2249,4 +2259,88 @@ test('the stable promotes on a match, and a bout can be lost by anyone',async()=
    assert.ok(c>=1&&c<=TOP_RANK,`challenger ${c} is off the ladder`);
    assert.ok(Math.abs(c-best)<=1,'and is somewhere near you');
   }
+});
+
+test('the silent nudge fires once, inside a tap, and never claims more than it did',async()=>{
+ const {nudgeOffAmbient,resetNudge}=await import('../src/speech.js');
+ resetNudge();
+ const played=[];
+ const make=()=>{const el={volume:1,play(){played.push(this.volume);return Promise.resolve();}};return el;};
+ assert.equal(nudgeOffAmbient(make),true);
+ assert.equal(played.length,1,'a moment of silence, once');
+ assert.ok(played[0]<=0.01,'and inaudible');
+ assert.equal(nudgeOffAmbient(make),false,'never again in this session');
+ assert.equal(played.length,1);
+ // A phone with no Audio at all, and one that refuses to play, are both survivable.
+ resetNudge();assert.equal(nudgeOffAmbient(null),false);
+ resetNudge();assert.equal(nudgeOffAmbient(()=>{throw new Error('blocked');}),false);
+ resetNudge();
+ assert.equal(nudgeOffAmbient(()=>({volume:1,play(){return Promise.reject(new Error('gesture required'));}})),true,
+  'a rejected play is handled rather than thrown');
+});
+
+test('the session is claimed at the start, not before every phrase',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const speech=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ // Set once, early. Flipping the type part-way through is what makes iOS play nothing.
+ assert.match(main,/useEffect\(\(\)=>\{claimPlayback\(\);\},\[\]\)/,'claimed once when the app starts');
+ assert.doesNotMatch(speech,/claimPlayback\(\)/,'and never again from inside the speaking path');
+ assert.match(speech,/nudgeOffAmbient\(\)/,'the older-iPhone nudge still runs inside the tap');
+});
+
+test('the advice matches what the phone actually did, not what we assume',async()=>{
+ const {silenceAdvice,SILENCE_HELP,isStandalone,wakeSpeech}=await import('../src/speech.js');
+ // The case that has been happening: nothing started, inside a Home Screen app.
+ assert.equal(silenceAdvice({started:false,standalone:true}),'standalone');
+ assert.match(SILENCE_HELP.standalone,/Safari/,'and it names the way out');
+ // Nothing started, in the browser: the synthesiser is wedged from being in the background.
+ assert.equal(silenceAdvice({started:false,standalone:false}),'never-started');
+ assert.match(SILENCE_HELP['never-started'],/background/);
+ // It did start, so the sound is being blocked on its way out.
+ assert.equal(silenceAdvice({started:true,standalone:true}),'muted');
+ assert.equal(silenceAdvice({started:true,standalone:false}),'muted');
+ assert.match(SILENCE_HELP.muted,/[Hh]eadphones/);
+ assert.equal(silenceAdvice({started:null,standalone:false}),'muted','untested reads as the ordinary case');
+ // Detection and the wake-up both survive a phone that has none of this.
+ assert.equal(isStandalone(null),false);
+ assert.equal(isStandalone({matchMedia:()=>{throw new Error('no');}}),false);
+ assert.equal(isStandalone({navigator:{standalone:true}}),true);
+ assert.equal(isStandalone({matchMedia:()=>({matches:true})}),true);
+ assert.equal(wakeSpeech(null),false);
+ assert.equal(wakeSpeech({}),false);
+ let cancelled=0,resumed=0;
+ assert.equal(wakeSpeech({speechSynthesis:{cancel:()=>cancelled++,resume:()=>resumed++}}),true);
+ assert.equal(cancelled,1);assert.equal(resumed,1);
+ assert.equal(wakeSpeech({speechSynthesis:{cancel:()=>{throw new Error('wedged');}}}),false);
+});
+
+test('coming back to the app clears a synthesiser that stopped while it was away',async()=>{
+ const source=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ assert.match(source,/visibilitychange/,'the app has to notice it came back');
+ assert.match(source,/document\.visibilityState==='visible'\)wakeSpeech\(\)/);
+ assert.match(source,/removeEventListener\('visibilitychange'/,'and let go of it afterwards');
+ // The message shown is chosen from what happened, rather than always blaming the switch.
+ assert.match(source,/SILENCE_HELP\[silenceAdvice\(\{started:false,standalone:isStandalone\(\)\}\)\]/);
+});
+
+test('the guide turns like a book, and stops at both covers',async()=>{
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // One place decides what page we are on, so a swipe, an arrow key and a button cannot drift.
+ assert.match(source,/function turnPage\(delta\)\{/);
+ assert.match(source,/Math\.min\(72,Math\.max\(1,guidePage\+delta\)\)/,'clamped at both ends rather than wrapping');
+ assert.match(source,/if\(n===guidePage\)return;/,'and a turn that changes nothing does nothing');
+ // Every way of turning goes through it.
+ assert.equal((source.match(/turnPage\(-1\)/g)||[]).length,2,'the back button and the left arrow key');
+ assert.equal((source.match(/turnPage\(1\)/g)||[]).length,2,'the forward button and the right arrow key');
+ assert.match(source,/turnPage\(dx<0\?1:-1\)/,'and the swipe');
+ assert.doesNotMatch(source,/setGuidePage\(guidePage[-+]1\)/,'nothing sets the page behind its back');
+ // A swipe is a sideways movement, not a scroll, and typing in the page box is not a turn.
+ assert.match(source,/Math\.abs\(dx\)>55&&Math\.abs\(dy\)<45/);
+ assert.match(source,/\['INPUT','SELECT','TEXTAREA'\]\.includes\(e\.target\.tagName\)\)return/);
+ // The keys are only listened for while the guide is open, and let go of afterwards.
+ assert.match(source,/if\(tab!=='guide'\)return;/);
+ assert.match(source,/removeEventListener\('keydown',onKey\)/);
+ // The page can still be scrolled up and down while it is swiped sideways.
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/\.guide-view\{touch-action:pan-y\}/);
 });
