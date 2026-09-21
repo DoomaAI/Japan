@@ -29,6 +29,20 @@ export async function writeTrip(state,revision){
  const db=await database();const [r]=await db`UPDATE japan_trip SET state=${JSON.stringify(state)}::jsonb, revision=revision+1 WHERE id='family' AND revision=${revision} RETURNING state,revision`;
  if(!r)throw new AppError('The family updated the trip. Review your change against the latest plan.',409);return r;
 }
+// A webhook has no revision to check against, so it reads, changes and writes, and tries
+// again if the family moved the plan underneath it. The change itself is an addition, so
+// replaying it on the newer plan is always right.
+export async function updateTrip(change,attempts=4){
+ let last;
+ for(let i=0;i<attempts;i++){
+  const current=await readTrip();
+  const next=await change(current.state);
+  if(!next)return current;
+  try{return await writeTrip(next,current.revision);}
+  catch(e){if(e.status!==409)throw e;last=e;}
+ }
+ throw last;
+}
 export async function session(req){
  if(localDemo())return {id:'preview',name:'Damien',role:'parent',demo:true};
  const cookie=(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('japan_session='))?.slice(14);

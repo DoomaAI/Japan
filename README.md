@@ -20,6 +20,7 @@ The production frontend builds and the automated model/API checks pass. No GitHu
 - Rate every activity out of five and say what you thought, each of us for ourselves, and it lands in the diary beside the day.
 - A weather screen of its own: every day of the trip, and each day opens into an hour-by-hour graph of temperature and chance of rain, with the same numbers as a table.
 - A to-do list for the small things we want to do or buy. Put a day on one and it shows on that day's screen, with a count on the day tile. Anyone adds one and anyone ticks it off, with no signal needed.
+- Forward a booking email to the trip and it waits in a **Forwarded email** inbox for a parent to file. A Japanese confirmation is read into English — what it says, what has to be done and when — and the English is written into the ticket's notes, so it still reads with no signal. Attachments go into the same private Blob storage as any other ticket. Nothing an email says reaches the itinerary on its own: a parent decides where it goes — filed with the bookings (against the whole trip, a day or one activity), put straight on a day as an activity with its time locked like any other booking, kept on the Options list until it has a day, put up on the planning board for the family to vote on, or written onto the to-do list — or throws it away. Whatever it carried by way of files stays in Tickets and travels with it. Only a secret your mail provider holds and a named list of sender addresses get through the door.
 - Ask what food and amenities are near you right now — from the phone's position or from a planned place on the day — with the Japanese name to point at, a rough walk time, walking directions from where you are standing, and one tap to drop it onto today's itinerary or save it to the board. Open to every family member, not just parents. The position is rounded to about a hundred metres and never stored.
 - Travel party profiles: each person's age, interests from a fixed list of twenty, what they love, what they would rather avoid, food notes, plus a trip-wide pace and daily budget. Everyone keeps their own; a parent keeps the rest. Used to build suggestions and nothing else.
 - AI-suggested ideas for a place and a set of flavours — the famous ones, only-in-Japan, cultural, food, drink, outdoors, with the boys, shopping, after dark — built from the travel party and everything already planned, with a line on why each one suits this family. They arrive without links or hours by design and become ordinary board ideas, tagged as suggested.
@@ -69,8 +70,57 @@ The shortcut icon is the guide's own cover — the title block, with Mount Fuji,
 | `BLOB_READ_WRITE_TOKEN` | Private Vercel Blob access; server only |
 | `APP_ORIGIN` | Exact production HTTPS origin; no trailing slash |
 | `ANTHROPIC_API_KEY` | Optional. Switches on the features that call the Claude API — reading a menu from a photo, reading a document into English, judging the photo of the day, translating a phrase of our own, looking a planning-board idea up on the web, suggesting ideas for a place, asking what is near here, and reading the sumo card and its wrestlers; server only, never prefixed `VITE_` |
+| `EMAIL_INBOX_SECRET` | Optional. The secret your mail provider puts in the inbound webhook URL. Without it `/api/email-in` answers 404 to everything; server only |
+| `EMAIL_INBOX_SENDERS` | Optional. Comma-separated addresses allowed to forward email in. Anything from another address is dropped; server only |
 
 Looking a place up and suggesting ideas both run web searches on Anthropic's side, so they take longer than the other calls. `vercel.json` gives the API function a 60-second `maxDuration` for that reason; on a plan whose ceiling is lower, those two are the features that will time out, and everything else is unaffected.
+
+### Forwarding email into the trip
+
+Vercel cannot receive mail, so a provider accepts the message and posts it to the app. Postmark
+is the one this is written against, because it hands out an inbound address without needing a
+domain of your own.
+
+1. Create a Postmark server and open its **Inbound** stream. It gives you an address like
+   `abc123@inbound.postmarkapp.com`.
+2. Pick a long random secret and set `EMAIL_INBOX_SECRET` in the Vercel project. Set the inbound
+   webhook URL to `https://YOUR-ORIGIN/api/email-in/THE-SECRET`. A URL with basic-auth
+   credentials works too: the app accepts the secret as the password.
+3. Set `EMAIL_INBOX_SENDERS` to the addresses you will forward from, comma-separated.
+4. Set `ANTHROPIC_API_KEY` if it is not already set. Without it the email is still stored; it is
+   simply not read into English.
+5. In Gmail, add a filter that forwards the confirmations you care about to the Postmark address.
+   Forwarding by hand works just as well.
+
+Redeploy after setting the variables. Until both `EMAIL_INBOX_SECRET` and `EMAIL_INBOX_SENDERS`
+are set, `/api/email-in` answers 404 to everything, including a correct secret.
+
+**What gets through.** A request without the secret is answered 404, the same as a wrong path, so
+a caller guessing at the URL learns nothing. A message from an address that is not on the list,
+one Postmark has marked as spam, or one with neither text nor attachments is answered 200 and
+dropped — 200 rather than an error, so a mail provider does not retry it for hours. Be aware that
+the sender list is a filter, not proof of identity: a `From` header can be forged by anyone who
+learns the address. The address is therefore never published, the secret in the URL is the real
+lock, and no forwarded email ever reaches the itinerary without a parent filing it.
+
+**Where it can be filed.** Tickets & reservations is the default, attached to the whole trip, a
+day or one activity. The other four put it where the family would have put it themselves: a new
+activity on a chosen day, which behaves exactly like an activity typed in by hand and is locked
+when given a time; the Options list, for something with no day yet; the planning board, so
+everyone can vote on it before it gets a day; and the to-do list, for something to do or buy.
+Files that came with the email are always kept in Tickets and attached to whatever was created,
+so a voucher is never separated from the thing it belongs to. Where the email had no attachment,
+only a ticket creates a document — everywhere else the English is already on the activity, idea
+or job itself.
+
+**Limits worth knowing.** Vercel stops a request body at about 4.5 MB, which is the real ceiling
+on an attachment arriving by email — a larger one is rejected by the platform before the app sees
+it. Up to ten attachments are kept per email, each subject to the same type and size rules as any
+ticket upload, and a file that cannot be kept is still named on the email so you know it existed.
+Forty emails can wait in the inbox at once; the oldest fall off after that. The English reading
+runs when a parent opens the inbox, not when the email lands, because a mail provider allows a
+webhook seconds and a careful translation takes longer than that — so an email nobody has opened
+is still in its original language, and one that is opened with no Anthropic key set stays that way.
 
 No Google API key is required for the embedded My Map or outbound directions. Google Places/Routes integration and Timeline import are **not implemented in this first build**. App buttons currently use official website/download pages, not undocumented native deep links. Automatic push reminders are also not implemented; Calendar and a user-installed Shortcut are the available reminder methods.
 
