@@ -3939,9 +3939,13 @@ test('the origami diagrams are folded rather than drawn, so they cannot disagree
  const folded=o.foldLayers([o.PAPER],[0,50],[100,50],o.sideOf([50,10],[0,50],[100,50]));
  assert.equal(folded.length,2);
  for(const layer of folded)assert.ok(layer.every(([,y])=>y>=49.999),'both layers end up on the same side');
- // Turning it over is a mirror — a fold made on the back lands in the mirrored place, and a
- // diagram that forgot that would teach the wrong crease.
- assert.deepEqual(o.flipLayers([[[10,20]]]),[[[90,20]]]);
+ // Turning it over is a mirror about the PAPER, so it stays where it was rather than jumping
+ // across the card — and the stack reverses, because what was the back is now the front.
+ const over=o.flipLayers([[[10,20],[30,20],[30,40]],[[12,22],[28,22],[28,38]]]);
+ assert.deepEqual(o.boundsOf(over),o.boundsOf([[[10,20],[30,20],[30,40]],[[12,22],[28,22],[28,38]]]),
+  'it does not move');
+ assert.deepEqual(over[0][0],[28,22],'the layer that was underneath is on top now');
+ assert.deepEqual(o.flipLayers(o.flipLayers(over)),over,'and twice is where you started');
  // A rotation is re-fitted, or the step that needs looking at hardest walks off the card.
  const spun=o.fitLayers(o.rotateLayers([o.PAPER],37));
  const b=o.boundsOf(spun);
@@ -3970,9 +3974,11 @@ test('every origami model folds all the way to something, with a sentence at eac
    assert.ok(step.say&&step.say.trim().length>20,`a step of ${model.id} says too little: ${step.say}`);
    assert.ok(/[.!?]$/.test(step.say.trim()));
    assert.ok(step.layers.length,`a step of ${model.id} has no paper left`);
-   // Every picture stays inside the frame — nothing is drawn off the edge of the card.
+   // The picture is framed on the paper rather than on the sheet it started as, so a horn
+   // sticking out past the top is fine — what is not fine is a coordinate that is not a number.
    const b=boundsOf(step.layers);
-   assert.ok(b.minX>=-0.01&&b.maxX<=100.01&&b.minY>=-0.01&&b.maxY<=100.01,`${model.id} runs off the card`);
+   for(const n of [b.minX,b.maxX,b.minY,b.maxY])assert.ok(Number.isFinite(n),`${model.id} has a coordinate that is not a number`);
+   assert.ok(b.maxX-b.minX>5&&b.maxY-b.minY>5,`${model.id} folds away to nothing at step ${step.index}`);
   }
   // Each fold really folds: the paper after it is not the paper before it.
   for(const step of model.steps){
@@ -3992,6 +3998,61 @@ test('every origami model folds all the way to something, with a sentence at eac
  // no brim, and the diagram would quietly stop matching the words.
  const [[x0],[x1]]=[hat.paper[0],hat.paper[1]];
  assert.ok(Math.abs(x1-x0)<Math.abs(hat.paper[2][1]-hat.paper[1][1]),'the hat starts from a tall sheet');
+});
+
+test('a fold can take the front flap only, which is what a cup and a helmet are made of',async()=>{
+ const o=await import('../src/origami-data.js');
+ // Point in polygon, which is how a fold says WHICH flap it means. "The front one" cannot:
+ // once you have folded one horn up, the front layer is that horn.
+ const square=[[0,0],[10,0],[10,10],[0,10]];
+ assert.ok(o.insidePoly(square,[5,5]));
+ assert.ok(!o.insidePoly(square,[15,5]));
+ assert.ok(!o.insidePoly(square,[5,-1]));
+ // A stack of two, folded along the middle. All of it, or only the top, or only the bottom.
+ const stack=[[[0,0],[10,0],[10,10],[0,10]],[[0,0],[10,0],[10,10],[0,10]]];
+ const line=[[0,5],[10,5]],move=o.sideOf([5,0],line[0],line[1]);
+ assert.equal(o.foldLayers(stack,line[0],line[1],move).length,4,'both sheets fold');
+ const front=o.foldLayers(stack,line[0],line[1],move,'front');
+ assert.equal(front.length,3,'one sheet stays whole, the other becomes two');
+ const back=o.foldLayers(stack,line[0],line[1],move,'back');
+ assert.equal(back.length,3);
+ // The fold lands on TOP of the stack, because that is where a folded flap goes.
+ assert.ok(front.at(-1).every(([,y])=>y>=4.999));
+ // 'all' is a string, and 'all'.at is String.prototype.at — a function, not a point. Reaching
+ // into it without checking threw on every model.
+ assert.doesNotThrow(()=>o.foldLayers(stack,line[0],line[1],move,'all'));
+ assert.doesNotThrow(()=>o.foldLayers(stack,line[0],line[1],move));
+ // Naming the flap by a point in it: the topmost layer containing that point moves, and only it.
+ const two=[[[0,0],[10,0],[10,10],[0,10]],[[0,0],[4,0],[4,4],[0,4]]];
+ const named=o.foldLayers(two,line[0],line[1],move,{at:[2,2]});
+ assert.equal(named.length,2,'the small flap moved whole, and the big sheet was left alone');
+ assert.deepEqual(named[0],two[0],'untouched, not even cut');
+ assert.ok(named[1].every(([,y])=>y>=4.999),'and it landed on the other side of the crease');
+ // A point in no layer at all folds nothing, rather than folding something at random.
+ assert.deepEqual(o.foldLayers(two,line[0],line[1],move,{at:[99,99]}),two);
+ // Folding a stack over reverses it — what was underneath ends up on top. A diagram that got
+ // that backwards would put the next front flap in the wrong place.
+ const marked=[[[0,0],[10,0],[10,10],[0,10]],[[1,0],[9,0],[9,9],[1,9]]];
+ const flipped=o.foldLayers(marked,line[0],line[1],move);
+ const width=layer=>Math.max(...layer.map(([x])=>x))-Math.min(...layer.map(([x])=>x));
+ assert.equal(width(flipped.at(-1)),10,'the outer sheet, which was underneath, is on top now');
+ assert.equal(width(flipped.at(-2)),8,'and the inner one is under it');
+ // Every model's single-flap folds actually pick something out: if a fold changes nothing the
+ // step is a lie, and that is already asserted for each model.
+ const helmet=o.modelById('helmet');
+ assert.ok(helmet.steps.some(s=>s.fold&&s.fold.only),'the helmet needs single-flap folds');
+ assert.ok(o.modelById('cup').steps.some(s=>s.fold&&s.fold.only==='front'||s.fold?.only?.at));
+});
+
+test('the origami diagram is framed on the paper, not on the sheet it started as',async()=>{
+ const source=await readFile(new URL('../src/Origami.jsx',import.meta.url),'utf8');
+ // By the eighth fold a fixed frame is showing a postage stamp in the middle of an empty card.
+ assert.match(source,/const paper=boundsOf\(layers\)/);
+ assert.match(source,/viewBox=\{`\$\{view\.x\} \$\{view\.y\} \$\{view\.size\} \$\{view\.size\}`\}/);
+ // Squared off, so a fold that looks like forty-five degrees is forty-five degrees.
+ assert.match(source,/size:Math\.max\(paper\.maxX-paper\.minX,paper\.maxY-paper\.minY\)/);
+ // Every stroke scales with the frame, or the lines get fat as it zooms in.
+ for(const stroke of ['0.8\\*ink','1.1\\*ink','1.4\\*ink'])assert.match(source,new RegExp(stroke));
 });
 
 test('the boys’ spending money: what went in, what went out, and what is left',async()=>{
