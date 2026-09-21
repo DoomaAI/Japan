@@ -3283,7 +3283,7 @@ test('a spot-the-difference score is one the server will actually take',async()=
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:(OFFLINE|'[^']+'),Component:(\w+)/g)];
- assert.equal(entries.length,17);
+ assert.equal(entries.length,18);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -3310,7 +3310,7 @@ test('a game that really is Japanese says so, and one that only looks it says no
  // The ones that are genuinely Japanese games, and nothing else. Sumo stable and Onigiri to
  // Fuji are games about Japan, which is a different claim and is not made.
  assert.deepEqual(entries.filter(g=>g.origin==='traditional').map(g=>g.id).sort(),
-  ['daruma','fukuwarai','janken','karuta','origami','sumo']);
+  ['daruma','fukuwarai','janken','karuta','origami','shiritori','sumo']);
  assert.deepEqual(entries.filter(g=>g.origin==='modern').map(g=>g.id),['shogi']);
  for(const g of entries.filter(g=>g.origin))
   assert.ok(g.ja,`${g.title} claims to be Japanese, so it must say what it is called in Japanese`);
@@ -3320,6 +3320,79 @@ test('a game that really is Japanese says so, and one that only looks it says no
  assert.match(source,/const ORIGINS=\{\n traditional:.*\n modern:.*\n\};/);
  for(const g of entries.filter(g=>g.origin))
   assert.match(source,new RegExp(`id:'${g.id}'[\\s\\S]{0,600}?story:'`),`${g.title} must say why`);
+});
+
+test('shiritori takes the last sound of a word, and a word ending in n loses',async()=>{
+ const S=await import('../src/shiritori-data.js');
+ // The rules are about sound, not spelling, and that is where every edge case lives.
+ assert.equal(S.tailOf('カレー'),'れ','the long mark is a held vowel, not a letter');
+ assert.equal(S.headOf('カレー'),'か','and katakana is the same sound as hiragana');
+ assert.equal(S.tailOf('じんじゃ'),'や','a small kana counts as its big one');
+ assert.equal(S.tailOf('しっぽ'),'ほ','and so does a dakuten');
+ assert.equal(S.headOf('ぞう'),'そ','which is how children play it: か and が are one letter');
+ assert.equal(S.tailOf('ラーメン'),'ん');
+ assert.ok(S.losesOn('ラーメン')&&S.losesOn('ほん')&&!S.losesOn('すし'));
+ assert.ok(S.follows(S.wordById('りんご'),S.OPENER),'the chain opens on the word shiritori itself');
+ assert.equal(S.OPENER.tail,'り');
+ // Every word is a real entry, and none of them is a dead end: a word whose last sound
+ // nothing else starts with strangles the game on the turn it is played. This was measured
+ // and it was true of thirteen words before the list was fixed.
+ for(const w of S.WORDS)assert.ok(w.ja&&w.romaji&&w.en&&w.icon&&w.head&&w.tail,`${w.ja} is incomplete`);
+ assert.equal(new Set(S.WORDS.map(w=>w.id)).size,S.WORDS.length,'no word appears twice');
+ const stuck=S.WORDS.filter(w=>!w.dead&&S.startingWith(w.tail).filter(x=>x.id!==w.id).length===0);
+ assert.deepEqual(stuck.map(w=>w.ja),[],'every word must have somewhere to go');
+ assert.ok(S.WORDS.filter(w=>w.dead).length>=8,'there must be enough traps to be worth avoiding');
+ // What is on offer always contains something playable, and only the harder level lays traps.
+ const rng=seed=>{let n=seed>>>0||1;return()=>{n^=n<<13;n>>>=0;n^=n>>17;n^=n<<5;n>>>=0;return n/4294967296;};};
+ for(const level of S.LEVELS){
+  for(let s=1;s<=40;s++){
+   const opts=S.optionsFor({used:[S.OPENER.id],letter:S.OPENER.tail,level:level.id,rand:rng(s*31)});
+   assert.equal(opts.length,level.choices,`${level.id} must offer ${level.choices}`);
+   assert.ok(opts.some(o=>o.head===S.OPENER.tail),`${level.id} must always offer a real answer`);
+   assert.equal(new Set(opts.map(o=>o.id)).size,opts.length,'and never the same word twice');
+   if(!level.traps)assert.ok(!opts.some(o=>o.head===S.OPENER.tail&&o.dead),
+    'nothing a five-year-old can legally pick may lose the game for him');
+  }
+ }
+ // And that holds everywhere, not just on the opening letter. Sweep every letter, with the
+ // pool worn down to the point where the only word that fits is a trap — which is exactly the
+ // position a real game walks into, and where this first got it wrong.
+ for(const letter of new Set(S.WORDS.map(w=>w.head))){
+  const here=S.WORDS.filter(w=>w.head===letter);
+  const used=here.filter(w=>!w.dead).map(w=>w.id);
+  const left=S.optionsFor({used,letter,level:'pictures',rand:rng(5)});
+  assert.ok(!left.some(o=>o.head===letter&&o.dead),
+   `on ${letter} with the safe words gone, pictures offered a losing card`);
+  if(here.some(w=>w.dead))assert.ok(S.optionsFor({used,letter,level:'words',rand:rng(5)}).length,
+   `on ${letter} the harder level should still offer the trap`);
+ }
+ // He plays to win, so he never walks into the trap himself; when he has nothing he says so.
+ for(let s=1;s<=60;s++){
+  const his=S.phoneReply({used:[S.OPENER.id],letter:S.OPENER.tail,rand:rng(s*17)});
+  assert.ok(his&&!his.dead&&his.head===S.OPENER.tail);
+ }
+ assert.equal(S.phoneReply({used:S.WORDS.map(w=>w.id),letter:'り',rand:rng(1)}),null,'and running out is how you beat him');
+ // A whole game, played out with no screen. The chain has to be long enough to be a game:
+ // before the list was fixed this averaged four words and every run died on the same letter.
+ const play=seed=>{
+  const rand=rng(seed);
+  let used=[S.OPENER.id],letter=S.OPENER.tail,chain=1;
+  for(let turn=0;turn<300;turn++){
+   const good=S.optionsFor({used,letter,level:'words',rand}).filter(o=>o.head===letter&&!o.dead);
+   if(!good.length)break;
+   used.push(good[0].id);chain++;letter=good[0].tail;
+   const his=S.phoneReply({used,letter,rand});
+   if(!his)break;
+   used.push(his.id);chain++;letter=his.tail;
+  }
+  return chain;
+ };
+ const runs=[...Array(40)].map((_,i)=>play((i+1)*7919));
+ const average=runs.reduce((a,b)=>a+b,0)/runs.length;
+ assert.ok(average>15,`a game averages ${average.toFixed(1)} words, which is too short to be one`);
+ assert.ok(Math.min(...runs)>=8,`the worst game is ${Math.min(...runs)} words`);
+ assert.ok(S.shiritoriScore('words',20)>S.shiritoriScore('pictures',20),'the harder level pays more');
+ assert.ok(S.shiritoriScore('words',400)<=9999);
 });
 
 test('every page and every game can be heard rather than read, in words a five-year-old follows',async()=>{
