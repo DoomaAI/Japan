@@ -3406,7 +3406,7 @@ test('a spot-the-difference score is one the server will actually take',async()=
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:(OFFLINE|'[^']+'),Component:(\w+)/g)];
- assert.equal(entries.length,22);
+ assert.equal(entries.length,23);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -3433,7 +3433,7 @@ test('a game that really is Japanese says so, and one that only looks it says no
  // The ones that are genuinely Japanese games, and nothing else. Sumo stable and Onigiri to
  // Fuji are games about Japan, which is a different claim and is not made.
  assert.deepEqual(entries.filter(g=>g.origin==='traditional').map(g=>g.id).sort(),
-  ['daruma','fukuwarai','gomoku','janken','karuta','kendama','kingyo','origami','shiritori','sumo']);
+  ['beigoma','daruma','fukuwarai','gomoku','janken','karuta','kendama','kingyo','origami','shiritori','sumo']);
  assert.deepEqual(entries.filter(g=>g.origin==='modern').map(g=>g.id).sort(),['picross','shogi']);
  for(const g of entries.filter(g=>g.origin))
   assert.ok(g.ja,`${g.title} claims to be Japanese, so it must say what it is called in Japanese`);
@@ -3443,6 +3443,62 @@ test('a game that really is Japanese says so, and one that only looks it says no
  assert.match(source,/const ORIGINS=\{\n traditional:.*\n modern:.*\n\};/);
  for(const g of entries.filter(g=>g.origin))
   assert.match(source,new RegExp(`id:'${g.id}'[\\s\\S]{0,600}?story:'`),`${g.title} must say why`);
+});
+
+test('beigoma is decided by the throw, and each top is good at something different',async()=>{
+ const B=await import('../src/beigoma.js');
+ assert.deepEqual(B.TOPS.map(t=>t.id),['omo','nami','karu']);
+ assert.deepEqual(B.RIVALS.map(r=>r.id),['first','second','third','fourth','fifth']);
+ for(const t of B.TOPS)assert.ok(t.ja&&t.romaji&&t.en&&t.how&&t.mass>0&&t.r>0);
+ for(let i=1;i<B.RIVALS.length;i++)
+  assert.ok(B.RIVALS[i].skill>=B.RIVALS[i-1].skill&&B.RIVALS[i].pays>B.RIVALS[i-1].pays,
+   'the ladder must get harder and pay more');
+ // The trade every child works out with a file: weight decides who survives being hit, and the
+ // filed edge decides who does the hitting. Neither top may be better at both.
+ const heavy=B.topById('omo'),light=B.topById('karu');
+ assert.ok(heavy.mass>light.mass&&heavy.decay<light.decay,'heavy must outlast');
+ assert.ok(light.push>heavy.push&&light.speed>heavy.speed,'and light must hit and move');
+ const play=(mine,ri,angle,power,seed)=>{
+  const rand=B.rng(seed);
+  let bout=B.newBout({mine,theirs:B.rivalAt(ri),angle,power,rand});
+  let guard=0;
+  while(!bout.over&&guard++<5000)bout=B.beigomaTick(bout,rand);
+  return bout;
+ };
+ const rate=(mine,ri,power,n=40)=>{
+  let won=0;
+  for(let s=1;s<=n;s++)if(play(mine,ri,(s%13)/13*Math.PI*2,power,s*7919).over.won)won++;
+  return won/n;
+ };
+ // Every bout ends, and it ends one of the ways it is allowed to.
+ const ways=new Set();
+ for(const mine of B.TOPS.map(t=>t.id))for(let ri=0;ri<B.RIVALS.length;ri++)
+  for(let s=1;s<=6;s++){
+   const bout=play(mine,ri,(s%7)/7*Math.PI*2,0.8,s*31);
+   assert.ok(bout.over,`${mine} v ${ri} never finished`);
+   ways.add(bout.over.how);
+  }
+ for(const how of ways)assert.ok(['knocked','stopped','knockedOut','ranDown','timeout'].includes(how),how);
+ // Both ways of winning have to be live, or it is a game about one number.
+ assert.ok(ways.has('knocked')||ways.has('knockedOut'),'knocking one out must happen');
+ assert.ok(ways.has('stopped')||ways.has('ranDown'),'and running one down must happen');
+ // The throw is the whole skill, so it has to be worth far more than anything else.
+ for(const mine of B.TOPS.map(t=>t.id))
+  assert.ok(rate(mine,1,1)>rate(mine,1,0.4)+0.3,
+   `${mine}: a good throw must be worth much more than a poor one`);
+ // The ladder really is a ladder, measured rather than asserted.
+ assert.ok(rate('omo',0,1)>rate('omo',4,1)+0.2,'the champion must be harder than the little one');
+ // And each top has somewhere it is the right choice. The plain one walls against the filed
+ // rivals, which is the honest answer: you have to file yours to beat the boys who filed theirs.
+ assert.ok(rate('karu',0,1)>0.5,'light must beat the little one');
+ assert.ok(rate('omo',4,1)>rate('nami',4,1),'heavy must do better against the champion than plain');
+ assert.ok(rate('karu',4,1)>0,'and light must keep a puncher’s chance');
+ // Nothing escapes the ring while it is still in play, and a finished bout stays finished.
+ const done=play('omo',0,0.7,1,99);
+ assert.equal(B.beigomaTick(done,B.rng(1)),done,'a finished bout does not carry on');
+ assert.ok(B.beigomaWorth(B.rivalAt(4),50)>B.beigomaWorth(B.rivalAt(0),50),'a better rival pays more');
+ assert.ok(B.beigomaWorth(B.rivalAt(2),80)>B.beigomaWorth(B.rivalAt(2),0),'and so does finishing with spin left');
+ assert.ok(B.beigomaWorth(B.rivalAt(4),9999)<=9999);
 });
 
 test('kendama wants the pull and the catch both right, and gets harder in the order it is learned',async()=>{
