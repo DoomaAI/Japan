@@ -2293,31 +2293,20 @@ test('the stable promotes on a match, and a bout can be lost by anyone',async()=
   }
 });
 
-test('the silent nudge fires once, inside a tap, and never claims more than it did',async()=>{
- const {nudgeOffAmbient,resetNudge}=await import('../src/speech.js');
- resetNudge();
- const played=[];
- const make=()=>{const el={volume:1,play(){played.push(this.volume);return Promise.resolve();}};return el;};
- assert.equal(nudgeOffAmbient(make),true);
- assert.equal(played.length,1,'a moment of silence, once');
- assert.ok(played[0]<=0.01,'and inaudible');
- assert.equal(nudgeOffAmbient(make),false,'never again in this session');
- assert.equal(played.length,1);
- // A phone with no Audio at all, and one that refuses to play, are both survivable.
- resetNudge();assert.equal(nudgeOffAmbient(null),false);
- resetNudge();assert.equal(nudgeOffAmbient(()=>{throw new Error('blocked');}),false);
- resetNudge();
- assert.equal(nudgeOffAmbient(()=>({volume:1,play(){return Promise.reject(new Error('gesture required'));}})),true,
-  'a rejected play is handled rather than thrown');
-});
-
-test('the session is claimed at the start, not before every phrase',async()=>{
+test('the session is claimed on the first touch, and never flipped after that',async()=>{
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const speech=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
- // Set once, early. Flipping the type part-way through is what makes iOS play nothing.
- assert.match(main,/useEffect\(\(\)=>\{claimPlayback\(\);\},\[\]\)/,'claimed once when the app starts');
- assert.doesNotMatch(speech,/claimPlayback\(\)/,'and never again from inside the speaking path');
- assert.match(speech,/nudgeOffAmbient\(\)/,'the older-iPhone nudge still runs inside the tap');
+ // iOS ignores a session claimed before anybody has touched the page, so the claim is armed
+ // at startup and spent on the first gesture rather than at load.
+ assert.match(main,/useEffect\(\(\)=>\{armPlayback\(\);\},\[\]\)/,'armed once when the app starts');
+ assert.doesNotMatch(main,/claimPlayback\(\)/,'main does not claim it directly any more');
+ // The invariant that has not changed: the type is never set from inside the speaking path.
+ // Flipping it part-way through is what makes iOS play nothing at all.
+ assert.doesNotMatch(speech,/claimPlayback\(/,'never claimed from inside the speaking path');
+ // What runs inside the tap now is the hold, and every hold is matched by a release.
+ assert.match(speech,/holdPlayback\(\)/,'the session is held while the phone is talking');
+ assert.match(speech,/releasePlayback\(\)/,'and let go afterwards');
+ assert.doesNotMatch(speech,/nudgeOffAmbient/,'the one-shot nudge held nothing and is gone');
 });
 
 test('the advice matches what the phone actually did, not what we assume',async()=>{
@@ -2328,6 +2317,13 @@ test('the advice matches what the phone actually did, not what we assume',async(
  // Nothing started, in the browser: the synthesiser is wedged from being in the background.
  assert.equal(silenceAdvice({started:false,standalone:false}),'never-started');
  assert.match(SILENCE_HELP['never-started'],/background/);
+ // The answer only this test can give: it plays a recording and will not speak for itself.
+ assert.equal(silenceAdvice({started:false,standalone:true,tone:'played'}),'record-instead');
+ assert.equal(silenceAdvice({started:false,standalone:false,tone:'played'}),'record-instead');
+ assert.match(SILENCE_HELP['record-instead'],/iPad/,'and names the device that will do it');
+ assert.match(SILENCE_HELP['record-instead'],/no setting on it will change that/,'without blaming the switch again');
+ // A recording that would not play says nothing new, so the older advice still stands.
+ assert.equal(silenceAdvice({started:false,standalone:true,tone:'the phone would not allow it'}),'standalone');
  // It did start, so the sound is being blocked on its way out.
  assert.equal(silenceAdvice({started:true,standalone:true}),'muted');
  assert.equal(silenceAdvice({started:true,standalone:false}),'muted');
@@ -3057,6 +3053,131 @@ test('the two boards say which squares are empty, and both ladders are laid out 
  // Every number on a games screen goes through the one figures block rather than being
  // written into a sentence, so they line up instead of wrapping.
  assert.ok([...source.matchAll(/<Stats /g)].length>=2);
+});
+
+test('the app can build the two sounds it needs without shipping a file',async()=>{
+ const {wavDataUri,silenceUri,toneUri}=await import('../src/speech.js');
+ const decode=uri=>{
+  assert.match(uri,/^data:audio\/wav;base64,/);
+  return Buffer.from(uri.slice(uri.indexOf(',')+1),'base64');
+ };
+ const wav=decode(silenceUri(1,8000));
+ // A real WAV header, or a phone will not play it — which is the whole point of the thing.
+ assert.equal(wav.slice(0,4).toString('ascii'),'RIFF');
+ assert.equal(wav.slice(8,12).toString('ascii'),'WAVE');
+ assert.equal(wav.slice(12,16).toString('ascii'),'fmt ');
+ assert.equal(wav.slice(36,40).toString('ascii'),'data');
+ assert.equal(wav.readUInt16LE(20),1,'PCM');
+ assert.equal(wav.readUInt16LE(22),1,'mono');
+ assert.equal(wav.readUInt32LE(24),8000);
+ assert.equal(wav.readUInt16LE(34),16,'16-bit');
+ assert.equal(wav.readUInt32LE(40),8000*2,'a second of it');
+ assert.equal(wav.length,44+8000*2);
+ assert.equal(wav.readUInt32LE(4),36+8000*2,'the size in the header matches the file');
+ // Silence really is silent, and the beep really is not — a beep you cannot hear answers
+ // nothing when someone is trying to find out whether their phone makes a sound.
+ const loudest=buffer=>{let peak=0;for(let i=44;i<buffer.length;i+=2)peak=Math.max(peak,Math.abs(buffer.readInt16LE(i)));return peak;};
+ assert.equal(loudest(wav),0);
+ assert.ok(loudest(decode(toneUri()))>8000);
+ // It fades in rather than starting square, because a click is not an answer either.
+ const tone=decode(toneUri());
+ assert.ok(Math.abs(tone.readInt16LE(44))<1500,'starts quietly');
+ assert.equal(wavDataUri(new Float32Array(0),8000).length>40,true);
+});
+
+test('the playback session is held for as long as there is something to say',async()=>{
+ const {holdPlayback,releasePlayback,playbackHeld,resetHold,armPlayback,resetArm,resetPlaybackClaim,playbackClaim}=await import('../src/speech.js');
+ resetHold();
+ const made=[];
+ const make=src=>{const el={src,loop:false,plays:0,pauses:0,play(){this.plays++;},pause(){this.pauses++;}};made.push(el);return el;};
+ assert.equal(holdPlayback(make),true);
+ assert.equal(made.length,1);
+ assert.equal(made[0].loop,true,'a one-shot ends before the speaking starts and holds nothing');
+ assert.match(made[0].src,/^data:audio\/wav/);
+ // Two phrases overlapping: the first to finish must not pull the session out from under
+ // the second.
+ holdPlayback(make);
+ assert.equal(made.length,1,'the same element is reused');
+ assert.equal(playbackHeld(),true);
+ releasePlayback();
+ assert.equal(playbackHeld(),true);
+ assert.equal(made[0].pauses,0);
+ releasePlayback();
+ assert.equal(playbackHeld(),false);
+ assert.equal(made[0].pauses,1);
+ // Letting go more often than you took hold cannot drive it negative.
+ releasePlayback();releasePlayback();
+ assert.equal(playbackHeld(),false);
+ // Arming: iOS ignores a session claimed before anyone has touched the page, and will not
+ // play a media element later that was never played inside a gesture. Both happen on the
+ // first touch, once.
+ resetHold();resetArm();resetPlaybackClaim();
+ const listeners={};
+ const session={type:'ambient'};
+ const win={navigator:{audioSession:session},
+  addEventListener:(e,fn)=>{listeners[e]=fn;},
+  removeEventListener:e=>{delete listeners[e];}};
+ assert.equal(armPlayback(win),true);
+ assert.equal(armPlayback(win),false,'armed once, not on every render');
+ assert.deepEqual(Object.keys(listeners).sort(),['pointerdown','touchend']);
+ assert.equal(playbackClaim(),null,'nothing is claimed before anyone touches anything');
+ listeners.pointerdown();
+ assert.equal(session.type,'playback');
+ assert.equal(playbackClaim(),'playback');
+ assert.deepEqual(Object.keys(listeners),[],'and it lets go of the page afterwards');
+ resetHold();resetArm();resetPlaybackClaim();
+});
+
+test('a recorded phrase is the family’s own, one per phrase, described by storage',async()=>{
+ const {checkPhraseClip,addPhraseClip,removePhraseClip,phraseClip,PHRASE_CLIP_SECONDS}=await import('../server/phrase-audio.mjs');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const mum={name:'Lauren',role:'parent',id:'grant-lauren'},dad={name:'Damien',role:'parent',id:'grant-damien'};
+ const good={phraseId:'hello',pathname:'phrases/grant-lauren/a.m4a',seconds:2};
+ assert.deepEqual(checkPhraseClip(good,mum),{phraseId:'hello',pathname:'phrases/grant-lauren/a.m4a',seconds:2});
+ // You cannot write into somebody else's folder, or out of the folder at all.
+ assert.throws(()=>checkPhraseClip(good,dad),/Invalid recording/);
+ assert.throws(()=>checkPhraseClip({...good,pathname:'phrases/grant-lauren/../x.m4a'},mum),/Invalid recording/);
+ assert.throws(()=>checkPhraseClip({...good,pathname:'voice/grant-lauren/a.m4a'},mum),/Invalid recording/);
+ assert.throws(()=>checkPhraseClip({...good,phraseId:''},mum),/Choose a phrase/);
+ assert.throws(()=>checkPhraseClip({...good,seconds:0},mum),/second or two/);
+ assert.throws(()=>checkPhraseClip({...good,seconds:PHRASE_CLIP_SECONDS+1},mum),/second or two/);
+ const blob={contentType:'audio/mp4',size:9000};
+ let state=ensureFeatures(structuredClone(seed));
+ state=addPhraseClip(state,checkPhraseClip(good,mum),mum,blob,'2026-09-22T01:00:00.000Z');
+ const kept=phraseClip(state,'hello');
+ assert.equal(kept.by,'Lauren');
+ assert.equal(kept.type,'audio/mp4','the file is described by storage, not by the phone');
+ assert.equal(kept.size,9000);
+ assert.equal(kept.seconds,2);
+ // Saving the very same recording twice is the same recording.
+ assert.equal(addPhraseClip(state,checkPhraseClip(good,mum),mum,blob),state);
+ // Recording it again replaces it — this is a reference pronunciation, not a conversation,
+ // and two of them only raise the question of which one is right.
+ const again={phraseId:'hello',pathname:'phrases/grant-lauren/b.m4a',seconds:3};
+ const redone=addPhraseClip(state,checkPhraseClip(again,mum),mum,blob);
+ assert.equal(Object.keys(redone.phraseAudio).length,1);
+ assert.equal(phraseClip(redone,'hello').pathname,'phrases/grant-lauren/b.m4a');
+ assert.equal(phraseClip(redone,'hello').replaced,'phrases/grant-lauren/a.m4a');
+ // A file storage says is not audio is refused however it was uploaded.
+ assert.throws(()=>addPhraseClip(state,checkPhraseClip({...good,phraseId:'bye'},mum),mum,{contentType:'text/html',size:20}),/./);
+ // Removing it puts the phrase back to the phone saying it itself.
+ assert.equal(phraseClip(removePhraseClip(redone,'hello'),'hello'),null);
+ assert.throws(()=>removePhraseClip(redone,'nothing-here'),/no recording/i);
+ // Nothing else in the trip is disturbed by any of it.
+ assert.equal(redone.steps,state.steps);
+});
+
+test('the sound check reports the recording and the speaking apart',async()=>{
+ const {soundCheckLines}=await import('../src/speech.js');
+ const read=facts=>Object.fromEntries(soundCheckLines(facts));
+ assert.equal(read({}) ['A recording played'],'not tested');
+ assert.match(read({tone:'played'})['A recording played'],/yes — so recorded phrases will be heard/);
+ assert.match(read({tone:'the phone would not allow it'})['A recording played'],/^no — the phone would not allow it/);
+ // The two questions stay apart: a phone that plays a recording but will not speak is the
+ // exact case the recordings exist for, and the report has to be able to say so.
+ const both=read({tone:'played',started:false,supported:true,voices:[]});
+ assert.match(both['A recording played'],/yes/);
+ assert.match(both['It started speaking'],/no/);
 });
 
 test('we call the bouts from one phone, and the picks close once it has been watched',async()=>{

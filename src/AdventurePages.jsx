@@ -3,12 +3,12 @@ import {Volume2,Square,SkipForward,RotateCcw,Sparkles} from 'lucide-react';
 import MissionArt from './MissionArt.jsx';
 import {BOYS,yenPerAud,yenToAud} from './trip-features.js';
 import {japanClock,japanDate} from './timing.js';
-import {matchVoice,speechRate,needsSettle,isRealFailure,warmUp,nudgeOffAmbient,isStandalone,wakeSpeech,silenceAdvice,SILENCE_HELP} from './speech.js';
+import {matchVoice,speechRate,needsSettle,isRealFailure,warmUp,holdPlayback,releasePlayback,isStandalone,wakeSpeech,silenceAdvice,SILENCE_HELP} from './speech.js';
 export const dayLabel=d=>d?new Intl.DateTimeFormat('en-AU',{day:'numeric',month:'short',weekday:'short',timeZone:'Asia/Tokyo'}).format(new Date(d+'T12:00:00+09:00')):'Whole trip';
 export function DaySelect({state,value,onChange,name,allowAll=false}){return <select name={name} value={value} onChange={onChange}><option value="">{allowAll?'Whole trip':'Unscheduled'}</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select>;}
 // Reads a mission aloud, so Nate can follow his own missions before he can read them.
 // Uses the browser's own speech; nothing is sent anywhere and it needs no connection.
-export const SILENT_HINT='No sound? Headphones always work, silent switch or not. Otherwise flick the iPhone\u2019s side switch off silent and turn the volume up.';
+export const SILENT_HINT='No sound? Headphones always work, silent switch or not, and so does a phrase somebody has recorded. Otherwise flick the iPhone\u2019s side switch off silent and turn the volume up.';
 export function useReadAloud(){
  const supported=typeof window!=='undefined'&&'speechSynthesis'in window&&'SpeechSynthesisUtterance'in window;
  const [reading,setReading]=useState(''),[problem,setProblem]=useState('');
@@ -36,20 +36,26 @@ export function useReadAloud(){
    // Name the voice as well as the language: left to itself a phone will happily read
    // Japanese with an English voice.
    try{const voice=matchVoice(synth.getVoices(),lang);if(voice)say.voice=voice;}catch{}
-   const done=()=>setReading(now=>now===id?'':now);
+   // Released exactly once however this ends — finished, failed, or never started — because
+   // a hold that is never let go keeps a silent loop running for the rest of the day.
+   let holding=true;
+   const done=()=>{if(holding){holding=false;releasePlayback();}setReading(now=>now===id?'':now);};
    say.onend=done;
    say.onerror=e=>{done();if(isRealFailure(e?.error))setProblem(SILENCE_HELP[silenceAdvice({started:false,standalone:isStandalone()})]);};
    setReading(id);
    // Safari can leave the engine paused after a cancel, and then says nothing at all.
    try{synth.resume();}catch{}
-   // The audio session was claimed once when the app started — changing it here, mid
-   // session, is what stops iOS playing anything. Spend the first utterance the phone
-   // ignores on something nobody needed to hear.
-   nudgeOffAmbient();
+   // Hold the page in the playback audio category for as long as the phone is talking. The
+   // session is only honoured while something is really playing, so this is a second of
+   // silence on a loop rather than a one-shot that is over before the speaking begins.
+   holdPlayback();
    warmUp(synth,window.SpeechSynthesisUtterance);
    synth.speak(say);
    // If it never even starts, the phone is not going to explain why. We can.
    timer.current=setTimeout(()=>{if(!synth.speaking&&!synth.pending){done();setProblem(SILENCE_HELP[silenceAdvice({started:false,standalone:isStandalone()})]);}},1500);
+   // And if it starts but never ends — which iOS does after a spell in the background — let
+   // the session go anyway rather than looping silence indefinitely.
+   setTimeout(done,60000);
   };
   // Speaking straight after a cancel in the same breath is the classic way to get silence
   // out of Safari, so when something was already talking, let the engine settle first.
