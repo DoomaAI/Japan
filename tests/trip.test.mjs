@@ -953,6 +953,142 @@ test('marking the daily phrase seen is per person, per day, and keeps the first 
  assert.throws(()=>applyOperation(state,{type:'phraseSeen',person:'Grandma',day},parent),/family member/);
 });
 
+test('a fun fact a day, tied to the guide page for what is actually coming up',async()=>{
+ const {FACTS,ALL_FACTS,ANYTIME_FACTS,findFact,factsForDay,factForDay,orderedFacts}=await import('../src/fact-data.js');
+ const all=ALL_FACTS();
+ assert.equal(new Set(all.map(f=>f.id)).size,all.length,'fact ids must be unique');
+ assert.ok(all.every(f=>f.title&&f.text&&f.icon),'every fact has a headline, a fact and a picture');
+ assert.ok(all.every(f=>f.page>=1&&f.page<=72),'every fact names a real guide page');
+ // A fact belongs to a day through the guide page it came from. Anything the guide's opening
+ // pages carry belongs to no single day and fills in behind whatever the day has of its own.
+ const dayPages=new Set(seed.days.flatMap(d=>d.pages||[]));
+ for(const f of all)assert.equal(dayPages.has(f.page),!f.anytime,`${f.id} is on the wrong side of the day split`);
+ assert.ok(ANYTIME_FACTS().length>=15,'enough facts that fit any day');
+ // Every one of the sixteen days has its own facts, and no fact lands on two days.
+ const landed=[];
+ for(const d of seed.days){
+  const todays=factsForDay(seed.days,d.date);
+  assert.ok(todays.length>=3,`${d.date} needs facts of its own`);
+  assert.equal(factForDay(seed.days,d.date),todays[0],'the day opens on its first fact');
+  landed.push(...todays.map(f=>f.id));
+ }
+ assert.equal(new Set(landed).size,landed.length,'a fact belongs to one day only');
+ // The ones that matter are the ones about what is coming up: sumo on sumo day, the lucky
+ // cats on the morning we go and find them.
+ assert.equal(factForDay(seed.days,'2026-09-23').id,'sumo-old');
+ assert.equal(factForDay(seed.days,'2026-10-06').id,'maneki-neko');
+ assert.equal(factForDay(seed.days,'2099-01-01'),null,'a day off the trip gets nothing of its own');
+ // "One more" works through the day's own facts first, then the anytime ones, then the rest,
+ // and it offers the whole collection exactly once.
+ const ordered=orderedFacts(seed.days,'2026-09-23');
+ assert.equal(ordered.length,all.length);
+ assert.equal(new Set(ordered.map(f=>f.id)).size,all.length);
+ assert.deepEqual(ordered.slice(0,6).map(f=>f.id),factsForDay(seed.days,'2026-09-23').map(f=>f.id));
+ assert.ok(ordered[6].anytime,'the anytime facts come next');
+ assert.deepEqual(orderedFacts(seed.days,'2099-01-01').map(f=>f.id).slice(0,ANYTIME_FACTS().length),ANYTIME_FACTS().map(f=>f.id));
+ for(const f of FACTS)assert.equal(findFact(f.id),f);
+ assert.equal(findFact('nonsense'),null);
+});
+
+test('marking the daily fun fact seen is per person, per day, and keeps the first time',async()=>{
+ const {ensureFeatures,factSeenBy}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const day=seed.days[0].date,at='2026-09-19T01:00:00.000Z';
+ const seen=applyOperation(state,{type:'factSeen',person:'Nate',day,at},child);
+ assert.equal(factSeenBy(seen,day).Nate,at);
+ const again=applyOperation(seen,{type:'factSeen',person:'Nate',day,at:'2026-09-19T09:00:00.000Z'},child);
+ assert.equal(factSeenBy(again,day).Nate,at);
+ assert.equal(factSeenBy(again,day).Damien,undefined);
+ const both=applyOperation(again,{type:'factSeen',person:'Damien',day},parent);
+ assert.ok(both.factSeen[day].Damien);
+ // You tick your own, on a real trip day, for a real member of the family.
+ assert.throws(()=>applyOperation(state,{type:'factSeen',person:'Damien',day},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'factSeen',person:'Nate',day:'2099-01-01'},child),/trip day/);
+ assert.throws(()=>applyOperation(state,{type:'factSeen',person:'Grandma',day},parent),/family member/);
+ assert.throws(()=>applyOperation(state,{type:'factSeen',person:'Nate',day,factIds:['nonsense']},child),e=>e.status===404);
+});
+
+test('the fun fact log records what was swiped through, once each, and never repeats one',async()=>{
+ const {ensureFeatures,factLogFor,factsSeenBy,factQueue}=await import('../src/trip-features.js');
+ const {ALL_FACTS,factsForDay}=await import('../src/fact-data.js');
+ const state=ensureFeatures(structuredClone(seed)),day='2026-09-23',at='2026-09-19T01:00:00.000Z';
+ assert.deepEqual(state.factLog,{});
+ // Opening on sumo day offers the sumo facts first, in the order they are written.
+ const opened=factQueue(state,'Nate',day);
+ assert.equal(opened.length,ALL_FACTS().length);
+ assert.deepEqual(opened.slice(0,3).map(f=>f.id),factsForDay(seed.days,day).slice(0,3).map(f=>f.id));
+ // Closing the pop-up hands back every fact actually put on screen, and marks the day done.
+ const swiped=opened.slice(0,3).map(f=>f.id);
+ const first=applyOperation(state,{type:'factSeen',person:'Nate',day,factIds:swiped,at},child);
+ assert.deepEqual(Object.keys(factsSeenBy(first,'Nate')),swiped);
+ assert.ok(first.factSeen[day].Nate);
+ // Meeting one twice keeps the first time, and one person's log is not another's.
+ const later='2026-09-19T23:30:00.000Z';
+ const again=applyOperation(first,{type:'factSeen',person:'Nate',factIds:[swiped[0],'bins'],at:later},child);
+ assert.equal(factsSeenBy(again,'Nate')[swiped[0]],at,'the first time it was met is kept');
+ assert.equal(factsSeenBy(again,'Nate').bins,later);
+ assert.deepEqual(factsSeenBy(again,'Boston'),{});
+ // Newest first in the log, and the queue never offers back a fact this person has met.
+ assert.equal(factLogFor(again,'Nate')[0].id,'bins');
+ assert.equal(factLogFor(again,'Nate').length,4);
+ assert.deepEqual(factLogFor(again,'Boston'),[]);
+ const next=factQueue(again,'Nate',day);
+ assert.equal(next.length,ALL_FACTS().length-4);
+ assert.ok(!next.some(f=>factsSeenBy(again,'Nate')[f.id]),'nothing already met comes round again');
+ assert.equal(next[0].id,factsForDay(seed.days,day)[3].id,'still the day’s own facts first');
+ // Once the whole collection has been met there is nothing new left, so the pop-up falls
+ // back to the day's own first fact rather than opening onto nothing.
+ const everything=applyOperation(state,{type:'factSeen',person:'Boston',day,factIds:ALL_FACTS().map(f=>f.id),at},{name:'Boston',role:'child'});
+ const exhausted=factQueue(everything,'Boston',day);
+ assert.equal(exhausted.length,1);
+ assert.equal(exhausted[0].id,factsForDay(seed.days,day)[0].id);
+});
+
+test('every fun fact can be read aloud, and Nate gets it slower and first',async()=>{
+ const {ALL_FACTS,factForDay,factAloud}=await import('../src/fact-data.js');
+ const {YOUNG_RATE,SLOW_RATE,speechRate}=await import('../src/speech.js');
+ // The headline then the fact, and never the picture: a phone saying "aeroplane" before the
+ // sentence helps nobody.
+ const sumo=factForDay(seed.days,'2026-09-23');
+ assert.equal(factAloud(sumo),`${sumo.title}. ${sumo.text}`);
+ assert.doesNotMatch(factAloud(sumo),/\p{Extended_Pictographic}/u);
+ // Every fact has to survive being spoken by an English voice at a five-year-old: plain
+ // English all the way through, and short enough to still be listening at the end.
+ for(const f of ALL_FACTS()){
+  const said=factAloud(f);
+  assert.doesNotMatch(said,/\p{Extended_Pictographic}/u,`${f.id} would be read out as a picture`);
+  assert.doesNotMatch(said,/[　-ヿ一-鿿]/,`${f.id} has Japanese an English voice would mangle`);
+  assert.ok(said.length<=360,`${f.id} is too long to be read to a five-year-old`);
+ }
+ // Slower than talking pace for Nate, but still a sentence rather than the phrase drill.
+ assert.ok(YOUNG_RATE<speechRate('en-AU')&&YOUNG_RATE>SLOW_RATE,'a story speed, between talking and the drill');
+ const facts=await readFile(new URL('../src/FunFacts.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // The pop-up and every row on the page both offer it, whoever is holding the phone — a
+ // parent sitting with Nate needs the button as much as he does.
+ assert.equal(facts.match(/<ReadAloudButton/g)?.length,2,'the pop-up and the row both offer it');
+ assert.match(facts,/const \{supported:canRead,reading,read,problem\}=useReadAloud\(\)/,'and it says so when the phone stays silent');
+ assert.match(facts,/what="fact"/);
+ // Nate is the reason it exists, so he gets the slower voice and a button he cannot miss.
+ assert.match(facts,/young=user\?\.name==='Nate'/);
+ assert.match(facts,/rate=\{young\?YOUNG_RATE:undefined\}/);
+ assert.match(facts,/className=\{young\?'young':''\}/);
+ assert.match(main,/<FactOfDay[^>]*young=\{user\.name==='Nate'\}/,'the pop-up is told whose phone it is on');
+ // The missions the button started on keep the wording they had.
+ const adventure=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ assert.match(adventure,/what='mission'/,'missions keep their own label by default');
+});
+
+test('a fun fact ticked off with no signal is kept on the phone and lands when it syncs',async()=>{
+ const {ensureFeatures,pendingProgress,factSeenBy,factsSeenBy}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed)),day='2026-09-27',at='2026-09-19T00:30:00.000Z';
+ const queued=[{operation:{type:'factSeen',person:'Nate',day,factIds:['deer-bow','deer-crackers'],at}}];
+ const shown=pendingProgress(state,queued);
+ assert.equal(factSeenBy(shown,day).Nate,at);
+ assert.deepEqual(Object.keys(factsSeenBy(shown,'Nate')),['deer-bow','deer-crackers']);
+ assert.deepEqual(factsSeenBy(state,'Nate'),{},'the queue does not touch the trip until it lands');
+});
+
 test('the dishes carry the chicken, pork, prawn and vegetarian choices, and how to ask',async()=>{
  const {FOOD,ORDERING,MENU_WORDS}=await import('../src/food-data.js');
  const withVariants=FOOD.filter(f=>f.variants?.length);

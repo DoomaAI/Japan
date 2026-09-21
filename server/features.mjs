@@ -2,6 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {findRide} from '../src/park-data.js';
 import {FOOD,FOOD_KINDS} from '../src/food-data.js';
 import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
+import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
@@ -197,6 +198,29 @@ export function extraOperation(state,op,user,fail,now){
     log[id]=log[id]||at;
    }
    state.phraseLog={...state.phraseLog,[op.person]:log};
+  }
+ }else if(op.type==='factSeen'){
+  // The fun fact works exactly like the phrase: everyone gets the day's one, and each person
+  // marks off their own, so the boys are not tied to their parents' pace.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Mark your own fact as seen.',403);
+  if(op.day!==null&&op.day!==undefined&&!state.days.some(d=>d.date===op.day))fail('Choose a trip day.');
+  if(!op.day&&!op.factIds?.length)fail('Choose a trip day.');
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid fact time.');at=new Date(op.at).toISOString();}
+  if(op.day){
+   const seen={...(state.factSeen[op.day]||{})};
+   seen[op.person]=seen[op.person]||at;
+   state.factSeen={...state.factSeen,[op.day]:seen};
+  }
+  // Every fact actually put in front of someone goes in their own log, once.
+  if(op.factIds!==undefined){
+   if(!Array.isArray(op.factIds)||op.factIds.length>ALL_FACTS().length)fail('Invalid fact list.');
+   const log={...(state.factLog[op.person]||{})};
+   for(const id of op.factIds){
+    if(!findFact(id))fail('Unknown fact.',404);
+    log[id]=log[id]||at;
+   }
+   state.factLog={...state.factLog,[op.person]:log};
   }
  }else if(op.type==='weatherUpdate'){
   // A cache of what a free forecast service said, kept in the trip so one phone's lookup

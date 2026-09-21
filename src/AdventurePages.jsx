@@ -64,8 +64,10 @@ export function useReadAloud(){
  }
  return {supported,reading,read,problem,dismissProblem:()=>setProblem('')};
 }
-export function ReadAloudButton({id,text,reading,read}){
- return <button type="button" className="read-aloud" aria-label={reading===id?'Stop reading':'Read this mission aloud'} onClick={()=>read(id,text)}>{reading===id?<><Square size={15}/>Stop</>:<><Volume2 size={16}/>Read to me</>}</button>;
+// `what` names the thing being read, for the screen reader; `rate` is for a listener who
+// needs it slower than talking pace. Both default to the missions this started as.
+export function ReadAloudButton({id,text,reading,read,what='mission',rate,className=''}){
+ return <button type="button" className={`read-aloud${className?' '+className:''}`} aria-label={reading===id?'Stop reading':`Read this ${what} aloud`} onClick={()=>read(id,text,'en-AU',rate)}>{reading===id?<><Square size={15}/>Stop</>:<><Volume2 size={16}/>Read to me</>}</button>;
 }
 export function Challenges({state,user,day,mutate,busy,initialId}){
  const {supported:canRead,reading,read}=useReadAloud();

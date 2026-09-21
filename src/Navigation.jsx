@@ -1,9 +1,9 @@
 import React from 'react';
-import {Camera,Dices,Sparkles,MessageSquare,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight} from 'lucide-react';
+import {Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight} from 'lucide-react';
 import {PAGES,primaryNav,moreSections,navActive} from './nav-data.js';
 const ICONS={today:House,days:CalendarDays,tickets:Ticket,food:UtensilsCrossed,money:Coins,challenges:Trophy,games:Dices,photos:Camera,
  diary:NotebookPen,places:MapPin,meeting:Users,help:LifeBuoy,options:Inbox,parks:FerrisWheel,
- shopping:ShoppingBag,spending:PiggyBank,phrases:MessageSquare,guide:BookOpen,updates:Bell,search:Search,thanks:Heart,mascot:Sparkles};
+ shopping:ShoppingBag,spending:PiggyBank,phrases:MessageSquare,facts:Lightbulb,guide:BookOpen,updates:Bell,search:Search,thanks:Heart,mascot:Sparkles};
 export function BottomNav({tab,user,go,unread}){
  return <nav className="bottom-nav" aria-label="Main navigation">
   {[...primaryNav(user),'more'].map(id=>{
