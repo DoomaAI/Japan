@@ -19,6 +19,10 @@ export const canOffer=(supported,state)=>!!supported&&state!=='no';
 // Two speeds. The slow one is for learning a phrase, not for listening to it — slow enough
 // that each chunk is separate, which is the whole point of the sound-it-out line above it.
 export const SLOW_RATE=.45;
+// Slower again than talking pace, but still a sentence rather than a word list. It is the
+// speed a grown-up reads a story at, and it is what Nate gets for anything in English he
+// cannot read himself.
+export const YOUNG_RATE=.72;
 export const speechRate=(lang,slow)=>slow?SLOW_RATE:(String(lang||'').startsWith('ja')?.8:.85);
 export const speechKey=(id,speed)=>`${id}|${speed}`;
 // Safari goes silent when speak() follows cancel() in the same breath, so when the engine

@@ -1044,6 +1044,41 @@ test('the fun fact log records what was swiped through, once each, and never rep
  assert.equal(exhausted[0].id,factsForDay(seed.days,day)[0].id);
 });
 
+test('every fun fact can be read aloud, and Nate gets it slower and first',async()=>{
+ const {ALL_FACTS,factForDay,factAloud}=await import('../src/fact-data.js');
+ const {YOUNG_RATE,SLOW_RATE,speechRate}=await import('../src/speech.js');
+ // The headline then the fact, and never the picture: a phone saying "aeroplane" before the
+ // sentence helps nobody.
+ const sumo=factForDay(seed.days,'2026-09-23');
+ assert.equal(factAloud(sumo),`${sumo.title}. ${sumo.text}`);
+ assert.doesNotMatch(factAloud(sumo),/\p{Extended_Pictographic}/u);
+ // Every fact has to survive being spoken by an English voice at a five-year-old: plain
+ // English all the way through, and short enough to still be listening at the end.
+ for(const f of ALL_FACTS()){
+  const said=factAloud(f);
+  assert.doesNotMatch(said,/\p{Extended_Pictographic}/u,`${f.id} would be read out as a picture`);
+  assert.doesNotMatch(said,/[　-ヿ一-鿿]/,`${f.id} has Japanese an English voice would mangle`);
+  assert.ok(said.length<=360,`${f.id} is too long to be read to a five-year-old`);
+ }
+ // Slower than talking pace for Nate, but still a sentence rather than the phrase drill.
+ assert.ok(YOUNG_RATE<speechRate('en-AU')&&YOUNG_RATE>SLOW_RATE,'a story speed, between talking and the drill');
+ const facts=await readFile(new URL('../src/FunFacts.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // The pop-up and every row on the page both offer it, whoever is holding the phone — a
+ // parent sitting with Nate needs the button as much as he does.
+ assert.equal(facts.match(/<ReadAloudButton/g)?.length,2,'the pop-up and the row both offer it');
+ assert.match(facts,/const \{supported:canRead,reading,read,problem\}=useReadAloud\(\)/,'and it says so when the phone stays silent');
+ assert.match(facts,/what="fact"/);
+ // Nate is the reason it exists, so he gets the slower voice and a button he cannot miss.
+ assert.match(facts,/young=user\?\.name==='Nate'/);
+ assert.match(facts,/rate=\{young\?YOUNG_RATE:undefined\}/);
+ assert.match(facts,/className=\{young\?'young':''\}/);
+ assert.match(main,/<FactOfDay[^>]*young=\{user\.name==='Nate'\}/,'the pop-up is told whose phone it is on');
+ // The missions the button started on keep the wording they had.
+ const adventure=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ assert.match(adventure,/what='mission'/,'missions keep their own label by default');
+});
+
 test('a fun fact ticked off with no signal is kept on the phone and lands when it syncs',async()=>{
  const {ensureFeatures,pendingProgress,factSeenBy,factsSeenBy}=await import('../src/trip-features.js');
  const state=ensureFeatures(structuredClone(seed)),day='2026-09-27',at='2026-09-19T00:30:00.000Z';

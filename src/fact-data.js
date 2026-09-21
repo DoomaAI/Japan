@@ -179,7 +179,7 @@ export const FACTS=[
  {id:'suica',page:4,icon:'🐧',anytime:true,title:'One card, tapped for everything',
   text:'A Suica or IC card gets you through the ticket gate, onto the bus, and pays at the convenience store, the vending machine and plenty of lockers. Tap in, tap out, and never work out a fare.'},
  {id:'scripts',page:3,icon:'🈁',anytime:true,title:'Three alphabets at once',
-  text:'Japanese writing mixes kanji, hiragana and katakana in the same sentence. Katakana is the one used for words borrowed from other languages — so it is the set to learn first, because ホテル really does say “hoteru”.'},
+  text:'Japanese writing mixes kanji, hiragana and katakana in the same sentence. Katakana is the one used for words borrowed from other languages, so it is the set to learn first: the katakana for “hotel” really is just “hoteru”, sounded out.'},
  {id:'temizuya',page:4,icon:'⛲',anytime:true,title:'There is an order at the water basin',
   text:'At the temizuya you fill the ladle once and make it last: rinse the left hand, then the right, then pour into your cupped left hand to rinse your mouth, then stand the ladle up to run the last of the water down the handle.'},
  {id:'matcha',page:7,icon:'🍵',anytime:true,title:'You drink the leaf, not the water',
@@ -193,6 +193,11 @@ export const FACTS=[
  {id:'lost-property',page:4,icon:'🎒',anytime:true,title:'Lost things come back',
   text:'Japan is extraordinary at returning lost property. A wallet left on a train is handed in, logged and waiting at the station office. If you lose something, ask at the nearest station window or kōban rather than giving up on it.'}
 ];
+// What a phone actually says when it reads one out: the headline, then the fact. The
+// picture is left out — a phone saying "aeroplane" before the sentence helps nobody — and
+// every fact is written in plain English for the same reason, because Nate is five and
+// this is the only way he gets to have it at all.
+export const factAloud=fact=>`${fact.title}. ${fact.text}`;
 export const ALL_FACTS=()=>FACTS;
 export const findFact=id=>FACTS.find(f=>f.id===id)||null;
 // The facts that belong to no single day — the guide's etiquette, food and money pages.
