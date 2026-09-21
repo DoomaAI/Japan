@@ -1,7 +1,7 @@
 import React from 'react';
-import {Dices,MessageSquare,House,CalendarDays,Ticket,UtensilsCrossed,Coins,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight} from 'lucide-react';
+import {Camera,Dices,MessageSquare,House,CalendarDays,Ticket,UtensilsCrossed,Coins,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight} from 'lucide-react';
 import {PAGES,primaryNav,moreSections,navActive} from './nav-data.js';
-const ICONS={today:House,days:CalendarDays,tickets:Ticket,food:UtensilsCrossed,money:Coins,challenges:Trophy,games:Dices,
+const ICONS={today:House,days:CalendarDays,tickets:Ticket,food:UtensilsCrossed,money:Coins,challenges:Trophy,games:Dices,photos:Camera,
  diary:NotebookPen,places:MapPin,meeting:Users,help:LifeBuoy,options:Inbox,parks:FerrisWheel,
  shopping:ShoppingBag,phrases:MessageSquare,guide:BookOpen,updates:Bell,search:Search,thanks:Heart};
 export function BottomNav({tab,user,go,unread}){
