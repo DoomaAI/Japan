@@ -6238,3 +6238,33 @@ test('a booking read in the other language, and kept on the booking where it wil
   await new Promise(r=>upstream.close(r));
  }
 });
+
+test('a booking of several pages is one document: the pages keep their order and travel together',async()=>{
+ const {ticketFiles,attachmentReel,attachmentsOf,documentThumbnail,offlineManifest,ticketList,isArchived}=await import('../src/trip-features.js');
+ const day=seed.days[0].date,step=activeSteps(seed,day).find(s=>!s.locked);
+ // What the add form makes of three pages chosen together: the first is the document itself and
+ // carries its details, the rest are attached to it in the order they were picked.
+ const root={id:'hotel',title:'Kyoto hotel',person:'Family',type:'application/pdf',pathname:'tickets/hotel-1.pdf',
+  category:'reservation',reference:'AB-9931',stepIds:[step.id],stepId:step.id,day:null};
+ const pages=[1,2].map(n=>({id:`hotel-p${n+1}`,parentDocumentId:'hotel',title:`page-${n+1}.jpg`,person:'Family',
+  type:'image/jpeg',pathname:`tickets/hotel-${n+1}.jpg`,category:'reservation',stepIds:[step.id],stepId:step.id,day:null}));
+ const s={...structuredClone(seed),documents:[root,...pages]};
+
+ // One row on the list, not three.
+ assert.deepEqual(ticketList(s).map(d=>d.id),['hotel']);
+ assert.equal(attachmentsOf(s,root).length,2);
+ // And one set to open and swipe, in the order the pages were chosen.
+ assert.deepEqual(ticketFiles(s.documents,root).map(d=>d.id),['hotel','hotel-p2','hotel-p3']);
+ assert.deepEqual(attachmentReel(s.documents,[root],root).map(e=>e.file.id),['hotel','hotel-p2','hotel-p3']);
+ assert.deepEqual(attachmentReel(s.documents,[root],pages[1]).map(e=>e.ticket.id),['hotel','hotel','hotel']);
+ // A PDF first page cannot be drawn, so the row's thumbnail is the first photo in the set.
+ assert.equal(documentThumbnail(root,attachmentsOf(s,root))?.id,'hotel-p2');
+ // Every page is downloaded for the day, and every page leaves with the booking.
+ assert.equal(offlineManifest(s,day).files.filter(f=>f.key.startsWith('doc-hotel')).length,3);
+ const used=applyOperation(s,{type:'status',id:step.id,status:'done'},parent);
+ assert.ok(used.documents.every(d=>isArchived(d)),'a booking and all its pages are one thing to put away');
+ assert.equal(offlineManifest(used,day).files.filter(f=>f.key.startsWith('doc-hotel')).length,0);
+ // Removing the booking removes its pages; removing one page leaves the booking.
+ assert.equal(applyOperation(s,{type:'removeDocument',id:'hotel'},parent).documents.length,0);
+ assert.deepEqual(applyOperation(s,{type:'removeDocument',id:'hotel-p2'},parent).documents.map(d=>d.id),['hotel','hotel-p3']);
+});
