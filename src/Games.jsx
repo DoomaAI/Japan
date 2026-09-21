@@ -7,6 +7,8 @@ import Origami from './Origami.jsx';
 import {useKanaVoice} from './SayIt.jsx';
 import Karuta from './Karuta.jsx';
 import AnimalShogi from './AnimalShogi.jsx';
+import Fukuwarai from './Fukuwarai.jsx';
+import Daruma from './Daruma.jsx';
 const PAIRS=6;
 // Dragging one tile onto another, with a tap still meaning what it meant. Pointer events
 // cover a finger and a mouse alike; the target is found from where the finger actually
@@ -850,6 +852,10 @@ const GAMES=[
   story:'Played at New Year since the Edo period. A reader reads, the cards lie face up, and the first hand on the right one keeps it. The proverb deck is iroha karuta, where the card is found by the letter the reading opens with.'},
  {id:'shogi',title:'Animal shogi',ja:'どうぶつしょうぎ',origin:'modern',needs:OFFLINE,Component:AnimalShogi,
   story:'The game is new — Madoka Kitao, a professional shogi player, drew it up in 2008 so a small child could play a whole game. What it is a small version of is not: shogi has been played in Japan since the 1500s, and taking a piece and playing it back as your own is the part that makes it shogi rather than chess.'},
+ {id:'fukuwarai',title:'Fukuwarai',ja:'福笑い',origin:'traditional',needs:OFFLINE,Component:Fukuwarai,
+  story:'The New Year one, played blindfolded since the Edo period. The two faces are the two it is always played with — お多福, whose name means much good fortune, and ひょっとこ, who is blowing on a fire. It is the only game in here where losing is funnier than winning.'},
+ {id:'daruma',title:'Daruma',ja:'だるまさんがころんだ',origin:'traditional',needs:OFFLINE,Component:Daruma,
+  story:'Japan’s red light, green light, and the chant is the game — だるまさんがころんだ, ten syllables at whatever speed the demon feels like, and he spins round on the last one. The child at the wall is the 鬼, the demon, which is what he is called in every Japanese chasing game.'},
  {id:'merge',title:'Onigiri to Fuji',needs:OFFLINE,Component:Merge},
  {id:'remember',title:'What we did',needs:OFFLINE,Component:Remember},
  {id:'sights',title:'Japan pairs',needs:OFFLINE,Component:Sights},
