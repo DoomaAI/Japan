@@ -265,6 +265,52 @@ test('a used ticket is archived rather than deleted: it and its files leave the 
  assert.throws(()=>applyOperation(memory,{type:'archiveDocument',id:'memory-1',archived:true},parent),/gallery/);
 });
 
+test('ticking off an activity ticks off the bookings that got us in, and undoing it brings them back',async()=>{
+ const {ticketList,isArchived,pendingProgress}=await import('../src/trip-features.js');
+ const s=structuredClone(seed);
+ const step=seed.steps.find(x=>x.day===seed.days[0].date),other=seed.steps.find(x=>x.id!==step.id&&x.day);
+ const root={id:'gate',title:'Skyliner seats',person:'Family',type:'application/pdf',pathname:'tickets/skyliner.pdf',category:'ticket',stepId:step.id,day:null};
+ const file={id:'gate-photo',parentDocumentId:root.id,title:'Boston QR',person:'Boston',type:'image/png',pathname:'tickets/qr.png',category:'ticket',stepId:step.id,day:null};
+ const byHand={id:'bag',title:'Blue suitcase tag',person:'Family',type:'note',category:'luggage',stepId:step.id,day:null};
+ const elsewhere={id:'dinner',title:'Dinner booking',person:'Family',type:'note',category:'reservation',stepId:other.id,day:null};
+ const memory={id:'photo',title:'Nate at the gate',person:'Nate',type:'image/png',pathname:'memories/nate.png',category:'memory',stepId:step.id,day:null};
+ s.documents=[root,file,byHand,elsewhere,memory];
+ // A ticket the family had already put away by hand is left where they put it.
+ const prepared=applyOperation(s,{type:'archiveDocument',id:byHand.id,archived:true},parent);
+ const done=applyOperation(prepared,{type:'status',id:step.id,status:'done'},parent);
+ const doc=id=>done.documents.find(d=>d.id===id);
+ assert.ok(isArchived(doc('gate'))&&isArchived(doc('gate-photo')),'the booking and its files go together');
+ assert.equal(doc('gate').archivedWith,step.id);
+ assert.equal(doc('gate').archivedBy,'Damien');
+ assert.equal(doc('gate').archivedAt,done.steps.find(x=>x.id===step.id).completedAt);
+ assert.equal(doc('bag').archivedWith,null,'one archived by hand is not claimed by the activity');
+ assert.ok(!isArchived(doc('dinner')),'another activity’s booking is untouched');
+ assert.ok(!isArchived(doc('photo')),'a memory is not a ticket and is never ticked off');
+ assert.deepEqual(ticketList(done).map(d=>d.id),['dinner']);
+
+ const undone=applyOperation(done,{type:'status',id:step.id,status:'todo'},parent);
+ assert.ok(!isArchived(undone.documents.find(d=>d.id==='gate')),'undoing the activity brings its tickets back');
+ assert.ok(!isArchived(undone.documents.find(d=>d.id==='gate-photo')));
+ assert.equal(undone.documents.find(d=>d.id==='gate').archivedWith,null);
+ assert.ok(isArchived(undone.documents.find(d=>d.id==='bag')),'and leaves the hand-archived one where it was');
+ // Put back by hand while the activity stays done, and it stays back.
+ const kept=applyOperation(done,{type:'archiveDocument',id:root.id,archived:false},parent);
+ assert.equal(kept.documents.find(d=>d.id==='gate').archivedWith,null);
+
+ // Skipping is not using: a booking for something we did not do stays on the list.
+ assert.ok(!isArchived(applyOperation(s,{type:'status',id:step.id,status:'skipped'},parent).documents.find(d=>d.id==='gate')));
+ // The boys tick activities off too, and the ticket they walked through goes with it.
+ const byChild=applyOperation(s,{type:'status',id:step.id,status:'done'},child);
+ assert.equal(byChild.documents.find(d=>d.id==='gate').archivedBy,'Nate');
+
+ // The same thing happens on a phone with no signal, rather than waiting for the sync.
+ const at='2026-09-24T02:00:00.000Z';
+ const offline=pendingProgress(s,[{operation:{type:'status',id:step.id,status:'done',at}}]);
+ assert.equal(offline.documents.find(d=>d.id==='gate').archivedAt,at);
+ assert.deepEqual(ticketList(offline).map(d=>d.id),['dinner'],'everything that activity got us into leaves the list at once');
+ assert.ok(!isArchived(pendingProgress(offline,[{operation:{type:'status',id:step.id,status:'todo',at}}]).documents.find(d=>d.id==='gate')));
+});
+
 test('daily thank-you notes schedule one note per trip day, honour pins and reorder',async()=>{
  const {ensureFeatures,thankYouSchedule,thankYouForDay,thankYouNotes,thankYouSpares,initialThankYou}=await import('../src/trip-features.js');
  const state=ensureFeatures(structuredClone(seed));

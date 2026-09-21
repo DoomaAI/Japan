@@ -820,7 +820,12 @@ export function diaryDays(state,day){
 export function pendingProgress(state,queue){
  const next=ensureFeatures(structuredClone(state));
  for(const {operation:o}of queue){
-  if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=true;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;}}}
+  if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=true;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;}
+   // The tickets for an activity ticked off on a train with no signal leave the list there and
+   // then, exactly as they will when the change lands, rather than lingering until it syncs.
+   if(o.status==='done')next.documents=next.documents.map(d=>d.stepId===s.id&&d.category!=='memory'&&!d.archivedAt?{...d,archivedAt:o.at,archivedWith:s.id,pending:true}:d);
+   if(o.status==='todo')next.documents=next.documents.map(d=>d.archivedWith===s.id?{...d,archivedAt:null,archivedBy:null,archivedWith:null,pending:true}:d);
+  }}
   if(o.type==='phraseSeen'){
    if(o.day){const e={...(next.phraseSeen[o.day]||{})};e[o.person]=e[o.person]||o.at;next.phraseSeen={...next.phraseSeen,[o.day]:e};}
    if(o.phraseIds?.length){const log={...(next.phraseLog[o.person]||{})};for(const id of o.phraseIds)log[id]=log[id]||o.at;next.phraseLog={...next.phraseLog,[o.person]:log};}
