@@ -2764,3 +2764,224 @@ test('the forecast comes back by the hour, and the graph is drawn from checked n
  const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(source,/tab==='weather'/);
 });
+
+// Spot the difference, built out of the boys' own photographs. The puzzle is made on the
+// phone, so all of this runs without a canvas, a network or an API key.
+const spotImage=(width,height,fill)=>{
+ const data=new Uint8ClampedArray(width*height*4);
+ for(let i=0;i<width*height;i++){
+  const [r,g,b]=fill(i%width,Math.floor(i/width));
+  data[i*4]=r;data[i*4+1]=g;data[i*4+2]=b;data[i*4+3]=255;
+ }
+ return {data,width,height};
+};
+// Something going on in every part of it, and something plain enough that no honest puzzle
+// can be made from it at all.
+const busyPhoto=spotImage(320,240,(x,y)=>{const n=(x*7919+y*104729)%256;return [n,(n*3)%256,(n*7)%256];});
+const plainPhoto=spotImage(320,240,()=>[128,128,128]);
+
+test('the same photo makes the same puzzle on every phone, and a different one for each level',async()=>{
+ const {planRound,levelFor,hashSeed}=await import('../src/spot-data.js');
+ const id='7c62d139-abcd-4000-9000-000000000000';
+ const round=()=>planRound(busyPhoto,{level:levelFor('normal'),seed:hashSeed(`${id}:normal`),aspect:4/3});
+ assert.deepEqual(round().edits,round().edits,'two phones opening the same photo must get the same board');
+ assert.equal(round().edits.length,5);
+ const harder=planRound(busyPhoto,{level:levelFor('hard'),seed:hashSeed(`${id}:hard`),aspect:4/3});
+ assert.equal(harder.edits.length,7);
+ assert.notDeepEqual(harder.edits,round().edits);
+ // A different photo is a different puzzle, or the second one would already be solved.
+ const other=planRound(busyPhoto,{level:levelFor('normal'),seed:hashSeed('another-photo:normal'),aspect:4/3});
+ assert.notDeepEqual(other.edits.map(e=>`${e.x},${e.y}`),round().edits.map(e=>`${e.x},${e.y}`));
+});
+
+test('nothing is hidden where a child could not find it',async()=>{
+ const {planRound,levelFor,pickCells,detailMap,kindsFor,DETAIL_FLOOR,COLOUR_FLOOR}=await import('../src/spot-data.js');
+ // A flat photo is refused outright rather than being given changes nobody could see.
+ const plain=planRound(plainPhoto,{level:levelFor('normal'),seed:1,aspect:4/3});
+ assert.equal(plain.tooPlain,true);
+ assert.equal(plain.edits.length,0);
+ const busy=planRound(busyPhoto,{level:levelFor('normal'),seed:1,aspect:4/3});
+ assert.equal(busy.tooPlain,false);
+ // Every change lands somewhere with enough going on, and inside the picture.
+ const cells=detailMap(busyPhoto,6,5);
+ for(const cell of cells)assert.ok(cell.detail>=DETAIL_FLOOR);
+ for(const cell of detailMap(plainPhoto,6,5))assert.ok(cell.detail<DETAIL_FLOOR);
+ for(const e of busy.edits){
+  assert.ok(e.x>=0&&e.x+e.w<=1.0001,'a change cannot run off the side of the photo');
+  assert.ok(e.y>=0&&e.y+e.h<=1.0001);
+  if(e.from){assert.ok(e.from.x>=0&&e.from.x+e.w<=1.0001);assert.ok(e.from.y>=0&&e.from.y+e.h<=1.0001);}
+ }
+ // Recolouring something grey is not a difference, so it is not offered there.
+ assert.ok(!kindsFor({colour:COLOUR_FLOOR-1}).includes('recolour'));
+ assert.ok(kindsFor({colour:COLOUR_FLOOR+1}).includes('recolour'));
+ // Spread out: five differences in one corner is a worse game than five across the picture.
+ const chosen=pickCells(cells,{count:5,random:()=>0.5});
+ for(const a of chosen)for(const b of chosen)
+  if(a!==b)assert.ok(Math.abs(a.col-b.col)>=2||Math.abs(a.row-b.row)>=2,'two changes cannot sit on top of each other');
+});
+
+test('a finger is not a pixel, and being sure of an answer you already gave costs nothing',async()=>{
+ const {hitTest,hintFor}=await import('../src/spot-data.js');
+ const edits=[{id:'d1',x:0.1,y:0.1,w:0.2,h:0.2},{id:'d2',x:0.6,y:0.6,w:0.2,h:0.2}];
+ assert.equal(hitTest(edits,{x:0.2,y:0.2}).id,'d1','a tap in the middle of it counts');
+ assert.equal(hitTest(edits,{x:0.305,y:0.2}).id,'d1','and just outside it, because a finger is wide');
+ assert.equal(hitTest(edits,{x:0.45,y:0.2}),null,'but not halfway across the photo');
+ assert.equal(hitTest(edits,{x:0.7,y:0.7}).id,'d2');
+ // Tapping one already found is neither a hit nor a miss: it must not cost a five-year-old.
+ assert.deepEqual(hitTest(edits,{x:0.2,y:0.2},{found:['d1']}),{id:'d1',already:true});
+ assert.equal(hitTest(edits,{x:NaN,y:0.2}),null);
+ assert.equal(hitTest(edits,null),null);
+ // A hint is always one they have not got yet, and runs out rather than repeating itself.
+ assert.equal(hintFor(edits,[]).id,'d1');
+ assert.equal(hintFor(edits,['d1']).id,'d2');
+ assert.equal(hintFor(edits,['d1','d2']),null);
+});
+
+test('the two pictures go side by side or one above the other, whichever shows more of them',async()=>{
+ const {paneLayout,paneBox}=await import('../src/spot-data.js');
+ // A phone held upright, with an ordinary landscape photo: one above the other.
+ assert.equal(paneLayout({width:390,height:500,aspect:4/3}),'rows');
+ // The same phone turned sideways: side by side, without being asked.
+ assert.equal(paneLayout({width:844,height:320,aspect:4/3}),'columns');
+ // A tall photo on an upright phone is better off side by side, and says so.
+ assert.equal(paneLayout({width:390,height:500,aspect:0.5}),'columns');
+ assert.equal(paneLayout({width:0,height:0,aspect:0}),'rows','and nonsense falls back to stacked');
+ // The box a tap is measured against is exactly the shape of the photo in it.
+ const box=paneBox({width:390,height:500,aspect:4/3,mode:'rows'});
+ assert.ok(Math.abs(box.width/box.height-4/3)<0.02);
+ assert.ok(box.height<=250,'and both panes fit in the room they were given');
+ const side=paneBox({width:844,height:320,aspect:4/3,mode:'columns'});
+ assert.ok(side.width<=(844-12)/2&&side.height<=320);
+});
+
+test('looking is never punished into not looking, and a revealed round cannot be banked',async()=>{
+ const {spotScore,SPOT_SCORE}=await import('../src/spot-data.js');
+ const base={total:5,misses:0,hints:0,seconds:20};
+ // A find is always worth more than a miss costs, so a guess is worth making.
+ assert.ok(SPOT_SCORE.find>SPOT_SCORE.miss);
+ for(let found=0;found<5;found++)
+  assert.ok(spotScore({...base,found:found+1})>spotScore({...base,found}),'more found is always more');
+ assert.ok(spotScore({...base,found:4,misses:3})<spotScore({...base,found:4}),'a wrong tap always costs');
+ assert.ok(spotScore({...base,found:4,hints:1})<spotScore({...base,found:4}),'and so does a hint');
+ // The time bonus is only paid for finishing — there is no prize for giving up quickly.
+ assert.equal(spotScore({total:5,found:4,seconds:0}),spotScore({total:5,found:4,seconds:400}));
+ assert.ok(spotScore({total:5,found:5,seconds:1})>spotScore({total:5,found:5,seconds:200}));
+ // Never below nothing, and never above what the server will accept.
+ assert.equal(spotScore({total:5,found:0,misses:99}),0);
+ assert.ok(spotScore({total:99,found:99,seconds:0})<=9999);
+ assert.equal(spotScore(),0);
+});
+
+test('each change is painted on its own and faded in at the edges, and the original is left alone',async()=>{
+ const {applyEdits,rotateChannels}=await import('../src/spot-data.js');
+ const recorder=()=>{
+  const calls=[];
+  const ctx={calls,
+   drawImage:(...a)=>calls.push(['drawImage',...a]),
+   translate:(...a)=>calls.push(['translate',...a]),
+   scale:(...a)=>calls.push(['scale',...a]),
+   setTransform:(...a)=>calls.push(['setTransform',...a]),
+   fillRect:(...a)=>calls.push(['fillRect',...a]),
+   createRadialGradient:()=>({addColorStop(){}}),
+   getImageData:(x,y,w,h)=>({data:Uint8ClampedArray.from({length:w*h*4},(_,i)=>[200,50,10,255][i%4]),width:w,height:h}),
+   putImageData:img=>calls.push(['putImageData',img]),
+   set globalCompositeOperation(v){calls.push(['composite',v]);},get globalCompositeOperation(){return 'source-over';},
+   set fillStyle(v){calls.push(['fillStyle']);},get fillStyle(){return '';}};
+  return ctx;
+ };
+ const main=recorder(),tiles=[];
+ const makeCanvas=(w,h)=>{const ctx=recorder();const tile={width:w,height:h,getContext:()=>ctx,ctx};tiles.push(tile);return tile;};
+ const edits=[
+  {id:'d1',kind:'patch',x:0.1,y:0.1,w:0.2,h:0.2,from:{x:0.4,y:0.1}},
+  {id:'d2',kind:'flip',x:0.5,y:0.5,w:0.2,h:0.2},
+  {id:'d3',kind:'recolour',x:0.1,y:0.6,w:0.2,h:0.2,shift:1},
+  {id:'d4',kind:'grow',x:0.6,y:0.1,w:0.2,h:0.2,scale:1.25}
+ ];
+ const source={width:400,height:300};
+ const painted=applyEdits(main.ctx||main,source,edits,{width:400,height:300,makeCanvas});
+ assert.deepEqual(painted,['d1','d2','d3','d4']);
+ assert.equal(tiles.length,4,'each change is built on its own canvas so it disturbs nothing around it');
+ // Every tile lands back on the picture at exactly the place it came from.
+ const landed=main.calls.filter(c=>c[0]==='drawImage');
+ assert.equal(landed.length,4);
+ assert.deepEqual(landed.map(c=>[c[2],c[3]]),[[40,30],[200,150],[40,180],[240,30]]);
+ // A patch is taken from somewhere else in the photo — that is what makes a thing vanish.
+ const patch=tiles[0].ctx.calls.find(c=>c[0]==='drawImage');
+ assert.deepEqual([patch[2],patch[3]],[160,30]);
+ assert.notDeepEqual([patch[2],patch[3]],[40,30]);
+ // A flip is mirrored and then puts the brush back where it found it.
+ assert.deepEqual(tiles[1].ctx.calls.find(c=>c[0]==='scale'),['scale',-1,1]);
+ assert.ok(tiles[1].ctx.calls.some(c=>c[0]==='setTransform'));
+ // A recolour really does change the colours, rather than only claiming to.
+ const put=tiles[2].ctx.calls.find(c=>c[0]==='putImageData');
+ assert.deepEqual([...put[1].data.slice(0,4)],[50,10,200,255]);
+ // A grow takes a smaller piece of the photo and fills the same hole with it.
+ const grown=tiles[3].ctx.calls.find(c=>c[0]==='drawImage');
+ assert.ok(grown[4]<80&&grown[5]<60,'the piece taken is smaller than the hole it fills');
+ // Every change is faded out at its edges before it lands, so there is no tell-tale seam.
+ for(const tile of tiles)assert.ok(tile.ctx.calls.some(c=>c[0]==='composite'&&c[1]==='destination-in'));
+ // A change too small to see is not made at all.
+ const tiny=[];
+ assert.deepEqual(applyEdits(recorder(),source,[{id:'x',kind:'flip',x:0,y:0,w:0.005,h:0.005}],
+  {width:400,height:300,makeCanvas:(w,h)=>{tiny.push([w,h]);return makeCanvas(w,h);}}),[]);
+ assert.equal(tiny.length,0);
+ // The channel rotation on its own: red, green and blue move round, nothing is invented.
+ const solo=recorder();
+ rotateChannels(solo,1,1,2);
+ assert.deepEqual([...solo.calls.find(c=>c[0]==='putImageData')[1].data.slice(0,3)],[10,200,50]);
+});
+
+test('a spot-the-difference score is one the server will actually take',async()=>{
+ const {spotGame,spotScore}=await import('../src/spot-data.js');
+ const {ensureFeatures,scoresFor,bestScore}=await import('../src/trip-features.js');
+ const game=spotGame('7c62d139-abcd-4000-9000-000000000000',7);
+ assert.ok(game.length<=40,'the server refuses a game name longer than this');
+ const score=spotScore({found:7,total:7,misses:2,hints:0,seconds:30});
+ let state=ensureFeatures(structuredClone(seed));
+ state=applyOperation(state,{type:'gameScore',person:'Nate',game,score},child);
+ assert.equal(bestScore(state,'Nate',game),score);
+ // The head-to-head: everyone's best on this photo, and nobody who has not had a go yet.
+ state=applyOperation(state,{type:'gameScore',person:'Boston',game,score:score-50},{name:'Boston',role:'child'});
+ assert.deepEqual(scoresFor(state,game),{Nate:score,Boston:score-50});
+ assert.deepEqual(scoresFor(state,'spot-nobody-5'),{});
+ // A boy cannot post a score for his brother.
+ assert.throws(()=>applyOperation(state,{type:'gameScore',person:'Boston',game,score:9999},child),/your own/i);
+});
+
+test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',needs:(OFFLINE|'[^']+'),Component:(\w+)\}/g)];
+ assert.equal(entries.length,11);
+ for(const [,id,title,needs,component]of entries){
+  assert.ok(needs.trim(),`${id} must say what it needs`);
+  assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
+   `${title} must have a component that exists`);
+ }
+ assert.ok(entries.some(([,id])=>id==='spot'));
+ assert.match(source,/import SpotDifference from '\.\/SpotDifference\.jsx'/);
+ // The old yes-or-no is gone: one of these needs the other phone and one needs a photo.
+ assert.doesNotMatch(source,/offline:(true|false)/);
+ const game=await readFile(new URL('../src/SpotDifference.jsx',import.meta.url),'utf8');
+ // A revealed round is not scored, and the score is only ever saved once.
+ assert.match(game,/if\(!finished\|\|revealed\|\|!game\|\|saved\.current===game\)return/);
+ // Nothing about a round leaves the phone: no request, no upload, only the photo coming down.
+ assert.doesNotMatch(game,/\brequest\(/);
+ assert.doesNotMatch(game,/upload\(/);
+});
+
+test('a change is never hidden in the sky when there is a photograph underneath it',async()=>{
+ const {planRound,levelFor}=await import('../src/spot-data.js');
+ // The shape of a real photograph: flat sky across the top half, everything worth looking at
+ // below it. Nothing may be hidden in a patch that is entirely sky.
+ const SKY=0.5;
+ const photo=spotImage(320,240,(x,y)=>y<240*SKY?[150,180,215]
+  :[(x*7919+y*104729)%256,(x*31+y*17)%256,(y*7)%256]);
+ const round=planRound(photo,{level:levelFor('normal'),seed:99,aspect:4/3});
+ assert.equal(round.tooPlain,false,'half a photograph is still a photograph');
+ assert.equal(round.edits.length,5);
+ for(const e of round.edits)
+  assert.ok(e.y+e.h>SKY,`a change with nothing but sky in it cannot be found — ${e.y}..${e.y+e.h}`);
+ // And what it copies from is not sky either, or a patch would paint a blue square.
+ for(const e of round.edits.filter(e=>e.from))
+  assert.ok(e.from.y+e.h>SKY,`and it cannot be copied out of the sky — ${e.from.y}`);
+});
