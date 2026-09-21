@@ -132,6 +132,7 @@
 .picross-grid{grid-column:2;grid-row:2;display:grid;grid-template-columns:repeat(var(--n),1fr);gap:1px;background:#c9c2b4;border:2px solid #7d766a;border-radius:4px;overflow:hidden}
 .picross-cell{display:grid;place-items:center;aspect-ratio:1;min-height:0;padding:0;background:#fffdf8;border:0;border-radius:0;color:#a79f92}.picross-cell.on{background:#2f3b38}.picross-cell.off{background:#f1ece2}.picross-cell.rule{box-shadow:1px 0 0 #7d766a}.picross-cell.ruleb{box-shadow:0 1px 0 #7d766a}.picross-cell.rule.ruleb{box-shadow:1px 0 0 #7d766a,0 1px 0 #7d766a}
 .picross-mode button{flex:1 1 40%}
+.document-row.archived{opacity:.72;background:repeating-linear-gradient(135deg,#f6f8f6,#f6f8f6 9px,#eef2ef 9px,#eef2ef 18px);border-radius:12px;padding:1.1rem .8rem}.document-row.archived strong{font-weight:500}
 
 /* The bottom bar swipes sideways. Six tabs squeezed into a 320px phone left every label
    unreadable, so the five that belong to you are a scroller now — each keeps a thumb-sized
