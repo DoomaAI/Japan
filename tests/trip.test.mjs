@@ -3283,7 +3283,7 @@ test('a spot-the-difference score is one the server will actually take',async()=
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:(OFFLINE|'[^']+'),Component:(\w+)/g)];
- assert.equal(entries.length,18);
+ assert.equal(entries.length,19);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -3310,7 +3310,7 @@ test('a game that really is Japanese says so, and one that only looks it says no
  // The ones that are genuinely Japanese games, and nothing else. Sumo stable and Onigiri to
  // Fuji are games about Japan, which is a different claim and is not made.
  assert.deepEqual(entries.filter(g=>g.origin==='traditional').map(g=>g.id).sort(),
-  ['daruma','fukuwarai','janken','karuta','origami','shiritori','sumo']);
+  ['daruma','fukuwarai','janken','karuta','kingyo','origami','shiritori','sumo']);
  assert.deepEqual(entries.filter(g=>g.origin==='modern').map(g=>g.id),['shogi']);
  for(const g of entries.filter(g=>g.origin))
   assert.ok(g.ja,`${g.title} claims to be Japanese, so it must say what it is called in Japanese`);
@@ -3320,6 +3320,85 @@ test('a game that really is Japanese says so, and one that only looks it says no
  assert.match(source,/const ORIGINS=\{\n traditional:.*\n modern:.*\n\};/);
  for(const g of entries.filter(g=>g.origin))
   assert.match(source,new RegExp(`id:'${g.id}'[\\s\\S]{0,600}?story:'`),`${g.title} must say why`);
+});
+
+test('the paper always goes, and going carefully beats going greedily on every grade',async()=>{
+ const K=await import('../src/kingyo.js');
+ assert.deepEqual(K.LEVELS.map(l=>l.id),['yon','go','roku']);
+ // Thinner paper is a shorter game and a better-paid one, which is the trade at a real stall.
+ for(let i=1;i<K.LEVELS.length;i++){
+  assert.ok(K.LEVELS[i].paper<K.LEVELS[i-1].paper,'the grades must get thinner');
+  assert.ok(K.LEVELS[i].pays>K.LEVELS[i-1].pays,'and pay more for it');
+ }
+ // Drawn rather than emoji, so each one has to carry its own colours — and the black moor has
+ // to actually be dark, which is the reason they stopped being emoji in the first place.
+ for(const f of K.FISH)assert.ok(f.en&&f.ja&&f.romaji&&f.worth>0&&f.body&&f.fin&&f.belly&&f.girth,`${f.id} is incomplete`);
+ const dark=hex=>parseInt(hex.slice(1,3),16)+parseInt(hex.slice(3,5),16)+parseInt(hex.slice(5,7),16);
+ assert.ok(dark(K.fishById('demekin').body)<200,'a black moor has to be black');
+ assert.ok(K.fishById('demekin').eye>K.fishById('wakin').eye,'and demekin means the one with the eyes sticking out');
+ // The slow ones are worth more, which is true of the stall: everybody goes for the black one.
+ const sorted=[...K.FISH].sort((a,b)=>a.speed-b.speed);
+ assert.deepEqual(sorted.map(f=>f.worth),[...sorted.map(f=>f.worth)].sort((a,b)=>b-a));
+ assert.ok(Math.abs(K.FISH.reduce((s,f)=>s+f.share,0)-1)<0.001,'the fish must add up to a tankful');
+ const tank=K.newTank('go',K.rng(4));
+ assert.equal(tank.fish.length,K.levelById('go').fish);
+ assert.equal(tank.paper,K.levelById('go').paper);
+ assert.equal(tank.over,null);
+ // Nothing at all happens while the finger is off the tank except the fish swimming about.
+ const idle=K.kingyoTick(tank,{x:50,y:50,down:false,rand:K.rng(9)});
+ assert.equal(idle.paper,tank.paper,'paper out of the water does not soak');
+ assert.equal(idle.bowl.length,0);
+ assert.notDeepEqual(idle.fish.map(f=>[f.x,f.y]),tank.fish.map(f=>[f.x,f.y]),'but the fish move');
+ // Under water it soaks, and dragging it about tears it faster than holding it still.
+ const still=K.kingyoTick(tank,{x:50,y:50,down:true,rand:K.rng(9)});
+ const dragged=K.kingyoTick({...tank,poi:{x:10,y:10,down:true}},{x:80,y:80,down:true,rand:K.rng(9)});
+ assert.ok(still.paper<tank.paper,'soaking costs something');
+ assert.ok(dragged.paper<still.paper,'and dragging costs more');
+ // Greed is the real rule: two fish at once is far worse than twice one fish.
+ const under=(n)=>({...K.newTank('yon',K.rng(1)),paper:1,poi:{x:50,y:50,down:true},
+  fish:[...Array(n)].map((_,i)=>({key:`x${i}`,kind:'wakin',x:50+i*0.4,y:50,dir:0,speed:0}))});
+ const one=K.kingyoTick(under(1),{x:50,y:50,down:false,rand:K.rng(2)});
+ const two=K.kingyoTick(under(2),{x:50,y:50,down:false,rand:K.rng(2)});
+ assert.equal(one.bowl.length,1);
+ assert.equal(two.bowl.length,2);
+ assert.ok(1-two.paper>(1-one.paper)*2,'two at once must cost more than twice one');
+ // The paper always goes in the end. Hold it under long enough and it is gone, and once it is
+ // gone nothing else happens, however hard anybody presses.
+ let soaking=K.newTank('roku',K.rng(3));
+ for(let i=0;i<4000&&!soaking.over;i++)soaking=K.kingyoTick(soaking,{x:50,y:50,down:true,rand:K.rng(i+1)});
+ assert.deepEqual(soaking.over,{won:false,how:'torn'});
+ assert.equal(K.kingyoTick(soaking,{x:50,y:50,down:true,rand:K.rng(1)}),soaking,'a torn scoop is finished');
+ // And the whole point: the technique pays. Played headlessly, a careful hand beats a greedy
+ // one and a hurried one on every grade of paper.
+ const play=(id,seed,style)=>{
+  const rand=K.rng(seed);let t=K.newTank(id,rand),ticks=0;
+  while(!t.over&&ticks++<4000){
+   if(!t.fish.length)break;
+   const near=t.fish.reduce((a,b)=>Math.hypot(b.x-t.poi.x,b.y-t.poi.y)<Math.hypot(a.x-t.poi.x,a.y-t.poi.y)?b:a);
+   const d=Math.hypot(near.x-t.poi.x,near.y-t.poi.y)||1;
+   const step=style==='fast'?4:1.6;
+   const nx=t.poi.x+(near.x-t.poi.x)/d*Math.min(step,d),ny=t.poi.y+(near.y-t.poi.y)/d*Math.min(step,d);
+   const on=t.fish.filter(f=>Math.hypot(f.x-nx,f.y-ny)<=K.POI_R).length;
+   const lift=style==='greedy'?on>=2:on>=1;
+   t=K.kingyoTick(t,{x:nx,y:ny,down:!lift,rand});
+   if(lift)t=K.kingyoTick(t,{x:nx,y:ny,down:false,rand});
+  }
+  return t;
+ };
+ const average=(id,style)=>{let n=0;for(let s=1;s<=12;s++)n+=play(id,s*7919,style).bowl.length;return n/12;};
+ for(const level of K.LEVELS){
+  const careful=average(level.id,'careful');
+  assert.ok(careful>average(level.id,'greedy'),`${level.id}: waiting for two fish must not pay`);
+  assert.ok(careful>average(level.id,'fast'),`${level.id}: dragging it about must not pay`);
+  assert.ok(careful>=2.5,`${level.id}: a careful hand only gets ${careful.toFixed(1)} fish`);
+ }
+ assert.ok(average('yon','careful')>average('roku','careful'),'thick paper must catch more fish');
+ // Scoring: a rare fish is worth more than a common one, and an empty bowl scores nothing.
+ assert.equal(K.bowlWorth([]),0);
+ assert.ok(K.bowlWorth(['ranchu'])>K.bowlWorth(['wakin']));
+ assert.equal(K.kingyoScore('go',[],0),0,'no fish is no score');
+ assert.ok(K.kingyoScore('roku',['wakin'],0)>K.kingyoScore('yon',['wakin'],0),'thinner paper pays more');
+ assert.ok(K.kingyoScore('roku',[...Array(40)].map(()=>'ranchu'),1)<=9999);
 });
 
 test('shiritori takes the last sound of a word, and a word ending in n loses',async()=>{
