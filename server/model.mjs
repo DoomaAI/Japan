@@ -54,7 +54,7 @@ export function applyOperation(input,op,user){
  const state=ensureFeatures(structuredClone(input)),now=new Date().toISOString();
  const parent=user.role==='parent';
  const step=state.steps.find(s=>s.id===op.id);
- if(!parent && !['status','challengeStatus','challengeSkip','challengeNew','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore','weatherUpdate','jankenThrow','jankenNewRound','voiceNoteRemove','voiceNoteLabel','shoppingAdd','shoppingStatus','acknowledge'].includes(op.type))throw new AppError('A parent can make this change.',403);
+ if(!parent && !['status','challengeStatus','challengeSkip','challengeNew','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore','weatherUpdate','jankenThrow','jankenNewRound','voiceNoteRemove','voiceNoteLabel','shoppingAdd','shoppingStatus','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust'].includes(op.type))throw new AppError('A parent can make this change.',403);
  if(['status','patch','lock','remove','backlog','schedule'].includes(op.type)&&!step)throw new AppError('Activity not found.',404);
  const before=step?structuredClone(step):null;
  const extra=extraOperation(state,op,user,(message,status=400)=>{throw new AppError(message,status);},now);
@@ -102,6 +102,9 @@ export function applyOperation(input,op,user){
  }else if(op.type==='remove'){
   if(step.locked)throw new AppError('Unlock before deleting.');
   for(const doc of state.documents){if(doc.stepId===step.id){doc.stepId=null;doc.day=step.day;}}
+  // A planning idea that lost its activity goes back to being an idea, rather than pointing at
+  // a step that is no longer there.
+  for(const p of state.proposals){if(p.stepId===step.id)Object.assign(p,{stepId:null,scheduledBy:null,scheduledAt:null});}
   state.steps=state.steps.filter(s=>s.id!==op.id);
  }else if(op.type==='choose'){
   if(!state.steps.some(s=>s.group===op.group&&s.option===op.option))throw new AppError('Option not found.');
@@ -132,6 +135,6 @@ export function applyOperation(input,op,user){
  if(important){const summary=extra?.summary||(diffs.length?`${step.title}: ${diffs.join('; ')}`:`${step?.title||op.option||'Day plan'} · ${{reschedule:'times adjusted',choose:'alternative selected',backlog:'saved to Options',schedule:'added to a day',remove:'removed from itinerary'}[op.type]||'updated'}`);state.alerts=[{id:randomUUID(),summary,by:user.name,at:now,stepId:step?.id||null,seenBy:{[user.name]:now}},...state.alerts].slice(0,200);}
  if(op.operationId)state.appliedOperationIds=[...(state.appliedOperationIds||[]),op.operationId].slice(-500);
  // Private notes stay out of the shared alert feed and family history.
- if(!extra?.private)state.history=[{id:randomUUID(),at:now,by:user.name,type:op.type,title:step?.title||op.step?.title||op.title||op.option||'Trip update'},...(state.history||[])].slice(0,200);
+ if(!extra?.private)state.history=[{id:randomUUID(),at:now,by:user.name,type:op.type,title:extra?.title||step?.title||op.step?.title||op.title||op.option||'Trip update'},...(state.history||[])].slice(0,200);
  return state;
 }

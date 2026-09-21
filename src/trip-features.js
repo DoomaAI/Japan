@@ -338,7 +338,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:state.weather??{at:null,by:null,days:{}},voiceNotes:state.voiceNotes??[],thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:state.weather??{at:null,by:null,days:{}},voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -386,10 +386,72 @@ export const DRAWABLE=['image/jpeg','image/png','image/webp'];
 export const isDrawable=doc=>!!doc?.pathname&&DRAWABLE.includes(doc.type);
 // The picture that stands for a ticket: its own photo, else the first photo attached to it.
 export const documentThumbnail=(doc,attachments=[])=>isDrawable(doc)?doc:attachments.find(isDrawable)||null;
+// The planning board. Before anything is on a day, anyone in the family can put a place, a meal
+// or an event up where the others can see it, back it with a vote or star it as a must-do.
+// Nothing here is the plan: an idea only becomes an activity when a parent puts it on a day, and
+// from that moment the step is the plan and the idea is the record of why it is there.
+export const PROPOSAL_KINDS=[['place','Place to see'],['food','Food or drink'],['event','Event or show'],['activity','Activity'],['shopping','Shopping'],['rest','Rest or downtime'],['other','Something else']];
+// Whether an idea can go anywhere in a day, only inside its opening hours, or has to be booked
+// for an exact time. This is the tag that decides whether its scheduled step is locked.
+export const PROPOSAL_TIMING=[['flex','Flexible · any time'],['window','Available times only'],['fixed','Needs a fixed time']];
+export const PROPOSAL_SORTS=[['top','Most wanted'],['musts','Must-do first'],['new','Newest first'],['cost','Cheapest first']];
+export const PLACEMENT_LABEL={open:'Up for a vote',scheduled:'On the itinerary',options:'Moved to Options',parked:'Parked'};
+export const proposals=state=>state.proposals||[];
+export const findProposal=(state,id)=>proposals(state).find(p=>p.id===id)||null;
+export const proposalVoters=(p,vote)=>Object.entries(p.votes||{}).filter(([,v])=>v===vote).map(([name])=>name).sort();
+export const proposalMusts=p=>Object.keys(p.musts||{}).sort();
+export const proposalScore=p=>proposalVoters(p,1).length-proposalVoters(p,-1).length;
+export const proposalStep=(state,p)=>p?.stepId?state.steps.find(s=>s.id===p.stepId)||null:null;
+// One word for where an idea has got to, worked out from the step it created rather than stored
+// beside it, so an activity that was deleted or moved back to Options cannot leave the board
+// still claiming a day and a time it no longer has.
+export function proposalPlacement(state,p){
+ const step=proposalStep(state,p);
+ if(step)return {state:step.day?'scheduled':'options',step,day:step.day,time:step.time||null,locked:!!step.locked};
+ return {state:p.parked?'parked':'open',step:null,day:null,time:null,locked:false};
+}
+// One shape for a new or edited idea, used by the form, by the server that checks it and by the
+// phone that draws it before it has synced, so all three describe the same card.
+export function proposalDraft(op){
+ const number=(v,fallback)=>v===''||v===null||v===undefined?fallback:Number(v);
+ return {title:String(op.title??'').trim(),place:String(op.place??'').trim(),japanese:String(op.japanese??'').trim(),
+  website:String(op.website??'').trim(),mapUrl:String(op.mapUrl??'').trim(),notes:String(op.notes??''),
+  cost:number(op.cost,null),costNote:String(op.costNote??'').trim(),category:op.category??'place',
+  suitableFor:[...new Set(Array.isArray(op.suitableFor)?op.suitableFor:[])],
+  tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))],
+  day:op.day||null,availability:String(op.availability??'').trim(),timing:op.timing??'flex',
+  time:op.time||null,duration:number(op.duration,60)};
+}
+// What a scheduled step carries over from the board: the opening hours and the price the family
+// agreed on are exactly what someone standing outside the place will want to read.
+export function proposalStepNotes(p){
+ const lines=[p.notes,p.availability?`Available: ${p.availability}`:'',
+  p.cost===null||p.cost===undefined?'':`Estimated cost ¥${p.cost.toLocaleString('en-AU')}${p.costNote?` · ${p.costNote}`:''}`];
+ return lines.filter(Boolean).join('\n').slice(0,4000);
+}
+export function rankedProposals(state,{query='',category='',suits='',by='',placement='',day='',sort='top'}={}){
+ const q=query.trim().toLowerCase();
+ const list=proposals(state).filter(p=>{
+  const where=proposalPlacement(state,p);
+  if(placement&&where.state!==placement)return false;
+  if(category&&p.category!==category)return false;
+  if(day&&(where.day||p.day)!==day)return false;
+  if(suits&&(p.suitableFor||[]).length&&!p.suitableFor.includes(suits))return false;
+  if(by&&p.addedBy!==by&&(p.votes||{})[by]===undefined&&!(p.musts||{})[by])return false;
+  return !q||[p.title,p.place,p.japanese,p.notes,p.availability,p.costNote,p.addedBy,...(p.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(q);
+ });
+ const musts=p=>proposalMusts(p).length,age=p=>String(p.createdAt||'');
+ const order={top:(a,b)=>proposalScore(b)-proposalScore(a)||musts(b)-musts(a)||age(a).localeCompare(age(b)),
+  musts:(a,b)=>musts(b)-musts(a)||proposalScore(b)-proposalScore(a)||age(a).localeCompare(age(b)),
+  new:(a,b)=>age(b).localeCompare(age(a)),
+  cost:(a,b)=>(a.cost??Infinity)-(b.cost??Infinity)||proposalScore(b)-proposalScore(a)};
+ return [...list].sort(order[sort]||order.top);
+}
 export function searchTrip(state,query,guide=[]){
  const q=query.trim().toLowerCase();if(!q)return [];
  const hits=[],match=(...parts)=>parts.flat().filter(Boolean).join(' ').toLowerCase().includes(q);
  for(const s of state.steps)if(match(s.title,s.place,s.japanese,s.notes,s.bookingReference,s.website))hits.push({type:s.day?'Activity':'Option',id:s.id,title:s.title,detail:s.notes,day:s.day,step:s});
+ for(const p of proposals(state))if(match(p.title,p.place,p.japanese,p.notes,p.availability,p.costNote,p.addedBy,p.tags))hits.push({type:'Planning',id:p.id,title:p.title,detail:p.notes||p.place,day:proposalPlacement(state,p).day||p.day});
  for(const d of state.documents)if(match(d.title,d.reference,d.notes,d.tags))hits.push({type:d.category==='memory'?'Memory':'Document',id:d.id,title:d.title,detail:d.notes,day:d.day||state.steps.find(s=>s.id===d.stepId)?.day,document:d});
  for(const l of state.locations||[])if(match(l.name,l.district,l.city,l.address,l.category,l.notes))hits.push({type:'Location',id:l.id,title:l.name,detail:l.address});
  for(const s of state.shopping)if(match(s.title,s.notes,s.store,s.person,s.tags))hits.push({type:'Shopping',id:s.id,title:s.title,detail:s.store,day:s.day});
@@ -424,6 +486,11 @@ export function pendingProgress(state,queue){
   if(o.type==='foodRating'){const e=next.food[o.itemId]||{},ratings={...(e.ratings||{})};if(o.rating)ratings[o.person]=o.rating;else delete ratings[o.person];next.food={...next.food,[o.itemId]:{...e,ratings}};}
   if(o.type==='parkRide'){const e=next.parkRides[o.rideId]||{},ridden={...(e.ridden||{})};if(o.done)ridden[o.person]=ridden[o.person]||o.at;else delete ridden[o.person];next.parkRides={...next.parkRides,[o.rideId]:{...e,ridden}};}
   if(o.type==='eyeSpy'){const key=eyeSpyKey(o.stepId,o.item),found={...(next.eyeSpy[key]||{})};if(o.done)found[o.person]=found[o.person]||o.at;else delete found[o.person];next.eyeSpy={...next.eyeSpy,[key]:found};}
+  // An idea thought of on a train with no signal, and the votes cast on one, are additions:
+  // they are still right whenever they land, so the board shows them straight away.
+  if(o.type==='proposalAdd')next.proposals=[...next.proposals,{id:`pending-${o.operationId}`,...proposalDraft(o),addedBy:o.person,createdAt:o.at,votes:{},musts:{},parked:false,stepId:null,pending:true}];
+  if(o.type==='proposalVote'){const p=next.proposals.find(p=>p.id===o.id);if(p){const votes={...(p.votes||{})};if(o.vote===0)delete votes[o.person];else votes[o.person]=o.vote;p.votes=votes;p.pending=true;}}
+  if(o.type==='proposalMust'){const p=next.proposals.find(p=>p.id===o.id);if(p){const musts={...(p.musts||{})};if(o.must)musts[o.person]=musts[o.person]||o.at;else delete musts[o.person];p.musts=musts;p.pending=true;}}
   if(o.type==='challengeSkip'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.skips={...(c.skips||{})};if(o.done){c.skips[o.person]=c.skips[o.person]||o.at;delete c.completions[o.person];}else delete c.skips[o.person];}}
   if(o.type==='challengeStatus'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.completions={...c.completions};if(o.done)c.completions[o.person]=c.completions[o.person]||o.at;else delete c.completions[o.person];if(o.response!==undefined)c.responses={...(c.responses||{}),[o.person]:o.response};}}
  }
