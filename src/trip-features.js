@@ -395,11 +395,28 @@ export function offlineManifest(state,day){
 }
 // A ticket and its attached files are read as one set: the ticket itself first, then each
 // file attached to it. Written details and external links hold no file, so they are skipped.
+export const ticketFiles=(documents,ticket)=>ticket
+ ?[...(ticket.pathname?[ticket]:[]),...documents.filter(d=>d.parentDocumentId===ticket.id&&d.pathname)]
+ :[];
 export function attachmentGroup(documents,view){
  if(!view)return [];
- const rootId=view.parentDocumentId||view.id,root=documents.find(d=>d.id===rootId);
- const group=[...(root?.pathname?[root]:[]),...documents.filter(d=>d.parentDocumentId===rootId&&d.pathname)];
+ const rootId=view.parentDocumentId||view.id;
+ const group=ticketFiles(documents,documents.find(d=>d.id===rootId)||{id:rootId});
  return group.some(d=>d.id===view.id)?group:[view];
+}
+// The ticket a file belongs to: itself, when it is the ticket, else the one it is attached to.
+export const ticketOf=(documents,view)=>view?documents.find(d=>d.id===(view.parentDocumentId||view.id))||view:null;
+// Every file the Tickets page is showing, in one strip: each ticket's own file, then the files
+// attached to it, then straight on into the next ticket, so swiping past the end of one booking
+// carries on into the next rather than stopping dead. A booking held only as written details or
+// as a link has nothing to draw, so it drops out of the strip rather than turning up as a blank
+// page. If the open file is not among the tickets listed — the page was filtered underneath it,
+// say — the strip falls back to that one ticket's set, so the viewer never loses its place.
+export function attachmentReel(documents,tickets,view){
+ const reel=(tickets||[]).flatMap(t=>ticketFiles(documents,t).map(file=>({file,ticket:t})));
+ if(view&&reel.some(e=>e.file.id===view.id))return reel;
+ const ticket=ticketOf(documents,view);
+ return attachmentGroup(documents,view).map(file=>({file,ticket}));
 }
 // HEIC and HEIF are accepted uploads but most browsers cannot draw them in an <img>, so they
 // never stand in as a thumbnail — they are offered as a link to the original instead.
