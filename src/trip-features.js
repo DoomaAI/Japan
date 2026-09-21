@@ -386,6 +386,31 @@ export const DRAWABLE=['image/jpeg','image/png','image/webp'];
 export const isDrawable=doc=>!!doc?.pathname&&DRAWABLE.includes(doc.type);
 // The picture that stands for a ticket: its own photo, else the first photo attached to it.
 export const documentThumbnail=(doc,attachments=[])=>isDrawable(doc)?doc:attachments.find(isDrawable)||null;
+// Standing in the street with two tired children: what is near enough to walk to right now.
+// Food and the practical things a family runs out of — not sights, which is what the planning
+// board is for.
+export const NEARBY_KINDS=[
+ ['food','Somewhere to eat'],['quick','Something quick'],['coffee','Coffee or a cold drink'],
+ ['konbini','Convenience store'],['toilet','Toilets'],['pharmacy','Pharmacy'],['cash','Cash / ATM'],
+ ['lockers','Coin lockers'],['rest','Somewhere to sit down'],['playground','Somewhere to run about'],
+ ['shelter','Out of the rain']
+];
+export const PRICE_BANDS=[['free','Free'],['cheap','Cheap'],['mid','Mid-range'],['pricey','Pricey']];
+export const nearbyKindLabel=id=>(NEARBY_KINDS.find(([key])=>key===id)||NEARBY_KINDS[0])[1];
+export const priceBandLabel=id=>(PRICE_BANDS.find(([key])=>key===id)||['',''])[1];
+// A position is rounded before it goes anywhere: three decimal places is about a hundred metres,
+// which is plenty to find a convenience store and not enough to point at a hotel room.
+export const COORD_PLACES=3;
+export const roundCoord=v=>Math.round(v*10**COORD_PLACES)/10**COORD_PLACES;
+export const validCoords=(lat,lng)=>Number.isFinite(lat)&&Number.isFinite(lng)&&Math.abs(lat)<=90&&Math.abs(lng)<=180;
+// Walking directions from where you are actually standing, when the phone knows; a plain search
+// for the place otherwise. Built here from pieces the app checked, never from a model's link.
+export function walkingLink(name,area,from){
+ const destination=encodeURIComponent([name,area].filter(Boolean).join(' '));
+ return from&&validCoords(from.lat,from.lng)
+  ? `https://www.google.com/maps/dir/?api=1&origin=${from.lat},${from.lng}&destination=${destination}&travelmode=walking`
+  : `https://www.google.com/maps/search/?api=1&query=${destination}`;
+}
 // Who is actually going, and what each of them would want out of a day. The boys fill in their
 // own, which is the point: an eight-year-old who has ticked trains and animals gets a different
 // list back from a five-year-old who has ticked playgrounds. Nothing here is on the plan — it is

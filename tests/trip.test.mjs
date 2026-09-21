@@ -1941,3 +1941,108 @@ test('suggestions are built from who is going, and land on the board as ordinary
  assert.match(handlerSource,/route==='suggest'&&post\)\{\s*\n?\s*parent\(user\)/);
  assert.match(handlerSource,/suggest:suggestReady\(\)/);
 });
+
+test('what is near here answers from a position or a planned place, and adds straight to the day',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures,walkingLink,roundCoord,NEARBY_KINDS}=await import('../src/trip-features.js');
+ let seen=null;
+ const answer={anchor:'Ryogoku, by the north exit of the station',note:'Named shops change hands often — check the sign before you commit.',options:[
+  {title:'Lawson',japanese:'ローソン',kind:'konbini',what:'Convenience store with a toilet, a cash machine and hot food.',
+   area:'On the main road, north exit',walkMinutes:3,priceBand:'cheap',openNote:'Usually 24 hours, but check',kidFriendly:true,
+   why:'Answers the toilet, the cash and lunch for Nate in one stop.'},
+  {title:'Chanko Tomoegata',japanese:'ちゃんこ巴潟',kind:'food',what:'Sumo stew, the local dish, in a sit-down room.',
+   area:'Ryogoku 2-chome',walkMinutes:8,priceBand:'mid',openNote:'Lunch about 11:30–14:00, guessing',kidFriendly:false,
+   why:'The thing to eat in this neighbourhood, but it is a long sit for a five-year-old.'},
+  {title:'B'.repeat(400),japanese:'',kind:'teleport',what:'',area:'',walkMinutes:9999,priceBand:'gold',openNote:'',kidFriendly:true,why:''}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen=JSON.parse(body);
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m1',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:4000,output_tokens:600,server_tool_use:{web_search_requests:2}},
+    content:[{type:'tool_use',id:'c1',name:'record_nearby',input:answer}]}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {nearbyPlaces,nearbyReady}=await import('../server/nearby.mjs');
+  assert.equal(nearbyReady(),true);
+  let state=ensureFeatures(structuredClone(seed));
+  state=applyOperation(state,{type:'partyPerson',name:'Nate',age:5,dietary:'nothing spicy'},parent);
+  const result=await nearbyPlaces({lat:35.6963214,lng:139.7930871,place:'Ryogoku Kokugikan',city:'Tokyo',
+   kinds:['food','toilet','konbini'],note:'twenty minutes before the train'},state);
+
+  // A position is cut down before it is ever sent — a hundred metres, not a hotel room.
+  assert.match(seen.messages[0].content,/Position, rounded to about a hundred metres: 35\.696, 139\.793/);
+  assert.ok(!seen.messages[0].content.includes('35.6963214'),'the precise position never leaves');
+  assert.match(seen.messages[0].content,/At or beside: Ryogoku Kokugikan/);
+  assert.match(seen.messages[0].content,/In: Tokyo/);
+  assert.match(seen.messages[0].content,/Somewhere to eat, Toilets, Convenience store/);
+  assert.match(seen.messages[0].content,/twenty minutes before the train/);
+  assert.match(seen.messages[0].content,/Nate, 5 —.*food: nothing spicy/,'who is with them shapes the answer');
+  assert.equal(seen.output_config.effort,'low','the one asked standing in the street is tuned for speed');
+  assert.equal(seen.tools.find(t=>t.name==='web_search').max_uses,4);
+  assert.equal(seen.tools.find(t=>t.name==='record_nearby').strict,true);
+  assert.match(seen.system,/You cannot see a map/);
+
+  // Nearest first, and the junk one clamped rather than believed.
+  assert.deepEqual(result.options.map(o=>o.draft.title.slice(0,20)),['Lawson','Chanko Tomoegata','BBBBBBBBBBBBBBBBBBBB']);
+  assert.deepEqual(result.from,{lat:35.696,lng:139.793});
+  const [lawson,chanko,junk]=result.options;
+  assert.equal(lawson.walkMinutes,3);assert.equal(lawson.kidFriendly,true);
+  assert.equal(lawson.draft.japanese,'ローソン','the name to point at comes back');
+  assert.equal(lawson.draft.category,'food');
+  assert.deepEqual(lawson.draft.suitableFor,[],'fine with Nate means fine with everyone');
+  assert.deepEqual(chanko.draft.suitableFor,['Damien','Lauren','Boston'],'not one for Nate says so on the card');
+  assert.equal(junk.kind,'food');assert.equal(junk.walkMinutes,null);assert.equal(junk.priceBand,'');
+  assert.equal(junk.draft.title.length,250);
+  // Nothing carries a link of its own; the app builds the walk from pieces it checked.
+  for(const o of result.options)for(const key of ['website','ticketUrl','mapUrl'])assert.equal(o.draft[key],'');
+  assert.equal(walkingLink('Lawson','north exit',result.from),
+   'https://www.google.com/maps/dir/?api=1&origin=35.696,139.793&destination=Lawson%20north%20exit&travelmode=walking');
+  assert.equal(walkingLink('Lawson','north exit',null),'https://www.google.com/maps/search/?api=1&query=Lawson%20north%20exit');
+  assert.equal(roundCoord(35.6963214),35.696);
+
+  // Quick add: straight onto today, right after whatever we are in the middle of.
+  const day=seed.days[3].date,before=activeSteps(state,day);
+  const after=applyOperation(state,{type:'add',step:{title:lawson.draft.title,day,time:null,duration:20,
+   place:lawson.area,japanese:lawson.draft.japanese,notes:lawson.what,kind:'flexible',page:1,
+   participants:[...state.members],order:before[0].order+0.5}},parent);
+  const added=activeSteps(after,day);
+  assert.equal(added.length,before.length+1);
+  assert.equal(added[1].title,'Lawson','it lands after the step we are on, not at the end of the day');
+  assert.equal(added[1].locked,false);assert.equal(added[1].status,'todo');
+  // A boy cannot add to the itinerary, so his button saves it to the board instead.
+  assert.throws(()=>applyOperation(state,{type:'add',step:{title:'Lawson',day}},child),e=>e.status===403);
+  assert.equal(applyOperation(state,{type:'proposalAdd',...lawson.draft},child).proposals.at(-1).source,'suggested');
+
+  // A planned place is enough on its own — no position needed, and none is sent.
+  await nearbyPlaces({place:'Fushimi Inari Taisha',city:'Kyoto',kinds:['coffee']},state);
+  assert.ok(!seen.messages[0].content.includes('Position'),'no position, nothing sent about one');
+  assert.match(seen.messages[0].content,/At or beside: Fushimi Inari Taisha/);
+  for(const [bad,pattern] of [
+   [{kinds:['food']},/Say where you are/],
+   [{place:'Ryogoku',kinds:[]},/Choose what you are looking for/],
+   [{lat:999,lng:0,kinds:['food']},/position could not be read/]
+  ])await assert.rejects(()=>nearbyPlaces(bad,state),pattern,JSON.stringify(bad));
+  assert.ok(NEARBY_KINDS.some(([id])=>id==='toilet'),'amenities, not just food');
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ // This one is not a parent's: whoever needs a toilet is whoever is holding the phone.
+ const handlerSource=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ const from=handlerSource.indexOf("route==='nearby'");
+ const route=handlerSource.slice(from,handlerSource.indexOf('\n  }',from));
+ assert.ok(route.includes('nearbyPlaces'),'the route body was found');
+ assert.ok(!route.includes('parent(user)'),'anyone in the family can ask what is near them');
+ assert.match(handlerSource,/nearby:nearbyReady\(\)/);
+ // And the position is never written into the trip.
+ const nearbySource=await readFile(new URL('../server/nearby.mjs',import.meta.url),'utf8');
+ assert.ok(!/state\.(steps|proposals|documents|journal)\s*=/.test(nearbySource),'a lookup writes nothing into the trip');
+});
