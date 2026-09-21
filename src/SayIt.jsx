@@ -1,7 +1,8 @@
-import React,{useState,useEffect} from 'react';
+import React,{useState,useEffect,useContext} from 'react';
 import {Volume2,Square,Snail} from 'lucide-react';
 import {useReadAloud} from './AdventurePages.jsx';
 import {voiceState,settled,canOffer,speechKey,speechRate,SLOW_RATE,phonicChunks} from './speech.js';
+import {PhraseAudio,PhraseClipControls} from './PhraseAudio.jsx';
 const voices=()=>{try{return window.speechSynthesis?.getVoices()||null;}catch{return null;}};
 export const hasJapaneseVoice=()=>voiceState(voices())==='yes';
 // The voice list arrives late, and on some phones the voiceschanged event never comes at all,
@@ -23,6 +24,10 @@ export function useJapaneseVoice(){
 export default function SayIt({phrase,size='',showRomaji=true}){
  const {supported,reading,read,problem}=useReadAloud();
  const japanese=useJapaneseVoice();
+ const audio=useContext(PhraseAudio);
+ // Where someone has said it aloud, that is the one to hear: a recording plays on a silent
+ // iPhone and the phone's own voice does not. The phone's voice stays, named for what it is.
+ const recorded=!!(phrase?.id&&audio?.clips?.[phrase.id]);
  if(!phrase?.ja)return null;
  // Two speeds, because a phrase read at talking pace is no use to someone learning it.
  // Each speed is its own button, so tapping the other one switches rather than stops.
@@ -37,10 +42,13 @@ export default function SayIt({phrase,size='',showRomaji=true}){
   <p className="say-phonics"><span aria-hidden="true">say</span> <span>{phonicChunks(phrase.say,phrase.hold).map((c,i)=>
    c.hold?<b key={i} title="Hold this one — two beats, not one">{c.text}</b>:<React.Fragment key={i}>{c.text}</React.Fragment>)}</span></p>
   {showRomaji&&phrase.romaji&&<small>{phrase.romaji}</small>}
-  {canOffer(supported,japanese)&&<span className="hear-row">
-   {button('normal',undefined,'Hear it',Volume2,15)}
-   {button('slow',SLOW_RATE,'Slowly',Snail,16)}
-  </span>}
+  <span className="hear-row">
+   <PhraseClipControls phrase={phrase}/>
+   {canOffer(supported,japanese)&&<>
+    {button('normal',undefined,recorded?'Phone’s voice':'Hear it',Volume2,15)}
+    {button('slow',SLOW_RATE,'Slowly',Snail,16)}
+   </>}
+  </span>
   {problem&&<small className="hear-problem">{problem}</small>}
  </div>;
 }

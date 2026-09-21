@@ -1,5 +1,6 @@
 import {FILE_TYPES,AUDIO_TYPES,VOICE_MAX_BYTES,validateFile} from './files.mjs';
 import {checkVoiceNote,addVoiceNote} from './voice.mjs';
+import {checkPhraseClip,addPhraseClip,removePhraseClip} from './phrase-audio.mjs';
 import {readFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {Readable} from 'node:stream';
@@ -13,6 +14,7 @@ import {translatePhrase,translatorReady} from './translate.mjs';
 import {researchPlace,researchReady} from './research.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {nearbyPlaces,nearbyReady} from './nearby.mjs';
+import {fetchSumoDay,fetchWrestler,sumoReady} from './sumo.mjs';
 import {readDocument,readerReady} from './document-reader.mjs';
 import {coachPhoto,coachReady} from './photo-coach.mjs';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady} from './email.mjs';
@@ -49,7 +51,7 @@ export default async function handler(req,res){
    return json(res,{ok:true,filed:true,id:received.item.id});
   }
   if(post)checkOrigin(req);
-  if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),nearby:nearbyReady(),emailInbox:emailInboxReady()});
+  if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -124,6 +126,16 @@ export default async function handler(req,res){
   // What is near enough to walk to, right now. This one is not a parent's: the person who needs
   // a toilet or a plain bowl of rice is whoever is holding the phone. The position is rounded
   // before it leaves the browser and again here, and is never written into the trip.
+  // The day's sumo card, and the man whose name is on it. Read once by a parent and kept in
+  // the trip, because the arena is a basement and the list has to still be there without signal.
+  if(route==='sumo-card'&&post){
+   parent(user);const {state}=await readTrip();
+   return json(res,await fetchSumoDay(b,state));
+  }
+  if(route==='sumo-wrestler'&&post){
+   parent(user);
+   return json(res,await fetchWrestler(b));
+  }
   if(route==='nearby'&&post){
    const {state}=await readTrip();
    return json(res,await nearbyPlaces(b,state));
@@ -189,7 +201,10 @@ export default async function handler(req,res){
    if(localDemo())throw new AppError('Connect private Blob storage to upload documents.',503);
    const result=await handleUpload({body:b,request:req,onBeforeGenerateToken:async pathname=>{
     const voice=pathname.startsWith(`voice/${user.id}/`),photo=pathname.startsWith(`photos/${user.id}/`);
-    if(pathname.includes('..')||!(voice||photo||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
+    // A recorded phrase is the family's reference pronunciation, so a parent makes it.
+    const said=pathname.startsWith(`phrases/${user.id}/`);
+    if(pathname.includes('..')||!(voice||photo||said||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
+    if(said){parent(user);return {allowedContentTypes:AUDIO_TYPES,maximumSizeInBytes:VOICE_MAX_BYTES,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};}
     if(photo)return {allowedContentTypes:['image/jpeg','image/png','image/webp'],maximumSizeInBytes:25*1024*1024,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
     if(voice)return {allowedContentTypes:AUDIO_TYPES,maximumSizeInBytes:VOICE_MAX_BYTES,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
     parent(user);
@@ -211,6 +226,27 @@ export default async function handler(req,res){
    res.setHeader('Content-Type',note.type);res.setHeader('Content-Disposition','inline');
    for(const h of ['content-length','content-range','accept-ranges']){const value=result.headers.get(h);if(value)res.setHeader(h,value);}
    if(result.headers.has('content-range'))res.statusCode=206;
+   const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
+  }
+  // A phrase said aloud once and kept, because an iPhone's ring switch silences the phone's
+  // own voice but not a recording.
+  if(route==='phrase-audio'&&post){
+   parent(user);
+   const current=await readTrip();
+   if(b.remove)return json(res,visibleEnvelope(await writeTrip(removePhraseClip(current.state,String(b.phraseId||'')),current.revision),user));
+   const checked=checkPhraseClip(b,user);
+   const state=addPhraseClip(current.state,checked,user,await head(checked.pathname));
+   if(state===current.state)return json(res,visibleEnvelope(current,user));
+   return json(res,visibleEnvelope(await writeTrip(state,current.revision),user));
+  }
+  if(route==='phrase-audio'&&req.method==='GET'){
+   const {state}=await readTrip();
+   const clip=state.phraseAudio?.[url.searchParams.get('phrase')];
+   if(!clip?.pathname)throw new AppError('No recording for that phrase.',404);
+   const result=await get(clip.pathname,{access:'private',useCache:false});
+   if(!result||!result.stream)throw new AppError('Recording unavailable.',404);
+   res.setHeader('Content-Type',clip.type);res.setHeader('Content-Disposition','inline');
+   const length=result.headers.get('content-length');if(length)res.setHeader('content-length',length);
    const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
   }
   if(route==='document'&&post){

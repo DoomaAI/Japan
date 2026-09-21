@@ -316,6 +316,32 @@ test('the full-screen ticket viewer groups a ticket with its attached files, ski
  assert.deepEqual(attachmentGroup(docs,null),[]);
 });
 
+test('the viewer reads the whole Tickets page as one strip, ticket after ticket',async()=>{
+ const {attachmentReel}=await import('../src/trip-features.js');
+ const flight={id:'flight',title:'Flights',pathname:'a',type:'application/pdf'};
+ const boarding={id:'boarding',parentDocumentId:'flight',pathname:'b',type:'image/png'};
+ const dinner={id:'dinner',title:'Dinner',type:'note'};
+ const dinnerShot={id:'dinner-shot',parentDocumentId:'dinner',pathname:'c',type:'image/jpeg'};
+ const bagTag={id:'bag',title:'Blue bag',type:'link',url:'https://example.com'};
+ const park={id:'park',title:'Disney',pathname:'d',type:'image/png'};
+ const loose={id:'loose',title:'Somewhere else',pathname:'e',type:'image/png'};
+ const docs=[flight,boarding,dinner,dinnerShot,bagTag,park,loose];
+ const listed=[flight,dinner,bagTag,park];
+ // Each ticket's own file first, then its attachments, then straight on into the next ticket,
+ // in the order the page is listing them. A link holds no file, so it is not a page in between.
+ const reel=attachmentReel(docs,listed,flight);
+ assert.deepEqual(reel.map(e=>e.file.id),['flight','boarding','dinner-shot','park']);
+ assert.deepEqual(reel.map(e=>e.ticket.id),['flight','flight','dinner','park']);
+ // Opening an attachment reads the same strip, so Previous still reaches the ticket before it.
+ assert.deepEqual(attachmentReel(docs,listed,dinnerShot).map(e=>e.file.id),['flight','boarding','dinner-shot','park']);
+ // A file whose ticket is not on the page - it was filtered away underneath the viewer - keeps
+ // its own ticket's set rather than emptying out.
+ assert.deepEqual(attachmentReel(docs,listed,loose).map(e=>e.file.id),['loose']);
+ assert.deepEqual(attachmentReel(docs,[],flight).map(e=>e.file.id),['flight','boarding']);
+ // Nothing listed and nothing open is an empty strip, not a crash.
+ assert.deepEqual(attachmentReel(docs,[],null),[]);
+});
+
 test('read receipts report whether Lauren opened each note, and when she opened it late',async()=>{
  const {noteReadState}=await import('../src/trip-features.js');
  const today='2026-09-25';
@@ -686,8 +712,9 @@ test('the menu reader sends a well-formed vision request and reads the answer ba
    res.end(JSON.stringify({id:'msg_1',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'end_turn',
     usage:{input_tokens:1500,output_tokens:400},
     content:[{type:'text',text:JSON.stringify({readable:true,place:'Maisen',note:'Order the rice separately for Nate.',
-     suggestions:[{ja:'ロースかつ膳',en:'Pork loin katsu set',why:'The dish this place is known for.',forWhom:['Damien','Lauren','Boston'],matchesOurList:'tonkatsu',spicy:false,price:'¥2,100'},
-                  {ja:'白ごはん',en:'Plain rice',why:'Nate will always eat this.',forWhom:['Nate'],matchesOurList:'gohan',spicy:false,price:''}],
+     suggestions:[{ja:'ロースかつ膳',en:'Pork loin katsu set',why:'The dish this place is known for.',forWhom:['Damien','Lauren','Boston'],matchesOurList:'tonkatsu',ingredients:['Pork loin','Wheat flour','Egg','Panko'],spicy:false,heat:'none',spiceNote:'',price:'¥2,100'},
+                  {ja:'白ごはん',en:'Plain rice',why:'Nate will always eat this.',forWhom:['Nate'],matchesOurList:'gohan',ingredients:['Short-grain rice'],spicy:false,heat:'none',spiceNote:'',price:''},
+                  {ja:'辛味噌ラーメン',en:'Spicy miso ramen',why:'The one the parents will want.',forWhom:['Damien','Lauren'],matchesOurList:'',ingredients:['Wheat noodles','Miso','Chilli oil','Pork'],spicy:true,heat:'hot',spiceNote:'Dressed in chilli oil before it leaves the kitchen.',price:'¥1,150'}],
      avoid:[{en:'Karashi mustard',why:'Very sharp for a child.'}]})}]}));
   });
  });
@@ -724,7 +751,12 @@ test('the menu reader sends a well-formed vision request and reads the answer ba
   // And the answer comes back in the shape the screen expects.
   assert.equal(answer.readable,true);
   assert.equal(answer.place,'Maisen');
-  assert.equal(answer.suggestions.length,2);
+  assert.equal(answer.suggestions.length,3);
+  // What is usually in the dish, and how hot it usually is, both come back per dish.
+  assert.deepEqual(answer.suggestions[0].ingredients,['Pork loin','Wheat flour','Egg','Panko']);
+  assert.equal(answer.suggestions[2].heat,'hot');
+  assert.match(answer.suggestions[2].spiceNote,/chilli oil/);
+  assert.deepEqual(answer.suggestions.filter(s=>s.spicy).map(s=>s.en),['Spicy miso ramen']);
   assert.equal(answer.suggestions[0].matchesOurList,'tonkatsu');
   assert.equal(answer.suggestions[1].forWhom[0],'Nate');
   assert.deepEqual(answer.usage,{input:1500,output:400});
@@ -2266,31 +2298,20 @@ test('the stable promotes on a match, and a bout can be lost by anyone',async()=
   }
 });
 
-test('the silent nudge fires once, inside a tap, and never claims more than it did',async()=>{
- const {nudgeOffAmbient,resetNudge}=await import('../src/speech.js');
- resetNudge();
- const played=[];
- const make=()=>{const el={volume:1,play(){played.push(this.volume);return Promise.resolve();}};return el;};
- assert.equal(nudgeOffAmbient(make),true);
- assert.equal(played.length,1,'a moment of silence, once');
- assert.ok(played[0]<=0.01,'and inaudible');
- assert.equal(nudgeOffAmbient(make),false,'never again in this session');
- assert.equal(played.length,1);
- // A phone with no Audio at all, and one that refuses to play, are both survivable.
- resetNudge();assert.equal(nudgeOffAmbient(null),false);
- resetNudge();assert.equal(nudgeOffAmbient(()=>{throw new Error('blocked');}),false);
- resetNudge();
- assert.equal(nudgeOffAmbient(()=>({volume:1,play(){return Promise.reject(new Error('gesture required'));}})),true,
-  'a rejected play is handled rather than thrown');
-});
-
-test('the session is claimed at the start, not before every phrase',async()=>{
+test('the session is claimed on the first touch, and never flipped after that',async()=>{
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const speech=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
- // Set once, early. Flipping the type part-way through is what makes iOS play nothing.
- assert.match(main,/useEffect\(\(\)=>\{claimPlayback\(\);\},\[\]\)/,'claimed once when the app starts');
- assert.doesNotMatch(speech,/claimPlayback\(\)/,'and never again from inside the speaking path');
- assert.match(speech,/nudgeOffAmbient\(\)/,'the older-iPhone nudge still runs inside the tap');
+ // iOS ignores a session claimed before anybody has touched the page, so the claim is armed
+ // at startup and spent on the first gesture rather than at load.
+ assert.match(main,/useEffect\(\(\)=>\{armPlayback\(\);\},\[\]\)/,'armed once when the app starts');
+ assert.doesNotMatch(main,/claimPlayback\(\)/,'main does not claim it directly any more');
+ // The invariant that has not changed: the type is never set from inside the speaking path.
+ // Flipping it part-way through is what makes iOS play nothing at all.
+ assert.doesNotMatch(speech,/claimPlayback\(/,'never claimed from inside the speaking path');
+ // What runs inside the tap now is the hold, and every hold is matched by a release.
+ assert.match(speech,/holdPlayback\(\)/,'the session is held while the phone is talking');
+ assert.match(speech,/releasePlayback\(\)/,'and let go afterwards');
+ assert.doesNotMatch(speech,/nudgeOffAmbient/,'the one-shot nudge held nothing and is gone');
 });
 
 test('the advice matches what the phone actually did, not what we assume',async()=>{
@@ -2301,6 +2322,13 @@ test('the advice matches what the phone actually did, not what we assume',async(
  // Nothing started, in the browser: the synthesiser is wedged from being in the background.
  assert.equal(silenceAdvice({started:false,standalone:false}),'never-started');
  assert.match(SILENCE_HELP['never-started'],/background/);
+ // The answer only this test can give: it plays a recording and will not speak for itself.
+ assert.equal(silenceAdvice({started:false,standalone:true,tone:'played'}),'record-instead');
+ assert.equal(silenceAdvice({started:false,standalone:false,tone:'played'}),'record-instead');
+ assert.match(SILENCE_HELP['record-instead'],/iPad/,'and names the device that will do it');
+ assert.match(SILENCE_HELP['record-instead'],/no setting on it will change that/,'without blaming the switch again');
+ // A recording that would not play says nothing new, so the older advice still stands.
+ assert.equal(silenceAdvice({started:false,standalone:true,tone:'the phone would not allow it'}),'standalone');
  // It did start, so the sound is being blocked on its way out.
  assert.equal(silenceAdvice({started:true,standalone:true}),'muted');
  assert.equal(silenceAdvice({started:true,standalone:false}),'muted');
@@ -2567,6 +2595,209 @@ test('the photo coach talks to the child, and never about who is in the picture'
  }
 });
 
+test('the sumo card is read from the official schedule and kept for a basement with no signal',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures,sumo,sumoCard,currentBout,boutResult,SUMO_DAY}=await import('../src/trip-features.js');
+ assert.ok(seed.steps.some(s=>s.day===SUMO_DAY&&/sumo/i.test(s.title)),'the sumo day is a real day on this trip');
+ let seen=null;
+ const card={found:true,basho:'Aki Basho 2026 (September, Tokyo)',dayNumber:11,venue:'Ryogoku Kokugikan',
+  date:SUMO_DAY,doorsOpen:'08:00',notes:'The top division starts about 16:00, after the ring-entering ceremonies.',
+  bouts:[
+   {division:'makuuchi',order:40,time:'17:55',east:{name:'Hoshoryu',rank:'Ozeki',stable:'Tatsunami'},west:{name:'Kirishima',rank:'Sekiwake',stable:'Michinoku'}},
+   {division:'juryo',order:20,time:'15:10',east:{name:'Tomokaze',rank:'Juryo 3',stable:'Oguruma'},west:{name:'Chiyoshoma',rank:'Juryo 5',stable:'Kokonoe'}},
+   {division:'makuuchi',order:38,time:'17:40',east:{name:'Wakatakakage',rank:'Maegashira 1',stable:'Arashio'},west:{name:'Abi',rank:'Maegashira 2',stable:'Shikoroyama'}},
+   // Junk, to prove the same gate runs here as everywhere else.
+   {division:'teleport',order:0,time:'99:99',east:{name:''},west:{name:'Nobody'}}],
+  sources:[{title:'Japan Sumo Association — torikumi',url:'https://www.sumo.or.jp/EnHonbashoMain/torikumi/'},{title:'A blog',url:'http://insecure.example.com'}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{seen=JSON.parse(body);
+   const wants=(seen.tools||[]).some(t=>t.name==='record_wrestler');
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:9000,output_tokens:900,server_tool_use:{web_search_requests:4}},
+    content:[{type:'tool_use',id:'c1',name:wants?'record_wrestler':'record_sumo_day',
+     input:wants?{found:true,name:'Hoshoryu',japanese:'豊昇龍',rank:'Ozeki',stable:'Tatsunami',hometown:'Ulaanbaatar, Mongolia',
+      heightCm:187,weightKg:145,record:'8-3 after day 11',about:'Nephew of a great yokozuna. Throws rather than pushes.',
+      sources:[{title:'JSA profile',url:'https://www.sumo.or.jp/EnSumoDataRikishi/profile/'}]}:card}]}));});
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {fetchSumoDay,fetchWrestler,sumoReady}=await import('../server/sumo.mjs');
+  assert.equal(sumoReady(),true);
+  let state=ensureFeatures(structuredClone(seed));
+  const fetched=await fetchSumoDay({date:SUMO_DAY},state);
+
+  assert.equal(seen.model,'claude-opus-5');
+  assert.equal(seen.tools.find(t=>t.name==='web_search').type,'web_search_20260209');
+  assert.equal(seen.tools.find(t=>t.name==='record_sumo_day').strict,true);
+  assert.match(seen.system,/sumo\.or\.jp/,'the official site is the source that matters');
+  assert.match(seen.system,/published the afternoon before/);
+  assert.match(seen.messages[0].content,new RegExp(SUMO_DAY));
+
+  // The bout with nobody on one side of it is not a bout; the rest come back in running order.
+  assert.deepEqual(fetched.bouts.map(b=>b.id),['juryo-20','makuuchi-38','makuuchi-40']);
+  assert.equal(fetched.bouts[0].time,'15:10');
+  assert.equal(fetched.dayNumber,11);assert.equal(fetched.doorsOpen,'08:00');
+  assert.deepEqual(fetched.sources.map(s=>s.url),['https://www.sumo.or.jp/EnHonbashoMain/torikumi/'],'a plain http source is dropped');
+
+  // Saved into the trip, which is what makes it work in a basement with no signal.
+  state=applyOperation(state,{type:'sumoUpdate',...fetched},parent);
+  assert.equal(sumo(state).bouts.length,3);assert.equal(sumo(state).by,'Damien');
+  // Grouped the way the afternoon runs: the top division last.
+  assert.deepEqual(sumoCard(state).map(g=>g.id),['juryo','makuuchi']);
+  // Which bout is on, so the screen says "this one" rather than leaving you counting rows.
+  assert.equal(currentBout(state,'17:45')?.id,'makuuchi-38');
+  assert.equal(currentBout(state,'09:00'),null,'nothing has started yet');
+  assert.equal(currentBout(state,'23:00')?.id,'makuuchi-40','the last one that started');
+
+  // Anyone marks who won as they watch, and it survives the card being fetched again.
+  state=applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:'Hoshoryu'},child);
+  assert.equal(boutResult(state,'makuuchi-40').winner,'Hoshoryu');
+  assert.equal(boutResult(state,'makuuchi-40').by,'Nate');
+  assert.equal(boutResult(applyOperation(state,{type:'sumoUpdate',...fetched},parent),'makuuchi-40').winner,'Hoshoryu');
+  assert.equal(boutResult(applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:null},parent),'makuuchi-40'),null);
+  assert.throws(()=>applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:'Somebody else'},parent),/One of the two/);
+  assert.throws(()=>applyOperation(state,{type:'sumoResult',id:'nope',winner:'Hoshoryu'},parent),e=>e.status===404);
+  // Fetching the card and looking a man up cost money, so they are a parent's.
+  for(const op of [{type:'sumoUpdate',...fetched},{type:'sumoWrestler',profile:{name:'Hoshoryu'}}])
+   assert.throws(()=>applyOperation(state,op,child),e=>e.status===403);
+
+  // And the man whose name is on the card.
+  const man=await fetchWrestler({name:'Hoshoryu'});
+  assert.equal(man.heightCm,187);assert.equal(man.weightKg,145);
+  assert.match(man.about,/Throws rather than pushes/);
+  assert.match(seen.system,/Boston is eight/);
+  const withMan=applyOperation(state,{type:'sumoWrestler',profile:man},parent);
+  const {wrestlerProfile}=await import('../src/trip-features.js');
+  assert.equal(wrestlerProfile(withMan,'hoshoryu').japanese,'豊昇龍','looked up once, then on everyone’s phone');
+  assert.equal(wrestlerProfile(withMan,'HOSHORYU').rank,'Ozeki','the name is matched however it is typed');
+  // Nothing believable is invented: a nonsense size is dropped rather than shown.
+  assert.throws(()=>applyOperation(state,{type:'sumoWrestler',profile:{name:'X',heightCm:4}},parent),/believable size/);
+  await assert.rejects(()=>fetchSumoDay({date:'2099-01-01'},state),/Choose a trip day/);
+  await assert.rejects(()=>fetchWrestler({name:'   '}),/Choose a wrestler/);
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ // Marking who won is a record of what happened, so it keeps on a dead phone.
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ assert.ok(list.includes('sumoResult'));
+ assert.ok(!list.includes('sumoUpdate'),'fetching a card needs the latest revision');
+});
+
+test('we rate an activity and say what we thought, each of us for ourselves',async()=>{
+ const {ensureFeatures,stepAverage,stepRatings,stepThoughts,ratedSteps,dayRating,diaryDays,pendingProgress}=await import('../src/trip-features.js');
+ const step=seed.steps.find(s=>s.day==='2026-09-23'),other=seed.steps.find(s=>s.day==='2026-09-23'&&s.id!==step.id);
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'stepRating',id:step.id,person:'Nate',rating:5},child);
+ state=applyOperation(state,{type:'stepRating',id:step.id,person:'Lauren',rating:2},parent);
+ state=applyOperation(state,{type:'stepThought',id:step.id,person:'Nate',thought:'The deer bowed back.'},child);
+ assert.equal(stepAverage(state,step.id),3.5);
+ assert.deepEqual(stepRatings(state,step.id),{Nate:5,Lauren:2});
+ assert.equal(stepThoughts(state,step.id).Nate.text,'The deer bowed back.');
+ assert.ok(stepThoughts(state,step.id).Nate.at,'and when he said it');
+ // Nobody's stars average away anybody else's — the two numbers are the interesting bit.
+ assert.equal(stepAverage(applyOperation(state,{type:'stepRating',id:step.id,person:'Lauren',rating:4},parent),step.id),4.5);
+ // Changing your mind replaces your stars; zero takes them back.
+ const cleared=applyOperation(state,{type:'stepRating',id:step.id,person:'Nate',rating:0},child);
+ assert.deepEqual(stepRatings(cleared,step.id),{Lauren:2});
+ assert.equal(stepThoughts(cleared,step.id).Nate.text,'The deer bowed back.','clearing stars is not deleting what he said');
+ assert.deepEqual(stepThoughts(applyOperation(state,{type:'stepThought',id:step.id,person:'Nate',thought:'  '},child),step.id),{});
+ // It is our own opinion, not each other's — and only for real activities.
+ assert.throws(()=>applyOperation(state,{type:'stepRating',id:step.id,person:'Boston',rating:5},child),e=>e.status===403);
+ for(const bad of [{type:'stepRating',id:step.id,person:'Nate',rating:6},{type:'stepRating',id:step.id,person:'Nate',rating:2.5},
+  {type:'stepRating',id:'nope',person:'Nate',rating:3},{type:'stepRating',id:step.id,person:'Grandma',rating:3},
+  {type:'stepThought',id:step.id,person:'Nate',thought:'x'.repeat(2001)}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,46)} should be refused`);
+ // These are opinions about a day that happened, not the plan — the step's own notes are untouched.
+ assert.equal(state.steps.find(s=>s.id===step.id).notes,step.notes);
+ assert.ok(!state.alerts.some(a=>/deer bowed/.test(a.summary||'')));
+ // The days we would do again, best first, and what the day came to overall.
+ state=applyOperation(state,{type:'stepRating',id:other.id,person:'Damien',rating:5},parent);
+ assert.deepEqual(ratedSteps(state).map(r=>r.step.id),[other.id,step.id]);
+ assert.equal(dayRating(state,'2026-09-23'),4.3,'a day is the average of its rated activities, to one place');
+ assert.equal(dayRating(state,'2026-09-21'),null,'a day nobody rated has no score, rather than a zero');
+ assert.deepEqual(ratedSteps(state,{min:4}).map(r=>r.step.id),[other.id]);
+ // The diary is where it pays off.
+ const diary=diaryDays(state,'2026-09-23')[0];
+ assert.equal(diary.rating,4.3);assert.equal(diary.reviews.length,2);
+ // Stars given on a mountain with no signal wait on the phone and show straight away.
+ const queue=[{operation:{type:'stepRating',operationId:'q1',id:step.id,person:'Boston',rating:4}},
+              {operation:{type:'stepThought',operationId:'q2',id:step.id,person:'Boston',thought:'Better than the temple.',at:'2026-09-19T02:00:00.000Z'}}];
+ const preview=pendingProgress(state,queue);
+ assert.equal(stepRatings(preview,step.id).Boston,4);
+ assert.equal(stepThoughts(preview,step.id).Boston.text,'Better than the temple.');
+ assert.equal(stepRatings(state,step.id).Boston,undefined,'the shared trip is untouched until it syncs');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ for(const op of ['stepRating','stepThought'])assert.ok(list.includes(op),`${op} should survive with no signal`);
+ assert.match(source,/<StepReview state=\{visibleState\} user=\{user\} step=\{current\}/,'and it is on the activity card');
+ // Finishing something used to move the card on, which is the one moment anybody has an
+ // opinion about it. It now stays put, as the message has always promised it would.
+ assert.match(source,/setSelected\(done\);updateUrl\(day,done\)/);
+});
+
+test('the forecast comes back by the hour, and the graph is drawn from checked numbers',async()=>{
+ const {forecastUrl,parseHourly,parseForecast,daySummary,hoursFor,hoursAhead,hourLabel,pointFor}=await import('../src/weather-data.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const day=seed.days[3].date;
+ // One request carries both the daily numbers and the hourly ones — the trip moves cities, so
+ // asking twice per place would double a lookup that is already once per city.
+ const url=forecastUrl(pointFor('Kyoto'),day,day);
+ assert.match(url,/hourly=temperature_2m%2Capparent_temperature%2Cprecipitation_probability%2Cweather_code/);
+ assert.match(url,/daily=weather_code/);
+ assert.match(url,/timezone=Asia%2FTokyo/);
+ const hourly={time:[],temperature_2m:[],apparent_temperature:[],precipitation_probability:[],weather_code:[]};
+ for(let h=0;h<24;h++){hourly.time.push(`${day}T${String(h).padStart(2,'0')}:00`);
+  hourly.temperature_2m.push(h===14?24.4:12+h*0.4);hourly.apparent_temperature.push(11+h*0.4);
+  hourly.precipitation_probability.push(h>=16&&h<=18?70:5);hourly.weather_code.push(h>=16?61:1);}
+ // Readings that cannot be true are dropped rather than drawn.
+ hourly.time.push(`${day}T24:00`,'rubbish',`${seed.days[4].date}T09:00`);
+ hourly.temperature_2m.push(999,10,18);hourly.apparent_temperature.push(0,0,17);
+ hourly.precipitation_probability.push(0,0,500);hourly.weather_code.push(0,0,2);
+ const hours=parseHourly({hourly});
+ assert.equal(hours[day].length,24,'one entry per hour, and nothing that is not an hour');
+ assert.equal(hours[day][0].h,0);assert.equal(hours[day][14].temp,24);
+ assert.equal(hours[day][16].rain,70);
+ assert.equal(hours[seed.days[4].date][0].rain,null,'a percentage over a hundred is not a percentage');
+ assert.deepEqual(parseHourly({}),{});
+ // The shape of the day in a line, which is what the unopened card shows.
+ const shape=daySummary(hours[day]);
+ assert.equal(shape.warmest,14);assert.equal(shape.coldest,0);
+ assert.equal(shape.peakRain,70);assert.equal(shape.wettestHour,16);
+ assert.equal(daySummary([]),null);
+ assert.equal(hourLabel(7),'07:00');
+ // Kept in the trip beside the daily numbers, checked again on the way in.
+ let state=ensureFeatures(structuredClone(seed));
+ state=applyOperation(state,{type:'weatherUpdate',days:parseForecast({daily:{time:[day],weather_code:[61],
+  temperature_2m_max:[24],temperature_2m_min:[12],precipitation_probability_max:[70]}},'Kyoto'),hours},parent);
+ assert.equal(hoursFor(state,day).length,24);
+ assert.equal(hoursFor(state,seed.days[0].date),null,'a day nobody asked about stays empty');
+ assert.equal(hoursAhead(state,day,15).length,9,'from this hour to the end of the day');
+ assert.equal(hoursAhead(state,seed.days[0].date,0),null);
+ // A graph drawn from nonsense is a more convincing kind of wrong, so the hours are gated too.
+ for(const bad of [{[day]:[{h:24,temp:20}]},{[day]:[{h:1,temp:900}]},{[day]:[{h:1,temp:20,rain:200}]},
+  {[day]:[]},{[day]:'nope'},{[day]:Array.from({length:25},(_,h)=>({h:h%24,temp:20}))}])
+  assert.throws(()=>applyOperation(state,{type:'weatherUpdate',days:{},hours:bad},parent),/forecast/i,JSON.stringify(bad).slice(0,44));
+ // Checking the forecast has always been anybody's job, and still is.
+ assert.ok(applyOperation(state,{type:'weatherUpdate',days:{},hours:{[day]:hours[day]}},child));
+ // Two measures on one pair of axes would be a lie, so the chart is two charts over one x-axis.
+ const chart=await readFile(new URL('../src/WeatherCharts.jsx',import.meta.url),'utf8');
+ assert.match(chart,/Deliberately not one chart with\n\/\/ two scales/);
+ assert.equal((chart.match(/className="chart-line"/g)||[]).length,1,'one temperature series, so no legend box to disambiguate');
+ assert.ok(!/<legend|className="legend"/.test(chart));
+ assert.match(chart,/HourlyTable/,'and everything drawn is available as a table');
+ const nav=await import('../src/nav-data.js');
+ assert.ok(nav.PAGES.weather?.label&&nav.PAGES.weather?.note,'weather has its own screen');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(source,/tab==='weather'/);
+});
+
 // Spot the difference, built out of the boys' own photographs. The puzzle is made on the
 // phone, so all of this runs without a canvas, a network or an API key.
 const spotImage=(width,height,fill)=>{
@@ -2786,6 +3017,338 @@ test('a change is never hidden in the sky when there is a photograph underneath 
  // And what it copies from is not sky either, or a patch would paint a blue square.
  for(const e of round.edits.filter(e=>e.from))
   assert.ok(e.from.y+e.h>SKY,`and it cannot be copied out of the sky — ${e.from.y}`);
+});
+
+test('a rank name is cut to what fits on a tile, and the long one is kept for the list',async()=>{
+ const {SUMO_RANKS,shortRank,rankAt}=await import('../src/kana-data.js');
+ // The only one with a long name, and the reason this exists at all.
+ assert.equal(rankAt(5).en,'Juryo — now paid');
+ assert.equal(shortRank(rankAt(5)),'Juryo');
+ for(const rank of SUMO_RANKS){
+  assert.ok(shortRank(rank).length<=12,`${shortRank(rank)} is too long for a tile`);
+  assert.ok(rank.en.startsWith(shortRank(rank)),'the short name is the start of the real one');
+ }
+ assert.equal(shortRank(null),'');
+});
+
+test('the two boards say which squares are empty, and both ladders are laid out the same way',async()=>{
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // One component draws both ladders, so the ranks and the merge ladder cannot drift apart,
+ // and neither is left as a ragged run of inline text.
+ assert.equal([...source.matchAll(/<Ladder /g)].length,2);
+ assert.equal([...source.matchAll(/<details className="merge-ladder">/g)].length,1,
+  'only the shared component draws one — no game writes its own');
+ assert.match(css,/\.ladder-grid\{display:grid/);
+ // An empty square has to look empty. Before this the empty and filled squares were within a
+ // few percent of each other and the board read as one blank slab.
+ for(const [empty,filled] of [['.merge-tile','.merge-tile.filled'],['.stable-cell','.stable-cell.filled']]){
+  const last=name=>[...css.matchAll(new RegExp(`\\${name}\\{([^}]*)\\}`,'g'))]
+   .map(m=>/background:(#[0-9a-f]{3,6})\b/.exec(m[1])?.[1]).filter(Boolean).pop();
+  const [a,b]=[last(empty),last(filled)];
+  assert.ok(a&&b,`${empty} and ${filled} must both set a background`);
+  // #fff and #ffffff are the same colour written two ways.
+  const channels=hex=>{
+   const full=hex.length===4?`#${[...hex.slice(1)].map(c=>c+c).join('')}`:hex;
+   return [1,3,5].map(i=>parseInt(full.slice(i,i+2),16));
+  };
+  const gap=Math.max(...channels(a).map((v,i)=>Math.abs(v-channels(b)[i])));
+  assert.ok(gap>=24,`${empty} and ${filled} are too close to tell apart (${a} v ${b}, ${gap})`);
+ }
+ // Every number on a games screen goes through the one figures block rather than being
+ // written into a sentence, so they line up instead of wrapping.
+ assert.ok([...source.matchAll(/<Stats /g)].length>=2);
+});
+
+test('the app can build the two sounds it needs without shipping a file',async()=>{
+ const {wavDataUri,silenceUri,toneUri}=await import('../src/speech.js');
+ const decode=uri=>{
+  assert.match(uri,/^data:audio\/wav;base64,/);
+  return Buffer.from(uri.slice(uri.indexOf(',')+1),'base64');
+ };
+ const wav=decode(silenceUri(1,8000));
+ // A real WAV header, or a phone will not play it — which is the whole point of the thing.
+ assert.equal(wav.slice(0,4).toString('ascii'),'RIFF');
+ assert.equal(wav.slice(8,12).toString('ascii'),'WAVE');
+ assert.equal(wav.slice(12,16).toString('ascii'),'fmt ');
+ assert.equal(wav.slice(36,40).toString('ascii'),'data');
+ assert.equal(wav.readUInt16LE(20),1,'PCM');
+ assert.equal(wav.readUInt16LE(22),1,'mono');
+ assert.equal(wav.readUInt32LE(24),8000);
+ assert.equal(wav.readUInt16LE(34),16,'16-bit');
+ assert.equal(wav.readUInt32LE(40),8000*2,'a second of it');
+ assert.equal(wav.length,44+8000*2);
+ assert.equal(wav.readUInt32LE(4),36+8000*2,'the size in the header matches the file');
+ // Silence really is silent, and the beep really is not — a beep you cannot hear answers
+ // nothing when someone is trying to find out whether their phone makes a sound.
+ const loudest=buffer=>{let peak=0;for(let i=44;i<buffer.length;i+=2)peak=Math.max(peak,Math.abs(buffer.readInt16LE(i)));return peak;};
+ assert.equal(loudest(wav),0);
+ assert.ok(loudest(decode(toneUri()))>8000);
+ // It fades in rather than starting square, because a click is not an answer either.
+ const tone=decode(toneUri());
+ assert.ok(Math.abs(tone.readInt16LE(44))<1500,'starts quietly');
+ assert.equal(wavDataUri(new Float32Array(0),8000).length>40,true);
+});
+
+test('the playback session is held for as long as there is something to say',async()=>{
+ const {holdPlayback,releasePlayback,playbackHeld,resetHold,armPlayback,resetArm,resetPlaybackClaim,playbackClaim}=await import('../src/speech.js');
+ resetHold();
+ const made=[];
+ const make=src=>{const el={src,loop:false,plays:0,pauses:0,play(){this.plays++;},pause(){this.pauses++;}};made.push(el);return el;};
+ assert.equal(holdPlayback(make),true);
+ assert.equal(made.length,1);
+ assert.equal(made[0].loop,true,'a one-shot ends before the speaking starts and holds nothing');
+ assert.match(made[0].src,/^data:audio\/wav/);
+ // Two phrases overlapping: the first to finish must not pull the session out from under
+ // the second.
+ holdPlayback(make);
+ assert.equal(made.length,1,'the same element is reused');
+ assert.equal(playbackHeld(),true);
+ releasePlayback();
+ assert.equal(playbackHeld(),true);
+ assert.equal(made[0].pauses,0);
+ releasePlayback();
+ assert.equal(playbackHeld(),false);
+ assert.equal(made[0].pauses,1);
+ // Letting go more often than you took hold cannot drive it negative.
+ releasePlayback();releasePlayback();
+ assert.equal(playbackHeld(),false);
+ // Arming: iOS ignores a session claimed before anyone has touched the page, and will not
+ // play a media element later that was never played inside a gesture. Both happen on the
+ // first touch, once.
+ resetHold();resetArm();resetPlaybackClaim();
+ const listeners={};
+ const session={type:'ambient'};
+ const win={navigator:{audioSession:session},
+  addEventListener:(e,fn)=>{listeners[e]=fn;},
+  removeEventListener:e=>{delete listeners[e];}};
+ assert.equal(armPlayback(win),true);
+ assert.equal(armPlayback(win),false,'armed once, not on every render');
+ assert.deepEqual(Object.keys(listeners).sort(),['pointerdown','touchend']);
+ assert.equal(playbackClaim(),null,'nothing is claimed before anyone touches anything');
+ listeners.pointerdown();
+ assert.equal(session.type,'playback');
+ assert.equal(playbackClaim(),'playback');
+ assert.deepEqual(Object.keys(listeners),[],'and it lets go of the page afterwards');
+ resetHold();resetArm();resetPlaybackClaim();
+});
+
+test('a recorded phrase is the family’s own, one per phrase, described by storage',async()=>{
+ const {checkPhraseClip,addPhraseClip,removePhraseClip,phraseClip,PHRASE_CLIP_SECONDS}=await import('../server/phrase-audio.mjs');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const mum={name:'Lauren',role:'parent',id:'grant-lauren'},dad={name:'Damien',role:'parent',id:'grant-damien'};
+ const good={phraseId:'hello',pathname:'phrases/grant-lauren/a.m4a',seconds:2};
+ assert.deepEqual(checkPhraseClip(good,mum),{phraseId:'hello',pathname:'phrases/grant-lauren/a.m4a',seconds:2});
+ // You cannot write into somebody else's folder, or out of the folder at all.
+ assert.throws(()=>checkPhraseClip(good,dad),/Invalid recording/);
+ assert.throws(()=>checkPhraseClip({...good,pathname:'phrases/grant-lauren/../x.m4a'},mum),/Invalid recording/);
+ assert.throws(()=>checkPhraseClip({...good,pathname:'voice/grant-lauren/a.m4a'},mum),/Invalid recording/);
+ assert.throws(()=>checkPhraseClip({...good,phraseId:''},mum),/Choose a phrase/);
+ assert.throws(()=>checkPhraseClip({...good,seconds:0},mum),/second or two/);
+ assert.throws(()=>checkPhraseClip({...good,seconds:PHRASE_CLIP_SECONDS+1},mum),/second or two/);
+ const blob={contentType:'audio/mp4',size:9000};
+ let state=ensureFeatures(structuredClone(seed));
+ state=addPhraseClip(state,checkPhraseClip(good,mum),mum,blob,'2026-09-22T01:00:00.000Z');
+ const kept=phraseClip(state,'hello');
+ assert.equal(kept.by,'Lauren');
+ assert.equal(kept.type,'audio/mp4','the file is described by storage, not by the phone');
+ assert.equal(kept.size,9000);
+ assert.equal(kept.seconds,2);
+ // Saving the very same recording twice is the same recording.
+ assert.equal(addPhraseClip(state,checkPhraseClip(good,mum),mum,blob),state);
+ // Recording it again replaces it — this is a reference pronunciation, not a conversation,
+ // and two of them only raise the question of which one is right.
+ const again={phraseId:'hello',pathname:'phrases/grant-lauren/b.m4a',seconds:3};
+ const redone=addPhraseClip(state,checkPhraseClip(again,mum),mum,blob);
+ assert.equal(Object.keys(redone.phraseAudio).length,1);
+ assert.equal(phraseClip(redone,'hello').pathname,'phrases/grant-lauren/b.m4a');
+ assert.equal(phraseClip(redone,'hello').replaced,'phrases/grant-lauren/a.m4a');
+ // A file storage says is not audio is refused however it was uploaded.
+ assert.throws(()=>addPhraseClip(state,checkPhraseClip({...good,phraseId:'bye'},mum),mum,{contentType:'text/html',size:20}),/./);
+ // Removing it puts the phrase back to the phone saying it itself.
+ assert.equal(phraseClip(removePhraseClip(redone,'hello'),'hello'),null);
+ assert.throws(()=>removePhraseClip(redone,'nothing-here'),/no recording/i);
+ // Nothing else in the trip is disturbed by any of it.
+ assert.equal(redone.steps,state.steps);
+});
+
+test('the sound check reports the recording and the speaking apart',async()=>{
+ const {soundCheckLines}=await import('../src/speech.js');
+ const read=facts=>Object.fromEntries(soundCheckLines(facts));
+ assert.equal(read({}) ['A recording played'],'not tested');
+ assert.match(read({tone:'played'})['A recording played'],/yes — so recorded phrases will be heard/);
+ assert.match(read({tone:'the phone would not allow it'})['A recording played'],/^no — the phone would not allow it/);
+ // The two questions stay apart: a phone that plays a recording but will not speak is the
+ // exact case the recordings exist for, and the report has to be able to say so.
+ const both=read({tone:'played',started:false,supported:true,voices:[]});
+ assert.match(both['A recording played'],/yes/);
+ assert.match(both['It started speaking'],/no/);
+});
+
+test('we call the bouts from one phone, and the picks close once it has been watched',async()=>{
+ const {ensureFeatures,sumo,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,pendingProgress}=await import('../src/trip-features.js');
+ const card={type:'sumoUpdate',basho:'Aki Basho 2026',dayNumber:11,venue:'Ryogoku Kokugikan',date:'2026-09-23',
+  doorsOpen:'08:00',notes:'',sources:[],bouts:[
+   {id:'makuuchi-38',division:'makuuchi',order:38,time:'17:40',east:{name:'Kirishima',rank:'Sekiwake',stable:'Michinoku'},west:{name:'Daieisho',rank:'Komusubi',stable:'Oitekaze'}},
+   {id:'makuuchi-40',division:'makuuchi',order:40,time:'17:55',east:{name:'Hoshoryu',rank:'Ozeki',stable:'Tatsunami'},west:{name:'Kotozakura',rank:'Ozeki',stable:'Sadogatake'}}]};
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),card,parent);
+ // One phone is out and four people are shouting at it, so whoever holds it enters all four.
+ // This is the one place in the app where you record somebody else's answer.
+ for(const [person,pick] of [['Damien','Hoshoryu'],['Lauren','Kotozakura'],['Nate','Hoshoryu'],['Boston','Kotozakura']])
+  state=applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person,winner:pick},child);
+ assert.deepEqual(boutPredictions(state,'makuuchi-40'),{Damien:'Hoshoryu',Lauren:'Kotozakura',Nate:'Hoshoryu',Boston:'Kotozakura'});
+ assert.equal(predictionsClosed(state,'makuuchi-40'),false);
+ // Before anything is watched, nobody is losing — a pick with no result yet is still to come.
+ assert.deepEqual(predictionTally(state).map(t=>[t.name,t.right,t.wrong,t.waiting]),
+  [['Boston',0,0,1],['Damien',0,0,1],['Lauren',0,0,1],['Nate',0,0,1]]);
+ assert.deepEqual(predictionLeaders(state),[],'and nobody is leading');
+ // Changing your mind before the bout is fine; tapping your own pick again takes it back.
+ state=applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person:'Nate',winner:'Kotozakura'},child);
+ assert.equal(boutPredictions(state,'makuuchi-40').Nate,'Kotozakura');
+ const withdrawn=applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person:'Nate',winner:null},child);
+ assert.equal(boutPredictions(withdrawn,'makuuchi-40').Nate,undefined);
+ assert.equal(Object.keys(boutPredictions(withdrawn,'makuuchi-40')).length,3);
+ // Then it happens.
+ state=applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:'Kotozakura'},child);
+ assert.equal(predictionsClosed(state,'makuuchi-40'),true);
+ assert.deepEqual(predictionTally(state).map(t=>[t.name,t.right,t.wrong]),
+  [['Boston',1,0],['Lauren',1,0],['Nate',1,0],['Damien',0,1]]);
+ assert.deepEqual(predictionLeaders(state),['Boston','Lauren','Nate']);
+ // You cannot call a bout you have already watched — that is the whole point of a sweepstake.
+ assert.throws(()=>applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person:'Damien',winner:'Kotozakura'},parent),/has been watched/);
+ // Unless the result went in by mistake, which is why clearing it reopens them.
+ const reopened=applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:null},parent);
+ assert.equal(predictionsClosed(reopened,'makuuchi-40'),false);
+ assert.ok(applyOperation(reopened,{type:'sumoPredict',id:'makuuchi-40',person:'Damien',winner:'Kotozakura'},parent));
+ assert.deepEqual(boutPredictions(reopened,'makuuchi-40'),boutPredictions(state,'makuuchi-40'),'and the picks were never thrown away');
+ // Only the two men in the ring, only real people, only bouts on the card.
+ for(const bad of [{type:'sumoPredict',id:'makuuchi-38',person:'Damien',winner:'Hoshoryu'},
+  {type:'sumoPredict',id:'makuuchi-38',person:'Grandma',winner:'Kirishima'},
+  {type:'sumoPredict',id:'nope',person:'Damien',winner:'Kirishima'}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,52)} should be refused`);
+ // Picks survive the card being fetched again on the day, the same way results do.
+ const refetched=applyOperation(state,card,parent);
+ assert.deepEqual(boutPredictions(refetched,'makuuchi-40'),boutPredictions(state,'makuuchi-40'));
+ // A bout dropped from a refreshed card takes its picks with it rather than haunting the tally.
+ const shorter=applyOperation(state,{...card,bouts:[card.bouts[0]]},parent);
+ assert.deepEqual(sumo(shorter).predictions,{});
+ // Called in the arena with no signal, which is exactly where this happens.
+ const queue=[{operation:{type:'sumoPredict',operationId:'q1',id:'makuuchi-38',person:'Boston',winner:'Daieisho'}}];
+ assert.equal(boutPredictions(pendingProgress(state,queue),'makuuchi-38').Boston,'Daieisho');
+ assert.equal(boutPredictions(state,'makuuchi-38').Boston,undefined,'the shared trip waits until it syncs');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ assert.ok(list.includes('sumoPredict'));
+});
+
+test('a dish on a menu can be seen as well as read, and only Wikimedia can put it on the screen',async()=>{
+ const {pictureQueries,pictureSearchUrl,pickPicture,findDishPicture,imageSearchUrl}=await import('../src/dish-picture.js');
+ // The plain name the model stripped out of the menu's wording is asked for first: the menu
+ // line itself has no article behind it, and the English name is the last resort.
+ assert.deepEqual(pictureQueries({dish:'唐揚げ',ja:'名物!若鶏の唐揚げ定食',en:'Fried chicken set'}),
+  [['ja','唐揚げ'],['ja','名物!若鶏の唐揚げ定食'],['en','Fried chicken set']]);
+ // A dish whose plain name is what the menu printed is not looked up twice.
+ assert.deepEqual(pictureQueries({dish:'親子丼',ja:'親子丼',en:'Chicken and egg rice bowl'}),
+  [['ja','親子丼'],['en','Chicken and egg rice bowl']]);
+ assert.deepEqual(pictureQueries({dish:'',ja:'',en:''}),[]);
+ assert.deepEqual(pictureQueries(),[]);
+
+ const url=new URL(pictureSearchUrl('ja','唐揚げ'));
+ assert.equal(url.origin,'https://ja.wikipedia.org');
+ assert.equal(url.searchParams.get('gsrsearch'),'唐揚げ');
+ assert.equal(url.searchParams.get('origin'),'*','without this the browser is refused by CORS');
+ assert.equal(url.searchParams.get('formatversion'),'2');
+ // Three results asked for, and three thumbnails — pageimages hands back one by default, which
+ // is how a dish with a picture looks like a dish without one.
+ assert.equal(url.searchParams.get('gsrlimit'),'3');
+ assert.equal(url.searchParams.get('pilimit'),'3');
+ assert.equal(new URL(pictureSearchUrl('en','Tonkatsu')).origin,'https://en.wikipedia.org');
+
+ const page=(index,title,source,extra={})=>({index,title,...(source?{thumbnail:{source}}:{}),...extra});
+ const img='https://upload.wikimedia.org/wikipedia/commons/thumb/a/karaage.jpg/640px-karaage.jpg';
+ // The best-ranked result that actually carries a photograph, not the best-ranked result.
+ const found=pickPicture({query:{pages:[page(2,'鶏肉',img),page(1,'唐揚げ')]}},'ja');
+ assert.equal(found.title,'鶏肉');
+ assert.equal(found.src,img);
+ assert.equal(found.page,'https://ja.wikipedia.org/wiki/%E9%B6%8F%E8%82%89','a page link is built when the API gives none');
+ assert.equal(pickPicture({query:{pages:[page(1,'唐揚げ',img,{fullurl:'https://ja.wikipedia.org/wiki/%E5%94%90%E6%8F%9A%E3%81%92'})]}},'ja').page,
+  'https://ja.wikipedia.org/wiki/%E5%94%90%E6%8F%9A%E3%81%92');
+ // Nothing but a Wikimedia photograph over HTTPS is put in front of the family.
+ for(const bad of ['http://upload.wikimedia.org/a.jpg','https://example.com/a.jpg','not a url','javascript:alert(1)'])
+  assert.equal(pickPicture({query:{pages:[page(1,'唐揚げ',bad)]}},'ja'),null,bad);
+ for(const empty of [{},{query:{}},{query:{pages:[]}},null])assert.equal(pickPicture(empty,'ja'),null);
+
+ // Japanese is tried before English, and the first language with a picture wins.
+ const asked=[];
+ const reply=body=>({ok:true,json:async()=>body});
+ const picture=await findDishPicture({dish:'ロースかつ',ja:'ロースかつ膳',en:'Pork loin katsu'},async u=>{
+  asked.push(new URL(u));
+  return reply(asked.length<3?{query:{pages:[page(1,'なにか')]}}:{query:{pages:[page(1,'とんかつ',img)]}});
+ });
+ assert.equal(picture.title,'とんかつ');
+ assert.deepEqual(asked.map(u=>[u.hostname,u.searchParams.get('gsrsearch')]),
+  [['ja.wikipedia.org','ロースかつ'],['ja.wikipedia.org','ロースかつ膳'],['en.wikipedia.org','Pork loin katsu']]);
+
+ // A dish nobody has written about comes back as no picture, and is not asked for twice.
+ let calls=0;
+ const none=async()=>{calls++;return reply({query:{pages:[]}});};
+ assert.equal(await findDishPicture({dish:'秘伝の一皿',ja:'秘伝の一皿',en:'House special'},none),null);
+ assert.equal(calls,2);
+ assert.equal(await findDishPicture({dish:'秘伝の一皿',ja:'秘伝の一皿',en:'House special'},none),null);
+ assert.equal(calls,2,'the answer is kept for the rest of the meal');
+
+ // A Wikipedia nobody could reach is a different answer from a dish with no picture, because
+ // the screen offers to search the web for one only in the second case.
+ await assert.rejects(()=>findDishPicture({dish:'寿司',ja:'寿司',en:'Sushi'},async()=>{throw new Error('offline');}),
+  /could not be reached/);
+ assert.match(imageSearchUrl('唐揚げ'),/^https:\/\/www\.google\.com\/search\?tbm=isch&q=%E5%94%90%E6%8F%9A%E3%81%92$/);
+
+ // The screen asks for a picture only when somebody presses for one, and the menu reader gets
+ // the plain dish name out of the model to look it up with.
+ const menu=await readFile(new URL('../src/MenuReader.jsx',import.meta.url),'utf8');
+ assert.match(menu,/onClick=\{\(\)=>picture\(i,item\)\}/);
+ assert.match(menu,/shot\?'Hide the picture':'See a picture'/);
+ assert.doesNotMatch(menu,/useEffect/,'nothing fetches a picture on its own');
+ assert.match(menu,/setAdded\(\[\]\);setPictures\(\{\}\)/,'a new menu clears the old pictures');
+ assert.match(menu,/A picture of <span lang=\{shot\.found\.language\}>\{shot\.found\.title\}<\/span> from Wikipedia — the dish in general/);
+ const server=await readFile(new URL('../server/menu.mjs',import.meta.url),'utf8');
+ assert.match(server,/required:\['ja','en','dish',/);
+ assert.match(server,/dish:\{type:'string',description:'The plain common name/);
+});
+
+test('what is usually in a dish, and a warning on the ones a five-year-old cannot eat',async()=>{
+ const server=await readFile(new URL('../server/menu.mjs',import.meta.url),'utf8');
+ // Both come back with the dish rather than costing a second read of the menu.
+ assert.match(server,/required:\['ja','en','dish','why','forWhom','matchesOurList','ingredients','spicy','heat','spiceNote','price'\]/);
+ // Four grades, and the two that are not spicy at all are the same answer as spicy:false.
+ const heat=server.match(/heat:\{type:'string',enum:(\[[^\]]+\])/);
+ assert.deepEqual(JSON.parse(heat[1].replace(/'/g,'"')),['none','mild','hot','very hot']);
+ // The reader is told what an ingredient list is not, because this is the one place in the app
+ // where a wrong answer could matter to somebody with an allergy.
+ assert.match(server,/never read as the kitchen's own recipe, never complete, and never evidence that something is absent/);
+ assert.match(server,/never present a list of ingredients as complete/);
+ assert.doesNotMatch(server,/free of an allergen[^;]*;(?! if it matters)/,'the allergen rule is not softened');
+ // What counts as too hot for Nate is spelled out rather than left to the model's taste.
+ for(const heat of ['chilli oil','karashi','shichimi','kimchi','mapo'])assert.ok(server.includes(heat),`${heat} is not named as a reason a dish is spicy`);
+
+ const menu=await readFile(new URL('../src/MenuReader.jsx',import.meta.url),'utf8');
+ // The warning is on the card, and the ones to watch are counted before any card is opened.
+ assert.match(menu,/const hot=\(result\?\.suggestions\|\|\[\]\)\.filter\(i=>i\.spicy\)/);
+ assert.match(menu,/hot\.length===1\?'One of these is likely spicy'/);
+ assert.match(menu,/hot\.map\(i=>i\.en\)\.join\(', '\)\} — not for Nate/);
+ assert.match(menu,/item\.spicy&&<p className=\{`dish-warning/);
+ // A dish with no note of its own still warns rather than showing an empty warning.
+ assert.match(menu,/item\.spiceNote\|\|'Ask how hot it is before you order it for the boys\.'/);
+ // The list is offered only when there is one, and opening it is the reader's own choice.
+ assert.match(menu,/\{!!\(item\.ingredients\|\|\[\]\)\.length&&<button aria-expanded=\{!!open\}/);
+ assert.match(menu,/open\?'Hide ingredients':'See ingredients'/);
+ assert.match(menu,/setPictures\(\{\}\);setOpened\(\{\}\)/,'a new menu closes the old lists');
+ // And it says on the screen, next to the list itself, what the list is not.
+ assert.match(menu,/not read off the menu, and not this kitchen's own recipe/);
+ assert.match(menu,/ask the staff about anything allergy-related/);
+
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ for(const rule of ['.menu-spicy','.dish-warning','.dish-ingredients'])assert.ok(css.includes(rule),`${rule} has no style`);
 });
 test('a Japanese email body survives the trip from HTML entities to readable text',()=>{
  const html='<p>&#20104;&#32004;&#30906;&#35469;</p><div>Check-in&nbsp;15:00<br>Room&#x20;A</div><script>alert(1)</script><style>p{color:red}</style>';

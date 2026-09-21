@@ -359,7 +359,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:state.weather??{at:null,by:null,days:{}},photos:state.photos??[],photoVotes:state.photoVotes??{},voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],inbox:state.inbox??[],party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],inbox:state.inbox??[],stepReviews:state.stepReviews??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -395,11 +395,28 @@ export function offlineManifest(state,day){
 }
 // A ticket and its attached files are read as one set: the ticket itself first, then each
 // file attached to it. Written details and external links hold no file, so they are skipped.
+export const ticketFiles=(documents,ticket)=>ticket
+ ?[...(ticket.pathname?[ticket]:[]),...documents.filter(d=>d.parentDocumentId===ticket.id&&d.pathname)]
+ :[];
 export function attachmentGroup(documents,view){
  if(!view)return [];
- const rootId=view.parentDocumentId||view.id,root=documents.find(d=>d.id===rootId);
- const group=[...(root?.pathname?[root]:[]),...documents.filter(d=>d.parentDocumentId===rootId&&d.pathname)];
+ const rootId=view.parentDocumentId||view.id;
+ const group=ticketFiles(documents,documents.find(d=>d.id===rootId)||{id:rootId});
  return group.some(d=>d.id===view.id)?group:[view];
+}
+// The ticket a file belongs to: itself, when it is the ticket, else the one it is attached to.
+export const ticketOf=(documents,view)=>view?documents.find(d=>d.id===(view.parentDocumentId||view.id))||view:null;
+// Every file the Tickets page is showing, in one strip: each ticket's own file, then the files
+// attached to it, then straight on into the next ticket, so swiping past the end of one booking
+// carries on into the next rather than stopping dead. A booking held only as written details or
+// as a link has nothing to draw, so it drops out of the strip rather than turning up as a blank
+// page. If the open file is not among the tickets listed — the page was filtered underneath it,
+// say — the strip falls back to that one ticket's set, so the viewer never loses its place.
+export function attachmentReel(documents,tickets,view){
+ const reel=(tickets||[]).flatMap(t=>ticketFiles(documents,t).map(file=>({file,ticket:t})));
+ if(view&&reel.some(e=>e.file.id===view.id))return reel;
+ const ticket=ticketOf(documents,view);
+ return attachmentGroup(documents,view).map(file=>({file,ticket}));
 }
 // HEIC and HEIF are accepted uploads but most browsers cannot draw them in an <img>, so they
 // never stand in as a thumbnail — they are offered as a link to the original instead.
@@ -407,6 +424,86 @@ export const DRAWABLE=['image/jpeg','image/png','image/webp'];
 export const isDrawable=doc=>!!doc?.pathname&&DRAWABLE.includes(doc.type);
 // The picture that stands for a ticket: its own photo, else the first photo attached to it.
 export const documentThumbnail=(doc,attachments=[])=>isDrawable(doc)?doc:attachments.find(isDrawable)||null;
+// What we thought of it, afterwards. Separate from a step's own notes, which are the plan —
+// these are four opinions about a thing that has happened, kept per person so nobody's stars
+// average away somebody else's. Rating something also records that you were there.
+export const stepEntry=(state,id)=>state.stepReviews?.[id]||{};
+export const stepRatings=(state,id)=>stepEntry(state,id).ratings||{};
+export const stepThoughts=(state,id)=>stepEntry(state,id).thoughts||{};
+export function stepAverage(state,id){
+ const scores=Object.values(stepRatings(state,id)).filter(n=>Number.isFinite(n));
+ return scores.length?Math.round((scores.reduce((a,b)=>a+b,0)/scores.length)*10)/10:null;
+}
+export const stepRated=(state,id)=>Object.keys(stepRatings(state,id)).length;
+export const STEP_STARS=5;
+// The days we would do again, best first — the trip's own highlights, built out of what the
+// four of them actually said rather than out of what was planned.
+export function ratedSteps(state,{day=null,min=0}={}){
+ return state.steps
+  .filter(s=>(!day||s.day===day)&&stepRated(state,s.id)&&(stepAverage(state,s.id)??0)>=min)
+  .map(s=>({step:s,average:stepAverage(state,s.id),ratings:stepRatings(state,s.id),thoughts:stepThoughts(state,s.id)}))
+  .sort((a,b)=>b.average-a.average||String(a.step.day).localeCompare(String(b.step.day)));
+}
+export const dayRating=(state,day)=>{
+ const rated=ratedSteps(state,{day});
+ if(!rated.length)return null;
+ return Math.round((rated.reduce((sum,r)=>sum+r.average,0)/rated.length)*10)/10;
+};
+// The sumo day. Ryogoku Kokugikan on 23 September, which is inside the Aki basho, so there is a
+// real card that day with real names on it. The match-ups are published the afternoon before, so
+// this is fetched close to the day and kept in the trip: the arena is a basement full of phones
+// and the list has to still be there when the signal is not.
+export const SUMO_DIVISIONS=[['makuuchi','Makuuchi · the top division'],['juryo','Juryo'],['makushita','Makushita'],['other','Earlier bouts']];
+export const divisionLabel=id=>(SUMO_DIVISIONS.find(([key])=>key===id)||SUMO_DIVISIONS.at(-1))[1];
+export const SUMO_DAY='2026-09-23';
+export const SUMO_SITE='https://www.sumo.or.jp/EnHonbashoMain/torikumi/';
+export const EMPTY_SUMO={basho:'',dayNumber:null,venue:'',date:null,doorsOpen:'',notes:'',bouts:[],sources:[],wrestlers:{},results:{},predictions:{},at:null,by:null};
+export const sumo=state=>({...EMPTY_SUMO,...(state.sumo||{}),bouts:[...((state.sumo||{}).bouts||[])],
+ wrestlers:{...((state.sumo||{}).wrestlers||{})},results:{...((state.sumo||{}).results||{})},
+ predictions:{...((state.sumo||{}).predictions||{})}});
+export const sumoBouts=state=>[...sumo(state).bouts].sort((a,b)=>(a.order??0)-(b.order??0));
+// Bouts grouped the way the afternoon actually runs: the lower divisions first, the top last.
+export function sumoCard(state){
+ const bouts=sumoBouts(state),order=SUMO_DIVISIONS.map(([id])=>id);
+ return SUMO_DIVISIONS.map(([id,label])=>({id,label,bouts:bouts.filter(b=>b.division===id)}))
+  .filter(g=>g.bouts.length).sort((a,b)=>order.indexOf(b.id)-order.indexOf(a.id));
+}
+export const boutPredictions=(state,id)=>sumo(state).predictions[id]||{};
+// Everybody picks before the bout, on whichever phone is out — so a pick is locked the moment
+// the result goes in. You cannot call it after you have watched it.
+export const predictionsClosed=(state,id)=>!!boutResult(state,id);
+// Who is calling them right. A bout nobody has watched yet is still to come rather than wrong,
+// which matters when you are three bouts in and the tally would otherwise read as a thrashing.
+export function predictionTally(state){
+ const {predictions,results}=sumo(state),tally={};
+ for(const [id,picks] of Object.entries(predictions))
+  for(const [person,pick] of Object.entries(picks)){
+   const score=tally[person]||={name:person,right:0,wrong:0,waiting:0,called:0};
+   score.called++;
+   if(!results[id])score.waiting++;
+   else if(results[id].winner===pick)score.right++;
+   else score.wrong++;
+  }
+ return Object.values(tally).sort((a,b)=>b.right-a.right||a.wrong-b.wrong||a.name.localeCompare(b.name));
+}
+export const predictionLeaders=state=>{
+ const tally=predictionTally(state).filter(t=>t.right>0);
+ return tally.length?tally.filter(t=>t.right===tally[0].right).map(t=>t.name):[];
+};
+export const wrestlerKey=name=>String(name||'').trim().toLowerCase();
+export const wrestlerProfile=(state,name)=>sumo(state).wrestlers[wrestlerKey(name)]||null;
+export const boutResult=(state,id)=>sumo(state).results[id]||null;
+// Which bout is on now, so the screen says "this one" rather than leaving you counting rows.
+// Bouts run to a published time but never exactly, so this is the one that has started most
+// recently rather than a claim about what is happening in the ring this second.
+export function currentBout(state,clock){
+ const now=/^(\d{2}):(\d{2})/.exec(String(clock||''));
+ if(!now)return null;
+ const minutes=Number(now[1])*60+Number(now[2]);
+ const timed=sumoBouts(state).filter(b=>/^\d{2}:\d{2}$/.test(b.time||''));
+ const started=timed.filter(b=>Number(b.time.slice(0,2))*60+Number(b.time.slice(3))<=minutes);
+ return started.at(-1)||null;
+}
 // A to-do list, which is not the shopping list and not the planning board. Small things with a
 // day on them: post the postcards, buy a SIM at the airport, charge the power banks, return the
 // coin locker key. Anyone adds one, anyone ticks it off, and the day it belongs to shows it.
@@ -593,7 +690,7 @@ export function diaryDays(state,day){
   const steps=state.steps.filter(s=>s.day===d.date&&s.status==='done').sort((a,b)=>(a.completedAt||'').localeCompare(b.completedAt||''));
   const media=state.documents.filter(m=>m.category==='memory'&&(m.day===d.date||state.steps.find(s=>s.id===m.stepId)?.day===d.date));
   const challenges=state.challenges.flatMap(c=>Object.entries(c.completions||{}).filter(([,at])=>at&&japanDate(new Date(at))===d.date).map(([name])=>`${name}: ${c.title}${c.responses?.[name]?' — '+c.responses[name]:''}`));
-  return {...d,steps,media,challenges,note:state.journal[d.date]||''};
+  return {...d,steps,media,challenges,note:state.journal[d.date]||'',rating:dayRating(state,d.date),reviews:ratedSteps(state,{day:d.date})};
  });
 }
 export function pendingProgress(state,queue){
@@ -618,6 +715,20 @@ export function pendingProgress(state,queue){
   if(o.type==='proposalAdd')next.proposals=[...next.proposals,{id:`pending-${o.operationId}`,...proposalDraft(o),addedBy:o.person,createdAt:o.at,votes:{},musts:{},parked:false,stepId:null,pending:true}];
   if(o.type==='proposalVote'){const p=next.proposals.find(p=>p.id===o.id);if(p){const votes={...(p.votes||{})};if(o.vote===0)delete votes[o.person];else votes[o.person]=o.vote;p.votes=votes;p.pending=true;}}
   if(o.type==='proposalMust'){const p=next.proposals.find(p=>p.id===o.id);if(p){const musts={...(p.musts||{})};if(o.must)musts[o.person]=musts[o.person]||o.at;else delete musts[o.person];p.musts=musts;p.pending=true;}}
+  if(o.type==='stepRating'||o.type==='stepThought'){
+   const entry={...(next.stepReviews[o.id]||{})};
+   if(o.type==='stepRating'){const ratings={...(entry.ratings||{})};if(o.rating)ratings[o.person]=o.rating;else delete ratings[o.person];entry.ratings=ratings;}
+   else{const thoughts={...(entry.thoughts||{})};if(String(o.thought||'').trim())thoughts[o.person]={text:String(o.thought).trim(),at:o.at};else delete thoughts[o.person];entry.thoughts=thoughts;}
+   next.stepReviews={...next.stepReviews,[o.id]:entry};
+  }
+  if(o.type==='sumoPredict'){const next_sumo={...next.sumo,predictions:{...(next.sumo.predictions||{})}};
+   const forBout={...(next_sumo.predictions[o.id]||{})};
+   if(o.winner)forBout[o.person]=o.winner;else delete forBout[o.person];
+   if(Object.keys(forBout).length)next_sumo.predictions[o.id]=forBout;else delete next_sumo.predictions[o.id];
+   next.sumo=next_sumo;}
+  if(o.type==='sumoResult'){const next_sumo={...next.sumo,results:{...(next.sumo.results||{})}};
+   if(o.winner)next_sumo.results[o.id]={winner:o.winner,by:o.by||'',at:o.at};else delete next_sumo.results[o.id];
+   next.sumo=next_sumo;}
   if(o.type==='todoAdd')next.todos=[...next.todos,{id:`pending-${o.operationId}`,title:String(o.title||'').trim(),kind:o.kind==='buy'?'buy':'do',day:o.day??null,person:o.person||'Family',notes:String(o.notes||''),createdBy:o.by||'',createdAt:o.at,doneAt:null,doneBy:null,pending:true}];
   if(o.type==='todoStatus'){const t=next.todos.find(t=>t.id===o.id);if(t){t.doneAt=o.done?o.at:null;t.doneBy=o.done?o.by||t.doneBy:null;t.pending=true;}}
   if(o.type==='challengeSkip'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.skips={...(c.skips||{})};if(o.done){c.skips[o.person]=c.skips[o.person]||o.at;delete c.completions[o.person];}else delete c.skips[o.person];}}
