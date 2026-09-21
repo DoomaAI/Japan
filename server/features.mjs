@@ -86,6 +86,26 @@ export function extraOperation(state,op,user,fail,now){
    }
    state.phraseLog={...state.phraseLog,[op.person]:log};
   }
+ }else if(op.type==='phraseAdd'||op.type==='phraseEdit'){
+  // A phrase the family wanted and the book did not have. Typed or translated, it is checked
+  // here either way — nothing is trusted because a model produced it.
+  if(!parent)fail('A parent can add phrases.',403);
+  const values={en:(op.en||'').trim(),ja:(op.ja||'').trim(),romaji:(op.romaji||'').trim(),say:(op.say||'').trim(),note:(op.note||'').trim()};
+  if(!values.en)fail('Add the English.');
+  if(!values.ja)fail('Add the Japanese.');
+  for(const [k,v] of Object.entries(values))if(!string(v,k==='note'?500:200))fail(`Invalid ${k}.`);
+  if(!/[぀-ヿ一-龯]/.test(values.ja))fail('The Japanese needs to be in Japanese.');
+  if(op.type==='phraseAdd'){
+   if(state.customPhrases.length>=100)fail('That is a hundred of our own phrases already.');
+   state.customPhrases=[...state.customPhrases,{id:randomUUID(),...values,by:user.name,at:now,source:op.source==='translated'?'translated':'typed'}];
+  }else{
+   const item=state.customPhrases.find(p=>p.id===op.id);if(!item)fail('Phrase not found.',404);
+   Object.assign(item,values);
+  }
+ }else if(op.type==='phraseRemove'){
+  if(!parent)fail('A parent can remove phrases.',403);
+  if(!state.customPhrases.some(p=>p.id===op.id))fail('Phrase not found.',404);
+  state.customPhrases=state.customPhrases.filter(p=>p.id!==op.id);
  }else if(op.type==='voiceNoteRemove'){
   // Your own voice is yours to take back; a parent can remove any of them.
   const note=state.voiceNotes.find(v=>v.id===op.id);if(!note)fail('Voice note not found.',404);
