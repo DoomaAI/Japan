@@ -122,6 +122,19 @@ export const phraseSeenBy=(state,day)=>state.phraseSeen?.[day]||{};
 // The boys' own photographs, newest first, and the vote for the day's best.
 export const photosFor=(state,day)=>(state.photos||[]).filter(p=>!day||p.day===day)
  .sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+// Whose photo it is, which is not always who put it on: a parent photographs something a boy
+// did, on their own phone, and hands it to him. Anything written before photos could be handed
+// over belongs to whoever added it, so the fallback is not a guess.
+export const photoOwner=photo=>photo?.for||photo?.by||'';
+// One person's photographs, across the whole trip, newest first. This is the central section:
+// everything of theirs in one place rather than a day at a time.
+export const photosOf=(state,person,day)=>photosFor(state,day).filter(p=>photoOwner(p)===person);
+// How many each of them has, for the filter, so a name with nothing behind it says so.
+export const photoCounts=(state,day)=>{
+ const counts={};
+ for(const photo of photosFor(state,day)){const who=photoOwner(photo);counts[who]=(counts[who]||0)+1;}
+ return counts;
+};
 export const photoVotesFor=(state,day)=>state.photoVotes?.[day]||{};
 // One vote each. The winner is the photo with the most, and a tie is a tie — it says so
 // rather than picking one, because an arbitrary winner between brothers is worse than none.
