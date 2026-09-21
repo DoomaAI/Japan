@@ -2901,3 +2901,48 @@ test('a forwarded email is a parent\'s to read, and the boys\' phones are never 
  // Redacting a copy never touches what is stored for the family.
  assert.equal(state.inbox.length,1);
 });
+test('a forwarded email goes where the parent sends it, not only into Tickets',()=>{
+ const file={id:'f1',filename:'voucher.pdf',type:'application/pdf',size:120,pathname:'inbox/m1/0-voucher.pdf'};
+ const item={id:'m1',from:'damien.pasfield@gmail.com',subject:'ご予約',receivedAt:'2026-09-20T00:00:00.000Z',
+  text:'Original',attachments:[file],reading:{readable:true,kind:'hotel letter',title:'Kyoto ryokan',
+   summary:['Check in from 15:00.'],translation:'Check in from 15:00.',actions:[]}};
+ const seeded={...structuredClone(seed),inbox:[item]},day=seed.days[3].date;
+ const file_=(extra)=>applyOperation(seeded,{type:'inboxFile',id:'m1',title:'Kyoto ryokan',...extra},parent);
+ // On a day, with a time: the same locked step as one typed in by hand, and the email's file
+ // travels with it instead of being left behind in Tickets on its own.
+ const onDay=file_({destination:'activity',day,time:'14:30'});
+ const step=onDay.steps.find(s=>s.title==='Kyoto ryokan');
+ assert.equal(step.day,day);assert.equal(step.time,'14:30');assert.equal(step.locked,true);
+ assert.equal(step.bookingTime,'14:30');assert.equal(step.status,'todo');
+ assert.match(step.notes,/Check in from 15:00\./);
+ const carried=onDay.documents.find(d=>d.source==='email');
+ assert.equal(carried.stepId,step.id);assert.equal(carried.day,null);assert.equal(carried.pathname,file.pathname);
+ assert.ok(onDay.alerts[0].summary.includes('Kyoto ryokan'));
+ // Options: the same activity with no day, and no time it could not honour.
+ const options=file_({destination:'options'});
+ const parked=options.steps.find(s=>s.title==='Kyoto ryokan');
+ assert.equal(parked.day,null);assert.equal(parked.time,null);assert.equal(parked.locked,false);
+ // The planning board, where the family votes on it before it gets a day.
+ const idea=file_({destination:'idea',ideaKind:'food',day});
+ const proposal=idea.proposals.at(-1);
+ assert.equal(proposal.title,'Kyoto ryokan');assert.equal(proposal.category,'food');
+ assert.equal(proposal.day,day);assert.equal(proposal.addedBy,'Damien');assert.equal(proposal.stepId,null);
+ assert.match(idea.alerts[0].summary,/added Kyoto ryokan to the planning board/);
+ // The to-do list, with the file still findable in Tickets against that day.
+ const todo=file_({destination:'todo',todoKind:'buy',day,title:'Pay the balance'});
+ assert.equal(todo.todos.at(-1).kind,'buy');assert.equal(todo.todos.at(-1).day,day);
+ assert.equal(todo.documents.find(d=>d.source==='email').day,day);
+ // With nothing attached, only a ticket needs a document: everywhere else already holds the
+ // English on the thing that was just created.
+ const bare={...structuredClone(seed),inbox:[{...item,attachments:[]}]};
+ const bareTodo=applyOperation(bare,{type:'inboxFile',id:'m1',title:'Pay the balance',destination:'todo'},parent);
+ assert.equal(bareTodo.documents.length,seed.documents.length);
+ assert.match(bareTodo.todos.at(-1).notes,/Check in from 15:00\./);
+ assert.equal(applyOperation(bare,{type:'inboxFile',id:'m1',title:'Kyoto ryokan'},parent).documents.length,seed.documents.length+1);
+ // Nowhere invented, and an activity always lands on a real day.
+ assert.throws(()=>file_({destination:'somewhere-else'}),/where this email goes/);
+ assert.throws(()=>file_({destination:'activity'}),/trip day/);
+ assert.throws(()=>file_({destination:'activity',day:'2020-01-01'}),/trip day/);
+ // Whichever door it went through, it leaves the inbox exactly once.
+ for(const d of ['ticket','activity','options','idea','todo'])assert.equal(file_({destination:d,day}).inbox.length,0);
+});

@@ -1,7 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {Mail,Paperclip,FileText,Languages,Ticket,Trash2,AlertCircle,ExternalLink} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {inboxItems,inboxTitle,inboxNotes} from './trip-features.js';
+import {inboxItems,inboxTitle,inboxNotes,PROPOSAL_KINDS,TODO_KINDS} from './trip-features.js';
 const CATEGORIES=[['reservation','Reservation'],['ticket','Ticket'],['luggage','Luggage'],['other','Something else']];
 const arrived=item=>{
  const at=Date.parse(item.receivedAt||item.at||'');
@@ -22,31 +22,62 @@ function Reading({item,enabled}){
   {reading.translation&&<details><summary>The whole thing in English</summary><pre>{reading.translation}</pre></details>}
  </div>;
 }
-// Filing is the only way anything from an email reaches the trip, and a person does it. The
-// title arrives filled in from the reading; everything else is the parent's call.
+// Filing is the only way anything from an email reaches the trip, and a person does it. Where
+// it goes is the choice that matters: a confirmation belongs in Tickets, a restaurant somebody
+// recommended belongs on the board for everyone to vote on, and "pay the balance by the 1st"
+// belongs on the to-do list.
+const DESTINATIONS=[
+ ['ticket','Tickets & reservations','Filed with the bookings. Attach it to the whole trip, a day, or one activity.'],
+ ['activity','A new activity on a day','Puts it on the itinerary. Give it a time and it is locked like any other booking.'],
+ ['options','The Options list','Somewhere to keep it until it has a day.'],
+ ['idea','The planning board','Up for the family to vote on before it gets a day.'],
+ ['todo','The to-do list','Something to do or buy, on the day you will do it.']];
 function FileForm({item,state,busy,onFile}){
- const [open,setOpen]=useState(false),[where,setWhere]=useState('trip');
+ const [open,setOpen]=useState(false),[to,setTo]=useState('ticket'),[where,setWhere]=useState('trip');
  const steps=state.steps.filter(s=>s.day).sort((a,b)=>String(a.day).localeCompare(String(b.day))||String(a.time||'').localeCompare(String(b.time||'')));
+ const note=DESTINATIONS.find(([id])=>id===to)?.[2];
  async function submit(e){
-  e.preventDefault();const f=new FormData(e.currentTarget);
-  const attach=where==='day'?{day:f.get('day')}:where==='step'?{stepId:f.get('stepId')}:{};
-  await onFile({type:'inboxFile',id:item.id,title:String(f.get('title')||'').trim(),
-   category:f.get('category'),person:f.get('person'),reference:String(f.get('reference')||'').trim(),
-   notes:inboxNotes(item),...attach});
+  e.preventDefault();const f=new FormData(e.currentTarget),day=f.get('day')||null;
+  const extra=to==='ticket'
+   ?{category:f.get('category'),reference:String(f.get('reference')||'').trim(),
+     ...(where==='day'?{day}:where==='step'?{stepId:f.get('stepId')}:{})}
+   :to==='activity'?{day,time:f.get('time')||null}
+   :to==='idea'?{ideaKind:f.get('ideaKind'),day}
+   :to==='todo'?{todoKind:f.get('todoKind'),day}:{};
+  await onFile({type:'inboxFile',id:item.id,destination:to,title:String(f.get('title')||'').trim(),
+   person:f.get('person'),notes:inboxNotes(item),...extra});
  }
- if(!open)return <button className="primary" onClick={()=>setOpen(true)}><Ticket size={16}/> File it in Tickets</button>;
+ if(!open)return <button className="primary" onClick={()=>setOpen(true)}><Ticket size={16}/> File it</button>;
+ const dayField=(label,optional)=><label>{label}<select name="day" defaultValue={optional?'':state.days[0]?.date}>
+  {optional&&<option value="">No day yet</option>}
+  {state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.title}</option>)}</select></label>;
  return <form className="inbox-form" onSubmit={submit}>
   <label>Call it<input name="title" defaultValue={inboxTitle(item)} maxLength={250} required/></label>
-  <div className="form-row">
-   <label>File as<select name="category" defaultValue="reservation">{CATEGORIES.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
-   <label>For<select name="person" defaultValue="Family"><option>Family</option>{(state.members||[]).map(n=><option key={n}>{n}</option>)}</select></label>
-  </div>
-  <label>Booking reference<input name="reference" maxLength={250} placeholder="Optional"/></label>
-  <label>Attach to<select value={where} onChange={e=>setWhere(e.target.value)}>
-   <option value="trip">The whole trip</option><option value="day">A day</option><option value="step">One activity</option></select></label>
-  {where==='day'&&<label>Which day<select name="day" defaultValue={state.days[0]?.date}>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.title}</option>)}</select></label>}
-  {where==='step'&&<label>Which activity<select name="stepId" defaultValue={steps[0]?.id}>{steps.map(s=><option key={s.id} value={s.id}>{dayLabel(s.day)} {s.time||''} · {s.title}</option>)}</select></label>}
-  <div className="row wrap"><button className="primary" type="submit" disabled={busy}>Save to Tickets</button>
+  <label>Where does it go?<select value={to} onChange={e=>setTo(e.target.value)}>
+   {DESTINATIONS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
+  <small className="inbox-note">{note}</small>
+  {to==='ticket'&&<>
+   <div className="form-row">
+    <label>File as<select name="category" defaultValue="reservation">{CATEGORIES.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
+    <label>Attach to<select value={where} onChange={e=>setWhere(e.target.value)}>
+     <option value="trip">The whole trip</option><option value="day">A day</option><option value="step">One activity</option></select></label>
+   </div>
+   <label>Booking reference<input name="reference" maxLength={250} placeholder="Optional"/></label>
+   {where==='day'&&dayField('Which day',false)}
+   {where==='step'&&<label>Which activity<select name="stepId" defaultValue={steps[0]?.id}>{steps.map(s=><option key={s.id} value={s.id}>{dayLabel(s.day)} {s.time||''} · {s.title}</option>)}</select></label>}
+  </>}
+  {to==='activity'&&<div className="form-row">{dayField('Which day',false)}
+   <label>Time<input name="time" type="time" placeholder="Optional"/></label></div>}
+  {to==='idea'&&<div className="form-row">
+   <label>What kind<select name="ideaKind" defaultValue="place">{PROPOSAL_KINDS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
+   {dayField('Day in mind',true)}</div>}
+  {to==='todo'&&<div className="form-row">
+   <label>It is<select name="todoKind" defaultValue="do">{TODO_KINDS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
+   {dayField('Which day',true)}</div>}
+  <label>For<select name="person" defaultValue="Family"><option>Family</option>{(state.members||[]).map(n=><option key={n}>{n}</option>)}</select></label>
+  {!!item.attachments?.filter(f=>f.pathname).length&&to!=='ticket'&&
+   <small className="inbox-note">Its {item.attachments.filter(f=>f.pathname).length} file(s) are kept in Tickets and attached to it.</small>}
+  <div className="row wrap"><button className="primary" type="submit" disabled={busy}>File it</button>
    <button type="button" onClick={()=>setOpen(false)} disabled={busy}>Cancel</button></div>
  </form>;
 }

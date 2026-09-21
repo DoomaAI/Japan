@@ -17,7 +17,7 @@ The production frontend builds and the automated model/API checks pass. No GitHu
 - Tickets & Reservations: notes, PDF/photo attachments, booking references, luggage tags, search, type/person filters and clickable tags. Associate documents with activities; download critical files explicitly.
 - Family gallery: multi-file photo/video uploads, day or activity association, captions, editable tags, day/type/search filters and original-file links. Photos up to 25 MB; videos up to 100 MB. Parent editors upload; the family can view. MP4/MOV/WebM accepted, but playback depends on the phone's codec support. HEIC/HEIF originals are preserved with an open-original link; no conversion or transcoding. Media uses private Blob storage and authenticated byte-range streaming. Uploads require connectivity; gallery videos are not automatically cached offline.
 - A to-do list for the small things we want to do or buy. Put a day on one and it shows on that day's screen, with a count on the day tile. Anyone adds one and anyone ticks it off, with no signal needed.
-- Forward a booking email to the trip and it waits in a **Forwarded email** inbox for a parent to file. A Japanese confirmation is read into English — what it says, what has to be done and when — and the English is written into the ticket's notes, so it still reads with no signal. Attachments go into the same private Blob storage as any other ticket. Nothing an email says reaches the itinerary on its own: a parent gives it a title, a category and a day or activity, or throws it away. Only a secret your mail provider holds and a named list of sender addresses get through the door.
+- Forward a booking email to the trip and it waits in a **Forwarded email** inbox for a parent to file. A Japanese confirmation is read into English — what it says, what has to be done and when — and the English is written into the ticket's notes, so it still reads with no signal. Attachments go into the same private Blob storage as any other ticket. Nothing an email says reaches the itinerary on its own: a parent decides where it goes — filed with the bookings (against the whole trip, a day or one activity), put straight on a day as an activity with its time locked like any other booking, kept on the Options list until it has a day, put up on the planning board for the family to vote on, or written onto the to-do list — or throws it away. Whatever it carried by way of files stays in Tickets and travels with it. Only a secret your mail provider holds and a named list of sender addresses get through the door.
 - Ask what food and amenities are near you right now — from the phone's position or from a planned place on the day — with the Japanese name to point at, a rough walk time, walking directions from where you are standing, and one tap to drop it onto today's itinerary or save it to the board. Open to every family member, not just parents. The position is rounded to about a hundred metres and never stored.
 - Travel party profiles: each person's age, interests from a fixed list of twenty, what they love, what they would rather avoid, food notes, plus a trip-wide pace and daily budget. Everyone keeps their own; a parent keeps the rest. Used to build suggestions and nothing else.
 - AI-suggested ideas for a place and a set of flavours — the famous ones, only-in-Japan, cultural, food, drink, outdoors, with the boys, shopping, after dark — built from the travel party and everything already planned, with a line on why each one suits this family. They arrive without links or hours by design and become ordinary board ideas, tagged as suggested.
@@ -99,6 +99,16 @@ dropped — 200 rather than an error, so a mail provider does not retry it for h
 the sender list is a filter, not proof of identity: a `From` header can be forged by anyone who
 learns the address. The address is therefore never published, the secret in the URL is the real
 lock, and no forwarded email ever reaches the itinerary without a parent filing it.
+
+**Where it can be filed.** Tickets & reservations is the default, attached to the whole trip, a
+day or one activity. The other four put it where the family would have put it themselves: a new
+activity on a chosen day, which behaves exactly like an activity typed in by hand and is locked
+when given a time; the Options list, for something with no day yet; the planning board, so
+everyone can vote on it before it gets a day; and the to-do list, for something to do or buy.
+Files that came with the email are always kept in Tickets and attached to whatever was created,
+so a voucher is never separated from the thing it belongs to. Where the email had no attachment,
+only a ticket creates a document — everywhere else the English is already on the activity, idea
+or job itself.
 
 **Limits worth knowing.** Vercel stops a request body at about 4.5 MB, which is the real ceiling
 on an attachment arriving by email — a larger one is rejected by the platform before the app sees
