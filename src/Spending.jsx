@@ -1,6 +1,8 @@
-import React,{useState} from 'react';
-import {PiggyBank,Plus,Trash2,ShoppingBag,ListChecks,CalendarDays,Check,AlertCircle,Wallet,X,HandCoins,ThumbsUp} from 'lucide-react';
-import {BOYS,purse,spendItemsFor,topUpsFor,allowanceFor,allowanceDays,spendCost,buyTodosFor,requestsFor,requestedFor,openRequests,yenPerAud,yenToAud} from './trip-features.js';
+import React,{useState,useRef,useEffect} from 'react';
+import {PiggyBank,Plus,Trash2,ShoppingBag,ListChecks,CalendarDays,Check,AlertCircle,Wallet,X,HandCoins,ThumbsUp,BookmarkCheck,Bookmark,Receipt,RotateCcw} from 'lucide-react';
+import {BOYS,purse,spendItemsFor,topUpsFor,allowanceFor,allowanceDays,spendCost,buyTodosFor,requestsFor,requestedFor,openRequests,purchaseLog,receiptsFor,isSetAside,moneyInSince,yenPerAud,yenToAud} from './trip-features.js';
+import ManekiBank from './ManekiBank.jsx';
+import {ReceiptStrip,AddToPurchase} from './PurchaseRecord.jsx';
 import {dayLabel} from './AdventurePages.jsx';
 import {japanClock,japanDate} from './timing.js';
 const yen=n=>`¥${Math.round(n||0).toLocaleString('en-AU')}`;
@@ -30,12 +32,16 @@ export function PurseMeter({total,spent,planned}){
 // One thing a boy wants, or has already bought. Ticking it is the moment it turns into money out,
 // so that is also the moment he is asked what it really cost — inline, because a guess written
 // down weeks ago is not a balance and a browser prompt box is not an answer a child will read.
-function SpendRow({item,user,rate,mine,busy,mutate,onEdit}){
+function SpendRow({item,user,rate,mine,busy,mutate,onEdit,onPaid,children}){
  const bought=!!item.boughtAt,[asking,setAsking]=useState(false);
+ const aside=isSetAside(item);
  async function record(e){
   e.preventDefault();
   const spent=asYen(new FormData(e.currentTarget).get('spent'));
-  if(await mutate({type:'spendBought',id:item.id,done:true,spent:spent===null||spent<0?null:spent,by:user.name}))setAsking(false);
+  const paid=spent===null||spent<0?(item.estimate||0):spent;
+  if(await mutate({type:'spendBought',id:item.id,done:true,spent:spent===null||spent<0?null:spent,by:user.name})){
+   setAsking(false);onPaid?.(paid);
+  }
  }
  return <div className={`todo-row spend-row${bought?' done':''}`}>
   <label className="todo-tick">
@@ -52,6 +58,8 @@ function SpendRow({item,user,rate,mine,busy,mutate,onEdit}){
     {item.todoId?' · From the to-do list':''}
     {item.pending?' · Waiting to sync':''}</small>
    {item.notes&&<p>{item.notes}</p>}
+   {aside&&<span className="tag aside-tag"><BookmarkCheck size={12}/>Money put aside for this</span>}
+   {children}
    {asking&&!bought&&<form className="spend-actual" onSubmit={record}>
     <label>What did it actually cost, in yen?
      <input name="spent" inputMode="numeric" autoFocus defaultValue={item.estimate??''} placeholder="1500"/></label>
@@ -62,6 +70,11 @@ function SpendRow({item,user,rate,mine,busy,mutate,onEdit}){
   <div className="spend-amount">
    <strong>{bought?both(spendCost(item),rate):item.estimate===null?'—':both(item.estimate,rate)}</strong>
    {mine&&<div className="todo-actions">
+    {!bought&&<button className={`icon${aside?' on':''}`} disabled={busy||!item.estimate}
+     aria-label={aside?`Stop putting money aside for ${item.title}`:`Put the money aside for ${item.title}`}
+     title={item.estimate?'Put the money aside':'Put a price on it first'}
+     onClick={()=>mutate({type:'spendAside',id:item.id,aside:!aside})}>
+     {aside?<BookmarkCheck size={16}/>:<Bookmark size={16}/>}</button>}
     <button className="icon" aria-label={`Edit ${item.title}`} onClick={()=>onEdit(item)}><CalendarDays size={16}/></button>
     <button className="icon danger" aria-label={`Remove ${item.title}`} disabled={busy}
      onClick={()=>{if(confirm(`Take “${item.title}” off the spending list?`))mutate({type:'spendRemove',id:item.id});}}><Trash2 size={16}/></button>
@@ -109,19 +122,60 @@ function RequestRow({ask,rate,parent,mine,busy,mutate}){
  </div>;
 }
 
-export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=japanDate()}){
+// The first time a boy opens the app after money has gone in. It is the one moment in the whole
+// page that is not admin: coins drop into his own cat, the balance is already the new one, and it
+// says who put it there. Opening it is what marks it seen, so it never greets him twice.
+export function MoneyIn({state,user,person,rate,busy,dismiss,go}){
+ const money=purse(state,person),fresh=moneyInSince(state,person);
+ return <div className="money-in">
+  <ManekiBank total={money.paidIn} spent={money.spent} aside={money.aside} left={money.left}
+   phase="in" amount={fresh.total} size={230}/>
+  <p className="eyebrow">MONEY IN YOUR BANK</p>
+  <h2>{both(fresh.total,rate)} went in</h2>
+  <ul className="money-in-list">
+   {fresh.topUps.map(t=><li key={t.id}>
+    <strong>{yen(t.yen)}</strong>
+    <span>{t.note||'Spending money'}{t.approvedBy?` · ${t.approvedBy} approved it`:t.by?` · from ${t.by}`:''}</span>
+   </li>)}
+  </ul>
+  <p className="money-in-total">You have <strong>{both(money.left,rate)}</strong> to spend
+   {money.aside>0?`, and ${both(money.aside,rate)} of it is already put aside.`:'.'}</p>
+  <div className="row wrap">
+   <button className="primary" disabled={busy} onClick={()=>{dismiss();go?.('spending');}}><PiggyBank size={18}/>Open my bank</button>
+   <button disabled={busy} onClick={dismiss}>Thanks!</button>
+  </div>
+ </div>;
+}
+
+export default function Spending({state,user,mutate,busy,setBusy=()=>{},go,notice=()=>{},request,accept,config,today=japanDate()}){
  const parent=user.role==='parent';
  const boys=BOYS.filter(n=>state.members.includes(n));
  const [person,setPerson]=useState(BOYS.includes(user.name)?user.name:boys[0]);
  const [edit,setEdit]=useState(null),[showMoney,setShowMoney]=useState(false);
  const [asking,setAsking]=useState(false);
+ // The bank reacts to money moving. It is cleared on a timer so a second purchase animates again
+ // rather than the first one's coins hanging about.
+ const [phase,setPhase]=useState(''),[moved,setMoved]=useState(0);
+ const flash=useRef(null);
+ function bankShows(kind,amount){setPhase(kind);setMoved(amount);clearTimeout(flash.current);flash.current=setTimeout(()=>setPhase(''),1800);}
+ useEffect(()=>()=>clearTimeout(flash.current),[]);
  // Every hook has run before this: the page is drawn the same way whoever is holding the phone.
  if(!person)return <><p className="eyebrow">THEIR OWN MONEY</p><h1>Spending money</h1><div className="empty"><PiggyBank/><h2>Nobody has a purse here.</h2><p>Spending money belongs to Nate and Boston, and neither is on this trip.</p></div></>;
  const rate=yenPerAud(state),mine=parent||person===user.name;
- const money=purse(state,person,today),items=spendItemsFor(state,person);
+ const money=purse(state,person,today),items=spendItemsFor(state,person).filter(i=>!i.boughtAt);
  const plan=allowanceFor(state,person),days=allowanceDays(state,person,today);
  const tops=topUpsFor(state,person),waiting=buyTodosFor(state,person);
  const asks=requestsFor(state,person),wanted=requestedFor(state,person),unanswered=openRequests(state);
+ const log=purchaseLog(state,person),fresh=moneyInSince(state,person);
+ // The moment a top-up is actually news is the next time the boy who got it opens his own bank.
+ // Coins drop in, the balance is already the new one, and opening it is what marks it seen.
+ const greet=fresh.total>0&&person===user.name&&BOYS.includes(user.name);
+ const greeted=useRef('');
+ useEffect(()=>{
+  if(!greet||greeted.current===person)return;
+  greeted.current=person;bankShows('in',fresh.total);
+  mutate({type:'spendSeen',person,by:user.name});
+ },[greet,person]);
  async function save(e){
   e.preventDefault();const f=new FormData(e.currentTarget);
   if(await mutate({type:edit.id?'spendEdit':'spendAdd',id:edit.id,person,title:f.get('title'),
@@ -152,16 +206,23 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
    {unanswered.some(r=>r.person===n)&&<i className="ask-dot" aria-label="Waiting on an answer"/>}</button>)}</div>
 
  <section className="purse-card">
-  <p className="eyebrow">{person.toUpperCase()}’S PURSE</p>
-  <strong className="purse-headline">{yen(money.left)} left</strong>
+  <p className="eyebrow">{person.toUpperCase()}’S CHOKINBAKO</p>
+  <ManekiBank total={money.paidIn} spent={money.spent} aside={money.aside} left={money.left}
+   phase={phase} amount={moved}/>
+  <strong className="purse-headline">{yen(money.left)} in the bank</strong>
   <small>{dollars(money.left,rate)} at $1 = {yen(Math.round(rate))} · {yen(money.paidIn)} in, {yen(money.spent)} spent</small>
+  {money.aside>0&&<p className={`purse-aside${money.free<0?' short':''}`}>
+   <BookmarkCheck size={17}/>{both(money.aside,rate)} of that is put aside for something.
+   {money.free<0
+    ? ` That is ${both(-money.free,rate)} more than is in the bank — something has to come off.`
+    : ` ${both(money.free,rate)} is free for anything else.`}</p>}
   <PurseMeter total={money.paidIn} spent={money.spent} planned={money.planned}/>
   <div className="purse-key">
    <span><i className="key-spent"/>Spent {both(money.spent,rate)}</span>
    <span><i className="key-planned"/>Still to buy {both(money.planned,rate)}</span>
    <span><i className="key-left"/>Left {both(money.left,rate)}</span>
   </div>
-  {money.planned>0&&money.paidIn>0&&<p className={`purse-after${money.after<0?' short':''}`}>
+  {money.planned>money.aside&&money.paidIn>0&&<p className={`purse-after${money.after<0?' short':''}`}>
    {money.after<0
     ? <><AlertCircle size={18}/>Everything still on the list comes to {both(money.planned,rate)}, which is {both(-money.after,rate)} more than there is. Something has to come off the list, or wait for more to go in.</>
     : <><Wallet size={18}/>Buy everything still on the list and {both(money.after,rate)} would be left.</>}
@@ -236,11 +297,40 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
  </section>}
 
  <section className="todo-group">
-  <h2>{money.waiting} still to buy · {money.bought} bought</h2>
-  {items.map(item=><SpendRow key={item.id} item={item} user={user} rate={rate} mine={mine} busy={busy} mutate={mutate} onEdit={setEdit}/>)}
-  {!items.length&&<div className="empty"><ShoppingBag/><h2>Nothing on the list yet.</h2>
-   <p>Write down what {person} wants to buy with a guess at the price, and the bar above shows whether the money stretches to all of it.</p></div>}
+  <h2>{money.waiting} still to buy{money.planned?` · ${both(money.planned,rate)}`:''}</h2>
+  {items.map(item=><SpendRow key={item.id} item={item} user={user} rate={rate} mine={mine} busy={busy}
+   mutate={mutate} onEdit={setEdit} onPaid={paid=>bankShows('out',paid)}>
+   <ReceiptStrip state={state} item={item} mine={mine} busy={busy} mutate={mutate}/>
+   {mine&&request&&<AddToPurchase item={item} user={user} config={config} busy={busy} setBusy={setBusy}
+    request={request} accept={accept} mutate={mutate} notice={notice}/>}
+  </SpendRow>)}
+  {!items.length&&<div className="empty"><ShoppingBag/><h2>{money.bought?'Nothing left on the list.':'Nothing on the list yet.'}</h2>
+   <p>Write down what {person} wants to buy with a guess at the price, and the cat shows whether the money stretches to all of it.</p></div>}
  </section>
+
+ {!!log.length&&<section className="purchase-log">
+  <div className="section-heading"><div>
+   <p className="eyebrow">WHERE THE MONEY WENT</p>
+   <h2>{log.length} thing{log.length===1?'':'s'} bought · {both(money.spent,rate)}</h2>
+  </div></div>
+  <p><small>Everything {person} has actually paid for, newest first, with whatever was pinned to it. In three years they will remember the Gachapon rather than the ¥400, so the ¥400 keeps the picture.</small></p>
+  {log.map(item=><article className="purchase" key={item.id}>
+   <div className="purchase-head">
+    <div><strong><Receipt size={15}/>{item.title}</strong>
+     <small>{item.boughtBy} on {japanDate(new Date(item.boughtAt))}
+      {item.estimate!==null&&spendCost(item)!==item.estimate
+       ? ` · ${spendCost(item)>item.estimate?'more':'less'} than the ${yen(item.estimate)} guessed`:''}</small>
+     {item.notes&&<p>{item.notes}</p>}</div>
+    <div className="purchase-cost"><strong>{both(spendCost(item),rate)}</strong>
+     {mine&&<button className="icon" aria-label={`Put ${item.title} back on the list`} disabled={busy}
+      title="Put it back on the list" onClick={()=>mutate({type:'spendBought',id:item.id,done:false,by:user.name})}>
+      <RotateCcw size={15}/></button>}</div>
+   </div>
+   <ReceiptStrip state={state} item={item} mine={mine} busy={busy} mutate={mutate}/>
+   {mine&&request&&<AddToPurchase item={item} user={user} config={config} busy={busy} setBusy={setBusy}
+    request={request} accept={accept} mutate={mutate} notice={notice}/>}
+  </article>)}
+ </section>}
 
  {edit&&mine&&<form key={edit.id||'new'} className="feature-card" onSubmit={save}>
   <h2>{edit.id?'Edit this one':`Something for ${person} to buy`}</h2>

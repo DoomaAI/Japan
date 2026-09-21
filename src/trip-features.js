@@ -554,7 +554,7 @@ export const unallocatedTodos=state=>todosFor(state,null);
 // out from the trip's own days rather than written into the trip by something running overnight,
 // so a phone that has been in a pocket since Kyoto shows the right balance the moment it is
 // opened, with no signal and nothing to catch up on.
-export const EMPTY_PURSE={allowance:{},topUps:[],items:[],requests:[]};
+export const EMPTY_PURSE={allowance:{},topUps:[],items:[],requests:[],receipts:[],seen:{}};
 export const spending=state=>({...EMPTY_PURSE,...(state.spending||{})});
 export const allowanceFor=(state,person)=>spending(state).allowance[person]||null;
 // Newest first: a top-up is a thing that just happened, and the one you want to see is the last.
@@ -576,6 +576,10 @@ export function allowanceDays(state,person,today=japanDate()){
  return dates.filter(date=>date>=plan.from&&date<=last&&date<=today).length;
 }
 export const allowancePaid=(state,person,today)=>allowanceDays(state,person,today)*(allowanceFor(state,person)?.yenPerDay||0);
+// Money put aside for one intended purchase. It is still in the bank — it has not been spent —
+// but it is spoken for, which is the difference between "I have ¥3,000" and "I have ¥3,000 and
+// ¥2,400 of it is the Beyblade". Only something not yet bought can hold money aside.
+export const isSetAside=item=>!!item?.setAside&&!item?.boughtAt;
 // What a purse is worth right now, every figure in yen. "left" is real money still in the purse;
 // "after" is what would be left once the things still on the list are paid for, which is the
 // number that answers "can I afford this as well?".
@@ -586,8 +590,27 @@ export function purse(state,person,today){
  const spent=bought.reduce((sum,i)=>sum+spendCost(i),0);
  const planned=items.filter(i=>!i.boughtAt).reduce((sum,i)=>sum+(i.estimate||0),0);
  const paidIn=topUps+allowance;
- return {topUps,allowance,paidIn,spent,planned,left:paidIn-spent,after:paidIn-spent-planned,
-  items:items.length,bought:bought.length,waiting:items.length-bought.length};
+ // Put aside is money still in the bank with a name on it, so "free" is what is genuinely
+ // available for anything else — and it can go negative if more is put aside than is left.
+ const aside=items.filter(isSetAside).reduce((sum,i)=>sum+(i.estimate||0),0);
+ return {topUps,allowance,paidIn,spent,planned,aside,left:paidIn-spent,free:paidIn-spent-aside,
+  after:paidIn-spent-planned,items:items.length,bought:bought.length,waiting:items.length-bought.length};
+}
+// Everything bought, newest first: the log of where the money actually went.
+export const purchaseLog=(state,person)=>spending(state).items
+ .filter(i=>i.person===person&&i.boughtAt)
+ .sort((a,b)=>String(b.boughtAt).localeCompare(String(a.boughtAt)));
+// What was pinned to a purchase — a photo of it, a video, something said about it, or a line
+// written down. Oldest first, because it reads as the story of the thing.
+export const receiptsFor=(state,itemId)=>spending(state).receipts.filter(r=>r.itemId===itemId)
+ .sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));
+export const RECEIPT_KINDS=[['photo','Photo'],['video','Video'],['voice','Voice note'],['note','Note']];
+// Money that has gone in since this boy last looked. It is what the bank shows him the next time
+// he opens it, which is the moment a top-up is actually news rather than a row in a list.
+export function moneyInSince(state,person){
+ const seen=spending(state).seen[person]||'';
+ const fresh=topUpsFor(state,person).filter(t=>String(t.at||'')>seen);
+ return {topUps:fresh,total:fresh.reduce((sum,t)=>sum+(t.yen||0),0)};
 }
 // Asking for more. A boy cannot put money into his own purse, so the only way the balance moves
 // in his favour is to ask and have a parent say yes. The ask, the answer and the amount actually
@@ -811,6 +834,9 @@ export function pendingProgress(state,queue){
   if(o.type==='spendAdd')next.spending={...next.spending,items:[...next.spending.items,{id:`pending-${o.operationId}`,person:o.person,title:String(o.title||'').trim(),estimate:Number.isFinite(o.estimate)?o.estimate:null,spent:null,day:o.day??null,notes:String(o.notes||''),todoId:o.todoId??null,createdBy:o.by||'',createdAt:o.at,boughtAt:null,boughtBy:null,pending:true}]};
   // Asking is an addition and is still a fair question whenever it lands, so it shows at once.
   if(o.type==='spendRequest')next.spending={...next.spending,requests:[...next.spending.requests,{id:`pending-${o.operationId}`,person:o.person,yen:Number.isFinite(o.yen)?o.yen:0,reason:String(o.reason||'').trim(),at:o.at,by:o.by||'',status:'open',decidedBy:null,decidedAt:null,approvedYen:null,reply:'',pending:true}]};
+  if(o.type==='spendAside')next.spending={...next.spending,items:next.spending.items.map(i=>i.id!==o.id?i:{...i,setAside:!!o.aside,pending:true})};
+  if(o.type==='spendNote')next.spending={...next.spending,receipts:[...next.spending.receipts,{id:`pending-${o.operationId}`,itemId:o.itemId,kind:'note',text:String(o.text||'').trim(),by:o.by||'',at:o.at,pending:true}]};
+  if(o.type==='spendSeen')next.spending={...next.spending,seen:{...next.spending.seen,[o.person]:o.at}};
   if(o.type==='spendBought')next.spending={...next.spending,items:next.spending.items.map(i=>i.id!==o.id?i:{...i,boughtAt:o.done?o.at:null,boughtBy:o.done?o.by||i.boughtBy:null,spent:o.done&&Number.isFinite(o.spent)?o.spent:o.done?i.spent:null,pending:true})};
   if(o.type==='challengeSkip'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.skips={...(c.skips||{})};if(o.done){c.skips[o.person]=c.skips[o.person]||o.at;delete c.completions[o.person];}else delete c.skips[o.person];}}
   if(o.type==='challengeStatus'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.completions={...c.completions};if(o.done)c.completions[o.person]=c.completions[o.person]||o.at;else delete c.completions[o.person];if(o.response!==undefined)c.responses={...(c.responses||{}),[o.person]:o.response};}}

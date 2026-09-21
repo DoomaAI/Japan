@@ -4258,3 +4258,198 @@ test('a part-approval reads as a part-approval, and a generous one does not',asy
  assert.equal(purse(more,'Nate',day).paidIn,1400);
  assert.equal(requestsFor(less,'Nate')[0].yen,600,'what was asked for is not rewritten by the answer');
 });
+
+test('money put aside is still in the bank, but it has a name on it',async()=>{
+ const {purse,isSetAside,spendItemsFor}=await import('../src/trip-features.js');
+ const day=seed.days[1].date;
+ let state=applyOperation(seed,{type:'spendTopUp',person:'Nate',yen:3000},parent);
+ state=applyOperation(state,{type:'spendAdd',person:'Nate',title:'A Beyblade',estimate:2400},child);
+ state=applyOperation(state,{type:'spendAdd',person:'Nate',title:'Gachapon',estimate:400},child);
+ const [beyblade,gacha]=spendItemsFor(state,'Nate');
+ let money=purse(state,'Nate',day);
+ assert.deepEqual([money.aside,money.free,money.left],[0,3000,3000],'nothing is spoken for yet');
+ state=applyOperation(state,{type:'spendAside',id:beyblade.id,aside:true},child);
+ assert.ok(isSetAside(spendItemsFor(state,'Nate').find(i=>i.id===beyblade.id)));
+ money=purse(state,'Nate',day);
+ // Putting money aside spends nothing: the bank still holds all of it.
+ assert.deepEqual([money.aside,money.free,money.left,money.spent],[2400,600,3000,0]);
+ // Buying the other thing comes out of what is free, and the money aside is untouched.
+ state=applyOperation(state,{type:'spendBought',id:gacha.id,done:true,spent:400},child);
+ money=purse(state,'Nate',day);
+ assert.deepEqual([money.aside,money.free,money.left,money.spent],[2400,200,2600,400]);
+ // Buying the thing it was put aside for is what releases it.
+ const done=applyOperation(state,{type:'spendBought',id:beyblade.id,done:true,spent:2500},child);
+ const after=purse(done,'Nate',day);
+ assert.equal(after.aside,0,'money aside for something already bought is not still aside');
+ assert.deepEqual([after.spent,after.left],[2900,100]);
+ assert.equal(isSetAside(spendItemsFor(done,'Nate').find(i=>i.id===beyblade.id)),false);
+ // Putting more aside than there is says so rather than showing a tidy figure.
+ const greedy=applyOperation(state,{type:'spendAdd',person:'Nate',title:'A Gunpla kit',estimate:9000},child);
+ const kit=spendItemsFor(greedy,'Nate').find(i=>i.title==='A Gunpla kit');
+ assert.ok(purse(applyOperation(greedy,{type:'spendAside',id:kit.id,aside:true},child),'Nate',day).free<0);
+ // Releasing it puts it back.
+ assert.equal(purse(applyOperation(state,{type:'spendAside',id:beyblade.id,aside:false},child),'Nate',day).free,2600);
+ // Nothing can be put aside without a price, or after it has been bought, or by the other boy.
+ assert.throws(()=>applyOperation(state,{type:'spendAside',id:gacha.id,aside:true},child),/already bought/);
+ assert.throws(()=>applyOperation(state,{type:'spendAside',id:beyblade.id,aside:'yes'},child),/put aside or not/);
+ assert.throws(()=>applyOperation(state,{type:'spendAside',id:beyblade.id,aside:true},{name:'Boston',role:'child'}),e=>e.status===403);
+ const noPrice=applyOperation(state,{type:'spendAdd',person:'Nate',title:'Something'},child);
+ const vague=spendItemsFor(noPrice,'Nate').find(i=>i.title==='Something');
+ assert.throws(()=>applyOperation(noPrice,{type:'spendAside',id:vague.id,aside:true},child),/price on it first/);
+});
+
+test('the purchase log keeps what was bought, and what was pinned to it',async()=>{
+ const {purchaseLog,receiptsFor,spendItemsFor,RECEIPT_KINDS}=await import('../src/trip-features.js');
+ let state=applyOperation(seed,{type:'spendTopUp',person:'Boston',yen:5000},parent);
+ for(const title of ['A Gachapon','A card pack','A keyring'])
+  state=applyOperation(state,{type:'spendAdd',person:'Boston',title,estimate:500},{name:'Boston',role:'child'});
+ const boston={name:'Boston',role:'child'};
+ const items=spendItemsFor(state,'Boston');
+ // Bought newest first, because the log is read from the top.
+ state=applyOperation(state,{type:'spendBought',id:items[0].id,done:true,spent:400,at:'2026-09-19T01:00:00.000Z'},boston);
+ state=applyOperation(state,{type:'spendBought',id:items[1].id,done:true,spent:600,at:'2026-09-20T01:00:00.000Z'},boston);
+ assert.deepEqual(purchaseLog(state,'Boston').map(i=>i.title),['A card pack','A Gachapon']);
+ assert.equal(purchaseLog(state,'Nate').length,0,'one boy’s log is not the other’s');
+ // A written note needs no upload, which is the point of it.
+ state=applyOperation(state,{type:'spendNote',itemId:items[0].id,text:'  Got a Pikachu.  '},boston);
+ const [note]=receiptsFor(state,items[0].id);
+ assert.equal(note.kind,'note');assert.equal(note.text,'Got a Pikachu.');
+ assert.equal(note.by,'Boston');assert.equal(note.person,'Boston');
+ assert.equal(receiptsFor(state,items[1].id).length,0,'it is pinned to one purchase, not all of them');
+ // The other boy cannot write on it, and cannot take it off.
+ assert.throws(()=>applyOperation(state,{type:'spendNote',itemId:items[0].id,text:'Mine'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'spendReceiptRemove',id:note.id},child),e=>e.status===403);
+ assert.equal(receiptsFor(applyOperation(state,{type:'spendReceiptRemove',id:note.id},boston),items[0].id).length,0);
+ // Taking the purchase off takes what was pinned to it too: a photo of a thing that is no
+ // longer on the list has nothing to be a photo of.
+ const gone=applyOperation(state,{type:'spendRemove',id:items[0].id},boston);
+ assert.equal(receiptsFor(gone,items[0].id).length,0);
+ assert.equal(gone.spending.receipts.length,0);
+ for(const bad of [{type:'spendNote',itemId:items[0].id,text:'   '},{type:'spendNote',itemId:'nope',text:'x'},
+  {type:'spendNote',itemId:items[0].id,text:'n'.repeat(2001)},{type:'spendReceiptRemove',id:'nope'}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,48)} should be refused`);
+ // Thirty things pinned to one purchase is plenty.
+ let many=state;
+ for(let i=0;i<29;i++)many=applyOperation(many,{type:'spendNote',itemId:items[0].id,text:`note ${i}`},boston);
+ assert.equal(receiptsFor(many,items[0].id).length,30);
+ assert.throws(()=>applyOperation(many,{type:'spendNote',itemId:items[0].id,text:'one more'},boston),/thirty things/);
+ assert.deepEqual(RECEIPT_KINDS.map(([id])=>id),['photo','video','voice','note']);
+});
+
+test('a photo, a video or a voice note pinned to a purchase is described by storage, not the phone',async()=>{
+ const {checkReceipt,addReceipt,RECEIPT_MAX_PER_ITEM}=await import('../server/receipts.mjs');
+ const {ensureFeatures,receiptsFor,spendItemsFor}=await import('../src/trip-features.js');
+ const boston={id:'g-boston',name:'Boston',role:'child'},nate={id:'g-nate',name:'Nate',role:'child'};
+ const dad={id:'g-dad',name:'Damien',role:'parent'};
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'spendAdd',person:'Boston',title:'A Gachapon',estimate:400},boston);
+ const item=spendItemsFor(state,'Boston')[0];
+ const body={pathname:`receipts/${boston.id}/abc.jpg`,itemId:item.id,kind:'photo',caption:'The blue one'};
+ const checked=checkReceipt(state,body,boston);
+ assert.deepEqual([checked.kind,checked.person,checked.caption],['photo','Boston','The blue one']);
+ // The path is the uploader's own, so nobody can record a file they did not put there.
+ assert.throws(()=>checkReceipt(state,{...body,pathname:`receipts/${nate.id}/abc.jpg`},boston),/Invalid file/);
+ assert.throws(()=>checkReceipt(state,{...body,pathname:`receipts/${boston.id}/../x.jpg`},boston),/Invalid file/);
+ // One boy cannot pin anything to the other's purchase; a parent helps with either.
+ assert.throws(()=>checkReceipt(state,{...body,pathname:`receipts/${nate.id}/abc.jpg`},nate),e=>e.status===403);
+ assert.doesNotThrow(()=>checkReceipt(state,{...body,pathname:`receipts/${dad.id}/abc.jpg`},dad));
+ assert.throws(()=>checkReceipt(state,{...body,itemId:'nope'},boston),e=>e.status===404);
+ assert.throws(()=>checkReceipt(state,{...body,kind:'pdf'},boston),/photo, a video or a voice note/);
+ assert.throws(()=>checkReceipt(state,{...body,caption:'c'.repeat(251)},boston),/caption short/);
+ // A voice note has to say how long it is, and be a believable length.
+ assert.equal(checkReceipt(state,{...body,kind:'voice',seconds:12},boston).seconds,12);
+ for(const seconds of [0,-1,301,'ages'])
+  assert.throws(()=>checkReceipt(state,{...body,kind:'voice',seconds},boston),/one second and five minutes/);
+ // Storage describes the blob. A photo that is really a PDF does not get in by saying so.
+ state=addReceipt(state,checked,boston,{contentType:'image/jpeg',size:900000});
+ const [saved]=receiptsFor(state,item.id);
+ assert.deepEqual([saved.type,saved.size,saved.by,saved.kind],['image/jpeg',900000,'Boston','photo']);
+ assert.throws(()=>addReceipt(state,checked,boston,{contentType:'application/pdf',size:900}),/photo up to 25 MB/);
+ assert.throws(()=>addReceipt(state,checked,boston,{contentType:'image/jpeg',size:30*1024*1024}),/photo up to 25 MB/);
+ assert.throws(()=>addReceipt(state,{...checked,kind:'video'},boston,{contentType:'video/mp4',size:150*1024*1024}),/video up to 100 MB/);
+ assert.doesNotThrow(()=>addReceipt(state,{...checked,kind:'video'},boston,{contentType:'video/quicktime',size:40*1024*1024}));
+ assert.throws(()=>addReceipt(state,{...checked,kind:'voice',seconds:5},boston,{contentType:'video/mp4',size:900}),/five minutes/);
+ assert.doesNotThrow(()=>addReceipt(state,{...checked,kind:'voice',seconds:5},boston,{contentType:'audio/webm;codecs=opus',size:900}));
+ // The same upload recorded twice is the same record, not a second one.
+ assert.equal(addReceipt(state,checked,boston,{contentType:'image/jpeg',size:900000}),state);
+ assert.equal(RECEIPT_MAX_PER_ITEM,30);
+});
+
+test('the bank greets a boy with the money that went in while he was away',async()=>{
+ const {moneyInSince,purse}=await import('../src/trip-features.js');
+ const day=seed.days[1].date;
+ let state=applyOperation(seed,{type:'spendTopUp',person:'Nate',yen:2000,note:'Birthday money from Nan'},parent);
+ let fresh=moneyInSince(state,'Nate');
+ assert.equal(fresh.total,2000);
+ assert.deepEqual(fresh.topUps.map(t=>t.note),['Birthday money from Nan']);
+ assert.equal(moneyInSince(state,'Boston').total,0,'and never with somebody else’s money');
+ // Opening it is what marks it seen, and it never greets him twice for the same money.
+ state=applyOperation(state,{type:'spendSeen',person:'Nate'},child);
+ assert.equal(moneyInSince(state,'Nate').total,0);
+ // More going in afterwards is news again.
+ state=applyOperation(state,{type:'spendTopUp',person:'Nate',yen:500,note:'For the train'},parent);
+ fresh=moneyInSince(state,'Nate');
+ assert.deepEqual([fresh.total,fresh.topUps.length],[500,1]);
+ assert.equal(purse(state,'Nate',day).paidIn,2500,'the balance was already right either way');
+ // An approved ask arrives as money in too, carrying who approved it.
+ let asked=applyOperation(state,{type:'spendRequest',person:'Nate',yen:1000,reason:'A Beyblade'},child);
+ const ask=asked.spending.requests[0];
+ asked=applyOperation(asked,{type:'spendRequestDecide',id:ask.id,approve:true,yen:800},parent);
+ assert.ok(moneyInSince(asked,'Nate').topUps.some(t=>t.approvedBy==='Damien'&&t.yen===800));
+ // A boy opens his own bank. Marking somebody else's seen would rob them of the moment.
+ assert.throws(()=>applyOperation(state,{type:'spendSeen',person:'Boston'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'spendSeen',person:'Lauren'},parent),/Nate and Boston/);
+});
+
+test('putting money aside, writing a note and opening the bank all work with no signal',async()=>{
+ const {ensureFeatures,pendingProgress,purse,receiptsFor,moneyInSince,spendItemsFor}=await import('../src/trip-features.js');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ // Deciding, writing and looking all still make sense whenever they land.
+ for(const op of ['spendAside','spendNote','spendSeen'])assert.ok(list.includes(op),`${op} should survive with no signal`);
+ // Taking something off the record is not progress, so it waits for the latest plan.
+ assert.ok(!list.includes('spendReceiptRemove'));
+ const day=seed.days[1].date,at='2026-09-22T02:00:00.000Z';
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'spendTopUp',person:'Nate',yen:3000},parent);
+ state=applyOperation(state,{type:'spendAdd',person:'Nate',title:'A Beyblade',estimate:2400},child);
+ const item=spendItemsFor(state,'Nate')[0];
+ const preview=pendingProgress(state,[
+  {operation:{type:'spendAside',operationId:'q1',id:item.id,aside:true,by:'Nate',at}},
+  {operation:{type:'spendNote',operationId:'q2',itemId:item.id,text:'Saving up for this one.',by:'Nate',at}},
+  {operation:{type:'spendSeen',operationId:'q3',person:'Nate',by:'Nate',at}}]);
+ const money=purse(preview,'Nate',day);
+ assert.deepEqual([money.aside,money.free,money.left],[2400,600,3000],'the cat is right before any of it syncs');
+ const [note]=receiptsFor(preview,item.id);
+ assert.equal(note.text,'Saving up for this one.');assert.ok(note.pending);
+ assert.equal(moneyInSince(preview,'Nate').total,0,'and the greeting is not shown twice');
+ assert.equal(purse(state,'Nate',day).aside,0,'while the saved trip is untouched');
+});
+
+test('the money box is a gauge before it is a picture',async()=>{
+ const bank=await readFile(new URL('../src/ManekiBank.jsx',import.meta.url),'utf8');
+ // The fill is the balance over what went in, and it cannot run past either end of the window.
+ assert.match(bank,/const clamp=n=>Math\.max\(0,Math\.min\(1,n\/scale\)\)/);
+ assert.match(bank,/const fill=clamp\(left\),held=clamp\(Math\.min\(aside,left\)\)/,
+  'money aside is capped at what is actually in the bank, or the band would overrun the fill');
+ assert.match(bank,/const scale=Math\.max\(total,1\)/,'an empty bank divides by one rather than by zero');
+ // It says the same thing to somebody who cannot see it.
+ assert.match(bank,/role="img"/);
+ assert.match(bank,/A maneki-neko money box holding \$\{money\(left\)\}/);
+ // It is a Japanese money box, which is the whole reason for drawing one.
+ assert.ok(bank.includes('招き猫'),'the thing it is a picture of is named');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // Coins go in through the slot on its head and come out of the chest, and none of it moves
+ // for anyone who has asked their phone to stop animating things.
+ assert.ok(css.includes('.maneki-out .maneki-coin{top:64%}'));
+ assert.match(css,/@media\(prefers-reduced-motion:no-preference\)\{[^]*maneki-drop/);
+ for(const rule of ['@keyframes maneki-drop','@keyframes maneki-spill','.maneki-fill'])
+  assert.ok(css.includes(rule),`${rule} is missing`);
+ // The page shows it, greets a boy with it, and tells it when money moves.
+ const page=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ assert.match(page,/<ManekiBank total=\{money\.paidIn\} spent=\{money\.spent\} aside=\{money\.aside\}/);
+ assert.match(page,/bankShows\('out',paid\)/,'buying something pays out of the bank');
+ assert.match(page,/bankShows\('in',fresh\.total\)/,'and money that went in drops into it');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/modal\.type==='moneyin'&&<MoneyIn/,'the greeting is a first-open thing');
+ assert.match(main,/if\(!myMoneyIn\.total\|\|moneyInShown\.current\|\|modal\|\|tab==='spending'\)return;/,
+  'it waits for a clear screen and stands aside for the page, which greets him itself');
+});

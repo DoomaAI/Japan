@@ -547,9 +547,51 @@ export function extraOperation(state,op,user,fail,now){
    purse.requests=purse.requests.filter(r=>r.id!==ask.id);
    return {summary:null,important:false,title:`${ask.person}\u2019s spending money`};
   }
+  if(op.type==='spendAside'){
+   // Putting money aside for something is not spending it, so it stays in the bank — it just
+   // has a name on it. Something already bought has nothing left to put aside.
+   const found=item();
+   if(typeof op.aside!=='boolean')fail('Say whether the money is put aside or not.');
+   if(op.aside&&found.boughtAt)fail('That one is already bought.');
+   if(op.aside&&!found.estimate)fail('Put a price on it first, or there is nothing to put aside.');
+   found.setAside=op.aside;
+   return {summary:null,important:false,title:found.title};
+  }
+  if(op.type==='spendNote'){
+   // A line written about a purchase. It needs no upload, so it is the one kind of record that
+   // can be added standing in a shop with no signal at all.
+   const found=purse.items.find(i=>i.id===op.itemId);
+   if(!found)fail('That is no longer on the spending list.',404);
+   boy(found.person);
+   const text=(op.text||'').trim();
+   if(!text)fail('Write something down first.');
+   requireText(text,2000,'note');
+   if(purse.receipts.filter(r=>r.itemId===found.id).length>=30)fail('That is thirty things pinned to one purchase already.');
+   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+   purse.receipts=[...purse.receipts,{id:randomUUID(),itemId:found.id,person:found.person,kind:'note',text,by:user.name,at}];
+   return {summary:null,important:false,title:found.title};
+  }
+  if(op.type==='spendReceiptRemove'){
+   const found=purse.receipts.find(r=>r.id===op.id);if(!found)fail('That is no longer pinned to the purchase.',404);
+   boy(found.person);
+   purse.receipts=purse.receipts.filter(r=>r.id!==found.id);
+   return {summary:null,important:false,private:true};
+  }
+  if(op.type==='spendSeen'){
+   // The bank shows a boy what went in since he last looked, so it has to know when that was.
+   // His own only: marking it seen for somebody else would rob them of the moment.
+   const person=op.person||user.name;
+   if(!BOYS.includes(person))fail('Spending money belongs to Nate and Boston.');
+   if(person!==user.name)fail('That is somebody else\u2019s bank to open.',403);
+   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+   purse.seen={...purse.seen,[person]:at};
+   return {summary:null,important:false,private:true};
+  }
   if(op.type==='spendRemove'){
    const found=item();
    purse.items=purse.items.filter(i=>i.id!==found.id);
+   // A photo of a thing that is no longer on the list has nothing to be a photo of.
+   purse.receipts=purse.receipts.filter(r=>r.itemId!==found.id);
    return {summary:null,important:false,title:found.title};
   }
   fail('Unknown spending action.');

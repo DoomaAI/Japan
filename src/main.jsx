@@ -25,7 +25,7 @@ import MediaGallery from './MediaGallery.jsx';
 import Planning from './Planning.jsx';
 import Nearby from './Nearby.jsx';
 import TodoList,{DayTodos} from './TodoList.jsx';
-import Spending from './Spending.jsx';
+import Spending,{MoneyIn} from './Spending.jsx';
 import Sumo from './Sumo.jsx';
 import StepReview from './StepReview.jsx';
 import WeatherPage from './WeatherPage.jsx';
@@ -42,7 +42,7 @@ import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
 import {ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Settings,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon} from 'lucide-react';
 import {activeSteps,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent} from './timing.js';
-import {todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState} from './trip-features.js';
+import {todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,moneyInSince,BOYS,yenPerAud} from './trip-features.js';
 import {armPlayback} from './speech.js';
 import {PhraseAudio} from './PhraseAudio.jsx';
 import {typesText} from './swipe.js';
@@ -69,7 +69,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
 const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove',
- 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','spendAdd','spendBought','spendRequest','sumoResult','sumoPredict','stepRating','stepThought'];
+ 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','spendAdd','spendBought','spendRequest','spendAside','spendNote','spendSeen','sumoResult','sumoPredict','stepRating','stepThought'];
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
@@ -221,6 +221,20 @@ function App(){
   if(noteForMe&&!noteRead)return;
   phraseSeen.current=phraseDay;setModal({type:'phrase',phrase:todaysPhrase,day:phraseDay});
  },[todaysPhrase?.id,phraseDone,noteForMe?.day,noteRead,modal]);
+ // Money that went in while a boy was off being five. It waits for a clear screen the same way
+ // the phrase of the day does, and it is his own bank only — nobody is shown somebody else's.
+ // The Spending page greets him itself, so it does not also pop up on top of it.
+ const myMoneyIn=BOYS.includes(user?.name)?moneyInSince(state,user.name):{total:0};
+ const moneyInShown=useRef(false);
+ useEffect(()=>{
+  if(!myMoneyIn.total||moneyInShown.current||modal||tab==='spending')return;
+  if(noteForMe&&!noteRead)return;
+  moneyInShown.current=true;setModal({type:'moneyin'});
+ },[myMoneyIn.total,modal,tab,noteForMe?.day,noteRead]);
+ async function seeMoneyIn(){
+  await mutate({type:'spendSeen',person:user.name,by:user.name});
+  setModal(null);
+ }
  async function seePhrase(day,phraseIds=[]){
   localStorage.setItem(`japan.phrase.${day}`,'seen');
   await mutate({type:'phraseSeen',day,person:user.name,phraseIds});
@@ -294,7 +308,7 @@ function App(){
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
   {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go}/>}
-  {tab==='spending'&&<Spending state={visibleState} user={user} mutate={mutate} busy={busy} go={go} notice={notice} today={japanDate(now)}/>}
+  {tab==='spending'&&<Spending state={visibleState} user={user} mutate={mutate} busy={busy} setBusy={setBusy} go={go} notice={notice} request={request} accept={accept} config={config} today={japanDate(now)}/>}
   {tab==='inbox'&&parent&&<EmailInbox state={state} config={config} busy={busy} mutate={mutate} request={request} accept={accept} notice={notice} go={go}/>}
   {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}
@@ -317,6 +331,7 @@ function App(){
    {modal.type==='park'&&<ParkGuide state={visibleState} user={user} park={modal.park} mutate={mutate} busy={busy} open={setModal}/>}
    {modal.type==='phrase'&&<PhraseOfDay queue={phraseQueue(visibleState,user.name,modal.day)} day={modal.day} dateLabel={fmtDay(modal.day)} busy={busy} dismiss={ids=>seePhrase(modal.day,ids)}/>}
    {modal.type==='eyespy'&&<EyeSpy state={visibleState} user={user} step={modal.step} mutate={mutate} busy={busy}/>}
+   {modal.type==='moneyin'&&<MoneyIn state={visibleState} user={user} person={user.name} rate={yenPerAud(visibleState)} busy={busy} go={go} dismiss={()=>seeMoneyIn()}/>}
    {modal.type==='thankyou'&&<ThankYouNote note={modal.note} seenAt={state.thankYou.seen?.[modal.note.day]} busy={busy} dismiss={()=>readNote(modal.note)}/>}
    {modal.type==='late'&&<RunningLate state={state} day={day} mutate={mutate} busy={busy} close={()=>setModal(null)}/>}
    {modal.type==='offline'&&<OfflineReadiness state={state} day={day} notice={notice} refresh={refresh}/>}

@@ -1,5 +1,6 @@
 import {FILE_TYPES,AUDIO_TYPES,VOICE_MAX_BYTES,validateFile} from './files.mjs';
 import {checkVoiceNote,addVoiceNote} from './voice.mjs';
+import {checkReceipt,addReceipt,RECEIPT_IMAGE_TYPES,RECEIPT_VIDEO_TYPES} from './receipts.mjs';
 import {checkPhraseClip,addPhraseClip,removePhraseClip} from './phrase-audio.mjs';
 import {readFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
@@ -202,22 +203,46 @@ export default async function handler(req,res){
   }
   if(route==='upload'&&post){
    // Everyone records their own voice notes; only a parent uploads documents and media.
-   const own=p=>String(p||'').startsWith(`voice/${user.id}/`)||String(p||'').startsWith(`photos/${user.id}/`);
+   const own=p=>['voice','photos','receipts'].some(dir=>String(p||'').startsWith(`${dir}/${user.id}/`));
    if(!own(b.pathname))parent(user);
    if(localDemo())throw new AppError('Connect private Blob storage to upload documents.',503);
    const result=await handleUpload({body:b,request:req,onBeforeGenerateToken:async pathname=>{
     const voice=pathname.startsWith(`voice/${user.id}/`),photo=pathname.startsWith(`photos/${user.id}/`);
+    // A photo, a video or a voice note pinned to something one of the boys bought.
+    const receipt=pathname.startsWith(`receipts/${user.id}/`);
     // A recorded phrase is the family's reference pronunciation, so a parent makes it.
     const said=pathname.startsWith(`phrases/${user.id}/`);
-    if(pathname.includes('..')||!(voice||photo||said||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
+    if(pathname.includes('..')||!(voice||photo||said||receipt||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
     if(said){parent(user);return {allowedContentTypes:AUDIO_TYPES,maximumSizeInBytes:VOICE_MAX_BYTES,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};}
+    if(receipt)return {allowedContentTypes:[...RECEIPT_IMAGE_TYPES,...RECEIPT_VIDEO_TYPES,...AUDIO_TYPES],maximumSizeInBytes:100*1024*1024,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
     if(photo)return {allowedContentTypes:['image/jpeg','image/png','image/webp'],maximumSizeInBytes:25*1024*1024,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
     if(voice)return {allowedContentTypes:AUDIO_TYPES,maximumSizeInBytes:VOICE_MAX_BYTES,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
     parent(user);
     return {allowedContentTypes:FILE_TYPES,maximumSizeInBytes:100*1024*1024,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
    },onUploadCompleted:async()=>{}});return json(res,result);
   }
-  // A voice note anyone in the family can leave, on a day or on one activity.
+  // A photo, a video or a voice note pinned to something a boy bought, once it is in storage.
+ // A written note needs no upload and goes through an ordinary change instead.
+ if(route==='receipt'&&post){
+  const current=await readTrip();
+  const checked=checkReceipt(current.state,b,user);
+  const state=addReceipt(current.state,checked,user,await head(checked.pathname));
+  if(state===current.state)return json(res,visibleEnvelope(current,user));
+  return json(res,visibleEnvelope(await writeTrip(state,current.revision),user));
+ }
+ if(route==='receipt'&&req.method==='GET'){
+  const {state}=await readTrip();
+  const found=(state.spending?.receipts||[]).find(r=>r.id===url.searchParams.get('id')&&r.pathname);
+  if(!found)throw new AppError('That file is not there.',404);
+  const range=req.headers.range;if(range&&!/^bytes=\d*-\d*$/.test(range))throw new AppError('Invalid byte range.',416);
+  const result=await get(found.pathname,{access:'private',useCache:false,...(range?{headers:{Range:range}}:{})});
+  if(!result||!result.stream)throw new AppError('That file is unavailable.',404);
+  res.setHeader('Content-Type',found.type);res.setHeader('Content-Disposition','inline');
+  for(const h of ['content-length','content-range','accept-ranges']){const value=result.headers.get(h);if(value)res.setHeader(h,value);}
+  if(result.headers.has('content-range'))res.statusCode=206;
+  const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
+ }
+ // A voice note anyone in the family can leave, on a day or on one activity.
   if(route==='voice'&&post){
    const current=await readTrip();
    const checked=checkVoiceNote(current.state,b,user);
