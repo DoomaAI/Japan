@@ -1696,6 +1696,8 @@ test('the stable promotes on a match, and a bout can be lost by anyone',async()=
    assert.ok(c>=1&&c<=TOP_RANK,`challenger ${c} is off the ladder`);
    assert.ok(Math.abs(c-best)<=1,'and is somewhere near you');
   }
+});
+
 test('the silent nudge fires once, inside a tap, and never claims more than it did',async()=>{
  const {nudgeOffAmbient,resetNudge}=await import('../src/speech.js');
  resetNudge();
@@ -1721,4 +1723,39 @@ test('the session is claimed at the start, not before every phrase',async()=>{
  assert.match(main,/useEffect\(\(\)=>\{claimPlayback\(\);\},\[\]\)/,'claimed once when the app starts');
  assert.doesNotMatch(speech,/claimPlayback\(\)/,'and never again from inside the speaking path');
  assert.match(speech,/nudgeOffAmbient\(\)/,'the older-iPhone nudge still runs inside the tap');
+});
+
+test('the advice matches what the phone actually did, not what we assume',async()=>{
+ const {silenceAdvice,SILENCE_HELP,isStandalone,wakeSpeech}=await import('../src/speech.js');
+ // The case that has been happening: nothing started, inside a Home Screen app.
+ assert.equal(silenceAdvice({started:false,standalone:true}),'standalone');
+ assert.match(SILENCE_HELP.standalone,/Safari/,'and it names the way out');
+ // Nothing started, in the browser: the synthesiser is wedged from being in the background.
+ assert.equal(silenceAdvice({started:false,standalone:false}),'never-started');
+ assert.match(SILENCE_HELP['never-started'],/background/);
+ // It did start, so the sound is being blocked on its way out.
+ assert.equal(silenceAdvice({started:true,standalone:true}),'muted');
+ assert.equal(silenceAdvice({started:true,standalone:false}),'muted');
+ assert.match(SILENCE_HELP.muted,/[Hh]eadphones/);
+ assert.equal(silenceAdvice({started:null,standalone:false}),'muted','untested reads as the ordinary case');
+ // Detection and the wake-up both survive a phone that has none of this.
+ assert.equal(isStandalone(null),false);
+ assert.equal(isStandalone({matchMedia:()=>{throw new Error('no');}}),false);
+ assert.equal(isStandalone({navigator:{standalone:true}}),true);
+ assert.equal(isStandalone({matchMedia:()=>({matches:true})}),true);
+ assert.equal(wakeSpeech(null),false);
+ assert.equal(wakeSpeech({}),false);
+ let cancelled=0,resumed=0;
+ assert.equal(wakeSpeech({speechSynthesis:{cancel:()=>cancelled++,resume:()=>resumed++}}),true);
+ assert.equal(cancelled,1);assert.equal(resumed,1);
+ assert.equal(wakeSpeech({speechSynthesis:{cancel:()=>{throw new Error('wedged');}}}),false);
+});
+
+test('coming back to the app clears a synthesiser that stopped while it was away',async()=>{
+ const source=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ assert.match(source,/visibilitychange/,'the app has to notice it came back');
+ assert.match(source,/document\.visibilityState==='visible'\)wakeSpeech\(\)/);
+ assert.match(source,/removeEventListener\('visibilitychange'/,'and let go of it afterwards');
+ // The message shown is chosen from what happened, rather than always blaming the switch.
+ assert.match(source,/SILENCE_HELP\[silenceAdvice\(\{started:false,standalone:isStandalone\(\)\}\)\]/);
 });

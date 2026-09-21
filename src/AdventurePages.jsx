@@ -3,7 +3,7 @@ import {Volume2,Square,SkipForward,RotateCcw,Sparkles} from 'lucide-react';
 import MissionArt from './MissionArt.jsx';
 import {BOYS,yenPerAud,yenToAud} from './trip-features.js';
 import {japanClock,japanDate} from './timing.js';
-import {matchVoice,speechRate,needsSettle,isRealFailure,warmUp,nudgeOffAmbient} from './speech.js';
+import {matchVoice,speechRate,needsSettle,isRealFailure,warmUp,nudgeOffAmbient,isStandalone,wakeSpeech,silenceAdvice,SILENCE_HELP} from './speech.js';
 export const dayLabel=d=>d?new Intl.DateTimeFormat('en-AU',{day:'numeric',month:'short',weekday:'short',timeZone:'Asia/Tokyo'}).format(new Date(d+'T12:00:00+09:00')):'Whole trip';
 export function DaySelect({state,value,onChange,name,allowAll=false}){return <select name={name} value={value} onChange={onChange}><option value="">{allowAll?'Whole trip':'Unscheduled'}</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select>;}
 // Reads a mission aloud, so Nate can follow his own missions before he can read them.
@@ -14,6 +14,14 @@ export function useReadAloud(){
  const [reading,setReading]=useState(''),[problem,setProblem]=useState('');
  const timer=useRef(null);
  useEffect(()=>()=>{clearTimeout(timer.current);if(supported)window.speechSynthesis.cancel();},[supported]);
+ // iOS stops speaking once the app has been in the background, which is every time the phone
+ // goes in a pocket. Clearing the queue on the way back in is what starts it again.
+ useEffect(()=>{
+  if(!supported)return;
+  const back=()=>{if(document.visibilityState==='visible')wakeSpeech();};
+  document.addEventListener('visibilitychange',back);
+  return()=>document.removeEventListener('visibilitychange',back);
+ },[supported]);
  function read(id,text,lang='en-AU',rate){
   if(!supported)return;
   const synth=window.speechSynthesis;
@@ -30,7 +38,7 @@ export function useReadAloud(){
    try{const voice=matchVoice(synth.getVoices(),lang);if(voice)say.voice=voice;}catch{}
    const done=()=>setReading(now=>now===id?'':now);
    say.onend=done;
-   say.onerror=e=>{done();if(isRealFailure(e?.error))setProblem(SILENT_HINT);};
+   say.onerror=e=>{done();if(isRealFailure(e?.error))setProblem(SILENCE_HELP[silenceAdvice({started:false,standalone:isStandalone()})]);};
    setReading(id);
    // Safari can leave the engine paused after a cancel, and then says nothing at all.
    try{synth.resume();}catch{}
@@ -41,7 +49,7 @@ export function useReadAloud(){
    warmUp(synth,window.SpeechSynthesisUtterance);
    synth.speak(say);
    // If it never even starts, the phone is not going to explain why. We can.
-   timer.current=setTimeout(()=>{if(!synth.speaking&&!synth.pending){done();setProblem(SILENT_HINT);}},1500);
+   timer.current=setTimeout(()=>{if(!synth.speaking&&!synth.pending){done();setProblem(SILENCE_HELP[silenceAdvice({started:false,standalone:isStandalone()})]);}},1500);
   };
   // Speaking straight after a cancel in the same breath is the classic way to get silence
   // out of Safari, so when something was already talking, let the engine settle first.

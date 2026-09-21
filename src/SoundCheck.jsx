@@ -1,10 +1,8 @@
 import React,{useState} from 'react';
 import {Volume2,Stethoscope} from 'lucide-react';
-import {soundCheckLines,claimPlayback,warmUp,matchVoice} from './speech.js';
+import {soundCheckLines,claimPlayback,warmUp,matchVoice,isStandalone,silenceAdvice,SILENCE_HELP} from './speech.js';
 const build=typeof __BUILD__!=='undefined'?__BUILD__:'development';
-const standalone=()=>{
- try{return window.matchMedia?.('(display-mode: standalone)').matches||navigator.standalone===true;}catch{return false;}
-};
+const standalone=isStandalone;
 // When someone says "I pressed it and nothing happened", this is what turns that into
 // something anyone can act on: the phone says what it did, in plain words.
 export default function SoundCheck(){
@@ -43,11 +41,9 @@ export default function SoundCheck(){
   <button type="button" className="primary" disabled={running} onClick={run}><Volume2 size={16}/> {running?'Listening…':'Test the sound'}</button>
   {facts&&<div className="sound-report">
    {soundCheckLines(facts).map(([label,value])=><p key={label}><span>{label}</span><strong>{value}</strong></p>)}
-   <small>{facts.started===false&&!facts.error
-    ?'The phone never started speaking. That is the phone refusing, not the app failing — check the silent switch first.'
-    :facts.started&&!facts.error
-     ?'The phone says it spoke. If you heard nothing, it is the silent switch or the volume, not the app.'
-     :'Read this back to whoever is helping you and they will know where to look.'}</small>
+   <p className="sound-verdict">{SILENCE_HELP[silenceAdvice({started:facts.started,standalone:facts.standalone})]}</p>
+   {facts.started===false&&facts.standalone&&<p><a href={location.href} target="_blank" rel="noopener">Open this page in Safari</a> — speech usually works there when it will not here.</p>}
+   <small>Read this back to whoever is helping you and they will know where to look.</small>
   </div>}
  </details>;
 }

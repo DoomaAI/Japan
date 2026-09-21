@@ -101,3 +101,36 @@ export function nudgeOffAmbient(make=typeof Audio!=='undefined'?()=>new Audio(SI
  }catch{return false;}
 }
 export const resetNudge=()=>{nudged=false;};
+// Two things silence iOS that have nothing to do with the mute switch.
+//
+// The first: speech often does not work at all inside a Home Screen app. WebKit's speech
+// synthesiser is unreliable in standalone display mode and fine in Safari itself, which is
+// why a phone can report that it spoke and produce nothing.
+export const isStandalone=(win=typeof window!=='undefined'?window:null)=>{
+ try{return !!(win?.matchMedia?.('(display-mode: standalone)').matches||win?.navigator?.standalone===true);}
+ catch{return false;}
+};
+// The second: the synthesiser wedges when the app has been in the background — the very
+// thing that happens every time a phone is put in a pocket. Cancelling on the way back in
+// clears the stuck queue, which is the documented way to get it speaking again without a
+// reload.
+export function wakeSpeech(win=typeof window!=='undefined'?window:null){
+ try{
+  const synth=win?.speechSynthesis;
+  if(!synth)return false;
+  synth.cancel();
+  synth.resume?.();
+  return true;
+ }catch{return false;}
+}
+// What to tell someone whose phone said nothing, given what the phone just did.
+export function silenceAdvice({started,standalone}){
+ if(started===false&&standalone)return 'standalone';
+ if(started===false)return 'never-started';
+ return 'muted';
+}
+export const SILENCE_HELP={
+ standalone:'iPhones often will not speak inside an app added to the Home Screen — the same page in Safari does. Open it in Safari for the Japanese, or use headphones.',
+ 'never-started':'The phone took the words and did nothing. Close the app fully and open it again — iOS stops speaking once it has been in the background.',
+ muted:'The phone says it spoke, so this is the sound getting out: headphones always work, or flick the side switch off silent and turn the volume up.'
+};
