@@ -73,3 +73,26 @@ export function advice(entry){
  if((entry.rain??0)>=40)return 'A good chance of rain. Pack an umbrella anyway.';
  return '';
 }
+// The morning nudge. A forecast is only useful if it changes what you put in the bag, so this
+// answers one question — what do we need today — and says nothing when the answer is nothing.
+// It is deliberately about the jumper and the umbrella rather than the meteorology.
+export function morningNeeds(entry){
+ if(!entry)return null;
+ const [label]=describe(entry.code),needs=[];
+ const wet=/rain|shower|drizzle|thunder/i.test(label)||(entry.rain??0)>=50;
+ const cold=entry.min<=13||entry.max<=16;
+ if(wet)needs.push({id:'umbrella',icon:'☂️',text:'Umbrellas today.'});
+ if(cold)needs.push({id:'jumper',icon:'🧥',text:entry.min<=8?'Cold — coats, and something warm for Nate.':'Jumpers — it is cool, especially first thing and after dark.'});
+ if(entry.max>=30)needs.push({id:'water',icon:'💧',text:'Hot — water bottles and hats, and take the middle of the day slowly.'});
+ if(/snow/i.test(label))needs.push({id:'snow',icon:'❄️',text:'Snow. Proper shoes for the boys.'});
+ if(!needs.length)return null;
+ return {needs,summary:needs.map(n=>n.text).join(' '),icons:needs.map(n=>n.icon).join(' ')};
+}
+// Morning in Japan, which is when a reminder about a jumper is any use. After the middle of
+// the day everyone already knows what the weather is doing.
+export const isMorning=(clock,until=11)=>{
+ // A missing clock is not midnight. Without a real time we say nothing rather than
+ // deciding it is the morning.
+ const match=/^(\d{2}):\d{2}/.exec(String(clock||''));
+ return !!match&&Number(match[1])<until;
+};

@@ -147,3 +147,81 @@ export function addTile(board,seed){
 }
 export const canMove=board=>board.some(v=>!v)||['left','up'].some(d=>slide(board,d).changed);
 export const bestTile=board=>Math.max(0,...board);
+// Things you actually see in Japan, for a picture memory game. Emoji rather than image files,
+// so the whole thing works with no signal and adds nothing to download.
+export const SIGHTS=[
+ {id:'torii',icon:'⛩️',en:'Torii gate',ja:'とりい'},
+ {id:'fuji',icon:'🗻',en:'Mount Fuji',ja:'ふじさん'},
+ {id:'shinkansen',icon:'🚅',en:'Shinkansen',ja:'しんかんせん'},
+ {id:'sushi',icon:'🍣',en:'Sushi',ja:'すし'},
+ {id:'ramen',icon:'🍜',en:'Ramen',ja:'ラーメン'},
+ {id:'onigiri',icon:'🍙',en:'Rice ball',ja:'おにぎり'},
+ {id:'deer',icon:'🦌',en:'Nara deer',ja:'しか'},
+ {id:'cat',icon:'🐱',en:'Lucky cat',ja:'まねきねこ'},
+ {id:'lantern',icon:'🏮',en:'Paper lantern',ja:'ちょうちん'},
+ {id:'blossom',icon:'🌸',en:'Cherry blossom',ja:'さくら'},
+ {id:'castle',icon:'🏯',en:'Castle',ja:'しろ'},
+ {id:'kimono',icon:'👘',en:'Kimono',ja:'きもの'},
+ {id:'bamboo',icon:'🎋',en:'Bamboo',ja:'たけ'},
+ {id:'tea',icon:'🍵',en:'Green tea',ja:'おちゃ'},
+ {id:'dango',icon:'🍡',en:'Dango',ja:'だんご'},
+ {id:'fan',icon:'🎏',en:'Carp streamer',ja:'こいのぼり'},
+ {id:'octopus',icon:'🐙',en:'Takoyaki octopus',ja:'たこ'},
+ {id:'bath',icon:'♨️',en:'Hot spring',ja:'おんせん'}
+];
+// Two things make a third. A recipe book rather than a physics engine, so it works offline
+// and a five-year-old can be told what he has just made.
+export const ELEMENTS=[
+ {id:'rice',icon:'🌾',en:'Rice',ja:'こめ',start:true},
+ {id:'water',icon:'💧',en:'Water',ja:'みず',start:true},
+ {id:'fire',icon:'🔥',en:'Fire',ja:'ひ',start:true},
+ {id:'fish',icon:'🐟',en:'Fish',ja:'さかな',start:true},
+ {id:'bean',icon:'🫘',en:'Soy bean',ja:'だいず',start:true},
+ {id:'wheat',icon:'🌾',en:'Wheat',ja:'むぎ',start:true},
+ {id:'leaf',icon:'🍃',en:'Tea leaf',ja:'ちゃば',start:true},
+ {id:'seaweed',icon:'🌿',en:'Seaweed',ja:'のり',start:true},
+ {id:'cookedrice',icon:'🍚',en:'Cooked rice',ja:'ごはん'},
+ {id:'onigiri',icon:'🍙',en:'Rice ball',ja:'おにぎり'},
+ {id:'sushi',icon:'🍣',en:'Sushi',ja:'すし'},
+ {id:'sake',icon:'🍶',en:'Sake',ja:'さけ'},
+ {id:'mochi',icon:'🍡',en:'Mochi',ja:'もち'},
+ {id:'tofu',icon:'🧊',en:'Tofu',ja:'とうふ'},
+ {id:'miso',icon:'🟤',en:'Miso',ja:'みそ'},
+ {id:'misosoup',icon:'🥣',en:'Miso soup',ja:'みそしる'},
+ {id:'noodle',icon:'🍝',en:'Noodles',ja:'めん'},
+ {id:'ramen',icon:'🍜',en:'Ramen',ja:'ラーメン'},
+ {id:'udon',icon:'🥢',en:'Udon',ja:'うどん'},
+ {id:'tempura',icon:'🍤',en:'Tempura',ja:'てんぷら'},
+ {id:'steam',icon:'💨',en:'Steam',ja:'ゆげ'},
+ {id:'onsen',icon:'♨️',en:'Hot spring',ja:'おんせん'},
+ {id:'tea',icon:'🍵',en:'Green tea',ja:'おちゃ'},
+ {id:'bento',icon:'🍱',en:'Bento box',ja:'べんとう'}
+];
+// Each one is something a child could be told and would believe: rice and water make rice,
+// cooked rice and seaweed make an onigiri, noodles and miso soup make ramen.
+export const RECIPES=[
+ ['rice','water','cookedrice'],
+ ['cookedrice','seaweed','onigiri'],
+ ['cookedrice','fish','sushi'],
+ ['cookedrice','water','sake'],
+ ['cookedrice','fire','mochi'],
+ ['bean','water','tofu'],
+ ['bean','fire','miso'],
+ ['miso','water','misosoup'],
+ ['wheat','water','noodle'],
+ ['noodle','misosoup','ramen'],
+ ['noodle','fire','udon'],
+ ['wheat','fish','tempura'],
+ ['water','fire','steam'],
+ ['steam','water','onsen'],
+ ['leaf','water','tea'],
+ ['onigiri','fish','bento']
+];
+export const elementById=id=>ELEMENTS.find(e=>e.id===id)||null;
+export const startingElements=()=>ELEMENTS.filter(e=>e.start).map(e=>e.id);
+// Order does not matter — rice and water is the same as water and rice.
+export function combine(a,b){
+ const hit=RECIPES.find(([x,y])=>(x===a&&y===b)||(x===b&&y===a));
+ return hit?hit[2]:null;
+}
+export const discoverable=()=>[...new Set(RECIPES.map(r=>r[2]))];
