@@ -32,6 +32,7 @@ import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
 import {ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Settings,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,Image as ImageIcon} from 'lucide-react';
 import {activeSteps,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent} from './timing.js';
+import {claimPlayback} from './speech.js';
 import './style.css';
 import './guide-theme.css';
 
@@ -92,6 +93,10 @@ function App(){
   return()=>{stop=true;window.removeEventListener('online',on);window.removeEventListener('offline',off);};
  },[]);
  useEffect(()=>{const i=setInterval(()=>setNow(new Date()),30000);return()=>clearInterval(i);},[]);
+ // Tell iOS once, at the start, that anything this page plays is media rather than a
+ // notification noise. Safari starts every page in the category the silent switch mutes, and
+ // the type has to be set early and then left alone.
+ useEffect(()=>{claimPlayback();},[]);
  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),6000);return()=>clearTimeout(t);},[toast]);
  async function flush(force=false){
   if(working.current||!queueRef.current.length||!navigator.onLine)return;
