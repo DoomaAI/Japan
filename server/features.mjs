@@ -88,6 +88,22 @@ export function extraOperation(state,op,user,fail,now){
    }
    state.phraseLog={...state.phraseLog,[op.person]:log};
   }
+ }else if(op.type==='weatherUpdate'){
+  // A cache of what a free forecast service said, kept in the trip so one phone's lookup
+  // serves the whole family and the numbers are still there with no signal.
+  if(!op.days||typeof op.days!=='object'||Array.isArray(op.days))fail('Invalid forecast.');
+  const entries=Object.entries(op.days);
+  if(entries.length>40)fail('Invalid forecast.');
+  const days={...state.weather.days};
+  for(const [date,e] of entries){
+   if(!state.days.some(d=>d.date===date))continue;
+   if(!e||!Number.isInteger(e.code)||!Number.isInteger(e.max)||!Number.isInteger(e.min))fail('Invalid forecast.');
+   if(e.max<-50||e.max>60||e.min<-60||e.min>50||e.min>e.max)fail('Invalid forecast.');
+   if(e.rain!==null&&!(Number.isInteger(e.rain)&&e.rain>=0&&e.rain<=100))fail('Invalid forecast.');
+   if(!string(e.city,80))fail('Invalid forecast.');
+   days[date]={city:e.city,code:e.code,max:e.max,min:e.min,rain:e.rain??null};
+  }
+  state.weather={at:now,by:user.name,days};
  }else if(op.type==='gameScore'){
   // Only ever your own, and only ever upwards: a best score is a best score.
   if(!state.members.includes(op.person))fail('Choose a family member.');
