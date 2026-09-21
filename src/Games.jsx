@@ -18,6 +18,7 @@ import Picross from './Picross.jsx';
 import Gomoku from './Gomoku.jsx';
 import Kendama from './Kendama.jsx';
 import Beigoma from './Beigoma.jsx';
+import Hanafuda from './Hanafuda.jsx';
 const PAIRS=6;
 // Dragging one tile onto another, with a tap still meaning what it meant. Pointer events
 // cover a finger and a mouse alike; the target is found from where the finger actually
@@ -877,6 +878,8 @@ const GAMES=[
   story:'The cup-and-ball came to Japan from abroad, but the shape everybody means by kendama — the crosspiece with a big cup one side and a small cup the other — was designed in Hiroshima in 1919, and the trick names and the grading behind them are entirely Japanese. Those names are why it is in here: it teaches them the way the sumo game teaches the ranks, by making you say one before you can do it.'},
  {id:'beigoma',title:'Spinning tops',ja:'べーごま',origin:'traditional',needs:OFFLINE,Component:Beigoma,
   story:'Small cast-iron tops thrown into a ring — a barrel with a cloth stretched over it, and the cloth sags so they find each other. Children have played it since the Edo period, and boys spent their pocket money filing and weighting their tops to make them last a bout longer. The whole skill is in the throw: once it has left your hand you are a spectator, which is why this is one flick and then watching.'},
+ {id:'hanafuda',title:'Hanafuda',ja:'花札',origin:'traditional',needs:OFFLINE,Component:Hanafuda,
+  story:'Flower cards: forty-eight of them, twelve months, four cards a month, played in Japan since the 1700s. The game here is こいこい, the two-handed one. It is the only game in here that teaches the twelve months and the flower that belongs to each, which is worth knowing somewhere half the sweets and half the place names are named after them.'},
  {id:'merge',title:'Onigiri to Fuji',needs:OFFLINE,Component:Merge},
  {id:'remember',title:'What we did',needs:OFFLINE,Component:Remember},
  {id:'sights',title:'Japan pairs',needs:OFFLINE,Component:Sights},
