@@ -3634,3 +3634,37 @@ test('the photos live behind a filter rather than another entry in the menu',asy
  assert.match(handler,/p\.for\|\|p\.by\)===owner&&p\.day===b\.day\).length>=12/);
  assert.match(handler,/user\.role!=='parent'&&owner!==user\.name/,'a boy can only speak for himself');
 });
+
+test('every phrase, katakana word and menu word says when you would actually use it',async()=>{
+ const {PHRASEBOOK,ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ const {LOANWORDS}=await import('../src/kana-data.js');
+ const {MENU_WORDS}=await import('../src/food-data.js');
+ const lists=[
+  ['phrase',ALL_PHRASES(),p=>p.note,p=>p.en],
+  ['katakana word',LOANWORDS,w=>w.where,w=>w.ja],
+  ['menu word',MENU_WORDS,w=>w.note,w=>w.en]
+ ];
+ for(const [kind,items,explain,name] of lists){
+  for(const item of items){
+   const said=explain(item);
+   assert.ok(said&&said.trim(),`the ${kind} "${name(item)}" does not say when you would use it`);
+   assert.ok(said.length>=20,`"${name(item)}" is explained too thinly: ${said}`);
+   assert.ok(said.length<=320,`"${name(item)}" runs on: ${said}`);
+   assert.ok(/[.!?]$/.test(said.trim()),`"${name(item)}" is not a finished sentence: ${said}`);
+  }
+  // A note copied from one entry to another is worse than none: it reads as an answer and
+  // is not one.
+  const said=items.map(explain);
+  assert.equal(new Set(said).size,said.length,`two ${kind}s share an explanation`);
+ }
+ // Every section says what it is for as well.
+ for(const section of PHRASEBOOK)assert.ok(section.note?.trim(),`${section.title} has no line`);
+ assert.equal(new Set(PHRASEBOOK.map(s=>s.note)).size,PHRASEBOOK.length);
+ // The one about allergies has to keep pointing at the staff rather than at us.
+ const allergy=ALL_PHRASES().find(p=>p.id==='allergy');
+ assert.match(allergy.note,/confirm/i);
+ assert.match(allergy.note,/never trust a translation/i);
+ // And the explanation is shown wherever the word is, not just on the phrases.
+ const page=await readFile(new URL('../src/Phrasebook.jsx',import.meta.url),'utf8');
+ assert.match(page,/\{w\.note&&<small className="menu-word-note">\{w\.note\}<\/small>\}/);
+});
