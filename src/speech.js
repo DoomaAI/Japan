@@ -51,7 +51,7 @@ export function claimPlayback(nav=typeof navigator!=='undefined'?navigator:null)
 export const resetPlaybackClaim=()=>{claimed=null;};
 export const playbackClaim=()=>claimed;
 // A WAV built here rather than shipped as a file, because the only two sounds the app needs
-// to make on its own are a second of silence and a short beep, and neither is worth
+// to make on its own are a hold nobody can hear and a short beep, and neither is worth
 // downloading. Sixteen-bit mono PCM, which every phone plays.
 export function wavDataUri(samples,rate=8000){
  const size=samples.length*2,buffer=new ArrayBuffer(44+size),view=new DataView(buffer);
@@ -65,7 +65,21 @@ export function wavDataUri(samples,rate=8000){
  for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
  return `data:audio/wav;base64,${btoa(binary)}`;
 }
-export const silenceUri=(seconds=1,rate=8000)=>wavDataUri(new Float32Array(Math.round(seconds*rate)),rate);
+// Long enough that the loop point comes round rarely: every seam is a moment with nothing
+// playing, and a moment with nothing playing is a moment iOS can drop the session.
+export const HOLD_SECONDS=4;
+// The sound that holds the audio session open. It is NOT digital silence: iOS decides whether
+// a page is really playing media by looking at what comes out of it, and a buffer of zeroes is
+// exactly what it is entitled to throw away — at which point the page falls back to the ambient
+// category the ring switch mutes, which is the bug this whole file exists to fix. One step
+// either side of zero is about ninety decibels below full scale: no ear will find it and no
+// heuristic can call it nothing. Slow enough not to be a Nyquist square wave, which resamplers
+// do strange things to.
+export function holdUri(seconds=HOLD_SECONDS,rate=8000){
+ const n=Math.round(seconds*rate),data=new Float32Array(n),half=Math.max(1,Math.round(rate/200));
+ for(let i=0;i<n;i++)data[i]=(Math.floor(i/half)%2?1:-1)/32767;
+ return wavDataUri(data,rate);
+}
 // Something you can actually hear, for the sound check. Faded at both ends, because a square
 // start is a click on a phone speaker and a click is not an answer to 'can you hear this'.
 export function toneUri(seconds=0.7,freq=440,rate=8000){
@@ -78,19 +92,20 @@ export function toneUri(seconds=0.7,freq=440,rate=8000){
 //
 // Setting the audio session to 'playback' is not enough on its own: iOS only treats the page
 // as playing media while something really is playing. A one-shot sample is over before the
-// speaking starts, so it holds nothing. This keeps a second of silence looping for as long as
+// speaking starts, so it holds nothing. This keeps an inaudible loop running for as long as
 // there is something to say, which is what keeps the page out of the ambient category the
 // ring switch mutes.
 //
 // It counts holders rather than tracking one, so two phrases overlapping cannot have the
 // first one to finish pull the session out from under the second.
-let holder=null,holding=0;
+let holder=null,holding=0,started=null;
 export function holdPlayback(make=typeof Audio!=='undefined'?src=>new Audio(src):null){
  if(!make)return false;
  try{
-  if(!holder){holder=make(silenceUri(1));holder.loop=true;}
+  if(!holder){holder=make(holdUri());holder.loop=true;}
   holding++;
   const played=holder.play?.();
+  started=played?.then?played:null;
   if(played?.catch)played.catch(()=>{});
   return true;
  }catch{holding=Math.max(0,holding-1);return false;}
@@ -98,20 +113,53 @@ export function holdPlayback(make=typeof Audio!=='undefined'?src=>new Audio(src)
 export function releasePlayback(){
  holding=Math.max(0,holding-1);
  if(holding)return false;
- try{holder?.pause?.();}catch{}
+ // Pausing before play() has settled aborts the request rather than stopping it, and an
+ // aborted play is not the gesture-unlock iOS remembers — which is how arming the page on the
+ // first touch managed to unarm itself. So where there is a promise, wait for it.
+ const stop=()=>{if(holding)return;try{holder?.pause?.();}catch{}};
+ if(started?.then)started.then(stop,stop);else stop();
+ return true;
+}
+// iOS pauses a page's audio for reasons of its own — an interruption, a route change, coming
+// back from the lock screen — and the moment it does, the page is ambient again and the ring
+// switch is back in charge. Put it back while there is still something being said.
+export function keepHolding(){
+ if(!holding||!holder)return false;
+ try{
+  if(holder.paused===false)return false;
+  const played=holder.play?.();
+  started=played?.then?played:null;
+  if(played?.catch)played.catch(()=>{});
+  return true;
+ }catch{return false;}
+}
+// Speaking before the hold is really playing is speaking into the ambient category, so this
+// runs the speaking once play() has landed. Capped, because the phrase must never be lost to
+// a promise that never settles, and short, because iOS only counts a tap as a gesture for a
+// few seconds after it.
+export function whenHolding(run,cap=250,wait=typeof setTimeout!=='undefined'?setTimeout:null){
+ if(!started?.then){run();return false;}
+ let spent=false;
+ const go=()=>{if(spent)return;spent=true;run();};
+ started.then(go,go);
+ wait?.(go,cap);
  return true;
 }
 export const playbackHeld=()=>holding>0;
-export const resetHold=()=>{holder=null;holding=0;};
+export const resetHold=()=>{holder=null;holding=0;started=null;};
 // iOS ignores an audio session claimed before anyone has touched the page, and it will not
-// let a media element play later unless it was first played inside a real gesture. So both
-// happen on the first touch anywhere in the app, once, and then never again — which is also
-// why the very first 'Hear it' works rather than being the tap that arms it.
+// let a media element play later unless it was first played inside a real gesture. So all of
+// it happens on the first touch anywhere in the app, once, and then never again — which is
+// also why the very first 'Hear it' works rather than being the tap that arms it.
 export function armPlayback(win=typeof window!=='undefined'?window:null){
  if(!win?.addEventListener||armPlayback.armed)return false;
  armPlayback.armed=true;
  const arm=()=>{
   claimPlayback(win.navigator);
+  // The warm-up belongs here and nowhere else. See warmUp: it is a throwaway utterance, and
+  // a throwaway utterance in front of a real one is how a phone ends up taking the words and
+  // saying nothing. Spent on a touch that asked for no sound, it cannot be in anybody's way.
+  warmUp(win.speechSynthesis,win.SpeechSynthesisUtterance);
   holdPlayback();releasePlayback();
   for(const event of ['pointerdown','touchend'])win.removeEventListener(event,arm,true);
  };
@@ -121,10 +169,25 @@ export function armPlayback(win=typeof window!=='undefined'?window:null){
 export const resetArm=()=>{armPlayback.armed=false;};
 // Safari will ignore the very first thing a page tries to say. Spending that on a silent
 // utterance means the first phrase anyone taps is the one they actually hear.
-export function warmUp(synth,Utterance){
+//
+// But WebKit does not reliably finish a silent utterance, and it speaks its queue in order:
+// one that never ends is one that everything behind it waits on for the rest of the session.
+// That is a page where every button works, the engine reports itself busy, and not one word
+// is ever heard. So the queue is cleared straight afterwards. What unlocks the synthesiser is
+// the speak() call itself, inside the gesture, and that has already happened by then; what is
+// cleared is only the risk of it sitting at the front of the queue forever.
+//
+// Cleared on the next turn rather than after a wait, and this matters: the first touch is
+// very often the tap on 'Hear it' itself, and a cancel still pending when that phrase starts
+// would stop the very thing it was meant to help.
+export function warmUp(synth,Utterance,wait=typeof setTimeout!=='undefined'?setTimeout:null){
  if(!synth||!Utterance||warmUp.done)return false;
  warmUp.done=true;
- try{const u=new Utterance(' ');u.volume=0;synth.speak(u);return true;}catch{return false;}
+ try{
+  const u=new Utterance(' ');u.volume=0;synth.speak(u);
+  wait?.(()=>{try{synth.cancel?.();}catch{}},0);
+  return true;
+ }catch{return false;}
 }
 export const describeVoices=voices=>{
  if(!Array.isArray(voices))return {count:0,japanese:[],state:'unknown'};

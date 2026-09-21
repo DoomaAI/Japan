@@ -1,6 +1,6 @@
 import React,{useState,useRef} from 'react';
 import {Volume2,Stethoscope,Music} from 'lucide-react';
-import {soundCheckLines,claimPlayback,warmUp,matchVoice,isStandalone,silenceAdvice,SILENCE_HELP,toneUri,holdPlayback,releasePlayback} from './speech.js';
+import {soundCheckLines,claimPlayback,matchVoice,isStandalone,silenceAdvice,SILENCE_HELP,toneUri,holdPlayback,releasePlayback,keepHolding,whenHolding} from './speech.js';
 const build=typeof __BUILD__!=='undefined'?__BUILD__:'development';
 const standalone=isStandalone;
 // When someone says "I pressed it and nothing happened", this is what turns that into
@@ -46,11 +46,13 @@ export default function SoundCheck(){
   say.onerror=e=>{stop();result.error=e?.error||'unknown';setFacts({...result});setRunning(false);};
   try{synth.resume();}catch{}
   holdPlayback();
-  warmUp(synth,window.SpeechSynthesisUtterance);
-  synth.speak(say);
+  // The same two rules the rest of the app speaks under, or this measures a path nobody else
+  // takes: speak once the hold is really playing, and put the hold back if iOS drops it.
+  const nudge=setInterval(keepHolding,1000);
+  whenHolding(()=>{try{synth.speak(say);}catch(e){stop();result.error=e?.message||'it would not speak';setFacts({...result});setRunning(false);}});
   setFacts({...result});
   // If the phone never reports back, stop waiting on it and show what we have.
-  setTimeout(()=>{stop();setRunning(false);setFacts(f=>f?{...f,...result}:f);},2500);
+  setTimeout(()=>{clearInterval(nudge);stop();setRunning(false);setFacts(f=>f?{...f,...result}:f);},2500);
  }
  return <details className="sound-check">
   <summary><Stethoscope size={15}/> Sound check — no sound when you tap Hear it?</summary>
@@ -67,7 +69,10 @@ export default function SoundCheck(){
   <p><small>The beep is a recording. The word is the phone speaking for itself. <strong>If you can hear the beep but not the word, the phrases can still be heard</strong> — record them once from a device where the speaking works and every phone will play the recording instead.</small></p>
   {facts&&<div className="sound-report">
    {soundCheckLines(facts).map(([label,value])=><p key={label}><span>{label}</span><strong>{value}</strong></p>)}
-   <p className="sound-verdict">{SILENCE_HELP[silenceAdvice({started:facts.started,standalone:facts.standalone})]}</p>
+   {/* The beep is half the answer and it was being thrown away here: a phone that plays a
+       recording and will not speak has a fix nothing else names, and only this screen knows
+       both halves. */}
+   <p className="sound-verdict">{SILENCE_HELP[silenceAdvice({started:facts.started,standalone:facts.standalone,tone:facts.tone})]}</p>
    {facts.started===false&&facts.standalone&&<p><a href={location.href} target="_blank" rel="noopener">Open this page in Safari</a> — speech usually works there when it will not here.</p>}
    <small>Read this back to whoever is helping you and they will know where to look.</small>
   </div>}
