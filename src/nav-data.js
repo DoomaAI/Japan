@@ -25,6 +25,7 @@ export const PAGES={
  guide:{label:'Original travel guide',note:'All 72 pages, linked and searchable'},
  updates:{label:'Family updates',note:'What changed and who has seen it'},
  search:{label:'Search everything',note:'Find a booking, note, shop or guide page'},
+ mascot:{label:'Our characters',note:'Design your own Japanese character and use it in the app'},
  thanks:{label:'Notes for Lauren',note:'Write and schedule her daily pop-up notes'}
 };
 // The five that earn a place in the bottom bar, by who is holding the phone. Parents reach
@@ -37,7 +38,7 @@ export const MORE_SECTIONS=[
  ['Out and about',['weather','places','money','spending','food','phrases','meeting','help']],
  ['The plan',['todo','planning','options','parks','shopping','challenges','games','tickets','inbox','guide']],
  ['Looking back',['photos','diary','updates','search']],
- ['Just for you',['thanks']]
+ ['Just for you',['mascot','thanks']]
 ];
 export const primaryNav=user=>PRIMARY[user?.role==='child'?'child':'parent'];
 const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(id!=='inbox'||user?.role==='parent');
