@@ -21,6 +21,8 @@ import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailI
 const json=(res,data,status=200)=>{res.statusCode=status;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));};
 async function body(req,max=1000000){if(req.body&&typeof req.body==='object')return req.body;let s='';for await(const c of req){s+=c;if(Buffer.byteLength(s)>max)throw new AppError('Request too large.',413);}try{return JSON.parse(s||'{}');}catch{throw new AppError('Invalid request.');}}
 const parent=u=>{if(u.role!=='parent')throw new AppError('A parent can do this.',403);};
+// A drawing each is fine; a hundred each is somebody holding the shutter down.
+const DRAWING_LIMIT=60;
 const validName=(name,role)=>MEMBERS.includes(name)&&(['Damien','Lauren'].includes(name)?role==='parent':role==='child');
 function checkOrigin(req){
  const origin=req.headers.origin;
@@ -182,6 +184,38 @@ export default async function handler(req,res){
    const length=result.headers.get('content-length');if(length)res.setHeader('content-length',length);
    const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
   }
+  // A drawing the boys made, kept on their own phone first and sent here second. It is not a
+  // photograph and does not belong in the photo of the day: nobody wants a drawing competing
+  // with a picture of a bullet train for the family's votes.
+  if(route==='drawing'&&post){
+   const current=await readTrip();
+   if(typeof b.pathname!=='string'||!b.pathname.startsWith(`art/${user.id}/`)||b.pathname.includes('..'))throw new AppError('Invalid drawing.');
+   if(b.day!=null&&b.day!==''&&!current.state.days.some(d=>d.date===b.day))throw new AppError('Choose a trip day.');
+   if(typeof b.title!=='string'||!b.title.trim()||b.title.length>120)throw new AppError('Give the drawing a name.');
+   if(b.subject!==undefined&&(typeof b.subject!=='string'||b.subject.length>60))throw new AppError('Unknown drawing.');
+   // Whose drawing it is, which is not always who sent it: a parent photographs what a boy
+   // drew on their own phone and hands it over, the same as a photograph.
+   const owner=b.for==null||b.for===''?user.name:String(b.for);
+   if(!current.state.members.includes(owner))throw new AppError('Choose who the drawing belongs to.');
+   if(user.role!=='parent'&&owner!==user.name)throw new AppError('That is not your drawing to add.',403);
+   if(current.state.drawings.filter(d=>(d.for||d.by)===owner).length>=DRAWING_LIMIT)throw new AppError(`That is ${DRAWING_LIMIT} drawings already. Delete one first.`);
+   const blob=await head(b.pathname);
+   validateFile(blob.contentType,blob.size,'memory');
+   if(current.state.drawings.some(d=>d.pathname===b.pathname))return json(res,visibleEnvelope(current,user));
+   current.state.drawings=[...current.state.drawings,{id:randomUUID(),by:user.name,for:owner,day:b.day||null,
+    title:b.title.trim(),subject:String(b.subject||''),paper:b.paper===true,pathname:b.pathname,
+    type:blob.contentType,size:blob.size,at:new Date().toISOString()}];
+   return json(res,visibleEnvelope(await writeTrip(current.state,current.revision),user));
+  }
+  if(route==='drawing'&&req.method==='GET'){
+   const {state}=await readTrip();const art=state.drawings?.find(d=>d.id===url.searchParams.get('id')&&d.pathname);
+   if(!art)throw new AppError('Drawing not found.',404);
+   const result=await get(art.pathname,{access:'private',useCache:false});
+   if(!result||!result.stream)throw new AppError('Drawing unavailable.',404);
+   res.setHeader('Content-Type',art.type);res.setHeader('Content-Disposition','inline');
+   const length=result.headers.get('content-length');if(length)res.setHeader('content-length',length);
+   const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
+  }
   if(route==='invites'&&req.method==='GET'){
    parent(user);if(localDemo())return json(res,{invites:[]});const db=await database();return json(res,{invites:await db`SELECT id,name,role,revoked,expires_at FROM japan_grants ORDER BY created_at`});
   }
@@ -202,11 +236,11 @@ export default async function handler(req,res){
   }
   if(route==='upload'&&post){
    // Everyone records their own voice notes; only a parent uploads documents and media.
-   const own=p=>String(p||'').startsWith(`voice/${user.id}/`)||String(p||'').startsWith(`photos/${user.id}/`);
+   const own=p=>['voice','photos','art'].some(kind=>String(p||'').startsWith(`${kind}/${user.id}/`));
    if(!own(b.pathname))parent(user);
    if(localDemo())throw new AppError('Connect private Blob storage to upload documents.',503);
    const result=await handleUpload({body:b,request:req,onBeforeGenerateToken:async pathname=>{
-    const voice=pathname.startsWith(`voice/${user.id}/`),photo=pathname.startsWith(`photos/${user.id}/`);
+    const voice=pathname.startsWith(`voice/${user.id}/`),photo=pathname.startsWith(`photos/${user.id}/`)||pathname.startsWith(`art/${user.id}/`);
     // A recorded phrase is the family's reference pronunciation, so a parent makes it.
     const said=pathname.startsWith(`phrases/${user.id}/`);
     if(pathname.includes('..')||!(voice||photo||said||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');

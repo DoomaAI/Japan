@@ -4,6 +4,7 @@ import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,em
 import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-features.js';
 import SpotDifference from './SpotDifference.jsx';
 import Origami from './Origami.jsx';
+import Drawing from './Drawing.jsx';
 import {useReadAloud} from './AdventurePages.jsx';
 import {useJapaneseVoice} from './SayIt.jsx';
 import {canOffer,speechRate} from './speech.js';
@@ -852,6 +853,7 @@ const GAMES=[
  {id:'stable',title:'Sumo stable',needs:OFFLINE,Component:Stable},
  {id:'sumo',title:'Sumo',needs:OFFLINE,Component:Sumo},
  {id:'origami',title:'Origami',needs:'Works with no signal. You need a square of paper.',Component:Origami},
+ {id:'draw',title:'Draw it',needs:'Works with no signal, on paper or on the phone. Sending one to the family needs signal.',Component:Drawing},
  {id:'spot',title:'Spot the difference',needs:'Needs signal once, to fetch the photo. The puzzle is made on the phone.',Component:SpotDifference},
  {id:'janken',title:'Janken',needs:'Needs both phones online.',Component:Janken}
 ];

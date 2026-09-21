@@ -3147,7 +3147,7 @@ test('a spot-the-difference score is one the server will actually take',async()=
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',needs:(OFFLINE|'[^']+'),Component:(\w+)\}/g)];
- assert.equal(entries.length,12);
+ assert.equal(entries.length,13);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -3992,4 +3992,176 @@ test('every origami model folds all the way to something, with a sentence at eac
  // no brim, and the diagram would quietly stop matching the words.
  const [[x0],[x1]]=[hat.paper[0],hat.paper[1]];
  assert.ok(Math.abs(x1-x0)<Math.abs(hat.paper[2][1]-hat.paper[1][1]),'the hat starts from a tall sheet');
+});
+
+test('a drawing is shapes rather than a picture, so the same beast fits a page and a forge disc',async()=>{
+ const d=await import('../src/draw-data.js');
+ // Every shape becomes a path, and a shape that describes nothing draws nothing rather than
+ // throwing: one bad line should cost one line of a picture, not the whole game.
+ assert.match(d.pathOf({line:[0,0,10,10]}),/^M0,0L10,10$/);
+ assert.match(d.pathOf({circle:[50,50,10]}),/^M40,50a10,10 /);
+ assert.match(d.pathOf({poly:[[0,0],[10,0],[10,10]]}),/Z$/);
+ assert.doesNotMatch(d.pathOf({poly:[[0,0],[10,0]],close:false}),/Z$/);
+ assert.match(d.pathOf({curve:[[0,0],[10,10],[20,0]],close:false}),/^M0,0C/);
+ assert.equal(d.pathOf({circle:[50,50,0]}),'');
+ assert.equal(d.pathOf({poly:[[0,0]]}),'');
+ assert.equal(d.pathOf(null),'');
+ assert.equal(d.pathOf({nonsense:true}),'');
+ // Twelve o'clock is up and three o'clock is to the right, which is how a blade is described.
+ assert.deepEqual(d.polar(50,50,10,0),[50,40]);
+ assert.deepEqual(d.polar(50,50,10,90),[60,50]);
+ // Shrinking is uniform: a squashed circle stops being a circle, and a crest that means
+ // something squashed does not mean it any more.
+ assert.deepEqual(d.scaleShape({circle:[50,50,10]},0.5,25,25).circle,[50,50,5]);
+ assert.deepEqual(d.scaleShape({poly:[[0,0],[100,100]]},0.1,5,5).poly,[[5,5],[15,15]]);
+ assert.equal(d.scaleShape(null,1),null);
+ // Mirroring flips across the page and leaves the height alone — the bug that puts one eye
+ // lower than the other is exactly the one this stops.
+ assert.deepEqual(d.mirrorShape({poly:[[10,20],[30,40]]}).poly,[[90,20],[70,40]]);
+ assert.deepEqual(d.mirrorShape({circle:[20,30,5]}).circle,[80,30,5]);
+ assert.deepEqual(d.mirrorShape({arc:[40,50,10,20,70]}).arc,[60,50,10,-70,-20]);
+ assert.equal(d.bothSides([{circle:[20,30,5]}]).length,2);
+ assert.deepEqual(d.boundsOf([{circle:[50,50,10]},{line:[0,0,5,5]}]),{minX:0,maxX:60,minY:0,maxY:60});
+ assert.equal(d.boundsOf([]),null);
+});
+
+test('every drawing goes one step at a time, and every step says what to draw',async()=>{
+ const {SUBJECTS,CATEGORIES,subjectById,stepFrames,lineArt,guideArt,boundsOf,drawGame,pathOf}=await import('../src/draw-data.js');
+ assert.ok(SUBJECTS.length>=12);
+ assert.equal(new Set(SUBJECTS.map(s=>s.id)).size,SUBJECTS.length);
+ for(const subject of SUBJECTS){
+  assert.ok(subject.name&&subject.icon&&subject.kind,subject.id);
+  assert.ok(CATEGORIES.some(c=>c.id===subject.kind),`${subject.id} is in no category`);
+  assert.ok(subject.about.length>40&&subject.finish.length>20,`${subject.id} does not say what it is or how to finish it`);
+  assert.ok(drawGame(subject.id).length<=40,'the server refuses a longer game name');
+  assert.ok(subject.steps.length>=4,`${subject.id} is not worth calling step by step`);
+  for(const step of subject.steps){
+   assert.ok(step.say&&step.say.trim().length>20,`a step of ${subject.id} says too little: ${step.say}`);
+   assert.ok(/[.!?]$/.test(step.say.trim()),`a step of ${subject.id} is not a sentence`);
+   assert.ok(step.shapes.length,`a step of ${subject.id} draws nothing`);
+   for(const shape of step.shapes)assert.ok(pathOf(shape),`a shape of ${subject.id} is not a line: ${JSON.stringify(shape)}`);
+  }
+  // Nothing is drawn off the edge of the card.
+  const bounds=boundsOf(subject.steps.flatMap(s=>s.shapes));
+  assert.ok(bounds.minX>=-0.01&&bounds.maxX<=100.01&&bounds.minY>=-0.01&&bounds.maxY<=100.01,`${subject.id} runs off the card`);
+  // Guides are scaffolding, so they come first and are never part of the drawing itself —
+  // trace a guide and the picture is wrong.
+  const guides=subject.steps.map(s=>!!s.guide);
+  assert.deepEqual([...guides].sort((a,b)=>Number(b)-Number(a)),guides,`${subject.id} puts a guide after real lines`);
+  assert.ok(lineArt(subject).length,`${subject.id} is all scaffolding`);
+  assert.equal(lineArt(subject).length+guideArt(subject).length,subject.steps.flatMap(s=>s.shapes).length);
+  // Each step carries everything drawn so far and the lines being drawn now, kept apart,
+  // because watching this one line arrive is the whole point of the game.
+  const frames=stepFrames(subject);
+  assert.equal(frames.length,subject.steps.length+1,'the finished drawing is a step of its own');
+  assert.equal(frames[0].past.length,0);
+  assert.equal(frames[1].past.length,subject.steps[0].shapes.length);
+  assert.ok(frames.at(-1).done);
+  assert.equal(frames.at(-1).now.length,0);
+  assert.equal(frames.at(-1).past.length,subject.steps.flatMap(s=>s.shapes).length);
+  // A guide line stays a guide line once it is behind you, or it gets drawn in ink.
+  if(subject.steps[0].guide)assert.ok(frames[1].past.every(s=>s.guide));
+ }
+ assert.equal(subjectById('nothing-like-this'),null);
+ assert.equal(stepFrames(null).length,0);
+});
+
+test('a spinner top is built rather than drawn, so one nobody has drawn yet still comes out right',async()=>{
+ const d=await import('../src/draw-data.js');
+ for(const blades of [3,5,8]){
+  for(const ring of d.RINGS){
+   const steps=d.topSteps({ring:ring.id,blades,crest:'dragon',name:'Test'});
+   // The blades are counted off the design rather than drawn in, so the ring and the blades
+   // cannot disagree about how many points there are.
+   const bladeStep=steps.find(s=>/blades from the middle/.test(s.say));
+   assert.equal(bladeStep.shapes.length,blades,`${ring.id} with ${blades} blades`);
+   const ringStep=steps[1];
+   assert.ok(d.pathOf(ringStep.shapes[0]),`${ring.id} has no ring`);
+   // The beast sits inside the forge disc rather than over the blades.
+   const crest=d.boundsOf(steps.filter(s=>s.crest).flatMap(s=>s.shapes));
+   const reach=Math.max(50-crest.minX,crest.maxX-50,50-crest.minY,crest.maxY-50);
+   assert.ok(reach<=22,`the ${ring.id} crest spills out of the forge disc (${reach})`);
+  }
+ }
+ // A design typed in by a child is clamped rather than believed.
+ const wild=d.normaliseDesign({name:'x'.repeat(80),blades:99,ring:'nonsense',crest:'unicorn',type:'Sneaky',colour:'red; drop table'});
+ assert.equal(wild.name.length,24);
+ assert.equal(wild.blades,d.BLADE_RANGE.max);
+ assert.equal(wild.ring,d.RINGS[0].id);
+ assert.equal(wild.crest,d.CRESTS[0].id);
+ assert.equal(wild.type,'Balance');
+ assert.match(wild.colour,/^#[0-9a-f]{6}$/);
+ assert.equal(d.normaliseDesign(null).name,'My top');
+ assert.equal(d.normaliseDesign({blades:1}).blades,d.BLADE_RANGE.min);
+ // Every beast is drawn once and used twice: full size as a crest of its own, and shrunk into
+ // the middle of a top. The steps are the same steps.
+ const beast=d.crestById('tiger');
+ const own=d.subjectById('crest-tiger');
+ assert.equal(own.steps.length,beast.steps.length);
+ const inside=d.topSteps({crest:'tiger',blades:4,ring:'saw'}).filter(s=>s.crest);
+ assert.equal(inside.length,beast.steps.length);
+ assert.deepEqual(inside[0].shapes[0].curve,d.placeShapes([beast.steps[0].shapes[0]],d.CREST_SCALE,d.CREST_SHIFT,d.CREST_SHIFT)[0].curve);
+ // One of ours and one of your own are the same kind of thing, or the steps would only be
+ // right for the ones we wrote down.
+ const mine=d.topSubject({id:'own-1',name:'Mine',ring:'petal',blades:6,crest:'fox'});
+ assert.equal(mine.steps.length,d.TOPS[0].steps.length-d.crestById('dragon').steps.length+d.crestById('fox').steps.length);
+ assert.ok(mine.finish.includes('Mine'));
+ assert.equal(d.nibById('nothing').id,'pen');
+ assert.ok(d.PENS.length>=10&&new Set(d.PENS).size===d.PENS.length);
+});
+
+test('a drawing is the child’s own work: kept on the phone first, and never in the photo of the day',async()=>{
+ const {ensureFeatures,drawingsFor,drawingsOf,drawingOwner}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.drawings,[],'an older trip has no drawings rather than no field');
+ state.drawings=[
+  {id:'a',by:'Damien',for:'Nate',title:'Kaen Dragon',at:'2026-09-21T01:00:00.000Z'},
+  {id:'b',by:'Boston',for:'Boston',title:'Shiba inu',at:'2026-09-21T03:00:00.000Z'}
+ ];
+ assert.deepEqual(drawingsFor(state).map(d=>d.id),['b','a'],'newest first');
+ assert.deepEqual(drawingsOf(state,'Nate').map(d=>d.id),['a'],'a parent can send one a boy drew');
+ assert.equal(drawingOwner(null),'');
+ // Yours to remove if you drew it or you are the one who sent it, and nobody else's.
+ assert.equal(applyOperation(state,{type:'drawingRemove',id:'b'},{name:'Boston',role:'child'}).drawings.length,1);
+ assert.equal(applyOperation(state,{type:'drawingRemove',id:'a'},child).drawings.length,1,'a boy can remove the one drawn for him');
+ assert.equal(applyOperation(state,{type:'drawingRemove',id:'a'},parent).drawings.length,1);
+ assert.throws(()=>applyOperation(state,{type:'drawingRemove',id:'a'},{name:'Boston',role:'child'}),/only remove your own/i);
+ assert.throws(()=>applyOperation(state,{type:'drawingRemove',id:'gone'},parent),/not found/i);
+ // The photo of the day is a competition between photographs; a drawing is not entered in it.
+ const handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handler,/route==='drawing'&&post/);
+ assert.match(handler,/b\.pathname\.startsWith\(`art\/\$\{user\.id\}\/`\)/,'a drawing goes in its own place in storage');
+ assert.match(handler,/current\.state\.drawings=\[/);
+ assert.doesNotMatch(handler,/state\.photos=\[\.\.\.current\.state\.photos,\{[^}]*subject/);
+ assert.match(handler,/DRAWING_LIMIT/);
+ assert.match(handler,/user\.role!=='parent'&&owner!==user\.name\)throw new AppError\('That is not your drawing to add\.'/);
+});
+
+test('the pad keeps the lines, not the pixels, and the drawing that is saved has the lines in it',async()=>{
+ const game=await readFile(new URL('../src/Drawing.jsx',import.meta.url),'utf8');
+ const store=await readFile(new URL('../src/drawing-store.js',import.meta.url),'utf8');
+ // Strokes are fractions of the pad rather than pixels, so turning the phone does not shear
+ // everything drawn so far — and undo is then dropping the last one and drawing the rest.
+ assert.match(game,/\(event\.clientX-box\.left\)\/box\.width/);
+ assert.match(game,/setStrokes\(list=>list\.slice\(0,-1\)\)/);
+ // The line being drawn arrives along itself. pathLength makes one keyframe do it whatever
+ // the length of the line, so a whisker and a head outline take the same time.
+ assert.match(game,/pathLength="1"/);
+ assert.match(game,/className="draw-now"/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/@keyframes draw-line\{from\{stroke-dashoffset:1\}to\{stroke-dashoffset:0\}\}/);
+ assert.match(css,/prefers-reduced-motion:reduce\)\{\.draw-now\{animation:none/);
+ // Tracing and colouring in are the same line work used two ways, and neither of them traces
+ // the guides.
+ assert.match(game,/under==='trace'&&<ArtLayer className="draw-under" shapes=\{art\}/);
+ assert.match(game,/under==='colour'&&<ArtLayer className="draw-over" shapes=\{art\}/);
+ assert.match(game,/const art=useMemo\(\(\)=>lineArt\(subject\),/);
+ // A colouring-in is saved with the printed lines back over the top of it, or it is a page of
+ // scribble with nothing to say what it was.
+ assert.match(game,/ctx\.drawImage\(pad,0,0,out\.width,out\.height\);\n\s+if\(under==='colour'\)ctx\.drawImage\(await loadSvg/);
+ // Kept on the phone first and sent second: the first one happens in a queue with no signal.
+ assert.match(game,/const saved=await saveDrawing\(item\)\.catch\(\(\)=>null\);/);
+ assert.match(game,/if\(navigator\.onLine&&config\?\.uploads\)await send\(item\)/,'and sent second, when there is signal to send it with');
+ assert.match(store,/sort\(\(a,b\)=>String\(b\.at\)\.localeCompare\(String\(a\.at\)\)\)/,'newest first, like everything else that is a list of what we did');
+ assert.match(store,/catch\{return \[\];\}/,'a phone with storage turned off says nothing is kept rather than breaking');
 });
