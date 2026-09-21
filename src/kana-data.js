@@ -240,6 +240,9 @@ export const SUMO_RANKS=[
  {level:10,icon:'🌅',en:'Yokozuna',ja:'横綱',romaji:'yokozuna'}
 ];
 export const rankAt=level=>SUMO_RANKS.find(r=>r.level===level)||null;
+// 'Juryo — now paid' does not fit on a tile the size of a thumbnail. The full name is in the
+// list of ranks underneath, which is where you go to read them anyway.
+export const shortRank=rank=>String(rank?.en||'').replace(/\s+—.*$/,'');
 export const TOP_RANK=SUMO_RANKS.length;
 export const STABLE_SIZE=16;
 export const emptyStable=()=>Array(STABLE_SIZE).fill(0);

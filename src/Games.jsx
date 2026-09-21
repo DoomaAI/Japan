@@ -1,6 +1,6 @@
 import React,{useState,useMemo,useEffect,useRef} from 'react';
 import {Trophy,RotateCcw,Check,X,Wifi,WifiOff} from 'lucide-react';
-import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER,SIGHTS,ELEMENTS,elementById,startingElements,combine,discoverable,SUMO_RANKS,rankAt,TOP_RANK,STABLE_SIZE,emptyStable,recruit,promote,bestRank,stableFull,oddsOf,bout,challengerFor} from './kana-data.js';
+import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER,SIGHTS,ELEMENTS,elementById,startingElements,combine,discoverable,SUMO_RANKS,rankAt,TOP_RANK,STABLE_SIZE,emptyStable,recruit,promote,shortRank,bestRank,stableFull,oddsOf,bout,challengerFor} from './kana-data.js';
 import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-features.js';
 import SpotDifference from './SpotDifference.jsx';
 import {useReadAloud} from './AdventurePages.jsx';
@@ -35,6 +35,17 @@ function useDragTiles(onDrop){
   cancel:()=>{drag.current=null;setOver(null);}
  };
 }
+// A row of figures rather than a sentence of them: short numbers are read at a glance, and
+// they line up in columns instead of wrapping into a paragraph. How many there are decides
+// the shape — four read better two by two than three across with one stranded underneath.
+const Stats=({items})=><div className={`game-stats cols-${items.length}`}>{items.map(([label,value])=>
+ <span key={label}><small>{label}</small><strong>{value}</strong></span>)}</div>;
+// What turns into what. Small cards on a grid, so the icon, the English and the Japanese
+// line up down the page rather than running together in a ragged block of text.
+const Ladder=({title,items})=><details className="merge-ladder"><summary>{title}</summary>
+ <div className="ladder-grid">{items.map(item=>
+  <span key={item.key}><b aria-hidden="true">{item.icon}</b>{item.en}<small lang="ja">{item.ja}</small></span>)}</div>
+</details>;
 // Say the kana aloud where the phone can, because a five-year-old matching shapes learns
 // more if the shape has a sound. Silence is fine; the game does not depend on it.
 function useKanaVoice(){
@@ -190,12 +201,14 @@ function Merge({user,mutate,busy,state}){
    {[['up','↑'],['left','←'],['down','↓'],['right','→']].map(([d,a])=>
     <button key={d} type="button" aria-label={`Slide ${d}`} disabled={over} onClick={()=>move(d)}>{a}</button>)}
   </div>
-  <p className="game-status">{over?<><Trophy size={16}/> No moves left — {score}.</>:`${score}`}{top?` · best so far ${top.en} ${top.icon}`:''}
-   {bestScore(state,user.name,'merge')>0?` · your best ${bestScore(state,user.name,'merge')}`:''}</p>
+  {over&&<p className="game-status"><Trophy size={16}/> No moves left.</p>}
+  <Stats items={[
+   ['Score',score],
+   ['Best tile',top?<>{top.icon} {top.en}</>:'—'],
+   ['Your best ever',bestScore(state,user.name,'merge')||'—']
+  ]}/>
   <button className="primary" onClick={again}><RotateCcw size={16}/> New game</button>
-  <details className="merge-ladder"><summary>What turns into what</summary>
-   {MERGE_LADDER.map(t=><span key={t.value}>{t.icon} {t.en} <small lang="ja">{t.ja}</small></span>)}
-  </details>
+  <Ladder title="What turns into what" items={MERGE_LADDER.map(t=>({key:t.value,icon:t.icon,en:t.en,ja:t.ja}))}/>
  </>;
 }
 // Pairs made from the trip itself: the thing we did, and the day we did it.
@@ -480,25 +493,27 @@ function Stable({user,state,mutate,busy}){
    const rank=rankAt(level);
    return <button key={i} data-tile={i} className={`stable-cell${level?' filled':''}${picked===i?' picked':''}${drag.over===i?' over':''}${level===TOP_RANK?' top':''}`}
     disabled={fighting} onPointerDown={drag.down(i)}>
-    {rank&&<><span aria-hidden="true">{rank.icon}</span><small>{rank.en}</small></>}</button>;})}</div>
-  <div className="row wrap">
+    {rank&&<><span aria-hidden="true">{rank.icon}</span><small>{shortRank(rank)}</small></>}</button>;})}</div>
+  <div className="row wrap game-actions">
    <button type="button" onClick={add} disabled={fighting||full}>+ New recruit</button>
    <button type="button" className="primary" disabled={fighting||!best} onClick={fight}>
-    Fight {rankAt(challenger)?.icon} {rankAt(challenger)?.en}</button>
+    Fight {rankAt(challenger)?.icon} {shortRank(rankAt(challenger))}</button>
   </div>
-  {best>0&&<p className="game-status">Your best: {rankAt(best).icon} {rankAt(best).en} <small lang="ja">{rankAt(best).ja}</small> · {Math.round(odds*100)}% against this one</p>}
+  {best>0&&<p className="game-odds">Your {rankAt(best).en.toLowerCase()} has a <strong>{Math.round(odds*100)}%</strong> chance against this one.</p>}
   {last?.promoted&&<p className="callout">Promoted to <strong>{last.promoted.icon} {last.promoted.en}</strong> <small lang="ja">{last.promoted.ja} · {last.promoted.romaji}</small></p>}
   {last?.note&&<p className="callout">{last.note}</p>}
   {last?.bout&&<div className={`stable-bout${last.bout.won?' won':''}`}>
    <p><strong>{last.mine.icon} {last.mine.en}</strong> v <strong>{last.against.icon} {last.against.en}</strong></p>
    <p className="janken-verdict">{last.bout.won?`Won — ${last.bout.reward} points.`:'Beaten, and demoted a rank.'}</p>
   </div>}
-  <p className="game-status">{score} points · {cleared} bout{cleared===1?'':'s'} won
-   {bestScore(state,user.name,'stable')>0?` · your best ${bestScore(state,user.name,'stable')}`:''}</p>
+  <Stats items={[
+   ['Best wrestler',best?<>{rankAt(best).icon} {shortRank(rankAt(best))} <small lang="ja">{rankAt(best).ja}</small></>:'—'],
+   ['Points',score],
+   ['Bouts won',cleared],
+   ['Your best ever',bestScore(state,user.name,'stable')||'—']
+  ]}/>
   <button onClick={again}><RotateCcw size={16}/> New stable</button>
-  <details className="merge-ladder"><summary>The ranks</summary>
-   {SUMO_RANKS.map(r=><span key={r.level}>{r.icon} {r.en} <small lang="ja">{r.ja}</small></span>)}
-  </details>
+  <Ladder title="The ranks" items={SUMO_RANKS.map(r=>({key:r.level,icon:r.icon,en:r.en,ja:r.ja}))}/>
  </>;
 }
 // What each one needs, said plainly rather than as a yes-or-no: most of these work in a
