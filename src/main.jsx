@@ -25,6 +25,10 @@ import MediaGallery from './MediaGallery.jsx';
 import Planning from './Planning.jsx';
 import Nearby from './Nearby.jsx';
 import TodoList,{DayTodos} from './TodoList.jsx';
+import Sumo from './Sumo.jsx';
+import StepReview from './StepReview.jsx';
+import WeatherPage from './WeatherPage.jsx';
+import {useForecastCheck} from './Weather.jsx';
 import DayTimeline from './DayTimeline.jsx';
 import VoiceNotes from './VoiceNotes.jsx';
 import Games from './Games.jsx';
@@ -36,7 +40,7 @@ import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
 import {ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Settings,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon} from 'lucide-react';
 import {activeSteps,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent} from './timing.js';
-import {todoProgress} from './trip-features.js';
+import {todoProgress,SUMO_DAY,sumo as sumoState} from './trip-features.js';
 import {claimPlayback} from './speech.js';
 import './style.css';
 import './guide-theme.css';
@@ -61,7 +65,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
 const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove',
- 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus'];
+ 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','sumoResult','stepRating','stepThought'];
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
@@ -151,6 +155,7 @@ function App(){
   }finally{working.current=false;setBusy(false);}
  }
  const visibleState=state?pendingProgress(state,queue):null;
+ const forecast=useForecastCheck({state:visibleState||{days:[]},day:null,mutate,notice});
  const today=state?.days.find(d=>d.date===day),steps=visibleState?activeSteps(visibleState,day):[],current=steps.find(s=>s.id===selected)||steps.find(s=>!['done','skipped'].includes(s.status))||steps.at(-1),index=steps.findIndex(s=>s.id===current?.id);
  const done=steps.filter(s=>s.status==='done').length,nextFixed=steps.find(s=>s.locked&&!['done','skipped'].includes(s.status)&&s.id!==current?.id),groups=state?[...new Set(state.steps.filter(s=>s.day===day&&s.group).map(s=>s.group))]:[];
  function go(id,d,item){setFocus(item||null);if(d&&state.days.some(x=>x.date===d)){setDay(d);setSelected(null);}setTab(id);setQuery('');setModal(null);history.replaceState(null,'','/?'+new URLSearchParams({tab:id,day:d||day,...(item?{item}:{})}));}
@@ -223,7 +228,7 @@ function App(){
    <div className="date-strip" aria-label="Trip days">{state.days.map(d=><button key={d.date} className={day===d.date?'selected':''} onClick={()=>selectDay(d.date)}><span>{fmtDay(d.date,{weekday:'short'})}</span><strong>{d.date.slice(-2)}</strong>{d.date===japanDate()&&<i aria-label="Today"/>}</button>)}</div>
    {!!today?.pages?.length&&<section className="day-guide" aria-label="Original guide pages for this day"><div className="section-heading"><div><p className="eyebrow">YOUR ORIGINAL TRAVEL GUIDE</p><h2>This day in the guide</h2></div><Button icon={BookOpen} onClick={()=>openPage(today.pages[0])}>Read guide</Button></div><p>Swipe through the pages · tap any page to read it in full.</p><div className="day-guide-pages" key={day}>{today.pages.map(p=><button key={p} className="day-guide-page" onClick={()=>openPage(p)} aria-label={`Read original guide page ${p}`}><img src={`/api/guide?page=${p}`} alt={`Original travel guide page ${p}`} loading="lazy"/><span>Page {p}<ChevronRight size={16}/></span></button>)}</div></section>}
    <MorningNeeds state={visibleState} day={day} clock={japanClock(now)} today={japanDate(now)}/>
-   <Weather state={visibleState} day={day} mutate={mutate} busy={busy} online={online} notice={notice} dayLabel={fmtDay}/>
+   <Weather state={visibleState} day={day} mutate={mutate} busy={busy} online={online} notice={notice} dayLabel={fmtDay} go={go}/>
    <NextUp state={visibleState} day={day} now={now} selectStep={selectStep} open={setModal} go={go} parent={parent}/>
    <div className="day-tools"><span><CheckCircle2 size={16}/>{done} of {steps.length} completed</span><div><Button icon={ImageIcon} onClick={()=>setModal({type:'media',day})}>Photos</Button><Button icon={Mic} onClick={()=>setModal({type:'voice',day})}>Voice</Button><Button icon={Ticket} onClick={()=>setModal({type:'tickets'})}>Tickets</Button>{config?.nearby&&<Button icon={Compass} onClick={()=>setModal({type:'nearby'})}>Near here</Button>}{parent&&<Button icon={Plus} onClick={()=>setModal({type:'edit',step:null})}>Add</Button>}</div></div>
    <DayTodos state={visibleState} user={user} day={day} mutate={mutate} busy={busy} go={go}/>
@@ -243,8 +248,13 @@ function App(){
     <Link className="button website-link" href={current.website||`https://www.google.com/search?q=${encodeURIComponent((current.place||current.title)+' official website Japan')}`}><ExternalLink size={16}/>{current.website?'Website / booking page':'Find website'}</Link>
     <div className="card-links"><button onClick={()=>setModal({type:'media',step:current})}><ImageIcon size={16}/>Photos / videos</button><button onClick={()=>setModal({type:'voice',step:current})}><Mic size={16}/>Voice note</button><button onClick={()=>openPage(current.page)}><BookOpen size={16}/>Guide p.{current.page}</button><button onClick={()=>setModal({type:'tickets',step:current})}><Ticket size={16}/>Tickets{state.documents.filter(d=>d.stepId===current.id).length?` (${state.documents.filter(d=>d.stepId===current.id).length})`:''}</button><button onClick={()=>setModal({type:'alarm',step:current})}><Bell size={16}/>Remind me</button>{config?.nearby&&<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={16}/>Food & amenities near here</button>}<button aria-label="Share this step" onClick={()=>shareStep(current)}><Share2 size={16}/></button></div>
     {parkForDay(day)&&<button className="eyespy-invite" onClick={()=>setModal({type:'park',park:parkForDay(day)})}><span className="eyespy-invite-icon" aria-hidden="true">🎢</span><span>Ride checklist and park map<strong>{parkForDay(day).name}</strong></span><ChevronRight size={18}/></button>}
+    {day===SUMO_DAY&&<button className="eyespy-invite" onClick={()=>setModal({type:'sumo'})}><span className="eyespy-invite-icon" aria-hidden="true">🥋</span><span>Today's sumo card<strong>{sumoState(state).bouts.length?`${sumoState(state).bouts.length} bouts, times and match-ups`:'Match-ups, times and who is who'}</strong></span><ChevronRight size={18}/></button>}
     {isTrainLeg(current)&&<button className="eyespy-invite" onClick={()=>setModal({type:'eyespy',step:current})}><span className="eyespy-invite-icon" aria-hidden="true">🗻</span><span>Window I spy<strong>{EYE_SPY.length} things to spot from the train</strong></span><ChevronRight size={18}/></button>}
-    <div className="completion-actions">{current.status==='done'?<Button className="done-button" icon={RotateCcw} disabled={busy} onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Completed · Undo</Button>:<><Button icon={Play} disabled={busy||(!parent&&!current.participants.includes(user.name))} onClick={()=>mutate({type:'status',id:current.id,status:'started'})}>{current.status==='started'?'Started':'Started / arrived'}</Button><Button className="done-button" icon={Check} disabled={busy||(!parent&&!current.participants.includes(user.name))} onClick={async()=>{if(await mutate({type:'status',id:current.id,status:'done'}))notice('Completed. Swipe when you’re ready for the next step.');}}>Done</Button></>}{parent&&<button className="icon" aria-label="Edit or skip activity" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal/></button>}</div>
+    <div className="completion-actions">{current.status==='done'?<Button className="done-button" icon={RotateCcw} disabled={busy} onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Completed · Undo</Button>:<><Button icon={Play} disabled={busy||(!parent&&!current.participants.includes(user.name))} onClick={()=>mutate({type:'status',id:current.id,status:'started'})}>{current.status==='started'?'Started':'Started / arrived'}</Button><Button className="done-button" icon={Check} disabled={busy||(!parent&&!current.participants.includes(user.name))} onClick={async()=>{const done=current.id;if(await mutate({type:'status',id:done,status:'done'})){
+     // Stay on the thing that was just finished, which is what the message has always promised
+     // and is the moment anybody has an opinion about it worth recording.
+     setSelected(done);updateUrl(day,done);notice('Completed. Rate it below, or swipe when you’re ready for the next step.');}}}>Done</Button></>}{parent&&<button className="icon" aria-label="Edit or skip activity" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal/></button>}</div>
+    <StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore step</button></p>}
    </article>:<div className="empty"><h2>A little room for discovery.</h2><p>Add your first stop for this day.</p></div>}
    <div className="swipe-controls"><Button icon={ArrowLeft} disabled={index<=0} onClick={()=>move(-1)}>Previous</Button><span>Swipe to explore</span><Button disabled={index>=steps.length-1} onClick={()=>move(1)}>Next <ArrowRight size={18}/></Button></div>
@@ -264,6 +274,7 @@ function App(){
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal}/></>}
   {tab==='thanks'&&user.name===THANK_YOU_FROM&&<ThankYouEditor state={state} mutate={mutate} busy={busy}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
+  {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go}/>}
   {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}
@@ -278,7 +289,8 @@ function App(){
   <BottomNav tab={tab} user={user} go={go} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
   {toast&&<div className="toast" role="status">{toast}<button aria-label="Dismiss" onClick={()=>setToast('')}><X size={16}/></button></div>}
-  {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:'Food & amenities near here',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',eyespy:'Window I spy',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${THANK_YOU_FROM}`}[modal.type]} onClose={()=>setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby'].includes(modal.type)}>
+  {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:'Food & amenities near here',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',eyespy:'Window I spy',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${THANK_YOU_FROM}`}[modal.type]} onClose={()=>setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo'].includes(modal.type)}>
+   {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)}/>}
    {modal.type==='voice'&&<VoiceNotes state={visibleState} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay}/>}
    {modal.type==='foodcard'&&<FoodCard item={modal.item} notice={notice}/>}

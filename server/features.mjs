@@ -4,7 +4,7 @@ import {FOOD,FOOD_KINDS} from '../src/food-data.js';
 import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
-import {BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
 const MAX_PROPOSALS=300;
 const https=v=>{try{return new URL(v).protocol==='https:';}catch{return false;}};
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
@@ -212,7 +212,27 @@ export function extraOperation(state,op,user,fail,now){
    if(!string(e.city,80))fail('Invalid forecast.');
    days[date]={city:e.city,code:e.code,max:e.max,min:e.min,rain:e.rain??null};
   }
-  state.weather={at:now,by:user.name,days};
+  // The same forecast by the hour, kept beside it. Checked as hard as the daily numbers,
+  // because a graph drawn from nonsense is a more convincing kind of wrong.
+  const hours={...(state.weather.hours||{})};
+  if(op.hours!==undefined){
+   if(!op.hours||typeof op.hours!=='object'||Array.isArray(op.hours))fail('Invalid forecast.');
+   const byDay=Object.entries(op.hours);
+   if(byDay.length>40)fail('Invalid forecast.');
+   for(const [date,list] of byDay){
+    if(!state.days.some(d=>d.date===date))continue;
+    if(!Array.isArray(list)||!list.length||list.length>24)fail('Invalid hourly forecast.');
+    hours[date]=list.map(x=>{
+     if(!x||!Number.isInteger(x.h)||x.h<0||x.h>23)fail('Invalid hourly forecast.');
+     if(!Number.isInteger(x.temp)||x.temp<-60||x.temp>60)fail('Invalid hourly forecast.');
+     if(x.feels!==null&&x.feels!==undefined&&(!Number.isInteger(x.feels)||x.feels<-70||x.feels>70))fail('Invalid hourly forecast.');
+     if(x.rain!==null&&x.rain!==undefined&&(!Number.isInteger(x.rain)||x.rain<0||x.rain>100))fail('Invalid hourly forecast.');
+     if(x.code!==null&&x.code!==undefined&&!Number.isInteger(x.code))fail('Invalid hourly forecast.');
+     return {h:x.h,temp:x.temp,feels:x.feels??null,rain:x.rain??null,code:x.code??null};
+    }).sort((a,b)=>a.h-b.h);
+   }
+  }
+  state.weather={at:now,by:user.name,days,hours};
  }else if(op.type==='photoVote'){
   // One vote each per day, and you can change your mind. Voting for your own is allowed —
   // they are brothers, they will vote for their own, and everyone can see who voted.
@@ -396,6 +416,84 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:item.title};
   }
   fail('Unknown to-do action.');
+ }else if(op.type==='stepRating'||op.type==='stepThought'){
+  // Four opinions about a thing that has happened. Kept per person, because an average is only
+  // worth reading if you can see whose stars made it. Not the step's own notes, which are the plan.
+  const step=state.steps.find(s=>s.id===op.id);if(!step)fail('Activity not found.',404);
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Rate it for yourself.',403);
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+  const entry={...(state.stepReviews[op.id]||{})};
+  if(op.type==='stepRating'){
+   if(op.rating!==0&&!(Number.isInteger(op.rating)&&op.rating>=1&&op.rating<=5))fail('Rate it from 1 to 5 stars.');
+   const ratings={...(entry.ratings||{})};
+   if(op.rating)ratings[op.person]=op.rating;else delete ratings[op.person];
+   entry.ratings=ratings;
+  }else{
+   const text=(op.thought??'').trim();requireText(text,2000,'what you thought');
+   const thoughts={...(entry.thoughts||{})};
+   if(text)thoughts[op.person]={text,at};else delete thoughts[op.person];
+   entry.thoughts=thoughts;
+  }
+  state.stepReviews={...state.stepReviews,[op.id]:entry};
+  return {summary:null,important:false,title:step.title};
+ }else if(typeof op.type==='string'&&op.type.startsWith('sumo')){
+  // The day's card, kept in the trip. The arena is a basement full of phones, so what one
+  // person fetched has to still be on screen for everyone when the signal is not.
+  const current=sumo(state);
+  if(op.type==='sumoUpdate'){
+   if(!parent)fail('A parent fetches the card.',403);
+   if(!Array.isArray(op.bouts)||!op.bouts.length||op.bouts.length>60)fail('That is not a day of sumo.');
+   const seen=new Set();
+   const bouts=op.bouts.map(b=>{
+    if(!SUMO_DIVISIONS.some(([id])=>id===b?.division))fail('Unknown division.');
+    if(!Number.isInteger(b?.order)||b.order<1||b.order>999)fail('Invalid running order.');
+    if(b.time&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(b.time))fail('Invalid bout time.');
+    if(!string(b?.id,60)||!b.id||seen.has(b.id))fail('Invalid bout.');
+    seen.add(b.id);
+    const side=p=>{if(!string(p?.name,80)||!p.name.trim())fail('A bout needs two names.');
+     requireText(p.rank??'',80,'rank');requireText(p.stable??'',80,'stable');
+     return {name:p.name.trim(),rank:(p.rank||'').trim(),stable:(p.stable||'').trim()};};
+    return {id:b.id,division:b.division,order:b.order,time:b.time||'',east:side(b.east),west:side(b.west)};
+   });
+   for(const [key,max] of [['basho',120],['venue',120],['notes',2000],['doorsOpen',5]])requireText(op[key]??'',max,key);
+   if(op.doorsOpen&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(op.doorsOpen))fail('Invalid opening time.');
+   if(op.date&&!state.days.some(d=>d.date===op.date))fail('Choose a trip day.');
+   if(op.dayNumber!==null&&op.dayNumber!==undefined&&(!Number.isInteger(op.dayNumber)||op.dayNumber<1||op.dayNumber>15))fail('A basho is fifteen days.');
+   const sources=(Array.isArray(op.sources)?op.sources:[]).slice(0,6).map(x=>{
+    requireText(x?.title??'',200,'source');
+    try{if(new URL(x?.url).protocol!=='https:')fail('Use an HTTPS source.');}catch{fail('Use an HTTPS source.');}
+    return {title:(x.title||'').trim(),url:x.url};});
+   // Results recorded in the arena survive a re-fetch, as long as the bout is still on the card.
+   const results=Object.fromEntries(Object.entries(current.results).filter(([id])=>seen.has(id)));
+   state.sumo={...current,basho:op.basho||'',dayNumber:op.dayNumber??null,venue:op.venue||'',
+    date:op.date||null,doorsOpen:op.doorsOpen||'',notes:op.notes||'',bouts,sources,results,at:now,by:user.name};
+   return {summary:`${user.name} loaded the sumo card for ${op.date||'the day'} — ${bouts.length} bouts`,important:true,title:'Sumo card'};
+  }
+  if(op.type==='sumoWrestler'){
+   if(!parent)fail('A parent looks a wrestler up.',403);
+   const p=op.profile;
+   if(!p||typeof p!=='object'||!string(p.name,80)||!p.name.trim())fail('Nothing to save about him.');
+   for(const [key,max] of [['name',80],['japanese',80],['rank',80],['stable',80],['hometown',120],['record',120],['about',2000]])requireText(p[key]??'',max,key);
+   const size=(v,lo,hi)=>v===null||v===undefined?null:(Number.isInteger(v)&&v>=lo&&v<=hi?v:fail('That is not a believable size.'));
+   const wrestlers={...current.wrestlers};
+   if(Object.keys(wrestlers).length>=80)fail('That is eighty wrestlers already.');
+   wrestlers[wrestlerKey(p.name)]={name:p.name.trim(),japanese:p.japanese||'',rank:p.rank||'',stable:p.stable||'',
+    hometown:p.hometown||'',heightCm:size(p.heightCm,120,250),weightKg:size(p.weightKg,50,400),
+    record:p.record||'',about:p.about||'',sources:(Array.isArray(p.sources)?p.sources:[]).slice(0,6),at:now,by:user.name};
+   state.sumo={...current,wrestlers};
+   return {summary:null,important:false,title:`Sumo · ${p.name.trim()}`};
+  }
+  if(op.type==='sumoResult'){
+   const bout=current.bouts.find(b=>b.id===op.id);if(!bout)fail('That bout is not on the card.',404);
+   if(op.winner!==null&&op.winner!==bout.east.name&&op.winner!==bout.west.name)fail('One of the two, or nobody.');
+   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+   const results={...current.results};
+   if(op.winner)results[op.id]={winner:op.winner,by:user.name,at};else delete results[op.id];
+   state.sumo={...current,results};
+   return {summary:null,important:false,title:`Sumo · ${bout.east.name} v ${bout.west.name}`};
+  }
+  fail('Unknown sumo action.');
  }else if(op.type==='meeting'){
   dayCheck(op.day);if(!op.day)fail('Choose a day.');
   const m={place:op.place||'',japanese:op.japanese||'',time:op.time||'',notes:op.notes||'',hotelJapanese:op.hotelJapanese||'',hotelAddress:op.hotelAddress||''};

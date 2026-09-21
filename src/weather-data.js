@@ -29,8 +29,47 @@ export const describe=code=>WMO[code]||['Unknown','🌡️'];
 export function forecastUrl({lat,lon},start,end){
  const q=new URLSearchParams({latitude:lat,longitude:lon,timezone:'Asia/Tokyo',
   daily:'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+  hourly:'temperature_2m,apparent_temperature,precipitation_probability,weather_code',
   start_date:start,end_date:end});
  return `https://api.open-meteo.com/v1/forecast?${q}`;
+}
+// The same answer, by the hour. This is what makes the difference between "22 degrees" and
+// "cold until ten, then fine until the rain at four", which is the thing that changes a day.
+export const HOURS_PER_DAY=24;
+export function parseHourly(json){
+ const h=json?.hourly;
+ if(!h||!Array.isArray(h.time))return {};
+ const out={};
+ h.time.forEach((stamp,i)=>{
+  const at=/^(\d{4}-\d{2}-\d{2})T(\d{2}):\d{2}/.exec(stamp);if(!at)return;
+  const temp=h.temperature_2m?.[i],feels=h.apparent_temperature?.[i];
+  const rain=h.precipitation_probability?.[i],code=h.weather_code?.[i];
+  if(!Number.isFinite(temp)||temp<-60||temp>60)return;
+  const entry={h:Number(at[2]),temp:Math.round(temp),
+   feels:Number.isFinite(feels)&&feels>=-70&&feels<=70?Math.round(feels):null,
+   rain:Number.isFinite(rain)&&rain>=0&&rain<=100?Math.round(rain):null,
+   code:Number.isInteger(code)?code:null};
+  (out[at[1]]??=[]).push(entry);
+ });
+ for(const date of Object.keys(out))out[date]=out[date].sort((a,b)=>a.h-b.h).slice(0,HOURS_PER_DAY);
+ return out;
+}
+export const hoursFor=(state,day)=>state.weather?.hours?.[day]||null;
+// From this hour to the end of the day, which is the only part of it anyone can still act on.
+export function hoursAhead(state,day,fromHour=0){
+ const hours=hoursFor(state,day);
+ return hours?hours.filter(x=>x.h>=fromHour):null;
+}
+export const hourLabel=h=>`${String(h).padStart(2,'0')}:00`;
+// The shape of the day in one line, for the card that has not been opened yet.
+export function daySummary(hours){
+ if(!hours?.length)return null;
+ const temps=hours.map(x=>x.temp),rains=hours.map(x=>x.rain).filter(n=>Number.isFinite(n));
+ const wettest=hours.filter(x=>Number.isFinite(x.rain)).sort((a,b)=>b.rain-a.rain)[0]||null;
+ return {max:Math.max(...temps),min:Math.min(...temps),
+  peakRain:rains.length?Math.max(...rains):null,
+  wettestHour:wettest&&wettest.rain>=40?wettest.h:null,
+  warmest:hours.reduce((a,b)=>b.temp>a.temp?b:a).h,coldest:hours.reduce((a,b)=>b.temp<a.temp?b:a).h};
 }
 // Open-Meteo answers in parallel arrays. Turn that into one entry per day, and drop anything
 // that is not a complete, believable reading rather than showing a blank or a nonsense.
