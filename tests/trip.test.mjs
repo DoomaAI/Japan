@@ -1341,11 +1341,18 @@ test('what a boy can do with no signal at all, and what has to wait',async()=>{
  const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
  // Everything the boys do on their own is progress, and progress keeps on a dead phone.
- for(const op of ['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore'])
+ // Anything that records what happened, or adds something new, is still right whenever it
+ // lands, so it can wait on the phone.
+ for(const op of ['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore',
+                  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote'])
   assert.ok(list.includes(op),`${op} should survive with no signal`);
  // A janken hand is not progress — it is a move in a game the other phone is waiting on.
  assert.ok(!list.includes('jankenThrow'),'a hand thrown into a queue is not a game');
- for(const op of ['add','patch','remove','challengeNew','phraseAdd','voiceNoteRemove','exchangeRate'])
+ // A stale reading overwriting a fresh one is worse than not saving it at all.
+ for(const op of ['exchangeRate','weatherUpdate'])
+  assert.ok(!list.includes(op),`${op} would overwrite a fresher answer`);
+ // And anything that reshapes the plan needs the latest revision to be safe.
+ for(const op of ['add','patch','remove','schedule','reschedule','choose','lock','backlog','challengeNew'])
   assert.ok(!list.includes(op),`${op} changes the plan and needs the latest revision`);
  // And the phone shows queued progress straight away rather than looking like it did nothing.
  const state=ensureFeatures(structuredClone(seed));
@@ -1355,4 +1362,87 @@ test('what a boy can do with no signal at all, and what has to wait',async()=>{
  assert.equal(bestScore(preview,'Nate','kana-hiragana'),28);
  assert.ok(phrasesSeenBy(preview,'Nate').hello);
  assert.equal(bestScore(state,'Nate','kana-hiragana'),0,'the real trip is untouched until it syncs');
+});
+
+test('a forecast is read, sanity-checked, and kept for when there is no signal',async()=>{
+ const {forecastUrl,parseForecast,pointFor,describe,advice,ageLabel,forecastAge,forecastFor}=await import('../src/weather-data.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ // Each day of the trip has a real place to ask about, and the Disney days are Urayasu.
+ for(const d of seed.days)assert.ok(pointFor(d.city).lat>30&&pointFor(d.city).lat<46,`${d.city} has no sensible point`);
+ assert.equal(pointFor('Kyoto').name,'Kyoto');
+ assert.notEqual(pointFor('Disneyland').lon,pointFor('Tokyo').lon,'the bay is not central Tokyo');
+ const url=new URL(forecastUrl(pointFor('Tokyo'),'2026-09-21','2026-09-28'));
+ assert.equal(url.origin+url.pathname,'https://api.open-meteo.com/v1/forecast');
+ assert.equal(url.searchParams.get('timezone'),'Asia/Tokyo','or every day is off by one');
+ assert.equal(url.searchParams.get('start_date'),'2026-09-21');
+ assert.match(url.searchParams.get('daily'),/temperature_2m_max/);
+ assert.ok(!url.search.includes('key')&&!url.search.includes('token'),'this service needs no key');
+ // Parallel arrays in, one entry per day out — and nonsense dropped rather than displayed.
+ const parsed=parseForecast({daily:{time:['2026-09-21','2026-09-22','2026-09-23','2026-09-24'],
+  weather_code:[61,0,null,3],temperature_2m_max:[24.4,27.8,25,9999],temperature_2m_min:[19.2,20.1,18,3],
+  precipitation_probability_max:[80,5,10,null]}},'Tokyo');
+ assert.deepEqual(Object.keys(parsed),['2026-09-21','2026-09-22'],'a missing code or a silly temperature is dropped');
+ assert.deepEqual(parsed['2026-09-21'],{city:'Tokyo',code:61,max:24,min:19,rain:80});
+ assert.deepEqual(parseForecast({},'Tokyo'),{});
+ assert.deepEqual(parseForecast({daily:{time:'nope'}},'Tokyo'),{});
+ assert.deepEqual(parseForecast({daily:{time:['2026-09-21'],weather_code:[0],temperature_2m_max:[10],temperature_2m_min:[20]}},'Tokyo'),{},'a minimum above the maximum is not a reading');
+ // Words and a picture, and something to actually do about it.
+ assert.deepEqual(describe(61),['Light rain','🌦️']);
+ assert.deepEqual(describe(999)[0],'Unknown');
+ assert.match(advice({code:61,max:22,min:18,rain:80}),/[Uu]mbrella/);
+ assert.match(advice({code:95,max:24,min:20,rain:60}),/indoor/);
+ assert.match(advice({code:0,max:33,min:26,rain:0}),/Hot/);
+ assert.match(advice({code:0,max:9,min:2,rain:0}),/Cold/);
+ assert.equal(advice({code:0,max:22,min:16,rain:10}),'','a fine day needs no advice');
+ assert.equal(advice(null),'');
+ // Stored in the trip, so it is on the phone whether or not there is signal.
+ let state=ensureFeatures(structuredClone(seed));
+ assert.equal(forecastFor(state,seed.days[0].date),null);
+ assert.equal(forecastAge(state),null);
+ assert.equal(ageLabel(null),'never checked');
+ const at='2026-09-21T00:00:00.000Z';
+ state=applyOperation(state,{type:'weatherUpdate',days:{[seed.days[0].date]:{city:'Tokyo',code:61,max:24,min:19,rain:80},'2099-01-01':{city:'Nowhere',code:0,max:20,min:10,rain:0}}},child);
+ assert.deepEqual(forecastFor(state,seed.days[0].date),{city:'Tokyo',code:61,max:24,min:19,rain:80});
+ assert.equal(forecastFor(state,'2099-01-01'),null,'a day we are not in Japan is not stored');
+ assert.ok(state.weather.at&&state.weather.by==='Nate');
+ assert.equal(ageLabel(0.2),'checked just now');
+ assert.equal(ageLabel(3),'checked 3 hours ago');
+ assert.equal(ageLabel(49),'checked 2 days ago');
+ // Rubbish from a service, or from anyone else, is refused rather than stored.
+ const bad=v=>assert.throws(()=>applyOperation(state,{type:'weatherUpdate',days:{[seed.days[1].date]:v}},parent),/Invalid forecast/);
+ bad({city:'Tokyo',code:61,max:24,min:30,rain:0});
+ bad({city:'Tokyo',code:61.5,max:24,min:19,rain:0});
+ bad({city:'Tokyo',code:61,max:900,min:19,rain:0});
+ bad({city:'Tokyo',code:61,max:24,min:19,rain:400});
+ bad(null);
+ assert.throws(()=>applyOperation(state,{type:'weatherUpdate',days:[]},parent),/Invalid forecast/);
+});
+
+test('a queue cannot be jammed by one update the family plan has moved past',async()=>{
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const flush=source.slice(source.indexOf('async function flush'),source.indexOf('async function mutate'));
+ // A 404 at the head of the queue used to block everything behind it forever.
+ assert.match(flush,/if\(!err\.status\|\|err\.status===409\|\|err\.status>=500\)throw err/,
+  'a permanent refusal must be dropped, not retried forever');
+ assert.match(flush,/dropped\.push/);
+ assert.match(flush,/saveQueue\(queueRef\.current\.slice\(1\)\)/);
+ // A conflict and a server having a moment are both still worth retrying.
+ assert.match(flush,/409/);
+});
+
+test('a recording waits on the phone in its own store, not in the little JSON queue',async()=>{
+ const source=await readFile(new URL('../src/pending-store.js',import.meta.url),'utf8');
+ const voice=await readFile(new URL('../src/VoiceNotes.jsx',import.meta.url),'utf8');
+ // Audio is megabytes; the queue lives in localStorage and would not survive it.
+ assert.match(source,/indexedDB/);
+ assert.doesNotMatch(source,/localStorage\./,'the audio must not go near the little JSON queue');
+ // Every path out of the store has to cope with a phone that will not give us one.
+ for(const fn of ['listPending','dropPending','pendingSupported'])assert.match(source,new RegExp(`export (async )?function ${fn}|export const ${fn}`),`${fn} is missing`);
+ assert.match(source,/catch\{return \[\];\}/,'listing must degrade to nothing pending');
+ // Losing signal keeps the recording rather than throwing it away.
+ assert.match(voice,/if\(!navigator\.onLine\)return hold\(/);
+ assert.match(voice,/if\(!navigator\.onLine\)await hold\('The signal went while it was uploading\.'\)/);
+ // And what is waiting is sent on its own once there is signal.
+ assert.match(voice,/if\(waiting\.length&&navigator\.onLine&&config\?\.uploads\)sendWaiting\(\)/);
+ assert.match(voice,/await dropPending\(entry\.id\)/);
 });
