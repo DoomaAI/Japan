@@ -1160,3 +1160,80 @@ test('the sound check turns "nothing happened" into something to act on',async()
  assert.equal(warmUp({speak:u=>spoken.push(u)},class{}),false,'only ever once');
  assert.equal(spoken.length,1);
 });
+
+test('a phrase of our own: asked for, checked, then kept',async()=>{
+ const {createServer}=await import('node:http');
+ let seen=null,reply={sensible:true,ja:'窓から離れた席はありますか？',romaji:'mado kara hanareta seki wa arimasu ka?',
+  say:'ma-do ka-ra ha-na-reh-ta seh-kee wa a-ree-mass ka',literal:'Is there a seat away from the window?',note:''};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen={path:req.url,json:JSON.parse(body)};
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'msg_2',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'end_turn',
+    usage:{input_tokens:300,output_tokens:120},content:[{type:'text',text:JSON.stringify(reply)}]}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {translatePhrase,translatorReady}=await import('../server/translate.mjs');
+  assert.equal(translatorReady(),true);
+  const out=await translatePhrase({english:'  Could we sit away from the window?  '});
+  assert.equal(out.ja,reply.ja);
+  assert.equal(out.literal,'Is there a seat away from the window?','what it actually says, back in English');
+  assert.equal(out.usage.input,300);
+  // The request itself: a schema-shaped answer, and the phrase as typed.
+  assert.equal(seen.path,'/v1/messages');
+  assert.equal(seen.json.model,'claude-opus-5');
+  assert.equal(seen.json.output_config.format.type,'json_schema');
+  assert.deepEqual(seen.json.output_config.format.schema.required,['ja','romaji','say','literal','note','sensible']);
+  assert.match(seen.json.system,/polite form a visitor would use/);
+  assert.match(JSON.stringify(seen.json.messages),/Could we sit away from the window\?/);
+  assert.doesNotMatch(JSON.stringify(seen.json.messages),/ {2}Could/,'the phrase is trimmed before it is sent');
+  // Nothing worth keeping gets refused rather than saved as an empty phrase.
+  reply={sensible:false,ja:'',romaji:'',say:'',literal:'',note:''};
+  await assert.rejects(()=>translatePhrase({english:'asdfghjkl'}),/does not look like something to say/);
+  await assert.rejects(()=>translatePhrase({english:'   '}),/Type the phrase/);
+  await assert.rejects(()=>translatePhrase({english:'x'.repeat(301)}),/one short phrase/);
+ }finally{
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+  await new Promise(r=>upstream.close(r));
+ }
+});
+
+test('our own phrases are checked here, not trusted because a model produced them',async()=>{
+ const {ensureFeatures,ourPhrases}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.customPhrases,[]);
+ const good={type:'phraseAdd',en:'  Could we sit away from the window?  ',ja:'  窓から離れた席はありますか？  ',
+  romaji:'mado kara hanareta seki wa arimasu ka?',say:'ma-do ka-ra ha-na-reh-ta seh-kee wa a-ree-mass ka',source:'translated'};
+ const added=applyOperation(state,good,parent);
+ const kept=added.customPhrases[0];
+ assert.equal(kept.en,'Could we sit away from the window?','trimmed');
+ assert.equal(kept.ja,'窓から離れた席はありますか？');
+ assert.equal(kept.by,'Damien');assert.equal(kept.source,'translated');assert.ok(kept.at&&kept.id);
+ // Japanese that is not Japanese is the failure a translator, or a typo, would produce.
+ assert.throws(()=>applyOperation(state,{...good,ja:'mado kara'},parent),/needs to be in Japanese/);
+ assert.throws(()=>applyOperation(state,{...good,ja:''},parent),/Add the Japanese/);
+ assert.throws(()=>applyOperation(state,{...good,en:'   '},parent),/Add the English/);
+ assert.throws(()=>applyOperation(state,{...good,say:'x'.repeat(201)},parent),/Invalid say/);
+ // A typed-in phrase is marked as such rather than claiming to be translated.
+ assert.equal(applyOperation(state,{...good,source:'anything else'},parent).customPhrases[0].source,'typed');
+ // Editing keeps it in place; removing takes it away; the boys can do neither.
+ const edited=applyOperation(added,{...good,type:'phraseEdit',id:kept.id,en:'Could we sit inside?'},parent);
+ assert.equal(edited.customPhrases[0].en,'Could we sit inside?');
+ assert.equal(edited.customPhrases[0].id,kept.id);
+ assert.deepEqual(applyOperation(added,{type:'phraseRemove',id:kept.id},parent).customPhrases,[]);
+ assert.throws(()=>applyOperation(added,{type:'phraseRemove',id:'nope'},parent),e=>e.status===404);
+ for(const op of [good,{type:'phraseRemove',id:kept.id},{...good,type:'phraseEdit',id:kept.id}])
+  assert.throws(()=>applyOperation(added,op,child),e=>e.status===403);
+ // Newest first, and kept out of the book's own rota so the daily phrase never breaks.
+ const two=applyOperation({...added,customPhrases:[{...kept,at:'2026-09-21T00:00:00.000Z'}]},{...good,en:'Later one'},parent);
+ assert.deepEqual(ourPhrases(two).map(p=>p.en),['Later one','Could we sit away from the window?']);
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js');
+ assert.ok(!ALL_PHRASES().some(p=>p.id===kept.id),'our phrases stay out of the book');
+});
