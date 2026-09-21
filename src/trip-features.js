@@ -119,6 +119,12 @@ export const voiceNotesFor=(state,{day,stepId}={})=>(state.voiceNotes||[])
 export const voiceLength=seconds=>`${Math.floor(seconds/60)}:${String(Math.round(seconds%60)).padStart(2,'0')}`;
 // Who has already seen a given day's phrase, so it pops up once each.
 export const phraseSeenBy=(state,day)=>state.phraseSeen?.[day]||{};
+// Best score per person per game, and the janken round in progress.
+export const bestScore=(state,person,game)=>state.games?.scores?.[person]?.[game]??0;
+export const jankenRound=state=>state.games?.janken?.round||null;
+export const jankenScores=state=>state.games?.janken?.scores||{};
+// A round is over once both players have thrown. Until then nobody sees the other's hand.
+export const roundComplete=(round,players)=>!!round&&players.every(p=>round.throws?.[p]);
 // The family's own phrases, newest first. Kept apart from the book: the daily rota and the
 // log are built from phrase ids that have to exist, and these come and go.
 export const ourPhrases=state=>[...(state.customPhrases||[])].sort((a,b)=>String(b.at).localeCompare(String(a.at)));
@@ -332,7 +338,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],voiceNotes:state.voiceNotes??[],thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},voiceNotes:state.voiceNotes??[],thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -408,6 +414,11 @@ export function pendingProgress(state,queue){
   if(o.type==='phraseSeen'){
    if(o.day){const e={...(next.phraseSeen[o.day]||{})};e[o.person]=e[o.person]||o.at;next.phraseSeen={...next.phraseSeen,[o.day]:e};}
    if(o.phraseIds?.length){const log={...(next.phraseLog[o.person]||{})};for(const id of o.phraseIds)log[id]=log[id]||o.at;next.phraseLog={...next.phraseLog,[o.person]:log};}
+  }
+  if(o.type==='gameScore'){
+   const mine={...(next.games.scores[o.person]||{})};
+   mine[o.game]=Math.max(mine[o.game]||0,o.score);
+   next.games={...next.games,scores:{...next.games.scores,[o.person]:mine}};
   }
   if(o.type==='foodTried'){const e=next.food[o.itemId]||{},tried={...(e.tried||{})};if(o.done)tried[o.person]=tried[o.person]||o.at;else delete tried[o.person];next.food={...next.food,[o.itemId]:{...e,tried}};}
   if(o.type==='foodRating'){const e=next.food[o.itemId]||{},ratings={...(e.ratings||{})};if(o.rating)ratings[o.person]=o.rating;else delete ratings[o.person];next.food={...next.food,[o.itemId]:{...e,ratings}};}

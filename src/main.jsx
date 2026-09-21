@@ -14,7 +14,7 @@ import {phraseForDay} from './phrasebook-data.js';
 import {phraseSeenBy,phraseQueue} from './trip-features.js';
 import {PHRASES} from './phrases.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
-import {primaryNav,moreIds} from './nav-data.js';
+import {primaryNav,moreIds,PAGES} from './nav-data.js';
 import EyeSpy from './EyeSpy.jsx';
 import ParkGuide from './ParkGuide.jsx';
 import FoodList,{FoodCard} from './FoodList.jsx';
@@ -24,6 +24,7 @@ import {MeetingCard,QuickCapture,GlobalSearch,Diary} from './PracticalPages.jsx'
 import MediaGallery from './MediaGallery.jsx';
 import DayTimeline from './DayTimeline.jsx';
 import VoiceNotes from './VoiceNotes.jsx';
+import Games from './Games.jsx';
 import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
@@ -44,9 +45,15 @@ function Link({href,children,...props}){return <a href={href} target="_blank" re
 function Button({icon:Icon,children,...props}){return <button {...props}>{Icon&&<Icon size={18}/>} {children}</button>;}
 function Dialog({title,children,onClose,wide=false}){const ref=useRef();useEffect(()=>{const d=ref.current;d.showModal();return()=>d.close();},[]);return <dialog ref={ref} onCancel={onClose} onClick={e=>{if(e.target===ref.current)onClose();}} className={wide?'wide':''}><header><h2>{title}</h2><button className="icon" aria-label="Close" onClick={onClose}><X/></button></header><div className="dialog-body">{children}</div></dialog>;}
 async function copyOrShare(url,title,share=false){if(share&&navigator.share){await navigator.share({title,url});return;}await navigator.clipboard.writeText(url);}
+const TABS=[...Object.keys(PAGES),'more'];
+// What a phone can do with no signal and hand over later. Everything here is progress —
+// something that happened — rather than a change to the plan, which needs the latest
+// revision to be safe. Janken is deliberately absent: a hand thrown into a queue is not a
+// game, it is a message.
+const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','gameScore'];
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
- const [tab,setTab]=useState(['today','days','challenges','shopping','tickets','more','meeting','diary','updates','search','options','places','guide','help','thanks','parks','food','money','phrases'].includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
+ const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
  const [focus,setFocus]=useState(new URLSearchParams(location.search).get('item')||null);
  const [updateReady,setUpdateReady]=useState(false),[modal,setModal]=useState(null),[busy,setBusy]=useState(false),[online,setOnline]=useState(navigator.onLine),[now,setNow]=useState(new Date()),[queue,setQueue]=useState(stored('japan.queue',[])),[conflict,setConflict]=useState(false);
  const [guidePage,setGuidePage]=useState(Number(new URLSearchParams(location.search).get('page'))||1),[guideIndex,setGuideIndex]=useState([]),[query,setQuery]=useState(''),[saved,setSaved]=useState(stored('japan.saved',[])),[clockShortcut,setClockShortcut]=useState(localStorage.getItem('japan.shortcut')||'');
@@ -97,14 +104,14 @@ function App(){
   operation={...operation,operationId:crypto.randomUUID()};
   const rev=envRef.current.revision;
   if(!navigator.onLine||queueRef.current.length){
-   if(!['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating'].includes(operation.type)){notice('Reconnect and sync pending updates before editing the plan.');return false;}
+   if(!OFFLINE_OPS.includes(operation.type)){notice('Reconnect and sync pending updates before editing the plan.');return false;}
    const at=operation.at||new Date().toISOString();operation.at=at;
    saveQueue([...queueRef.current,{revision:rev,operation}]);
    notice('Progress saved on this phone. It will sync when connected.');return true;
   }
   working.current=true;setBusy(true);
   try{const result=await request('mutate',{revision:rev,operation});accept(result);return result;}
-  catch(e){if(e.status===409){await refresh().catch(()=>{});notice('Someone changed the trip. The latest plan is loaded; review and try your change again.');}else if(!e.status&&['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating'].includes(operation.type)){
+  catch(e){if(e.status===409){await refresh().catch(()=>{});notice('Someone changed the trip. The latest plan is loaded; review and try your change again.');}else if(!e.status&&OFFLINE_OPS.includes(operation.type)){
     operation.at=operation.at||new Date().toISOString();saveQueue([...queueRef.current,{revision:rev,operation}]);notice('Progress saved on this phone; waiting to sync.');
    }else notice(e.message);return false;
   }finally{working.current=false;setBusy(false);}
@@ -153,7 +160,7 @@ function App(){
  },[todaysPhrase?.id,phraseDone,noteForMe?.day,noteRead,modal]);
  async function seePhrase(day,phraseIds=[]){
   localStorage.setItem(`japan.phrase.${day}`,'seen');
-  if(navigator.onLine)await mutate({type:'phraseSeen',day,person:user.name,phraseIds});
+  await mutate({type:'phraseSeen',day,person:user.name,phraseIds});
   setModal(null);
  }
  async function readNote(note){
@@ -203,6 +210,7 @@ function App(){
   {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='meeting'&&<MeetingCard key={day} state={state} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='updates'&&<Updates state={state} user={user} mutate={mutate} busy={busy}/>}
+  {tab==='games'&&<Games state={visibleState} user={user} mutate={mutate} busy={busy} online={online} refresh={refresh}/>}
   {tab==='phrases'&&<><p className="eyebrow">A LITTLE JAPANESE GOES A LONG WAY</p><h1>Phrases</h1><Phrasebook state={visibleState} user={user} day={japanDate(now)} mutate={mutate} busy={busy} request={request} notice={notice} config={config}/></>}
   {tab==='money'&&<><p className="eyebrow">WHAT DOES THAT COST?</p><h1>Yen converter</h1><Currency state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice}/></>}
   {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><FoodList state={visibleState} user={user} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}

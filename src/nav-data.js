@@ -7,6 +7,7 @@ export const PAGES={
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
  money:{label:'Yen',note:'What a price is in dollars, signal or not'},
  challenges:{label:'Missions',note:'Daily missions and whole-trip quests'},
+ games:{label:'Games',note:'Japanese letters, reading signs, and janken'},
  diary:{label:'Diary',note:'Completed activities, discoveries and photos'},
  places:{label:'Places & our map',note:'Directions and our Google My Map'},
  meeting:{label:'Meeting card',note:'If we get separated'},
@@ -28,7 +29,7 @@ export const PRIMARY={
 };
 export const MORE_SECTIONS=[
  ['Out and about',['places','money','food','phrases','meeting','help']],
- ['The plan',['options','parks','shopping','challenges','tickets','guide']],
+ ['The plan',['options','parks','shopping','challenges','games','tickets','guide']],
  ['Looking back',['diary','updates','search']],
  ['Just for you',['thanks']]
 ];
