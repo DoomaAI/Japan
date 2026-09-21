@@ -1759,3 +1759,25 @@ test('coming back to the app clears a synthesiser that stopped while it was away
  // The message shown is chosen from what happened, rather than always blaming the switch.
  assert.match(source,/SILENCE_HELP\[silenceAdvice\(\{started:false,standalone:isStandalone\(\)\}\)\]/);
 });
+
+test('the guide turns like a book, and stops at both covers',async()=>{
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // One place decides what page we are on, so a swipe, an arrow key and a button cannot drift.
+ assert.match(source,/function turnPage\(delta\)\{/);
+ assert.match(source,/Math\.min\(72,Math\.max\(1,guidePage\+delta\)\)/,'clamped at both ends rather than wrapping');
+ assert.match(source,/if\(n===guidePage\)return;/,'and a turn that changes nothing does nothing');
+ // Every way of turning goes through it.
+ assert.equal((source.match(/turnPage\(-1\)/g)||[]).length,2,'the back button and the left arrow key');
+ assert.equal((source.match(/turnPage\(1\)/g)||[]).length,2,'the forward button and the right arrow key');
+ assert.match(source,/turnPage\(dx<0\?1:-1\)/,'and the swipe');
+ assert.doesNotMatch(source,/setGuidePage\(guidePage[-+]1\)/,'nothing sets the page behind its back');
+ // A swipe is a sideways movement, not a scroll, and typing in the page box is not a turn.
+ assert.match(source,/Math\.abs\(dx\)>55&&Math\.abs\(dy\)<45/);
+ assert.match(source,/\['INPUT','SELECT','TEXTAREA'\]\.includes\(e\.target\.tagName\)\)return/);
+ // The keys are only listened for while the guide is open, and let go of afterwards.
+ assert.match(source,/if\(tab!=='guide'\)return;/);
+ assert.match(source,/removeEventListener\('keydown',onKey\)/);
+ // The page can still be scrolled up and down while it is swiped sideways.
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/\.guide-view\{touch-action:pan-y\}/);
+});
