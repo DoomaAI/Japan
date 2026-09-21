@@ -4378,3 +4378,89 @@ test('the planes are planes: a rectangle, a centre line, and two wings',async()=
   assert.match(plane.finish,/throw|let it go/i);
  }
 });
+
+test('a boy designs his own character, and it is nobody else’s to change',async()=>{
+ const {mascotFor,mascotReady,describeMascot}=await import('../src/mascot-data.js');
+ const boston={name:'Boston',role:'child'};
+ const character={theme:'kitsune',shape:'fox',palette:'kitsune',eyes:'sparkle',mouth:'grin',marking:'whiskers',headwear:'flame',item:'bell',pattern:'asahi',
+  name:'コン',romaji:'Kon',meaning:'the sound a fox makes',saying:'いくぞ！ Ikuzo — let’s go!',power:'Fox-fire that lights a dark lane'};
+ let state=applyOperation(seed,{type:'mascotSave',person:'Nate',mascot:character},child);
+ assert.equal(mascotFor(state,'Nate').name,'コン');
+ assert.equal(mascotFor(state,'Nate').updatedBy,'Nate');
+ assert.ok(mascotReady(mascotFor(state,'Nate')));
+ assert.equal(mascotFor(state,'Boston'),null,'one boy’s character is not the other’s');
+ assert.match(describeMascot(mascotFor(state,'Nate')),/Kon.*Fox spirit.*fox orange/);
+ // Your own character only. A parent can sit with a boy and help him with his.
+ assert.throws(()=>applyOperation(state,{type:'mascotSave',person:'Nate',mascot:character},boston),e=>e.status===403);
+ state=applyOperation(state,{type:'mascotSave',person:'Boston',mascot:{...character,theme:'kappa',name:'キュウ'}},parent);
+ assert.equal(state.mascots.Boston.updatedBy,'Damien','a parent can help a boy with his');
+ // Only parts the app knows how to draw, so a saved character can never arrive unrenderable.
+ for(const broken of [{shape:'unicorn'},{palette:'neon'},{headwear:'sombrero'},{pattern:'tartan'},{theme:'vampire'}])
+  assert.throws(()=>applyOperation(state,{type:'mascotSave',person:'Nate',mascot:{...character,...broken}},child),/from the list/);
+ assert.throws(()=>applyOperation(state,{type:'mascotSave',person:'Nate',mascot:{...character,name:'   '}},child),/name/);
+ assert.throws(()=>applyOperation(state,{type:'mascotSave',person:'Nate',mascot:{...character,power:'x'.repeat(200)}},child),/under 140/);
+ assert.throws(()=>applyOperation(state,{type:'mascotSave',person:'Ryu',mascot:character},parent),/family member/);
+ // Changing it is changing it, not collecting a second one.
+ state=applyOperation(state,{type:'mascotSave',person:'Nate',mascot:{...character,palette:'ai',name:' ホムラ '}},child);
+ assert.equal(Object.keys(state.mascots).length,2);
+ assert.equal(state.mascots.Nate.name,'ホムラ','a name is stored trimmed');
+ assert.equal(state.mascots.Nate.palette,'ai');
+ state=applyOperation(state,{type:'mascotRemove',person:'Nate'},child);
+ assert.equal(mascotFor(state,'Nate'),null);
+ assert.ok(mascotFor(state,'Boston'),'removing one leaves the rest alone');
+ assert.throws(()=>applyOperation(state,{type:'mascotRemove',person:'Nate'},child),e=>e.status===404);
+});
+
+test('every part a character can be made of is a part the app can draw',async()=>{
+ const data=await import('../src/mascot-data.js');
+ const art=await readFile(new URL('../src/Mascot.jsx',import.meta.url),'utf8');
+ const block=name=>{const from=art.indexOf(`const ${name}={`);assert.ok(from>0,`${name} is drawn`);return art.slice(from,art.indexOf('\n};',from));};
+ for(const [field,map] of [['shape','SHAPES'],['marking','MARKINGS'],['eyes','EYES'],['mouth','MOUTHS'],['headwear','HEADWEAR'],['item','ITEMS'],['pattern','PATTERNS']]){
+  const drawn=block(map);
+  for(const option of data.CHOICES[field])assert.match(drawn,new RegExp(`[\\s{]${option.id}:`),`${field} · ${option.id} has no drawing`);
+ }
+ // Every spirit arrives with a look, a story, names and powers, all of them drawable.
+ for(const theme of data.THEMES){
+  assert.ok(theme.lore.length>60&&theme.known.length>20,`${theme.id} explains itself`);
+  assert.ok(theme.names.length>=3&&theme.powers.length>=3,`${theme.id} offers suggestions`);
+  assert.ok(theme.names.every(n=>n.name&&n.romaji&&n.meaning),`${theme.id} says what its names mean`);
+  assert.ok(data.VIBES.some(([id])=>id===theme.vibe));
+  for(const field of data.CHOICE_FIELDS)if(field!=='theme')assert.ok(data.validChoice(field,theme.suggest[field]),`${theme.id} suggests a real ${field}`);
+ }
+ // Surprise me has to produce something the server will accept, every time.
+ for(let i=0;i<200;i++){
+  const m=data.randomMascot();
+  for(const field of data.CHOICE_FIELDS)assert.ok(data.validChoice(field,m[field]),`random ${field}`);
+  for(const [field,max] of Object.entries(data.TEXT_FIELDS))assert.ok(m[field].length<=max,`random ${field} fits`);
+  assert.ok(data.mascotReady(m));
+ }
+});
+
+test('the character stands in for you wherever your name is, and is designed without a signal',async()=>{
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {PAGES,moreIds}=await import('../src/nav-data.js');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const maker=await readFile(new URL('../src/MascotMaker.jsx',import.meta.url),'utf8');
+ const missions=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ const spending=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ assert.ok(moreIds({name:'Nate',role:'child'}).includes('mascot'),'the boys can reach it');
+ assert.ok(moreIds({name:'Lauren',role:'parent'}).includes('mascot'));
+ assert.match(PAGES.mascot.note,/character/);
+ assert.deepEqual(ensureFeatures({...seed}).mascots,{},'a trip with no characters still loads');
+ assert.equal(ensureFeatures({...seed,mascots:{Nate:{name:'コン'}}}).mascots.Nate.name,'コン');
+ // Designing one is recording something new, so it waits on the phone like any other progress,
+ // and it stands beside the name straight away rather than waiting for the sync.
+ assert.match(main,/'mascotSave','mascotRemove'\]/);
+ const {pendingProgress}=await import('../src/trip-features.js');
+ const queued=[{operation:{type:'mascotSave',person:'Nate',mascot:{name:'コン',shape:'fox'},at:'2026-09-21T02:00:00.000Z'}}];
+ assert.equal(pendingProgress(seed,queued).mascots.Nate.name,'コン');
+ assert.equal(pendingProgress({...seed,mascots:{Nate:{name:'コン'}}},[{operation:{type:'mascotRemove',person:'Nate'}}]).mascots.Nate,undefined);
+ // The avatar, the family list, the missions and the purse all show it rather than a letter.
+ assert.match(main,/<MascotBadge state=\{state\} person=\{user\.name\} size=\{38\}\/>/);
+ assert.match(main,/family-people.*MascotBadge/);
+ assert.match(missions,/<MascotBadge state=\{state\} person=\{n\} size=\{26\}\/>/);
+ assert.match(spending,/<MascotBadge state=\{state\} person=\{n\} size=\{26\}\/>/);
+ // Guided: a spirit lays out a whole look, and re-choosing the one you have keeps your changes.
+ assert.match(maker,/const chooseTheme=id=>set\(id===draft\.theme\?\{theme:id\}:\{theme:id,\.\.\.themeFor\(id\)\.suggest\}\);/);
+ assert.match(maker,/type:'mascotSave',person,mascot/);
+});
