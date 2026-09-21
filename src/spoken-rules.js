@@ -61,7 +61,8 @@ export const PAGE_RULES={
  updates:'Family updates. Anything that has changed about the plan, and who has seen it.',
  search:'Search everything. Type anything at all and it looks through the whole app for it.',
  mascot:'Our characters. Make your own Japanese character. Pick what it is, then its colours, its eyes, its mouth and what it holds, and give it a name.',
- thanks:'Notes for Lauren. This one is Dad writing notes for Mum, so there is nothing in here for you.'
+ thanks:'Notes for Lauren. This one is Dad writing notes for Mum, so there is nothing in here for you.',
+ settings:'Settings. Every morning the phone shows you a new Japanese phrase, and a fun fact about where we are going. If you would rather it did not, tap the big button beside one and it will stop. Tap it again and it comes back. All the phrases and all the facts are still there whenever you want them.'
 };
 export const gameRule=id=>GAME_RULES[id]||'';
 export const pageRule=id=>PAGE_RULES[id]||'';

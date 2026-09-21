@@ -5589,3 +5589,52 @@ test('the pad keeps the lines, not the pixels, and the drawing that is saved has
  assert.match(store,/sort\(\(a,b\)=>String\(b\.at\)\.localeCompare\(String\(a\.at\)\)\)/,'newest first, like everything else that is a list of what we did');
  assert.match(store,/catch\{return \[\];\}/,'a phone with storage turned off says nothing is kept rather than breaking');
 });
+
+test('the two pop-ups can be turned off, one at a time, by the person they interrupt',async()=>{
+ const {SETTINGS,DEFAULTS,readSettings,writeSetting,settingOn}=await import('../src/settings.js');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const page=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
+ const store=(saved={})=>({getItem:k=>saved[k]??null,setItem:(k,v)=>{saved[k]=v;},saved});
+ // Nothing is off until somebody says so, so a phone that never opens this page behaves
+ // exactly as it always did.
+ assert.deepEqual(DEFAULTS,{dailyPhrase:true,dailyFact:true});
+ assert.deepEqual(readSettings('Nate',store()),DEFAULTS);
+ // One at a time: turning the fun fact off leaves the phrase alone, which is the whole point
+ // of two switches rather than one.
+ const phone=store();
+ assert.deepEqual(writeSetting('Nate','dailyFact',false,phone),{dailyPhrase:true,dailyFact:false});
+ assert.deepEqual(readSettings('Nate',phone),{dailyPhrase:true,dailyFact:false});
+ // Under the person's own name. Two boys sharing a phone do not share an opinion about a
+ // pop-up, and switching one off must never switch it off for somebody else.
+ assert.deepEqual(readSettings('Boston',phone),DEFAULTS);
+ assert.deepEqual(Object.keys(phone.saved),['japan.settings.Nate']);
+ // It is a preference, not a fact about the trip: it lives on the phone, so it holds in a
+ // tunnel with no signal and is never sent anywhere.
+ assert.ok(!/mutate|fetch\(/.test(await readFile(new URL('../src/settings.js',import.meta.url),'utf8')));
+ // A phone with storage turned off, a half-written key, or a setting from a version that has
+ // not shipped yet: all of them fall back to the default rather than switching something off.
+ assert.deepEqual(readSettings('Nate',null),DEFAULTS);
+ assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'not json at all'})),DEFAULTS);
+ assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'{"dailyFact":"no"}'})),DEFAULTS);
+ assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'{"dailyLater":false}'})),DEFAULTS);
+ assert.deepEqual(writeSetting('Nate','dailyLater',false,phone),{dailyPhrase:true,dailyFact:false},'a setting nothing knows about is not written');
+ assert.equal(settingOn(undefined,'dailyFact'),true,'before anything is read, everything is still on');
+ // And the switches are actually wired to the pop-ups. Off counts as done with it, so the
+ // phrase never opens — and the fun fact behind it stops waiting on a phrase that is never
+ // coming, rather than being turned off along with it.
+ assert.match(main,/const phraseDone=!settingOn\(settings,'dailyPhrase'\)\|\|!todaysPhrase/);
+ assert.match(main,/const factDone=!settingOn\(settings,'dailyFact'\)\|\|!todaysFact/);
+ // Read while rendering rather than in an effect. The bug this replaces: the person arrives a
+ // moment after the first render, and settings fetched in an effect land in the same commit as
+ // the pop-up's own effect — so the phrase opened on the defaults and somebody who switched it
+ // off last night was shown it anyway.
+ assert.match(main,/const settings=useMemo\(\(\)=>readSettings\(user\?\.name\),\[user\?\.name,settingsAt\]\)/);
+ // Every switch says what it is, both ways round, and what stays behind either way — because
+ // what stops somebody turning a thing off is not knowing what else goes with it.
+ for(const s of SETTINGS){
+  assert.ok(s.label&&s.on&&s.off,`${s.id} is missing its label or its two lines`);
+  assert.match(s.off,/stays under More|Show me another/,`${s.id} does not say what is left when it is off`);
+ }
+ // It is a switch to a screen reader too, not a button whose meaning is in the word beside it.
+ assert.match(page,/role="switch" aria-checked=\{on\} aria-label=\{s\.label\}/);
+});

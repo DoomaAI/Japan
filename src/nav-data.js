@@ -27,7 +27,8 @@ export const PAGES={
  updates:{label:'Family updates',note:'What changed and who has seen it'},
  search:{label:'Search everything',note:'Find a booking, note, shop or guide page'},
  mascot:{label:'Our characters',note:'Design your own Japanese character and use it in the app'},
- thanks:{label:'Notes for Lauren',note:'Write and schedule her daily pop-up notes'}
+ thanks:{label:'Notes for Lauren',note:'Write and schedule her daily pop-up notes'},
+ settings:{label:'Settings',note:'Turn the daily phrase or the daily fun fact off'}
 };
 // The five that earn a place in the bottom bar, by who is holding the phone. Parents reach
 // for tickets and prices; the boys reach for their missions. Everything else lives in More.
@@ -39,7 +40,7 @@ export const MORE_SECTIONS=[
  ['Out and about',['weather','places','money','spending','food','phrases','facts','meeting','help']],
  ['The plan',['todo','planning','options','parks','shopping','challenges','games','tickets','inbox','guide']],
  ['Looking back',['photos','diary','updates','search']],
- ['Just for you',['mascot','thanks']]
+ ['Just for you',['mascot','thanks','settings']]
 ];
 export const primaryNav=user=>PRIMARY[user?.role==='child'?'child':'parent'];
 const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(id!=='inbox'||user?.role==='parent');

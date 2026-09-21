@@ -16,6 +16,8 @@ import FunFacts,{FactOfDay} from './FunFacts.jsx';
 import {factForDay} from './fact-data.js';
 import {factSeenBy,factQueue} from './trip-features.js';
 import {PHRASES} from './phrases.js';
+import Settings from './Settings.jsx';
+import {readSettings,writeSetting,settingOn} from './settings.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
 import {primaryNav,moreIds,PAGES} from './nav-data.js';
 import {pageRule} from './spoken-rules.js';
@@ -43,10 +45,10 @@ import EmailInbox from './EmailInbox.jsx';
 import PhotoDay from './PhotoDay.jsx';
 import MascotMaker from './MascotMaker.jsx';
 import {MascotBadge} from './Mascot.jsx';
-import React,{useEffect,useRef,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
-import {ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Settings,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Archive,ArchiveRestore,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon} from 'lucide-react';
+import {ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Archive,ArchiveRestore,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon} from 'lucide-react';
 import {activeSteps,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent} from './timing.js';
 import {todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,ticketList,isArchived,attachmentsOf} from './trip-features.js';
 import {armPlayback} from './speech.js';
@@ -169,6 +171,16 @@ function App(){
  }
  const visibleState=state?pendingProgress(state,queue):null;
  const [photoPerson,setPhotoPerson]=useState(()=>new URLSearchParams(location.search).get('who')||'');
+ // What this person has asked not to be shown, kept on their own phone and read under their
+ // own name, because two people sharing a phone do not share an opinion about a pop-up.
+ //
+ // Read while rendering rather than in an effect. The bug that costs: the person arrives with
+ // the trip, a moment after the first render, and an effect that goes and fetches their
+ // settings afterwards runs in the same commit as the pop-up's own effect — so the phrase
+ // opens on the defaults and the person who switched it off last night sees it anyway.
+ const [settingsAt,bumpSettings]=useState(0);
+ const settings=useMemo(()=>readSettings(user?.name),[user?.name,settingsAt]);
+ const changeSetting=(id,value)=>{writeSetting(user?.name,id,value);bumpSettings(n=>n+1);};
  const forecast=useForecastCheck({state:visibleState||{days:[]},day:null,mutate,notice});
  const today=state?.days.find(d=>d.date===day),steps=visibleState?activeSteps(visibleState,day):[],current=steps.find(s=>s.id===selected)||steps.find(s=>!['done','skipped'].includes(s.status))||steps.at(-1),index=steps.findIndex(s=>s.id===current?.id);
  const done=steps.filter(s=>s.status==='done').length,nextFixed=steps.find(s=>s.locked&&!['done','skipped'].includes(s.status)&&s.id!==current?.id),groups=state?[...new Set(state.steps.filter(s=>s.day===day&&s.group).map(s=>s.group))]:[];
@@ -221,7 +233,9 @@ function App(){
  const todayJapan=japanDate(now);
  const dayOnTrip=state?.days.some(d=>d.date===todayJapan)?todayJapan:null;
  const todaysPhrase=dayOnTrip?phraseForDay(state.days,dayOnTrip):null;
- const phraseDone=!todaysPhrase||!!phraseSeenBy(state,dayOnTrip)[user?.name]||localStorage.getItem(`japan.phrase.${dayOnTrip}`)==='seen';
+ // Turned off under Settings counts as done with it: the pop-up never opens, and the fun
+ // fact behind it stops waiting on a phrase that is never coming.
+ const phraseDone=!settingOn(settings,'dailyPhrase')||!todaysPhrase||!!phraseSeenBy(state,dayOnTrip)[user?.name]||localStorage.getItem(`japan.phrase.${dayOnTrip}`)==='seen';
  useEffect(()=>{
   // It waits for a clear screen, so it lands after her note is closed rather than on top of it.
   if(!todaysPhrase||phraseDone||modal||phraseSeen.current===dayOnTrip)return;
@@ -237,7 +251,7 @@ function App(){
  // behind Lauren's note and the phrase rather than stacking on top of either, so a morning
  // never opens onto three pop-ups at once.
  const todaysFact=dayOnTrip?factForDay(state.days,dayOnTrip):null;
- const factDone=!todaysFact||!!factSeenBy(state,dayOnTrip)[user?.name]||localStorage.getItem(`japan.fact.${dayOnTrip}`)==='seen';
+ const factDone=!settingOn(settings,'dailyFact')||!todaysFact||!!factSeenBy(state,dayOnTrip)[user?.name]||localStorage.getItem(`japan.fact.${dayOnTrip}`)==='seen';
  useEffect(()=>{
   if(!todaysFact||factDone||modal||factShown.current===dayOnTrip)return;
   if(noteForMe&&!noteRead)return;
@@ -321,6 +335,7 @@ function App(){
   {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><FoodList state={visibleState} user={user} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal}/></>}
   {tab==='thanks'&&user.name===THANK_YOU_FROM&&<ThankYouEditor state={state} mutate={mutate} busy={busy}/>}
+  {tab==='settings'&&<Settings user={user} settings={settings} change={changeSetting}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
   {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go}/>}
