@@ -17,23 +17,25 @@ export function StepArt({frame,size}){
  const done=frame?.now?.length?frame.now:[];
  return <svg className="draw-art" viewBox="0 0 100 100" width={size} height={size} role="img"
   aria-label={frame?.say||'Drawing step'}>
-  {(frame?.past||[]).map((shape,i)=><path key={`p${i}`} d={pathOf(shape)} fill="none"
-   stroke={shape.guide?GUIDE:INK} strokeWidth={shape.guide?0.9:1.6}
+  {(frame?.past||[]).map((shape,i)=><path key={`p${i}`} d={pathOf(shape)} fill={shape.fill||'none'}
+   stroke={shape.guide?GUIDE:INK} strokeWidth={(shape.guide?0.9:1.6)*(shape.weight||1)}
    strokeDasharray={shape.guide?'3 3':undefined} strokeLinecap="round" strokeLinejoin="round"/>)}
-  {done.map((shape,i)=><path key={`n${frame.index}-${i}`} className="draw-now" d={pathOf(shape)} fill="none"
-   stroke={frame.guide?GUIDE:INK} strokeWidth={frame.guide?0.9:1.8} pathLength="1"
+  {done.map((shape,i)=><path key={`n${frame.index}-${i}`} className={shape.fill?'draw-now filled':'draw-now'}
+   d={pathOf(shape)} fill={shape.fill||'none'}
+   stroke={frame.guide?GUIDE:INK} strokeWidth={(frame.guide?0.9:1.8)*(shape.weight||1)} pathLength="1"
    strokeLinecap="round" strokeLinejoin="round" style={{animationDelay:`${i*0.45}s`}}/>)}
  </svg>;
 }
 // The finished line work, flat: what a tracing sits under and what a colouring-in goes inside.
-const ArtLayer=({shapes,className,stroke=INK,width=1.7})=>
+const ArtLayer=({shapes,className,stroke=INK,width=1.7,ghost})=>
  <svg className={className} viewBox="0 0 100 100" aria-hidden="true">
-  {shapes.map((shape,i)=><path key={i} d={pathOf(shape)} fill="none" stroke={stroke} strokeWidth={width}
+  {shapes.map((shape,i)=><path key={i} d={pathOf(shape)} fill={shape.fill?ghost?stroke:shape.fill:'none'}
+   fillOpacity={shape.fill&&ghost?0.35:undefined} stroke={stroke} strokeWidth={width*(shape.weight||1)}
    strokeLinecap="round" strokeLinejoin="round"/>)}</svg>;
 // The same lines again as a file, for saving: a canvas cannot draw a React element, and the
 // drawing that gets kept has to have the lines in it or a colouring-in is a page of scribble.
 const svgMarkup=(shapes,stroke,width)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="1000" height="1000">${
- shapes.map(s=>`<path d="${pathOf(s)}" fill="none" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</svg>`;
+ shapes.map(s=>`<path d="${pathOf(s)}" fill="${s.fill||'none'}" stroke="${stroke}" stroke-width="${width*(s.weight||1)}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</svg>`;
 const loadSvg=markup=>new Promise((resolve,reject)=>{
  const image=new Image();
  image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('The lines could not be drawn into the picture.'));
@@ -95,7 +97,7 @@ export function DrawPad({subject,under,pen,nib,erasing,strokes,setStrokes,padRef
  };
  const up=()=>{drawing.current=null;};
  return <div className="draw-pad">
-  {under==='trace'&&<ArtLayer className="draw-under" shapes={art} stroke={GHOST} width={1.8}/>}
+  {under==='trace'&&<ArtLayer className="draw-under" shapes={art} stroke={GHOST} width={1.8} ghost/>}
   <canvas ref={canvas} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onPointerLeave={up}/>
   {under==='colour'&&<ArtLayer className="draw-over" shapes={art}/>}
  </div>;
