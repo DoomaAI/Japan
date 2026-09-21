@@ -18,6 +18,9 @@ import Shiritori from './Shiritori.jsx';
 import Kingyo from './Kingyo.jsx';
 import Picross from './Picross.jsx';
 import Gomoku from './Gomoku.jsx';
+import Kendama from './Kendama.jsx';
+import Beigoma from './Beigoma.jsx';
+import Hanafuda from './Hanafuda.jsx';
 const PAIRS=6;
 // Dragging one tile onto another, with a tap still meaning what it meant. Pointer events
 // cover a finger and a mouse alike; the target is found from where the finger actually
@@ -904,6 +907,12 @@ const GAMES=[
   story:'The genuinely Japanese puzzle, and the reason this mark exists at all. Two people invented nonograms independently in Japan in 1987 — Non Ishida, who won a competition with it, and Tetsuya Nishio — and it went out from there. Sudoku is the opposite story: American, out of Indianapolis in 1979, named and made famous in Japan, and called Japanese ever since.'},
  {id:'gomoku',title:'Five in a row',ease:3,ja:'五目並べ',origin:'traditional',needs:OFFLINE,Component:Gomoku,
   story:'Played in Japan for centuries and formalised here as renju in 1899 — but games of five-in-a-row are older than that and are not only Japanese, so it is traditional here rather than invented here. The mark exists to stop that sort of thing being fudged, and it would be a poor showing to fudge it on this one.'},
+ {id:'kendama',title:'Kendama',ease:2,ja:'けん玉',origin:'traditional',needs:OFFLINE,Component:Kendama,
+  story:'The cup-and-ball came to Japan from abroad, but the shape everybody means by kendama — the crosspiece with a big cup one side and a small cup the other — was designed in Hiroshima in 1919, and the trick names and the grading behind them are entirely Japanese. Those names are why it is in here: it teaches them the way the sumo game teaches the ranks, by making you say one before you can do it.'},
+ {id:'beigoma',title:'Spinning tops',ease:1,ja:'べーごま',origin:'traditional',needs:OFFLINE,Component:Beigoma,
+  story:'Small cast-iron tops thrown into a ring — a barrel with a cloth stretched over it, and the cloth sags so they find each other. Children have played it since the Edo period, and boys spent their pocket money filing and weighting their tops to make them last a bout longer. The whole skill is in the throw: once it has left your hand you are a spectator, which is why this is one flick and then watching.'},
+ {id:'hanafuda',title:'Hanafuda',ease:3,ja:'花札',origin:'traditional',needs:OFFLINE,Component:Hanafuda,
+  story:'Flower cards: forty-eight of them, twelve months, four cards a month, played in Japan since the 1700s. The game here is こいこい, the two-handed one. It is the only game in here that teaches the twelve months and the flower that belongs to each, which is worth knowing somewhere half the sweets and half the place names are named after them.'},
  {id:'merge',title:'Onigiri to Fuji',ease:2,needs:OFFLINE,Component:Merge},
  {id:'remember',title:'What we did',ease:2,needs:OFFLINE,Component:Remember},
  {id:'sights',title:'Japan pairs',ease:1,needs:OFFLINE,Component:Sights},
@@ -930,7 +939,7 @@ const BANDS=[
 ];
 // Which of them are the old Japanese games and which are not. The distinction is already drawn
 // on every card; this turns it into a way to choose, because "show me a real Japanese one" is a
-// thing both boys ask for and there was no way to answer it but to read all twenty-one names.
+// thing both boys ask for and there was no way to answer it but to read every name in the list.
 const FILTERS=[
  ['all','All games',()=>true],
  ['traditional','Traditional Japanese',g=>g.origin==='traditional'],

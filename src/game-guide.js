@@ -162,6 +162,53 @@ export const GAME_GUIDES={
   ],
   win:'The first one to get five in a row has won.'
  },
+ kendama:{
+  objective:'Pull the ball into the air and catch it on the cup. A kendama is a wooden handle with three cups and a spike, and a ball on a string. Land one trick and you move on to a harder one.',
+  setup:[
+   'Pick Tricks, which walks up through them one at a time, or moshikame, which is the same two catches over and over for as long as you can keep going.',
+   'The trick you are on is written above the picture, with its Japanese name, what that means, and where the ball has to land.'
+  ],
+  rules:[
+   'Swipe your finger up the picture to pull the ball up. How far you swipe is how hard you pull, so a small swipe is a small throw.',
+   'Then watch it come back down.',
+   'Tap Catch at the moment it lands on the cup. The pull and the catch both have to be right.',
+   'Pull too hard, too softly, or tap too early, and you miss. The phone tells you which it was.',
+   'A trick you land is ticked off, and the next one is harder than the last.'
+  ],
+  win:'In Tricks you finish by landing every one of them. In moshikame there is no finish, only how many you can do in a row.'
+ },
+ beigoma:{
+  objective:'Throw your little iron top into the ring and be the last one still spinning. Children in Japan have played this since the Edo period.',
+  setup:[
+   'Pick your top. Heavy spins the longest and is very hard to shift, but it cannot knock anybody out. Plain is the one out of the packet. Light is quick and can flip the other one out, if it lasts long enough to.',
+   'The ring is a barrel with a cloth stretched over it. The cloth sags in the middle, which is what makes the two tops find each other.'
+  ],
+  rules:[
+   'Flick your finger across the ring to throw your top in.',
+   'Which way you flick is where it comes in from, and how far you flick is how hard it was wound.',
+   'Then you watch. Once it has left your hand there is nothing else you can do, and that is the game.',
+   'The tops slide down the sag in the cloth and bump into each other.',
+   'A top that stops spinning is out, and so is a top knocked outside the ring.'
+  ],
+  win:'You win if his top stops first or goes out of the ring. Beating a better top than yours is worth more.'
+ },
+ hanafuda:{
+  objective:'Hanafuda means flower cards. Collect cards that go together in sets, and stop while you are worth more than he is. The game here is koi koi, the one for two people.',
+  setup:[
+   'Forty-eight cards: twelve months, four cards for each month, and every card has that month\u2019s flower on it.',
+   'Some cards are dealt face up on the table, and you are given a hand of your own.',
+   'The month is the only thing that matters for matching. Nothing else on the card does.'
+  ],
+  rules:[
+   'Pick a card from your hand. If a card of the same month is on the table, you take them both.',
+   'Then the top card of the deck is turned over and does the same thing.',
+   'If there is nothing of that month on the table, the card stays there for later.',
+   'Certain sets of cards are worth points, and the phone names the set when you make one.',
+   'The moment you score you have a choice. Stop, and the points are yours. Or say koi koi and keep playing, which doubles what the round is worth.',
+   'He plays the same way, so saying koi koi once too often can leave you with nothing at all.'
+  ],
+  win:'Stop while you are ahead and you keep the points. Carry on too long and he stops first and takes the round.'
+ },
  merge:{
   objective:'Join two of the same thing together, over and over, until you get all the way up to Mount Fuji. It starts at an onigiri, which is a rice ball.',
   setup:['Nothing to set up. Two tiles are already on the board when you open it.'],

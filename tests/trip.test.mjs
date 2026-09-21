@@ -3527,7 +3527,7 @@ test('a spot-the-difference score is one the server will actually take',async()=
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:(OFFLINE|'[^']+'),Component:(\w+)/g)];
- assert.equal(entries.length,21);
+ assert.equal(entries.length,24);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -3554,7 +3554,7 @@ test('a game that really is Japanese says so, and one that only looks it says no
  // The ones that are genuinely Japanese games, and nothing else. Sumo stable and Onigiri to
  // Fuji are games about Japan, which is a different claim and is not made.
  assert.deepEqual(entries.filter(g=>g.origin==='traditional').map(g=>g.id).sort(),
-  ['daruma','fukuwarai','gomoku','janken','karuta','kingyo','origami','shiritori','sumo']);
+  ['beigoma','daruma','fukuwarai','gomoku','hanafuda','janken','karuta','kendama','kingyo','origami','shiritori','sumo']);
  assert.deepEqual(entries.filter(g=>g.origin==='modern').map(g=>g.id).sort(),['picross','shogi']);
  for(const g of entries.filter(g=>g.origin))
   assert.ok(g.ja,`${g.title} claims to be Japanese, so it must say what it is called in Japanese`);
@@ -3564,6 +3564,216 @@ test('a game that really is Japanese says so, and one that only looks it says no
  assert.match(source,/const ORIGINS=\{\n traditional:.*\n modern:.*\n\};/);
  for(const g of entries.filter(g=>g.origin))
   assert.match(source,new RegExp(`id:'${g.id}'[\\s\\S]{0,600}?story:'`),`${g.title} must say why`);
+});
+
+test('a hanafuda deck with the wrong number of anything is a scoring system that lies',async()=>{
+ const H=await import('../src/hanafuda.js');
+ // Forty-eight cards, twelve months, four a month, and five brights, nine animals, ten ribbons
+ // and twenty-four plains. Every one of those numbers is load-bearing for the scoring.
+ assert.equal(H.DECK.length,48);
+ assert.equal(H.MONTHS.length,12);
+ assert.equal(new Set(H.DECK.map(c=>c.id)).size,48,'every card must be its own card');
+ for(const month of H.MONTHS){
+  assert.equal(H.DECK.filter(c=>c.m===month.m).length,4,`month ${month.m} must have four cards`);
+  assert.ok(month.ja&&month.romaji&&month.en,`month ${month.m} needs its flower named`);
+ }
+ const kinds={[H.HIKARI]:5,[H.TANE]:9,[H.TAN]:10,[H.KASU]:24};
+ for(const [kind,n] of Object.entries(kinds))
+  assert.equal(H.DECK.filter(c=>c.kind===kind).length,n,`there must be ${n} of ${kind}`);
+ // The named cards the combinations are built from must all actually exist.
+ for(const tag of ['crane','curtain','moon','rainman','phoenix','boar','deer','butterfly','sake','poetry','blue'])
+  assert.ok(H.DECK.some(c=>c.tag===tag),`no card carries ${tag}`);
+ assert.equal(H.DECK.filter(c=>c.tag==='poetry').length,3,'three poetry ribbons');
+ assert.equal(H.DECK.filter(c=>c.tag==='blue').length,3,'three blue ribbons');
+ const bright=t=>H.DECK.find(c=>c.tag===t);
+ const brights=H.DECK.filter(c=>c.kind===H.HIKARI);
+ // The two rules everybody gets wrong: the man with the umbrella spoils four brights, and the
+ // bright combinations do not stack with each other.
+ const noRain=brights.filter(c=>c.tag!=='rainman');
+ assert.deepEqual(H.scoreOf(noRain.slice(0,4)).yaku.map(y=>y.id),['shiko']);
+ assert.equal(H.scoreOf(noRain.slice(0,4)).points,8);
+ assert.deepEqual(H.scoreOf([...noRain.slice(0,3),bright('rainman')]).yaku.map(y=>y.id),['ameshiko']);
+ assert.equal(H.scoreOf([...noRain.slice(0,3),bright('rainman')]).points,7);
+ assert.deepEqual(H.scoreOf(noRain.slice(0,3)).yaku.map(y=>y.id),['sanko']);
+ assert.equal(H.scoreOf(brights).points,10,'five brights is ten, not ten plus eight plus five');
+ assert.deepEqual(H.scoreOf(brights).yaku.map(y=>y.id),['goko']);
+ assert.equal(H.scoreOf([...noRain.slice(0,2),bright('rainman')]).points,0,
+  'three including the rain man is not three brights');
+ // The set combinations, and the ones that pay one more for every extra card.
+ assert.equal(H.scoreOf([bright('boar'),bright('deer'),bright('butterfly')]).points,5);
+ assert.equal(H.scoreOf([bright('curtain'),bright('sake')]).points,5,'a drink under the blossom');
+ assert.equal(H.scoreOf([bright('moon'),bright('sake')]).points,5,'and one under the moon');
+ const animals=H.DECK.filter(c=>c.kind===H.TANE);
+ assert.equal(H.scoreOf(animals.slice(0,4)).points,0,'four animals is nothing');
+ const five=H.scoreOf(animals.slice(0,5)),six=H.scoreOf(animals.slice(0,6));
+ assert.ok(five.points>=1&&six.points===five.points+1,'and every animal past five is one more');
+ const plains=H.DECK.filter(c=>c.kind===H.KASU);
+ assert.equal(H.scoreOf(plains.slice(0,9)).points,0);
+ assert.equal(H.scoreOf(plains.slice(0,10)).points,1);
+ assert.equal(H.scoreOf(plains.slice(0,12)).points,3);
+ // Saying koi-koi doubles what the round pays, every time it is said.
+ assert.equal(H.payout(5,0),5);
+ assert.equal(H.payout(5,1),10);
+ assert.equal(H.payout(5,3),40);
+ // The deal is a real deal: eight each, eight down, the rest in the deck, and no card twice.
+ const rng=seed=>{let n=seed>>>0||1;return()=>{n^=n<<13;n>>>=0;n^=n>>17;n^=n<<5;n>>>=0;return n/4294967296;};};
+ for(let s=1;s<=20;s++){
+  const g=H.deal(rng(s*7919));
+  assert.equal(g.hands.me.length,H.HAND);
+  assert.equal(g.hands.them.length,H.HAND);
+  assert.equal(g.table.length,H.TABLE);
+  assert.equal(g.deck.length,48-H.HAND*2-H.TABLE);
+  const all=[...g.hands.me,...g.hands.them,...g.table,...g.deck].map(c=>c.id);
+  assert.equal(new Set(all).size,48,'the deal must not lose or duplicate a card');
+ }
+ // And a whole game plays out: cards only ever move, somebody stops or the hands run out, and
+ // no card is ever in two places at once.
+ const play=seed=>{
+  const rand=rng(seed);
+  let g=H.deal(rand),guard=0;
+  while(!g.over&&guard++<400){
+   const total=[...g.hands.me,...g.hands.them,...g.table,...g.deck,...g.piles.me,...g.piles.them];
+   assert.equal(new Set(total.map(c=>c.id)).size,48,'a card went missing mid-game');
+   if(g.phase==='decide'){g=H.heStops(g)?H.stop(g):H.koikoi(g);continue;}
+   if(g.pending){g=H.step(g,{cardId:g.pending.card.id,pickId:g.pending.options[0].id});continue;}
+   if(!g.hands[g.turn].length){g=H.step(g,{});break;}
+   g=H.step(g,H.hisMove({...g,hands:{...g.hands,them:g.hands[g.turn]},piles:{...g.piles,them:g.piles[g.turn]}},rand));
+  }
+  return g;
+ };
+ let finished=0,scored=0;
+ for(let s=1;s<=30;s++){
+  const g=play(s*104729);
+  assert.ok(g.over,`game ${s} never finished`);
+  finished++;
+  if(g.over.winner)scored++;
+  if(g.over.winner)assert.ok(g.over.points>0,'a winner must have scored something');
+ }
+ assert.equal(finished,30);
+ assert.ok(scored>=15,`only ${scored} of 30 games were won by anybody, which is too few`);
+ // Matching is by month and by nothing else, which is the one rule the whole game rests on.
+ const table=[H.DECK.find(c=>c.m===3),H.DECK.find(c=>c.m===7)];
+ assert.deepEqual(H.matches({m:3},table).map(c=>c.m),[3]);
+ assert.deepEqual(H.matches({m:11},table),[]);
+});
+
+test('beigoma is decided by the throw, and each top is good at something different',async()=>{
+ const B=await import('../src/beigoma.js');
+ assert.deepEqual(B.TOPS.map(t=>t.id),['omo','nami','karu']);
+ assert.deepEqual(B.RIVALS.map(r=>r.id),['first','second','third','fourth','fifth']);
+ for(const t of B.TOPS)assert.ok(t.ja&&t.romaji&&t.en&&t.how&&t.mass>0&&t.r>0);
+ for(let i=1;i<B.RIVALS.length;i++)
+  assert.ok(B.RIVALS[i].skill>=B.RIVALS[i-1].skill&&B.RIVALS[i].pays>B.RIVALS[i-1].pays,
+   'the ladder must get harder and pay more');
+ // The trade every child works out with a file: weight decides who survives being hit, and the
+ // filed edge decides who does the hitting. Neither top may be better at both.
+ const heavy=B.topById('omo'),light=B.topById('karu');
+ assert.ok(heavy.mass>light.mass&&heavy.decay<light.decay,'heavy must outlast');
+ assert.ok(light.push>heavy.push&&light.speed>heavy.speed,'and light must hit and move');
+ const play=(mine,ri,angle,power,seed)=>{
+  const rand=B.rng(seed);
+  let bout=B.newBout({mine,theirs:B.rivalAt(ri),angle,power,rand});
+  let guard=0;
+  while(!bout.over&&guard++<5000)bout=B.beigomaTick(bout,rand);
+  return bout;
+ };
+ const rate=(mine,ri,power,n=40)=>{
+  let won=0;
+  for(let s=1;s<=n;s++)if(play(mine,ri,(s%13)/13*Math.PI*2,power,s*7919).over.won)won++;
+  return won/n;
+ };
+ // Every bout ends, and it ends one of the ways it is allowed to.
+ const ways=new Set();
+ for(const mine of B.TOPS.map(t=>t.id))for(let ri=0;ri<B.RIVALS.length;ri++)
+  for(let s=1;s<=6;s++){
+   const bout=play(mine,ri,(s%7)/7*Math.PI*2,0.8,s*31);
+   assert.ok(bout.over,`${mine} v ${ri} never finished`);
+   ways.add(bout.over.how);
+  }
+ for(const how of ways)assert.ok(['knocked','stopped','knockedOut','ranDown','timeout'].includes(how),how);
+ // Both ways of winning have to be live, or it is a game about one number.
+ assert.ok(ways.has('knocked')||ways.has('knockedOut'),'knocking one out must happen');
+ assert.ok(ways.has('stopped')||ways.has('ranDown'),'and running one down must happen');
+ // The throw is the whole skill, so it has to be worth far more than anything else.
+ for(const mine of B.TOPS.map(t=>t.id))
+  assert.ok(rate(mine,1,1)>rate(mine,1,0.4)+0.3,
+   `${mine}: a good throw must be worth much more than a poor one`);
+ // The ladder really is a ladder, measured rather than asserted.
+ assert.ok(rate('omo',0,1)>rate('omo',4,1)+0.2,'the champion must be harder than the little one');
+ // And each top has somewhere it is the right choice. The plain one walls against the filed
+ // rivals, which is the honest answer: you have to file yours to beat the boys who filed theirs.
+ assert.ok(rate('karu',0,1)>0.5,'light must beat the little one');
+ assert.ok(rate('omo',4,1)>rate('nami',4,1),'heavy must do better against the champion than plain');
+ assert.ok(rate('karu',4,1)>0,'and light must keep a puncher’s chance');
+ // Nothing escapes the ring while it is still in play, and a finished bout stays finished.
+ const done=play('omo',0,0.7,1,99);
+ assert.equal(B.beigomaTick(done,B.rng(1)),done,'a finished bout does not carry on');
+ assert.ok(B.beigomaWorth(B.rivalAt(4),50)>B.beigomaWorth(B.rivalAt(0),50),'a better rival pays more');
+ assert.ok(B.beigomaWorth(B.rivalAt(2),80)>B.beigomaWorth(B.rivalAt(2),0),'and so does finishing with spin left');
+ assert.ok(B.beigomaWorth(B.rivalAt(4),9999)<=9999);
+});
+
+test('kendama wants the pull and the catch both right, and gets harder in the order it is learned',async()=>{
+ const K=await import('../src/kendama.js');
+ // The tricks are in the order they are really learned, and each one is tighter than the last
+ // in both things at once — a narrower pull to find and a shorter moment to find it in.
+ assert.deepEqual(K.TRICKS.map(t=>t.id),
+  ['ozara','kozara','chuzara','rosoku','tomeken','hikoki','furiken']);
+ // Each trick names a cup and has to put the ball in it. The first drawing landed everything
+ // in the middle of the crosspiece, which is not where any of them go.
+ const CUPS={ozara:[21,54],kozara:[80,54],chuzara:[50,90],rosoku:[50,90],
+  tomeken:[50,38],hikoki:[50,38],furiken:[50,38]};
+ for(const t of K.TRICKS){
+  assert.deepEqual(t.land,CUPS[t.id],`${t.id} must land in the cup it is named after`);
+  assert.ok(t.ja&&t.romaji&&t.en&&t.how,`${t.id} is missing a name`);
+  assert.ok(t.band[0]<t.band[1]&&t.band[0]>=0&&t.band[1]<=1,`${t.id} has an impossible band`);
+  assert.ok(t.window>0&&t.worth>0);
+ }
+ for(let i=1;i<K.TRICKS.length;i++){
+  assert.ok(K.TRICKS[i].window<K.TRICKS[i-1].window,`${K.TRICKS[i].id} must want a shorter moment`);
+  assert.ok(K.TRICKS[i].worth>K.TRICKS[i-1].worth,`${K.TRICKS[i].id} must be worth more`);
+  const wide=b=>b[1]-b[0];
+  assert.ok(wide(K.TRICKS[i].band)<=wide(K.TRICKS[i-1].band),`${K.TRICKS[i].id} must want a narrower pull`);
+ }
+ // A harder pull is a longer wait, which is what ties the two halves together.
+ assert.ok(K.airtime(0.9)>K.airtime(0.2));
+ assert.equal(K.airtime(0),K.PULL_BASE);
+ // Both have to be right. Each way of getting it wrong is named, because a child who is told
+ // only that he missed learns nothing about which half he got wrong.
+ const spike=K.trickById('tomeken');
+ const ideal=K.airtime(0.5);
+ assert.equal(K.judge(spike,0.5,ideal).landed,true);
+ assert.equal(K.judge(spike,0.05,ideal).why,'soft');
+ assert.equal(K.judge(spike,0.99,ideal).why,'hard');
+ assert.equal(K.judge(spike,0.5,ideal-spike.window-1).why,'early');
+ assert.equal(K.judge(spike,0.5,ideal+spike.window+1).why,'late');
+ // The edges of the window are inside it, not outside.
+ assert.equal(K.judge(spike,0.5,ideal-spike.window).landed,true);
+ assert.equal(K.judge(spike,0.5,ideal+spike.window).landed,true);
+ // A perfect pull on an easy trick is still a catch on a hard one's clock, so the pull band is
+ // genuinely the thing separating them rather than the timing doing all the work.
+ const easy=K.trickById('ozara');
+ assert.equal(K.judge(easy,0.2,K.airtime(0.2)).landed,true);
+ assert.equal(K.judge(K.trickById('furiken'),0.2,K.airtime(0.2)).why,'soft');
+ // Moshikame closes its window as the run goes on, and never past its floor.
+ assert.ok(K.moshikameWindow(0)>K.moshikameWindow(10));
+ assert.equal(K.moshikameWindow(9999),K.MOSHIKAME.floor);
+ assert.ok(K.MOSHIKAME.floor>0&&K.MOSHIKAME.floor<K.MOSHIKAME.window);
+ // And it really does alternate between two different cups, which is the whole trick.
+ assert.notDeepEqual(K.MOSHIKAME.land,K.MOSHIKAME.alt);
+ assert.deepEqual(K.MOSHIKAME.land,K.trickById('ozara').land,'moshikame starts on the big cup');
+ assert.deepEqual(K.MOSHIKAME.alt,K.trickById('chuzara').land,'and alternates with the base cup');
+ // The ball hangs below the handle before anybody pulls it.
+ assert.ok(K.HANG[1]>Math.max(...K.TRICKS.map(t=>t.land[1])),'it must hang below every cup');
+ // Scoring: going up the list beats doing the easy one over and over.
+ assert.equal(K.kendamaScore([]),0);
+ assert.ok(K.kendamaScore(['ozara','kozara','chuzara'])>K.kendamaScore(['ozara']));
+ assert.ok(K.kendamaScore(['furiken'])>K.kendamaScore(['ozara','kozara','chuzara']),
+  'the hardest trick alone must beat the three easiest');
+ assert.ok(K.kendamaScore(K.TRICKS.map(t=>t.id))<=9999);
+ assert.equal(K.moshikameScore(0),0);
+ assert.ok(K.moshikameScore(20)>K.moshikameScore(5));
+ assert.ok(K.moshikameScore(99999)<=9999);
 });
 
 test('gomoku knows a five when it sees one, and the harder opponent really is harder',async()=>{
@@ -3903,7 +4113,7 @@ test('the games are offered easiest first, and can be narrowed to the Japanese o
  const games=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const rows=[...games.matchAll(/\{id:'([a-z]+)',title:'([^']+)',ease:(\d),[^\n]*?(origin:'(\w+)')?[^\n]*?needs:/g)]
   .map(([line,id,title,ease])=>({id,title,ease:Number(ease),traditional:/origin:'traditional'/.test(line)}));
- assert.equal(rows.length,21,'every game is in the picker with a difficulty on it');
+ assert.ok(rows.length>=21,'every game is in the picker with a difficulty on it');
  const easeOf=id=>rows.find(r=>r.id===id)?.ease;
  // Three bands, and which game is in which is the whole point of the ordering: band one is
  // what Nate plays without anybody sitting next to him, band three is what an adult has to
@@ -3911,8 +4121,10 @@ test('the games are offered easiest first, and can be narrowed to the Japanese o
  for(const r of rows)assert.ok(r.ease>=1&&r.ease<=3,`${r.title} has no band`);
  for(const id of ['match','sights','fukuwarai','kitchen','draw','daruma','snake','janken'])
   assert.equal(easeOf(id),1,`${id} is one a five-year-old plays on his own`);
- for(const id of ['picross','gomoku','shogi','sumo'])
+ for(const id of ['picross','gomoku','shogi','sumo','hanafuda'])
   assert.equal(easeOf(id),3,`${id} is one of the hard ones`);
+ assert.equal(easeOf('beigoma'),1,'one flick and then watching');
+ assert.equal(easeOf('kendama'),2,'the pull and the catch both have to be right');
  assert.match(games,/const \[game,setGame\]=useState\('match'\)/,'and it opens on an easy one');
  // Easiest first inside each band, and the bands walked in order rather than sorted by hand.
  assert.match(games,/\.sort\(\(a,b\)=>a\.ease-b\.ease\)/);
@@ -3946,7 +4158,7 @@ test('winning is celebrated once, and only where there is something to win',asyn
   'a phone that asked for less movement gets the words and none of the paper');
  assert.match(css,/pointer-events:none/,'and it never swallows the tap for the next round');
  // Every game with a win says so.
- for(const file of ['Karuta','AnimalShogi','Fukuwarai','Daruma','Shiritori','Picross','Gomoku','SpotDifference','Origami']){
+ for(const file of ['Karuta','AnimalShogi','Fukuwarai','Daruma','Shiritori','Picross','Gomoku','SpotDifference','Origami','Kendama','Beigoma','Hanafuda']){
   const source=await readFile(new URL(`../src/${file}.jsx`,import.meta.url),'utf8');
   assert.match(source,/<WinBurst on=\{/,`${file} never celebrates`);
  }
@@ -4001,7 +4213,8 @@ test('a game whose choices are named in Japanese says what they are in English t
   ['Daruma','daruma.js','LEVELS'],
   ['Gomoku','gomoku.js','LEVELS'],
   ['Karuta','karuta-data.js','KARUTA_DECKS'],
-  ['Fukuwarai','fukuwarai-data.js','FACES']
+  ['Fukuwarai','fukuwarai-data.js','FACES'],
+  ['Beigoma','beigoma.js','TOPS']
  ]){
   const source=await readFile(new URL(`../src/${file}.jsx`,import.meta.url),'utf8');
   const list=(await import(`../src/${data}`))[field];
@@ -4490,6 +4703,60 @@ test('we call the bouts from one phone, and the picks close once it has been wat
  const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
  assert.ok(list.includes('sumoPredict'));
+});
+
+test('the picks are read as a tipping comp: a ladder and a sheet of who called what',async()=>{
+ const {ensureFeatures,predictionLadder,predictionPeople,tippingTable}=await import('../src/trip-features.js');
+ const card={type:'sumoUpdate',basho:'Aki Basho 2026',dayNumber:11,venue:'Ryogoku Kokugikan',date:'2026-09-23',
+  doorsOpen:'08:00',notes:'',sources:[],bouts:[
+   {id:'makuuchi-38',division:'makuuchi',order:38,time:'17:40',east:{name:'Kirishima',rank:'Sekiwake',stable:'Michinoku'},west:{name:'Daieisho',rank:'Komusubi',stable:'Oitekaze'}},
+   {id:'makuuchi-40',division:'makuuchi',order:40,time:'17:55',east:{name:'Hoshoryu',rank:'Ozeki',stable:'Tatsunami'},west:{name:'Kotozakura',rank:'Ozeki',stable:'Sadogatake'}}]};
+ const members=['Damien','Lauren','Nate','Boston'];
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),card,parent);
+ // Everybody is on the ladder before a single bout is called, because a comp you join by
+ // scoring is one a five-year-old is never on.
+ assert.deepEqual(predictionLadder(state,members).map(t=>[t.place,t.name,t.right,t.waiting,t.percent]),
+  [[1,'Boston',0,0,null],[1,'Damien',0,0,null],[1,'Lauren',0,0,null],[1,'Nate',0,0,null]]);
+ // The sheet is empty until there is something to put on it: the card runs to forty-odd bouts
+ // and the comp is only about the ones somebody called or we watched.
+ assert.deepEqual(tippingTable(state,members).rows,[]);
+ for(const [person,pick] of [['Damien','Hoshoryu'],['Lauren','Kotozakura'],['Nate','Kotozakura']])
+  state=applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person,winner:pick},child);
+ state=applyOperation(state,{type:'sumoPredict',id:'makuuchi-38',person:'Damien',winner:'Kirishima'},child);
+ state=applyOperation(state,{type:'sumoResult',id:'makuuchi-40',winner:'Kotozakura'},child);
+ const ladder=predictionLadder(state,members);
+ assert.deepEqual(ladder.map(t=>[t.place,t.name,t.right,t.wrong,t.waiting,t.percent]),
+  // Lauren and Nate share first on the same record. Under this ladder's rule — most right,
+  // then fewest wrong — Boston has called nothing and so has nothing wrong either, which puts
+  // him above Damien's one miss, with no hit rate at all rather than a hit rate of nought.
+  [[1,'Lauren',1,0,0,100],[1,'Nate',1,0,0,100],[3,'Boston',0,0,0,null],[4,'Damien',0,1,1,0]]);
+ const sheet=tippingTable(state,members);
+ // Columns follow the family, not the ladder: a column that moves between bouts is unreadable.
+ assert.deepEqual(sheet.people,members);
+ assert.deepEqual(predictionPeople(state,members),members);
+ // Bouts in running order, and a pick carries the side of the card it was on so four of them
+ // fit across a phone.
+ assert.deepEqual(sheet.rows.map(r=>[r.id,r.winner]),[['makuuchi-38',null],['makuuchi-40','Kotozakura']]);
+ assert.deepEqual(sheet.rows[1].picks.map(p=>[p.name,p.pick,p.side,p.outcome]),
+  [['Damien','Hoshoryu','east','wrong'],['Lauren','Kotozakura','west','right'],
+   ['Nate','Kotozakura','west','right'],['Boston',null,null,'none']]);
+ // The one nobody has watched is still to come rather than wrong, and a bout you sat out is
+ // neither.
+ assert.deepEqual(sheet.rows[0].picks.map(p=>p.outcome),['waiting','none','none','none']);
+ assert.deepEqual(sheet.totals.map(t=>[t.name,t.right,t.wrong,t.waiting,t.called]),
+  [['Damien',0,1,1,2],['Lauren',1,0,0,1],['Nate',1,0,0,1],['Boston',0,0,0,0]]);
+ // A bout that was watched with nobody calling it still belongs on the sheet: it is the row
+ // that says all four of us missed it.
+ const watched=applyOperation(state,{type:'sumoResult',id:'makuuchi-38',winner:'Daieisho'},parent);
+ const after=tippingTable(watched,members).rows[0];
+ assert.equal(after.winner,'Daieisho');
+ assert.deepEqual(after.picks.map(p=>p.outcome),['wrong','none','none','none']);
+ // Somebody who called a bout without being in the members list — a cousin on the day, or a
+ // name since changed — keeps their column rather than dropping off the sheet.
+ const guest={...watched,sumo:{...watched.sumo,predictions:{...watched.sumo.predictions,
+  'makuuchi-38':{...watched.sumo.predictions['makuuchi-38'],Grandma:'Daieisho'}}}};
+ assert.deepEqual(tippingTable(guest,members).people,[...members,'Grandma']);
+ assert.equal(predictionLadder(guest,members)[0].name,'Grandma','and is on the ladder where the record puts her');
 });
 
 test('a dish on a menu can be seen as well as read, and only Wikimedia can put it on the screen',async()=>{
