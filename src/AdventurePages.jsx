@@ -3,6 +3,7 @@ import {Volume2,Square,SkipForward,RotateCcw,Sparkles} from 'lucide-react';
 import MissionArt from './MissionArt.jsx';
 import {BOYS,yenPerAud,yenToAud} from './trip-features.js';
 import {japanClock,japanDate} from './timing.js';
+import {matchVoice} from './speech.js';
 export const dayLabel=d=>d?new Intl.DateTimeFormat('en-AU',{day:'numeric',month:'short',weekday:'short',timeZone:'Asia/Tokyo'}).format(new Date(d+'T12:00:00+09:00')):'Whole trip';
 export function DaySelect({state,value,onChange,name,allowAll=false}){return <select name={name} value={value} onChange={onChange}><option value="">{allowAll?'Whole trip':'Unscheduled'}</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select>;}
 // Reads a mission aloud, so Nate can follow his own missions before he can read them.
@@ -17,6 +18,9 @@ export function useReadAloud(){
   if(reading===id){setReading('');return;}
   const say=new window.SpeechSynthesisUtterance(text);
   say.lang=lang;say.rate=lang.startsWith('ja')?.8:.85;
+  // Name the voice as well as the language: left to itself a phone will happily read
+  // Japanese with an English voice.
+  try{const voice=matchVoice(window.speechSynthesis.getVoices(),lang);if(voice)say.voice=voice;}catch{}
   say.onend=()=>setReading(now=>now===id?'':now);say.onerror=()=>setReading(now=>now===id?'':now);
   setReading(id);window.speechSynthesis.speak(say);
  }
