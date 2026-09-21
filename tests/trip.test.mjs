@@ -2513,6 +2513,169 @@ test('sumo has a speed for everyone, and the pairs boards can be sized',async()=
  assert.match(source,/game:`kana-\$\{set\}-\$\{pairs\}`/);
 });
 
+test('the sumo lead-up is a game of its own, and pays into the bout rather than into the score',async()=>{
+ const {SUMO_RITUALS,STOMP_WINDOW,stompScore,SALT_BAND,saltScore,MATTA,chargeScore,leadUpEffect,ceremonyScore,KIMARITE,kimariteById,theirWeight}=await import('../src/kana-data.js');
+ // Three rituals, each with the Japanese for it, because the point is knowing what you are
+ // looking at when the real one does it in Ryogoku.
+ assert.deepEqual(SUMO_RITUALS.map(r=>r.id),['shiko','shio','tachiai']);
+ for(const r of SUMO_RITUALS)for(const k of ['icon','en','ja','romaji','how','buys'])assert.ok(r[k],`${r.id} has no ${k}`);
+ // Stamps are scored out of four however few you hit, so a beat nobody stamped is not free.
+ assert.equal(stompScore([0,0,0,0]),1);
+ assert.equal(stompScore([0,0]),0.5,'two beats out of four is half a stance');
+ assert.equal(stompScore([STOMP_WINDOW,STOMP_WINDOW,STOMP_WINDOW,STOMP_WINDOW]),0,'a stamp a whole beat late is a stamp missed');
+ assert.ok(stompScore([-80,80,-80,80])>0.7,'close enough counts');
+ assert.equal(stompScore([]),0);
+ // The salt lands in a band rather than on a point — a five-year-old cannot stop a sweep
+ // on a pixel — and missing it altogether is a nothing rather than a penalty.
+ assert.equal(saltScore(50,50),1);
+ assert.equal(saltScore(50+SALT_BAND,50),0);
+ assert.equal(saltScore(0,90),0);
+ // Going before the gyoji calls is a matta, and it is the only score that can be negative.
+ assert.equal(chargeScore(-1),MATTA);
+ assert.equal(chargeScore(100),1);
+ assert.equal(chargeScore(900),0);
+ // What the ceremony buys: wind, a longer look at an opening, and ground already won.
+ const clean=leadUpEffect({shiko:1,shio:1,charge:1}),none=leadUpEffect({});
+ assert.ok(clean.stamina>none.stamina&&clean.rest>none.rest&&clean.opening>none.opening);
+ assert.ok(clean.push>0&&none.push===0);
+ assert.equal(leadUpEffect({charge:MATTA}).push,-2,'a false start hands him the ground');
+ assert.ok(leadUpEffect({charge:MATTA}).matta);
+ // A matta is a nothing in the scoring rather than a second punishment.
+ assert.equal(ceremonyScore({shiko:1,shio:1,charge:MATTA}),ceremonyScore({shiko:1,shio:1,charge:0}));
+ assert.equal(ceremonyScore({shiko:1,shio:1,charge:1}),1);
+ // Four real finishing moves, each with the tell that calls for it.
+ assert.equal(new Set(KIMARITE.map(k=>k.id)).size,4);
+ for(const k of KIMARITE)for(const f of ['icon','en','ja','romaji','tell'])assert.ok(k[f],`${k.id} has no ${f}`);
+ assert.equal(kimariteById('nothing'),null);
+ assert.equal(kimariteById('oshidashi').ja,'押し出し');
+ // A faster opponent leans harder, in the same order as the speeds themselves.
+ assert.ok(theirWeight(330)>theirWeight(1100));
+ // And the ring actually walks all of it, in order, before anybody pushes anybody.
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ for(const phase of ['shiko','shio','tachiai','bout'])assert.match(source,new RegExp(`phase==='${phase}'`),`the ring never reaches ${phase}`);
+ for(const move of ["type:'brace'","type:'technique'","type:'push'"])assert.ok(source.includes(move),`no way to ${move}`);
+});
+
+test('a sumo bout is won by reading him, not by tapping',async()=>{
+ const {startBout,sumoAction,leadUpEffect,SUMO_LIMIT,SHOVE_COST,SHOVE_GAIN,TIRED_GAIN,TECHNIQUE_GAIN,shovePower}=await import('../src/kana-data.js');
+ const fresh=()=>startBout(leadUpEffect({}));
+ // Every shove costs what it earns, so a whole bar of mashing crosses a fraction of the ring.
+ const mashed=Array.from({length:40}).reduce(b=>sumoAction(b,{type:'push'}),fresh());
+ assert.ok(!mashed.over,'mashing alone never pushes anyone out');
+ assert.equal(mashed.stamina,0);
+ assert.ok(mashed.push<SUMO_LIMIT/2);
+ assert.equal(shovePower(100),SHOVE_GAIN);
+ assert.equal(shovePower(SHOVE_COST),TIRED_GAIN,'a tired wrestler shoves for less');
+ assert.equal(shovePower(0),0,'and an empty one for nothing at all');
+ // He gathers himself now and then, and it counts double while it lasts. Pushing into it
+ // costs you ground; bracing into it costs him.
+ const surging=sumoAction(fresh(),{type:'surge',on:true});
+ assert.ok(sumoAction(surging,{type:'push'}).push<0);
+ const held=sumoAction(surging,{type:'brace'});
+ assert.equal(held.surge,false);
+ assert.ok(held.push>0);
+ assert.equal(sumoAction(surging,{type:'tick',their:1,rest:0}).push,-2);
+ assert.equal(sumoAction(fresh(),{type:'tick',their:1,rest:0}).push,-1);
+ // Bracing with nothing coming gives ground away, and gives your legs a rest.
+ const shoved=sumoAction(fresh(),{type:'push'}),rested=sumoAction(shoved,{type:'brace'});
+ assert.ok(rested.push<shoved.push&&rested.stamina>shoved.stamina);
+ // An opening is taken by the move that answers the tell, and thrown away by anything else.
+ const open=sumoAction(fresh(),{type:'open',id:'hatakikomi'});
+ const took=sumoAction(open,{type:'technique',id:'hatakikomi'});
+ assert.equal(took.push,TECHNIQUE_GAIN);
+ assert.equal(took.opening,null);
+ assert.ok(sumoAction(open,{type:'technique',id:'uwatenage'}).push<0,'the wrong move for that tell overbalances you');
+ assert.ok(sumoAction(fresh(),{type:'technique',id:'uwatenage'}).push<0,'and there is nothing to take hold of when nothing is open');
+ assert.ok(sumoAction(open,{type:'push'}).push<0,'mashing straight past an opening loses it');
+ // Out of the ring either way ends it, the winning move is remembered, and nothing moves after.
+ const won=sumoAction({...fresh(),push:SUMO_LIMIT-TECHNIQUE_GAIN,opening:'yorikiri'},{type:'technique',id:'yorikiri'});
+ assert.equal(won.over,'won');
+ assert.equal(won.won,'yorikiri');
+ assert.equal(sumoAction(won,{type:'push'}),won);
+ const lost=sumoAction({...fresh(),push:1-SUMO_LIMIT},{type:'tick',their:2,rest:0});
+ assert.equal(lost.over,'lost');
+ assert.equal(lost.won,'');
+ // Shoving him out is still winning, and names no move.
+ const pushedOut=sumoAction({...fresh(),push:SUMO_LIMIT-SHOVE_GAIN},{type:'push'});
+ assert.equal(pushedOut.over,'won');
+ assert.equal(pushedOut.won,'');
+});
+
+test('a sumo career climbs the banzuke, and the tournament decides the rest',async()=>{
+ const {newCareer,SEKITORI,TOP_RANK,BASHO_DAYS,KACHIKOSHI,BASHO,AKI,bashoAt,climb,rankRate,bashoOpponent,bashoDay,bashoWorth}=await import('../src/kana-data.js');
+ // A career starts at the bottom, unpaid, with the Autumn tournament next — the one that is
+ // on in Ryogoku while we are there.
+ const start=newCareer();
+ assert.equal(start.rank,1);
+ assert.equal(bashoAt(start.basho).romaji,'Aki basho');
+ assert.equal(BASHO.length,6,'six tournaments a year, like the real calendar');
+ for(const b of BASHO)for(const k of ['en','ja','romaji','where','month'])assert.ok(b[k],`${b.en} has no ${k}`);
+ assert.equal(bashoAt(AKI+BASHO.length).romaji,'Aki basho','and the year comes round again');
+ // The climb: up a rung for a win, down one for a loss, stopping at juryo either way.
+ assert.equal(climb(1,true),2);
+ assert.equal(climb(2,false),1);
+ assert.equal(climb(1,false),1,'nobody falls out of the bottom');
+ assert.equal(climb(SEKITORI,true),SEKITORI,'and nobody climbs past juryo this way');
+ // A higher rank is a faster opponent, all the way up.
+ for(let level=2;level<=TOP_RANK;level++)assert.ok(rankRate(level)<rankRate(level-1),`${level} is no faster than ${level-1}`);
+ // The schedule is built like a real torikumi: below you to start with, above you at the
+ // end, and the worst of them saved for senshuraku.
+ assert.deepEqual(Array.from({length:BASHO_DAYS},(_,d)=>bashoOpponent(6,d)),[5,5,6,6,6,7,8]);
+ assert.equal(bashoOpponent(TOP_RANK,6),TOP_RANK,'there is nobody above a yokozuna');
+ assert.equal(bashoOpponent(1,0),1,'and nobody below the bottom');
+ // Seven days, each going onto the record in the order it happened.
+ let mid={...newCareer(),rank:SEKITORI};
+ for(const won of [true,false,true])mid=bashoDay(mid,won);
+ assert.equal(mid.day,3);
+ assert.equal(mid.form,'wlw');
+ assert.equal(mid.wins,2);assert.equal(mid.losses,1);
+ assert.equal(mid.last,null,'a tournament is not over until the seventh day');
+ // Four of seven is kachi-koshi and a promotion, and the record starts again after it.
+ let up={...newCareer(),rank:SEKITORI};
+ for(const won of [true,true,false,true,false,true,false])up=bashoDay(up,won);
+ assert.equal(up.last.wins,4);
+ assert.equal(up.last.kachikoshi,true);
+ assert.equal(up.rank,SEKITORI+1);
+ assert.equal(up.day,0);assert.equal(up.form,'');assert.equal(up.wins,0);
+ assert.equal(up.basho,newCareer().basho+1,'and the next tournament is the next one of the year');
+ assert.ok(KACHIKOSHI>BASHO_DAYS/2,'a winning record has to be most of them');
+ // Three is make-koshi and the name moves down the sheet — but a sekitori stays a sekitori.
+ let down={...newCareer(),rank:SEKITORI+1};
+ for(let d=0;d<BASHO_DAYS;d++)down=bashoDay(down,d<3);
+ assert.equal(down.last.kachikoshi,false);
+ assert.equal(down.rank,SEKITORI);
+ let bottom={...newCareer(),rank:SEKITORI};
+ for(let d=0;d<BASHO_DAYS;d++)bottom=bashoDay(bottom,false);
+ assert.equal(bottom.rank,SEKITORI,'nobody is demoted out of the tournament they earned');
+ // A perfect seven is a zensho-yusho, and it is the thing worth keeping.
+ let perfect={...newCareer(),rank:TOP_RANK};
+ for(let d=0;d<BASHO_DAYS;d++)perfect=bashoDay(perfect,true);
+ assert.equal(perfect.last.title,true);
+ assert.equal(perfect.titles,1);
+ assert.equal(perfect.rank,TOP_RANK,'there is nowhere above yokozuna');
+ assert.equal(bashoWorth(0,SEKITORI),0);
+ assert.ok(bashoWorth(4,TOP_RANK)>bashoWorth(4,SEKITORI),'the same record higher up is worth more');
+ assert.ok(bashoWorth(BASHO_DAYS,TOP_RANK)>bashoWorth(BASHO_DAYS-1,TOP_RANK)*1.5,'and a perfect one pays for being perfect');
+ // A quick bout takes the ceremony as read: better than skipping it, short of doing it
+ // properly, so going straight to the pushing is neither a punishment nor a shortcut worth
+ // taking in a tournament.
+ const {TAKEN_AS_READ,leadUpEffect,ceremonyScore}=await import('../src/kana-data.js');
+ const taken=leadUpEffect(TAKEN_AS_READ);
+ assert.ok(taken.stamina>leadUpEffect({}).stamina&&taken.opening>leadUpEffect({}).opening);
+ assert.ok(taken.stamina<leadUpEffect({shiko:1,shio:1,charge:1}).stamina);
+ assert.ok(ceremonyScore(TAKEN_AS_READ)>0&&ceremonyScore(TAKEN_AS_READ)<1);
+ assert.ok(!taken.matta);
+ // Five ways into the ring, and the ones that are practice write nothing down.
+ const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ for(const mode of ['quick','keiko','one','climb','basho'])assert.ok(source.includes(`id:'${mode}'`),`no ${mode} to choose`);
+ assert.ok(source.includes("quick?'bout':'shiko'"),'a quick bout has to start in the ring');
+ assert.ok(source.includes('if(result.drill)return;'),'a drill must never be scored');
+ // Training is never handed the thing that writes, so it cannot record anything even by
+ // accident — which is what makes it practice.
+ assert.ok(!/function Keiko\(\{[^}]*mutate/.test(source),'keiko must not be given mutate');
+ assert.ok(source.includes("game:'sumo-rank'")&&source.includes("game:'sumo-basho'"),'a career has to be worth keeping');
+});
+
 test('photo of the day: one vote each, and a tie stays a tie',async()=>{
  const {ensureFeatures,photosFor,photoVotesFor,photoOfTheDay}=await import('../src/trip-features.js');
  const boston={name:'Boston',role:'child'};
@@ -3034,9 +3197,9 @@ test('a rank name is cut to what fits on a tile, and the long one is kept for th
 test('the two boards say which squares are empty, and both ladders are laid out the same way',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
- // One component draws both ladders, so the ranks and the merge ladder cannot drift apart,
- // and neither is left as a ragged run of inline text.
- assert.equal([...source.matchAll(/<Ladder /g)].length,2);
+ // One component draws every ladder — the merge one, the ranks, the rituals and the tells —
+ // so they cannot drift apart, and none is left as a ragged run of inline text.
+ assert.equal([...source.matchAll(/<Ladder /g)].length,4);
  assert.equal([...source.matchAll(/<details className="merge-ladder">/g)].length,1,
   'only the shared component draws one — no game writes its own');
  assert.match(css,/\.ladder-grid\{display:grid/);
@@ -3890,4 +4053,269 @@ test('the origami diagram is framed on the paper, not on the sheet it started as
  assert.match(source,/size:Math\.max\(paper\.maxX-paper\.minX,paper\.maxY-paper\.minY\)/);
  // Every stroke scales with the frame, or the lines get fat as it zooms in.
  for(const stroke of ['0.8\\*ink','1.1\\*ink','1.4\\*ink'])assert.match(source,new RegExp(stroke));
+});
+
+test('the boys’ spending money: what went in, what went out, and what is left',async()=>{
+ const {purse,spendItemsFor,topUpsFor,allowanceFor,allowanceDays,allowancePaid,spendCost}=await import('../src/trip-features.js');
+ const first=seed.days[0].date,third=seed.days[2].date,last=seed.days.at(-1).date;
+ const boston={name:'Boston',role:'child'};
+ // Money only goes in on a parent's say-so, and only into a boy's purse.
+ let state=applyOperation(seed,{type:'spendTopUp',person:'Nate',yen:3000,note:'Birthday money from Nan'},parent);
+ assert.throws(()=>applyOperation(state,{type:'spendTopUp',person:'Nate',yen:5000},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'spendTopUp',person:'Lauren',yen:5000},parent),/Nate and Boston/);
+ assert.deepEqual(topUpsFor(state,'Nate').map(t=>[t.yen,t.note,t.by]),[[3000,'Birthday money from Nan','Damien']]);
+ assert.equal(topUpsFor(state,'Boston').length,0,'one purse is not the other');
+ // An amount a day is worked out from the trip's own days rather than paid out overnight, so it
+ // is right on a phone that has been switched off — and it never runs ahead of today.
+ state=applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500,from:first},parent);
+ assert.equal(allowanceDays(state,'Nate','2026-09-01'),0,'nothing before the trip starts');
+ assert.equal(allowanceDays(state,'Nate',third),3);
+ assert.equal(allowancePaid(state,'Nate',third),1500);
+ assert.equal(allowanceDays(state,'Nate','2026-12-25'),16,'and it stops at the last day of the trip');
+ // A last day caps it, and a first day is required before any of it counts.
+ const short=applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500,from:first,to:seed.days[1].date},parent);
+ assert.equal(allowancePaid(short,'Nate',last),1000);
+ assert.throws(()=>applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500},parent),/starts/);
+ assert.throws(()=>applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500,from:third,to:first},parent),/before the first/);
+ assert.throws(()=>applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:500,from:first},child),e=>e.status===403);
+ // Zero a day is how it stops, rather than a second way of undoing it.
+ assert.equal(allowanceFor(applyOperation(state,{type:'spendAllowance',person:'Nate',yenPerDay:0},parent),'Nate'),null);
+ // A boy writes down what he wants himself, and only for himself.
+ state=applyOperation(state,{type:'spendAdd',person:'Nate',title:'A Beyblade',estimate:1500,day:third},child);
+ state=applyOperation(state,{type:'spendAdd',person:'Nate',title:'Card pack',estimate:800},child);
+ assert.throws(()=>applyOperation(state,{type:'spendAdd',person:'Boston',title:'Not his'},child),e=>e.status===403);
+ assert.deepEqual(spendItemsFor(state,'Nate').map(i=>i.title),['A Beyblade','Card pack']);
+ // Nothing bought yet: everything in is still there, and the list is only a promise against it.
+ let money=purse(state,'Nate',third);
+ assert.deepEqual([money.paidIn,money.spent,money.planned,money.left,money.after],[4500,0,2300,4500,2200]);
+ assert.equal(money.allowance,1500);assert.equal(money.topUps,3000);
+ // Buying it is the moment it becomes money out, and the till receipt beats the guess.
+ const beyblade=spendItemsFor(state,'Nate')[0];
+ state=applyOperation(state,{type:'spendBought',id:beyblade.id,done:true,spent:1980},child);
+ const bought=spendItemsFor(state,'Nate').find(i=>i.id===beyblade.id);
+ assert.equal(bought.spent,1980);assert.equal(bought.boughtBy,'Nate');assert.ok(bought.boughtAt);
+ assert.equal(spendCost(bought),1980);
+ money=purse(state,'Nate',third);
+ assert.deepEqual([money.paidIn,money.spent,money.planned,money.left,money.after],[4500,1980,800,2520,1720]);
+ assert.deepEqual([money.items,money.bought,money.waiting],[2,1,1]);
+ // Bought things drop below the ones still waiting, the way a ticked-off job does.
+ assert.deepEqual(spendItemsFor(state,'Nate').map(i=>i.title),['Card pack','A Beyblade']);
+ // With no figure given it falls back to the guess rather than counting for nothing.
+ const guessed=applyOperation(state,{type:'spendBought',id:spendItemsFor(state,'Nate')[0].id,done:true},child);
+ assert.equal(purse(guessed,'Nate',third).spent,2780);
+ // Putting it back on the list clears the price with it, so an old receipt cannot haunt a new one.
+ const back=applyOperation(state,{type:'spendBought',id:beyblade.id,done:false},child);
+ const returned=spendItemsFor(back,'Nate').find(i=>i.id===beyblade.id);
+ assert.equal(returned.boughtAt,null);assert.equal(returned.spent,null);
+ assert.equal(purse(back,'Nate',third).spent,0);
+ // Wanting more than there is says so rather than showing a tidy figure.
+ const greedy=applyOperation(state,{type:'spendAdd',person:'Nate',title:'A whole Gunpla kit',estimate:9000},child);
+ assert.ok(purse(greedy,'Nate',third).after<0);
+ // One boy cannot reach into the other's list, and a parent can.
+ assert.throws(()=>applyOperation(state,{type:'spendRemove',id:beyblade.id},boston),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'spendEdit',id:beyblade.id,title:'Mine now'},boston),e=>e.status===403);
+ assert.equal(spendItemsFor(applyOperation(state,{type:'spendRemove',id:beyblade.id},parent),'Nate').length,1);
+ // Taking a top-up back off is a parent's, and the balance follows it.
+ const top=topUpsFor(state,'Nate')[0];
+ assert.throws(()=>applyOperation(state,{type:'spendTopUpRemove',id:top.id},child),e=>e.status===403);
+ assert.equal(purse(applyOperation(state,{type:'spendTopUpRemove',id:top.id},parent),'Nate',third).paidIn,1500);
+ for(const bad of [{type:'spendAdd',person:'Nate',title:'   '},{type:'spendAdd',person:'Nate',title:'x'.repeat(251)},
+  {type:'spendAdd',person:'Nate',title:'A',estimate:-5},{type:'spendAdd',person:'Nate',title:'A',estimate:1.5},
+  {type:'spendAdd',person:'Nate',title:'A',day:'2099-01-01'},{type:'spendAdd',person:'Nate',title:'A',notes:'n'.repeat(2001)},
+  {type:'spendAdd',person:'Nate',title:'A',todoId:'nope'},{type:'spendTopUp',person:'Nate',yen:0},
+  {type:'spendTopUp',person:'Nate',yen:20000000},{type:'spendBought',id:'nope',done:true},
+  {type:'spendBought',id:beyblade.id,done:'yes'},{type:'spendTopUpRemove',id:'nope'},{type:'spendWhatever',person:'Nate'}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,52)} should be refused`);
+ // Pocket money is not the itinerary, so it stays out of the family alert feed — except money
+ // going in, which is the one piece of news a boy actually wants.
+ assert.ok(state.alerts.some(a=>/Nate has ¥3,000 more spending money/.test(a.summary||'')));
+ assert.ok(!state.alerts.some(a=>/Beyblade/.test(a.summary||'')));
+ assert.equal(state.history[0].title,'A Beyblade','but the family history still reads properly');
+});
+
+test('a thing to buy moves off the to-do list and onto a boy’s spending money',async()=>{
+ const {buyTodosFor,spendItemsFor,purse}=await import('../src/trip-features.js');
+ const day=seed.days[3].date;
+ let state=applyOperation(seed,{type:'todoAdd',title:'Buy a Beyblade',kind:'buy',day,person:'Nate'},child);
+ state=applyOperation(state,{type:'todoAdd',title:'Buy stamps',kind:'buy',day,person:'Family'},parent);
+ state=applyOperation(state,{type:'todoAdd',title:'Buy Lauren a fan',kind:'buy',day,person:'Lauren'},parent);
+ state=applyOperation(state,{type:'todoAdd',title:'Post the postcards',kind:'do',day,person:'Nate'},parent);
+ state=applyOperation(state,{type:'spendTopUp',person:'Nate',yen:5000},parent);
+ // His own and the family's are offered; somebody else's job and a job that is not a buy are not.
+ assert.deepEqual(buyTodosFor(state,'Nate').map(t=>t.title),['Buy a Beyblade','Buy stamps']);
+ const job=state.todos.find(t=>t.title==='Buy a Beyblade');
+ state=applyOperation(state,{type:'spendAdd',person:'Nate',title:job.title,notes:job.notes,day:job.day,todoId:job.id},child);
+ const item=spendItemsFor(state,'Nate')[0];
+ assert.equal(item.todoId,job.id);assert.equal(item.day,day);
+ // Offered once: counting the same Beyblade against the purse twice is how a balance goes wrong.
+ assert.deepEqual(buyTodosFor(state,'Nate').map(t=>t.title),['Buy stamps']);
+ assert.throws(()=>applyOperation(state,{type:'spendAdd',person:'Nate',title:job.title,todoId:job.id},child),/already on the spending list/);
+ // Buying it finishes the job it came from, so the day's screen is not still asking for it.
+ state=applyOperation(state,{type:'spendBought',id:item.id,done:true,spent:1800},child);
+ const finished=state.todos.find(t=>t.id===job.id);
+ assert.ok(finished.doneAt);assert.equal(finished.doneBy,'Nate');
+ assert.equal(purse(state,'Nate',day).spent,1800);
+ // Putting it back on the spending list does not un-tick the job: it may have been ticked for
+ // reasons of its own, and un-ticking somebody else's work is not ours to do.
+ const back=applyOperation(state,{type:'spendBought',id:item.id,done:false},child);
+ assert.ok(back.todos.find(t=>t.id===job.id).doneAt);
+ assert.equal(purse(back,'Nate',day).spent,0);
+});
+
+test('spending money written down or spent with no signal waits on the phone',async()=>{
+ const {ensureFeatures,pendingProgress,spendItemsFor,purse}=await import('../src/trip-features.js');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ // Wanting something and buying something both still make sense whenever they land.
+ for(const op of ['spendAdd','spendBought'])assert.ok(list.includes(op),`${op} should survive with no signal`);
+ // Money going in, and a purse being emptied, need the latest revision behind them.
+ for(const op of ['spendAllowance','spendTopUp','spendTopUpRemove','spendEdit','spendRemove'])
+  assert.ok(!list.includes(op),`${op} changes the shared purse`);
+ const day=seed.days[2].date,at='2026-09-19T02:00:00.000Z';
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'spendTopUp',person:'Boston',yen:4000},parent);
+ state=applyOperation(state,{type:'spendAdd',person:'Boston',title:'A Gachapon',estimate:400},{name:'Boston',role:'child'});
+ const gacha=spendItemsFor(state,'Boston')[0];
+ const queue=[{operation:{type:'spendAdd',operationId:'q1',person:'Boston',title:'A card pack',estimate:900,day,by:'Boston',at}},
+              {operation:{type:'spendBought',operationId:'q2',id:gacha.id,done:true,spent:500,by:'Boston',at}}];
+ const preview=pendingProgress(state,queue);
+ assert.deepEqual(spendItemsFor(preview,'Boston').map(i=>i.title),['A card pack','A Gachapon']);
+ const fresh=spendItemsFor(preview,'Boston').find(i=>i.title==='A card pack');
+ assert.equal(fresh.estimate,900);assert.equal(fresh.createdBy,'Boston');assert.ok(fresh.pending);
+ const spent=spendItemsFor(preview,'Boston').find(i=>i.id===gacha.id);
+ assert.equal(spent.spent,500);assert.equal(spent.boughtBy,'Boston');assert.ok(spent.pending);
+ // The purse on the screen is right before any of it has reached the family plan.
+ const money=purse(preview,'Boston',day);
+ assert.deepEqual([money.paidIn,money.spent,money.planned,money.left],[4000,500,900,3500]);
+ assert.equal(purse(state,'Boston',day).spent,0,'and the saved trip is untouched until it syncs');
+});
+
+test('spending money has its own screen, and a thing to buy can be handed to it',async()=>{
+ const {PAGES}=await import('../src/nav-data.js');
+ assert.ok(PAGES.spending?.label&&PAGES.spending?.note);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/tab==='spending'&&<Spending/,'the page is rendered');
+ assert.match(main,/today=\{japanDate\(now\)\}/,'and told what day it is, so an amount a day stops at today');
+ // The hand-off is offered on the to-do row itself, which is where a boy is looking when he
+ // remembers he is paying for it.
+ const todo=await readFile(new URL('../src/TodoList.jsx',import.meta.url),'utf8');
+ assert.match(todo,/type:'spendAdd'/);
+ assert.match(todo,/todoId:item\.id/,'and the two stay linked');
+ // The bar is the whole answer, so it has to say the same thing to a screen reader.
+ const page=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ assert.match(page,/role="img"/);
+ assert.match(page,/aria-label=\{`\$\{yen\(spent\)\} spent and \$\{yen\(planned\)\} still to buy/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ for(const rule of ['.purse-meter{','.purse-spent{','.purse-planned{'])assert.ok(css.includes(rule),`${rule} is missing`);
+});
+
+test('a boy asks for more spending money and a parent is the one who approves it',async()=>{
+ const {purse,requestsFor,requestedFor,openRequests,topUpsFor,REQUEST_STATES}=await import('../src/trip-features.js');
+ const day=seed.days[2].date,boston={name:'Boston',role:'child'};
+ let state=applyOperation(seed,{type:'spendTopUp',person:'Nate',yen:1000},parent);
+ // He cannot pay himself, so asking is the only way the balance moves in his favour.
+ assert.throws(()=>applyOperation(state,{type:'spendTopUp',person:'Nate',yen:2000},child),e=>e.status===403);
+ state=applyOperation(state,{type:'spendRequest',person:'Nate',yen:2000,reason:'The Beyblade is ¥2,400 and I have ¥1,000'},child);
+ const ask=requestsFor(state,'Nate')[0];
+ assert.equal(ask.status,'open');assert.equal(ask.by,'Nate');assert.equal(ask.approvedYen,null);
+ assert.equal(ask.decidedBy,null);
+ // Asking does not move any money: that is the whole point of asking.
+ assert.equal(purse(state,'Nate',day).paidIn,1000);
+ assert.equal(requestedFor(state,'Nate'),2000);
+ assert.deepEqual(openRequests(state).map(r=>r.person),['Nate']);
+ // One boy cannot ask out of the other's purse, and cannot answer his own ask.
+ assert.throws(()=>applyOperation(state,{type:'spendRequest',person:'Boston',yen:500},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true},child),e=>e.status===403);
+ // Yes to a different figure is a real answer, and the money moves the moment it is given.
+ const yes=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true,yen:1400,reply:'Half of it, and that is the lot until Kyoto.'},parent);
+ const settled=requestsFor(yes,'Nate')[0];
+ assert.equal(settled.status,'approved');assert.equal(settled.approvedYen,1400);
+ assert.equal(settled.decidedBy,'Damien');assert.ok(settled.decidedAt);
+ assert.equal(purse(yes,'Nate',day).paidIn,2400,'approving is what puts the money in');
+ assert.equal(requestedFor(yes,'Nate'),0,'and it is no longer waiting on anybody');
+ // The top-up it created says a parent approved it rather than looking like a bare gift.
+ const paid=topUpsFor(yes,'Nate').find(t=>t.requestId===ask.id);
+ assert.equal(paid.yen,1400);assert.equal(paid.approvedBy,'Damien');
+ assert.equal(settled.topUpId,paid.id);
+ // Left out, the approved amount is simply what was asked for.
+ const full=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true},parent);
+ assert.equal(purse(full,'Nate',day).paidIn,3000);
+ // No is an answer too, and it moves nothing.
+ const no=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:false,reply:'Not this time.'},parent);
+ assert.equal(requestsFor(no,'Nate')[0].status,'declined');
+ assert.equal(purse(no,'Nate',day).paidIn,1000);
+ assert.equal(topUpsFor(no,'Nate').length,1,'a no leaves no money behind it');
+ // An answer is a record of what happened, so it is answered once and never taken back.
+ for(const already of [yes,no])
+  assert.throws(()=>applyOperation(already,{type:'spendRequestDecide',id:ask.id,approve:true},parent),/already been answered/);
+ assert.throws(()=>applyOperation(yes,{type:'spendRequestCancel',id:ask.id},child),/answered already/);
+ // While it is still waiting, the boy who asked can take it back — and only him.
+ assert.throws(()=>applyOperation(state,{type:'spendRequestCancel',id:ask.id},boston),e=>e.status===403);
+ assert.equal(requestsFor(applyOperation(state,{type:'spendRequestCancel',id:ask.id},child),'Nate').length,0);
+ for(const bad of [{type:'spendRequest',person:'Nate',yen:0},{type:'spendRequest',person:'Nate',yen:-5},
+  {type:'spendRequest',person:'Nate',yen:1.5},{type:'spendRequest',person:'Lauren',yen:500},
+  {type:'spendRequest',person:'Nate',yen:500,reason:'r'.repeat(501)},
+  {type:'spendRequestDecide',id:ask.id,approve:'yes'},{type:'spendRequestDecide',id:'nope',approve:true},
+  {type:'spendRequestDecide',id:ask.id,approve:true,yen:0},{type:'spendRequestCancel',id:'nope'}])
+  assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,52)} should be refused`);
+ // Ten unanswered asks is enough; a boy cannot bury a parent in them.
+ let many=state;
+ for(let i=0;i<9;i++)many=applyOperation(many,{type:'spendRequest',person:'Nate',yen:100},child);
+ assert.throws(()=>applyOperation(many,{type:'spendRequest',person:'Nate',yen:100},child),/ten asks waiting/);
+ // Both the ask and the answer are family news, which is exactly what the updates feed is for.
+ assert.ok(state.alerts.some(a=>/Nate is asking for ¥2,000/.test(a.summary||'')));
+ assert.ok(yes.alerts.some(a=>/Damien approved ¥1,400 more spending money for Nate/.test(a.summary||'')));
+ assert.ok(no.alerts.some(a=>/said not this time/.test(a.summary||'')));
+ assert.deepEqual(REQUEST_STATES.map(([id])=>id),['open','approved','declined']);
+});
+
+test('an ask made with no signal waits on the phone, but answering it does not',async()=>{
+ const {ensureFeatures,pendingProgress,requestsFor,requestedFor,purse}=await import('../src/trip-features.js');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ // A question asked on a train with no signal is still a fair question whenever it lands.
+ assert.ok(list.includes('spendRequest'),'asking should survive with no signal');
+ // Saying yes moves money, so it needs the latest plan behind it.
+ for(const op of ['spendRequestDecide','spendRequestCancel'])
+  assert.ok(!list.includes(op),`${op} changes the shared purse`);
+ const day=seed.days[1].date,at='2026-09-19T02:00:00.000Z';
+ const state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'spendTopUp',person:'Boston',yen:500},parent);
+ const preview=pendingProgress(state,[{operation:{type:'spendRequest',operationId:'q1',person:'Boston',yen:1500,reason:'A Gunpla kit',by:'Boston',at}}]);
+ const ask=requestsFor(preview,'Boston')[0];
+ assert.equal(ask.yen,1500);assert.equal(ask.status,'open');assert.ok(ask.pending);
+ assert.equal(requestedFor(preview,'Boston'),1500);
+ // It is a question, not money: the purse does not grow just because it was asked.
+ assert.equal(purse(preview,'Boston',day).paidIn,500);
+ assert.equal(requestsFor(state,'Boston').length,0,'and the saved trip is untouched until it syncs');
+});
+
+test('the asking and approving is on the page, and only a parent sees the answer buttons',async()=>{
+ const page=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ assert.match(page,/type:'spendRequest'/,'a boy can ask');
+ assert.match(page,/type:'spendRequestDecide'/,'and a parent can answer');
+ // The Yes button is inside a parent-only branch; a boy only ever gets to take his ask back.
+ assert.match(page,/\{open&&!answering&&<div className="ask-actions">/);
+ assert.match(page,/\{parent&&<>\n    <button className="primary" disabled=\{busy\} onClick=\{\(\)=>setAnswering\('yes'\)\}/);
+ assert.match(page,/\{mine&&!parent&&<button disabled=\{busy\} onClick=\{\(\)=>\{if\(confirm\('Take that ask back\?'\)\)/);
+ // Approving a different figure has to be offered, or "approved" would read against a number
+ // the boy never actually got.
+ assert.match(page,/Approve how much, in yen\?/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ for(const rule of ['.ask-row{','.ask-row.open{','.ask-dot{'])assert.ok(css.includes(rule),`${rule} is missing`);
+});
+
+test('a part-approval reads as a part-approval, and a generous one does not',async()=>{
+ const page=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ // Approving ¥400 of an ask for ¥600 is "¥400 of it". Approving ¥1,400 of an ask for ¥600 is
+ // not part of anything, so it must not claim to be.
+ assert.match(page,/approved \$\{both\(ask\.approvedYen,rate\)\}\$\{ask\.approvedYen<ask\.yen\?' of it':''\}/);
+ // And the server lets a parent name any figure, because both answers are real ones.
+ const {purse,requestsFor}=await import('../src/trip-features.js');
+ const day=seed.days[1].date;
+ let state=applyOperation(seed,{type:'spendRequest',person:'Nate',yen:600,reason:'A Gachapon go'},child);
+ const ask=requestsFor(state,'Nate')[0];
+ const less=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true,yen:400},parent);
+ const more=applyOperation(state,{type:'spendRequestDecide',id:ask.id,approve:true,yen:1400},parent);
+ assert.equal(purse(less,'Nate',day).paidIn,400);
+ assert.equal(purse(more,'Nate',day).paidIn,1400);
+ assert.equal(requestsFor(less,'Nate')[0].yen,600,'what was asked for is not rewritten by the answer');
 });
