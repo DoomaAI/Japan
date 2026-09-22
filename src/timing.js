@@ -59,3 +59,11 @@ export function stayPlan(step,at=new Date()){
 // family standing in Kyoto — whatever the phone showing it is set to.
 export const doneClock=step=>step?.completedAt?japanClock(new Date(step.completedAt)):'';
 export const doneStamp=(step,clock)=>new Date(`${step?.day}T${clock}:00+09:00`);
+// A day is behind us when every stop on it has been settled — ticked off, or deliberately
+// skipped, which is just as decided. A day with nothing on it is not finished, it is empty, and
+// a day with one stop left is still a day we are in the middle of.
+export function dayProgress(state,date){
+ const steps=activeSteps(state,date),done=steps.filter(s=>s.status==='done').length;
+ const skipped=steps.filter(s=>s.status==='skipped').length;
+ return {steps:steps.length,done,skipped,finished:steps.length>0&&done+skipped===steps.length};
+}

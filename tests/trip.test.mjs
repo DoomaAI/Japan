@@ -154,6 +154,7 @@ test('the bin on a stop asks before anything happens, and only a parent is offer
  const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const panel=await readFile(new URL('../src/RemoveStop.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  // The bin is offered beside the reorder tools, to a parent only, and hands the stop upwards
  // rather than removing anything itself.
  assert.match(timeline,/className="remove-stop"/);
@@ -168,12 +169,20 @@ test('the bin on a stop asks before anything happens, and only a parent is offer
  assert.match(timeline,/\{park\(s\)\}\{drop\(s\)\}/,'the tray sits before the bin');
  assert.doesNotMatch(timeline,/type:'backlog'/,'the move is handled above the row, like every other change');
  // Moving is reversible, so it goes on the tap; a locked time is answered without a round trip.
- assert.match(main,/optionStep=\{async s=>\{/);
+ assert.match(main,/async function optionStop\(s\)\{/);
  assert.match(main,/if\(s\.locked\)\{notice\('Unlock its fixed time before saving this stop to Options\.'\);return;\}/);
  assert.match(main,/mutate\(\{type:'backlog',id:s\.id\}\)/);
+ // What happens to a stop is decided in one place, so the row in the timeline and the card for
+ // the same stop cannot drift into two different answers.
+ assert.match(main,/const removeStop=s=>setModal\(\{type:'remove',step:s\}\)/);
+ assert.match(main,/removeStep=\{removeStop\} optionStep=\{optionStop\}/);
+ assert.doesNotMatch(main,/optionStep=\{async/,'the timeline uses that handler rather than a copy of it');
+ // The card offers the same pair on the stop you are standing in front of, to a parent only.
+ assert.match(main,/className="icon to-options" aria-label=\{`Save \$\{current\.title\} to Options`\} onClick=\{\(\)=>optionStop\(current\)\}/);
+ assert.match(main,/className="icon remove-stop" aria-label=\{`Remove \$\{current\.title\} from this day`\} onClick=\{\(\)=>removeStop\(current\)\}/);
+ assert.match(css,/\.to-options,\.remove-stop\{color:#8b7a76\}/,'and reads the same in both places');
  // Both ways in — the bin on the timeline and the button in the edit form — open the same
  // question, and the form no longer asks in the browser's own box.
- assert.match(main,/removeStep=\{s=>setModal\(\{type:'remove',step:s\}\)\}/);
  assert.match(main,/onRemove=\{s=>setModal\(\{type:'remove',step:s\}\)\}/);
  assert.match(main,/onClick=\{\(\)=>onRemove\(step\)\}/);
  assert.doesNotMatch(main,/confirm\('Remove this activity/,'the confirmation is the in-app pop-up now');
@@ -264,6 +273,71 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  assert.match(main,/function selectStep\(s\)\{[\s\S]*?setSelected\(s\.id\);setTab\('today'\)/);
  // And Home says where the rest of the day went.
  assert.match(main,/onClick=\{\(\)=>go\('glance'\)\}>The day at a glance<\/Button>/);
+});
+test('the day’s dashboard is about what is next, not about the book’s cover',async()=>{
+ const home=await readFile(new URL('../src/HomeFeatures.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ const sw=await readFile(new URL('../public/sw.js',import.meta.url),'utf8');
+ // The dashboard carries no cover, and the column that was cut around it is gone with it rather
+ // than left holding a gap.
+ assert.doesNotMatch(home,/cover\.jpg/,'the cover is not on the dashboard');
+ assert.doesNotMatch(css,/\.next-up>img/,'and nothing is left styling an image that is not there');
+ assert.doesNotMatch(css,/\.next-up\{display:grid/,'the two-column layout went with it');
+ // It is still the welcome screen's and the Days screen's, and still saved on the phone, because
+ // both of those work with no signal.
+ assert.equal((main.match(/cover\.jpg/g)||[]).length,2,'the welcome and Days screens keep it');
+ assert.match(sw,/cover\.jpg/,'and it stays in the offline shell for them');
+});
+test('the weather folds away on the phone that folded it, and says what it is for while folded',async()=>{
+ const {isOpen,setOpen}=await import('../src/fold.js');
+ // A phone that has never folded anything sees everything, exactly as it always did.
+ const store=new Map(),fake={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,v)};
+ assert.equal(isOpen('weather',fake),true);
+ assert.equal(setOpen('weather',false,fake),false);
+ assert.equal(store.get('japan.fold.weather'),'closed');
+ assert.equal(isOpen('weather',fake),false,'and it is still folded tomorrow, not sprung open by a reload');
+ assert.equal(isOpen('anything-else',fake),true,'folding one section says nothing about another');
+ assert.equal(setOpen('weather',true,fake),true);
+ assert.equal(isOpen('weather',fake),true);
+ // A phone that refuses storage shows the section rather than losing it, and never throws.
+ const refuses={getItem(){throw new Error('no storage');},setItem(){throw new Error('no storage');}};
+ assert.equal(isOpen('weather',refuses),true);
+ assert.equal(setOpen('weather',false,refuses),false);
+ assert.equal(isOpen('weather',null),true);
+ // Folded, the section still says what it is for: a chevron over its own name is wasted space.
+ const weather=await readFile(new URL('../src/Weather.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(weather,/const \[open,setShown\]=useState\(\(\)=>isOpen\(FOLD_ID\)\)/);
+ assert.match(weather,/const fold=\(\)=>setShown\(v=>setOpen\(FOLD_ID,!v\)\)/);
+ assert.match(weather,/aria-expanded=\{open\}/,'and says which way it is folded');
+ assert.match(weather,/\{!open&&<span className="weather-peek">\{peek\}<\/span>\}/);
+ assert.match(weather,/const peek=today\?`\$\{describe\(today\.code\)\[1\]\} \$\{today\.max\}° \/ \$\{today\.min\}°/);
+ assert.match(css,/\.weather\.folded\{/);
+});
+test('a day we have walked through folds down and greys in the Days menu',async()=>{
+ const {dayProgress}=await import('../src/timing.js');
+ const day=seed.days[0].date,steps=activeSteps(seed,day);
+ assert.equal(dayProgress(seed,day).finished,false,'a day with stops still ahead of us is not behind us');
+ assert.equal(dayProgress(seed,day).steps,steps.length);
+ // Settling every stop finishes the day, and a deliberate skip settles one as surely as a tick.
+ let state=seed;
+ for(const [i,s] of steps.entries())state=applyOperation(state,{type:'status',id:s.id,status:i===0?'skipped':'done'},parent);
+ const progress=dayProgress(state,day);
+ assert.equal(progress.finished,true);
+ assert.equal(progress.skipped,1);assert.equal(progress.done,steps.length-1);
+ // Undoing one stop puts the day back in the middle of itself.
+ assert.equal(dayProgress(applyOperation(state,{type:'status',id:steps[1].id,status:'todo'},parent),day).finished,false);
+ // A day with nothing on it is empty rather than finished, so an unplanned day is not folded away.
+ assert.equal(dayProgress({steps:[],choices:{}},day).finished,false);
+ // The tile folds to its name, tally and city, greys, and is still one tap into its photos.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(main,/className=\{`day-tile\$\{progress\.finished\?' finished':''\}`\}/);
+ assert.match(main,/progress\.finished\?<small className="day-finished">/);
+ assert.match(main,/onClick=\{\(\)=>selectDay\(d\.date\)\}/,'a finished day is still one tap away');
+ assert.match(css,/\.day-tile\.finished\{[^}]*opacity:\.6/);
+ assert.match(css,/\.days-grid\{align-items:start\}/,'so a folded tile does not stretch to its neighbour');
 });
 test('day and activity attachments validate associations and keep caption edits scoped',()=>{
  let state=applyOperation(seed,{type:'documentNote',title:'Luggage',category:'luggage',reference:'ABC123',day:seed.days[0].date,notes:'Blue bag',tags:['Tokyo']},parent);

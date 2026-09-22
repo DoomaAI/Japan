@@ -3,6 +3,9 @@ import {CloudSun,RefreshCw,X,ChevronRight,ChevronDown,ChevronUp} from 'lucide-re
 import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
 import {pointFor,forecastUrl,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,morningNeeds,isMorning,hoursFor} from './weather-data.js';
 import {japanDate,japanClock} from './timing.js';
+import {isOpen,setOpen} from './fold.js';
+// The one section that folds away, named here so the phone remembers which one it was.
+export const FOLD_ID='weather';
 // The morning reminder. It is about the jumper and the umbrella, not the meteorology, it only
 // appears while it is still morning in Japan and only for the day we are actually on, and it
 // goes away for the day once someone has read it. It reads the forecast already on the phone,
@@ -59,19 +62,29 @@ function HourlyPanel({hours,nowHour}){
 export default function Weather({state,day,mutate,busy,online,notice,dayLabel,go,now}){
  const {check,checking}=useForecastCheck({state,day,mutate,notice});
  const [openHours,setOpenHours]=useState(false);
+ // Sixteen days of a trip and the forecast is the same four numbers most mornings. Somebody who
+ // has read it wants it out of the way of the day itself, and wants it to stay out of the way
+ // tomorrow — so the fold is remembered rather than reset by every reload.
+ const [open,setShown]=useState(()=>isOpen(FOLD_ID));
+ const fold=()=>setShown(v=>setOpen(FOLD_ID,!v));
  const today=forecastFor(state,day),age=forecastAge(state);
  const hours=hoursFor(state,day);
  // The "now" line belongs on the day we are actually in, and nowhere else.
  const nowHour=now&&japanDate(now)===day?Number(japanClock(now).slice(0,2)):null;
  const ahead=state.days.filter(d=>d.date>day).slice(0,4).map(d=>({...d,entry:forecastFor(state,d.date)}));
  const tip=advice(today);
- return <section className="weather">
+ // Folded, it still says the one thing it is for: what it is doing outside. A section that
+ // collapses to its own name is a row of wasted space with a chevron on it.
+ const peek=today?`${describe(today.code)[1]} ${today.max}° / ${today.min}°${today.rain!==null?` · ${today.rain}%`:''}`:'No forecast yet';
+ return <section className={`weather${open?'':' folded'}`}>
   <div className="weather-head">
-   <h3><CloudSun size={17}/> Weather</h3>
-   <button type="button" disabled={busy||checking||!online} onClick={check}>
-    <RefreshCw size={14}/> {checking?'Checking…':online?'Check':'Offline'}</button>
+   <h3><button type="button" className="weather-fold" aria-expanded={open} onClick={fold}>
+    <CloudSun size={17}/> Weather{!open&&<span className="weather-peek">{peek}</span>}
+    {open?<ChevronUp size={16}/>:<ChevronDown size={16}/>}</button></h3>
+   {open&&<button type="button" disabled={busy||checking||!online} onClick={check}>
+    <RefreshCw size={14}/> {checking?'Checking…':online?'Check':'Offline'}</button>}
   </div>
-  {today
+  {open&&<>{today
    ?<><div className="weather-today">
      <span className="weather-icon" aria-hidden="true">{describe(today.code)[1]}</span>
      <div>
@@ -92,6 +105,6 @@ export default function Weather({state,day,mutate,busy,online,notice,dayLabel,go
   {hours&&openHours&&<HourlyPanel key={day} hours={hours} nowHour={nowHour}/>}
   {go&&<button className="weather-more" onClick={()=>go('weather',day)}>
    All sixteen days<ChevronRight size={16}/></button>}
-  <small>{ageLabel(age)}{state.weather?.by?` · by ${state.weather.by}`:''}. A forecast more than a few days out is a guess.</small>
+  <small>{ageLabel(age)}{state.weather?.by?` · by ${state.weather.by}`:''}. A forecast more than a few days out is a guess.</small></>}
  </section>;
 }
