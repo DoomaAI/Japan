@@ -39,6 +39,7 @@ export const GAME_RULES={
 export const PAGE_RULES={
  today:'Today. This is what we are doing right now, and what is next. Swipe sideways to see the rest of the day. When we have finished something, press done.',
  days:'Days. Every day of the whole trip, in order. Tap a day to see everything we are doing on it.',
+ glance:'Day at a glance. This is everything we are doing today, in the order we are doing it. When we have finished one, tick the box beside it, and it steps back out of the way so you can see what is left. Tap the name of a stop to open it and find out more about it.',
  tickets:'Tickets. All our booking tickets and codes are kept here, so we can show somebody at a gate even if there is no internet.',
  inbox:'Forwarded email. Booking emails that have been sent in to the app, waiting for Mum or Dad to file them where they belong.',
  food:'Food. All the Japanese food we want to try, with how to say it. When you have eaten something, tick it, and give it stars for how much you liked it.',

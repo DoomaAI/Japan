@@ -232,6 +232,39 @@ test('a stop is ticked off where the day is read, and says when it was finished'
  assert.equal(ticked.steps.find(s=>s.id===target.id).completedAt,at);
  assert.throws(()=>applyOperation(seed,{type:'status',id:target.id,status:'done',at:new Date(Date.now()+3600000).toISOString()},parent),/valid past completion time/);
 });
+
+test('the day at a glance is its own screen, and Home leads with the step we are on',async()=>{
+ const {PAGES,moreIds,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // The running order of the day used to sit in a column beside the step card, which on a phone
+ // meant scrolling past the whole of Home to reach it. It is a screen of its own now, so it can
+ // be opened on its own and put on the bottom bar by anybody who lives in it.
+ assert.ok(PAGES.glance?.label&&PAGES.glance?.note,'the day at a glance has its own entry');
+ assert.ok(PAGE_RULES.glance,'and something to say when the speaker is pressed');
+ assert.match(nav,/glance:ListOrdered/,'with an icon of its own, not the to-do list one');
+ assert.ok(MORE_SECTIONS.find(([title])=>title==='The plan')[1].includes('glance'),'it is the day\u2019s plan');
+ for(const user of [{name:'Damien',role:'parent'},{name:'Nate',role:'child'}])
+  assert.ok(moreIds(user).includes('glance'),`${user.name} can reach it`);
+ // Home no longer splits into two columns, so the step card has the screen to itself and the
+ // timeline is not rendered twice.
+ assert.equal((main.match(/<DayTimeline /g)||[]).length,1,'the timeline is rendered once, on its own screen');
+ assert.match(main,/\{tab==='glance'&&<>\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*<DayTimeline /,'it opens with the day it is about');
+ assert.doesNotMatch(main,/today-layout/,'Home is one column now');
+ assert.doesNotMatch(css,/today-layout/,'and the grid that made two of them is gone with it');
+ // Choosing a day on the day at a glance stays on the day at a glance. selectDay goes Home, so
+ // the strip is told where a tap lands rather than assuming it.
+ assert.match(main,/const dayStrip=pick=><div className="date-strip"/);
+ assert.match(main,/onClick=\{\(\)=>pick\(d\.date\)\}/);
+ assert.match(main,/\{dayStrip\(selectDay\)\}/,'and Home still lands on Home');
+ // Tapping a stop there opens its card, which is the one place a step is read in full.
+ assert.match(main,/<DayTimeline steps=\{steps\}[^>]*selectStep=\{selectStep\}/);
+ assert.match(main,/function selectStep\(s\)\{[\s\S]*?setSelected\(s\.id\);setTab\('today'\)/);
+ // And Home says where the rest of the day went.
+ assert.match(main,/onClick=\{\(\)=>go\('glance'\)\}>The day at a glance<\/Button>/);
+});
 test('day and activity attachments validate associations and keep caption edits scoped',()=>{
  let state=applyOperation(seed,{type:'documentNote',title:'Luggage',category:'luggage',reference:'ABC123',day:seed.days[0].date,notes:'Blue bag',tags:['Tokyo']},parent);
  const id=state.documents.at(-1).id;
