@@ -345,6 +345,72 @@ test('the purchase shortlist keeps a find whole, and whoever found it keeps it',
  assert.equal(shortlistStatusLabel('nothing-like-this'),'Still deciding');
 });
 
+test('a find says how much we want it and where the phone was standing, and the form opens where it is asked for',async()=>{
+ const {shortlistFor,shortlistRating,shortlistPin,SHORTLIST_SORTS,SHORTLIST_STARS}=await import('../src/trip-features.js');
+ const {pendingProgress,ensureFeatures}=await import('../src/trip-features.js');
+ // How much we want it is the half of deciding a price cannot answer, so it is written on the
+ // find itself. Nobody having said is not nought out of five — it is a question still open.
+ let state=applyOperation(seed,{type:'shortlistAdd',title:'Kitsune mask',rating:4},child);
+ const find=state.shortlist[0];
+ assert.equal(find.rating,4);assert.equal(shortlistRating(find),4);
+ assert.equal(applyOperation(seed,{type:'shortlistAdd',title:'Tea bowl'},child).shortlist[0].rating,null);
+ assert.equal(shortlistRating({rating:null}),null);assert.equal(shortlistRating({rating:0}),null);
+ // Anyone rates one, from its own card, the same way anyone says where we got to on it — and
+ // rating the star already showing takes the answer back rather than leaving a score nobody meant.
+ state=applyOperation(state,{type:'shortlistRating',id:find.id,rating:2},parent);
+ assert.equal(state.shortlist[0].rating,2);
+ state=applyOperation(state,{type:'shortlistRating',id:find.id,rating:0},{name:'Boston',role:'child'});
+ assert.equal(state.shortlist[0].rating,null,'nought is the question reopened, not a bad score');
+ for(const rating of [6,-1,1.5,'4',null])
+  assert.throws(()=>applyOperation(state,{type:'shortlistRating',id:find.id,rating},parent),`${rating} should be refused`);
+ for(const rating of [6,-1,1.5,'4'])
+  assert.throws(()=>applyOperation(seed,{type:'shortlistAdd',title:'Bad',rating},parent),`${rating} should be refused`);
+ assert.throws(()=>applyOperation(state,{type:'shortlistRating',id:'nope',rating:3},parent),e=>e.status===404);
+ // A stall in a covered arcade has no address anybody can read off it, so the phone says where
+ // it is instead. Stored exactly as it was read or not at all.
+ const pin={lat:35.7148,lng:139.7967};
+ const pinned=applyOperation(seed,{type:'shortlistAdd',title:'Kitsune mask',pin},parent).shortlist[0];
+ assert.deepEqual(pinned.pin,pin);assert.deepEqual(shortlistPin(pinned),pin);
+ assert.equal(applyOperation(seed,{type:'shortlistAdd',title:'Tea bowl'},parent).shortlist[0].pin,null);
+ assert.equal(shortlistPin(null),null,'a form opened on nothing is not a find with a bad pin');
+ assert.equal(shortlistPin({pin:{lat:35.7}}),null);
+ for(const bad of [{lat:35.7},{lat:35.7,lng:139.8,accuracy:5},{lat:200,lng:139.8},'35.7,139.8'])
+  assert.throws(()=>applyOperation(seed,{type:'shortlistAdd',title:'Bad',pin:bad},parent),/latitude and a longitude/);
+ // Walking directions go to the pin rather than to the words, because a pin cannot be misread.
+ const shortlistSource=await readFile(new URL('../src/Shortlist.jsx',import.meta.url),'utf8');
+ assert.match(shortlistSource,/const pin=shortlistPin\(item\);\n\s*if\(pin\)return `https:\/\/www\.google\.com\/maps\/dir/);
+ // Read it by how much we want it, and filtered down to the ones worth the argument. Unrated
+ // goes last rather than bottom: nobody has answered, which is not the same as answering nought.
+ assert.ok(SHORTLIST_SORTS.some(([id])=>id==='want'));
+ let many=seed;
+ for(const [title,rating,at] of [['Maybe',2,'2026-09-20T01:00:00.000Z'],['Must have',5,'2026-09-20T02:00:00.000Z'],['Unrated',null,'2026-09-20T03:00:00.000Z']])
+  many=applyOperation(many,{type:'shortlistAdd',title,rating,at},parent);
+ assert.deepEqual(shortlistFor(many,{sort:'want'}).map(s=>s.title),['Must have','Maybe','Unrated']);
+ assert.deepEqual(shortlistFor(many,{rating:3}).map(s=>s.title),['Must have']);
+ assert.deepEqual(shortlistFor(many,{rating:''}).length,3,'no answer to the filter is not a filter');
+ assert.equal(SHORTLIST_STARS,5);
+ // Both of them survive a shop with no signal in it, which is most shops.
+ const offline=pendingProgress(ensureFeatures(structuredClone(seed)),[{operation:{type:'shortlistAdd',operationId:'op-1',
+  title:'Kitsune mask',rating:4,pin,by:'Nate',at:'2026-09-20T01:00:00.000Z'}}]);
+ assert.equal(offline.shortlist[0].rating,4);assert.deepEqual(offline.shortlist[0].pin,pin);
+ const saved=applyOperation(seed,{type:'shortlistAdd',title:'Tea bowl'},parent);
+ const rated=pendingProgress(saved,[{operation:{type:'shortlistRating',operationId:'op-2',id:saved.shortlist[0].id,rating:3}}]);
+ assert.equal(rated.shortlist[0].rating,3);assert.equal(rated.shortlist[0].pending,true);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/'shortlistRating'/,'a rating given in a shop has to be able to wait for signal');
+ // The button that opens the form is only a button if the form opens where it can be seen. On a
+ // phone the list is longer than the screen, so the form sits above it rather than below it, and
+ // the page goes to it — a form appended under the list is a button that does nothing.
+ assert.ok(shortlistSource.indexOf('className="feature-card find-form"')<shortlistSource.indexOf('className="feature-grid"'),
+  'the add form has to come before the list it is added to');
+ assert.match(shortlistSource,/scrollIntoView/);
+ assert.match(shortlistSource,/input\[name="title"\]'\)\?\.focus/);
+ // And the photograph is offered whether the find is new or already on the list, because the
+ // picture is the whole card and the shop is usually revisited before the form is.
+ assert.equal(shortlistSource.match(/type="file" name="photo"/g).length,1);
+ assert.doesNotMatch(shortlistSource,/\{!edit\.id&&<label className="menu-shoot button">/);
+});
+
 test('a find and its photograph are two things, and losing the picture never loses the find',async()=>{
  const {ensureFeatures,pendingProgress,searchTrip}=await import('../src/trip-features.js');
  // Most shops have no signal in them, so the words go on the list there and then and the

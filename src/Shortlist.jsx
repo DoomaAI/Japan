@@ -1,9 +1,11 @@
-import React,{useState} from 'react';
+import React,{useEffect,useRef,useState} from 'react';
 import {upload} from '@vercel/blob/client';
-import {Camera,Trash2,ShoppingBag,PiggyBank,MapPin,Tag,X,Plus,CalendarDays,ChevronRight} from 'lucide-react';
+import {Camera,Trash2,ShoppingBag,PiggyBank,MapPin,Tag,X,Plus,CalendarDays,ChevronRight,Star,LocateFixed,AlertCircle} from 'lucide-react';
 import {shrinkPhoto} from './MenuReader.jsx';
-import {SHORTLIST_STATUS,SHORTLIST_SORTS,shortlistStatusLabel,shortlistFor,shortlistTotals,shortlistTags,
- shortlistStep,shortlistPlace,shortlistDay,shortlistWhere,shoppedAlready,yenPerAud,yenToAud} from './trip-features.js';
+import {SHORTLIST_STATUS,SHORTLIST_SORTS,SHORTLIST_STARS,shortlistStatusLabel,shortlistFor,shortlistTotals,shortlistTags,
+ shortlistStep,shortlistPlace,shortlistDay,shortlistWhere,shortlistPin,shortlistRating,shoppedAlready,
+ PIN_PLACES,pinText,yenPerAud,yenToAud} from './trip-features.js';
+import {askPhoneWhereItIs} from './geo.js';
 import {locationDirections} from './locations.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {japanClock} from './timing.js';
@@ -16,6 +18,10 @@ const splitTags=v=>[...new Set(String(v||'').split(',').map(t=>t.trim()).filter(
 // Getting back to it. A place off the trip's own map has a real address, so it gets real walking
 // directions; anything else is the best search we can build out of what was actually written down.
 export function findMap(state,item){
+ // A position the phone was standing in beats every name written down, because it cannot be
+ // misread, mistranslated or half-remembered — so if there is one, that is where we walk to.
+ const pin=shortlistPin(item);
+ if(pin)return `https://www.google.com/maps/dir/?api=1&destination=${pin.lat},${pin.lng}&travelmode=walking`;
  const place=shortlistPlace(state,item);
  if(place)return locationDirections(place,'walking');
  const step=shortlistStep(state,item);
@@ -41,6 +47,15 @@ export function AnchorSelect({state,value,onChange,name}){
   </optgroup>)}
  </select>;
 }
+// How much we want it, which is the question a price cannot answer and the one that actually
+// decides between two things we can only afford one of. Nought to five, and tapping the star
+// already showing takes the answer back rather than leaving one nobody meant to give.
+export function Stars({value,onRate,disabled,label}){
+ return <span className="stars" role="group" aria-label={label}>{Array.from({length:SHORTLIST_STARS},(_,i)=>i+1).map(n=>
+  <button key={n} type="button" className={`star${n<=value?' on':''}`} disabled={disabled}
+   aria-label={`${n} star${n>1?'s':''}`} aria-pressed={n===value}
+   onClick={()=>onRate(n===value?0:n)}><Star size={18}/></button>)}</span>;
+}
 export const anchorValue=item=>item?.stepId?`step:${item.stepId}`:item?.locationId?`loc:${item.locationId}`:'';
 export const readAnchor=v=>({stepId:String(v||'').startsWith('step:')?String(v).slice(5):null,
  locationId:String(v||'').startsWith('loc:')?String(v).slice(4):null});
@@ -48,6 +63,7 @@ export const readAnchor=v=>({stepId:String(v||'').startsWith('step:')?String(v).
 // thing itself, which is what nobody can describe three days later — so it is first and it is
 // large, and the words sit underneath it rather than beside it.
 export function Find({item,state,user,parent,busy,mutate,photo,drop,edit,onTag,onPin,rate,go}){
+ const stars=shortlistRating(item)??0,pin=shortlistPin(item);
  // A find still waiting on signal has no id the trip knows yet, so nothing that names one by id
  // — a photograph, a decision, the bin — is offered on it until it has synced.
  const held=!!item.pending,mine=(parent||item.addedBy===user.name)&&!held;
@@ -70,6 +86,7 @@ export function Find({item,state,user,parent,busy,mutate,photo,drop,edit,onTag,o
   <h2>{item.title}</h2>
   <p>{item.price===null||item.price===undefined?<em>No price written down</em>:both(item.price,rate)}{item.person!=='Family'&&` · for ${item.person}`}</p>
   {!!where.length&&<p className="find-where"><MapPin size={15}/> {where.join(' · ')}</p>}
+  {pin&&<small className="find-where"><LocateFixed size={14}/> Pinned where we stood · {pinText(pin)} · walking directions come back here</small>}
   {(step||place)&&<button className="find-pin" onClick={()=>onPin?.(item)}>
    {step?<><CalendarDays size={14}/>{step.time?`${step.time} · `:''}{step.title}</>
         :<><MapPin size={14}/>{place.name}{place.district?` · ${place.district}`:''}</>}
@@ -78,6 +95,13 @@ export function Find({item,state,user,parent,busy,mutate,photo,drop,edit,onTag,o
   {item.notes&&<p>{item.notes}</p>}
   {held&&<small>Saved on this phone. It joins the family shortlist — and can be photographed — as soon as there is signal.</small>}
   {!!item.tags?.length&&<div className="row wrap">{item.tags.map(t=><button className="tag" key={t} onClick={()=>onTag?.(t)}><Tag size={11}/>{t}</button>)}</div>}
+  {!held&&<div className="find-want">
+   <span>How much we want it</span>
+   <Stars value={stars} disabled={busy} label={`How much we want ${item.title}`}
+    onRate={n=>mutate({type:'shortlistRating',id:item.id,rating:n})}/>
+   <small>{stars?`${stars} of ${SHORTLIST_STARS}`:'Not rated yet'}</small>
+  </div>}
+  {held&&!!stars&&<small className="find-want-held"><Star size={13}/> {stars} of {SHORTLIST_STARS}</small>}
   {!held&&<div className="segmented find-decision" role="group" aria-label={`Where we got to on ${item.title}`}>{SHORTLIST_STATUS.map(([id,label])=>
    <button key={id} className={item.status===id?'selected':''} disabled={busy}
     aria-pressed={item.status===id} onClick={()=>mutate({type:'shortlistStatus',id:item.id,status:id,by:user.name})}>{label}</button>)}</div>}
@@ -86,7 +110,7 @@ export function Find({item,state,user,parent,busy,mutate,photo,drop,edit,onTag,o
    onClick={()=>mutate({type:'shortlistShop',id:item.id})}><ShoppingBag size={15}/>Put it on the shopping list</button>}
   {shopped&&<small className="find-shopped"><ShoppingBag size={13}/> On the shopping list{go&&<> · <button className="linkish" onClick={()=>go('shopping',null,item.shoppingId)}>open it</button></>}</small>}
   <div className="row wrap">
-   <a href={findMap(state,item)} target="_blank" rel="noreferrer">{place?'Walk there':'Find the shop'}</a>
+   <a href={findMap(state,item)} target="_blank" rel="noreferrer">{pin||place?'Walk there':'Find the shop'}</a>
    {mine&&<><button onClick={()=>edit(item)}>Edit</button>
     <button className="danger" disabled={busy} onClick={()=>{if(confirm(`Take ${item.title} off the shortlist?`))mutate({type:'shortlistRemove',id:item.id});}}><Trash2 size={14}/></button></>}
   </div>
@@ -125,15 +149,37 @@ export default function Shortlist({state,user,day,config,busy,setBusy,mutate,req
  // asked for rather than on the whole list with it somewhere down it.
  const initial=(state.shortlist||[]).find(s=>s.id===initialId);
  const [query,setQuery]=useState(initial?.title||''),[person,setPerson]=useState(''),[status,setStatus]=useState(''),[date,setDate]=useState(''),[tag,setTag]=useState('');
- const [sort,setSort]=useState('decide'),[anchor,setAnchor]=useState('');
+ const [sort,setSort]=useState('decide'),[anchor,setAnchor]=useState(''),[least,setLeast]=useState('');
  const [edit,setEdit]=useState(null),[working,setWorking]=useState(''),[chosen,setChosen]=useState('');
+ const [stars,setStars]=useState(0),[pin,setPin]=useState(null),[locating,setLocating]=useState(false),[geoTrouble,setGeoTrouble]=useState('');
+ const form=useRef(null);
  // The file input is invisible under its button, so a phone that has swallowed a photograph
  // without saying so is a phone that gets the photograph taken twice. The form says which one
  // it is holding, by name.
- const openForm=next=>{setChosen('');setAnchor(anchorValue(next));setEdit(next);};
+ const openForm=next=>{setChosen('');setGeoTrouble('');setAnchor(anchorValue(next));
+  setStars(shortlistRating(next)??0);setPin(shortlistPin(next));setEdit(next);};
+ // The form is the whole reason the button exists, so opening it has to be something you can
+ // see happen. On a phone the list is longer than the screen and a form appended below it is a
+ // button that does nothing: it opens somewhere nobody is looking. So the form comes to the
+ // person — it sits at the top of the page, under the button that asked for it, and the page
+ // goes to it and puts the cursor in the first field.
+ useEffect(()=>{
+  if(!edit||!form.current)return;
+  form.current.scrollIntoView({behavior:'smooth',block:'start'});
+  form.current.querySelector('input[name="title"]')?.focus({preventScroll:true});
+ },[edit]);
+ // Standing in front of the thing is the one moment its position is free, and the address of a
+ // stall in a covered arcade is the one part of this form nobody can fill in. So the phone
+ // answers it, exactly as it does for a stop on the day.
+ async function pinHere(){
+  setLocating(true);setGeoTrouble('');
+  try{setPin(await askPhoneWhereItIs(PIN_PLACES));}
+  catch(e){setGeoTrouble(`${e.message}. Say where we were with the dropdown below instead.`);}
+  finally{setLocating(false);}
+ }
  const parent=user.role==='parent',rate=yenPerAud(state);
- const filtered=!!(query||person||status||date||tag);
- const items=shortlistFor(state,{person,day:date,status,tag,query,sort});
+ const filtered=!!(query||person||status||date||tag||least);
+ const items=shortlistFor(state,{person,day:date,status,tag,query,sort,rating:least});
  const totals=shortlistTotals(items),tags=shortlistTags(state);
  const everything=(state.shortlist||[]).length;
  // Following a pin back to whatever it was pinned to: an activity opens that activity on its own
@@ -174,7 +220,8 @@ export default function Shortlist({state,user,day,config,busy,setBusy,mutate,req
   e.preventDefault();
   const f=new FormData(e.currentTarget),file=f.get('photo');
   const fields={title:f.get('title'),person:f.get('person'),day:f.get('day')||null,shop:f.get('shop'),place:f.get('place'),
-   price:f.get('price')===''?null:Number(f.get('price')),tags:splitTags(f.get('tags')),notes:f.get('notes'),...readAnchor(anchor)};
+   price:f.get('price')===''?null:Number(f.get('price')),tags:splitTags(f.get('tags')),notes:f.get('notes'),
+   rating:stars||null,pin:pin||null,...readAnchor(anchor)};
   // Which one is new is worked out from the ids we already had rather than guessed at from the
   // end of the list, because the family's phones are adding to the same list at the same time.
   const before=new Set((state.shortlist||[]).map(s=>s.id));
@@ -184,7 +231,7 @@ export default function Shortlist({state,user,day,config,busy,setBusy,mutate,req
   openForm(null);
   if(file&&file.size>0){
    if(!item){notice('Saved on this phone. Photograph it from its card once we are back on signal.');return;}
-   if(await attach(item,file))notice('Added to the shortlist, with its photo.');
+   if(await attach(item,file))notice(edit.id?'Saved, with its photo.':'Added to the shortlist, with its photo.');
   }
  }
  return <>
@@ -193,9 +240,43 @@ export default function Shortlist({state,user,day,config,busy,setBusy,mutate,req
   <p>The things we have actually seen in a shop and not bought — a photo of it, which shop, whereabouts, what the ticket said and a word or two for what it is. Pin one to the place we were at or the activity we were on, and it comes back on that day’s screen. Then we decide, once we have seen everything, rather than on the spot with two tired boys in the doorway.</p>
   <div className="row wrap">
    <button className="primary" onClick={()=>openForm({person:user.name,day:day||null})}><Plus size={16}/> Add something we have seen</button>
-   {filtered&&<button onClick={()=>{setQuery('');setPerson('');setStatus('');setDate('');setTag('');}}>Browse all {everything}</button>}
+   {filtered&&<button onClick={()=>{setQuery('');setPerson('');setStatus('');setDate('');setTag('');setLeast('');}}>Browse all {everything}</button>}
   </div>
   {!config?.uploads&&<p className="callout">Photos become available when private file storage is connected. Everything else on this page works without it.</p>}
+  {edit&&<form ref={form} key={edit.id||'new'} className="feature-card find-form" onSubmit={save}>
+   <h2>{edit.id?'Edit this find':'Something we have seen'}</h2>
+   <label>What is it<input name="title" required maxLength={250} defaultValue={edit.title||''} placeholder="Blue kitsune mask"/></label>
+   <div className="form-row">
+    <label>For<select name="person" defaultValue={edit.person||'Family'}>{['Family',...state.members].map(n=><option key={n}>{n}</option>)}</select></label>
+    <label>Price on the ticket (yen)<input name="price" type="number" min="0" max="10000000" step="1" defaultValue={edit.price??''}/></label>
+   </div>
+   <div className="find-want">
+    <span>How much we want it</span>
+    <Stars value={stars} disabled={busy} label="How much we want it" onRate={setStars}/>
+    <small>{stars?`${stars} of ${SHORTLIST_STARS}`:'Optional — and it can be changed from the card'}</small>
+   </div>
+   <label>Shop<input name="shop" maxLength={250} defaultValue={edit.shop||''} placeholder="Nakamise-dori stall, third on the left"/></label>
+   <label>Where were we?<AnchorSelect state={state} name="anchor" value={anchor} onChange={e=>setAnchor(e.target.value)}/></label>
+   <p><small>Pin it to what we were doing at the time, or to a place off our own map, and it comes back on that day’s screen. A place off the map gets walking directions back to it later.</small></p>
+   {!anchor.startsWith('step:')&&<label>Day we saw it<select name="day" defaultValue={edit.day||''}><option value="">Not noted</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select></label>}
+   <label>Whereabouts<input name="place" maxLength={250} defaultValue={edit.place||''} placeholder="Asakusa, near the temple gate"/></label>
+   <div className="pin-row">
+    <button type="button" disabled={busy||locating} onClick={pinHere}><LocateFixed size={18}/>{locating?'Finding you…':pin?'Move the pin to where I am now':'Pin where we are standing'}</button>
+    {pin&&<span className="tag pin-tag"><MapPin size={13}/>{pinText(pin)}<button type="button" aria-label="Remove the pinned position" onClick={()=>setPin(null)}><X size={14}/></button></span>}
+   </div>
+   {geoTrouble
+    ? <p className="callout"><AlertCircle size={18}/>{geoTrouble}</p>
+    : <p><small>A stall in a covered arcade has no address anybody can read off it, so the phone says where it is instead. It asks before sharing, the position is rounded to about ten metres, and walking directions back to this find go to the pin rather than to the words above.</small></p>}
+   <label>Tags, separated by commas<input name="tags" maxLength={1200} defaultValue={(edit.tags||[]).join(', ')} placeholder="present, ceramics, for Grandma"/></label>
+   <label>Notes<textarea name="notes" maxLength={2000} defaultValue={edit.notes||''} placeholder="Size, colour, whether they had another one, what the shop said"/></label>
+   <label className="menu-shoot button"><Camera size={16}/> {chosen?`Photo chosen · ${chosen}`:edit.photo?'Replace the photo':'Photograph it, or choose one already taken'}
+    <input type="file" name="photo" accept="image/*" disabled={busy||!config?.uploads} onChange={e=>setChosen(e.target.files?.[0]?.name||'')}/></label>
+   <p><small>{config?.uploads
+    ?'The photo is optional and can be added or replaced later from the card. The find itself saves with no signal; the photo needs one.'
+    :'Photos need private file storage connected. Everything else on this form saves without it.'}</small></p>
+   <div className="row wrap"><button className="primary" disabled={busy}>{edit.id?'Save changes':'Add to the shortlist'}</button>
+    <button type="button" onClick={()=>openForm(null)}>Cancel</button></div>
+  </form>}
   <div className="document-filters">
    <label>Search<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Thing, shop, area or note"/></label>
    <div className="form-row">
@@ -203,6 +284,7 @@ export default function Shortlist({state,user,day,config,busy,setBusy,mutate,req
     <label>For<select value={person} onChange={e=>setPerson(e.target.value)}><option value="">Everyone</option>{['Family',...state.members].map(n=><option key={n}>{n}</option>)}</select></label>
     <label>Where we got to<select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All of them</option>{SHORTLIST_STATUS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
     <label>Day we saw it<select value={date} onChange={e=>setDate(e.target.value)}><option value="">Whole trip</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select></label>
+    <label>How much we want it<select value={least} onChange={e=>setLeast(e.target.value)}><option value="">Any</option>{Array.from({length:SHORTLIST_STARS},(_,i)=>SHORTLIST_STARS-i).map(n=><option key={n} value={n}>{n} {n===1?'star':'stars'} or more</option>)}</select></label>
     {!!tags.length&&<label>Tag<select value={tag} onChange={e=>setTag(e.target.value)}><option value="">Any tag</option>{tags.map(t=><option key={t}>{t}</option>)}</select></label>}
    </div>
   </div>
@@ -214,26 +296,6 @@ export default function Shortlist({state,user,day,config,busy,setBusy,mutate,req
    <Find key={s.id} item={s} state={state} user={user} parent={parent} busy={busy} mutate={mutate} go={go}
     photo={attach} drop={dropPhoto} edit={openForm} onTag={setTag} onPin={followPin} rate={rate}/>)}</div>
   {!items.length&&<div className="empty"><Camera size={30}/><h3>Nothing on the shortlist{filtered?' matches':' yet'}</h3><p>{filtered?'Try Browse all, or a different order.':'Next time we walk out of a shop still thinking about something, photograph it here.'}</p></div>}
-  {edit&&<form key={edit.id||'new'} className="feature-card" onSubmit={save}>
-   <h2>{edit.id?'Edit this find':'Something we have seen'}</h2>
-   <label>What is it<input name="title" required maxLength={250} defaultValue={edit.title||''} placeholder="Blue kitsune mask"/></label>
-   <div className="form-row">
-    <label>For<select name="person" defaultValue={edit.person||'Family'}>{['Family',...state.members].map(n=><option key={n}>{n}</option>)}</select></label>
-    <label>Price on the ticket (yen)<input name="price" type="number" min="0" max="10000000" step="1" defaultValue={edit.price??''}/></label>
-   </div>
-   <label>Shop<input name="shop" maxLength={250} defaultValue={edit.shop||''} placeholder="Nakamise-dori stall, third on the left"/></label>
-   <label>Where were we?<AnchorSelect state={state} name="anchor" value={anchor} onChange={e=>setAnchor(e.target.value)}/></label>
-   <p><small>Pin it to what we were doing at the time, or to a place off our own map, and it comes back on that day’s screen. A place off the map gets walking directions back to it later.</small></p>
-   {!anchor.startsWith('step:')&&<label>Day we saw it<select name="day" defaultValue={edit.day||''}><option value="">Not noted</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select></label>}
-   <label>Whereabouts<input name="place" maxLength={250} defaultValue={edit.place||''} placeholder="Asakusa, near the temple gate"/></label>
-   <label>Tags, separated by commas<input name="tags" maxLength={1200} defaultValue={(edit.tags||[]).join(', ')} placeholder="present, ceramics, for Grandma"/></label>
-   <label>Notes<textarea name="notes" maxLength={2000} defaultValue={edit.notes||''} placeholder="Size, colour, whether they had another one, what the shop said"/></label>
-   {!edit.id&&<label className="menu-shoot button"><Camera size={16}/> {chosen?`Photo chosen · ${chosen}`:'Photograph it, or choose one already taken'}
-    <input type="file" name="photo" accept="image/*" disabled={busy||!config?.uploads} onChange={e=>setChosen(e.target.files?.[0]?.name||'')}/></label>}
-   {!edit.id&&<p><small>The photo is optional and can be added later from the card. The find itself saves with no signal; the photo needs one.</small></p>}
-   <div className="row wrap"><button className="primary" disabled={busy}>{edit.id?'Save changes':'Add to the shortlist'}</button>
-    <button type="button" onClick={()=>openForm(null)}>Cancel</button></div>
-  </form>}
   {go&&<>
    <p className="callout"><ShoppingBag size={18}/><span>Once we have said we are getting something, it goes across to the <button onClick={()=>go('shopping')}>Shopping list</button> — the page with the budget, the quantity and the tick — from its own card.</span></p>
    <p className="callout"><PiggyBank size={18}/><span>What the boys are buying out of their own money is counted on <button onClick={()=>go('spending')}>Spending money</button>, against what they actually have left.</span></p>
