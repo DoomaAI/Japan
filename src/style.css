@@ -316,3 +316,6 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .timeline-row.done .timeline-step .timeline-dot{opacity:1}
 .timeline-done-time{flex-direction:row;align-items:center;gap:.5rem;margin:-.5rem 0 .5rem;padding-left:calc(23px + 1.35rem);font-size:.76rem;font-weight:500;color:var(--muted)}
 .timeline-done-time input{width:auto;min-height:36px;padding:.25rem .5rem;font-size:.82rem}
+
+.purse-figure{margin:.9rem auto .4rem;max-width:300px}.purse-cat{display:block;width:100%;height:auto}.purse-flows{display:flex;justify-content:space-between;gap:.8rem;margin:-.2rem 0 .9rem;font-size:.82rem;font-weight:600;line-height:1.4}.purse-flows .flow-in{color:#8a6a22}.purse-flows .flow-out{color:var(--muted);text-align:right}
+@media(prefers-reduced-motion:no-preference){.purse-cat .waving{transform-origin:70px 82px;animation:paw-wave 2.4s ease-in-out infinite}@keyframes paw-wave{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(9deg)}}}

@@ -6208,6 +6208,19 @@ test('the boys’ spending money: what went in, what went out, and what is left'
  // Wanting more than there is says so rather than showing a tidy figure.
  const greedy=applyOperation(state,{type:'spendAdd',person:'Nate',title:'A whole Gunpla kit',estimate:9000},child);
  assert.ok(purse(greedy,'Nate',third).after<0);
+ // The money box drawn on the page reads the same purse, and has to stay inside its own outline:
+ // every level is a share between 0 and 1, whatever a boy has managed to promise away.
+ const {purseLevels}=await import('../src/trip-features.js');
+ const drawn=purseLevels(purse(greedy,'Nate',third));
+ assert.ok(drawn.level>0&&drawn.level<=1&&drawn.after===0,'a list bigger than the purse empties the box, it does not invert it');
+ assert.equal(drawn.short,true);
+ const fresh=purseLevels({paidIn:2000,spent:0,planned:0,left:2000,after:2000});
+ assert.deepEqual(fresh,{level:1,after:1,promised:0,shortfall:0,short:false,empty:false});
+ assert.deepEqual(purseLevels(null),{level:0,after:0,promised:0,shortfall:0,short:false,empty:true});
+ // What the list wants and the box has not got is drawn above the money line, so it has to be a
+ // share of the drawing too rather than a number that runs off the top of it.
+ const over=purseLevels({paidIn:5000,spent:4200,planned:4000,left:800,after:-3200});
+ assert.ok(over.shortfall>0&&over.shortfall<1&&over.level+over.shortfall<=1);
  // One boy cannot reach into the other's list, and a parent can.
  assert.throws(()=>applyOperation(state,{type:'spendRemove',id:beyblade.id},boston),e=>e.status===403);
  assert.throws(()=>applyOperation(state,{type:'spendEdit',id:beyblade.id,title:'Mine now'},boston),e=>e.status===403);
