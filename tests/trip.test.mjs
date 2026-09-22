@@ -91,6 +91,20 @@ test('reorder moves only active steps and preserves all target times and alterna
  assert.throws(()=>applyOperation(seed,{type:'reorder',day,ids:ids.slice(1)},parent),/Reload/);
  assert.throws(()=>applyOperation(seed,{type:'reorder',day,ids},child),e=>e.status===403);
 });
+test('a stop added from a gap in the day timeline lands in that gap and survives a reorder',()=>{
+ const day='2026-10-02',active=activeSteps(seed,day),target=active[1];
+ const state=applyOperation(seed,{type:'add',step:{title:'Coffee before the train',day,order:target.order-0.5}},parent);
+ const after=activeSteps(state,day),added=after.find(s=>s.title==='Coffee before the train');
+ assert.equal(after.indexOf(added),1);assert.equal(after[2].id,target.id);
+ // Reordering hands out the day's existing slots, so the half-slot the new stop arrived on is
+ // tidied away without moving it.
+ const tidied=activeSteps(applyOperation(state,{type:'reorder',day,ids:after.map(s=>s.id)},parent),day);
+ assert.deepEqual(tidied.map(s=>s.id),after.map(s=>s.id));
+ // Two stops added to the same gap both land in it, in the order they were added.
+ const second=applyOperation(state,{type:'add',step:{title:'One more',day,order:target.order-0.5}},parent);
+ assert.deepEqual(activeSteps(second,day).slice(1,4).map(s=>s.title),['Coffee before the train','One more',target.title]);
+ assert.throws(()=>applyOperation(seed,{type:'add',step:{title:'Nope',day,order:target.order-0.5}},child),e=>e.status===403);
+});
 test('day and activity attachments validate associations and keep caption edits scoped',()=>{
  let state=applyOperation(seed,{type:'documentNote',title:'Luggage',category:'luggage',reference:'ABC123',day:seed.days[0].date,notes:'Blue bag',tags:['Tokyo']},parent);
  const id=state.documents.at(-1).id;
