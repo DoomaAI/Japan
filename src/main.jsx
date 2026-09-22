@@ -356,7 +356,13 @@ function App(){
    <div className="swipe-controls"><Button icon={ArrowLeft} disabled={index<=0} onClick={()=>move(-1)}>Previous</Button><span>Swipe to explore</span><Button disabled={index>=steps.length-1} onClick={()=>move(1)}>Next <ArrowRight size={18}/></Button></div>
    <div className="quick-links"><Link href={directions(today?.hotel)}><House size={18}/><span>Tonight’s hotel<strong>{today?.hotel}</strong></span><ExternalLink size={15}/></Link>{nextFixed&&<button onClick={()=>selectStep(nextFixed)}><LockKeyhole size={18}/><span>Next fixed time<strong>{nextFixed.time} · {nextFixed.title}</strong></span><ChevronRight size={18}/></button>}</div>
    <div className="row wrap">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
-   </section><DayTimeline steps={steps} current={current} today={today} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={s=>setModal({type:'remove',step:s})}/></div>
+   </section><DayTimeline steps={steps} current={current} today={today} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={s=>setModal({type:'remove',step:s})} optionStep={async s=>{
+    // Moving a stop off the day is reversible, so it happens on the tap rather than behind a
+    // question. A locked time is the one thing that stops it, and it is said here rather than
+    // spent on a round trip that comes back with the same answer.
+    if(s.locked){notice('Unlock its fixed time before saving this stop to Options.');return;}
+    if(await mutate({type:'backlog',id:s.id}))notice(`${s.title} was saved to Options, with everything on it. Add it to a day whenever it fits.`);
+   }}/></div>
   </>}
   {tab==='challenges'&&<Challenges key={day+(focus||'')} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy} go={go}/>}
