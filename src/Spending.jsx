@@ -1,5 +1,6 @@
 import React,{useState} from 'react';
 import {MascotBadge} from './Mascot.jsx';
+import PurseCat from './PurseCat.jsx';
 import {PiggyBank,Plus,Trash2,ShoppingBag,ListChecks,CalendarDays,Check,AlertCircle,Wallet,X,HandCoins,ThumbsUp,Eye,UserCog} from 'lucide-react';
 import {BOYS,purse,spendItemsFor,topUpsFor,allowanceFor,allowanceDays,spendCost,buyTodosFor,requestsFor,requestedFor,openRequests,yenPerAud,yenToAud} from './trip-features.js';
 import {dayLabel} from './AdventurePages.jsx';
@@ -175,6 +176,7 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
   <p className="eyebrow">{person.toUpperCase()}’S PURSE</p>
   <strong className="purse-headline">{yen(money.left)} left</strong>
   <small>{dollars(money.left,rate)} at $1 = {yen(Math.round(rate))} · {yen(money.paidIn)} in, {yen(money.spent)} spent</small>
+  <PurseCat money={money} person={person} inText={yen(money.paidIn)} outText={yen(money.spent)} leftText={yen(money.left)}/>
   <PurseMeter total={money.paidIn} spent={money.spent} planned={money.planned}/>
   <div className="purse-key">
    <span><i className="key-spent"/>Spent {both(money.spent,rate)}</span>

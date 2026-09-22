@@ -677,6 +677,12 @@ export const sortShortlist=list=>sortShortlistBy(list,'decide');
 export const shortlistStep=(state,find)=>find?.stepId?(state.steps||[]).find(s=>s.id===find.stepId)||null:null;
 export const shortlistPlace=(state,find)=>find?.locationId?(state.locations||[]).find(l=>l.id===find.locationId)||null:null;
 export const shortlistDay=(state,find)=>find?.stepId?(shortlistStep(state,find)?.day??null):(find?.day??null);
+// And the fourth answer, which is the only one that works in a covered arcade with no street
+// name on it: the position the phone was standing in when the photograph was taken. It is not a
+// substitute for any of the others — it says nothing about what the shop is called — so it sits
+// beside them rather than instead of them, and it is what walking directions go to when it is
+// there, because a pin cannot be misread the way a hand-typed address can.
+export const shortlistPin=find=>find&&validPin(find.pin??null)&&find.pin?find.pin:null;
 // The one line a card shows for where it was, most specific first: the shop if we wrote one, then
 // whatever it is pinned to, then the area typed by hand.
 export function shortlistWhere(state,find){
@@ -689,27 +695,34 @@ export function shortlistWhere(state,find){
 // is read newest-first. A find with no price on it cannot be put in a price order at all, so it
 // goes last in both rather than being treated as free and leading the cheap list.
 export const SHORTLIST_SORTS=[
- ['decide','Still to decide first'],['new','Newest first'],['old','Oldest first'],
+ ['decide','Still to decide first'],['want','How much we want it'],['new','Newest first'],['old','Oldest first'],
  ['dear','Dearest first'],['cheap','Cheapest first'],['shop','By shop, A to Z'],['day','By the day we saw it']
 ];
-const age=s=>String(s.createdAt||''),priced=s=>s.price===null||s.price===undefined;
+// How much we want it, nought to five, which is the other half of deciding and the half a price
+// cannot answer. Unrated is not nought — it is a question nobody has answered yet — so it sorts
+// last rather than bottom, the same way an unpriced find stays out of the cheap list.
+export const SHORTLIST_STARS=5;
+export const shortlistRating=find=>Number.isInteger(find?.rating)&&find.rating>=1&&find.rating<=SHORTLIST_STARS?find.rating:null;
+const age=s=>String(s.createdAt||''),priced=s=>s.price===null||s.price===undefined,unrated=s=>shortlistRating(s)===null;
 const SHORTLIST_SORTERS={
  decide:(a,b)=>(SHORTLIST_ORDER[a.status]??0)-(SHORTLIST_ORDER[b.status]??0)||age(b).localeCompare(age(a)),
  new:(a,b)=>age(b).localeCompare(age(a)),
  old:(a,b)=>age(a).localeCompare(age(b)),
  dear:(a,b)=>priced(a)-priced(b)||(b.price??0)-(a.price??0)||age(b).localeCompare(age(a)),
  cheap:(a,b)=>priced(a)-priced(b)||(a.price??0)-(b.price??0)||age(b).localeCompare(age(a)),
- shop:(a,b)=>String(a.shop||a.place||'\uffff').localeCompare(String(b.shop||b.place||'\uffff'))||age(b).localeCompare(age(a))
+ shop:(a,b)=>String(a.shop||a.place||'\uffff').localeCompare(String(b.shop||b.place||'\uffff'))||age(b).localeCompare(age(a)),
+ want:(a,b)=>unrated(a)-unrated(b)||(shortlistRating(b)??0)-(shortlistRating(a)??0)||age(b).localeCompare(age(a))
 };
 export const sortShortlistBy=(list,sort,state)=>[...list].sort(
  sort==='day'
   ? (a,b)=>String(shortlistDay(state,a)||'\uffff').localeCompare(String(shortlistDay(state,b)||'\uffff'))||age(b).localeCompare(age(a))
   : SHORTLIST_SORTERS[sort]||SHORTLIST_SORTERS.decide);
-export const shortlistFor=(state,{person='',day='',status='',tag='',query='',sort='decide',stepId='',locationId=''}={})=>{
- const q=query.trim().toLowerCase();
+export const shortlistFor=(state,{person='',day='',status='',tag='',query='',sort='decide',stepId='',locationId='',rating=''}={})=>{
+ const q=query.trim().toLowerCase(),least=Number(rating)||0;
  return sortShortlistBy(shortlist(state).filter(s=>
   (!person||s.person===person)&&(!day||shortlistDay(state,s)===day)&&(!status||s.status===status)
   &&(!stepId||s.stepId===stepId)&&(!locationId||s.locationId===locationId)
+  &&(!least||(shortlistRating(s)??0)>=least)
   &&(!tag||(s.tags||[]).includes(tag))
   &&(!q||[s.title,s.shop,s.place,s.notes,...(s.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(q))),
   sort,state);
@@ -799,6 +812,19 @@ export function purse(state,person,today){
  return {topUps,allowance,paidIn,spent,planned,left:paidIn-spent,after:paidIn-spent-planned,
   items:items.length,bought:bought.length,waiting:items.length-bought.length};
 }
+// The same purse as a money box rather than a bar, for the boy who cannot read the bar yet.
+// `level` is how full the box is now, `after` is where it lands once everything still on the list
+// is bought, `promised` is the height of the list itself and `shortfall` is the part of it there
+// is no money for. All of them are shares of the fullest the box has had to be — money in, or
+// everything asked of it, whichever is larger — so a boy who has promised away more than went in
+// still gets a drawing that fits inside itself rather than one that runs off its own edges.
+export function purseLevels(money){
+ const paidIn=money?.paidIn||0,spent=money?.spent||0,planned=money?.planned||0;
+ const cap=Math.max(paidIn,spent+planned,1),share=n=>Math.max(0,Math.min(1,n/cap));
+ const after=money?.after||0;
+ return {level:share(money?.left||0),after:share(after),promised:share(planned),
+  shortfall:share(after<0?-after:0),short:after<0,empty:(money?.left||0)<=0};
+}
 // Asking for more. A boy cannot put money into his own purse, so the only way the balance moves
 // in his favour is to ask and have a parent say yes. The ask, the answer and the amount actually
 // approved all stay on the record: "can I have ¥2,000" answered with "you can have ¥1,000" is a
@@ -823,16 +849,32 @@ export const buyTodosFor=(state,person)=>todos(state)
 // Standing in the street with two tired children: what is near enough to walk to right now.
 // Food and the practical things a family runs out of — not sights, which is what the planning
 // board is for.
+// "Somewhere to eat" is what you ask when you do not mind; most of the time somebody does mind,
+// and the specific ask is the useful one — matcha and a sit-down, ramen, a bakery, something the
+// boys can hold. A named craving gets a named place; the broad two are still there for when
+// nobody can decide.
 export const NEARBY_KINDS=[
- ['food','Somewhere to eat'],['quick','Something quick'],['coffee','Coffee or a cold drink'],
+ ['food','Somewhere to eat'],['quick','Casual eats, something quick'],['ramen','Ramen & noodles'],
+ ['sushi','Sushi'],['bakery','Bakery & sandwiches'],['matcha','Matcha & tea'],
+ ['sweets','Sweets, cake & ice cream'],['coffee','Coffee or a cold drink'],['izakaya','Izakaya or a beer'],
  ['konbini','Convenience store'],['toilet','Toilets'],['pharmacy','Pharmacy'],['cash','Cash / ATM'],
  ['lockers','Coin lockers'],['rest','Somewhere to sit down'],['playground','Somewhere to run about'],
  ['shelter','Out of the rain']
 ];
 export const PRICE_BANDS=[['free','Free'],['cheap','Cheap'],['mid','Mid-range'],['pricey','Pricey']];
 // The same question asked from the food page is a narrower one: a toilet and a coin locker are
-// not what somebody reading the food list wants, so only the four that can feed you are offered.
-export const FOOD_NEARBY_KINDS=['food','quick','coffee','konbini'];
+// not what somebody reading the food list wants, so only the ones that can feed you are offered.
+export const FOOD_NEARBY_KINDS=['food','quick','ramen','sushi','bakery','matcha','sweets','coffee','izakaya','konbini'];
+// Which of them is a meal rather than something eaten standing up, and so how long to put aside
+// for it when it goes on the day.
+export const MEAL_KINDS=['food','ramen','sushi','izakaya'];
+// A rating is only worth having where there is a choice to make. A toilet, a cash machine and a
+// coin locker are not chosen, they are found; and the nearest Lawson is the right Lawson, because
+// the next one is the same shop. Food and drink is where four tenths of a star is worth four
+// minutes, so that is where the rating is asked for and where the ranking uses it. Everything
+// else is ranked on the walk alone, which is nearest first, as it always was.
+export const RATED_KINDS=FOOD_NEARBY_KINDS.filter(id=>id!=='konbini');
+export const isRatedKind=id=>RATED_KINDS.includes(id);
 // How many dishes a single hunt carries. The list runs to fifty; asking after all of them at once
 // is asking after nothing in particular.
 export const MAX_DISH_HUNT=12;
@@ -849,6 +891,37 @@ export function matchDish(dish,wishlist){
 }
 export const nearbyKindLabel=id=>(NEARBY_KINDS.find(([key])=>key===id)||NEARBY_KINDS[0])[1];
 export const priceBandLabel=id=>(PRICE_BANDS.find(([key])=>key===id)||['',''])[1];
+// What a place is worth once the walk to it is counted. A rating on its own marches a five-year-old
+// across town for a tenth of a star; a walk on its own puts the nearest vending machine above the
+// best bowl of noodles in the city. The family's own exchange rate settles it: a minute on foot is
+// worth a tenth of a star, so ten minutes is a whole star, and four and a half stars eleven minutes
+// away loses to four stars round the corner.
+export const MINUTES_PER_STAR=10;
+// Ratings are Google's, so they are held to Google's range and Google's precision. Five stars off
+// three people is not a rating, it is three people, so a handful of votes is treated as none.
+export const MIN_RATING_VOTES=5;
+export const validRating=v=>Number.isFinite(v)&&v>=1&&v<=5?Math.round(v*10)/10:null;
+// A place nobody rated still has to sit somewhere in the list, and an unrated convenience store two
+// minutes away is exactly the answer sometimes. It is ranked as the ordinary place it probably is —
+// never shown a star it did not earn, because the card says plainly when there is no rating.
+export const UNRATED_STARS=3.8;
+// A walk nobody could estimate is treated as the far end of what is asked for: fifteen minutes.
+export const UNKNOWN_WALK=15;
+export function placeScore({rating,walkMinutes}){
+ const stars=validRating(rating)??UNRATED_STARS;
+ const walk=Number.isFinite(walkMinutes)&&walkMinutes>=0?walkMinutes:UNKNOWN_WALK;
+ return Math.round((stars-walk/MINUTES_PER_STAR)*100)/100;
+}
+// The order the cards come in. A dish we are actually hunting still comes first — that is the whole
+// point of asking from the food page — and everything else is settled by what it is worth after the
+// walk, with the nearer one ahead when two come out level.
+export const rankNearby=(a,b)=>(b.dish?1:0)-(a.dish?1:0)
+ ||(b.score??0)-(a.score??0)
+ ||(a.walkMinutes??UNKNOWN_WALK)-(b.walkMinutes??UNKNOWN_WALK);
+// How the rating reads on a card: one decimal place, the way Google writes it, and the number of
+// people behind it, because 4.2 from nine hundred is a different thing from 4.2 from nine.
+export const ratingText=(rating,count)=>validRating(rating)===null?'':
+ `${validRating(rating).toFixed(1)}${Number.isInteger(count)&&count>0?` · ${count.toLocaleString('en-AU')} ratings`:''}`;
 // A position is rounded before it goes anywhere: three decimal places is about a hundred metres,
 // which is plenty to find a convenience store and not enough to point at a hotel room.
 export const COORD_PLACES=3;
@@ -1062,8 +1135,12 @@ export function pendingProgress(state,queue){
   if(o.type==='shortlistAdd')next.shortlist=[...next.shortlist,{id:`pending-${o.operationId}`,title:String(o.title||'').trim(),
    shop:String(o.shop||'').trim(),place:String(o.place||'').trim(),notes:String(o.notes||'').trim(),
    person:o.person||'Family',day:o.stepId?null:(o.day??null),price:o.price??null,tags:Array.isArray(o.tags)?o.tags:[],
-   stepId:o.stepId??null,locationId:o.locationId??null,shoppingId:null,
+   stepId:o.stepId??null,locationId:o.locationId??null,pin:validPin(o.pin??null)?(o.pin??null):null,
+   rating:shortlistRating(o),shoppingId:null,
    status:'thinking',photo:null,addedBy:o.by||'',createdAt:o.at,decidedBy:null,decidedAt:null,pending:true}];
+  // How much we want it is an opinion formed standing in front of the thing, which is exactly
+  // where there is no signal, so it is given on the spot and lands whenever the phone does.
+  if(o.type==='shortlistRating'){const f=next.shortlist.find(f=>f.id===o.id);if(f){f.rating=shortlistRating(o);f.pending=true;}}
   if(o.type==='shortlistStatus'){const f=next.shortlist.find(f=>f.id===o.id);if(f){f.status=o.status;f.decidedBy=o.status==='thinking'?null:(o.by||f.decidedBy);f.decidedAt=o.status==='thinking'?null:o.at;f.pending=true;}}
   if(o.type==='todoAdd')next.todos=[...next.todos,{id:`pending-${o.operationId}`,title:String(o.title||'').trim(),kind:o.kind==='buy'?'buy':'do',day:o.day??null,person:o.person||'Family',notes:String(o.notes||''),createdBy:o.by||'',createdAt:o.at,doneAt:null,doneBy:null,pending:true}];
   if(o.type==='todoStatus'){const t=next.todos.find(t=>t.id===o.id);if(t){t.doneAt=o.done?o.at:null;t.doneBy=o.done?o.by||t.doneBy:null;t.pending=true;}}

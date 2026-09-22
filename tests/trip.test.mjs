@@ -354,6 +354,72 @@ test('the purchase shortlist keeps a find whole, and whoever found it keeps it',
  assert.equal(shortlistStatusLabel('nothing-like-this'),'Still deciding');
 });
 
+test('a find says how much we want it and where the phone was standing, and the form opens where it is asked for',async()=>{
+ const {shortlistFor,shortlistRating,shortlistPin,SHORTLIST_SORTS,SHORTLIST_STARS}=await import('../src/trip-features.js');
+ const {pendingProgress,ensureFeatures}=await import('../src/trip-features.js');
+ // How much we want it is the half of deciding a price cannot answer, so it is written on the
+ // find itself. Nobody having said is not nought out of five — it is a question still open.
+ let state=applyOperation(seed,{type:'shortlistAdd',title:'Kitsune mask',rating:4},child);
+ const find=state.shortlist[0];
+ assert.equal(find.rating,4);assert.equal(shortlistRating(find),4);
+ assert.equal(applyOperation(seed,{type:'shortlistAdd',title:'Tea bowl'},child).shortlist[0].rating,null);
+ assert.equal(shortlistRating({rating:null}),null);assert.equal(shortlistRating({rating:0}),null);
+ // Anyone rates one, from its own card, the same way anyone says where we got to on it — and
+ // rating the star already showing takes the answer back rather than leaving a score nobody meant.
+ state=applyOperation(state,{type:'shortlistRating',id:find.id,rating:2},parent);
+ assert.equal(state.shortlist[0].rating,2);
+ state=applyOperation(state,{type:'shortlistRating',id:find.id,rating:0},{name:'Boston',role:'child'});
+ assert.equal(state.shortlist[0].rating,null,'nought is the question reopened, not a bad score');
+ for(const rating of [6,-1,1.5,'4',null])
+  assert.throws(()=>applyOperation(state,{type:'shortlistRating',id:find.id,rating},parent),`${rating} should be refused`);
+ for(const rating of [6,-1,1.5,'4'])
+  assert.throws(()=>applyOperation(seed,{type:'shortlistAdd',title:'Bad',rating},parent),`${rating} should be refused`);
+ assert.throws(()=>applyOperation(state,{type:'shortlistRating',id:'nope',rating:3},parent),e=>e.status===404);
+ // A stall in a covered arcade has no address anybody can read off it, so the phone says where
+ // it is instead. Stored exactly as it was read or not at all.
+ const pin={lat:35.7148,lng:139.7967};
+ const pinned=applyOperation(seed,{type:'shortlistAdd',title:'Kitsune mask',pin},parent).shortlist[0];
+ assert.deepEqual(pinned.pin,pin);assert.deepEqual(shortlistPin(pinned),pin);
+ assert.equal(applyOperation(seed,{type:'shortlistAdd',title:'Tea bowl'},parent).shortlist[0].pin,null);
+ assert.equal(shortlistPin(null),null,'a form opened on nothing is not a find with a bad pin');
+ assert.equal(shortlistPin({pin:{lat:35.7}}),null);
+ for(const bad of [{lat:35.7},{lat:35.7,lng:139.8,accuracy:5},{lat:200,lng:139.8},'35.7,139.8'])
+  assert.throws(()=>applyOperation(seed,{type:'shortlistAdd',title:'Bad',pin:bad},parent),/latitude and a longitude/);
+ // Walking directions go to the pin rather than to the words, because a pin cannot be misread.
+ const shortlistSource=await readFile(new URL('../src/Shortlist.jsx',import.meta.url),'utf8');
+ assert.match(shortlistSource,/const pin=shortlistPin\(item\);\n\s*if\(pin\)return `https:\/\/www\.google\.com\/maps\/dir/);
+ // Read it by how much we want it, and filtered down to the ones worth the argument. Unrated
+ // goes last rather than bottom: nobody has answered, which is not the same as answering nought.
+ assert.ok(SHORTLIST_SORTS.some(([id])=>id==='want'));
+ let many=seed;
+ for(const [title,rating,at] of [['Maybe',2,'2026-09-20T01:00:00.000Z'],['Must have',5,'2026-09-20T02:00:00.000Z'],['Unrated',null,'2026-09-20T03:00:00.000Z']])
+  many=applyOperation(many,{type:'shortlistAdd',title,rating,at},parent);
+ assert.deepEqual(shortlistFor(many,{sort:'want'}).map(s=>s.title),['Must have','Maybe','Unrated']);
+ assert.deepEqual(shortlistFor(many,{rating:3}).map(s=>s.title),['Must have']);
+ assert.deepEqual(shortlistFor(many,{rating:''}).length,3,'no answer to the filter is not a filter');
+ assert.equal(SHORTLIST_STARS,5);
+ // Both of them survive a shop with no signal in it, which is most shops.
+ const offline=pendingProgress(ensureFeatures(structuredClone(seed)),[{operation:{type:'shortlistAdd',operationId:'op-1',
+  title:'Kitsune mask',rating:4,pin,by:'Nate',at:'2026-09-20T01:00:00.000Z'}}]);
+ assert.equal(offline.shortlist[0].rating,4);assert.deepEqual(offline.shortlist[0].pin,pin);
+ const saved=applyOperation(seed,{type:'shortlistAdd',title:'Tea bowl'},parent);
+ const rated=pendingProgress(saved,[{operation:{type:'shortlistRating',operationId:'op-2',id:saved.shortlist[0].id,rating:3}}]);
+ assert.equal(rated.shortlist[0].rating,3);assert.equal(rated.shortlist[0].pending,true);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/'shortlistRating'/,'a rating given in a shop has to be able to wait for signal');
+ // The button that opens the form is only a button if the form opens where it can be seen. On a
+ // phone the list is longer than the screen, so the form sits above it rather than below it, and
+ // the page goes to it — a form appended under the list is a button that does nothing.
+ assert.ok(shortlistSource.indexOf('className="feature-card find-form"')<shortlistSource.indexOf('className="feature-grid"'),
+  'the add form has to come before the list it is added to');
+ assert.match(shortlistSource,/scrollIntoView/);
+ assert.match(shortlistSource,/input\[name="title"\]'\)\?\.focus/);
+ // And the photograph is offered whether the find is new or already on the list, because the
+ // picture is the whole card and the shop is usually revisited before the form is.
+ assert.equal(shortlistSource.match(/type="file" name="photo"/g).length,1);
+ assert.doesNotMatch(shortlistSource,/\{!edit\.id&&<label className="menu-shoot button">/);
+});
+
 test('a find and its photograph are two things, and losing the picture never loses the find',async()=>{
  const {ensureFeatures,pendingProgress,searchTrip}=await import('../src/trip-features.js');
  // Most shops have no signal in them, so the words go on the list there and then and the
@@ -3065,6 +3131,145 @@ test('the food page hunts a dish rather than a meal, and only a dish we asked af
  assert.match(foodSource,/config\?\.nearby&&/,'no key, no button');
  const nearbySource=await readFile(new URL('../src/Nearby.jsx',import.meta.url),'utf8');
  assert.match(nearbySource,/FOOD_NEARBY_KINDS\.includes\(id\)/,'the food question offers the food kinds');
+});
+test('a recommendation is ranked by its Google rating against the walk to it',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures,placeScore,rankNearby,ratingText,validRating,isRatedKind,NEARBY_KINDS,FOOD_NEARBY_KINDS,MEAL_KINDS,RATED_KINDS,
+  MINUTES_PER_STAR,MIN_RATING_VOTES,UNRATED_STARS}=await import('../src/trip-features.js');
+ // The ask is the specific one, because somebody always minds: matcha, ramen, sushi, a bakery,
+ // something the boys can hold. The broad two are still there for when nobody does.
+ for(const id of ['matcha','ramen','sushi','bakery','sweets','izakaya','quick','coffee'])
+  assert.ok(FOOD_NEARBY_KINDS.includes(id)&&NEARBY_KINDS.some(([key])=>key===id),`${id} is something you can ask for by name`);
+ // And a rating is only asked for where there is a choice to make. Nobody picks a toilet on four
+ // and a half stars, and the next Lawson is the same shop.
+ assert.deepEqual(RATED_KINDS.filter(id=>!FOOD_NEARBY_KINDS.includes(id)),[],'only food and drink is rated');
+ assert.ok(!isRatedKind('konbini')&&!isRatedKind('toilet')&&!isRatedKind('cash')&&!isRatedKind('lockers'));
+ assert.ok(isRatedKind('matcha')&&isRatedKind('ramen')&&isRatedKind('food'));
+ for(const id of MEAL_KINDS)assert.ok(FOOD_NEARBY_KINDS.includes(id),`${id} is a meal, so it is something to eat`);
+ // The exchange rate the family actually uses: a minute on foot buys a tenth of a star, so the
+ // same place one minute further away is worth exactly 0.1 less, and ten minutes is a whole star.
+ assert.equal(MINUTES_PER_STAR,10);
+ assert.equal(placeScore({rating:4.1,walkMinutes:1}),placeScore({rating:4.0,walkMinutes:0}));
+ assert.equal(placeScore({rating:4.6,walkMinutes:0}),4.6);
+ assert.equal(placeScore({rating:4.6,walkMinutes:10}),3.6,'ten minutes is a whole star');
+ assert.ok(placeScore({rating:4.1,walkMinutes:2})>placeScore({rating:4.6,walkMinutes:9}),'four and a half stars nine minutes off loses to four round the corner');
+ assert.ok(placeScore({rating:4.6,walkMinutes:2})>placeScore({rating:4.1,walkMinutes:2}),'same walk, better place, and it is that simple');
+ // A rating is Google's number or it is nothing: out of range, missing or unreadable is not bent
+ // into range, and an unrated place is ranked as the ordinary place it probably is.
+ assert.equal(validRating(4.25),4.3);assert.equal(validRating(9.7),null);
+ assert.equal(validRating(0),null);assert.equal(validRating(Number('four')),null);
+ assert.equal(placeScore({rating:null,walkMinutes:0}),UNRATED_STARS);
+ assert.equal(ratingText(4.2,1203),'4.2 · 1,203 ratings');
+ assert.equal(ratingText(null,1203),'','no rating, nothing said about one');
+ // A dish we are hunting still comes above all of it, and a tie goes to the nearer one.
+ assert.ok(rankNearby({dish:'Takoyaki',score:2.6,walkMinutes:9},{dish:'',score:3.9,walkMinutes:2})<0);
+ assert.ok(rankNearby({dish:'',score:3.7,walkMinutes:9},{dish:'',score:3.7,walkMinutes:1})>0);
+
+ let seen=null;
+ const answer={anchor:'Kyoto Station, the north side',note:'Ratings move, and a queue is its own review.',options:[
+  {title:'Menya Inoichi',japanese:'麺屋 猪一',kind:'food',what:'Clear dashi ramen, sit-down.',
+   area:'Shimogyo-ku',walkMinutes:9,rating:4.6,ratingCount:1200,priceBand:'mid',openNote:'Lunch into the evening, guessing',kidFriendly:true,
+   why:'The best bowl within reach of the station.',dish:''},
+  {title:'Ichiran',japanese:'一蘭',kind:'food',what:'Tonkotsu ramen in a booth of your own.',
+   area:'By the north exit',walkMinutes:2,rating:4.1,ratingCount:6000,priceBand:'cheap',openNote:'Late, usually',kidFriendly:true,
+   why:'Two minutes, and Nate can eat it plain.',dish:''},
+  {title:'Ramen Sen no Kaze',japanese:'',kind:'food',what:'A counter somebody rated last week.',
+   area:'Under the arches',walkMinutes:1,rating:4.9,ratingCount:3,priceBand:'cheap',openNote:'',kidFriendly:true,
+   why:'Right there.',dish:''},
+  {title:'Sky Diner',japanese:'',kind:'food',what:'Rated out of ten by somebody, apparently.',
+   area:'Isetan, eleventh floor',walkMinutes:3,rating:9.7,ratingCount:400,priceBand:'pricey',openNote:'',kidFriendly:false,
+   why:'The view.',dish:''},
+  {title:'FamilyMart',japanese:'ファミリーマート',kind:'konbini',what:'Convenience store with hot food and a toilet.',
+   area:'Hachijo side',walkMinutes:12,rating:null,ratingCount:null,priceBand:'cheap',openNote:'Usually 24 hours, but check',kidFriendly:true,
+   why:'If nobody can face a queue.',dish:''}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen=JSON.parse(body);
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m3',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:4000,output_tokens:600,server_tool_use:{web_search_requests:3}},
+    content:[{type:'tool_use',id:'c1',name:'record_nearby',input:reply}]}));
+  });
+ });
+ let reply=answer;
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {nearbyPlaces}=await import('../server/nearby.mjs');
+  const state=ensureFeatures(structuredClone(seed));
+  const result=await nearbyPlaces({place:'Kyoto Station',city:'Kyoto',kinds:['food']},state);
+
+  // The rating is asked for by name, with the count behind it, and the rule is said out loud so
+  // the model chooses what to name by the same arithmetic the app orders it by.
+  const asked=seen.tools.find(t=>t.name==='record_nearby').input_schema.properties.options.items;
+  assert.ok(asked.required.includes('rating')&&asked.required.includes('ratingCount'));
+  assert.match(asked.properties.rating.description,/Google Maps star rating/);
+  assert.match(seen.system,/a minute on foot is worth a tenth of a star/);
+  assert.match(seen.system,/A rating you have not actually seen is null/);
+
+  // Best first, where best is the rating less a tenth of a star a minute — so the 4.6 nine minutes
+  // away sits below the 4.1 two minutes away, and the convenience store twelve minutes off is last.
+  assert.deepEqual(result.options.map(o=>o.draft.title),
+   ['Ichiran','Ramen Sen no Kaze','Menya Inoichi','Sky Diner','FamilyMart']);
+  const [ichiran,senno,inoichi,sky,familymart]=result.options;
+  assert.equal(ichiran.rating,4.1);assert.equal(ichiran.ratingCount,6000);
+  assert.equal(ichiran.score,3.9);assert.equal(inoichi.score,3.7);
+  assert.equal(result.minutesPerStar,MINUTES_PER_STAR);
+  // Five stars off three people is three people, not a rating, and a score out of ten is not one
+  // either: both are carried as unrated rather than believed or bent into range.
+  assert.equal(senno.rating,null,`fewer than ${MIN_RATING_VOTES} ratings is not a rating`);
+  assert.equal(senno.ratingCount,null);
+  assert.equal(sky.rating,null);assert.equal(sky.score,placeScore({rating:null,walkMinutes:3}));
+  assert.equal(familymart.rating,null,'an unrated konbini is still worth naming, just ranked as an ordinary one');
+  assert.equal(familymart.score,2.6);
+  // The rating rides along into whatever it becomes, because three days later the card is gone.
+  assert.match(ichiran.draft.notes,/Google 4\.1 · 6,000 ratings/);
+  assert.ok(!familymart.draft.notes.includes('Google'),'nothing is written about a rating there is none of');
+
+  // Asked for matcha and a toilet in the same breath: the tea house is ranked on its rating, and
+  // the toilet and the convenience store are ranked on the walk however many stars come back with
+  // them — a five-star toilet is somebody's joke, not a reason to walk past a nearer one.
+  reply={anchor:'Shijo-dori',note:'Tea houses keep short hours.',options:[
+   {title:'Ippodo Tea Kaboku',japanese:'一保堂茶舗 嘉木',kind:'matcha',what:'Tea house behind the shop, matcha whisked at the table.',
+    area:'Teramachi-dori',walkMinutes:7,rating:4.5,ratingCount:900,priceBand:'mid',openNote:'Daytime, guessing',kidFriendly:true,
+    why:'The matcha we came for, and Nate gets a sweet with it.',dish:''},
+   {title:'Public toilets, Shijo subway',japanese:'四条駅トイレ',kind:'toilet',what:'Station toilets, down the stairs.',
+    area:'Shijo station, exit 3',walkMinutes:2,rating:4.9,ratingCount:60,priceBand:'free',openNote:'Station hours',kidFriendly:true,
+    why:'Two minutes and down the stairs.',dish:''},
+   {title:'Lawson',japanese:'ローソン',kind:'konbini',what:'Convenience store with a toilet.',
+    area:'On the corner',walkMinutes:1,rating:4.8,ratingCount:200,priceBand:'cheap',openNote:'Usually 24 hours, but check',kidFriendly:true,
+    why:'Closer still if the stairs are too far.',dish:''}]};
+  const mixed=await nearbyPlaces({place:'Shijo-dori',city:'Kyoto',kinds:['matcha','toilet']},state);
+  assert.match(seen.messages[0].content,/Matcha & tea, Toilets/,'the specific ask goes over as asked');
+  assert.deepEqual(mixed.options.map(o=>o.draft.title),['Ippodo Tea Kaboku','Lawson','Public toilets, Shijo subway']);
+  const [ippodo,lawson,loo]=mixed.options;
+  assert.equal(ippodo.rating,4.5);assert.equal(ippodo.score,3.8);
+  assert.equal(loo.rating,null,'a toilet is found, not chosen, so its stars are dropped');
+  assert.equal(lawson.rating,null,'the next Lawson is the same shop');
+  assert.equal(loo.score,placeScore({rating:null,walkMinutes:2}));
+  assert.ok(lawson.score>loo.score,'between two unrated ones it is simply the nearer');
+  assert.ok(!loo.draft.notes.includes('Google'));
+  assert.equal(ippodo.draft.duration,20,'tea is not a sit-down dinner');
+  assert.match(seen.system,/Matcha means a tea house/);
+  assert.match(seen.system,/The practical things are not rated/);
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ // The card says what it is rated and how many people said so, and the panel says how the order
+ // was arrived at — a ranking nobody can see the workings of is just a list in a funny order.
+ const nearbySource=await readFile(new URL('../src/Nearby.jsx',import.meta.url),'utf8');
+ assert.match(nearbySource,/nearby-rating/);
+ assert.match(nearbySource,/ratingText\(item\.rating,item\.ratingCount\)/);
+ assert.match(nearbySource,/No Google rating we could find/);
+ assert.match(nearbySource,/a tenth of a star for every minute/);
+ assert.match(nearbySource,/isRatedKind\(item\.kind\)&&/,'no star on a toilet, not even an empty one');
+ assert.match(nearbySource,/Something to eat or drink/);
+ assert.match(nearbySource,/The practical things/);
 });
 test('the recipe book is complete, sensible and reachable from the starting six',async()=>{
  const {ELEMENTS,RECIPES,SIGHTS,elementById,startingElements,combine,discoverable}=await import('../src/kana-data.js');
@@ -6217,6 +6422,19 @@ test('the boys’ spending money: what went in, what went out, and what is left'
  // Wanting more than there is says so rather than showing a tidy figure.
  const greedy=applyOperation(state,{type:'spendAdd',person:'Nate',title:'A whole Gunpla kit',estimate:9000},child);
  assert.ok(purse(greedy,'Nate',third).after<0);
+ // The money box drawn on the page reads the same purse, and has to stay inside its own outline:
+ // every level is a share between 0 and 1, whatever a boy has managed to promise away.
+ const {purseLevels}=await import('../src/trip-features.js');
+ const drawn=purseLevels(purse(greedy,'Nate',third));
+ assert.ok(drawn.level>0&&drawn.level<=1&&drawn.after===0,'a list bigger than the purse empties the box, it does not invert it');
+ assert.equal(drawn.short,true);
+ const fresh=purseLevels({paidIn:2000,spent:0,planned:0,left:2000,after:2000});
+ assert.deepEqual(fresh,{level:1,after:1,promised:0,shortfall:0,short:false,empty:false});
+ assert.deepEqual(purseLevels(null),{level:0,after:0,promised:0,shortfall:0,short:false,empty:true});
+ // What the list wants and the box has not got is drawn above the money line, so it has to be a
+ // share of the drawing too rather than a number that runs off the top of it.
+ const over=purseLevels({paidIn:5000,spent:4200,planned:4000,left:800,after:-3200});
+ assert.ok(over.shortfall>0&&over.shortfall<1&&over.level+over.shortfall<=1);
  // One boy cannot reach into the other's list, and a parent can.
  assert.throws(()=>applyOperation(state,{type:'spendRemove',id:beyblade.id},boston),e=>e.status===403);
  assert.throws(()=>applyOperation(state,{type:'spendEdit',id:beyblade.id,title:'Mine now'},boston),e=>e.status===403);
