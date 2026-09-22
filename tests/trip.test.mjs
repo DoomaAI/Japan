@@ -160,6 +160,17 @@ test('the bin on a stop asks before anything happens, and only a parent is offer
  assert.match(timeline,/const drop=s=>parent&&removeStep\?/);
  assert.match(timeline,/onClick=\{\(\)=>removeStep\(s\)\}/);
  assert.doesNotMatch(timeline,/type:'remove'/,'the timeline never removes a stop on the tap itself');
+ // The gentler answer has an icon of its own beside the bin, so nobody has to reach for the bin
+ // to find it. It is a parent's too, and the row still decides nothing itself.
+ assert.match(timeline,/className="to-options"/);
+ assert.match(timeline,/const park=s=>parent&&optionStep\?/);
+ assert.match(timeline,/onClick=\{\(\)=>optionStep\(s\)\}/);
+ assert.match(timeline,/\{park\(s\)\}\{drop\(s\)\}/,'the tray sits before the bin');
+ assert.doesNotMatch(timeline,/type:'backlog'/,'the move is handled above the row, like every other change');
+ // Moving is reversible, so it goes on the tap; a locked time is answered without a round trip.
+ assert.match(main,/optionStep=\{async s=>\{/);
+ assert.match(main,/if\(s\.locked\)\{notice\('Unlock its fixed time before saving this stop to Options\.'\);return;\}/);
+ assert.match(main,/mutate\(\{type:'backlog',id:s\.id\}\)/);
  // Both ways in — the bin on the timeline and the button in the edit form — open the same
  // question, and the form no longer asks in the browser's own box.
  assert.match(main,/removeStep=\{s=>setModal\(\{type:'remove',step:s\}\)\}/);

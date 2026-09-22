@@ -287,9 +287,11 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 
 .pin-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:-.4rem 0 1rem}.pin-tag{display:inline-flex;align-items:center;gap:.4rem;background:#e6f1eb;color:#205543;font-weight:600}.pin-tag button{border:0;background:transparent;padding:0 0 0 .1rem;min-height:24px;color:inherit}.matched-address svg{margin-right:.25rem}
 
-/* Taking a stop off the day. The bin sits under the reorder arrows, quiet rather than red, since
-   it opens a question instead of doing anything; the panel it opens is the pop-up that decides. */
-.reorder-tools .remove-stop{grid-column:span 2;min-height:34px;color:#8b7a76}
+/* Taking a stop off the day, and the gentler answer beside it. The pair sits under the reorder
+   arrows, both quiet rather than red: the tray moves the stop to Options on the tap, the bin only
+   opens the question, and the pop-up it opens is what actually decides. */
+.reorder-tools .to-options,.reorder-tools .remove-stop{min-height:34px;color:#8b7a76}
+.reorder-tools .to-options:hover{color:var(--green)}
 .reorder-tools .remove-stop:hover{color:#a0342d}
 .confirm-remove>h3{margin:.2rem 0 .3rem;font-size:1.15rem;overflow-wrap:anywhere}
 .confirm-remove>small{margin-bottom:1rem}
