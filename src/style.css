@@ -301,9 +301,15 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .reorder-tools .to-options,.reorder-tools .remove-stop{min-height:34px}
 .to-options:hover{color:var(--green)}
 .remove-stop:hover{color:#a0342d}
-/* The card carries the same pair beside its lock, so its top row is allowed to wrap rather than
-   squeeze the step count off a narrow phone. */
-.card-top .row{flex-wrap:wrap;justify-content:flex-end}
+/* The card carries the same pair beside its lock, and the three of them belong together: a bin
+   sitting alone under the tag reads like a different control. So the tag and its icons never
+   split across two lines — on a phone they close up and shed a little padding instead, which is
+   enough to keep the step count beside them. If a long tag still leaves no room, the step count
+   takes the line above rather than the icons breaking apart. */
+.card-top{flex-wrap:wrap;row-gap:.45rem}
+.card-top .eyebrow{white-space:nowrap}
+.card-top .row{flex-wrap:nowrap;justify-content:flex-end;gap:.35rem;min-width:min-content}
+@media(max-width:480px){.card-top{gap:6px}.card-top .eyebrow{font-size:.7rem;letter-spacing:.07em}.card-top .row{gap:.1rem}.card-top .tag{font-size:.68rem;padding:.3rem .42rem}.card-top .icon{min-width:34px;padding:.35rem}}
 .confirm-remove>h3{margin:.2rem 0 .3rem;font-size:1.15rem;overflow-wrap:anywhere}
 .confirm-remove>small{margin-bottom:1rem}
 .confirm-remove>p{margin-bottom:.8rem}
