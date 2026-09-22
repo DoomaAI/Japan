@@ -284,3 +284,5 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 /* Finds we have decided to get, waiting to come across onto the shopping list. */
 .shortlist-waiting{border:1px solid #abc3a7;background:#f4f9f2;border-radius:16px;padding:1rem 1.1rem;margin:1.2rem 0}
 .shortlist-waiting .list-row:last-child{border-bottom:0}
+
+.pin-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:-.4rem 0 1rem}.pin-tag{display:inline-flex;align-items:center;gap:.4rem;background:#e6f1eb;color:#205543;font-weight:600}.pin-tag button{border:0;background:transparent;padding:0 0 0 .1rem;min-height:24px;color:inherit}.matched-address svg{margin-right:.25rem}
