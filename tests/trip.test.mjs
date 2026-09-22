@@ -435,6 +435,51 @@ test('all imported locations retain source rows and produce correctly encoded di
  for(const l of locations){assert.ok(l.address);for(const mode of ['transit','walking','driving']){const url=new URL(locationDirections(l,mode));assert.equal(url.hostname,'www.google.com');assert.equal(url.searchParams.get('destination'),locationDestination(l));assert.equal(url.searchParams.get('travelmode'),mode);assert.equal(url.searchParams.get('api'),'1');assert.ok(url.href.length<2048);}}
  const shrine=locations.find(l=>l.name==='Jishu Jinja Shrine');assert.ok(shrine.referenceOnly);assert.match(shrine.notes,/CLOSED/);
 });
+test('asking a phone where it is rounds to the asked precision, and never waits forever',async()=>{
+ const {askPhoneWhereItIs,GEO_TROUBLE}=await import('../src/geo.js');
+ const {COORD_PLACES,PIN_PLACES}=await import('../src/trip-features.js');
+ const phone=impl=>Object.defineProperty(globalThis,'navigator',{value:{geolocation:{getCurrentPosition:impl}},configurable:true});
+ const real=Object.getOwnPropertyDescriptor(globalThis,'navigator');
+ try{
+  phone(ok=>ok({coords:{latitude:35.65858051,longitude:139.74543291}}));
+  // The pin is worth about eleven metres; a position sent off to be looked up is rounded harder.
+  assert.deepEqual(await askPhoneWhereItIs(PIN_PLACES),{lat:35.6586,lng:139.7454});
+  assert.deepEqual(await askPhoneWhereItIs(COORD_PLACES),{lat:35.659,lng:139.745});
+  for(const code of [1,2,3]){
+   phone((ok,fail)=>fail({code}));
+   await assert.rejects(askPhoneWhereItIs(PIN_PLACES),e=>e.message===GEO_TROUBLE[code]);
+  }
+  phone((ok,fail)=>fail({}));
+  await assert.rejects(askPhoneWhereItIs(PIN_PLACES),/could not be read/);
+  // A permission sheet swiped away rather than answered never calls back, and the browser's own
+  // timeout does not cover that wait — so the button has to come back by itself.
+  phone(()=>{});
+  await assert.rejects(askPhoneWhereItIs(PIN_PLACES,50),e=>e.message===GEO_TROUBLE[3]);
+  Object.defineProperty(globalThis,'navigator',{value:{},configurable:true});
+  await assert.rejects(askPhoneWhereItIs(PIN_PLACES),/cannot share its position/);
+ }finally{if(real)Object.defineProperty(globalThis,'navigator',real);else delete globalThis.navigator;}
+});
+test('a stop pinned where the family stood is stored whole and beats every other way of saying where it is',async()=>{
+ const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
+ const {destinationFor,resolveLocation}=await import('../src/locations.js');const state={...seed,locations};
+ const day=seed.days[0].date,pin={lat:35.6586,lng:139.7454};
+ const added=applyOperation(state,{type:'add',step:{title:'The bakery on the corner',day,pin}},parent).steps.at(-1);
+ assert.deepEqual(added.pin,pin);
+ assert.equal(destinationFor(state,added),'35.6586,139.7454');
+ // A pin outranks a name the catalogue knows: it is the spot the family actually stood on.
+ const named=seed.steps.find(s=>s.place==='HARRY Harajuku Terrace');
+ assert.match(destinationFor(state,named),/HARRY Harajuku Terrace/);
+ const pinned=applyOperation(state,{type:'patch',id:named.id,patch:{pin}},parent).steps.find(s=>s.id===named.id);
+ assert.equal(destinationFor(state,pinned),'35.6586,139.7454');
+ assert.ok(resolveLocation(state,pinned));
+ // Dropping the pin hands the stop back to its name.
+ const cleared=applyOperation(state,{type:'patch',id:named.id,patch:{pin:null}},parent).steps.find(s=>s.id===named.id);
+ assert.equal(cleared.pin,null);assert.match(destinationFor(state,cleared),/HARRY Harajuku Terrace/);
+ // Half a pair, a value off the planet, or anything else wearing the same name is not a place.
+ for(const bad of [{lat:35.6586},{lat:35.6586,lng:139.7454,accuracy:5},{lat:'35.6586',lng:139.7454},{lat:91,lng:139.7454},{lat:35.6586,lng:181},{lat:NaN,lng:139.7454},[35.6586,139.7454]])
+  assert.throws(()=>applyOperation(state,{type:'patch',id:named.id,patch:{pin:bad}},parent),/latitude and a longitude/);
+ assert.throws(()=>applyOperation(state,{type:'patch',id:named.id,patch:{pin}},child),e=>e.status===403);
+});
 test('address matches preserve exact branches and leave ambiguous areas or station entrances alone',async()=>{
  const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
  const {resolveLocation,destinationFor,locationsForPage}=await import('../src/locations.js');const state={...seed,locations};
