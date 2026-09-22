@@ -823,16 +823,32 @@ export const buyTodosFor=(state,person)=>todos(state)
 // Standing in the street with two tired children: what is near enough to walk to right now.
 // Food and the practical things a family runs out of — not sights, which is what the planning
 // board is for.
+// "Somewhere to eat" is what you ask when you do not mind; most of the time somebody does mind,
+// and the specific ask is the useful one — matcha and a sit-down, ramen, a bakery, something the
+// boys can hold. A named craving gets a named place; the broad two are still there for when
+// nobody can decide.
 export const NEARBY_KINDS=[
- ['food','Somewhere to eat'],['quick','Something quick'],['coffee','Coffee or a cold drink'],
+ ['food','Somewhere to eat'],['quick','Casual eats, something quick'],['ramen','Ramen & noodles'],
+ ['sushi','Sushi'],['bakery','Bakery & sandwiches'],['matcha','Matcha & tea'],
+ ['sweets','Sweets, cake & ice cream'],['coffee','Coffee or a cold drink'],['izakaya','Izakaya or a beer'],
  ['konbini','Convenience store'],['toilet','Toilets'],['pharmacy','Pharmacy'],['cash','Cash / ATM'],
  ['lockers','Coin lockers'],['rest','Somewhere to sit down'],['playground','Somewhere to run about'],
  ['shelter','Out of the rain']
 ];
 export const PRICE_BANDS=[['free','Free'],['cheap','Cheap'],['mid','Mid-range'],['pricey','Pricey']];
 // The same question asked from the food page is a narrower one: a toilet and a coin locker are
-// not what somebody reading the food list wants, so only the four that can feed you are offered.
-export const FOOD_NEARBY_KINDS=['food','quick','coffee','konbini'];
+// not what somebody reading the food list wants, so only the ones that can feed you are offered.
+export const FOOD_NEARBY_KINDS=['food','quick','ramen','sushi','bakery','matcha','sweets','coffee','izakaya','konbini'];
+// Which of them is a meal rather than something eaten standing up, and so how long to put aside
+// for it when it goes on the day.
+export const MEAL_KINDS=['food','ramen','sushi','izakaya'];
+// A rating is only worth having where there is a choice to make. A toilet, a cash machine and a
+// coin locker are not chosen, they are found; and the nearest Lawson is the right Lawson, because
+// the next one is the same shop. Food and drink is where four tenths of a star is worth four
+// minutes, so that is where the rating is asked for and where the ranking uses it. Everything
+// else is ranked on the walk alone, which is nearest first, as it always was.
+export const RATED_KINDS=FOOD_NEARBY_KINDS.filter(id=>id!=='konbini');
+export const isRatedKind=id=>RATED_KINDS.includes(id);
 // How many dishes a single hunt carries. The list runs to fifty; asking after all of them at once
 // is asking after nothing in particular.
 export const MAX_DISH_HUNT=12;

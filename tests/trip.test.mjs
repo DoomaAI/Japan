@@ -3059,7 +3059,18 @@ test('the food page hunts a dish rather than a meal, and only a dish we asked af
 });
 test('a recommendation is ranked by its Google rating against the walk to it',async()=>{
  const {createServer}=await import('node:http');
- const {ensureFeatures,placeScore,rankNearby,ratingText,validRating,MINUTES_PER_STAR,MIN_RATING_VOTES,UNRATED_STARS}=await import('../src/trip-features.js');
+ const {ensureFeatures,placeScore,rankNearby,ratingText,validRating,isRatedKind,NEARBY_KINDS,FOOD_NEARBY_KINDS,MEAL_KINDS,RATED_KINDS,
+  MINUTES_PER_STAR,MIN_RATING_VOTES,UNRATED_STARS}=await import('../src/trip-features.js');
+ // The ask is the specific one, because somebody always minds: matcha, ramen, sushi, a bakery,
+ // something the boys can hold. The broad two are still there for when nobody does.
+ for(const id of ['matcha','ramen','sushi','bakery','sweets','izakaya','quick','coffee'])
+  assert.ok(FOOD_NEARBY_KINDS.includes(id)&&NEARBY_KINDS.some(([key])=>key===id),`${id} is something you can ask for by name`);
+ // And a rating is only asked for where there is a choice to make. Nobody picks a toilet on four
+ // and a half stars, and the next Lawson is the same shop.
+ assert.deepEqual(RATED_KINDS.filter(id=>!FOOD_NEARBY_KINDS.includes(id)),[],'only food and drink is rated');
+ assert.ok(!isRatedKind('konbini')&&!isRatedKind('toilet')&&!isRatedKind('cash')&&!isRatedKind('lockers'));
+ assert.ok(isRatedKind('matcha')&&isRatedKind('ramen')&&isRatedKind('food'));
+ for(const id of MEAL_KINDS)assert.ok(FOOD_NEARBY_KINDS.includes(id),`${id} is a meal, so it is something to eat`);
  // The exchange rate the family actually uses: a minute on foot buys a tenth of a star, so the
  // same place one minute further away is worth exactly 0.1 less, and ten minutes is a whole star.
  assert.equal(MINUTES_PER_STAR,10);
@@ -3103,9 +3114,10 @@ test('a recommendation is ranked by its Google rating against the walk to it',as
    res.setHeader('Content-Type','application/json');
    res.end(JSON.stringify({id:'m3',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
     usage:{input_tokens:4000,output_tokens:600,server_tool_use:{web_search_requests:3}},
-    content:[{type:'tool_use',id:'c1',name:'record_nearby',input:answer}]}));
+    content:[{type:'tool_use',id:'c1',name:'record_nearby',input:reply}]}));
   });
  });
+ let reply=answer;
  await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
  const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
  process.env.ANTHROPIC_API_KEY='test-key';
@@ -3141,6 +3153,33 @@ test('a recommendation is ranked by its Google rating against the walk to it',as
   // The rating rides along into whatever it becomes, because three days later the card is gone.
   assert.match(ichiran.draft.notes,/Google 4\.1 · 6,000 ratings/);
   assert.ok(!familymart.draft.notes.includes('Google'),'nothing is written about a rating there is none of');
+
+  // Asked for matcha and a toilet in the same breath: the tea house is ranked on its rating, and
+  // the toilet and the convenience store are ranked on the walk however many stars come back with
+  // them — a five-star toilet is somebody's joke, not a reason to walk past a nearer one.
+  reply={anchor:'Shijo-dori',note:'Tea houses keep short hours.',options:[
+   {title:'Ippodo Tea Kaboku',japanese:'一保堂茶舗 嘉木',kind:'matcha',what:'Tea house behind the shop, matcha whisked at the table.',
+    area:'Teramachi-dori',walkMinutes:7,rating:4.5,ratingCount:900,priceBand:'mid',openNote:'Daytime, guessing',kidFriendly:true,
+    why:'The matcha we came for, and Nate gets a sweet with it.',dish:''},
+   {title:'Public toilets, Shijo subway',japanese:'四条駅トイレ',kind:'toilet',what:'Station toilets, down the stairs.',
+    area:'Shijo station, exit 3',walkMinutes:2,rating:4.9,ratingCount:60,priceBand:'free',openNote:'Station hours',kidFriendly:true,
+    why:'Two minutes and down the stairs.',dish:''},
+   {title:'Lawson',japanese:'ローソン',kind:'konbini',what:'Convenience store with a toilet.',
+    area:'On the corner',walkMinutes:1,rating:4.8,ratingCount:200,priceBand:'cheap',openNote:'Usually 24 hours, but check',kidFriendly:true,
+    why:'Closer still if the stairs are too far.',dish:''}]};
+  const mixed=await nearbyPlaces({place:'Shijo-dori',city:'Kyoto',kinds:['matcha','toilet']},state);
+  assert.match(seen.messages[0].content,/Matcha & tea, Toilets/,'the specific ask goes over as asked');
+  assert.deepEqual(mixed.options.map(o=>o.draft.title),['Ippodo Tea Kaboku','Lawson','Public toilets, Shijo subway']);
+  const [ippodo,lawson,loo]=mixed.options;
+  assert.equal(ippodo.rating,4.5);assert.equal(ippodo.score,3.8);
+  assert.equal(loo.rating,null,'a toilet is found, not chosen, so its stars are dropped');
+  assert.equal(lawson.rating,null,'the next Lawson is the same shop');
+  assert.equal(loo.score,placeScore({rating:null,walkMinutes:2}));
+  assert.ok(lawson.score>loo.score,'between two unrated ones it is simply the nearer');
+  assert.ok(!loo.draft.notes.includes('Google'));
+  assert.equal(ippodo.draft.duration,20,'tea is not a sit-down dinner');
+  assert.match(seen.system,/Matcha means a tea house/);
+  assert.match(seen.system,/The practical things are not rated/);
  }finally{
   upstream.close();
   if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
@@ -3153,6 +3192,9 @@ test('a recommendation is ranked by its Google rating against the walk to it',as
  assert.match(nearbySource,/ratingText\(item\.rating,item\.ratingCount\)/);
  assert.match(nearbySource,/No Google rating we could find/);
  assert.match(nearbySource,/a tenth of a star for every minute/);
+ assert.match(nearbySource,/isRatedKind\(item\.kind\)&&/,'no star on a toilet, not even an empty one');
+ assert.match(nearbySource,/Something to eat or drink/);
+ assert.match(nearbySource,/The practical things/);
 });
 test('the recipe book is complete, sensible and reachable from the starting six',async()=>{
  const {ELEMENTS,RECIPES,SIGHTS,elementById,startingElements,combine,discoverable}=await import('../src/kana-data.js');

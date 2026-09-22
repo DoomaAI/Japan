@@ -1,6 +1,6 @@
 import {AppError,MEMBERS} from './model.mjs';
-import {NEARBY_KINDS,PRICE_BANDS,PROPOSAL_KINDS,proposalDraft,roundCoord,validCoords,partyBrief,matchDish,MAX_DISH_HUNT,
- MIN_RATING_VOTES,MINUTES_PER_STAR,placeScore,rankNearby,ratingText,validRating} from '../src/trip-features.js';
+import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MEAL_KINDS,PRICE_BANDS,PROPOSAL_KINDS,proposalDraft,roundCoord,validCoords,partyBrief,matchDish,MAX_DISH_HUNT,
+ MIN_RATING_VOTES,MINUTES_PER_STAR,isRatedKind,placeScore,rankNearby,ratingText,validRating} from '../src/trip-features.js';
 export const nearbyReady=()=>!!process.env.ANTHROPIC_API_KEY;
 export const MAX_NEARBY=8;
 // This is the one asked standing in the street with two tired children, so it is tuned for speed:
@@ -16,7 +16,7 @@ const option={
   what:{type:'string',description:'One line on what it actually is.'},
   area:{type:'string',description:'The street, block or landmark it is by — enough to walk to it.'},
   walkMinutes:{type:'integer',description:'Rough walk in minutes from the place given. Your best estimate.'},
-  rating:{anyOf:[{type:'number'},{type:'null'}],description:'The Google Maps star rating, 1 to 5, as it stands today. Null if you have not seen it — never a guess, and never a rating for a different branch.'},
+  rating:{anyOf:[{type:'number'},{type:'null'}],description:'For a food or drink place, its Google Maps star rating, 1 to 5, as it stands today. Null if you have not seen it — never a guess, and never a rating for a different branch. Null for a toilet, a cash machine, a locker or a convenience store: nobody chooses those on a rating.'},
   ratingCount:{anyOf:[{type:'integer'},{type:'null'}],description:'How many Google ratings that average is made of. Null if you do not know.'},
   priceBand:{type:'string',enum:PRICE_BANDS.map(([id])=>id)},
   openNote:{type:'string',description:'What you know about when it is open, said as the guess it is. Empty if you do not know.'},
@@ -44,8 +44,9 @@ How to answer:
 - Only name places you have real reason to believe are there. A named place you are confident about beats a vague one. If you can only say "there is a Lawson on the main road by the north exit", that is still useful — put that in "area" and be plain about it.
 - Nothing more than about fifteen minutes' walk. Give them in whatever order you think best; the app reorders them by its own rule below.
 - "walkMinutes" is your estimate and everyone knows it. Do not pretend to precision you do not have.
-- The family ranks what you name by its Google rating against the walk to it: a minute on foot is worth a tenth of a star, so ten minutes is a whole star. Search for the rating and the number of ratings behind it, and give them as "rating" and "ratingCount". A rating you have not actually seen is null — a made-up 4.5 outranks a real one and sends them the wrong way. An unrated place is still worth naming when it is close and it answers the question; a convenience store is the obvious one.
-- That exchange rate is also how to choose what to name at all: somewhere very good is worth naming a few minutes further out, and somewhere ordinary is only worth naming if it is close.
+- Food and drink is ranked on its rating against the walk to it: a minute on foot is worth a tenth of a star, so ten minutes is a whole star. Search for the Google rating and the number of ratings behind it, and give them as "rating" and "ratingCount". A rating you have not actually seen is null — a made-up 4.5 outranks a real one and sends them the wrong way. That exchange rate is also how to choose what to name at all: somewhere very good is worth naming a few minutes further out, somewhere ordinary is only worth naming if it is close.
+- The practical things are not rated, and must not be. A toilet, a pharmacy, a cash machine, a locker, a bench, a playground, somewhere out of the rain — and a convenience store, where the next one is the same shop — are ranked on the walk alone, so leave "rating" and "ratingCount" null and simply give the nearest useful one.
+- Answer the specific thing they asked for. Matcha means a tea house or a place that is actually about matcha, not a café with a matcha latte on the board. Ramen means a ramen shop. Sushi means sushi, and say plainly whether it is a conveyor belt or a counter, because those are different evenings. A bakery, sweets, a beer for the grown-ups — each is its own ask, and a place that merely also does it is not the answer. If they tick several, spread the list across them rather than giving five versions of one. "Somewhere to eat" and "casual eats" are the broad ones, for when nobody minds.
 - The Japanese name earns its place: it is what they point at when nobody speaks English.
 - Nate is five. For food, at least one option he will actually eat, and set kidFriendly honestly — a standing counter with no seats is not for him.
 - Convenience stores in Japan have toilets, cash machines and hot food, so they answer several of these at once. Say so where it is the practical answer.
@@ -65,7 +66,7 @@ export function normaliseNearby(item,state,wishlist=[]){
  // A rating is Google's number or it is nothing: out of range it is dropped rather than bent into
  // range, and an average built on a handful of votes is not an average worth walking on.
  const votes=Number.isInteger(item.ratingCount)&&item.ratingCount>=0?item.ratingCount:null;
- const rating=votes!==null&&votes<MIN_RATING_VOTES?null:validRating(Number(item.rating));
+ const rating=!isRatedKind(kind)||(votes!==null&&votes<MIN_RATING_VOTES)?null:validRating(Number(item.rating));
  const ratingCount=rating===null?null:votes;
  const draft=proposalDraft({
   title:clamp(item.title,250),place:clamp(item.area,250),japanese:clamp(item.japanese,250),
@@ -73,8 +74,8 @@ export function normaliseNearby(item,state,wishlist=[]){
   // note is all that says why this one and not the one closer to the station.
   notes:[clamp(item.what,1000),dish?`On our food list: ${dish}`:'',
    rating===null?'':`Google ${ratingText(rating,ratingCount)}`,clamp(item.openNote,250)].filter(Boolean).join('\n'),
-  category:['food','quick','coffee','konbini'].includes(kind)?'food':'other',
-  timing:'flex',duration:kind==='food'?60:20,cost:null,costNote:'',
+  category:FOOD_NEARBY_KINDS.includes(kind)?'food':'other',
+  timing:'flex',duration:MEAL_KINDS.includes(kind)?60:20,cost:null,costNote:'',
   suitableFor:item.kidFriendly===false?(state.members||MEMBERS).filter(n=>n!=='Nate'):[],
   tags:[clamp(item.area,50)].filter(Boolean),source:'suggested'
  });

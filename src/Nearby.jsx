@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import {MapPin,Navigation,Search,Plus,Check,AlertCircle,Clock,Coins,ExternalLink,Inbox,Users,LocateFixed,UtensilsCrossed,Star} from 'lucide-react';
-import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MAX_DISH_HUNT,MINUTES_PER_STAR,nearbyKindLabel,priceBandLabel,ratingText,walkingLink,COORD_PLACES} from './trip-features.js';
+import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MAX_DISH_HUNT,MINUTES_PER_STAR,isRatedKind,nearbyKindLabel,priceBandLabel,ratingText,walkingLink,COORD_PLACES} from './trip-features.js';
 import {askPhoneWhereItIs} from './geo.js';
 import {activeSteps} from './timing.js';
 // Asked standing in the street, so it opens on what it can answer fastest: where the phone says
@@ -10,10 +10,16 @@ import {activeSteps} from './timing.js';
 // our list come with it, the amenity half of the menu is put away, and an answer that does one of
 // those dishes says which and goes to the top.
 //
-// The order of the cards is not the order they came back in. Each one is worth its Google rating
-// less a tenth of a star for every minute of the walk — our own exchange rate, written down once
-// in trip-features and applied on the server — so the good bowl of noodles eight minutes away
-// beats the ordinary one outside the station, and the station one wins again at twelve.
+// The order of the cards is not the order they came back in. A place to eat or drink is worth its
+// Google rating less a tenth of a star for every minute of the walk — our own exchange rate,
+// written down once in trip-features and applied on the server — so the good bowl of noodles eight
+// minutes away beats the ordinary one outside the station, and the station one wins again at
+// twelve. A toilet, a cash machine or a Lawson is not chosen on a rating, so those are the nearest
+// one, as they always were.
+//
+// The asking is specific for the same reason: matcha, ramen, sushi, a bakery, something the boys
+// can hold. "Somewhere to eat" is the question you ask when nobody minds, and somebody usually
+// minds.
 export default function Nearby({state,user,day,step,request,mutate,busy,notice,close,selectStep,mode,wishlist}){
  const today=state.days.find(d=>d.date===day),steps=activeSteps(state,day);
  const current=step||steps.find(s=>!['done','skipped'].includes(s.status))||steps.at(-1);
@@ -88,20 +94,24 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
    <p className="nearby-hint">Somewhere that does one of these comes first. Tap off whatever nobody is hunting right now — with none of them on, it just looks for somewhere to eat.</p>
    <div className="chips">{offered.map(name=><label className={`chip ${dishes.includes(name)?'on':''}`} key={name}><input type="checkbox" checked={dishes.includes(name)} onChange={()=>toggleDish(name)}/>{name}</label>)}</div>
   </fieldset>}
-  <fieldset><legend>{hunt?'What kind of place?':'What do we need?'}</legend><div className="chips">{(hunt?NEARBY_KINDS.filter(([id])=>FOOD_NEARBY_KINDS.includes(id)):NEARBY_KINDS).map(([id,label])=><label className={`chip ${kinds.includes(id)?'on':''}`} key={id}><input type="checkbox" checked={kinds.includes(id)} onChange={()=>toggle(id)}/>{label}</label>)}</div></fieldset>
+  <fieldset><legend>{hunt?'What kind of place?':'Something to eat or drink'}</legend>
+   <div className="chips">{NEARBY_KINDS.filter(([id])=>FOOD_NEARBY_KINDS.includes(id)).map(([id,label])=><label className={`chip ${kinds.includes(id)?'on':''}`} key={id}><input type="checkbox" checked={kinds.includes(id)} onChange={()=>toggle(id)}/>{label}</label>)}</div></fieldset>
+  {!hunt&&<fieldset><legend>The practical things</legend>
+   <p className="nearby-hint">These are answered with the nearest one rather than the best rated — nobody chooses a toilet on four and a half stars.</p>
+   <div className="chips">{NEARBY_KINDS.filter(([id])=>!FOOD_NEARBY_KINDS.includes(id)).map(([id,label])=><label className={`chip ${kinds.includes(id)?'on':''}`} key={id}><input type="checkbox" checked={kinds.includes(id)} onChange={()=>toggle(id)}/>{label}</label>)}</div></fieldset>}
   <label>Anything else<input value={note} onChange={e=>setNote(e.target.value)} maxLength={250} placeholder="nothing spicy · we have the pram · twenty minutes before the train"/></label>
   <button className="primary nearby-go" onClick={ask} disabled={working||busy}><Search size={18}/>{working?'Having a look…':hunt?'Where can we eat near here?':'What is near here?'}</button>
   {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
   {result&&<div className="nearby-results">
    <h3>Near {result.anchor||today?.city}</h3>
-   <p className="nearby-hint">Best first rather than nearest first: the Google rating with the walk taken off it, a tenth of a star for every minute — so we will walk {MINUTES_PER_STAR} minutes more for a whole extra star. Somewhere with no rating is ranked as an ordinary place and says so on its card.</p>
+   <p className="nearby-hint">Somewhere to eat or drink comes best first rather than nearest first: the Google rating with the walk taken off it, a tenth of a star for every minute — so we will walk {MINUTES_PER_STAR} minutes more for a whole extra star. Somewhere with no rating is ranked as an ordinary place and says so on its card. Toilets, cash, lockers and convenience stores are the nearest one, which is the only thing that matters about them.</p>
    {result.note&&<p className="callout"><AlertCircle size={18}/>{result.note}</p>}
    {result.options.map(item=>{
     const done=added.includes(item.draft.title),link=walkingLink(item.draft.title,item.area,result.from);
     return <article className={`feature-card nearby-card ${done?'finished':''}`} key={item.draft.title+item.area}>
      <div className="section-heading"><div><span className="eyebrow">{nearbyKindLabel(item.kind)}</span><h4>{item.draft.title}</h4></div>
       <div className="nearby-marks">
-       <span className={`nearby-rating${item.rating===null?' unrated':''}`}><Star size={14}/>{item.rating===null?'—':item.rating.toFixed(1)}<small>{item.rating===null?'no rating':'Google'}</small></span>
+       {isRatedKind(item.kind)&&<span className={`nearby-rating${item.rating===null?' unrated':''}`}><Star size={14}/>{item.rating===null?'—':item.rating.toFixed(1)}<small>{item.rating===null?'no rating':'Google'}</small></span>}
        {item.walkMinutes!==null&&<span className="nearby-walk">{item.walkMinutes}<small>min walk</small></span>}
       </div></div>
      {item.draft.japanese&&<p className="destination-japanese" lang="ja">{item.draft.japanese}</p>}
@@ -110,7 +120,7 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
      {item.why&&<p className="suggest-why">{item.why}</p>}
      <div className="plan-facts">
       {item.area&&<span><MapPin size={14}/>{item.area}</span>}
-      <span><Star size={14}/>{item.rating===null?'No Google rating we could find':`${ratingText(item.rating,item.ratingCount)} on Google`}</span>
+      {isRatedKind(item.kind)&&<span><Star size={14}/>{item.rating===null?'No Google rating we could find':`${ratingText(item.rating,item.ratingCount)} on Google`}</span>}
       {item.priceBand&&<span><Coins size={14}/>{priceBandLabel(item.priceBand)}</span>}
       {item.openNote&&<span><Clock size={14}/>{item.openNote}</span>}
       <span><Users size={14}/>{item.kidFriendly?'Fine with Nate':'Not one for Nate'}</span>
