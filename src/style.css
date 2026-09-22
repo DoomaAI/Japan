@@ -247,3 +247,20 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .step-allocation{margin-bottom:1rem}.step-allocation label{margin-bottom:.5rem}.allocation-chips{gap:.4rem;margin-bottom:.4rem}.allocation-chips .tag{display:inline-flex;align-items:center;gap:.3rem;min-height:34px;border:1px solid #cfdcd6;background:#e9f0ed;color:var(--ink)}.allocation-chips .tag svg{opacity:.7}
 .ticket-translate{margin-top:.8rem}.ticket-translate details{margin:.6rem 0 0;padding:.8rem}.ticket-translate summary{display:flex;align-items:center;gap:.45rem;font-size:.85rem}.translate-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem;padding:.5rem 0;border-top:1px solid var(--border)}.translate-row strong{font-size:.85rem}.ticket-translation{margin:.7rem 0;padding:.9rem 1rem;border:1px solid var(--border);border-radius:12px;background:#f7faf8}.ticket-translation .eyebrow{margin-bottom:.4rem;font-size:.68rem}.ticket-translation.ja{background:#edf4ef}.ticket-translation .say-it{margin-bottom:.6rem}.ticket-translation .callout{margin:.6rem 0}.ticket-translation pre.document-text{margin:0 0 .5rem}
 .dictate-row{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:.2rem 0 .8rem}.dictate{font-size:.82rem;min-height:38px;padding:.45rem .9rem;border-radius:20px;background:#eef3ea;border-color:#cfdcc9}.dictate.listening{background:var(--danger,#a3352b);border-color:var(--danger,#a3352b);color:#fff}.dictate.listening:hover{background:var(--danger,#a3352b);border-color:var(--danger,#a3352b)}.dictate-live{flex:1 1 140px;min-width:0;font-size:.85rem;font-style:italic;color:var(--muted);overflow-wrap:anywhere}.dictate-row .hear-problem{flex:1 1 100%;margin-top:0}.quest .dictate{font-size:.95rem;min-height:48px;padding:.6rem 1.2rem}
+/* The purchase shortlist. The photograph is the card: it is the only part of a find that cannot
+   be written down, and the whole page exists so a decision can be made off it three days later.
+   So it sits at the top edge to edge, and everything else is caption underneath it. */
+.find-photo{position:relative;margin:-1.1rem -1.1rem .9rem;border-radius:17px 17px 0 0;overflow:hidden}
+.find-photo img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#f4f7f5}
+.find-photo-actions{position:absolute;right:.5rem;bottom:.5rem;display:flex;gap:.4rem}
+.find-photo-actions .button,.find-photo-actions button{min-height:38px;padding:.4rem .6rem;font-size:.78rem;background:#fffffff2;border-color:#ffffff}
+.find-shoot{width:100%;margin:0 0 .9rem}
+.find-where{display:flex;align-items:flex-start;gap:.4rem;margin-bottom:.4rem}
+.find-decision{flex-wrap:wrap;margin:.9rem 0 .5rem}
+.find-decision button{flex:1 1 44%;font-size:.8rem;padding:.55rem .5rem}
+/* Where a find got to, said in colour as well as in words: passed fades back, bought and
+   getting-it read as settled, and anything still undecided keeps the plain card, because those
+   are the ones the page is asking you to look at. */
+.find.no{opacity:.62}
+.find.yes{border-color:#abc3a7;background:#f4f9f2}
+.find.bought{background:#edf5eb;border-color:#abc3a7}

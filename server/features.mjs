@@ -5,9 +5,12 @@ import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
-import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 const MAX_PROPOSALS=300;
+// A shortlist is a list you can still read. Past a couple of hundred finds it is an archive of
+// shops, and the answer to that is to decide on some rather than to keep adding.
+const MAX_SHORTLIST=200;
 const https=v=>{try{return new URL(v).protocol==='https:';}catch{return false;}};
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
 export function extraOperation(state,op,user,fail,now){
@@ -422,6 +425,53 @@ export function extraOperation(state,op,user,fail,now){
   item.boughtAt=op.done?now:null;item.boughtBy=op.done?user.name:null;
  }else if(op.type==='shoppingRemove'){
   state.shopping=state.shopping.filter(s=>s.id!==op.id);
+ }else if(typeof op.type==='string'&&op.type.startsWith('shortlist')){
+  // The purchase shortlist: something seen in a shop and not bought. Anyone puts one on and
+  // anyone says where the family got to on it, because a boy standing in front of the thing with
+  // his own money in his pocket is exactly who found it and exactly who is deciding. Rewriting
+  // somebody else's find or taking it off the list stays with whoever added it and with a parent,
+  // the same rule the planning board runs on.
+  const found=()=>{const entry=state.shortlist.find(s=>s.id===op.id);if(!entry)fail('That is no longer on the shortlist.',404);return entry;};
+  const when=label=>{if(!op.at)return now;if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail(`Invalid ${label} time.`);return new Date(op.at).toISOString();};
+  if(op.type==='shortlistAdd'||op.type==='shortlistEdit'){
+   if(!string(op.title,250)||!op.title.trim())fail('Say what it is.');
+   dayCheck(op.day??null);
+   const item={title:op.title.trim(),shop:(op.shop||'').trim(),place:(op.place||'').trim(),
+    notes:(op.notes||'').trim(),person:op.person||'Family',day:op.day??null,
+    price:op.price===undefined||op.price===''?null:op.price,
+    tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))]};
+   if(!['Family',...state.members].includes(item.person))fail('Choose a family member.');
+   for(const [key,max] of [['shop',250],['place',250],['notes',2000]])requireText(item[key],max,key);
+   // The price is what the ticket said, in yen, and a ticket does not say 1200.5.
+   if(item.price!==null&&(!Number.isInteger(item.price)||item.price<0||item.price>10000000))fail('Enter the price in whole yen.');
+   if(item.tags.length>20||item.tags.some(t=>!string(t,50)))fail('Use up to 20 tags, each under 50 characters.');
+   if(op.type==='shortlistAdd'){
+    if(state.shortlist.length>=MAX_SHORTLIST)fail(`That is ${MAX_SHORTLIST} things on the shortlist already. Decide on a few first.`);
+    state.shortlist.push({id:randomUUID(),...item,status:'thinking',photo:null,
+     addedBy:user.name,createdAt:when('shortlist'),decidedBy:null,decidedAt:null});
+    return {summary:null,important:false,title:item.title};
+   }
+   const entry=found();
+   if(!parent&&entry.addedBy!==user.name)fail('You can change the things you added.',403);
+   Object.assign(entry,item);
+   return {summary:null,important:false,title:item.title};
+  }
+  if(op.type==='shortlistStatus'){
+   const entry=found();
+   if(!SHORTLIST_STATUS.some(([id])=>id===op.status))fail('Say whether we are getting it, passing on it, or still deciding.');
+   // Back to undecided is the decision being taken back, so who decided goes with it rather
+   // than leaving a name against an answer nobody is giving any more.
+   const at=when('decision');
+   Object.assign(entry,{status:op.status,decidedBy:op.status==='thinking'?null:user.name,decidedAt:op.status==='thinking'?null:at});
+   return {summary:null,important:false,title:entry.title};
+  }
+  if(op.type==='shortlistRemove'){
+   const entry=found();
+   if(!parent&&entry.addedBy!==user.name)fail('You can take off the things you added.',403);
+   state.shortlist=state.shortlist.filter(s=>s.id!==entry.id);
+   return {summary:null,important:false,title:entry.title};
+  }
+  fail('Unknown shortlist action.');
  }else if(typeof op.type==='string'&&op.type.startsWith('todo')){
   // The to-do list. Anyone adds one and anyone ticks it off, the way the shopping list works;
   // changing somebody else's wording or removing it is a parent's.

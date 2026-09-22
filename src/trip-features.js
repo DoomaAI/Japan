@@ -397,7 +397,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -630,6 +630,46 @@ export const todos=state=>state.todos||[];
 // Still to do first, then oldest first, so the list reads as a queue rather than a pile.
 export const sortTodos=list=>[...list].sort((a,b)=>(!!a.doneAt)-(!!b.doneAt)||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
 export const todosFor=(state,day=null)=>sortTodos(todos(state).filter(t=>(t.day??null)===(day??null)));
+// The purchase shortlist, which is not the shopping list and is not a to-do. The shopping list is
+// written before we go: what we have already decided to bring home, with a quantity and a budget.
+// This is the other half of shopping — the thing we walked past in a shop in Nara and did not buy.
+// A photograph of it, which shop, whereabouts that shop was, what the ticket said, and a couple of
+// words for what it is. Three days later nobody remembers a single one of those, and "shall we go
+// back for it?" cannot be answered without them.
+//
+// So it holds what a phone can capture standing up in a shop in twenty seconds and nothing else.
+// Deciding is the whole point of a shortlist, so every find carries where the family got to on it,
+// and the ones we said yes to add up to a figure we can look at before the last day rather than
+// after it.
+export const SHORTLIST_STATUS=[['thinking','Still deciding'],['yes','We are getting it'],['no','Passed'],['bought','Bought']];
+export const shortlistStatusLabel=id=>(SHORTLIST_STATUS.find(([key])=>key===id)||SHORTLIST_STATUS[0])[1];
+export const shortlist=state=>state.shortlist||[];
+// Undecided first, because a shortlist is a pile of unanswered questions and those are the ones
+// worth looking at; then whatever we said yes to and have not bought; then newest first inside
+// each, because the thing just photographed is the thing being looked at.
+const SHORTLIST_ORDER={thinking:0,yes:1,bought:2,no:3};
+export const sortShortlist=list=>[...list].sort((a,b)=>
+ (SHORTLIST_ORDER[a.status]??0)-(SHORTLIST_ORDER[b.status]??0)
+ ||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+export const shortlistFor=(state,{person='',day='',status='',tag='',query=''}={})=>{
+ const q=query.trim().toLowerCase();
+ return sortShortlist(shortlist(state).filter(s=>
+  (!person||s.person===person)&&(!day||s.day===day)&&(!status||s.status===status)
+  &&(!tag||(s.tags||[]).includes(tag))
+  &&(!q||[s.title,s.shop,s.place,s.notes,...(s.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(q))));
+};
+// What the shortlist comes to. A find with no price on it cannot be added up, so it is counted
+// separately rather than quietly treated as free — a total that silently leaves things out is
+// worse than no total, because it is the one a budget gets set against.
+export function shortlistTotals(list){
+ const sum=items=>items.reduce((total,s)=>total+(s.price||0),0);
+ const open=list.filter(s=>s.status==='thinking'),yes=list.filter(s=>s.status==='yes'),bought=list.filter(s=>s.status==='bought');
+ return {open:open.length,openYen:sum(open),yes:yes.length,yesYen:sum(yes),bought:bought.length,boughtYen:sum(bought),
+  unpriced:list.filter(s=>s.price===null||s.price===undefined).length};
+}
+// Every tag anybody has already used, so the next person picks one rather than typing "presents"
+// where somebody else typed "gifts" and splitting the list in two.
+export const shortlistTags=state=>[...new Set(shortlist(state).flatMap(s=>s.tags||[]))].sort((a,b)=>a.localeCompare(b));
 // Email forwarded into the trip, waiting for a parent to file it. Nothing here is on the
 // itinerary: it is a pile on the hall table, in the order it arrived.
 export const inboxItems=state=>[...(state.inbox||[])].sort((a,b)=>String(b.receivedAt||'').localeCompare(String(a.receivedAt||'')));
@@ -859,6 +899,7 @@ export function searchTrip(state,query,guide=[]){
  for(const d of state.documents)if(match(d.title,d.reference,d.notes,d.tags))hits.push({type:d.category==='memory'?'Memory':isArchived(d)?'Used ticket':'Document',id:d.id,title:d.title,detail:d.notes,day:d.day||state.steps.find(s=>s.id===d.stepId)?.day,document:d});
  for(const l of state.locations||[])if(match(l.name,l.district,l.city,l.address,l.category,l.notes))hits.push({type:'Location',id:l.id,title:l.name,detail:l.address});
  for(const s of state.shopping)if(match(s.title,s.notes,s.store,s.person,s.tags))hits.push({type:'Shopping',id:s.id,title:s.title,detail:s.store,day:s.day});
+ for(const s of shortlist(state))if(match(s.title,s.notes,s.shop,s.place,s.person,s.tags))hits.push({type:'Shortlist',id:s.id,title:s.title,detail:s.shop||s.place,day:s.day});
  for(const i of spending(state).items)if(match(i.title,i.notes,i.person))hits.push({type:'Spending',id:i.id,title:i.title,detail:`${i.person}’s spending money`,day:i.day});
  for(const c of state.challenges)if(match(c.title,c.notes))hits.push({type:'Challenge',id:c.id,title:c.title,day:c.day});
  for(const [day,m]of Object.entries(state.meetings))if(match(m.place,m.japanese,m.notes))hits.push({type:'Meeting',id:day,title:m.place,detail:m.notes,day});
@@ -923,6 +964,15 @@ export function pendingProgress(state,queue){
   // your name straight away rather than waiting for the family plan to catch up.
   if(o.type==='mascotSave')next.mascots={...next.mascots,[o.person]:{...o.mascot,updatedAt:o.at,pending:true}};
   if(o.type==='mascotRemove'){const {[o.person]:removed,...rest}=next.mascots;next.mascots=rest;}
+  // Something seen in a shop with no signal in it, which is most shops: the find is words and is
+  // still exactly as true whenever it lands, so it goes on the shortlist at once. Its photograph
+  // cannot follow until there is signal, so the card says so rather than offering a camera that
+  // would post against an entry the trip has never heard of.
+  if(o.type==='shortlistAdd')next.shortlist=[...next.shortlist,{id:`pending-${o.operationId}`,title:String(o.title||'').trim(),
+   shop:String(o.shop||'').trim(),place:String(o.place||'').trim(),notes:String(o.notes||'').trim(),
+   person:o.person||'Family',day:o.day??null,price:o.price??null,tags:Array.isArray(o.tags)?o.tags:[],
+   status:'thinking',photo:null,addedBy:o.by||'',createdAt:o.at,decidedBy:null,decidedAt:null,pending:true}];
+  if(o.type==='shortlistStatus'){const f=next.shortlist.find(f=>f.id===o.id);if(f){f.status=o.status;f.decidedBy=o.status==='thinking'?null:(o.by||f.decidedBy);f.decidedAt=o.status==='thinking'?null:o.at;f.pending=true;}}
   if(o.type==='todoAdd')next.todos=[...next.todos,{id:`pending-${o.operationId}`,title:String(o.title||'').trim(),kind:o.kind==='buy'?'buy':'do',day:o.day??null,person:o.person||'Family',notes:String(o.notes||''),createdBy:o.by||'',createdAt:o.at,doneAt:null,doneBy:null,pending:true}];
   if(o.type==='todoStatus'){const t=next.todos.find(t=>t.id===o.id);if(t){t.doneAt=o.done?o.at:null;t.doneBy=o.done?o.by||t.doneBy:null;t.pending=true;}}
   // Something wanted, and something bought, both with no signal: additions and a record of what

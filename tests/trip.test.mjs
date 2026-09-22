@@ -138,6 +138,133 @@ test('shopping is shared, validated and tracked without permitting child admin e
  assert.throws(()=>applyOperation(added,{type:'shoppingRemove',id:item.id},child),e=>e.status===403);
  for(const fields of [{quantity:-1},{budget:-10},{url:'javascript:alert(1)'},{day:'2099-01-01'}])assert.throws(()=>applyOperation(seed,{type:'shoppingAdd',title:'Bad',...fields},parent));
 });
+
+test('the purchase shortlist keeps a find whole, and whoever found it keeps it',async()=>{
+ const {shortlistFor,shortlistTotals,shortlistTags,shortlistStatusLabel,SHORTLIST_STATUS}=await import('../src/trip-features.js');
+ const day=seed.days[0].date;
+ // Anyone finds something, including a boy standing in front of it with his own money in his
+ // pocket. It arrives undecided, because being undecided is the reason it is on the list at all.
+ let state=applyOperation(seed,{type:'shortlistAdd',title:'Kitsune mask',shop:'Nakamise stall',place:'Asakusa',
+  price:1800,day,person:'Nate',tags:[' mask ','mask','present'],notes:'The blue one'},child);
+ const find=state.shortlist[0];
+ assert.equal(find.addedBy,'Nate');assert.equal(find.status,'thinking');assert.equal(find.photo,null);
+ assert.equal(find.decidedBy,null);assert.equal(find.decidedAt,null);
+ assert.deepEqual(find.tags,['mask','present'],'a tag typed twice is one tag');
+ // And it is a shortlist, not the shopping list: neither one writes into the other.
+ assert.deepEqual(state.shopping,[]);
+ // The decision is anybody's to make and is stamped with who made it. Taking it back to
+ // undecided takes the name back too, rather than leaving somebody answering for an answer
+ // nobody is giving any more.
+ state=applyOperation(state,{type:'shortlistStatus',id:find.id,status:'yes'},parent);
+ assert.equal(state.shortlist[0].status,'yes');assert.equal(state.shortlist[0].decidedBy,'Damien');
+ assert.ok(state.shortlist[0].decidedAt);
+ state=applyOperation(state,{type:'shortlistStatus',id:find.id,status:'thinking'},child);
+ assert.equal(state.shortlist[0].decidedBy,null);assert.equal(state.shortlist[0].decidedAt,null);
+ assert.throws(()=>applyOperation(state,{type:'shortlistStatus',id:find.id,status:'maybe'},parent),/still deciding/);
+ assert.throws(()=>applyOperation(state,{type:'shortlistStatus',id:'nope',status:'yes'},parent),e=>e.status===404);
+ // A find belongs to whoever found it. Boston cannot rewrite Nate's or throw it away; Nate can
+ // do both to his own, and a parent can do both to anybody's.
+ assert.throws(()=>applyOperation(state,{type:'shortlistEdit',id:find.id,title:'Mine now'},{name:'Boston',role:'child'}),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'shortlistRemove',id:find.id},{name:'Boston',role:'child'}),e=>e.status===403);
+ const edited=applyOperation(state,{type:'shortlistEdit',id:find.id,title:'Kitsune mask',price:2000,shop:'Nakamise stall',place:'Asakusa'},child);
+ assert.equal(edited.shortlist[0].price,2000);assert.equal(edited.shortlist[0].addedBy,'Nate');
+ assert.equal(applyOperation(edited,{type:'shortlistRemove',id:find.id},child).shortlist.length,0);
+ assert.equal(applyOperation(edited,{type:'shortlistRemove',id:find.id},parent).shortlist.length,0);
+ // What the ticket said, and nothing a ticket never says.
+ for(const fields of [{title:'   '},{price:1800.5},{price:-1},{price:10000001},{day:'2099-01-01'},{person:'Grandma'},
+  {tags:Array.from({length:21},(_,i)=>`t${i}`)},{tags:['x'.repeat(51)]},{notes:'n'.repeat(2001)},{shop:'s'.repeat(251)},{place:'p'.repeat(251)}])
+  assert.throws(()=>applyOperation(seed,{type:'shortlistAdd',title:'Bad',...fields},parent),`${JSON.stringify(fields)} should be refused`);
+ // Undecided first, because those are the ones the page is asking about; newest first inside
+ // each, because the thing just photographed is the thing being looked at.
+ let many=seed;
+ for(const [title,at] of [['Oldest','2026-09-20T01:00:00.000Z'],['Newest','2026-09-20T03:00:00.000Z'],['Passed','2026-09-20T02:00:00.000Z']])
+  many=applyOperation(many,{type:'shortlistAdd',title,at},parent);
+ many=applyOperation(many,{type:'shortlistStatus',id:many.shortlist.find(s=>s.title==='Passed').id,status:'no'},parent);
+ assert.deepEqual(shortlistFor(many).map(s=>s.title),['Newest','Oldest','Passed']);
+ // Filters are the questions actually asked of it: whose, which day, where it got to, what it
+ // was tagged, and the word somebody half remembers.
+ assert.deepEqual(shortlistFor(many,{status:'no'}).map(s=>s.title),['Passed']);
+ let mixed=applyOperation(seed,{type:'shortlistAdd',title:'Kitsune mask',person:'Nate',day,price:1800,tags:['present'],shop:'Nakamise stall'},parent);
+ mixed=applyOperation(mixed,{type:'shortlistAdd',title:'Spinning top',person:'Boston',price:900},parent);
+ mixed=applyOperation(mixed,{type:'shortlistAdd',title:'Tea bowl',person:'Family'},parent);
+ assert.deepEqual(shortlistFor(mixed,{person:'Nate'}).map(s=>s.title),['Kitsune mask']);
+ assert.deepEqual(shortlistFor(mixed,{day}).map(s=>s.title),['Kitsune mask']);
+ assert.deepEqual(shortlistFor(mixed,{tag:'present'}).map(s=>s.title),['Kitsune mask']);
+ assert.deepEqual(shortlistFor(mixed,{query:'nakamise'}).map(s=>s.title),['Kitsune mask']);
+ assert.deepEqual(shortlistTags(mixed),['present']);
+ // A total that quietly leaves things out is the one a budget gets set against, so what has no
+ // price on it is counted separately rather than treated as free.
+ const totals=shortlistTotals(shortlistFor(mixed));
+ assert.equal(totals.open,3);assert.equal(totals.openYen,2700);assert.equal(totals.unpriced,1);
+ const decided=applyOperation(mixed,{type:'shortlistStatus',id:mixed.shortlist[0].id,status:'yes'},parent);
+ const after=shortlistTotals(shortlistFor(decided));
+ assert.equal(after.yes,1);assert.equal(after.yesYen,1800);assert.equal(after.open,2);assert.equal(after.openYen,900);
+ // Every state the list can be in has words for it, because the card says them out loud.
+ for(const [id] of SHORTLIST_STATUS)assert.ok(shortlistStatusLabel(id).length>2,id);
+ assert.equal(shortlistStatusLabel('nothing-like-this'),'Still deciding');
+});
+
+test('a find and its photograph are two things, and losing the picture never loses the find',async()=>{
+ const {ensureFeatures,pendingProgress,searchTrip}=await import('../src/trip-features.js');
+ // Most shops have no signal in them, so the words go on the list there and then and the
+ // photograph follows when there is something to send it over.
+ const queued=[{operation:{type:'shortlistAdd',operationId:'op-1',title:'Kitsune mask',shop:'Nakamise stall',
+  place:'Asakusa',price:1800,tags:['present'],by:'Nate',at:'2026-09-20T01:00:00.000Z'}}];
+ const pending=pendingProgress(ensureFeatures(structuredClone(seed)),queued);
+ assert.equal(pending.shortlist.length,1);
+ assert.equal(pending.shortlist[0].pending,true,'the card has to say it is still on this phone');
+ assert.equal(pending.shortlist[0].addedBy,'Nate');assert.equal(pending.shortlist[0].photo,null);
+ assert.equal(pending.shortlist[0].status,'thinking');
+ // A decision made offline shows where it got to straight away, and says who made it, because
+ // the whole point of the page is standing in a shop deciding.
+ const saved=applyOperation(seed,{type:'shortlistAdd',title:'Tea bowl'},parent);
+ const at='2026-09-20T02:00:00.000Z';
+ const decided=pendingProgress(saved,[{operation:{type:'shortlistStatus',operationId:'op-2',id:saved.shortlist[0].id,status:'yes',by:'Lauren',at}}]);
+ assert.equal(decided.shortlist[0].status,'yes');assert.equal(decided.shortlist[0].decidedBy,'Lauren');
+ assert.equal(decided.shortlist[0].decidedAt,at);assert.equal(decided.shortlist[0].pending,true);
+ // Taking it back to undecided offline takes the name back with it, exactly as it will on the
+ // server, so the card does not say one thing now and another after it syncs.
+ const undone=pendingProgress(saved,[{operation:{type:'shortlistStatus',operationId:'op-3',id:saved.shortlist[0].id,status:'thinking',by:'Lauren',at}}]);
+ assert.equal(undone.shortlist[0].decidedBy,null);assert.equal(undone.shortlist[0].decidedAt,null);
+ // And a find is findable by everything written on it, from the one search box.
+ const state=applyOperation(seed,{type:'shortlistAdd',title:'Kitsune mask',shop:'Nakamise stall',place:'Asakusa',tags:['present']},parent);
+ for(const q of ['kitsune','nakamise','asakusa','present'])
+  assert.ok(searchTrip(state,q).some(h=>h.type==='Shortlist'),`${q} should find it`);
+ assert.equal(searchTrip(state,'kitsune')[0].detail,'Nakamise stall');
+ // The search result opens the page it came from rather than the nearest-looking one.
+ const practical=await readFile(new URL('../src/PracticalPages.jsx',import.meta.url),'utf8');
+ assert.match(practical,/Shortlist:'shortlist'/);
+});
+
+test('API: a shortlist photo is refused unless the find is yours and the folder is yours',async()=>{
+ process.env.LOCAL_DEMO='1';delete process.env.VERCEL;
+ const server=createServer(handler);await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
+ try{
+  const post=(path,data)=>fetch(base+'/api/'+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify(data)});
+  const before=await(await fetch(base+'/api/state')).json();
+  const {state}=await(await post('mutate',{revision:before.revision,operation:{type:'shortlistAdd',title:'Kitsune mask',price:1800,operationId:'shortlist-photo-test'}})).json();
+  const find=state.shortlist.at(-1);
+  const fails=async(body,pattern)=>{
+   const r=await post('shortlist',body);assert.equal(r.status>=400,true,JSON.stringify(body));
+   assert.match((await r.json()).error,pattern);
+  };
+  await fails({id:'no-such-find',pathname:'shortlist/preview/mask.jpg'},/no longer on the shortlist/);
+  // Someone else's folder, another feature's folder, and a way out of your own.
+  await fails({id:find.id,pathname:'shortlist/someone-else/mask.jpg'},/Invalid photo/);
+  await fails({id:find.id,pathname:'photos/preview/mask.jpg'},/Invalid photo/);
+  await fails({id:find.id,pathname:'shortlist/preview/../../secret.jpg'},/Invalid photo/);
+  // Taking off a photo that was never there is not an error; there is simply nothing to do.
+  assert.equal((await post('shortlist',{id:find.id,remove:true})).status,200);
+  // A find with no photograph has no photograph to serve, rather than serving somebody else's.
+  assert.equal((await fetch(`${base}/api/shortlist?id=${find.id}`)).status,404);
+  assert.equal((await fetch(base+'/api/shortlist?id=no-such-find')).status,404);
+  // A valid request gets past validation and only then reaches storage, which is not connected here.
+  const r=await post('shortlist',{id:find.id,pathname:'shortlist/preview/mask.jpg'});
+  assert.equal(r.status>=400,true);assert.doesNotMatch((await r.json()).error,/Invalid photo|shortlist\./);
+  // Anyone photographs their own find, so the upload folder is open the way the photo one is.
+  assert.equal((await post('upload',{pathname:'shortlist/preview/mask.jpg'})).status,503,'shortlist photos reach storage');
+ }finally{delete process.env.LOCAL_DEMO;await new Promise(r=>server.close(r));}
+});
 test('booking alerts retain changes and acknowledgements belong to the signed-in family member',()=>{
  const step=seed.steps.find(s=>!s.locked);
  let next=applyOperation(seed,{type:'patch',id:step.id,patch:{time:'18:30'}},parent);

@@ -1,11 +1,11 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,ClipboardList,MessageCircleQuestion,Circle,SlidersHorizontal,Settings,ChevronUp} from 'lucide-react';
+import {Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp} from 'lucide-react';
 import {PAGES,primaryNav,moreSections,navActive} from './nav-data.js';
 import {swipeVertical} from './swipe.js';
 const ICONS={today:House,days:CalendarDays,tickets:Ticket,food:UtensilsCrossed,money:Coins,challenges:Trophy,games:Dices,photos:Camera,
  diary:NotebookPen,places:MapPin,meeting:Users,help:LifeBuoy,options:Inbox,parks:FerrisWheel,weather:CloudSun,todo:ListChecks,
  planning:ClipboardList,inbox:Mail,ask:MessageCircleQuestion,
- shopping:ShoppingBag,spending:PiggyBank,phrases:MessageSquare,facts:Lightbulb,guide:BookOpen,updates:Bell,search:Search,thanks:Heart,mascot:Sparkles,
+ shopping:ShoppingBag,shortlist:CameraIcon,spending:PiggyBank,phrases:MessageSquare,facts:Lightbulb,guide:BookOpen,updates:Bell,search:Search,thanks:Heart,mascot:Sparkles,
  personalise:SlidersHorizontal,settings:Settings};
 // A page with no icon of its own still gets a row. The bug this fixes: weather, the to-do list,
 // the planning board and forwarded email had no entry here, so More rendered <undefined/> and

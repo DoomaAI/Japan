@@ -72,6 +72,12 @@ export default async function handler(req,res){
    // A discarded email leaves no attachments behind in private storage. The files are gone
    // from the trip either way, so a failed delete is not worth failing the change over.
    if(b.operation?.type==='inboxDiscard')for(const pathname of inboxFiles(current.state,b.operation.id))await del(pathname).catch(()=>{});
+   // A find taken off the shortlist leaves no photograph behind in private storage either. The
+   // path is read from the state before the change, because after it there is nothing to read.
+   if(b.operation?.type==='shortlistRemove'){
+    const gone=(current.state.shortlist||[]).find(s=>s.id===b.operation.id)?.photo?.pathname;
+    if(gone)await del(gone).catch(()=>{});
+   }
    return json(res,visibleEnvelope(saved,user));
   }
   // Reading a forwarded email into English. It is done when a parent opens the inbox rather
@@ -254,6 +260,47 @@ export default async function handler(req,res){
    const length=result.headers.get('content-length');if(length)res.setHeader('content-length',length);
    const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
   }
+  // A photograph of something in a shop, kept on the thing it is a photograph of. It is not a
+  // family memory and it is not in the running for photo of the day: nobody wants a picture of a
+  // price ticket up against a bullet train. One photo per find, replaced rather than collected —
+  // the second picture of the same shelf answers nothing the first one did not.
+  //
+  // Everyone takes their own, the same as everyone takes their own photographs. A boy standing in
+  // front of a spinning top he is thinking about spending his own money on is exactly the person
+  // holding the phone, so this is not a parent's route; it is his find and his to photograph.
+  if(route==='shortlist'&&post){
+   const current=await readTrip();
+   const entry=(current.state.shortlist||[]).find(s=>s.id===b.id);
+   if(!entry)throw new AppError('That is no longer on the shortlist.',404);
+   if(user.role!=='parent'&&entry.addedBy!==user.name)throw new AppError('You can photograph the things you added.',403);
+   const old=entry.photo?.pathname||null;
+   if(b.remove){
+    if(!old)return json(res,visibleEnvelope(current,user));
+    entry.photo=null;
+    const saved=await writeTrip(current.state,current.revision);
+    await del(old).catch(()=>{});
+    return json(res,visibleEnvelope(saved,user));
+   }
+   if(typeof b.pathname!=='string'||!b.pathname.startsWith(`shortlist/${user.id}/`)||b.pathname.includes('..'))throw new AppError('Invalid photo.');
+   if(old===b.pathname)return json(res,visibleEnvelope(current,user));
+   const blob=await head(b.pathname);
+   validateFile(blob.contentType,blob.size,'memory');
+   entry.photo={pathname:b.pathname,type:blob.contentType,size:blob.size,by:user.name,at:new Date().toISOString()};
+   const saved=await writeTrip(current.state,current.revision);
+   // Only once the replacement is safely on the trip: a delete that runs first and a write that
+   // then fails leaves a card pointing at a photograph nobody can open.
+   if(old)await del(old).catch(()=>{});
+   return json(res,visibleEnvelope(saved,user));
+  }
+  if(route==='shortlist'&&req.method==='GET'){
+   const {state}=await readTrip();const found=(state.shortlist||[]).find(s=>s.id===url.searchParams.get('id')&&s.photo?.pathname);
+   if(!found)throw new AppError('Shortlist photo not found.',404);
+   const result=await get(found.photo.pathname,{access:'private',useCache:false});
+   if(!result||!result.stream)throw new AppError('Shortlist photo unavailable.',404);
+   res.setHeader('Content-Type',found.photo.type);res.setHeader('Content-Disposition','inline');
+   const length=result.headers.get('content-length');if(length)res.setHeader('content-length',length);
+   const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
+  }
   if(route==='invites'&&req.method==='GET'){
    parent(user);if(localDemo())return json(res,{invites:[]});const db=await database();return json(res,{invites:await db`SELECT id,name,role,revoked,expires_at FROM japan_grants ORDER BY created_at`});
   }
@@ -274,11 +321,11 @@ export default async function handler(req,res){
   }
   if(route==='upload'&&post){
    // Everyone records their own voice notes; only a parent uploads documents and media.
-   const own=p=>['voice','photos','art'].some(kind=>String(p||'').startsWith(`${kind}/${user.id}/`));
+   const own=p=>['voice','photos','art','shortlist'].some(kind=>String(p||'').startsWith(`${kind}/${user.id}/`));
    if(!own(b.pathname))parent(user);
    if(localDemo())throw new AppError('Connect private Blob storage to upload documents.',503);
    const result=await handleUpload({body:b,request:req,onBeforeGenerateToken:async pathname=>{
-    const voice=pathname.startsWith(`voice/${user.id}/`),photo=pathname.startsWith(`photos/${user.id}/`)||pathname.startsWith(`art/${user.id}/`);
+    const voice=pathname.startsWith(`voice/${user.id}/`),photo=pathname.startsWith(`photos/${user.id}/`)||pathname.startsWith(`art/${user.id}/`)||pathname.startsWith(`shortlist/${user.id}/`);
     // A recorded phrase is the family's reference pronunciation, so a parent makes it.
     const said=pathname.startsWith(`phrases/${user.id}/`);
     if(pathname.includes('..')||!(voice||photo||said||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
