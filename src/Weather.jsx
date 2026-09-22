@@ -1,6 +1,8 @@
 import React,{useState} from 'react';
-import {CloudSun,RefreshCw,X,ChevronRight} from 'lucide-react';
+import {CloudSun,RefreshCw,X,ChevronRight,ChevronDown,ChevronUp} from 'lucide-react';
+import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
 import {pointFor,forecastUrl,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,morningNeeds,isMorning,hoursFor} from './weather-data.js';
+import {japanDate,japanClock} from './timing.js';
 // The morning reminder. It is about the jumper and the umbrella, not the meteorology, it only
 // appears while it is still morning in Japan and only for the day we are actually on, and it
 // goes away for the day once someone has read it. It reads the forecast already on the phone,
@@ -43,9 +45,24 @@ export function useForecastCheck({state,day,mutate,notice}){
  }
  return {check,checking};
 }
-export default function Weather({state,day,mutate,busy,online,notice,dayLabel,go}){
+// The day's hours, opened where they are. Standing in the day, "when does the rain start" is a
+// question about the next two hours, not a reason to leave the page you are working from.
+// Mounted fresh per day, so the hour somebody tapped on Tuesday is not still selected on Wednesday.
+function HourlyPanel({hours,nowHour}){
+ const [picked,setPicked]=useState(null);
+ return <div className="weather-hours">
+  <DayShape hours={hours}/>
+  <HourlyChart hours={hours} nowHour={nowHour} picked={picked} onPick={setPicked}/>
+  <HourlyTable hours={hours}/>
+ </div>;
+}
+export default function Weather({state,day,mutate,busy,online,notice,dayLabel,go,now}){
  const {check,checking}=useForecastCheck({state,day,mutate,notice});
+ const [openHours,setOpenHours]=useState(false);
  const today=forecastFor(state,day),age=forecastAge(state);
+ const hours=hoursFor(state,day);
+ // The "now" line belongs on the day we are actually in, and nowhere else.
+ const nowHour=now&&japanDate(now)===day?Number(japanClock(now).slice(0,2)):null;
  const ahead=state.days.filter(d=>d.date>day).slice(0,4).map(d=>({...d,entry:forecastFor(state,d.date)}));
  const tip=advice(today);
  return <section className="weather">
@@ -70,8 +87,11 @@ export default function Weather({state,day,mutate,busy,online,notice,dayLabel,go
     <span aria-hidden="true">{d.entry?describe(d.entry.code)[1]:'·'}</span>
     <strong>{d.entry?`${d.entry.max}°`:'—'}</strong>
    </button>)}</div>}
+  {hours&&<button className="weather-more" aria-expanded={openHours} onClick={()=>setOpenHours(v=>!v)}>
+   {openHours?'Hide the hours':'Hour by hour'}{openHours?<ChevronUp size={16}/>:<ChevronDown size={16}/>}</button>}
+  {hours&&openHours&&<HourlyPanel key={day} hours={hours} nowHour={nowHour}/>}
   {go&&<button className="weather-more" onClick={()=>go('weather',day)}>
-   {hoursFor(state,day)?'Hour by hour':'All sixteen days'}<ChevronRight size={16}/></button>}
+   All sixteen days<ChevronRight size={16}/></button>}
   <small>{ageLabel(age)}{state.weather?.by?` · by ${state.weather.by}`:''}. A forecast more than a few days out is a guess.</small>
  </section>;
 }

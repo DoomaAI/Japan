@@ -3356,10 +3356,21 @@ test('the forecast comes back by the hour, and the graph is drawn from checked n
  assert.equal((chart.match(/className="chart-line"/g)||[]).length,1,'one temperature series, so no legend box to disambiguate');
  assert.ok(!/<legend|className="legend"/.test(chart));
  assert.match(chart,/HourlyTable/,'and everything drawn is available as a table');
+ // The hours open up on the day you are standing in, on the page you are already on. Leaving
+ // the day to find out when the rain starts was the long way round to a two-hour question.
+ const card=await readFile(new URL('../src/Weather.jsx',import.meta.url),'utf8');
+ assert.match(card,/import HourlyChart,\{HourlyTable,DayShape\} from '\.\/WeatherCharts\.jsx'/,'the card draws the same graph as the weather screen, not a second one');
+ assert.match(card,/aria-expanded=\{openHours\}/,'and the toggle says whether it is open');
+ assert.match(card,/openHours\?'Hide the hours':'Hour by hour'/);
+ assert.match(card,/<HourlyPanel key=\{day\}/,'a new day starts with no hour selected');
+ assert.match(card,/All sixteen days/,'the whole trip is still one tap away');
+ // The now line belongs to the day we are actually in, not to whichever day is on screen.
+ assert.match(card,/japanDate\(now\)===day\?Number\(japanClock\(now\)\.slice\(0,2\)\):null/);
  const nav=await import('../src/nav-data.js');
  assert.ok(nav.PAGES.weather?.label&&nav.PAGES.weather?.note,'weather has its own screen');
  const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(source,/tab==='weather'/);
+ assert.match(source,/<Weather state=\{visibleState\} day=\{day\} now=\{now\}/,'the card is told the time, so it can mark now on the graph');
 });
 
 // Spot the difference, built out of the boys' own photographs. The puzzle is made on the

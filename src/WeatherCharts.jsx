@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {describe,hourLabel} from './weather-data.js';
+import {describe,hourLabel,daySummary} from './weather-data.js';
 // Two charts, one above the other, sharing an x-axis of hours. Deliberately not one chart with
 // two scales: degrees and per-cent have nothing to do with each other, and a second axis is the
 // quickest way to make a graph that reads well and says something untrue.
@@ -74,6 +74,17 @@ export default function HourlyChart({hours,nowHour=null,onPick,picked}){
     :<>Temperature in <span className="key temp"/> degrees, chance of rain in <span className="key rain"/> per cent. Tap an hour.</>}
   </figcaption>
  </figure>;
+}
+// The shape of the day in one sentence, over the graph. Most of the time this is the whole
+// answer, and reading it costs nobody the effort of reading a chart.
+export function DayShape({hours}){
+ const shape=daySummary(hours);
+ if(!shape)return null;
+ return <p className="weather-shape">
+  Warmest about {hourLabel(shape.warmest)}, coolest about {hourLabel(shape.coldest)}.
+  {shape.wettestHour!==null?` The wet part of the day is around ${hourLabel(shape.wettestHour)}.`
+   :shape.peakRain!==null&&shape.peakRain<20?' Rain is unlikely all day.':''}
+ </p>;
 }
 // Everything the chart draws, as a table, so nothing is gated behind being able to see it.
 export function HourlyTable({hours}){

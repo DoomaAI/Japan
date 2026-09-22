@@ -1,13 +1,13 @@
 import React,{useState} from 'react';
 import {CloudSun,RefreshCw,ChevronRight,ChevronDown} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import HourlyChart,{HourlyTable} from './WeatherCharts.jsx';
-import {forecastFor,forecastAge,ageLabel,describe,advice,hoursFor,daySummary,hourLabel} from './weather-data.js';
+import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
+import {forecastFor,forecastAge,ageLabel,describe,advice,hoursFor} from './weather-data.js';
 import {japanDate,japanClock} from './timing.js';
 // One day, opened up: the hour-by-hour graph, what it means, and the same numbers as a table.
 export function DayWeather({state,day,nowHour}){
  const [picked,setPicked]=useState(null);
- const entry=forecastFor(state,day),hours=hoursFor(state,day),shape=daySummary(hours);
+ const entry=forecastFor(state,day),hours=hoursFor(state,day);
  if(!entry&&!hours)return <p><small>No forecast saved for this day yet.</small></p>;
  return <div className="day-weather">
   {entry&&<div className="weather-today">
@@ -15,11 +15,7 @@ export function DayWeather({state,day,nowHour}){
    <div><strong>{entry.max}° / {entry.min}°</strong>
     <small>{describe(entry.code)[0]} · {entry.city}{entry.rain!==null?` · ${entry.rain}% rain at its worst`:''}</small></div>
   </div>}
-  {shape&&<p className="weather-shape">
-   Warmest about {hourLabel(shape.warmest)}, coolest about {hourLabel(shape.coldest)}.
-   {shape.wettestHour!==null?` The wet part of the day is around ${hourLabel(shape.wettestHour)}.`
-    :shape.peakRain!==null&&shape.peakRain<20?' Rain is unlikely all day.':''}
-  </p>}
+  <DayShape hours={hours}/>
   {hours
    ?<><HourlyChart hours={hours} nowHour={nowHour} picked={picked} onPick={setPicked}/><HourlyTable hours={hours}/></>
    :<p><small>Only the day’s high and low are saved for this one. Check the forecast again to fill in the hours.</small></p>}
