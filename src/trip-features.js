@@ -547,8 +547,19 @@ export const dayRating=(state,day)=>{
 export const SUMO_DIVISIONS=[['makuuchi','Makuuchi · the top division'],['juryo','Juryo'],['makushita','Makushita'],['other','Earlier bouts']];
 export const divisionLabel=id=>(SUMO_DIVISIONS.find(([key])=>key===id)||SUMO_DIVISIONS.at(-1))[1];
 export const SUMO_DAY='2026-09-23';
-export const SUMO_SITE='https://www.sumo.or.jp/EnHonbashoMain/torikumi/';
-export const EMPTY_SUMO={basho:'',dayNumber:null,venue:'',date:null,doorsOpen:'',notes:'',bouts:[],sources:[],wrestlers:{},results:{},predictions:{},at:null,by:null};
+// The official site files each card under its division and its day — /torikumi/1/11/ is the top
+// division on day 11, /torikumi/2/11/ the juryo — and the bare /torikumi/ address on its own is
+// a dead page. The Aki basho opens on Sunday 13 September, so our day is day 11, which is what the
+// link points at before a card has been loaded to say so.
+export const SUMO_DAY_NUMBER=11;
+export const SUMO_SITE_DIVISIONS=[['makuuchi',1,'Top division'],['juryo',2,'Juryo'],['makushita',3,'Makushita']];
+export function sumoSiteUrl(dayNumber=SUMO_DAY_NUMBER,division='makuuchi'){
+ const day=Number.isInteger(dayNumber)&&dayNumber>=1&&dayNumber<=15?dayNumber:SUMO_DAY_NUMBER;
+ const [,page]=SUMO_SITE_DIVISIONS.find(([id])=>id===division)||SUMO_SITE_DIVISIONS[0];
+ return `https://www.sumo.or.jp/EnHonbashoMain/torikumi/${page}/${day}/`;
+}
+export const SUMO_SITE=sumoSiteUrl();
+export const EMPTY_SUMO={basho:'',dayNumber:null,venue:'',date:null,doorsOpen:'',notes:'',bouts:[],sources:[],wrestlers:{},results:{},predictions:{},at:null,by:null,resultsAt:null,resultsNote:''};
 export const sumo=state=>({...EMPTY_SUMO,...(state.sumo||{}),bouts:[...((state.sumo||{}).bouts||[])],
  wrestlers:{...((state.sumo||{}).wrestlers||{})},results:{...((state.sumo||{}).results||{})},
  predictions:{...((state.sumo||{}).predictions||{})}});
@@ -623,6 +634,20 @@ export function tippingTable(state,members=[]){
    })});
  }
  return {people,rows,totals:people.map(name=>totals[name])};
+}
+// The winners, read off the official site while the afternoon is on. The site marks each bout
+// as it finishes, so a parent's phone asks again every so often from the start of the juryo until
+// a little after the last bout, and only on the day the card is for, Japan time. Nothing is asked
+// once every bout on the card has a winner, and nothing before a card has been loaded.
+export const SUMO_RESULTS_WINDOW=['14:00','18:45'];
+export const SUMO_RESULTS_EVERY=15;
+export function sumoResultsDue(state,{date,clock,at=new Date()}={}){
+ const card=sumo(state);
+ if(!card.bouts.length||!card.date||card.date!==date)return false;
+ if(!/^\d{2}:\d{2}$/.test(String(clock||''))||clock<SUMO_RESULTS_WINDOW[0]||clock>SUMO_RESULTS_WINDOW[1])return false;
+ if(card.bouts.every(b=>card.results[b.id]))return false;
+ const last=Date.parse(card.resultsAt||'');
+ return !Number.isFinite(last)||new Date(at).getTime()-last>=SUMO_RESULTS_EVERY*60000;
 }
 export const wrestlerKey=name=>String(name||'').trim().toLowerCase();
 export const wrestlerProfile=(state,name)=>sumo(state).wrestlers[wrestlerKey(name)]||null;

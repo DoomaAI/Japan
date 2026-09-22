@@ -1,13 +1,24 @@
-import React,{useState} from 'react';
+import React,{useEffect,useRef,useState} from 'react';
 import {Download,ExternalLink,RefreshCw,Search,Trophy,AlertCircle,User,Clock,X,Check,Lock} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {SUMO_SITE,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,predictionLadder,tippingTable} from './trip-features.js';
-import {japanClock} from './timing.js';
-const Side=({man,onLook,won,lost})=><button className={`sumo-side ${won?'won':''} ${lost?'lost':''}`} onClick={()=>onLook(man)}>
+import {SUMO_SITE_DIVISIONS,SUMO_RESULTS_EVERY,sumoSiteUrl,sumoResultsDue,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,predictionLadder,tippingTable} from './trip-features.js';
+import {japanClock,japanDate} from './timing.js';
+const Side=({man,onLook,won,lost,how})=><button className={`sumo-side ${won?'won':''} ${lost?'lost':''}`} onClick={()=>onLook(man)}>
  <strong>{man.name}</strong>
  <small>{[man.rank,man.stable].filter(Boolean).join(' · ')||'Tap to look him up'}</small>
- {won&&<span className="sumo-won"><Trophy size={13}/>Won</span>}
+ {won&&<span className="sumo-won"><Trophy size={13}/>Won{how?` · ${how}`:''}</span>}
 </button>;
+// The official pages for the day, one per division. Each division and day has its own address on
+// the association's site, so these go straight to the right page rather than to its front door.
+const OfficialLinks=({dayNumber})=><div className="row wrap sumo-official">
+ {SUMO_SITE_DIVISIONS.map(([id,,label])=><a key={id} className="button" href={sumoSiteUrl(dayNumber??undefined,id)} target="_blank" rel="noopener noreferrer">
+  {label} · official <ExternalLink size={14}/></a>)}
+</div>;
+// Whether this phone keeps the winners up to date by itself. It is a per-phone choice, because
+// only one parent's phone needs to be doing the asking.
+const AUTO_KEY='japan.sumo-auto-winners';
+const readAuto=()=>{try{return localStorage.getItem(AUTO_KEY)!=='off';}catch{return true;}};
+const saveAuto=on=>{try{localStorage.setItem(AUTO_KEY,on?'on':'off');}catch{}};
 // Four picks, one phone. In the arena there is a single phone out and everybody shouting at
 // it, so whoever is holding it enters all four — this is the one place in the app where you
 // record somebody else's answer. Picks close the moment the result goes in: you cannot call a
@@ -98,6 +109,9 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
  const [fetching,setFetching]=useState(false),[error,setError]=useState('');
  const [looking,setLooking]=useState(null),[lookupError,setLookupError]=useState('');
  const [picking,setPicking]=useState(null);
+ const [checking,setChecking]=useState(false),[resultsError,setResultsError]=useState('');
+ const [auto,setAuto]=useState(readAuto),inFlight=useRef(false),lastTry=useRef(0);
+ const canFetch=parent&&!!config?.sumo;
  const tally=predictionTally(state),leaders=predictionLeaders(state);
  const ladder=predictionLadder(state,state.members),sheet=tippingTable(state,state.members);
  const clock=japanClock(now||new Date()),onNow=currentBout(state,clock);
@@ -109,6 +123,35 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
   }catch(e){setError(e.message||'The card could not be fetched. The official schedule is at sumo.or.jp.');}
   finally{setFetching(false);}
  }
+ // Who has won, as the official site has it. Asked for by the button, and by this phone on its
+ // own every quarter of an hour while the afternoon is on, if a parent has left that switched on.
+ async function updateWinners(quiet=false){
+  if(inFlight.current)return;
+  inFlight.current=true;setChecking(true);if(!quiet)setResultsError('');
+  try{
+   const read=await request('sumo-results',{date:card.date});
+   const fresh=read.results.filter(r=>{const had=boutResult(state,r.id);return !had?.official||had.winner!==r.winner;});
+   if(await mutate({type:'sumoResults',results:read.results,note:read.notes||''})&&!quiet)
+    notice?.(fresh.length?`${fresh.length} ${fresh.length===1?'winner':'winners'} in from the official site.`:'Nothing new on the official site yet.');
+   setResultsError('');
+  }catch(e){if(!quiet)setResultsError(e.message||'The official results could not be read.');}
+  finally{inFlight.current=false;setChecking(false);}
+ }
+ const latest=useRef(updateWinners);latest.current=updateWinners;
+ useEffect(()=>{
+  if(!canFetch||!auto)return;
+  const tick=()=>{
+   if(document.visibilityState==='hidden'||navigator.onLine===false)return;
+   // A check that failed is not tried again every minute: it waits its turn like any other.
+   const at=new Date();
+   if(at-lastTry.current<SUMO_RESULTS_EVERY*60000)return;
+   if(sumoResultsDue(state,{date:japanDate(at),clock:japanClock(at),at})){lastTry.current=at.getTime();latest.current(true);}
+  };
+  tick();
+  const timer=setInterval(tick,60000);
+  document.addEventListener('visibilitychange',tick);
+  return ()=>{clearInterval(timer);document.removeEventListener('visibilitychange',tick);};
+ },[canFetch,auto,state]);
  async function look(man){
   const known=wrestlerProfile(state,man.name);
   setLookupError('');setLooking({name:man.name,profile:known,busy:!known});
@@ -128,16 +171,25 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
   {card.notes&&<p className="sumo-notes">{card.notes}</p>}
   {!!tally.length&&<><Ladder ladder={ladder} leaders={leaders}/><Sheet table={sheet}/></>}
   {onNow&&<p className="sumo-now"><Clock size={16}/>About now: <strong>{onNow.east.name}</strong> v <strong>{onNow.west.name}</strong> · {divisionLabel(onNow.division)}</p>}
-  {parent&&config?.sumo&&<div className="row wrap">
+  {canFetch&&<div className="row wrap">
    <button className="primary" disabled={busy||fetching} onClick={load}>
     {card.bouts.length?<RefreshCw size={16}/>:<Download size={16}/>}
     {fetching?'Reading the official schedule…':card.bouts.length?'Refresh the card':'Download the day’s card'}</button>
+   {card.bouts.length>0&&<button disabled={busy||checking} onClick={()=>updateWinners(false)}>
+    <Trophy size={16}/>{checking?'Reading the results…':'Update winners from the site'}</button>}
   </div>}
+  {card.bouts.length>0&&<p className="sumo-results-status"><small>
+   {card.resultsAt?`Winners last checked on the official site at ${japanClock(new Date(card.resultsAt))}${card.resultsNote?` — ${card.resultsNote}`:''}.`:'Winners have not been checked on the official site yet.'}
+   {' '}Anyone can still tap who won as they watch; the official result replaces it when it comes in.</small></p>}
+  {canFetch&&card.bouts.length>0&&<label className="checkline"><input type="checkbox" checked={auto}
+   onChange={e=>{setAuto(e.target.checked);saveAuto(e.target.checked);}}/>
+   Keep the winners up to date on this phone — every {SUMO_RESULTS_EVERY} minutes during the afternoon on {dayLabel(card.date||day)}, while this page is open</label>}
   {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
+  {resultsError&&<p className="callout"><AlertCircle size={18}/>{resultsError}</p>}
+  <OfficialLinks dayNumber={card.dayNumber}/>
   {!card.bouts.length&&<div className="empty">
    <h3>No card loaded yet</h3>
    <p>The match-ups are published on the official site the afternoon before, so fetch this the day before or on the morning of {dayLabel(day)}.{parent&&config?.sumo?'':' A parent does this while there is signal.'}</p>
-   <a className="button" href={SUMO_SITE} target="_blank" rel="noopener noreferrer">The official schedule <ExternalLink size={14}/></a>
   </div>}
   {groups.map(group=><section className="sumo-group" key={group.id}>
    <h4>{group.label}</h4>
@@ -146,12 +198,12 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
     return <article className={`sumo-bout ${onNow?.id===bout.id?'now':''}`} key={bout.id}>
      <span className="sumo-time">{bout.time||'—'}</span>
      <div className="bout-pair">
-      <Side man={bout.east} onLook={look} won={result?.winner===bout.east.name} lost={!!result&&result.winner!==bout.east.name}/>
+      <Side man={bout.east} onLook={look} won={result?.winner===bout.east.name} lost={!!result&&result.winner!==bout.east.name} how={result?.kimarite}/>
       <span className="sumo-v">v</span>
-      <Side man={bout.west} onLook={look} won={result?.winner===bout.west.name} lost={!!result&&result.winner!==bout.west.name}/>
+      <Side man={bout.west} onLook={look} won={result?.winner===bout.west.name} lost={!!result&&result.winner!==bout.west.name} how={result?.kimarite}/>
      </div>
      <div className="row wrap sumo-winner">
-      <small>Who won?</small>
+      <small>{result?.official?<><Check size={12}/> Official result</>:'Who won?'}</small>
       {[bout.east.name,bout.west.name].map(name=>
        <button key={name} className={result?.winner===name?'selected':''} disabled={busy}
         onClick={()=>mutate({type:'sumoResult',id:bout.id,winner:result?.winner===name?null:name,by:user.name})}>{name}</button>)}

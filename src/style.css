@@ -365,3 +365,5 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 @media(max-width:600px){.top-actions{gap:.2rem}.topbar .icon{min-width:40px}}
 @media(max-width:430px){.brand>span:last-child{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}}
 @media(max-width:360px){.top-actions{gap:.12rem}.topbar .icon{min-width:38px}}
+/* The official pages for the day, and when the winners were last read off them. */
+.sumo-official{margin:.6rem 0}.sumo-results-status{margin:.4rem 0;color:var(--muted)}

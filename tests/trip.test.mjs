@@ -4106,6 +4106,10 @@ test('the sumo card is read from the official schedule and kept for a basement w
   assert.match(seen.system,/sumo\.or\.jp/,'the official site is the source that matters');
   assert.match(seen.system,/published the afternoon before/);
   assert.match(seen.messages[0].content,new RegExp(SUMO_DAY));
+  // The day's own page on the official site is handed over to be read, not left to a search.
+  assert.equal(seen.tools.find(t=>t.name==='web_fetch').type,'web_fetch_20260209');
+  assert.deepEqual(seen.tools.find(t=>t.name==='web_fetch').allowed_domains,['sumo.or.jp']);
+  assert.ok(seen.messages[0].content.includes('https://www.sumo.or.jp/EnHonbashoMain/torikumi/1/11/'));
 
   // The bout with nobody on one side of it is not a bout; the rest come back in running order.
   assert.deepEqual(fetched.bouts.map(b=>b.id),['juryo-20','makuuchi-38','makuuchi-40']);
@@ -4158,6 +4162,88 @@ test('the sumo card is read from the official schedule and kept for a basement w
  const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
  assert.ok(list.includes('sumoResult'));
  assert.ok(!list.includes('sumoUpdate'),'fetching a card needs the latest revision');
+});
+
+test('the official schedule link goes to the day itself, not to a dead page',async()=>{
+ const {SUMO_SITE,sumoSiteUrl,SUMO_DAY_NUMBER}=await import('../src/trip-features.js');
+ assert.equal(SUMO_DAY_NUMBER,11,'23 September is day 11 of a basho that opens on 13 September');
+ assert.equal(SUMO_SITE,'https://www.sumo.or.jp/EnHonbashoMain/torikumi/1/11/');
+ assert.equal(sumoSiteUrl(12,'juryo'),'https://www.sumo.or.jp/EnHonbashoMain/torikumi/2/12/');
+ assert.equal(sumoSiteUrl(null),SUMO_SITE,'no day on the card yet means our day');
+ assert.equal(sumoSiteUrl(99,'teleport'),SUMO_SITE);
+ const page=await readFile(new URL('../src/Sumo.jsx',import.meta.url),'utf8');
+ assert.ok(!/EnHonbashoMain\/torikumi\/['"`]/.test(page),'the bare /torikumi/ address is not linked anywhere');
+});
+
+test('the winners come in from the official site by themselves, and the site is the record',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures,sumo,boutResult,sumoResultsDue,predictionTally,SUMO_DAY}=await import('../src/trip-features.js');
+ const card={type:'sumoUpdate',basho:'Aki Basho 2026',dayNumber:11,venue:'Ryogoku Kokugikan',date:SUMO_DAY,
+  bouts:[{id:'juryo-20',division:'juryo',order:20,time:'15:10',east:{name:'Tomokaze'},west:{name:'Chiyoshoma'}},
+   {id:'makuuchi-38',division:'makuuchi',order:38,time:'17:40',east:{name:'Daieisho'},west:{name:'Kirishima'}},
+   {id:'makuuchi-40',division:'makuuchi',order:40,time:'17:55',east:{name:'Hoshoryu'},west:{name:'Kotozakura'}}]};
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),card,parent);
+ state=applyOperation(state,{type:'sumoPredict',id:'makuuchi-40',person:'Boston',winner:'Kotozakura'},child);
+ // Somebody in the arena tapped the wrong man.
+ state=applyOperation(state,{type:'sumoResult',id:'makuuchi-38',winner:'Daieisho'},child);
+
+ // Asked for only on the day, during the afternoon, Japan time, and not more than every quarter hour.
+ const at=new Date('2026-09-23T06:00:00Z');
+ assert.equal(sumoResultsDue(state,{date:SUMO_DAY,clock:'15:00',at}),true);
+ assert.equal(sumoResultsDue(state,{date:'2026-09-22',clock:'15:00',at}),false,'not the day before');
+ assert.equal(sumoResultsDue(state,{date:SUMO_DAY,clock:'09:30',at}),false,'not in the morning');
+ assert.equal(sumoResultsDue(state,{date:SUMO_DAY,clock:'21:00',at}),false,'not after it is over');
+
+ let seen=null;
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{seen=JSON.parse(body);
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:5000,output_tokens:300},
+    content:[{type:'tool_use',id:'c1',name:'record_sumo_results',input:{found:true,dayNumber:11,notes:'Makuuchi under way.',
+     results:[{id:'juryo-20',winner:'east',kimarite:'oshidashi'},{id:'makuuchi-38',winner:'west',kimarite:'yorikiri'},
+      {id:'makuuchi-38',winner:'east',kimarite:''},{id:'not-on-card',winner:'east',kimarite:''}],
+     sources:[{title:'JSA',url:'https://www.sumo.or.jp/EnHonbashoMain/torikumi/1/11/'}]}}]}));});
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {fetchSumoResults}=await import('../server/sumo.mjs');
+  const read=await fetchSumoResults({date:SUMO_DAY},state);
+  const tool=seen.tools.find(t=>t.name==='record_sumo_results');
+  assert.equal(tool.strict,true);
+  assert.deepEqual(tool.input_schema.properties.results.items.properties.id.enum,['juryo-20','makuuchi-38','makuuchi-40'],'only bouts on our card');
+  assert.ok(seen.tools.some(t=>t.name==='web_fetch'));
+  assert.ok(seen.messages[0].content.includes('https://www.sumo.or.jp/EnHonbashoMain/torikumi/2/11/'));
+  assert.match(seen.messages[0].content,/east Hoshoryu v west Kotozakura/);
+  // A side becomes a name, a bout is answered once, and one not on the card is not a result.
+  assert.deepEqual(read.results,[{id:'juryo-20',winner:'Tomokaze',kimarite:'oshidashi'},{id:'makuuchi-38',winner:'Kirishima',kimarite:'yorikiri'}]);
+
+  const next=applyOperation(state,{type:'sumoResults',results:read.results,note:read.notes},parent);
+  assert.equal(boutResult(next,'juryo-20').winner,'Tomokaze');
+  assert.equal(boutResult(next,'juryo-20').kimarite,'oshidashi');
+  assert.equal(boutResult(next,'makuuchi-38').winner,'Kirishima','the site wins over a wrong tap');
+  assert.equal(boutResult(next,'makuuchi-38').official,true);
+  assert.equal(boutResult(next,'makuuchi-40'),null,'a bout still to come is left alone');
+  assert.equal(predictionTally(next).find(t=>t.name==='Boston').waiting,1);
+  assert.ok(sumo(next).resultsAt);assert.equal(sumo(next).resultsNote,'Makuuchi under way.');
+  assert.equal(sumoResultsDue(next,{date:SUMO_DAY,clock:'15:05',at:new Date(sumo(next).resultsAt)}),false,'just checked');
+  assert.equal(sumoResultsDue(next,{date:SUMO_DAY,clock:'15:20',at:new Date(Date.parse(sumo(next).resultsAt)+16*60000)}),true);
+  // Reading the site is a parent's, because it costs money; the rest is checked like any tap.
+  assert.throws(()=>applyOperation(state,{type:'sumoResults',results:[]},child),e=>e.status===403);
+  assert.throws(()=>applyOperation(state,{type:'sumoResults',results:[{id:'juryo-20',winner:'Somebody'}]},parent),/One of the two/);
+  assert.throws(()=>applyOperation(state,{type:'sumoResults',results:[{id:'nope',winner:'Tomokaze'}]},parent),e=>e.status===404);
+  // Nothing to ask about until there is a card for that day.
+  await assert.rejects(()=>fetchSumoResults({date:SUMO_DAY},ensureFeatures(structuredClone(seed))),/Load the day/);
+  await assert.rejects(()=>fetchSumoResults({date:'2026-09-24'},state),/different day/);
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
 });
 
 test('we rate an activity and say what we thought, each of us for ourselves',async()=>{

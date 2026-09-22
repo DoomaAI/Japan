@@ -778,6 +778,27 @@ export function extraOperation(state,op,user,fail,now){
    state.sumo={...current,results};
    return {summary:null,important:false,title:`Sumo · ${bout.east.name} v ${bout.west.name}`};
   }
+  if(op.type==='sumoResults'){
+   // The winners as the official site has them, fetched by a parent's phone. The site is the
+   // record, so where it and a tap in the arena disagree, the site wins; a bout it has not
+   // decided yet is left as it was, whatever somebody tapped.
+   if(!parent)fail('A parent fetches the official results.',403);
+   if(!Array.isArray(op.results)||op.results.length>60)fail('That is not a day of results.');
+   requireText(op.note??'',300,'note');
+   const results={...current.results},seen=new Set();let changed=0;
+   for(const r of op.results){
+    const bout=current.bouts.find(b=>b.id===r?.id);if(!bout)fail('That bout is not on the card.',404);
+    if(seen.has(r.id))fail('One result per bout.');seen.add(r.id);
+    if(r.winner!==bout.east.name&&r.winner!==bout.west.name)fail('One of the two, or nobody.');
+    requireText(r.kimarite??'',60,'winning technique');
+    const before=results[r.id];
+    if(before?.official&&before.winner===r.winner&&(before.kimarite||'')===(r.kimarite||'').trim())continue;
+    results[r.id]={winner:r.winner,by:'Official results',at:now,official:true,kimarite:(r.kimarite||'').trim()};
+    changed++;
+   }
+   state.sumo={...current,results,resultsAt:now,resultsNote:(op.note||'').trim()};
+   return {summary:changed?`${changed} sumo ${changed===1?'winner':'winners'} in from the official results`:null,important:false,title:'Sumo results'};
+  }
   fail('Unknown sumo action.');
  }else if(op.type==='meeting'){
   dayCheck(op.day);if(!op.day)fail('Choose a day.');
