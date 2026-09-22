@@ -263,6 +263,10 @@ function Remember({user,state,mutate,busy,dayLabel}){
 }
 // Picture pairs. The same game as the kana one, but for a boy who would rather match a torii
 // gate than a letter — and each pair tells him what the thing is called.
+// Nothing on this board is a card. It is the wall of sake barrels stacked up at the entrance
+// to a shrine — kazaridaru, straw-wrapped, donated by the breweries — which the boys will walk
+// past at Meiji Jingu before they have been in Japan a day. A barrel spins round on the spot
+// to show what is on the other side of it, and spins a whole turn more when it finds its twin.
 function Sights({user,state,mutate,busy}){
  const [seed,setSeed]=useState(()=>Date.now()%100000);
  const [picked,setPicked]=useState([]),[done,setDone]=useState([]),[taps,setTaps]=useState(0);
@@ -283,13 +287,17 @@ function Sights({user,state,mutate,busy}){
   setTimeout(()=>{if(hit)setDone(d=>[...d,next[0].pair]);setPicked([]);},hit?350:700);
  }
  return <>
-  <p>Find the pairs. Every one is something we will actually see.</p>
+  <p>Spin a barrel round to see what is on it. Every one is something we will actually see.</p>
   <div className="segmented game-picker">{[4,6,8,12,18].map(n=>
    <button key={n} className={pairs===n?'selected':''} onClick={()=>{setPairs(n);setSeed(Date.now()%100000);setPicked([]);setDone([]);setTaps(0);}}>{n} pairs</button>)}</div>
-  <div className="sight-grid">{cards.map(c=>{
+  <div className="barrel-wall">{cards.map(c=>{
    const matched=done.includes(c.pair),up=matched||picked.some(p=>p.key===c.key);
-   return <button key={c.key} className={`sight-card${matched?' matched':''}${up?' up':''}`} disabled={matched} onClick={()=>tap(c)}>
-    {up?<><span aria-hidden="true">{c.sight.icon}</span><small>{c.sight.en}<b lang="ja">{c.sight.ja}</b></small></>:<span className="sight-back" aria-hidden="true">🎴</span>}</button>;})}</div>
+   return <button key={c.key} className={`sake-barrel${matched?' matched':''}${up?' up':''}`} disabled={matched}
+    onClick={()=>tap(c)} aria-label={up?c.sight.en:'Spin this barrel round'}>
+    <span className="barrel-spin">
+     <span className="barrel-face barrel-front" aria-hidden="true"><b lang="ja">酒</b></span>
+     <span className="barrel-face barrel-back">{up&&<><span aria-hidden="true">{c.sight.icon}</span><small>{c.sight.en}<b lang="ja">{c.sight.ja}</b></small></>}</span>
+    </span></button>;})}</div>
   <WinBurst on={finished} label="All the pairs!" sub={`${pairs} pairs in ${taps} taps`}/>
   <p className="game-status">{finished?<><Trophy size={16}/> All {pairs} in {taps} taps.</>:`${done.length} of ${pairs} found`}
    {bestScore(state,user.name,`sights-${pairs}`)>0?` · your best at ${pairs} ${bestScore(state,user.name,`sights-${pairs}`)}`:''}</p>

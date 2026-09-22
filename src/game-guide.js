@@ -237,11 +237,14 @@ export const GAME_GUIDES={
  },
  sights:{
   objective:'Find every matching pair of pictures. Every one is something we will really see in Japan.',
-  setup:['Pick how many pairs you want: four, six, eight, twelve or eighteen. Four is the quick one.'],
+  setup:[
+   'The board is a wall of sake barrels, like the ones stacked up outside a shrine. Each one has a picture painted on the back of it.',
+   'Pick how many pairs you want: four, six, eight, twelve or eighteen. Four is the quick one.'
+  ],
   rules:[
-   'Turn over two cards.',
-   'If they are the same thing they stay turned over, and you are shown what it is called in English and in Japanese.',
-   'If they are not the same, they both flip back.',
+   'Tap a barrel and it spins round to show you the picture on the other side. Then tap another one.',
+   'If they are the same thing the two barrels stay turned, and you are shown what it is called in English and in Japanese.',
+   'If they are not the same, both barrels spin back the way they came.',
    'Try to remember where things were, because every tap counts.'
   ],
   win:'You finish when all the pairs are found. Fewer taps is a better score.'
