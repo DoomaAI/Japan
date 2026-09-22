@@ -241,6 +241,21 @@ test('a stop is ticked off where the day is read, and says when it was finished'
  assert.equal(ticked.steps.find(s=>s.id===target.id).completedAt,at);
  assert.throws(()=>applyOperation(seed,{type:'status',id:target.id,status:'done',at:new Date(Date.now()+3600000).toISOString()},parent),/valid past completion time/);
 });
+test('the day’s dashboard is about what is next, not about the book’s cover',async()=>{
+ const home=await readFile(new URL('../src/HomeFeatures.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ const sw=await readFile(new URL('../public/sw.js',import.meta.url),'utf8');
+ // The dashboard carries no cover, and the column that was cut around it is gone with it rather
+ // than left holding a gap.
+ assert.doesNotMatch(home,/cover\.jpg/,'the cover is not on the dashboard');
+ assert.doesNotMatch(css,/\.next-up>img/,'and nothing is left styling an image that is not there');
+ assert.doesNotMatch(css,/\.next-up\{display:grid/,'the two-column layout went with it');
+ // It is still the welcome screen's and the Days screen's, and still saved on the phone, because
+ // both of those work with no signal.
+ assert.equal((main.match(/cover\.jpg/g)||[]).length,2,'the welcome and Days screens keep it');
+ assert.match(sw,/cover\.jpg/,'and it stays in the offline shell for them');
+});
 test('the weather folds away on the phone that folded it, and says what it is for while folded',async()=>{
  const {isOpen,setOpen}=await import('../src/fold.js');
  // A phone that has never folded anything sees everything, exactly as it always did.
