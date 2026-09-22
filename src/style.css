@@ -340,3 +340,13 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .day-tile.finished>div{margin-bottom:.5rem}
 .day-tile.finished .tile-arrow{bottom:auto;top:50%;margin-top:-9px}
 .day-finished{display:flex;align-items:center;gap:.35rem;margin:0;padding-right:22px}
+
+/* The weather, folded away by whoever has read it. Folded it keeps saying what it is for — the
+   icon, the two numbers and the chance of rain — because a section that collapses to its own
+   name is a row of wasted space with a chevron on it. */
+.weather-head h3{flex:1;min-width:0}
+.weather-fold{flex:1;min-width:0;gap:.4rem;justify-content:flex-start;border:0;background:transparent;padding:.2rem 0;min-height:36px;font-size:1rem;font-weight:inherit;font-family:inherit;color:inherit}
+.weather-fold:hover{background:transparent;color:var(--green)}
+.weather-fold>svg:last-child{margin-left:auto}
+.weather-peek{font-size:.82rem;font-weight:500;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.weather.folded{padding:.35rem .8rem}

@@ -241,6 +241,32 @@ test('a stop is ticked off where the day is read, and says when it was finished'
  assert.equal(ticked.steps.find(s=>s.id===target.id).completedAt,at);
  assert.throws(()=>applyOperation(seed,{type:'status',id:target.id,status:'done',at:new Date(Date.now()+3600000).toISOString()},parent),/valid past completion time/);
 });
+test('the weather folds away on the phone that folded it, and says what it is for while folded',async()=>{
+ const {isOpen,setOpen}=await import('../src/fold.js');
+ // A phone that has never folded anything sees everything, exactly as it always did.
+ const store=new Map(),fake={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,v)};
+ assert.equal(isOpen('weather',fake),true);
+ assert.equal(setOpen('weather',false,fake),false);
+ assert.equal(store.get('japan.fold.weather'),'closed');
+ assert.equal(isOpen('weather',fake),false,'and it is still folded tomorrow, not sprung open by a reload');
+ assert.equal(isOpen('anything-else',fake),true,'folding one section says nothing about another');
+ assert.equal(setOpen('weather',true,fake),true);
+ assert.equal(isOpen('weather',fake),true);
+ // A phone that refuses storage shows the section rather than losing it, and never throws.
+ const refuses={getItem(){throw new Error('no storage');},setItem(){throw new Error('no storage');}};
+ assert.equal(isOpen('weather',refuses),true);
+ assert.equal(setOpen('weather',false,refuses),false);
+ assert.equal(isOpen('weather',null),true);
+ // Folded, the section still says what it is for: a chevron over its own name is wasted space.
+ const weather=await readFile(new URL('../src/Weather.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(weather,/const \[open,setShown\]=useState\(\(\)=>isOpen\(FOLD_ID\)\)/);
+ assert.match(weather,/const fold=\(\)=>setShown\(v=>setOpen\(FOLD_ID,!v\)\)/);
+ assert.match(weather,/aria-expanded=\{open\}/,'and says which way it is folded');
+ assert.match(weather,/\{!open&&<span className="weather-peek">\{peek\}<\/span>\}/);
+ assert.match(weather,/const peek=today\?`\$\{describe\(today\.code\)\[1\]\} \$\{today\.max\}° \/ \$\{today\.min\}°/);
+ assert.match(css,/\.weather\.folded\{/);
+});
 test('a day we have walked through folds down and greys in the Days menu',async()=>{
  const {dayProgress}=await import('../src/timing.js');
  const day=seed.days[0].date,steps=activeSteps(seed,day);
