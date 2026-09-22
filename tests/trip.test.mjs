@@ -1255,6 +1255,53 @@ test('a fun fact a day, tied to the guide page for what is actually coming up',a
  assert.equal(findFact('nonsense'),null);
 });
 
+test('a fact rides the card for the thing it is about, and only that card',async()=>{
+ const {ALL_FACTS,factsForItem,factsForStep}=await import('../src/fact-data.js');
+ const {FOOD}=await import('../src/food-data.js');
+ const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
+ const all=ALL_FACTS();
+ assert.ok(all.every(f=>Array.isArray(f.match)),'every fact says what it is about, even if that is nothing');
+ assert.ok(all.every(f=>f.match.every(t=>typeof t==='string'&&t.trim())),'no empty term, which would match everything');
+ const ids=list=>list.map(f=>f.id);
+ // The card's own words are the linkage, so the fact lands on the thing rather than on the day.
+ const step=t=>seed.steps.find(s=>s.title===t);
+ assert.deepEqual(ids(factsForStep(step('Find seats and enjoy sumo'))),['sumo-old','sumo-ring','sumo-salt','sumo-topknot','sumo-tournament']);
+ assert.deepEqual(ids(factsForStep(step('Crossing and Hachiko'))),['hachiko','crossing']);
+ assert.deepEqual(ids(factsForStep(step('Deer feeding'))),['deer-bow','deer-crackers']);
+ assert.deepEqual(ids(factsForStep(step('Explore Gotokuji'))),['maneki-neko','which-paw','cat-shelves','shoes','temizuya']);
+ // Same day, same guide page, different card: the taxi to Kyoto Station is not the bullet train,
+ // and a shrine is offered the etiquette the guide's opening pages carry wherever it turns up.
+ assert.deepEqual(ids(factsForStep(step('Nozomi 33 to Kyoto'))),['shinkansen','tokyo-station','quiet-trains','queue']);
+ assert.deepEqual(ids(factsForStep(step('Taxi to Tokyo Station'))),['tokyo-station','no-tipping','taxi-doors']);
+ assert.ok(ids(factsForStep(step('Yasaka Shrine at dusk'))).includes('temizuya'),'an anytime fact lands on the card it fits');
+ // A card with nothing to say gets nothing rather than the day's leftovers.
+ assert.deepEqual(factsForStep(step('Omotesando Hills')),[]);
+ assert.deepEqual(factsForItem(''),[]);
+ assert.deepEqual(factsForItem(null,undefined),[]);
+ // Whole words only, so the dish is not answered for by a word inside another one.
+ assert.deepEqual(ids(factsForItem('Zaru soba — cold soba to dip','Served cold on a bamboo tray.')),['slurp']);
+ assert.deepEqual(ids(factsForItem('Okonomiyaki — savoury pancake')),[]);
+ assert.deepEqual(ids(factsForItem('Soufflé pancakes','FLIPPER’S on our last Shibuya morning.')),['souffle-pancakes']);
+ // Places and dishes are matched the same way, off what the card says they are.
+ const dish=en=>FOOD.find(i=>i.en===en);
+ assert.deepEqual(ids(factsForItem(dish('Onigiri — rice ball').en,dish('Onigiri — rice ball').note)),['bins','konbini','seven-atm','onigiri']);
+ assert.deepEqual(ids(factsForItem(dish('Takoyaki — octopus balls').en,dish('Takoyaki — octopus balls').note)),['takoyaki']);
+ const place=name=>locations.find(l=>l.name===name);
+ const card=l=>ids(factsForItem(l.name,l.district,l.category));
+ assert.ok(card(place('Arashiyama Bamboo Grove')).includes('bamboo'),'the grove carries the bamboo');
+ assert.ok(card(place('1 Hotel Tokyo')).length===0,'a hotel is not about anything in particular');
+ // Most of the trip is covered, and the handful of facts that belong on no card are named, so
+ // a fact quietly losing its terms shows up here rather than on nobody's screen.
+ const covered=seed.steps.filter(s=>factsForStep(s).length).length;
+ assert.ok(covered>150,`only ${covered} of ${seed.steps.length} activities carry a fact`);
+ const landed=new Set();
+ for(const s of seed.steps)for(const f of factsForStep(s))landed.add(f.id);
+ for(const l of locations)for(const f of factsForItem(l.name,l.district,l.category))landed.add(f.id);
+ for(const i of FOOD)for(const f of factsForItem(i.en,i.romaji,i.note))landed.add(f.id);
+ assert.deepEqual(all.filter(f=>!landed.has(f.id)).map(f=>f.id),['sumimasen','voltage','scripts','lost-property']);
+ assert.ok(all.filter(f=>!f.match.length).every(f=>!landed.has(f.id)),'a fact naming nothing lands nowhere');
+});
+
 test('marking the daily fun fact seen is per person, per day, and keeps the first time',async()=>{
  const {ensureFeatures,factSeenBy}=await import('../src/trip-features.js');
  const state=ensureFeatures(structuredClone(seed));

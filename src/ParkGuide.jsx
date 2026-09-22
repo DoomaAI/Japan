@@ -2,12 +2,18 @@ import React,{useState} from 'react';
 import {Check,Star,MapPin,ExternalLink,Ticket,AlertCircle,Ruler} from 'lucide-react';
 import {PARKS,parkLands,ridePlanned} from './park-data.js';
 import {BOYS,riddenBy,isMustDo,heightCheck,parkProgress} from './trip-features.js';
+import {CardFacts,factAloudFor} from './FunFacts.jsx';
+import {factsForItem} from './fact-data.js';
 const mapSearch=(ride,park)=>`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${ride.name} ${park.name}`)}`;
-export default function ParkGuide({state,user,park:initial,mutate,busy,open}){
+export default function ParkGuide({state,user,speak,openPage,park:initial,mutate,busy,open}){
  const [parkId,setParkId]=useState(initial?.id||PARKS[0].id);
  const park=PARKS.find(p=>p.id===parkId)||PARKS[0];
  const [land,setLand]=useState(''),[only,setOnly]=useState('');
  const parent=user.role==='parent',heights=state.heights||{};
+ // A ride is its name and the land it stands in, which is enough for the facts about it: the
+ // honey pots that steer themselves, the volcano the ride runs through, the ports the lands
+ // are called. Queueing is when anybody has time to read one.
+ const aloud=factAloudFor(speak,user.name);
  const [editHeights,setEditHeights]=useState(false);
  const rides=park.rides.filter(r=>(!land||r.land===land)&&(only!=='must'||isMustDo(state,r.id))&&(only!=='todo'||!Object.keys(riddenBy(state,r.id)).length));
  const mapDoc=state.documents.find(d=>d.category!=='memory'&&(d.tags||[]).some(t=>t.toLowerCase()==='park map')&&(d.title||'').toLowerCase().includes(park.short.toLowerCase()));
@@ -52,6 +58,7 @@ export default function ParkGuide({state,user,park:initial,mutate,busy,open}){
      {parent&&<button className={`icon star${must?' on':''}`} aria-label={must?`Remove ${ride.name} from must-do`:`Mark ${ride.name} must-do`} aria-pressed={must} disabled={busy} onClick={()=>mutate({type:'parkMust',rideId:ride.id,must:!must})}><Star size={19}/></button>}
     </div>
     <p>{ride.note}</p>
+    <CardFacts facts={factsForItem(ride.name,ride.land)} openPage={openPage} aloud={aloud}/>
     <div className="ride-heights">{ride.height
      ?BOYS.map(n=>{const check=heightCheck(ride,n,heights);return <span key={n} className={`ride-height${check.ok===true?' ok':check.ok===false?' no':''}`}>{check.ok===true?<Check size={14}/>:check.ok===false?'✕ ':null}{check.ok===null?`${ride.height}cm minimum`:check.label}</span>;})
      :<span className="ride-height ok"><Check size={14}/>No height limit</span>}</div>

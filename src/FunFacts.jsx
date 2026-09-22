@@ -102,6 +102,24 @@ export default function FunFacts({state,user,day,mutate,busy,openPage}){
   </>}
  </>;
 }
+// The read-aloud a card's facts get: the one speaking voice that screen is already holding,
+// at the speed the person in front of it reads. Nate is five, so his is a story's pace, and a
+// browser with no speech in it gets no button rather than one that does nothing.
+export const factAloudFor=(speech,person)=>speech?.supported?{reading:speech.reading,read:speech.read,rate:person==='Nate'?YOUNG_RATE:undefined}:null;
+// The fact where the thing actually is. A card that names something the guide has a fact about
+// carries it on the card itself — the activity on the day, the place on the map, the dish on
+// the food list — so it is there while somebody is standing in front of the thing rather than
+// only in a pop-up that morning. It is folded shut, with the headline on the fold, because a
+// card whose job is the time and the address must not become a page of reading; and it is not
+// recorded, because a card is somewhere to look something up and quietly spending the day's
+// fact here would leave tomorrow's pop-up with nothing of its own to give.
+export function CardFacts({facts,openPage,aloud,label='Fun fact'}){
+ if(!facts?.length)return null;
+ return <details className="card-facts">
+  <summary><Lightbulb size={14}/> <span className="card-facts-label">{facts.length>1?`${label}s · ${facts.length}`:label}</span> <span className="card-facts-lead">{facts[0].title}</span></summary>
+  {facts.map(f=><FactRow key={f.id} fact={f} openPage={openPage} aloud={aloud}/>)}
+ </details>;
+}
 export function FactRow({fact,openPage,aloud}){
  return <article className="fact-row">
   <span className="fact-icon" aria-hidden="true">{fact.icon}</span>

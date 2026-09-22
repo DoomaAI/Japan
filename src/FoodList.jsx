@@ -5,15 +5,21 @@ import SayIt from './SayIt.jsx';
 import {PHRASES} from './phrases.js';
 import {triedFood,foodRatings,foodAverage,isFavourite,FAVOURITE_AT,searchText} from './trip-features.js';
 import MenuReader from './MenuReader.jsx';
+import {CardFacts,factAloudFor} from './FunFacts.jsx';
+import {factsForItem} from './fact-data.js';
 export const allFood=state=>[...FOOD,...(state.foodItems||[]).map(i=>({...i,custom:true}))];
 function Stars({value,onRate,disabled,label}){
  return <span className="stars" role="group" aria-label={label}>{[1,2,3,4,5].map(n=>
   <button key={n} type="button" className={`star${n<=value?' on':''}`} disabled={disabled} aria-label={`${n} star${n>1?'s':''}`} aria-pressed={n===value}
    onClick={()=>onRate(n===value?0:n)}><Star size={17}/></button>)}</span>;
 }
-export default function FoodList({state,user,mutate,busy,setBusy,notice,show,request,config}){
+export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,notice,show,request,config}){
  const [kind,setKind]=useState(''),[only,setOnly]=useState(''),[query,setQuery]=useState(''),[edit,setEdit]=useState(null);
  const parent=user.role==='parent',items=allFood(state);
+ // A dish carries the facts about itself: how the onigiri wrapper works while you are holding
+ // one, why the pancakes wobble while you are waiting for them. What the dish is called and
+ // the note beside it are what the card says it is, and that is what the facts are matched on.
+ const aloud=factAloudFor(speak,user.name);
  const list=items.filter(i=>(!kind||i.kind===kind)
   &&(only!=='tried'||Object.keys(triedFood(state,i.id)).length)
   &&(only!=='todo'||!Object.keys(triedFood(state,i.id)).length)
@@ -58,6 +64,7 @@ export default function FoodList({state,user,mutate,busy,setBusy,notice,show,req
     </div>
     {item.ja&&<SayIt phrase={{...item,en:''}}/>}
     {item.note&&<p>{item.note}</p>}
+    <CardFacts facts={factsForItem(item.en,item.romaji,item.note)} openPage={openPage} aloud={aloud}/>
     {item.variants?.length>0&&<details className="variants"><summary>{item.variants.length} kinds — chicken, pork, prawn, vegetable</summary>
      {item.variants.map(v=><div className="variant" key={v.ja}>
       <div><strong>{v.en}</strong><p className="japanese small" lang="ja">{v.ja}</p><small className="say-phonics"><span aria-hidden="true">say</span> {v.say}</small></div>
