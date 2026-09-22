@@ -849,6 +849,37 @@ export function matchDish(dish,wishlist){
 }
 export const nearbyKindLabel=id=>(NEARBY_KINDS.find(([key])=>key===id)||NEARBY_KINDS[0])[1];
 export const priceBandLabel=id=>(PRICE_BANDS.find(([key])=>key===id)||['',''])[1];
+// What a place is worth once the walk to it is counted. A rating on its own marches a five-year-old
+// across town for a tenth of a star; a walk on its own puts the nearest vending machine above the
+// best bowl of noodles in the city. The family's own exchange rate settles it: a minute on foot is
+// worth a tenth of a star, so ten minutes is a whole star, and four and a half stars eleven minutes
+// away loses to four stars round the corner.
+export const MINUTES_PER_STAR=10;
+// Ratings are Google's, so they are held to Google's range and Google's precision. Five stars off
+// three people is not a rating, it is three people, so a handful of votes is treated as none.
+export const MIN_RATING_VOTES=5;
+export const validRating=v=>Number.isFinite(v)&&v>=1&&v<=5?Math.round(v*10)/10:null;
+// A place nobody rated still has to sit somewhere in the list, and an unrated convenience store two
+// minutes away is exactly the answer sometimes. It is ranked as the ordinary place it probably is —
+// never shown a star it did not earn, because the card says plainly when there is no rating.
+export const UNRATED_STARS=3.8;
+// A walk nobody could estimate is treated as the far end of what is asked for: fifteen minutes.
+export const UNKNOWN_WALK=15;
+export function placeScore({rating,walkMinutes}){
+ const stars=validRating(rating)??UNRATED_STARS;
+ const walk=Number.isFinite(walkMinutes)&&walkMinutes>=0?walkMinutes:UNKNOWN_WALK;
+ return Math.round((stars-walk/MINUTES_PER_STAR)*100)/100;
+}
+// The order the cards come in. A dish we are actually hunting still comes first — that is the whole
+// point of asking from the food page — and everything else is settled by what it is worth after the
+// walk, with the nearer one ahead when two come out level.
+export const rankNearby=(a,b)=>(b.dish?1:0)-(a.dish?1:0)
+ ||(b.score??0)-(a.score??0)
+ ||(a.walkMinutes??UNKNOWN_WALK)-(b.walkMinutes??UNKNOWN_WALK);
+// How the rating reads on a card: one decimal place, the way Google writes it, and the number of
+// people behind it, because 4.2 from nine hundred is a different thing from 4.2 from nine.
+export const ratingText=(rating,count)=>validRating(rating)===null?'':
+ `${validRating(rating).toFixed(1)}${Number.isInteger(count)&&count>0?` · ${count.toLocaleString('en-AU')} ratings`:''}`;
 // A position is rounded before it goes anywhere: three decimal places is about a hundred metres,
 // which is plenty to find a convenience store and not enough to point at a hotel room.
 export const COORD_PLACES=3;
