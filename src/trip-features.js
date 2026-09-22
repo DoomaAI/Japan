@@ -547,8 +547,19 @@ export const dayRating=(state,day)=>{
 export const SUMO_DIVISIONS=[['makuuchi','Makuuchi · the top division'],['juryo','Juryo'],['makushita','Makushita'],['other','Earlier bouts']];
 export const divisionLabel=id=>(SUMO_DIVISIONS.find(([key])=>key===id)||SUMO_DIVISIONS.at(-1))[1];
 export const SUMO_DAY='2026-09-23';
-export const SUMO_SITE='https://www.sumo.or.jp/EnHonbashoMain/torikumi/';
-export const EMPTY_SUMO={basho:'',dayNumber:null,venue:'',date:null,doorsOpen:'',notes:'',bouts:[],sources:[],wrestlers:{},results:{},predictions:{},at:null,by:null};
+// The official site files each card under its division and its day — /torikumi/1/11/ is the top
+// division on day 11, /torikumi/2/11/ the juryo — and the bare /torikumi/ address on its own is
+// a dead page. The Aki basho opens on Sunday 13 September, so our day is day 11, which is what the
+// link points at before a card has been loaded to say so.
+export const SUMO_DAY_NUMBER=11;
+export const SUMO_SITE_DIVISIONS=[['makuuchi',1,'Top division'],['juryo',2,'Juryo'],['makushita',3,'Makushita']];
+export function sumoSiteUrl(dayNumber=SUMO_DAY_NUMBER,division='makuuchi'){
+ const day=Number.isInteger(dayNumber)&&dayNumber>=1&&dayNumber<=15?dayNumber:SUMO_DAY_NUMBER;
+ const [,page]=SUMO_SITE_DIVISIONS.find(([id])=>id===division)||SUMO_SITE_DIVISIONS[0];
+ return `https://www.sumo.or.jp/EnHonbashoMain/torikumi/${page}/${day}/`;
+}
+export const SUMO_SITE=sumoSiteUrl();
+export const EMPTY_SUMO={basho:'',dayNumber:null,venue:'',date:null,doorsOpen:'',notes:'',bouts:[],sources:[],wrestlers:{},results:{},predictions:{},at:null,by:null,resultsAt:null,resultsNote:''};
 export const sumo=state=>({...EMPTY_SUMO,...(state.sumo||{}),bouts:[...((state.sumo||{}).bouts||[])],
  wrestlers:{...((state.sumo||{}).wrestlers||{})},results:{...((state.sumo||{}).results||{})},
  predictions:{...((state.sumo||{}).predictions||{})}});

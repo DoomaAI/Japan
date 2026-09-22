@@ -15,7 +15,7 @@ import {researchPlace,researchReady} from './research.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {askTrip,askReady} from './ask.mjs';
 import {nearbyPlaces,nearbyReady} from './nearby.mjs';
-import {fetchSumoDay,fetchWrestler,sumoReady} from './sumo.mjs';
+import {fetchSumoDay,fetchSumoResults,fetchWrestler,sumoReady} from './sumo.mjs';
 import {readDocument,readerReady} from './document-reader.mjs';
 import {coachPhoto,coachReady} from './photo-coach.mjs';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
@@ -177,6 +177,10 @@ export default async function handler(req,res){
   if(route==='sumo-card'&&post){
    parent(user);const {state}=await readTrip();
    return json(res,await fetchSumoDay(b,state));
+  }
+  if(route==='sumo-results'&&post){
+   parent(user);const {state}=await readTrip();
+   return json(res,await fetchSumoResults(b,state));
   }
   if(route==='sumo-wrestler'&&post){
    parent(user);

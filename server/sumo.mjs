@@ -1,11 +1,16 @@
 import {AppError} from './model.mjs';
-import {SUMO_DIVISIONS} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,SUMO_SITE_DIVISIONS,sumo,sumoSiteUrl} from '../src/trip-features.js';
 export const sumoReady=()=>!!process.env.ANTHROPIC_API_KEY;
 export const MAX_BOUTS=60;
 // The torikumi goes up on the official site the afternoon before, so this is asked close to the
 // day and read off that page. Six searches is enough to reach the day's card and the two or
 // three names somebody will then want to look up.
 const SEARCH={type:'web_search_20260209',name:'web_search',max_uses:6,user_location:{type:'approximate',country:'JP',timezone:'Asia/Tokyo'}};
+// And the page itself. The official card for a day lives at an address that can be worked out
+// (division, then day), so it is given to the model to read directly rather than hoping a search
+// turns it up. Fetching is kept to the association's own site.
+const FETCH={type:'web_fetch_20260209',name:'web_fetch',max_uses:4,allowed_domains:['sumo.or.jp']};
+const officialPages=dayNumber=>SUMO_SITE_DIVISIONS.map(([id,,label])=>`- ${label}: ${sumoSiteUrl(dayNumber??undefined,id)}`).join('\n');
 const wrestler={type:'object',additionalProperties:false,required:['name','rank','stable'],
  properties:{
   name:{type:'string',description:'Shikona, in romaji as the English site writes it.'},
@@ -55,6 +60,32 @@ const PROFILE={
    sources:{type:'array',items:{type:'object',additionalProperties:false,required:['title','url'],
     properties:{title:{type:'string'},url:{type:'string'}}}}}}
 };
+// Built per request, because the answer has to name bouts that are on our card and nothing else.
+const resultsTool=ids=>({
+ name:'record_sumo_results',
+ description:'Record the winners the official site shows, once, after reading it.',
+ strict:true,
+ input_schema:{type:'object',additionalProperties:false,required:['found','dayNumber','notes','results','sources'],
+  properties:{
+   found:{type:'boolean',description:'False if the page could not be read or shows no results yet.'},
+   dayNumber:{anyOf:[{type:'integer'},{type:'null'}],description:'Which day of the fifteen the page is for.'},
+   notes:{type:'string',description:'One sentence: how far through the day the site has got, e.g. "Juryo finished; makuuchi under way."'},
+   results:{type:'array',description:'Only the bouts the site shows as decided.',items:{
+    type:'object',additionalProperties:false,required:['id','winner','kimarite'],
+    properties:{
+     id:{type:'string',enum:ids},
+     winner:{type:'string',enum:['east','west'],description:'The side the site marks as the winner.'},
+     kimarite:{type:'string',description:'The winning technique as the site writes it, e.g. yorikiri. Empty if not shown.'}}}},
+   sources:{type:'array',items:{type:'object',additionalProperties:false,required:['title','url'],
+    properties:{title:{type:'string'},url:{type:'string'}}}}}}
+});
+const RESULTS_SYSTEM=`You read the official sumo results for one day and say who won each bout on a card you are given.
+
+- The Japan Sumo Association's own pages (sumo.or.jp) are the record. Fetch the day's pages you are given and read the winners off them. Use search only to find the page if an address does not load, and never take a winner from anywhere but the official site.
+- Only record a bout the site shows as finished. A bout still to come, or one you cannot match with certainty, is left out — an empty list is a perfectly good answer at the start of the afternoon.
+- Match by the two names. The card you are given says which wrestler is east and which is west; answer with the side that won, not the name.
+- A default (fusen) win counts; give fusen as the kimarite.
+- Never guess a result, and never predict one.`;
 const FAMILY=`The family: Damien and Lauren, with their sons Boston (8) and Nate (5). They are Australian, speak no Japanese, and have never been to sumo.`;
 const CARD_SYSTEM=`You read the official sumo schedule for one day and write down the card, for a family who will be sitting in the arena that afternoon.
 
@@ -130,8 +161,8 @@ export async function fetchSumoDay({date},state){
  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||''))||!state.days.some(d=>d.date===date))throw new AppError('Choose a trip day.');
  const {default:Anthropic}=await import('@anthropic-ai/sdk');
  let message;
- try{message=await ask(new Anthropic(),{system:CARD_SYSTEM,tools:[SEARCH,CARD],maxTokens:12000,
-  messages:[{role:'user',content:`Read the official schedule for ${date} and write down that day's card.\n\nThey have second-floor chair seats at Ryogoku Kokugikan and are arriving mid-afternoon with two children.`}]});
+ try{message=await ask(new Anthropic(),{system:CARD_SYSTEM,tools:[SEARCH,FETCH,CARD],maxTokens:12000,
+  messages:[{role:'user',content:`Read the official schedule for ${date} and write down that day's card.\n\nThe official pages for that day, if it is day ${dayNumberFor(state,date)} of the Aki basho as we expect:\n${officialPages(dayNumberFor(state,date))}\n\nThey have second-floor chair seats at Ryogoku Kokugikan and are arriving mid-afternoon with two children.`}]});
  }catch(e){throw apiError(e,'The sumo schedule');}
  if(message.stop_reason==='refusal')throw new AppError('That one was declined.',422);
  const call=message.content.find(b=>b.type==='tool_use'&&b.name==='record_sumo_day');
@@ -140,6 +171,43 @@ export async function fetchSumoDay({date},state){
  const card=normaliseCard(call.input);
  if(!card.bouts.length)throw new AppError('The card came back with no bouts in it. Try again closer to the day.',502);
  return {...card,usage:{input:message.usage?.input_tokens??0,output:message.usage?.output_tokens??0,searches:message.usage?.server_tool_use?.web_search_requests??0}};
+}
+// Which day of the basho a trip day is. The card says so once it is loaded; before that it is
+// worked out from the opening Sunday, 13 September 2026.
+const OPENING_DAY=Date.UTC(2026,8,13);
+function dayNumberFor(state,date){
+ const card=sumo(state);
+ if(card.date===date&&card.dayNumber)return card.dayNumber;
+ const n=Math.round((Date.parse(`${date}T00:00:00Z`)-OPENING_DAY)/86400000)+1;
+ return n>=1&&n<=15?n:null;
+}
+export function normaliseResults(found,bouts){
+ const seen=new Set();
+ const results=(Array.isArray(found.results)?found.results:[]).map(r=>{
+  const bout=bouts.find(b=>b.id===r?.id);
+  if(!bout||seen.has(bout.id)||!['east','west'].includes(r?.winner))return null;
+  seen.add(bout.id);
+  return {id:bout.id,winner:bout[r.winner].name,kimarite:clamp(r?.kimarite,60)};
+ }).filter(Boolean);
+ return {results,notes:clamp(found.notes,300),sources:sources(found.sources)};
+}
+export async function fetchSumoResults({date},state){
+ if(!sumoReady())throw new AppError('Reading the results is not switched on. Add an Anthropic API key to the deployment.',503);
+ const card=sumo(state);
+ if(!card.bouts.length)throw new AppError('Load the day’s card first.',409);
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||''))||date!==card.date)throw new AppError('The card loaded is for a different day.');
+ const day=dayNumberFor(state,date);
+ const list=card.bouts.map(b=>`${b.id}: east ${b.east.name} v west ${b.west.name} (${b.division})`).join('\n');
+ const {default:Anthropic}=await import('@anthropic-ai/sdk');
+ let message;
+ try{message=await ask(new Anthropic(),{system:RESULTS_SYSTEM,tools:[SEARCH,FETCH,resultsTool(card.bouts.map(b=>b.id))],maxTokens:8000,
+  messages:[{role:'user',content:`Who has won so far on ${date}${day?`, day ${day}`:''}? Read the official pages:\n${officialPages(day)}\n\nThe card:\n${list}`}]});
+ }catch(e){throw apiError(e,'The official results');}
+ if(message.stop_reason==='refusal')throw new AppError('That one was declined.',422);
+ const call=message.content.find(b=>b.type==='tool_use'&&b.name==='record_sumo_results');
+ if(!call?.input)throw new AppError('Nothing came back. The results are on sumo.or.jp.',502);
+ const read=call.input.found?normaliseResults(call.input,card.bouts):{results:[],notes:clamp(call.input.notes,300),sources:[]};
+ return {...read,usage:{input:message.usage?.input_tokens??0,output:message.usage?.output_tokens??0,searches:message.usage?.server_tool_use?.web_search_requests??0}};
 }
 export async function fetchWrestler({name}){
  if(!sumoReady())throw new AppError('Looking wrestlers up is not switched on. Add an Anthropic API key to the deployment.',503);
