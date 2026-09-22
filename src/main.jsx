@@ -214,6 +214,17 @@ function App(){
  function go(id,d,item){setFocus(item||null);if(d&&state.days.some(x=>x.date===d)){setDay(d);setSelected(null);}setTab(id);setQuery('');setModal(null);history.replaceState(null,'','/?'+new URLSearchParams({tab:id,day:d||day,...(item?{item}:{})}));}
  function selectDay(d){setDay(d);setSelected(null);setTab('today');updateUrl(d);}
  function selectStep(s){if(s.day===null){setTab('options');setQuery(s.title);setModal(null);return;}setModal(null);setDay(s.day);setSelected(s.id);setTab('today');updateUrl(s.day,s.id);}
+ // What happens to a stop, in one place, because the row in the timeline and the card for the
+ // same stop must not drift into two different answers. The card is simply another way of
+ // pointing at the stop the timeline row points at.
+ const removeStop=s=>setModal({type:'remove',step:s});
+ // Moving a stop off the day is reversible, so it happens on the tap rather than behind a
+ // question. A locked time is the one thing that stops it, and it is said here rather than
+ // spent on a round trip that comes back with the same answer.
+ async function optionStop(s){
+  if(s.locked){notice('Unlock its fixed time before saving this stop to Options.');return;}
+  if(await mutate({type:'backlog',id:s.id}))notice(`${s.title} was saved to Options, with everything on it. Add it to a day whenever it fits.`);
+ }
  function move(delta){const s=steps[index+delta];if(s){setSelected(s.id);updateUrl(day,s.id);}}
  function openPage(n){setGuidePage(n);setTab('guide');setModal(null);updateUrl(day,null,n);}
  // Seventy-two pages is a lot of arrow-tapping, so the guide turns like a book: swipe it, or
@@ -322,7 +333,7 @@ function App(){
    {groups.length>0&&<div className="option-bar">{groups.map(g=><label key={g}>Choose a plan<select disabled={!parent||busy} value={state.choices[g]||''} onChange={e=>mutate({type:'choose',group:g,option:e.target.value})}>{[...new Set(state.steps.filter(s=>s.group===g).map(s=>s.option))].map(o=><option key={o}>{o}</option>)}</select></label>)}</div>}
    <div className="today-layout"><section className="step-area">
    {current?<article className={`step-card ${current.status==='done'?'complete':''}`} onTouchStart={e=>{touch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}} onTouchEnd={e=>{if(!touch.current||['BUTTON','A','INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;const dx=e.changedTouches[0].clientX-touch.current.x,dy=e.changedTouches[0].clientY-touch.current.y;if(Math.abs(dx)>65&&Math.abs(dy)<50)move(dx<0?1:-1);touch.current=null;}}>
-    <div className="card-top"><span className="eyebrow">STEP {index+1} / {steps.length}</span><div className="row"><span className={`tag ${current.kind}`}>{current.locked?'Fixed time':current.kind==='optional'?'Optional':current.review?'Check details':'Flexible'}</span>{parent&&<button className="icon" aria-label={current.locked?'Unlock time':'Lock time'} onClick={()=>mutate({type:'lock',id:current.id,locked:!current.locked})}>{current.locked?<LockKeyhole size={19}/>:<LockKeyholeOpen size={19}/>}</button>}</div></div>
+    <div className="card-top"><span className="eyebrow">STEP {index+1} / {steps.length}</span><div className="row"><span className={`tag ${current.kind}`}>{current.locked?'Fixed time':current.kind==='optional'?'Optional':current.review?'Check details':'Flexible'}</span>{parent&&<><button className="icon" aria-label={current.locked?'Unlock time':'Lock time'} onClick={()=>mutate({type:'lock',id:current.id,locked:!current.locked})}>{current.locked?<LockKeyhole size={19}/>:<LockKeyholeOpen size={19}/>}</button>{/* The same two answers the timeline row offers, on the stop you are actually standing in front of: the tray moves it to Options on the tap, the bin only opens the question. */}<button className="icon to-options" aria-label={`Save ${current.title} to Options`} onClick={()=>optionStop(current)}><Inbox size={19}/></button><button className="icon remove-stop" aria-label={`Remove ${current.title} from this day`} onClick={()=>removeStop(current)}><Trash2 size={19}/></button></>}</div></div>
     <div className="time-display">{current.time||'Any time'}{current.time&&<span>JST</span>}</div>
     <h2>{current.title}</h2>
     {current.place&&<p className="place-line"><MapPin size={17}/>{current.place}</p>}{resolveLocation(state,current)&&<small className="matched-address">{resolveLocation(state,current).address}</small>}{stepPin(current)&&<small className="matched-address"><LocateFixed size={13}/> Pinned where we stood · {pinText(stepPin(current))} · directions come back here</small>}
@@ -356,13 +367,7 @@ function App(){
    <div className="swipe-controls"><Button icon={ArrowLeft} disabled={index<=0} onClick={()=>move(-1)}>Previous</Button><span>Swipe to explore</span><Button disabled={index>=steps.length-1} onClick={()=>move(1)}>Next <ArrowRight size={18}/></Button></div>
    <div className="quick-links"><Link href={directions(today?.hotel)}><House size={18}/><span>Tonight’s hotel<strong>{today?.hotel}</strong></span><ExternalLink size={15}/></Link>{nextFixed&&<button onClick={()=>selectStep(nextFixed)}><LockKeyhole size={18}/><span>Next fixed time<strong>{nextFixed.time} · {nextFixed.title}</strong></span><ChevronRight size={18}/></button>}</div>
    <div className="row wrap">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
-   </section><DayTimeline steps={steps} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={s=>setModal({type:'remove',step:s})} optionStep={async s=>{
-    // Moving a stop off the day is reversible, so it happens on the tap rather than behind a
-    // question. A locked time is the one thing that stops it, and it is said here rather than
-    // spent on a round trip that comes back with the same answer.
-    if(s.locked){notice('Unlock its fixed time before saving this stop to Options.');return;}
-    if(await mutate({type:'backlog',id:s.id}))notice(`${s.title} was saved to Options, with everything on it. Add it to a day whenever it fits.`);
-   }}/></div>
+   </section><DayTimeline steps={steps} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/></div>
   </>}
   {tab==='challenges'&&<Challenges key={day+(focus||'')} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy} go={go}/>}

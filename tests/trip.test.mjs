@@ -154,6 +154,7 @@ test('the bin on a stop asks before anything happens, and only a parent is offer
  const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const panel=await readFile(new URL('../src/RemoveStop.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  // The bin is offered beside the reorder tools, to a parent only, and hands the stop upwards
  // rather than removing anything itself.
  assert.match(timeline,/className="remove-stop"/);
@@ -168,12 +169,20 @@ test('the bin on a stop asks before anything happens, and only a parent is offer
  assert.match(timeline,/\{park\(s\)\}\{drop\(s\)\}/,'the tray sits before the bin');
  assert.doesNotMatch(timeline,/type:'backlog'/,'the move is handled above the row, like every other change');
  // Moving is reversible, so it goes on the tap; a locked time is answered without a round trip.
- assert.match(main,/optionStep=\{async s=>\{/);
+ assert.match(main,/async function optionStop\(s\)\{/);
  assert.match(main,/if\(s\.locked\)\{notice\('Unlock its fixed time before saving this stop to Options\.'\);return;\}/);
  assert.match(main,/mutate\(\{type:'backlog',id:s\.id\}\)/);
+ // What happens to a stop is decided in one place, so the row in the timeline and the card for
+ // the same stop cannot drift into two different answers.
+ assert.match(main,/const removeStop=s=>setModal\(\{type:'remove',step:s\}\)/);
+ assert.match(main,/removeStep=\{removeStop\} optionStep=\{optionStop\}/);
+ assert.doesNotMatch(main,/optionStep=\{async/,'the timeline uses that handler rather than a copy of it');
+ // The card offers the same pair on the stop you are standing in front of, to a parent only.
+ assert.match(main,/className="icon to-options" aria-label=\{`Save \$\{current\.title\} to Options`\} onClick=\{\(\)=>optionStop\(current\)\}/);
+ assert.match(main,/className="icon remove-stop" aria-label=\{`Remove \$\{current\.title\} from this day`\} onClick=\{\(\)=>removeStop\(current\)\}/);
+ assert.match(css,/\.to-options,\.remove-stop\{color:#8b7a76\}/,'and reads the same in both places');
  // Both ways in — the bin on the timeline and the button in the edit form — open the same
  // question, and the form no longer asks in the browser's own box.
- assert.match(main,/removeStep=\{s=>setModal\(\{type:'remove',step:s\}\)\}/);
  assert.match(main,/onRemove=\{s=>setModal\(\{type:'remove',step:s\}\)\}/);
  assert.match(main,/onClick=\{\(\)=>onRemove\(step\)\}/);
  assert.doesNotMatch(main,/confirm\('Remove this activity/,'the confirmation is the in-app pop-up now');

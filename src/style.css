@@ -290,9 +290,13 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 /* Taking a stop off the day, and the gentler answer beside it. The pair sits under the reorder
    arrows, both quiet rather than red: the tray moves the stop to Options on the tap, the bin only
    opens the question, and the pop-up it opens is what actually decides. */
-.reorder-tools .to-options,.reorder-tools .remove-stop{min-height:34px;color:#8b7a76}
-.reorder-tools .to-options:hover{color:var(--green)}
-.reorder-tools .remove-stop:hover{color:#a0342d}
+.to-options,.remove-stop{color:#8b7a76}
+.reorder-tools .to-options,.reorder-tools .remove-stop{min-height:34px}
+.to-options:hover{color:var(--green)}
+.remove-stop:hover{color:#a0342d}
+/* The card carries the same pair beside its lock, so its top row is allowed to wrap rather than
+   squeeze the step count off a narrow phone. */
+.card-top .row{flex-wrap:wrap;justify-content:flex-end}
 .confirm-remove>h3{margin:.2rem 0 .3rem;font-size:1.15rem;overflow-wrap:anywhere}
 .confirm-remove>small{margin-bottom:1rem}
 .confirm-remove>p{margin-bottom:.8rem}
