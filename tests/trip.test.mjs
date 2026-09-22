@@ -193,6 +193,45 @@ test('the bin on a stop asks before anything happens, and only a parent is offer
  assert.match(panel,/\{step\.day&&<div className="confirm-instead">/);
  assert.equal((panel.match(/disabled=\{busy\|\|step\.locked\}/g)||[]).length,2);
 });
+test('a stop is ticked off where the day is read, and says when it was finished',async()=>{
+ const {doneClock,doneStamp}=await import('../src/timing.js');
+ const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // The tick is the card's change, so it is the card's rule: whoever the stop is assigned to can
+ // tick it and a parent can tick any, rather than the parent-only rule the editing tools use.
+ assert.match(timeline,/const mine=s=>parent\|\|\(s\.participants\|\|\[\]\)\.includes\(user\?\.name\)/);
+ assert.match(timeline,/type="checkbox" checked=\{s\.status==='done'\} disabled=\{busy\|\|!mine\(s\)\}/);
+ assert.match(timeline,/status:done\?'done':'todo'/);
+ assert.match(main,/<DayTimeline steps=\{steps\}[^>]*state=\{visibleState\}[^>]*user=\{user\}/,'with the family and the plan it needs to decide that');
+ // The box sits outside the row's own button, so ticking cannot be mistaken for opening the stop.
+ assert.match(timeline,/<span className="timeline-tick">/);
+ assert.ok(timeline.indexOf('className="timeline-tick"')<timeline.indexOf('className={`timeline-step'),'the tick comes before the row’s own button rather than inside it');
+ // The time it was finished is editable in place, saved when the field is left rather than on a
+ // half-typed hour, and never accepts a time that has not happened yet.
+ assert.match(timeline,/onBlur=\{e=>retime\(s,e\.target\.value\)\}/);
+ assert.match(timeline,/status:'done',at:at\.toISOString\(\)/);
+ assert.match(timeline,/at\.getTime\(\)>Date\.now\(\)\+60000/);
+ assert.match(timeline,/if\(doneClock\(s\)===clock\)return;/,'and re-saving the same time is not a change');
+ // The chronology carries the time it actually happened once it has, with the target kept beside
+ // it, and the finished row steps back without taking its tick or its tools with it.
+ assert.match(timeline,/s\.status==='done'&&s\.completedAt\?doneClock\(s\):\(s\.time\|\|'—'\)/);
+ assert.match(timeline,/`Completed\$\{s\.time\?` · due \$\{s\.time\}`:''\}`/);
+ assert.match(timeline,/className=\{`timeline-row \$\{s\.status\}/);
+ assert.match(css,/\.timeline-row\.done \.timeline-step\{opacity:\.55\}/);
+ assert.match(css,/\.timeline-row\.done \.timeline-step \.timeline-dot\{opacity:1\}/);
+ // The two clock helpers agree with each other: a stamp read back in Japan time is the time that
+ // was typed, whatever the phone reading it is set to.
+ const step={day:'2026-10-02',completedAt:doneStamp({day:'2026-10-02'},'14:20').toISOString()};
+ assert.equal(doneClock(step),'14:20');
+ assert.equal(doneClock({}),'');
+ // And the server takes exactly that: the stamp is a real completion time on that step.
+ const target=seed.steps.find(s=>s.day&&!s.locked);
+ const at=doneStamp(target,'08:05').toISOString();
+ const ticked=applyOperation(seed,{type:'status',id:target.id,status:'done',at},parent);
+ assert.equal(ticked.steps.find(s=>s.id===target.id).completedAt,at);
+ assert.throws(()=>applyOperation(seed,{type:'status',id:target.id,status:'done',at:new Date(Date.now()+3600000).toISOString()},parent),/valid past completion time/);
+});
 test('day and activity attachments validate associations and keep caption edits scoped',()=>{
  let state=applyOperation(seed,{type:'documentNote',title:'Luggage',category:'luggage',reference:'ABC123',day:seed.days[0].date,notes:'Blue bag',tags:['Tokyo']},parent);
  const id=state.documents.at(-1).id;
