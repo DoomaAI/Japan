@@ -286,3 +286,6 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .shortlist-waiting .list-row:last-child{border-bottom:0}
 
 .pin-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:-.4rem 0 1rem}.pin-tag{display:inline-flex;align-items:center;gap:.4rem;background:#e6f1eb;color:#205543;font-weight:600}.pin-tag button{border:0;background:transparent;padding:0 0 0 .1rem;min-height:24px;color:inherit}.matched-address svg{margin-right:.25rem}
+
+.purse-figure{margin:.9rem auto .4rem;max-width:300px}.purse-cat{display:block;width:100%;height:auto}.purse-flows{display:flex;justify-content:space-between;gap:.8rem;margin:-.2rem 0 .9rem;font-size:.82rem;font-weight:600;line-height:1.4}.purse-flows .flow-in{color:#8a6a22}.purse-flows .flow-out{color:var(--muted);text-align:right}
+@media(prefers-reduced-motion:no-preference){.purse-cat .waving{transform-origin:70px 82px;animation:paw-wave 2.4s ease-in-out infinite}@keyframes paw-wave{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(9deg)}}}

@@ -782,6 +782,19 @@ export function purse(state,person,today){
  return {topUps,allowance,paidIn,spent,planned,left:paidIn-spent,after:paidIn-spent-planned,
   items:items.length,bought:bought.length,waiting:items.length-bought.length};
 }
+// The same purse as a money box rather than a bar, for the boy who cannot read the bar yet.
+// `level` is how full the box is now, `after` is where it lands once everything still on the list
+// is bought, `promised` is the height of the list itself and `shortfall` is the part of it there
+// is no money for. All of them are shares of the fullest the box has had to be — money in, or
+// everything asked of it, whichever is larger — so a boy who has promised away more than went in
+// still gets a drawing that fits inside itself rather than one that runs off its own edges.
+export function purseLevels(money){
+ const paidIn=money?.paidIn||0,spent=money?.spent||0,planned=money?.planned||0;
+ const cap=Math.max(paidIn,spent+planned,1),share=n=>Math.max(0,Math.min(1,n/cap));
+ const after=money?.after||0;
+ return {level:share(money?.left||0),after:share(after),promised:share(planned),
+  shortfall:share(after<0?-after:0),short:after<0,empty:(money?.left||0)<=0};
+}
 // Asking for more. A boy cannot put money into his own purse, so the only way the balance moves
 // in his favour is to ask and have a parent say yes. The ask, the answer and the amount actually
 // approved all stay on the record: "can I have ¥2,000" answered with "you can have ¥1,000" is a
