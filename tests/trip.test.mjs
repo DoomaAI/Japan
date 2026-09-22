@@ -138,6 +138,17 @@ test('removing a stop takes nothing else with it, and the family is asked first'
  // It stays a parent's change, and a stop that is already gone cannot be removed twice.
  assert.throws(()=>applyOperation(seed,{type:'remove',id:step.id},child),e=>e.status===403);
  assert.throws(()=>applyOperation(after,{type:'remove',id:step.id},parent),e=>e.status===404);
+ // The reversible answer the pop-up offers beside it: the same stop saved to Options is still
+ // there, whole, off the calendar, with its ticket and its voice note still on it and the day it
+ // came off remembered.
+ const kept=applyOperation(state,{type:'backlog',id:step.id},parent);
+ const saved=kept.steps.find(s=>s.id===step.id);
+ assert.equal(saved.day,null);assert.equal(saved.time,null);assert.equal(saved.bookingTime,null);
+ assert.equal(saved.backlogFrom.day,day);assert.equal(saved.status,'todo');
+ assert.equal(kept.documents.find(d=>d.title==='Park ticket').stepId,step.id);
+ assert.equal(kept.voiceNotes[0].stepId,step.id);
+ // From Options it goes back onto a day whenever it fits, which is the point of offering it.
+ assert.equal(applyOperation(kept,{type:'schedule',id:step.id,day,time:'09:00'},parent).steps.find(s=>s.id===step.id).time,'09:00');
 });
 test('the bin on a stop asks before anything happens, and only a parent is offered it',async()=>{
  const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
@@ -165,6 +176,11 @@ test('the bin on a stop asks before anything happens, and only a parent is offer
  assert.match(panel,/disabled=\{busy\|\|step\.locked\}/);
  assert.match(panel,/onClick=\{\(\)=>close\(null\)\}/,'keeping the stop is the safe default');
  assert.match(panel,/type:'lock',id:step\.id,locked:false/,'with the lock offered rather than worked around');
+ // The reversible answer sits beside it, offered only for a stop that is actually on a day, and
+ // a locked one waits for the unlock exactly as the removal does.
+ assert.match(panel,/mutate\(\{type:'backlog',id:step\.id\}\)/);
+ assert.match(panel,/\{step\.day&&<div className="confirm-instead">/);
+ assert.equal((panel.match(/disabled=\{busy\|\|step\.locked\}/g)||[]).length,2);
 });
 test('day and activity attachments validate associations and keep caption edits scoped',()=>{
  let state=applyOperation(seed,{type:'documentNote',title:'Luggage',category:'luggage',reference:'ABC123',day:seed.days[0].date,notes:'Blue bag',tags:['Tokyo']},parent);
