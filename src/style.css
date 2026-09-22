@@ -286,3 +286,16 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .shortlist-waiting .list-row:last-child{border-bottom:0}
 
 .pin-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:-.4rem 0 1rem}.pin-tag{display:inline-flex;align-items:center;gap:.4rem;background:#e6f1eb;color:#205543;font-weight:600}.pin-tag button{border:0;background:transparent;padding:0 0 0 .1rem;min-height:24px;color:inherit}.matched-address svg{margin-right:.25rem}
+
+/* Taking a stop off the day. The bin sits under the reorder arrows, quiet rather than red, since
+   it opens a question instead of doing anything; the panel it opens is the pop-up that decides. */
+.reorder-tools .remove-stop{grid-column:span 2;min-height:34px;color:#8b7a76}
+.reorder-tools .remove-stop:hover{color:#a0342d}
+.confirm-remove>h3{margin:.2rem 0 .3rem;font-size:1.15rem;overflow-wrap:anywhere}
+.confirm-remove>small{margin-bottom:1rem}
+.confirm-remove>p{margin-bottom:.8rem}
+.confirm-keeps{margin:0 0 1.2rem;padding-left:1.2rem;font-size:.86rem;line-height:1.6;color:var(--muted)}
+.confirm-keeps li{margin-bottom:.3rem}
+.confirm-actions{margin-top:1.2rem}
+.confirm-actions .danger{border-color:#e4c3bd}
+.confirm-actions .danger:hover{background:#fdf2f0;border-color:#cc9d95}

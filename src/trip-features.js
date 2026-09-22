@@ -484,6 +484,23 @@ export const documentSpent=(steps,doc)=>{
  const ids=documentSteps(doc);
  return ids.length>0&&ids.every(id=>steps.find(s=>s.id===id)?.status==='done');
 };
+// What else is hanging off a stop, counted before it is taken off the plan. Removing a stop is
+// the one change that cannot be made again — the notes, the times, the ratings and the progress
+// go with it — so the question asked first says what is attached and where each kind of thing
+// ends up. None of this is deleted with the stop: the tickets and photos stay filed, the
+// recordings and the shop finds fall back to the day, and an idea that was put on the day goes
+// back to the planning board to be decided again.
+export function removalEffects(state,step){
+ const id=step?.id||null;
+ const docs=(state?.documents||[]).filter(d=>!d.parentDocumentId&&documentServesStep(d,id));
+ return {
+  tickets:docs.filter(d=>(d.category||'ticket')!=='memory').length,
+  photos:docs.filter(d=>d.category==='memory').length,
+  voiceNotes:(state?.voiceNotes||[]).filter(v=>v.stepId===id).length,
+  finds:(state?.shortlist||[]).filter(s=>s.stepId===id).length,
+  idea:!!id&&(state?.proposals||[]).some(p=>p.stepId===id)
+ };
+}
 // Which tickets the page is showing, filters and all. Kept out of the screen so the count beside
 // the 'used tickets' toggle is worked out by exactly the same rules as the list itself, and so
 // the strip you swipe through can be given the same set the page is showing.
