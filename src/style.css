@@ -287,5 +287,35 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 
 .pin-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:-.4rem 0 1rem}.pin-tag{display:inline-flex;align-items:center;gap:.4rem;background:#e6f1eb;color:#205543;font-weight:600}.pin-tag button{border:0;background:transparent;padding:0 0 0 .1rem;min-height:24px;color:inherit}.matched-address svg{margin-right:.25rem}
 
+/* Taking a stop off the day, and the gentler answer beside it. The pair sits under the reorder
+   arrows, both quiet rather than red: the tray moves the stop to Options on the tap, the bin only
+   opens the question, and the pop-up it opens is what actually decides. */
+.reorder-tools .to-options,.reorder-tools .remove-stop{min-height:34px;color:#8b7a76}
+.reorder-tools .to-options:hover{color:var(--green)}
+.reorder-tools .remove-stop:hover{color:#a0342d}
+.confirm-remove>h3{margin:.2rem 0 .3rem;font-size:1.15rem;overflow-wrap:anywhere}
+.confirm-remove>small{margin-bottom:1rem}
+.confirm-remove>p{margin-bottom:.8rem}
+.confirm-keeps{margin:0 0 1.2rem;padding-left:1.2rem;font-size:.86rem;line-height:1.6;color:var(--muted)}
+.confirm-keeps li{margin-bottom:.3rem}
+.confirm-actions{margin-top:1.2rem}
+.confirm-actions .danger{border-color:#e4c3bd}
+.confirm-actions .danger:hover{background:#fdf2f0;border-color:#cc9d95}
+/* The reversible answer, offered beside the one that cannot be taken back. */
+.confirm-instead{border:1px solid #cfdcd7;background:#f4f8f6;border-radius:12px;padding:.9rem 1rem;margin-bottom:1rem}
+.confirm-instead strong{display:block;font-size:.95rem;margin-bottom:.3rem}
+.confirm-instead p{font-size:.86rem;margin-bottom:.8rem}
+
+/* Ticking a stop off where the day is read. The box sits outside the row's own button so tapping
+   it cannot be mistaken for opening the stop, and a finished stop steps back — greyed, still
+   legible, with the green dot left at full strength so the day's progress still reads at a
+   glance. The time it was finished is editable in place, under the row it belongs to. */
+.timeline-tick{display:flex;align-items:center;padding-left:.15rem}
+.timeline-tick input{width:23px;height:23px;min-height:23px;accent-color:var(--green)}
+.timeline-row.done .timeline-step{opacity:.55}
+.timeline-row.done .timeline-step .timeline-dot{opacity:1}
+.timeline-done-time{flex-direction:row;align-items:center;gap:.5rem;margin:-.5rem 0 .5rem;padding-left:calc(23px + 1.35rem);font-size:.76rem;font-weight:500;color:var(--muted)}
+.timeline-done-time input{width:auto;min-height:36px;padding:.25rem .5rem;font-size:.82rem}
+
 .purse-figure{margin:.9rem auto .4rem;max-width:300px}.purse-cat{display:block;width:100%;height:auto}.purse-flows{display:flex;justify-content:space-between;gap:.8rem;margin:-.2rem 0 .9rem;font-size:.82rem;font-weight:600;line-height:1.4}.purse-flows .flow-in{color:#8a6a22}.purse-flows .flow-out{color:var(--muted);text-align:right}
 @media(prefers-reduced-motion:no-preference){.purse-cat .waving{transform-origin:70px 82px;animation:paw-wave 2.4s ease-in-out infinite}@keyframes paw-wave{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(9deg)}}}

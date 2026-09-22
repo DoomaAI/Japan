@@ -105,6 +105,133 @@ test('a stop added from a gap in the day timeline lands in that gap and survives
  assert.deepEqual(activeSteps(second,day).slice(1,4).map(s=>s.title),['Coffee before the train','One more',target.title]);
  assert.throws(()=>applyOperation(seed,{type:'add',step:{title:'Nope',day,order:target.order-0.5}},child),e=>e.status===403);
 });
+test('removing a stop takes nothing else with it, and the family is asked first',async()=>{
+ const {removalEffects,voiceNotesFor,shortlistDay}=await import('../src/trip-features.js');
+ const day='2026-10-02',step=activeSteps(seed,day)[1];
+ let state=applyOperation(seed,{type:'documentNote',title:'Park ticket',category:'ticket',stepId:step.id,notes:'Two adults'},parent);
+ state=applyOperation(state,{type:'documentNote',title:'The deer',category:'memory',stepId:step.id},parent);
+ state=applyOperation(state,{type:'shortlistAdd',title:'Tea bowl',stepId:step.id,price:900},parent);
+ state.voiceNotes=[{id:'v1',by:'Nate',day,stepId:step.id,pathname:'voice/1/a.webm',seconds:6,title:'The deer bowed'}];
+ // What the question says is worked out from the state, so the pop-up cannot promise one thing
+ // while the removal does another.
+ const effects=removalEffects(state,step);
+ assert.deepEqual(effects,{tickets:1,photos:1,voiceNotes:1,finds:1,idea:false});
+ assert.deepEqual(removalEffects(state,{id:'nothing-here'}),{tickets:0,photos:0,voiceNotes:0,finds:0,idea:false});
+ const after=applyOperation(state,{type:'remove',id:step.id},parent);
+ assert.ok(!after.steps.some(s=>s.id===step.id));
+ // The ticket and the photo stay filed, held against the day the stop was on rather than a step
+ // that is gone.
+ assert.equal(after.documents.length,state.documents.length);
+ for(const d of after.documents.filter(d=>['Park ticket','The deer'].includes(d.title))){
+  assert.equal(d.stepId,null);assert.deepEqual(d.stepIds,[]);assert.equal(d.day,day);
+ }
+ // The recording is still in that day's voice notes, and the find still shows on the day we saw it.
+ assert.equal(after.voiceNotes[0].stepId,null);
+ assert.equal(voiceNotesFor(after,{day}).length,1);
+ assert.equal(after.shortlist[0].stepId,null);
+ assert.equal(shortlistDay(after,after.shortlist[0]),day);
+ // A locked time is not removed by accident: it has to be unlocked deliberately first, which is
+ // what the pop-up offers rather than doing it for you.
+ const locked=seed.steps.find(s=>s.locked);
+ assert.throws(()=>applyOperation(seed,{type:'remove',id:locked.id},parent),/Unlock before deleting/);
+ assert.ok(applyOperation(applyOperation(seed,{type:'lock',id:locked.id,locked:false},parent),{type:'remove',id:locked.id},parent));
+ // It stays a parent's change, and a stop that is already gone cannot be removed twice.
+ assert.throws(()=>applyOperation(seed,{type:'remove',id:step.id},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(after,{type:'remove',id:step.id},parent),e=>e.status===404);
+ // The reversible answer the pop-up offers beside it: the same stop saved to Options is still
+ // there, whole, off the calendar, with its ticket and its voice note still on it and the day it
+ // came off remembered.
+ const kept=applyOperation(state,{type:'backlog',id:step.id},parent);
+ const saved=kept.steps.find(s=>s.id===step.id);
+ assert.equal(saved.day,null);assert.equal(saved.time,null);assert.equal(saved.bookingTime,null);
+ assert.equal(saved.backlogFrom.day,day);assert.equal(saved.status,'todo');
+ assert.equal(kept.documents.find(d=>d.title==='Park ticket').stepId,step.id);
+ assert.equal(kept.voiceNotes[0].stepId,step.id);
+ // From Options it goes back onto a day whenever it fits, which is the point of offering it.
+ assert.equal(applyOperation(kept,{type:'schedule',id:step.id,day,time:'09:00'},parent).steps.find(s=>s.id===step.id).time,'09:00');
+});
+test('the bin on a stop asks before anything happens, and only a parent is offered it',async()=>{
+ const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const panel=await readFile(new URL('../src/RemoveStop.jsx',import.meta.url),'utf8');
+ // The bin is offered beside the reorder tools, to a parent only, and hands the stop upwards
+ // rather than removing anything itself.
+ assert.match(timeline,/className="remove-stop"/);
+ assert.match(timeline,/const drop=s=>parent&&removeStep\?/);
+ assert.match(timeline,/onClick=\{\(\)=>removeStep\(s\)\}/);
+ assert.doesNotMatch(timeline,/type:'remove'/,'the timeline never removes a stop on the tap itself');
+ // The gentler answer has an icon of its own beside the bin, so nobody has to reach for the bin
+ // to find it. It is a parent's too, and the row still decides nothing itself.
+ assert.match(timeline,/className="to-options"/);
+ assert.match(timeline,/const park=s=>parent&&optionStep\?/);
+ assert.match(timeline,/onClick=\{\(\)=>optionStep\(s\)\}/);
+ assert.match(timeline,/\{park\(s\)\}\{drop\(s\)\}/,'the tray sits before the bin');
+ assert.doesNotMatch(timeline,/type:'backlog'/,'the move is handled above the row, like every other change');
+ // Moving is reversible, so it goes on the tap; a locked time is answered without a round trip.
+ assert.match(main,/optionStep=\{async s=>\{/);
+ assert.match(main,/if\(s\.locked\)\{notice\('Unlock its fixed time before saving this stop to Options\.'\);return;\}/);
+ assert.match(main,/mutate\(\{type:'backlog',id:s\.id\}\)/);
+ // Both ways in — the bin on the timeline and the button in the edit form — open the same
+ // question, and the form no longer asks in the browser's own box.
+ assert.match(main,/removeStep=\{s=>setModal\(\{type:'remove',step:s\}\)\}/);
+ assert.match(main,/onRemove=\{s=>setModal\(\{type:'remove',step:s\}\)\}/);
+ assert.match(main,/onClick=\{\(\)=>onRemove\(step\)\}/);
+ assert.doesNotMatch(main,/confirm\('Remove this activity/,'the confirmation is the in-app pop-up now');
+ assert.match(main,/remove:'Remove this stop\?'/);
+ // The panel reads the live step, so unlocking a time inside the pop-up frees the button that
+ // the lock had disabled.
+ assert.match(main,/step=\{state\.steps\.find\(s=>s\.id===modal\.step\.id\)\|\|modal\.step\}/);
+ // Only the danger button removes anything; every other way out of the pop-up keeps the stop.
+ assert.match(panel,/mutate\(\{type:'remove',id:step\.id\}\)/);
+ assert.equal((panel.match(/type:'remove'/g)||[]).length,1);
+ assert.match(panel,/disabled=\{busy\|\|step\.locked\}/);
+ assert.match(panel,/onClick=\{\(\)=>close\(null\)\}/,'keeping the stop is the safe default');
+ assert.match(panel,/type:'lock',id:step\.id,locked:false/,'with the lock offered rather than worked around');
+ // The reversible answer sits beside it, offered only for a stop that is actually on a day, and
+ // a locked one waits for the unlock exactly as the removal does.
+ assert.match(panel,/mutate\(\{type:'backlog',id:step\.id\}\)/);
+ assert.match(panel,/\{step\.day&&<div className="confirm-instead">/);
+ assert.equal((panel.match(/disabled=\{busy\|\|step\.locked\}/g)||[]).length,2);
+});
+test('a stop is ticked off where the day is read, and says when it was finished',async()=>{
+ const {doneClock,doneStamp}=await import('../src/timing.js');
+ const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // The tick is the card's change, so it is the card's rule: whoever the stop is assigned to can
+ // tick it and a parent can tick any, rather than the parent-only rule the editing tools use.
+ assert.match(timeline,/const mine=s=>parent\|\|\(s\.participants\|\|\[\]\)\.includes\(user\?\.name\)/);
+ assert.match(timeline,/type="checkbox" checked=\{s\.status==='done'\} disabled=\{busy\|\|!mine\(s\)\}/);
+ assert.match(timeline,/status:done\?'done':'todo'/);
+ assert.match(main,/<DayTimeline steps=\{steps\}[^>]*state=\{visibleState\}[^>]*user=\{user\}/,'with the family and the plan it needs to decide that');
+ // The box sits outside the row's own button, so ticking cannot be mistaken for opening the stop.
+ assert.match(timeline,/<span className="timeline-tick">/);
+ assert.ok(timeline.indexOf('className="timeline-tick"')<timeline.indexOf('className={`timeline-step'),'the tick comes before the row’s own button rather than inside it');
+ // The time it was finished is editable in place, saved when the field is left rather than on a
+ // half-typed hour, and never accepts a time that has not happened yet.
+ assert.match(timeline,/onBlur=\{e=>retime\(s,e\.target\.value\)\}/);
+ assert.match(timeline,/status:'done',at:at\.toISOString\(\)/);
+ assert.match(timeline,/at\.getTime\(\)>Date\.now\(\)\+60000/);
+ assert.match(timeline,/if\(doneClock\(s\)===clock\)return;/,'and re-saving the same time is not a change');
+ // The chronology carries the time it actually happened once it has, with the target kept beside
+ // it, and the finished row steps back without taking its tick or its tools with it.
+ assert.match(timeline,/s\.status==='done'&&s\.completedAt\?doneClock\(s\):\(s\.time\|\|'—'\)/);
+ assert.match(timeline,/`Completed\$\{s\.time\?` · due \$\{s\.time\}`:''\}`/);
+ assert.match(timeline,/className=\{`timeline-row \$\{s\.status\}/);
+ assert.match(css,/\.timeline-row\.done \.timeline-step\{opacity:\.55\}/);
+ assert.match(css,/\.timeline-row\.done \.timeline-step \.timeline-dot\{opacity:1\}/);
+ // The two clock helpers agree with each other: a stamp read back in Japan time is the time that
+ // was typed, whatever the phone reading it is set to.
+ const step={day:'2026-10-02',completedAt:doneStamp({day:'2026-10-02'},'14:20').toISOString()};
+ assert.equal(doneClock(step),'14:20');
+ assert.equal(doneClock({}),'');
+ // And the server takes exactly that: the stamp is a real completion time on that step.
+ const target=seed.steps.find(s=>s.day&&!s.locked);
+ const at=doneStamp(target,'08:05').toISOString();
+ const ticked=applyOperation(seed,{type:'status',id:target.id,status:'done',at},parent);
+ assert.equal(ticked.steps.find(s=>s.id===target.id).completedAt,at);
+ assert.throws(()=>applyOperation(seed,{type:'status',id:target.id,status:'done',at:new Date(Date.now()+3600000).toISOString()},parent),/valid past completion time/);
+});
 test('day and activity attachments validate associations and keep caption edits scoped',()=>{
  let state=applyOperation(seed,{type:'documentNote',title:'Luggage',category:'luggage',reference:'ABC123',day:seed.days[0].date,notes:'Blue bag',tags:['Tokyo']},parent);
  const id=state.documents.at(-1).id;
