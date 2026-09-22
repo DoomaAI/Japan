@@ -54,3 +54,8 @@ export function stayPlan(step,at=new Date()){
  const until=new Date(Math.max(targeted??when.getTime(),when.getTime())+duration*60000);
  return {minutes:duration,until:japanClock(until),text:`We plan to stay about ${spanWords(duration)}, moving on around ${japanClock(until)}.`};
 }
+// The completion time as a phone's time input wants it, and back again. A step is finished on the
+// day it sits on, in Japan time, which is the only reading of "14:20" that means anything to a
+// family standing in Kyoto — whatever the phone showing it is set to.
+export const doneClock=step=>step?.completedAt?japanClock(new Date(step.completedAt)):'';
+export const doneStamp=(step,clock)=>new Date(`${step?.day}T${clock}:00+09:00`);
