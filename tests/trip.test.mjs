@@ -4896,10 +4896,15 @@ test('every page and every game can be heard rather than read, in words a five-y
    `${title} must say what it is first`);
  assert.equal(gameRule('nothing-like-this'),'');
  assert.equal(pageRule('nothing-like-this'),'');
- // And the button is actually on the screen: one per page, one per game, both before anything
- // else on it, because the person who needs it cannot read what would otherwise come first.
+ // And the button is actually on the screen: one per page, one per game. The page one lives in
+ // the top bar beside the updates bell rather than in a band of its own, so it is in the same
+ // place on every page — the person who needs it cannot read the screen to find it again.
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
- assert.match(main,/<main>\s*(\{\/\*[\s\S]*?\*\/\}\s*)?<SpeakRules id=\{`page-\$\{tab\}`\} text=\{pageRule\(tab\)\}/);
+ const topbar=main.match(/<div className="top-actions">[\s\S]*?<\/header>/)?.[0]||'';
+ assert.match(topbar,/<SpeakRules id=\{`page-\$\{tab\}`\} text=\{pageRule\(tab\)\} label="What is this page\?" compact\/>/,
+  'the page speaker is in the top bar');
+ assert.ok(topbar.indexOf('notification-button')<topbar.indexOf('<SpeakRules'),'it sits beside the updates bell');
+ assert.doesNotMatch(main,/<main>\s*(\{\/\*[\s\S]*?\*\/\}\s*)?<SpeakRules/,'and no longer takes a section of its own');
  assert.match(games,/<SpeakRules id=\{`rules-\$\{current\.id\}`\} text=\{gameRule\(current\.id\)\}/);
  const pages=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
  // Read at a slower pace than the app reads anything else, and in English rather than the

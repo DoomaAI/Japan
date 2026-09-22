@@ -103,16 +103,22 @@ export function ReadAloudButton({id,text,reading,read,what='mission',rate,classN
 // on the page is for whoever can read it, and spoken-rules.js is the same thing said to a
 // five-year-old. Slower than the app reads anything else, because instructions heard once
 // have to land the first time.
-export function SpeakRules({id,text,label='How to play'}){
+// `compact` is the one in the top bar, sitting in the row of icons beside the bell instead of
+// taking a band of its own above the page. It is the same button with the words taken off,
+// because the row it joins is icons and the child who needs it could not read the label
+// anyway — the words are in the label the screen reader says.
+export function SpeakRules({id,text,label='How to play',compact=false}){
  const {supported,reading,read,problem}=useReadAloud();
  if(!supported||!text)return null;
  const going=reading===id;
- // A button that does nothing and says nothing is the complaint. Where the phone took the
- // words and made no sound, this says so here rather than leaving a child tapping it.
- return <><button type="button" className={`speak-rules${going?' going':''}`}
+ const button=<button type="button" className={compact?`icon speak-rules-icon${going?' going':''}`:`speak-rules${going?' going':''}`}
   aria-label={going?'Stop reading':`${label}, read aloud`} onClick={()=>read(id,text,'en-AU',0.8)}>
-  {going?<><Square size={15}/> Stop</>:<><Volume2 size={17}/> {label}</>}</button>
-  {problem&&<small className="hear-problem">{problem}</small>}</>;
+  {going?<><Square size={compact?18:15}/>{compact?'':' Stop'}</>:<><Volume2 size={compact?20:17}/>{compact?'':' '+label}</>}</button>;
+ // A button that does nothing and says nothing is the complaint. Where the phone took the
+ // words and made no sound, this says so here rather than leaving a child tapping it — and in
+ // the top bar it says it underneath the icon, where there is no line to say it on.
+ if(!compact)return <>{button}{problem&&<small className="hear-problem">{problem}</small>}</>;
+ return <span className="speak-rules-top">{button}{problem&&<small className="hear-problem">{problem}</small>}</span>;
 }
 // A mission, what was found, and a microphone under the box. Its own component because every
 // card needs its own reference to its own box — and because at five the answer is spoken long
