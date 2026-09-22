@@ -284,3 +284,16 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 /* Finds we have decided to get, waiting to come across onto the shopping list. */
 .shortlist-waiting{border:1px solid #abc3a7;background:#f4f9f2;border-radius:16px;padding:1rem 1.1rem;margin:1.2rem 0}
 .shortlist-waiting .list-row:last-child{border-bottom:0}
+
+/* Taking a stop off the day. The bin sits under the reorder arrows, quiet rather than red, since
+   it opens a question instead of doing anything; the panel it opens is the pop-up that decides. */
+.reorder-tools .remove-stop{grid-column:span 2;min-height:34px;color:#8b7a76}
+.reorder-tools .remove-stop:hover{color:#a0342d}
+.confirm-remove>h3{margin:.2rem 0 .3rem;font-size:1.15rem;overflow-wrap:anywhere}
+.confirm-remove>small{margin-bottom:1rem}
+.confirm-remove>p{margin-bottom:.8rem}
+.confirm-keeps{margin:0 0 1.2rem;padding-left:1.2rem;font-size:.86rem;line-height:1.6;color:var(--muted)}
+.confirm-keeps li{margin-bottom:.3rem}
+.confirm-actions{margin-top:1.2rem}
+.confirm-actions .danger{border-color:#e4c3bd}
+.confirm-actions .danger:hover{background:#fdf2f0;border-color:#cc9d95}

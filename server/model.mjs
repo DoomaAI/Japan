@@ -139,6 +139,11 @@ export function applyOperation(input,op,user){
   // A planning idea that lost its activity goes back to being an idea, rather than pointing at
   // a step that is no longer there.
   for(const p of state.proposals){if(p.stepId===step.id)Object.assign(p,{stepId:null,scheduledBy:null,scheduledAt:null});}
+  // Nothing the family recorded or spotted goes with the stop. A voice note and a shop find were
+  // made on a day, so they fall back to that day rather than to a step that is gone: the note is
+  // still in the day's recordings and the find still shows on the day we saw it.
+  for(const v of state.voiceNotes||[]){if(v.stepId===step.id)v.stepId=null;}
+  for(const f of state.shortlist||[]){if(f.stepId===step.id)Object.assign(f,{stepId:null,day:f.day??step.day??null});}
   state.steps=state.steps.filter(s=>s.id!==op.id);
  }else if(op.type==='choose'){
   if(!state.steps.some(s=>s.group===op.group&&s.option===op.option))throw new AppError('Option not found.');

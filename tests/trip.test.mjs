@@ -105,6 +105,67 @@ test('a stop added from a gap in the day timeline lands in that gap and survives
  assert.deepEqual(activeSteps(second,day).slice(1,4).map(s=>s.title),['Coffee before the train','One more',target.title]);
  assert.throws(()=>applyOperation(seed,{type:'add',step:{title:'Nope',day,order:target.order-0.5}},child),e=>e.status===403);
 });
+test('removing a stop takes nothing else with it, and the family is asked first',async()=>{
+ const {removalEffects,voiceNotesFor,shortlistDay}=await import('../src/trip-features.js');
+ const day='2026-10-02',step=activeSteps(seed,day)[1];
+ let state=applyOperation(seed,{type:'documentNote',title:'Park ticket',category:'ticket',stepId:step.id,notes:'Two adults'},parent);
+ state=applyOperation(state,{type:'documentNote',title:'The deer',category:'memory',stepId:step.id},parent);
+ state=applyOperation(state,{type:'shortlistAdd',title:'Tea bowl',stepId:step.id,price:900},parent);
+ state.voiceNotes=[{id:'v1',by:'Nate',day,stepId:step.id,pathname:'voice/1/a.webm',seconds:6,title:'The deer bowed'}];
+ // What the question says is worked out from the state, so the pop-up cannot promise one thing
+ // while the removal does another.
+ const effects=removalEffects(state,step);
+ assert.deepEqual(effects,{tickets:1,photos:1,voiceNotes:1,finds:1,idea:false});
+ assert.deepEqual(removalEffects(state,{id:'nothing-here'}),{tickets:0,photos:0,voiceNotes:0,finds:0,idea:false});
+ const after=applyOperation(state,{type:'remove',id:step.id},parent);
+ assert.ok(!after.steps.some(s=>s.id===step.id));
+ // The ticket and the photo stay filed, held against the day the stop was on rather than a step
+ // that is gone.
+ assert.equal(after.documents.length,state.documents.length);
+ for(const d of after.documents.filter(d=>['Park ticket','The deer'].includes(d.title))){
+  assert.equal(d.stepId,null);assert.deepEqual(d.stepIds,[]);assert.equal(d.day,day);
+ }
+ // The recording is still in that day's voice notes, and the find still shows on the day we saw it.
+ assert.equal(after.voiceNotes[0].stepId,null);
+ assert.equal(voiceNotesFor(after,{day}).length,1);
+ assert.equal(after.shortlist[0].stepId,null);
+ assert.equal(shortlistDay(after,after.shortlist[0]),day);
+ // A locked time is not removed by accident: it has to be unlocked deliberately first, which is
+ // what the pop-up offers rather than doing it for you.
+ const locked=seed.steps.find(s=>s.locked);
+ assert.throws(()=>applyOperation(seed,{type:'remove',id:locked.id},parent),/Unlock before deleting/);
+ assert.ok(applyOperation(applyOperation(seed,{type:'lock',id:locked.id,locked:false},parent),{type:'remove',id:locked.id},parent));
+ // It stays a parent's change, and a stop that is already gone cannot be removed twice.
+ assert.throws(()=>applyOperation(seed,{type:'remove',id:step.id},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(after,{type:'remove',id:step.id},parent),e=>e.status===404);
+});
+test('the bin on a stop asks before anything happens, and only a parent is offered it',async()=>{
+ const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const panel=await readFile(new URL('../src/RemoveStop.jsx',import.meta.url),'utf8');
+ // The bin is offered beside the reorder tools, to a parent only, and hands the stop upwards
+ // rather than removing anything itself.
+ assert.match(timeline,/className="remove-stop"/);
+ assert.match(timeline,/const drop=s=>parent&&removeStep\?/);
+ assert.match(timeline,/onClick=\{\(\)=>removeStep\(s\)\}/);
+ assert.doesNotMatch(timeline,/type:'remove'/,'the timeline never removes a stop on the tap itself');
+ // Both ways in — the bin on the timeline and the button in the edit form — open the same
+ // question, and the form no longer asks in the browser's own box.
+ assert.match(main,/removeStep=\{s=>setModal\(\{type:'remove',step:s\}\)\}/);
+ assert.match(main,/onRemove=\{s=>setModal\(\{type:'remove',step:s\}\)\}/);
+ assert.match(main,/onClick=\{\(\)=>onRemove\(step\)\}/);
+ assert.doesNotMatch(main,/confirm\('Remove this activity/,'the confirmation is the in-app pop-up now');
+ assert.match(main,/remove:'Remove this stop\?'/);
+ // The panel reads the live step, so unlocking a time inside the pop-up frees the button that
+ // the lock had disabled.
+ assert.match(main,/step=\{state\.steps\.find\(s=>s\.id===modal\.step\.id\)\|\|modal\.step\}/);
+ // Only the danger button removes anything; every other way out of the pop-up keeps the stop.
+ assert.match(panel,/mutate\(\{type:'remove',id:step\.id\}\)/);
+ assert.equal((panel.match(/type:'remove'/g)||[]).length,1);
+ assert.match(panel,/disabled=\{busy\|\|step\.locked\}/);
+ assert.match(panel,/onClick=\{\(\)=>close\(null\)\}/,'keeping the stop is the safe default');
+ assert.match(panel,/type:'lock',id:step\.id,locked:false/,'with the lock offered rather than worked around');
+});
 test('day and activity attachments validate associations and keep caption edits scoped',()=>{
  let state=applyOperation(seed,{type:'documentNote',title:'Luggage',category:'luggage',reference:'ABC123',day:seed.days[0].date,notes:'Blue bag',tags:['Tokyo']},parent);
  const id=state.documents.at(-1).id;
