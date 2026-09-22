@@ -1,6 +1,8 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {AlertCircle,CalendarDays,Check,ExternalLink,MessageCircleQuestion,Search,Trash2,WifiOff} from 'lucide-react';
 import {ASK_LIMIT,askDayLabel,askHistory,askStarters,readThread,writeThread} from './ask-thread.js';
+import Dictate from './Dictate.jsx';
+import {joinSpoken} from './dictation.js';
 // Asking about the trip. It reads the plan and answers; it cannot touch it. That line is on the
 // screen rather than only in the prompt, because a box that answers questions looks like a box
 // that does things, and nobody should find out otherwise by asking it to move a booking.
@@ -39,6 +41,10 @@ export default function AskTrip({state,user,day,config,online=true,request,go,se
    {!!starters.length&&<div className="chips ask-starters">{starters.map(text=><button className="chip" key={text} onClick={()=>{setQuestion(text);box.current?.focus();}}>{text}</button>)}</div>}
    <label>Your question<textarea ref={box} rows={3} value={question} maxLength={ASK_LIMIT} placeholder="Is it better to do Fushimi Inari today or tomorrow?"
     onChange={e=>setQuestion(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey))ask();}}/></label>
+   {/* This box is held in React, so what is heard goes through state rather than into the
+       element — and it is only ever put in the box, never asked. The boys ask too, and the
+       question has to be theirs to read back and change before it goes. */}
+   <Dictate onText={heard=>setQuestion(q=>joinSpoken(q,heard).slice(0,ASK_LIMIT))} label="Say it" what="your question"/>
    <div className="ask-send">
     <small>{ASK_LIMIT-question.length} left · one question at a time gets a better answer</small>
     <button className="primary" onClick={()=>ask()} disabled={working||!online||!question.trim()}><Search size={18}/>{working?'Having a think…':'Ask'}</button>

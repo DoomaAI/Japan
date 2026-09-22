@@ -6762,3 +6762,70 @@ test('the questions offered first are built out of the day in front of them',asy
  for(let i=0;i<history.length;i++)assert.equal(history[i].role,i%2?'assistant':'user','it has to alternate or the API refuses it');
  assert.ok(THREAD_KEEP>=ASK_HISTORY,'more is kept on the phone than is ever sent back');
 });
+
+test('a boy can say his answer instead of typing it, and the words are still his to change',async()=>{
+ const {joinSpoken,heardSoFar,tidySpoken,dictationProblem,canDictate,dictationEngine,writeInto,DICTATE_LANG,MAX_LISTEN_SECONDS,NO_DICTATION}=await import('../src/dictation.js');
+ // The engine hands back everything it has heard on every result, so nothing is written into
+ // the box twice: `settled` is how far the box has already been filled.
+ const results=[{0:{transcript:'the deer bowed'},isFinal:true},{0:{transcript:' and then'},isFinal:false}];
+ let heard=heardSoFar(results,0);
+ assert.equal(heard.said,'the deer bowed');
+ assert.equal(heard.thinking,'and then','what it is still thinking about is shown, not written');
+ assert.equal(heard.settled,1);
+ results[1]={0:{transcript:' and then it bowed again'},isFinal:true};
+ heard=heardSoFar(results,heard.settled);
+ assert.equal(heard.said,'and then it bowed again','only the new part, never the whole thing again');
+ assert.equal(heard.settled,2);
+ assert.deepEqual(heardSoFar(undefined,0),{said:'',thinking:'',settled:0});
+ // Spoken words are added to whatever is in the box — typed, said a minute ago, or written by
+ // a parent — and a new sentence gets its capital letter where carrying on from half of one
+ // does not, because an engine sends "and then" as readily as it sends a whole thought.
+ assert.equal(joinSpoken('','the deer bowed'),'The deer bowed');
+ assert.equal(joinSpoken('We fed the deer.','it bowed back'),'We fed the deer. It bowed back');
+ assert.equal(joinSpoken('We fed the deer and','it bowed back'),'We fed the deer and it bowed back');
+ assert.equal(joinSpoken('We fed the deer','   '),'We fed the deer','a silence changes nothing');
+ assert.equal(joinSpoken(undefined,'hello'),'Hello');
+ assert.equal(tidySpoken('  the   deer \n bowed '),'the deer bowed');
+ // A box a form reads with FormData is not held in React, so the words go straight into it.
+ const box={value:'We fed the deer.'};
+ assert.equal(writeInto(box,'it bowed back'),'We fed the deer. It bowed back');
+ assert.equal(box.value,'We fed the deer. It bowed back');
+ assert.equal(writeInto(null,'anything'),'','no box, nothing written and nothing thrown');
+ // Stopping on purpose is not a fault worth telling a five-year-old about; everything else says
+ // what happened and what to do about it, never a code on its own.
+ assert.equal(dictationProblem('aborted'),'');
+ assert.equal(dictationProblem(''),'');
+ assert.match(dictationProblem('not-allowed'),/microphone/i);
+ assert.match(dictationProblem('no-speech'),/Nothing was heard/);
+ assert.match(dictationProblem('network'),/voice note/i,'no signal has a way through that does not need one');
+ assert.match(dictationProblem('unheard-of'),/unheard-of[\s\S]*keyboard/,'an unknown fault still says what to do next');
+ // No engine, no button — the keyboard has a microphone key of its own.
+ const Engine=function(){};
+ assert.equal(canDictate({}),false);
+ assert.equal(dictationEngine({}),null);
+ assert.equal(dictationEngine({webkitSpeechRecognition:Engine}),Engine,'Safari is the phone this is for');
+ assert.equal(canDictate({SpeechRecognition:Engine}),true);
+ assert.equal(DICTATE_LANG,'en-AU','a phone left to itself will mis-hear a child');
+ assert.ok(MAX_LISTEN_SECONDS>=60&&MAX_LISTEN_SECONDS<=300,'long enough for a story, short enough to turn itself off');
+ assert.match(NO_DICTATION,/keyboard/);
+ const dictate=await readFile(new URL('../src/Dictate.jsx',import.meta.url),'utf8');
+ // The phone listens and the words land in the box. Nothing is recorded, nothing is uploaded,
+ // nothing is sent and nothing saves itself — each of those is a different feature, and none of
+ // them belongs under a five-year-old's answer.
+ assert.doesNotMatch(dictate,/MediaRecorder|getUserMedia|upload\(|request\(|fetch\(|mutate\(/);
+ assert.match(dictate,/if\(!supported\)return null/);
+ assert.match(dictate,/abort\(\)/,'a listener left running keeps the microphone open after the screen has gone');
+ assert.match(dictate,/setTimeout\(\(\)=>\{try\{rec\.stop\(\)/,'and one left listening in a pocket stops itself');
+ // Every box that asks somebody for their own words offers it.
+ const missions=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ assert.match(missions,/<textarea ref=\{box\} name="response"/);
+ assert.match(missions,/\{mine&&<Dictate into=\{box\}/,'and only where that person is allowed to answer');
+ assert.match(missions,/placeholder="Say it out loud, type it, or tell a parent"/);
+ const review=await readFile(new URL('../src/StepReview.jsx',import.meta.url),'utf8');
+ assert.match(review,/<Dictate into=\{box\}/);
+ const ask=await readFile(new URL('../src/AskTrip.jsx',import.meta.url),'utf8');
+ // The question box is held in React, so what is heard goes through state — and it is only ever
+ // put in the box. Talking does not ask, any more than typing does.
+ assert.match(ask,/<Dictate onText=\{heard=>setQuestion\(q=>joinSpoken\(q,heard\)\.slice\(0,ASK_LIMIT\)\)\}/);
+ assert.doesNotMatch(ask,/onText=\{[^}]*\bask\(/);
+});

@@ -1,5 +1,6 @@
-import React,{useState} from 'react';
+import React,{useRef,useState} from 'react';
 import {Star,Pencil,Check} from 'lucide-react';
+import Dictate from './Dictate.jsx';
 import {STEP_STARS,stepRatings,stepThoughts,stepAverage,stepRated} from './trip-features.js';
 // Stars, and what we actually thought. Kept per person so nobody's average washes out somebody
 // else's — Nate giving the deer five and Lauren giving them two is the interesting bit, and an
@@ -14,6 +15,9 @@ export function Stars({value,onPick,disabled,label}){
 }
 export default function StepReview({state,user,step,mutate,busy,compact}){
  const [writing,setWriting]=useState(false);
+ // Talking fills this box too. What the boys thought of a place is the part of the diary
+ // most likely to go unwritten, and at five it is certain to unless he can say it.
+ const box=useRef(null);
  const ratings=stepRatings(state,step.id),thoughts=stepThoughts(state,step.id);
  const average=stepAverage(state,step.id),count=stepRated(state,step.id);
  const mine=ratings[user.name]||0,myThought=thoughts[user.name]?.text||'';
@@ -36,8 +40,9 @@ export default function StepReview({state,user,step,mutate,busy,compact}){
   {!writing&&<button type="button" className="review-write" onClick={()=>setWriting(true)}>
    {myThought?<><Pencil size={15}/>{myThought}</>:<><Pencil size={15}/>Add a line about it</>}</button>}
   {writing&&<form onSubmit={saveThought}>
-   <label>What did you think?<textarea name="thought" maxLength={2000} defaultValue={myThought} autoFocus
+   <label>What did you think?<textarea ref={box} name="thought" maxLength={2000} defaultValue={myThought} autoFocus
     placeholder="The deer bowed back. Boston laughed for ten minutes."/></label>
+   <Dictate into={box} label="Say it" what="what you thought"/>
    <div className="row wrap"><button className="primary" disabled={busy}><Check size={16}/>Save</button>
     <button type="button" onClick={()=>setWriting(false)}>Cancel</button></div>
   </form>}
