@@ -1,9 +1,9 @@
 import React,{useState} from 'react';
-import {Check,Star,Languages,Plus,Trash2,Copy,AlertCircle} from 'lucide-react';
+import {Check,Star,Languages,Plus,Trash2,Copy,AlertCircle,Compass} from 'lucide-react';
 import {FOOD,FOOD_KINDS,FOOD_KIND_LABEL,ORDERING,SAY_TIP} from './food-data.js';
 import SayIt from './SayIt.jsx';
 import {PHRASES} from './phrases.js';
-import {triedFood,foodRatings,foodAverage,isFavourite,FAVOURITE_AT,searchText} from './trip-features.js';
+import {triedFood,foodRatings,foodAverage,isFavourite,FAVOURITE_AT,searchText,MAX_DISH_HUNT} from './trip-features.js';
 import MenuReader from './MenuReader.jsx';
 import {CardFacts,factAloudFor} from './FunFacts.jsx';
 import {factsForItem} from './fact-data.js';
@@ -26,6 +26,12 @@ export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,
   &&(only!=='loved'||isFavourite(state,i.id))
   &&searchText([i.en,i.ja,i.romaji,i.say,i.note,...(i.variants||[]).flatMap(v=>[v.en,v.ja,v.romaji,v.say])].join(' ')).includes(searchText(query)));
  const tallies=items.filter(i=>Object.keys(triedFood(state,i.id)).length).length;
+ // A list of dishes answers "what shall we try?" and not "where do we get it?", which is the
+ // question standing on a street in Osaka with a hungry five-year-old. So the hunt goes out
+ // carrying whatever is on screen and still untried — filter the list to sweet things and it
+ // hunts sweet things — and a single dish can be hunted on its own from its own card.
+ const hunting=list.filter(i=>!Object.keys(triedFood(state,i.id)).length).map(i=>i.en).slice(0,MAX_DISH_HUNT);
+ const findNearby=dishes=>show({type:'nearby',mode:'food',wishlist:dishes});
  async function save(e){
   e.preventDefault();const f=new FormData(e.currentTarget);
   const op={type:edit.id?'foodEdit':'foodAdd',id:edit.id,en:f.get('en'),ja:f.get('ja'),romaji:f.get('romaji'),say:f.get('say'),kind:f.get('kind'),note:f.get('note')};
@@ -44,7 +50,10 @@ export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,
     <label>Show<select value={only} onChange={e=>setOnly(e.target.value)}><option value="">All</option><option value="todo">Not tried yet</option><option value="tried">Tried</option><option value="loved">Our favourites</option></select></label>
    </div>
   </div>
-  {parent&&<button className="button" onClick={()=>setEdit({kind:'meal'})}><Plus size={18}/>Add something we like</button>}
+  <div className="row wrap food-tools">
+   {config?.nearby&&<button className="button primary" onClick={()=>findNearby(hunting)}><Compass size={18}/>{hunting.length?`Find these near us (${hunting.length})`:'Find food near us'}</button>}
+   {parent&&<button className="button" onClick={()=>setEdit({kind:'meal'})}><Plus size={18}/>Add something we like</button>}
+  </div>
   {edit&&<form className="feature-card" key={edit.id||'new'} onSubmit={save}>
    <h2>{edit.id?'Edit this dish':'Something we like'}</h2>
    <label>English name<input name="en" required maxLength={200} defaultValue={edit.en||''} placeholder="Chicken katsu, no sauce"/></label>
@@ -79,6 +88,7 @@ export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,
      </div>)}</div>
     <div className="row wrap">
      {item.ja&&<button onClick={()=>show({type:'foodcard',item})}><Languages size={16}/>Show someone</button>}
+     {config?.nearby&&<button onClick={()=>findNearby([item.en])}><Compass size={16}/>Find it near us</button>}
      {parent&&item.custom&&<><button onClick={()=>setEdit(item)}>Edit</button><button className="danger" onClick={()=>{if(confirm('Remove this from our food list?'))mutate({type:'foodRemove',id:item.id});}}><Trash2 size={15}/>Remove</button></>}
     </div>
    </article>;})}</div>

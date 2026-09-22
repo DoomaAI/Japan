@@ -1,5 +1,5 @@
 import {AppError,MEMBERS} from './model.mjs';
-import {NEARBY_KINDS,PRICE_BANDS,PROPOSAL_KINDS,proposalDraft,roundCoord,validCoords,partyBrief} from '../src/trip-features.js';
+import {NEARBY_KINDS,PRICE_BANDS,PROPOSAL_KINDS,proposalDraft,roundCoord,validCoords,partyBrief,matchDish,MAX_DISH_HUNT} from '../src/trip-features.js';
 export const nearbyReady=()=>!!process.env.ANTHROPIC_API_KEY;
 export const MAX_NEARBY=8;
 // This is the one asked standing in the street with two tired children, so it is tuned for speed:
@@ -7,7 +7,7 @@ export const MAX_NEARBY=8;
 const SEARCH={type:'web_search_20260209',name:'web_search',max_uses:4,user_location:{type:'approximate',country:'JP',timezone:'Asia/Tokyo'}};
 const option={
  type:'object',additionalProperties:false,
- required:['title','japanese','kind','what','area','walkMinutes','priceBand','openNote','kidFriendly','why'],
+ required:['title','japanese','kind','what','area','walkMinutes','priceBand','openNote','kidFriendly','why','dish'],
  properties:{
   title:{type:'string',description:'The name as a sign outside would read it, in English or romaji.'},
   japanese:{type:'string',description:'The name in Japanese, for pointing at. Empty rather than guessed.'},
@@ -18,7 +18,8 @@ const option={
   priceBand:{type:'string',enum:PRICE_BANDS.map(([id])=>id)},
   openNote:{type:'string',description:'What you know about when it is open, said as the guess it is. Empty if you do not know.'},
   kidFriendly:{type:'boolean',description:'True if a five-year-old is welcome and will manage it.'},
-  why:{type:'string',description:'One short line on why this one, for this family, right now.'}}
+  why:{type:'string',description:'One short line on why this one, for this family, right now.'},
+  dish:{type:'string',description:'If a list of dishes they still want to try came with the question and this place does one of them, that dish, copied exactly as the list writes it. Empty otherwise.'}}
 };
 const RECORD={
  name:'record_nearby',
@@ -43,6 +44,7 @@ How to answer:
 - The Japanese name earns its place: it is what they point at when nobody speaks English.
 - Nate is five. For food, at least one option he will actually eat, and set kidFriendly honestly — a standing counter with no seats is not for him.
 - Convenience stores in Japan have toilets, cash machines and hot food, so they answer several of these at once. Say so where it is the practical answer.
+- Sometimes they are hunting a dish rather than a meal, and the dishes they still want to try come with the question. Then the job is somewhere near them that actually does one of those, named in "dish" exactly as the list writes it. Do not stretch it: a ramen shop is not takoyaki, and a place that does none of them is still worth naming with "dish" left empty. Put the ones that do a listed dish first.
 - "openNote" is a guess unless you have checked, and must read like one.
 - Never invent a web address or a phone number. You are not asked for either.
 - If you genuinely do not know the area well enough, say so in "anchor" and give fewer, more general answers rather than inventing named shops.
@@ -51,23 +53,24 @@ You cannot see a map, you do not know what has closed this year, and you are not
 const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 // Everything comes back through the same gate as the rest of the app: clamped, checked against
 // the lists the screen knows how to draw, and carrying no links of its own.
-export function normaliseNearby(item,state){
+export function normaliseNearby(item,state,wishlist=[]){
  const kind=NEARBY_KINDS.some(([id])=>id===item.kind)?item.kind:'food';
  const walkMinutes=Number.isInteger(item.walkMinutes)&&item.walkMinutes>=0&&item.walkMinutes<=180?item.walkMinutes:null;
+ const dish=matchDish(item.dish,wishlist);
  const draft=proposalDraft({
   title:clamp(item.title,250),place:clamp(item.area,250),japanese:clamp(item.japanese,250),
-  notes:[clamp(item.what,1000),clamp(item.openNote,250)].filter(Boolean).join('\n'),
+  notes:[clamp(item.what,1000),dish?`On our food list: ${dish}`:'',clamp(item.openNote,250)].filter(Boolean).join('\n'),
   category:['food','quick','coffee','konbini'].includes(kind)?'food':'other',
   timing:'flex',duration:kind==='food'?60:20,cost:null,costNote:'',
   suitableFor:item.kidFriendly===false?(state.members||MEMBERS).filter(n=>n!=='Nate'):[],
   tags:[clamp(item.area,50)].filter(Boolean),source:'suggested'
  });
- return {draft,kind,walkMinutes,
+ return {draft,kind,walkMinutes,dish,
   priceBand:PRICE_BANDS.some(([id])=>id===item.priceBand)?item.priceBand:'',
   openNote:clamp(item.openNote,250),what:clamp(item.what,1000),area:clamp(item.area,250),
   kidFriendly:item.kidFriendly===true,why:clamp(item.why,300)};
 }
-export async function nearbyPlaces({lat,lng,place,city,kinds,note},state){
+export async function nearbyPlaces({lat,lng,place,city,kinds,note,wishlist},state){
  if(!nearbyReady())throw new AppError('Recommendations are not switched on. Add an Anthropic API key to the deployment.',503);
  const coords=lat===undefined||lat===null||lng===undefined||lng===null?null
   :validCoords(Number(lat),Number(lng))?{lat:roundCoord(Number(lat)),lng:roundCoord(Number(lng))}
@@ -76,6 +79,9 @@ export async function nearbyPlaces({lat,lng,place,city,kinds,note},state){
  if(!coords&&!anchor)throw new AppError('Say where you are, or let the phone tell us.');
  const want=(Array.isArray(kinds)?kinds:[]).filter(id=>NEARBY_KINDS.some(([key])=>key===id));
  if(!want.length)throw new AppError('Choose what you are looking for.');
+ // Asked from the food page, the question carries the dishes still on the list. They are names of
+ // dishes and nothing else — no part of who the family is travels with them that does not already.
+ const hunting=[...new Set((Array.isArray(wishlist)?wishlist:[]).map(n=>clamp(n,120)).filter(Boolean))].slice(0,MAX_DISH_HUNT);
  const {default:Anthropic}=await import('@anthropic-ai/sdk');
  const client=new Anthropic();
  // The coordinates on their own are a pin in an empty map. The place the itinerary says they are
@@ -83,6 +89,7 @@ export async function nearbyPlaces({lat,lng,place,city,kinds,note},state){
  const ask=`They are looking for: ${want.map(id=>NEARBY_KINDS.find(([key])=>key===id)[1]).join(', ')}
 
 Where they are:${coords?`\n- Position, rounded to about a hundred metres: ${coords.lat}, ${coords.lng}`:''}${anchor?`\n- At or beside: ${anchor}`:''}${where?`\n- In: ${where}`:''}
+${hunting.length?`\nStill on their food list, none of it tried yet. Somewhere that does one of these is what they are after, and say which in "dish", copied exactly as written here:\n${hunting.map(n=>`- ${n}`).join('\n')}\n`:''}
 ${clamp(note,250)?`\nThey add: ${clamp(note,250)}`:''}
 Who is with them:
 ${partyBrief(state)}`;
@@ -111,8 +118,10 @@ ${partyBrief(state)}`;
  const call=message.content.find(b=>b.type==='tool_use'&&b.name==='record_nearby');
  const result=call?.input;
  if(!result||!Array.isArray(result.options))throw new AppError('Nothing came back. Try again, or open Maps.',502);
- const options=result.options.map(item=>normaliseNearby(item,state)).filter(o=>o.draft.title)
-  .sort((a,b)=>(a.walkMinutes??999)-(b.walkMinutes??999)).slice(0,MAX_NEARBY);
+ const options=result.options.map(item=>normaliseNearby(item,state,hunting)).filter(o=>o.draft.title)
+  // Nearest first, as it always was, except where a dish was asked after: then the place that
+  // actually does one goes above the closer one that does not, which is the whole point of asking.
+  .sort((a,b)=>(b.dish?1:0)-(a.dish?1:0)||(a.walkMinutes??999)-(b.walkMinutes??999)).slice(0,MAX_NEARBY);
  if(!options.length)throw new AppError('Nothing usable came back. Try Maps for this one.',502);
  return {options,anchor:clamp(result.anchor,250),note:clamp(result.note,500),from:coords,
   usage:{input:message.usage?.input_tokens??0,output:message.usage?.output_tokens??0,searches:message.usage?.server_tool_use?.web_search_requests??0}};
