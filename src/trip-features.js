@@ -635,20 +635,6 @@ export function tippingTable(state,members=[]){
  }
  return {people,rows,totals:people.map(name=>totals[name])};
 }
-// The winners, read off the official site while the afternoon is on. The site marks each bout
-// as it finishes, so a parent's phone asks again every so often from the start of the juryo until
-// a little after the last bout, and only on the day the card is for, Japan time. Nothing is asked
-// once every bout on the card has a winner, and nothing before a card has been loaded.
-export const SUMO_RESULTS_WINDOW=['14:00','18:45'];
-export const SUMO_RESULTS_EVERY=15;
-export function sumoResultsDue(state,{date,clock,at=new Date()}={}){
- const card=sumo(state);
- if(!card.bouts.length||!card.date||card.date!==date)return false;
- if(!/^\d{2}:\d{2}$/.test(String(clock||''))||clock<SUMO_RESULTS_WINDOW[0]||clock>SUMO_RESULTS_WINDOW[1])return false;
- if(card.bouts.every(b=>card.results[b.id]))return false;
- const last=Date.parse(card.resultsAt||'');
- return !Number.isFinite(last)||new Date(at).getTime()-last>=SUMO_RESULTS_EVERY*60000;
-}
 export const wrestlerKey=name=>String(name||'').trim().toLowerCase();
 export const wrestlerProfile=(state,name)=>sumo(state).wrestlers[wrestlerKey(name)]||null;
 export const boutResult=(state,id)=>sumo(state).results[id]||null;

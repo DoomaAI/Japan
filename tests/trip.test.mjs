@@ -4175,9 +4175,9 @@ test('the official schedule link goes to the day itself, not to a dead page',asy
  assert.ok(!/EnHonbashoMain\/torikumi\/['"`]/.test(page),'the bare /torikumi/ address is not linked anywhere');
 });
 
-test('the winners come in from the official site by themselves, and the site is the record',async()=>{
+test('a parent pulls the winners in from the official site, and the site is the record',async()=>{
  const {createServer}=await import('node:http');
- const {ensureFeatures,sumo,boutResult,sumoResultsDue,predictionTally,SUMO_DAY}=await import('../src/trip-features.js');
+ const {ensureFeatures,sumo,boutResult,predictionTally,SUMO_DAY}=await import('../src/trip-features.js');
  const card={type:'sumoUpdate',basho:'Aki Basho 2026',dayNumber:11,venue:'Ryogoku Kokugikan',date:SUMO_DAY,
   bouts:[{id:'juryo-20',division:'juryo',order:20,time:'15:10',east:{name:'Tomokaze'},west:{name:'Chiyoshoma'}},
    {id:'makuuchi-38',division:'makuuchi',order:38,time:'17:40',east:{name:'Daieisho'},west:{name:'Kirishima'}},
@@ -4187,12 +4187,6 @@ test('the winners come in from the official site by themselves, and the site is 
  // Somebody in the arena tapped the wrong man.
  state=applyOperation(state,{type:'sumoResult',id:'makuuchi-38',winner:'Daieisho'},child);
 
- // Asked for only on the day, during the afternoon, Japan time, and not more than every quarter hour.
- const at=new Date('2026-09-23T06:00:00Z');
- assert.equal(sumoResultsDue(state,{date:SUMO_DAY,clock:'15:00',at}),true);
- assert.equal(sumoResultsDue(state,{date:'2026-09-22',clock:'15:00',at}),false,'not the day before');
- assert.equal(sumoResultsDue(state,{date:SUMO_DAY,clock:'09:30',at}),false,'not in the morning');
- assert.equal(sumoResultsDue(state,{date:SUMO_DAY,clock:'21:00',at}),false,'not after it is over');
 
  let seen=null;
  const upstream=createServer((req,res)=>{
@@ -4213,6 +4207,9 @@ test('the winners come in from the official site by themselves, and the site is 
  try{
   const {fetchSumoResults}=await import('../server/sumo.mjs');
   const read=await fetchSumoResults({date:SUMO_DAY},state);
+  // Nothing in the app asks for this on a timer: it is a button, because every read costs money.
+  const page=await readFile(new URL('../src/Sumo.jsx',import.meta.url),'utf8');
+  assert.ok(!/setInterval|setTimeout/.test(page),'no polling');
   const tool=seen.tools.find(t=>t.name==='record_sumo_results');
   assert.equal(tool.strict,true);
   assert.deepEqual(tool.input_schema.properties.results.items.properties.id.enum,['juryo-20','makuuchi-38','makuuchi-40'],'only bouts on our card');
@@ -4230,8 +4227,6 @@ test('the winners come in from the official site by themselves, and the site is 
   assert.equal(boutResult(next,'makuuchi-40'),null,'a bout still to come is left alone');
   assert.equal(predictionTally(next).find(t=>t.name==='Boston').waiting,1);
   assert.ok(sumo(next).resultsAt);assert.equal(sumo(next).resultsNote,'Makuuchi under way.');
-  assert.equal(sumoResultsDue(next,{date:SUMO_DAY,clock:'15:05',at:new Date(sumo(next).resultsAt)}),false,'just checked');
-  assert.equal(sumoResultsDue(next,{date:SUMO_DAY,clock:'15:20',at:new Date(Date.parse(sumo(next).resultsAt)+16*60000)}),true);
   // Reading the site is a parent's, because it costs money; the rest is checked like any tap.
   assert.throws(()=>applyOperation(state,{type:'sumoResults',results:[]},child),e=>e.status===403);
   assert.throws(()=>applyOperation(state,{type:'sumoResults',results:[{id:'juryo-20',winner:'Somebody'}]},parent),/One of the two/);

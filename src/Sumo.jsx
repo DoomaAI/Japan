@@ -1,8 +1,8 @@
-import React,{useEffect,useRef,useState} from 'react';
+import React,{useState} from 'react';
 import {Download,ExternalLink,RefreshCw,Search,Trophy,AlertCircle,User,Clock,X,Check,Lock} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {SUMO_SITE_DIVISIONS,SUMO_RESULTS_EVERY,sumoSiteUrl,sumoResultsDue,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,predictionLadder,tippingTable} from './trip-features.js';
-import {japanClock,japanDate} from './timing.js';
+import {SUMO_SITE_DIVISIONS,sumoSiteUrl,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,predictionLadder,tippingTable} from './trip-features.js';
+import {japanClock} from './timing.js';
 const Side=({man,onLook,won,lost,how})=><button className={`sumo-side ${won?'won':''} ${lost?'lost':''}`} onClick={()=>onLook(man)}>
  <strong>{man.name}</strong>
  <small>{[man.rank,man.stable].filter(Boolean).join(' · ')||'Tap to look him up'}</small>
@@ -14,11 +14,6 @@ const OfficialLinks=({dayNumber})=><div className="row wrap sumo-official">
  {SUMO_SITE_DIVISIONS.map(([id,,label])=><a key={id} className="button" href={sumoSiteUrl(dayNumber??undefined,id)} target="_blank" rel="noopener noreferrer">
   {label} · official <ExternalLink size={14}/></a>)}
 </div>;
-// Whether this phone keeps the winners up to date by itself. It is a per-phone choice, because
-// only one parent's phone needs to be doing the asking.
-const AUTO_KEY='japan.sumo-auto-winners';
-const readAuto=()=>{try{return localStorage.getItem(AUTO_KEY)!=='off';}catch{return true;}};
-const saveAuto=on=>{try{localStorage.setItem(AUTO_KEY,on?'on':'off');}catch{}};
 // Four picks, one phone. In the arena there is a single phone out and everybody shouting at
 // it, so whoever is holding it enters all four — this is the one place in the app where you
 // record somebody else's answer. Picks close the moment the result goes in: you cannot call a
@@ -110,7 +105,6 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
  const [looking,setLooking]=useState(null),[lookupError,setLookupError]=useState('');
  const [picking,setPicking]=useState(null);
  const [checking,setChecking]=useState(false),[resultsError,setResultsError]=useState('');
- const [auto,setAuto]=useState(readAuto),inFlight=useRef(false),lastTry=useRef(0);
  const canFetch=parent&&!!config?.sumo;
  const tally=predictionTally(state),leaders=predictionLeaders(state);
  const ladder=predictionLadder(state,state.members),sheet=tippingTable(state,state.members);
@@ -123,35 +117,18 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
   }catch(e){setError(e.message||'The card could not be fetched. The official schedule is at sumo.or.jp.');}
   finally{setFetching(false);}
  }
- // Who has won, as the official site has it. Asked for by the button, and by this phone on its
- // own every quarter of an hour while the afternoon is on, if a parent has left that switched on.
- async function updateWinners(quiet=false){
-  if(inFlight.current)return;
-  inFlight.current=true;setChecking(true);if(!quiet)setResultsError('');
+ // Who has won, as the official site has it. Only ever asked for by a parent pressing the button:
+ // each read is a paid call, so it happens when somebody wants it and not on a timer.
+ async function updateWinners(){
+  setChecking(true);setResultsError('');
   try{
    const read=await request('sumo-results',{date:card.date});
    const fresh=read.results.filter(r=>{const had=boutResult(state,r.id);return !had?.official||had.winner!==r.winner;});
-   if(await mutate({type:'sumoResults',results:read.results,note:read.notes||''})&&!quiet)
+   if(await mutate({type:'sumoResults',results:read.results,note:read.notes||''}))
     notice?.(fresh.length?`${fresh.length} ${fresh.length===1?'winner':'winners'} in from the official site.`:'Nothing new on the official site yet.');
-   setResultsError('');
-  }catch(e){if(!quiet)setResultsError(e.message||'The official results could not be read.');}
-  finally{inFlight.current=false;setChecking(false);}
+  }catch(e){setResultsError(e.message||'The official results could not be read.');}
+  finally{setChecking(false);}
  }
- const latest=useRef(updateWinners);latest.current=updateWinners;
- useEffect(()=>{
-  if(!canFetch||!auto)return;
-  const tick=()=>{
-   if(document.visibilityState==='hidden'||navigator.onLine===false)return;
-   // A check that failed is not tried again every minute: it waits its turn like any other.
-   const at=new Date();
-   if(at-lastTry.current<SUMO_RESULTS_EVERY*60000)return;
-   if(sumoResultsDue(state,{date:japanDate(at),clock:japanClock(at),at})){lastTry.current=at.getTime();latest.current(true);}
-  };
-  tick();
-  const timer=setInterval(tick,60000);
-  document.addEventListener('visibilitychange',tick);
-  return ()=>{clearInterval(timer);document.removeEventListener('visibilitychange',tick);};
- },[canFetch,auto,state]);
  async function look(man){
   const known=wrestlerProfile(state,man.name);
   setLookupError('');setLooking({name:man.name,profile:known,busy:!known});
@@ -175,15 +152,12 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
    <button className="primary" disabled={busy||fetching} onClick={load}>
     {card.bouts.length?<RefreshCw size={16}/>:<Download size={16}/>}
     {fetching?'Reading the official schedule…':card.bouts.length?'Refresh the card':'Download the day’s card'}</button>
-   {card.bouts.length>0&&<button disabled={busy||checking} onClick={()=>updateWinners(false)}>
+   {card.bouts.length>0&&<button disabled={busy||checking} onClick={updateWinners}>
     <Trophy size={16}/>{checking?'Reading the results…':'Update winners from the site'}</button>}
   </div>}
   {card.bouts.length>0&&<p className="sumo-results-status"><small>
    {card.resultsAt?`Winners last checked on the official site at ${japanClock(new Date(card.resultsAt))}${card.resultsNote?` — ${card.resultsNote}`:''}.`:'Winners have not been checked on the official site yet.'}
-   {' '}Anyone can still tap who won as they watch; the official result replaces it when it comes in.</small></p>}
-  {canFetch&&card.bouts.length>0&&<label className="checkline"><input type="checkbox" checked={auto}
-   onChange={e=>{setAuto(e.target.checked);saveAuto(e.target.checked);}}/>
-   Keep the winners up to date on this phone — every {SUMO_RESULTS_EVERY} minutes during the afternoon on {dayLabel(card.date||day)}, while this page is open</label>}
+   {' '}Anyone can still tap who won as they watch; a parent can pull the official results in with the button above.</small></p>}
   {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
   {resultsError&&<p className="callout"><AlertCircle size={18}/>{resultsError}</p>}
   <OfficialLinks dayNumber={card.dayNumber}/>
