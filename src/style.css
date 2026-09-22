@@ -330,3 +330,13 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 
 .purse-figure{margin:.9rem auto .4rem;max-width:300px}.purse-cat{display:block;width:100%;height:auto}.purse-flows{display:flex;justify-content:space-between;gap:.8rem;margin:-.2rem 0 .9rem;font-size:.82rem;font-weight:600;line-height:1.4}.purse-flows .flow-in{color:#8a6a22}.purse-flows .flow-out{color:var(--muted);text-align:right}
 @media(prefers-reduced-motion:no-preference){.purse-cat .waving{transform-origin:70px 82px;animation:paw-wave 2.4s ease-in-out infinite}@keyframes paw-wave{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(9deg)}}}
+
+/* A day already walked through, folded down in the Days menu. It keeps its name, its tally and
+   its city, loses the hotel line and the height that went with it, and steps back out of the
+   colour — greyed but still legible, and still one tap into its photos and its diary. */
+.days-grid{align-items:start}
+.day-tile.finished{min-height:0;padding:1rem 1.1rem;opacity:.6;background:#f1f4f2;box-shadow:none}
+.day-tile.finished h2{font-size:1.2rem;margin-bottom:.35rem}
+.day-tile.finished>div{margin-bottom:.5rem}
+.day-tile.finished .tile-arrow{bottom:auto;top:50%;margin-top:-9px}
+.day-finished{display:flex;align-items:center;gap:.35rem;margin:0;padding-right:22px}

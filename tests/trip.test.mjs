@@ -241,6 +241,30 @@ test('a stop is ticked off where the day is read, and says when it was finished'
  assert.equal(ticked.steps.find(s=>s.id===target.id).completedAt,at);
  assert.throws(()=>applyOperation(seed,{type:'status',id:target.id,status:'done',at:new Date(Date.now()+3600000).toISOString()},parent),/valid past completion time/);
 });
+test('a day we have walked through folds down and greys in the Days menu',async()=>{
+ const {dayProgress}=await import('../src/timing.js');
+ const day=seed.days[0].date,steps=activeSteps(seed,day);
+ assert.equal(dayProgress(seed,day).finished,false,'a day with stops still ahead of us is not behind us');
+ assert.equal(dayProgress(seed,day).steps,steps.length);
+ // Settling every stop finishes the day, and a deliberate skip settles one as surely as a tick.
+ let state=seed;
+ for(const [i,s] of steps.entries())state=applyOperation(state,{type:'status',id:s.id,status:i===0?'skipped':'done'},parent);
+ const progress=dayProgress(state,day);
+ assert.equal(progress.finished,true);
+ assert.equal(progress.skipped,1);assert.equal(progress.done,steps.length-1);
+ // Undoing one stop puts the day back in the middle of itself.
+ assert.equal(dayProgress(applyOperation(state,{type:'status',id:steps[1].id,status:'todo'},parent),day).finished,false);
+ // A day with nothing on it is empty rather than finished, so an unplanned day is not folded away.
+ assert.equal(dayProgress({steps:[],choices:{}},day).finished,false);
+ // The tile folds to its name, tally and city, greys, and is still one tap into its photos.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(main,/className=\{`day-tile\$\{progress\.finished\?' finished':''\}`\}/);
+ assert.match(main,/progress\.finished\?<small className="day-finished">/);
+ assert.match(main,/onClick=\{\(\)=>selectDay\(d\.date\)\}/,'a finished day is still one tap away');
+ assert.match(css,/\.day-tile\.finished\{[^}]*opacity:\.6/);
+ assert.match(css,/\.days-grid\{align-items:start\}/,'so a folded tile does not stretch to its neighbour');
+});
 test('day and activity attachments validate associations and keep caption edits scoped',()=>{
  let state=applyOperation(seed,{type:'documentNote',title:'Luggage',category:'luggage',reference:'ABC123',day:seed.days[0].date,notes:'Blue bag',tags:['Tokyo']},parent);
  const id=state.documents.at(-1).id;
