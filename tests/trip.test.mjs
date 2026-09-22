@@ -289,6 +289,37 @@ test('the day’s dashboard is about what is next, not about the book’s cover'
  assert.equal((main.match(/cover\.jpg/g)||[]).length,2,'the welcome and Days screens keep it');
  assert.match(sw,/cover\.jpg/,'and it stays in the offline shell for them');
 });
+test('the dashboard opens as a small tile and keeps the leave-by time on it',async()=>{
+ const {isOpen,setOpen}=await import('../src/fold.js');
+ const store=new Map(),fake={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,v)};
+ // The weather is open until somebody folds it; the dashboard is small until somebody opens it.
+ assert.equal(isOpen('dashboard',fake,false),false,'a phone that has never opened it sees the tile');
+ assert.equal(isOpen('weather',fake),true,'and the sections that open by default are untouched');
+ assert.equal(setOpen('dashboard',true,fake),true);
+ assert.equal(isOpen('dashboard',fake,false),true,'opened, it is still open tomorrow');
+ assert.equal(setOpen('dashboard',false,fake),false);
+ assert.equal(isOpen('dashboard',fake,false),false);
+ // A phone that refuses storage gets the caller's answer rather than a throw.
+ const refuses={getItem(){throw new Error('no storage');},setItem(){throw new Error('no storage');}};
+ assert.equal(isOpen('dashboard',refuses,false),false);
+ assert.equal(isOpen('weather',refuses),true);
+ const home=await readFile(new URL('../src/HomeFeatures.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(home,/const \[shown,setShown\]=useState\(\(\)=>isOpen\(FOLD_ID,undefined,false\)\)/,'the tile starts folded');
+ assert.match(home,/const fold=\(\)=>setShown\(v=>setOpen\(FOLD_ID,!v\)\)/);
+ assert.match(home,/aria-expanded=\{shown\}/,'and says which way it is folded');
+ // Folded, it still carries the stop we are on and the time we have to leave by, and both are
+ // still one tap into the step itself.
+ assert.match(home,/className="next-title" onClick=\{\(\)=>selectStep\(current\)\}/);
+ assert.match(home,/\{fixed&&!shown&&<button className="next-peek" onClick=\{\(\)=>selectStep\(fixed\)\}/);
+ assert.match(home,/leave \{japanClock\(departure\)\}/);
+ // The booking detail and the drawer of everything else wait behind the fold.
+ assert.match(home,/\{shown&&<>\{fixed&&<div className="departure">/);
+ assert.match(home,/className="dashboard-actions"/);
+ assert.doesNotMatch(home,/<h2>\{current\?'What’s next\?'/,'the display headline went with the full tile');
+ assert.match(css,/\.next-up\.folded\{/);
+ assert.doesNotMatch(css,/\.next-up h2\{font-size/,'nothing reclaims the headline size');
+});
 test('the weather folds away on the phone that folded it, and says what it is for while folded',async()=>{
  const {isOpen,setOpen}=await import('../src/fold.js');
  // A phone that has never folded anything sees everything, exactly as it always did.

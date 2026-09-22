@@ -1,12 +1,36 @@
 import {destinationFor} from './locations.js';
+import {ChevronDown,ChevronUp,LockKeyhole} from 'lucide-react';
+import {isOpen,setOpen} from './fold.js';
 import React,{useEffect,useState} from 'react';
 import {nextSummary,delayForDay,offlineManifest,isArchived,documentServesStep} from './trip-features.js';
 import {japanClock,japanDate} from './timing.js';
 import {dayLabel} from './AdventurePages.jsx';
+// The dashboard is the one block on the day that is read in a second and then in the way: the
+// next stop, when to leave for the booking that cannot move, and a drawer of everything else.
+// So it opens as a small tile — the stop, the day, and the leave-by time it would be alarming
+// to miss — and the rest of it waits behind the fold, remembered per phone rather than sprung
+// open on every reload.
+export const FOLD_ID='dashboard';
 export function NextUp({state,day,now,selectStep,open,go,parent}){
  const {current,fixed,departure}=nextSummary(state,day),tickets=state.documents.filter(d=>documentServesStep(d,(fixed||current)?.id)&&d.category!=='memory'&&!isArchived(d));
- const today=state.days.find(d=>d.date===day),remaining=departure?Math.round((departure-now)/60000):null;
- return <section className="next-up"><div><p className="eyebrow">YOUR FAMILY DASHBOARD · {dayLabel(day)}</p><h2>{current?'What’s next?':'Day complete'}</h2>{current?<button className="next-title" onClick={()=>selectStep(current)}>{current.time||'Any time'} · {current.title}</button>:<p>Time to capture a favourite memory.</p>}{fixed&&<div className="departure"><span>Next fixed booking</span><strong>{fixed.time} · {fixed.title}</strong><span>Leave by {japanClock(departure)}{japanDate(departure)!==day?` on ${dayLabel(japanDate(departure))}`:''}{day===japanDate(now)?remaining>=0?` · in ${remaining} min`:` · ${Math.abs(remaining)} min past departure target`:''}</span><small>Estimate: {fixed.travelMinutes??20} min travel + {fixed.arrivalBuffer??15} min early arrival. Check live directions.</small><div className="row wrap"><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinationFor(state,fixed))}&travelmode=transit`} target="_blank" rel="noreferrer">Directions</a><button onClick={()=>open({type:'tickets',step:fixed})}>{tickets.length?`${tickets.length} ticket / booking details`:'Add / view tickets'}</button>{parent&&<button onClick={()=>open({type:'edit',step:fixed})}>Edit travel estimate</button>}</div></div>}<div className="dashboard-actions"><button onClick={()=>open({type:'offline'})}>Offline readiness</button><button onClick={()=>go('meeting')}>Meeting card</button>{parent&&<><button onClick={()=>open({type:'late'})}>We’re running late</button><button onClick={()=>open({type:'capture'})}>Quick capture</button></>}<button onClick={()=>go('challenges')}>Boys’ missions</button><button onClick={()=>go('spending')}>Spending money</button><button onClick={()=>go('shopping')}>Shopping list</button></div></div></section>;
+ const remaining=departure?Math.round((departure-now)/60000):null;
+ const [shown,setShown]=useState(()=>isOpen(FOLD_ID,undefined,false));
+ const fold=()=>setShown(v=>setOpen(FOLD_ID,!v));
+ const leaveBy=fixed?`Leave by ${japanClock(departure)}${japanDate(departure)!==day?` on ${dayLabel(japanDate(departure))}`:''}${day===japanDate(now)?remaining>=0?` · in ${remaining} min`:` · ${Math.abs(remaining)} min past departure target`:''}`:'';
+ return <section className={`next-up${shown?'':' folded'}`}>
+  <div className="next-up-head">
+   <div className="next-up-now">
+    <h2 className="eyebrow">{current?'What’s next?':'Day complete'} · {dayLabel(day)}</h2>
+    {current?<button className="next-title" onClick={()=>selectStep(current)}>{current.time||'Any time'} · {current.title}</button>:<p>Time to capture a favourite memory.</p>}
+    {/* Folded, the tile still says the one thing it is for: the time we have to leave by. A tile
+        that collapses to its own name is a row of wasted space with a chevron on it. */}
+    {fixed&&!shown&&<button className="next-peek" onClick={()=>selectStep(fixed)}><LockKeyhole size={13}/>{fixed.time} · {fixed.title} · leave {japanClock(departure)}{day===japanDate(now)&&remaining<0?` · ${Math.abs(remaining)} min late`:''}</button>}
+   </div>
+   <button type="button" className="next-up-fold" aria-expanded={shown} aria-label={shown?'Hide the rest of the dashboard':'Show the rest of the dashboard'} onClick={fold}>{shown?<ChevronUp size={18}/>:<ChevronDown size={18}/>}</button>
+  </div>
+  {shown&&<>{fixed&&<div className="departure"><span>Next fixed booking</span><strong>{fixed.time} · {fixed.title}</strong><span>{leaveBy}</span><small>Estimate: {fixed.travelMinutes??20} min travel + {fixed.arrivalBuffer??15} min early arrival. Check live directions.</small><div className="row wrap"><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinationFor(state,fixed))}&travelmode=transit`} target="_blank" rel="noreferrer">Directions</a><button onClick={()=>open({type:'tickets',step:fixed})}>{tickets.length?`${tickets.length} ticket / booking details`:'Add / view tickets'}</button>{parent&&<button onClick={()=>open({type:'edit',step:fixed})}>Edit travel estimate</button>}</div></div>}
+  <div className="dashboard-actions"><button onClick={()=>open({type:'offline'})}>Offline readiness</button><button onClick={()=>go('meeting')}>Meeting card</button>{parent&&<><button onClick={()=>open({type:'late'})}>We’re running late</button><button onClick={()=>open({type:'capture'})}>Quick capture</button></>}<button onClick={()=>go('challenges')}>Boys’ missions</button><button onClick={()=>go('spending')}>Spending money</button><button onClick={()=>go('shopping')}>Shopping list</button></div></>}
+ </section>;
 }
 export function RunningLate({state,day,mutate,busy,close}){
  const [delay,setDelay]=useState(20),plan=delayForDay(state,day,Number(delay));
