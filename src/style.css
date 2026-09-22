@@ -271,6 +271,13 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .find-pin svg:last-child{margin-left:auto}
 .find-toshop{width:100%;margin:.5rem 0 .3rem;background:#edf5eb;border-color:#abc3a7}
 .find-shopped{display:flex;align-items:center;gap:.35rem;margin:.35rem 0}
+.find-want{display:flex;flex-wrap:wrap;align-items:center;gap:.2rem .6rem;margin:.7rem 0 .2rem}
+.find-want>span{font-size:.82rem;font-weight:600;flex:1 1 auto;min-width:0}
+.find-want>small{flex:0 0 100%;margin:0}
+.find-want .stars .star{min-width:34px;min-height:34px}
+.find-want-held{display:flex;align-items:center;gap:.3rem;margin:.35rem 0;color:#8a6a16}
+.find-form{margin-top:1rem;border-color:var(--green)}
+.find-form .pin-row{margin:.2rem 0 .4rem}
 .linkish{border:0;background:none;padding:0;min-height:0;font-size:inherit;font-weight:600;color:var(--green);text-decoration:underline;text-underline-offset:3px}
 /* What we saw on a day, on that day's own screen. A strip of photographs rather than the cards:
    standing in the city it is in, the useful thing is seeing there is something to go back for. */

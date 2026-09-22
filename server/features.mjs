@@ -5,7 +5,7 @@ import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
-import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 const MAX_PROPOSALS=300;
 // A shortlist is a list you can still read. Past a couple of hundred finds it is an archive of
@@ -440,6 +440,7 @@ export function extraOperation(state,op,user,fail,now){
     notes:(op.notes||'').trim(),person:op.person||'Family',day:op.day??null,
     price:op.price===undefined||op.price===''?null:op.price,
     stepId:op.stepId||null,locationId:op.locationId||null,
+    pin:op.pin??null,rating:op.rating===undefined||op.rating===''||op.rating===0?null:op.rating,
     tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))]};
    if(!['Family',...state.members].includes(item.person))fail('Choose a family member.');
    for(const [key,max] of [['shop',250],['place',250],['notes',2000]])requireText(item[key],max,key);
@@ -454,6 +455,12 @@ export function extraOperation(state,op,user,fail,now){
    if(item.stepId)item.day=null;
    // The price is what the ticket said, in yen, and a ticket does not say 1200.5.
    if(item.price!==null&&(!Number.isInteger(item.price)||item.price<0||item.price>10000000))fail('Enter the price in whole yen.');
+   // How much we want it, which a price cannot answer. Nought is nobody having said, which is
+   // stored as nothing rather than as a bad score.
+   if(item.rating!==null&&!(Number.isInteger(item.rating)&&item.rating>=1&&item.rating<=SHORTLIST_STARS))fail(`Rate it from 1 to ${SHORTLIST_STARS} stars.`);
+   // Where the phone was standing when it photographed the thing. Stored exactly as it was read
+   // or not at all: half a pair is a bug, not a place.
+   if(!validPin(item.pin))fail('A pinned position needs a latitude and a longitude.');
    if(item.tags.length>20||item.tags.some(t=>!string(t,50)))fail('Use up to 20 tags, each under 50 characters.');
    if(op.type==='shortlistAdd'){
     if(state.shortlist.length>=MAX_SHORTLIST)fail(`That is ${MAX_SHORTLIST} things on the shortlist already. Decide on a few first.`);
@@ -465,6 +472,15 @@ export function extraOperation(state,op,user,fail,now){
    if(!parent&&entry.addedBy!==user.name)fail('You can change the things you added.',403);
    Object.assign(entry,item);
    return {summary:null,important:false,title:item.title};
+  }
+  // Saying how much we want it is the same kind of act as saying whether we are getting it —
+  // anyone does it, from the card, standing in front of the thing — so it is its own small
+  // operation rather than a round trip through the whole form.
+  if(op.type==='shortlistRating'){
+   const entry=found();
+   if(op.rating!==0&&!(Number.isInteger(op.rating)&&op.rating>=1&&op.rating<=SHORTLIST_STARS))fail(`Rate it from 1 to ${SHORTLIST_STARS} stars.`);
+   entry.rating=op.rating===0?null:op.rating;
+   return {summary:null,important:false,title:entry.title};
   }
   if(op.type==='shortlistStatus'){
    const entry=found();

@@ -677,6 +677,12 @@ export const sortShortlist=list=>sortShortlistBy(list,'decide');
 export const shortlistStep=(state,find)=>find?.stepId?(state.steps||[]).find(s=>s.id===find.stepId)||null:null;
 export const shortlistPlace=(state,find)=>find?.locationId?(state.locations||[]).find(l=>l.id===find.locationId)||null:null;
 export const shortlistDay=(state,find)=>find?.stepId?(shortlistStep(state,find)?.day??null):(find?.day??null);
+// And the fourth answer, which is the only one that works in a covered arcade with no street
+// name on it: the position the phone was standing in when the photograph was taken. It is not a
+// substitute for any of the others — it says nothing about what the shop is called — so it sits
+// beside them rather than instead of them, and it is what walking directions go to when it is
+// there, because a pin cannot be misread the way a hand-typed address can.
+export const shortlistPin=find=>find&&validPin(find.pin??null)&&find.pin?find.pin:null;
 // The one line a card shows for where it was, most specific first: the shop if we wrote one, then
 // whatever it is pinned to, then the area typed by hand.
 export function shortlistWhere(state,find){
@@ -689,27 +695,34 @@ export function shortlistWhere(state,find){
 // is read newest-first. A find with no price on it cannot be put in a price order at all, so it
 // goes last in both rather than being treated as free and leading the cheap list.
 export const SHORTLIST_SORTS=[
- ['decide','Still to decide first'],['new','Newest first'],['old','Oldest first'],
+ ['decide','Still to decide first'],['want','How much we want it'],['new','Newest first'],['old','Oldest first'],
  ['dear','Dearest first'],['cheap','Cheapest first'],['shop','By shop, A to Z'],['day','By the day we saw it']
 ];
-const age=s=>String(s.createdAt||''),priced=s=>s.price===null||s.price===undefined;
+// How much we want it, nought to five, which is the other half of deciding and the half a price
+// cannot answer. Unrated is not nought — it is a question nobody has answered yet — so it sorts
+// last rather than bottom, the same way an unpriced find stays out of the cheap list.
+export const SHORTLIST_STARS=5;
+export const shortlistRating=find=>Number.isInteger(find?.rating)&&find.rating>=1&&find.rating<=SHORTLIST_STARS?find.rating:null;
+const age=s=>String(s.createdAt||''),priced=s=>s.price===null||s.price===undefined,unrated=s=>shortlistRating(s)===null;
 const SHORTLIST_SORTERS={
  decide:(a,b)=>(SHORTLIST_ORDER[a.status]??0)-(SHORTLIST_ORDER[b.status]??0)||age(b).localeCompare(age(a)),
  new:(a,b)=>age(b).localeCompare(age(a)),
  old:(a,b)=>age(a).localeCompare(age(b)),
  dear:(a,b)=>priced(a)-priced(b)||(b.price??0)-(a.price??0)||age(b).localeCompare(age(a)),
  cheap:(a,b)=>priced(a)-priced(b)||(a.price??0)-(b.price??0)||age(b).localeCompare(age(a)),
- shop:(a,b)=>String(a.shop||a.place||'\uffff').localeCompare(String(b.shop||b.place||'\uffff'))||age(b).localeCompare(age(a))
+ shop:(a,b)=>String(a.shop||a.place||'\uffff').localeCompare(String(b.shop||b.place||'\uffff'))||age(b).localeCompare(age(a)),
+ want:(a,b)=>unrated(a)-unrated(b)||(shortlistRating(b)??0)-(shortlistRating(a)??0)||age(b).localeCompare(age(a))
 };
 export const sortShortlistBy=(list,sort,state)=>[...list].sort(
  sort==='day'
   ? (a,b)=>String(shortlistDay(state,a)||'\uffff').localeCompare(String(shortlistDay(state,b)||'\uffff'))||age(b).localeCompare(age(a))
   : SHORTLIST_SORTERS[sort]||SHORTLIST_SORTERS.decide);
-export const shortlistFor=(state,{person='',day='',status='',tag='',query='',sort='decide',stepId='',locationId=''}={})=>{
- const q=query.trim().toLowerCase();
+export const shortlistFor=(state,{person='',day='',status='',tag='',query='',sort='decide',stepId='',locationId='',rating=''}={})=>{
+ const q=query.trim().toLowerCase(),least=Number(rating)||0;
  return sortShortlistBy(shortlist(state).filter(s=>
   (!person||s.person===person)&&(!day||shortlistDay(state,s)===day)&&(!status||s.status===status)
   &&(!stepId||s.stepId===stepId)&&(!locationId||s.locationId===locationId)
+  &&(!least||(shortlistRating(s)??0)>=least)
   &&(!tag||(s.tags||[]).includes(tag))
   &&(!q||[s.title,s.shop,s.place,s.notes,...(s.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(q))),
   sort,state);
@@ -1075,8 +1088,12 @@ export function pendingProgress(state,queue){
   if(o.type==='shortlistAdd')next.shortlist=[...next.shortlist,{id:`pending-${o.operationId}`,title:String(o.title||'').trim(),
    shop:String(o.shop||'').trim(),place:String(o.place||'').trim(),notes:String(o.notes||'').trim(),
    person:o.person||'Family',day:o.stepId?null:(o.day??null),price:o.price??null,tags:Array.isArray(o.tags)?o.tags:[],
-   stepId:o.stepId??null,locationId:o.locationId??null,shoppingId:null,
+   stepId:o.stepId??null,locationId:o.locationId??null,pin:validPin(o.pin??null)?(o.pin??null):null,
+   rating:shortlistRating(o),shoppingId:null,
    status:'thinking',photo:null,addedBy:o.by||'',createdAt:o.at,decidedBy:null,decidedAt:null,pending:true}];
+  // How much we want it is an opinion formed standing in front of the thing, which is exactly
+  // where there is no signal, so it is given on the spot and lands whenever the phone does.
+  if(o.type==='shortlistRating'){const f=next.shortlist.find(f=>f.id===o.id);if(f){f.rating=shortlistRating(o);f.pending=true;}}
   if(o.type==='shortlistStatus'){const f=next.shortlist.find(f=>f.id===o.id);if(f){f.status=o.status;f.decidedBy=o.status==='thinking'?null:(o.by||f.decidedBy);f.decidedAt=o.status==='thinking'?null:o.at;f.pending=true;}}
   if(o.type==='todoAdd')next.todos=[...next.todos,{id:`pending-${o.operationId}`,title:String(o.title||'').trim(),kind:o.kind==='buy'?'buy':'do',day:o.day??null,person:o.person||'Family',notes:String(o.notes||''),createdBy:o.by||'',createdAt:o.at,doneAt:null,doneBy:null,pending:true}];
   if(o.type==='todoStatus'){const t=next.todos.find(t=>t.id===o.id);if(t){t.doneAt=o.done?o.at:null;t.doneBy=o.done?o.by||t.doneBy:null;t.pending=true;}}
