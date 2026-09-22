@@ -439,15 +439,25 @@ export function extraOperation(state,op,user,fail,now){
    const item={title:op.title.trim(),shop:(op.shop||'').trim(),place:(op.place||'').trim(),
     notes:(op.notes||'').trim(),person:op.person||'Family',day:op.day??null,
     price:op.price===undefined||op.price===''?null:op.price,
+    stepId:op.stepId||null,locationId:op.locationId||null,
     tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))]};
    if(!['Family',...state.members].includes(item.person))fail('Choose a family member.');
    for(const [key,max] of [['shop',250],['place',250],['notes',2000]])requireText(item[key],max,key);
+   // Where it was, pinned to the trip itself rather than only described. One anchor, not two: a
+   // place off the map and an activity on the timeline are two answers to the same question, and
+   // a card carrying both is a card that can disagree with itself.
+   if(item.locationId&&item.stepId)fail('Pin a find to a place or to an activity, not both.');
+   if(item.locationId&&!(state.locations||[]).some(l=>l.id===item.locationId))fail('Choose a place from the map list.');
+   if(item.stepId&&!state.steps.some(s=>s.id===item.stepId))fail('Activity not found.',404);
+   // An activity already knows which day it is on, so a find pinned to one takes its day from it
+   // rather than keeping a second day that can drift away from it.
+   if(item.stepId)item.day=null;
    // The price is what the ticket said, in yen, and a ticket does not say 1200.5.
    if(item.price!==null&&(!Number.isInteger(item.price)||item.price<0||item.price>10000000))fail('Enter the price in whole yen.');
    if(item.tags.length>20||item.tags.some(t=>!string(t,50)))fail('Use up to 20 tags, each under 50 characters.');
    if(op.type==='shortlistAdd'){
     if(state.shortlist.length>=MAX_SHORTLIST)fail(`That is ${MAX_SHORTLIST} things on the shortlist already. Decide on a few first.`);
-    state.shortlist.push({id:randomUUID(),...item,status:'thinking',photo:null,
+    state.shortlist.push({id:randomUUID(),...item,status:'thinking',photo:null,shoppingId:null,
      addedBy:user.name,createdAt:when('shortlist'),decidedBy:null,decidedAt:null});
     return {summary:null,important:false,title:item.title};
    }
@@ -465,9 +475,30 @@ export function extraOperation(state,op,user,fail,now){
    Object.assign(entry,{status:op.status,decidedBy:op.status==='thinking'?null:user.name,decidedAt:op.status==='thinking'?null:at});
    return {summary:null,important:false,title:entry.title};
   }
+  // Deciding to get something is the moment it stops being a shortlist question and becomes
+  // shopping, so it can be handed straight to the shopping list — which is the page with the
+  // budget, the quantity and the tick — carrying its shop, its price and its notes across, and
+  // linked both ways so neither page has to be told about it twice. Offered once: a find already
+  // over there is not offered again, the same as a thing to buy already moved to a boy's purse.
+  if(op.type==='shortlistShop'){
+   const entry=found();
+   if(entry.shoppingId&&state.shopping.some(s=>s.id===entry.shoppingId))fail('That is already on the shopping list.');
+   if(!['yes','bought'].includes(entry.status))fail('Say we are getting it first, then it can go on the shopping list.');
+   const day=entry.stepId?(state.steps.find(s=>s.id===entry.stepId)?.day??null):entry.day;
+   extraOperation(state,{type:'shoppingAdd',title:entry.title,person:entry.person,day,quantity:1,
+    budget:entry.price??null,store:[entry.shop,entry.place].filter(Boolean).join(' · '),url:'',
+    notes:entry.notes},user,fail,now);
+   const created=state.shopping.at(-1);
+   created.shortlistId=entry.id;
+   entry.shoppingId=created.id;
+   return {summary:null,important:false,title:entry.title};
+  }
   if(op.type==='shortlistRemove'){
    const entry=found();
    if(!parent&&entry.addedBy!==user.name)fail('You can take off the things you added.',403);
+   // Whatever went to the shopping list stays there — it is a thing to buy now, not a question
+   // any more — but it stops claiming to have come from a find that no longer exists.
+   for(const item of state.shopping)if(item.shortlistId===entry.id)item.shortlistId=null;
    state.shortlist=state.shortlist.filter(s=>s.id!==entry.id);
    return {summary:null,important:false,title:entry.title};
   }

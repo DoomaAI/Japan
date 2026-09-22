@@ -60,7 +60,7 @@ export const PAGE_RULES={
  weather:'Weather. What the weather is doing, so we know whether to take an umbrella or a jumper.',
  parks:'Theme park rides. A list of every ride, and whether you are tall enough for it. Tick the ones you have been on.',
  shopping:'Shopping list. Presents and souvenirs we want to buy. Tick something when we have got it.',
- shortlist:'Purchase shortlist. This is for when you see something in a shop and you are not sure about it. Take a photo of it here, and say which shop it was in and how much it cost. Then later on we all look at the photos together and pick which ones we are actually getting.',
+ shortlist:'Purchase shortlist. This is for when you see something in a shop and you are not sure about it. Take a photo of it here, and say which shop it was in and how much it cost. You can also say where we were when we saw it, and then it turns up again on that day. Then later on we all look at the photos together and pick which ones we are actually getting.',
  guide:'Original travel guide. The whole guide book, all seventy two pages, that we made before the trip.',
  updates:'Family updates. Anything that has changed about the plan, and who has seen it.',
  search:'Search everything. Type anything at all and it looks through the whole app for it.',

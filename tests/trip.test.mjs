@@ -230,10 +230,119 @@ test('a find and its photograph are two things, and losing the picture never los
  const state=applyOperation(seed,{type:'shortlistAdd',title:'Kitsune mask',shop:'Nakamise stall',place:'Asakusa',tags:['present']},parent);
  for(const q of ['kitsune','nakamise','asakusa','present'])
   assert.ok(searchTrip(state,q).some(h=>h.type==='Shortlist'),`${q} should find it`);
- assert.equal(searchTrip(state,'kitsune')[0].detail,'Nakamise stall');
+ assert.equal(searchTrip(state,'kitsune')[0].detail,'Nakamise stall · Asakusa','the result says where it was, most specific first');
  // The search result opens the page it came from rather than the nearest-looking one.
  const practical=await readFile(new URL('../src/PracticalPages.jsx',import.meta.url),'utf8');
  assert.match(practical,/Shortlist:'shortlist'/);
+});
+
+test('a find is pinned to the trip itself — an activity on the timeline or a place off our own map',async()=>{
+ const {shortlistFor,shortlistWhere,shortlistDay,shortlistStep,shortlistPlace,shortlistOnDay}=await import('../src/trip-features.js');
+ const step=seed.steps.find(s=>s.day),otherDay=seed.days.find(d=>d.date!==step.day).date;
+ const withMap={...structuredClone(seed),locations:[{id:'map-nakamise',name:'Nakamise-dori',city:'Tokyo',district:'Asakusa',address:'1 Asakusa, Taito City, Tokyo, Japan'}]};
+ // Pinned to an activity, the day comes from the activity rather than being typed a second time
+ // and left to drift away from it.
+ let state=applyOperation(withMap,{type:'shortlistAdd',title:'Kitsune mask',shop:'Third stall on the left',
+  stepId:step.id,day:otherDay},parent);
+ const pinned=state.shortlist[0];
+ assert.equal(pinned.stepId,step.id);assert.equal(pinned.locationId,null);
+ assert.equal(pinned.day,null,'the activity carries the day');
+ assert.equal(shortlistDay(state,pinned),step.day);
+ assert.equal(shortlistStep(state,pinned).id,step.id);
+ // It turns up on that day's own screen, which is the point of pinning it there.
+ assert.deepEqual(shortlistOnDay(state,step.day).map(s=>s.title),['Kitsune mask']);
+ assert.deepEqual(shortlistOnDay(state,otherDay),[]);
+ // Pinned to a place off the map instead, which is what gets an address and directions back.
+ state=applyOperation(withMap,{type:'shortlistAdd',title:'Tea bowl',locationId:'map-nakamise'},parent);
+ const atPlace=state.shortlist[0];
+ assert.equal(shortlistPlace(state,atPlace).name,'Nakamise-dori');
+ assert.equal(shortlistDay(state,atPlace),null,'a place says nothing about which day we were there');
+ // Where it was, said once, most specific first, with nothing repeated back at you.
+ assert.deepEqual(shortlistWhere(state,atPlace),['Nakamise-dori','Asakusa']);
+ assert.deepEqual(shortlistWhere(withMap,{shop:'Third stall',place:'Asakusa'}),['Third stall','Asakusa']);
+ assert.deepEqual(shortlistWhere(withMap,{shop:'Asakusa',place:'Asakusa'}),['Asakusa']);
+ // One anchor, never two: a place and an activity are two answers to the same question.
+ assert.throws(()=>applyOperation(withMap,{type:'shortlistAdd',title:'Both',stepId:step.id,locationId:'map-nakamise'},parent),/not both/);
+ assert.throws(()=>applyOperation(withMap,{type:'shortlistAdd',title:'Nowhere',locationId:'map-not-real'},parent),/map list/);
+ assert.throws(()=>applyOperation(withMap,{type:'shortlistAdd',title:'Nowhere',stepId:'not-a-step'},parent),e=>e.status===404);
+ // Unpinning it puts the typed day back in charge, rather than leaving the find stranded on a
+ // day it can no longer name.
+ let onStep=applyOperation(withMap,{type:'shortlistAdd',title:'Kitsune mask',stepId:step.id},parent);
+ const id=onStep.shortlist[0].id;
+ onStep=applyOperation(onStep,{type:'shortlistEdit',id,title:'Kitsune mask',stepId:null,day:otherDay},parent);
+ assert.equal(onStep.shortlist[0].stepId,null);
+ assert.equal(shortlistDay(onStep,onStep.shortlist[0]),otherDay);
+ assert.deepEqual(shortlistOnDay(onStep,step.day),[]);
+ // And moving it to a place off the map drops the activity rather than keeping both.
+ const moved=applyOperation(onStep,{type:'shortlistEdit',id,title:'Kitsune mask',locationId:'map-nakamise'},parent);
+ assert.equal(moved.shortlist[0].stepId,null);assert.equal(moved.shortlist[0].locationId,'map-nakamise');
+ // The order finds come back in on a day is the page's order: still to decide first.
+ let busyDay=applyOperation(withMap,{type:'shortlistAdd',title:'Passed one',stepId:step.id,at:'2026-09-20T03:00:00.000Z'},parent);
+ busyDay=applyOperation(busyDay,{type:'shortlistStatus',id:busyDay.shortlist[0].id,status:'no'},parent);
+ busyDay=applyOperation(busyDay,{type:'shortlistAdd',title:'Undecided one',day:step.day,at:'2026-09-20T01:00:00.000Z'},parent);
+ assert.deepEqual(shortlistOnDay(busyDay,step.day).map(s=>s.title),['Undecided one','Passed one']);
+ assert.deepEqual(shortlistFor(busyDay,{day:step.day,status:'no'}).map(s=>s.title),['Passed one']);
+});
+
+test('the shortlist can be read in whatever order the question needs',async()=>{
+ const {shortlistFor,SHORTLIST_SORTS}=await import('../src/trip-features.js');
+ const [first,second]=seed.days.map(d=>d.date);
+ let state=seed;
+ for(const [title,at,price,shop,day] of [
+  ['Mask','2026-09-20T01:00:00.000Z',1800,'Nakamise stall',second],
+  ['Bowl','2026-09-20T03:00:00.000Z',9000,'Asakusa pottery',first],
+  ['Charm','2026-09-20T02:00:00.000Z',null,'Zakka shop',null]])
+  state=applyOperation(state,{type:'shortlistAdd',title,at,price,shop,day},parent);
+ const order=sort=>shortlistFor(state,{sort}).map(s=>s.title);
+ assert.deepEqual(order('new'),['Bowl','Charm','Mask']);
+ assert.deepEqual(order('old'),['Mask','Charm','Bowl']);
+ // A find with no price cannot be put in a price order, so it goes last in both rather than
+ // being treated as free and leading the cheap list.
+ assert.deepEqual(order('dear'),['Bowl','Mask','Charm']);
+ assert.deepEqual(order('cheap'),['Mask','Bowl','Charm']);
+ assert.deepEqual(order('shop'),['Bowl','Mask','Charm']);
+ assert.deepEqual(order('day'),['Bowl','Mask','Charm'],'by the day we saw it, and no day last');
+ // Undecided first is the default, because a shortlist is a pile of unanswered questions.
+ assert.deepEqual(order('decide'),order(undefined));
+ assert.deepEqual(order('nothing-like-this'),order('decide'));
+ // Every order the page offers actually sorts by something, and says what in plain words.
+ for(const [id,label] of SHORTLIST_SORTS){assert.equal(order(id).length,3,id);assert.ok(label.length>4,id);}
+});
+
+test('deciding to get something hands it to the shopping list, once, and keeps both ends linked',async()=>{
+ const {shortlistToShop,shoppedAlready}=await import('../src/trip-features.js');
+ const day=seed.days[0].date;
+ let state=applyOperation(seed,{type:'shortlistAdd',title:'Kitsune mask',shop:'Nakamise stall',place:'Asakusa',
+  price:1800,person:'Nate',day,notes:'The blue one'},child);
+ const find=state.shortlist[0];
+ // Still deciding is not shopping. The list is for what we have said we are getting.
+ assert.deepEqual(shortlistToShop(state),[]);
+ assert.throws(()=>applyOperation(state,{type:'shortlistShop',id:find.id},parent),/getting it first/);
+ state=applyOperation(state,{type:'shortlistStatus',id:find.id,status:'yes'},parent);
+ assert.deepEqual(shortlistToShop(state).map(s=>s.title),['Kitsune mask']);
+ // Across it goes, carrying the shop, the price and the notes, and linked at both ends.
+ state=applyOperation(state,{type:'shortlistShop',id:find.id},child);
+ const item=state.shopping.at(-1);
+ assert.equal(item.title,'Kitsune mask');assert.equal(item.store,'Nakamise stall · Asakusa');
+ assert.equal(item.budget,1800);assert.equal(item.person,'Nate');assert.equal(item.day,day);
+ assert.equal(item.quantity,1);assert.equal(item.notes,'The blue one');
+ assert.equal(item.shortlistId,find.id);
+ assert.equal(state.shortlist[0].shoppingId,item.id);
+ assert.equal(shoppedAlready(state,state.shortlist[0]),true);
+ // Offered once. Nobody wants two of the same mask on the list because two people pressed it.
+ assert.deepEqual(shortlistToShop(state),[]);
+ assert.throws(()=>applyOperation(state,{type:'shortlistShop',id:find.id},parent),/already on the shopping list/);
+ // Taking the find off the shortlist leaves the thing to buy where it is — it is shopping now,
+ // not a question — but it stops claiming to have come from a find that is gone.
+ const removed=applyOperation(state,{type:'shortlistRemove',id:find.id},parent);
+ assert.equal(removed.shopping.length,1);assert.equal(removed.shopping[0].shortlistId,null);
+ assert.equal(removed.shortlist.length,0);
+ // And a find pinned to an activity takes that activity's day across with it.
+ const step=seed.steps.find(s=>s.day);
+ let pinned=applyOperation(seed,{type:'shortlistAdd',title:'Tea bowl',stepId:step.id,price:900},parent);
+ pinned=applyOperation(pinned,{type:'shortlistStatus',id:pinned.shortlist[0].id,status:'bought'},parent);
+ pinned=applyOperation(pinned,{type:'shortlistShop',id:pinned.shortlist[0].id},parent);
+ assert.equal(pinned.shopping.at(-1).day,step.day);
 });
 
 test('API: a shortlist photo is refused unless the find is yours and the folder is yours',async()=>{
