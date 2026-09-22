@@ -1,22 +1,30 @@
 import React,{useState} from 'react';
-import {MapPin,Navigation,Search,Plus,Check,AlertCircle,Clock,Coins,ExternalLink,Inbox,Users,LocateFixed} from 'lucide-react';
-import {NEARBY_KINDS,nearbyKindLabel,priceBandLabel,roundCoord,validCoords,walkingLink,COORD_PLACES} from './trip-features.js';
+import {MapPin,Navigation,Search,Plus,Check,AlertCircle,Clock,Coins,ExternalLink,Inbox,Users,LocateFixed,UtensilsCrossed} from 'lucide-react';
+import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MAX_DISH_HUNT,nearbyKindLabel,priceBandLabel,roundCoord,validCoords,walkingLink,COORD_PLACES} from './trip-features.js';
 import {activeSteps} from './timing.js';
 const GEO_TROUBLE={1:'This phone has not given the app your position. Allow location for this site in Settings, or choose a planned place below instead.',
  2:'Your position is not available right now — indoors or underground it often is not. Choose a planned place below instead.',
  3:'Finding your position took too long. Try again, or choose a planned place below.'};
 // Asked standing in the street, so it opens on what it can answer fastest: where the phone says
 // you are, or the place the itinerary says you should be. Nothing is added anywhere by itself.
-export default function Nearby({state,user,day,step,request,mutate,busy,notice,close,selectStep}){
+//
+// Asked from the food page it is the same lookup with a narrower question: the dishes still on
+// our list come with it, the amenity half of the menu is put away, and an answer that does one of
+// those dishes says which and goes to the top.
+export default function Nearby({state,user,day,step,request,mutate,busy,notice,close,selectStep,mode,wishlist}){
  const today=state.days.find(d=>d.date===day),steps=activeSteps(state,day);
  const current=step||steps.find(s=>!['done','skipped'].includes(s.status))||steps.at(-1);
+ const hunt=mode==='food';
+ const offered=(wishlist||[]).slice(0,MAX_DISH_HUNT);
  const [anchor,setAnchor]=useState(current?`s:${current.id}`:'me');
  const [coords,setCoords]=useState(null),[locating,setLocating]=useState(false);
- const [kinds,setKinds]=useState(['food']),[note,setNote]=useState('');
+ const [kinds,setKinds]=useState(hunt?['food','quick']:['food']),[note,setNote]=useState('');
+ const [dishes,setDishes]=useState(offered);
  const [working,setWorking]=useState(false),[result,setResult]=useState(null),[error,setError]=useState(''),[added,setAdded]=useState([]);
  const parent=user.role==='parent';
  const chosen=anchor.startsWith('s:')?state.steps.find(s=>s.id===anchor.slice(2)):null;
  const toggle=id=>setKinds(k=>k.includes(id)?k.filter(x=>x!==id):[...k,id]);
+ const toggleDish=name=>setDishes(d=>d.includes(name)?d.filter(x=>x!==name):[...d,name]);
  async function locate(){
   if(!navigator.geolocation){setError('This phone cannot share its position. Choose a planned place instead.');return;}
   setLocating(true);setError('');
@@ -32,6 +40,7 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
  async function ask(){
   if(!kinds.length){setError('Choose what you are looking for.');return;}
   const body={kinds,city:today?.city,note};
+  if(dishes.length)body.wishlist=dishes;
   if(anchor==='me'){
    if(!coords){setError('Tap Use my position first, or choose a planned place.');return;}
    body.lat=coords.lat;body.lng=coords.lng;
@@ -50,7 +59,7 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
   const order=current?current.order+0.5:undefined;
   const saved=await mutate({type:'add',step:{title:item.draft.title,day,time:null,
    duration:item.draft.duration,place:item.draft.place||item.area,japanese:item.draft.japanese,
-   notes:[item.what,item.why,item.openNote].filter(Boolean).join('\n'),kind:'flexible',
+   notes:[item.what,item.dish?`On our food list: ${item.dish}`:'',item.why,item.openNote].filter(Boolean).join('\n'),kind:'flexible',
    page:today?.pages?.[0]||1,participants:[...state.members],...(order?{order}:{})}});
   if(!saved)return;
   setAdded(a=>[...a,item.draft.title]);
@@ -76,9 +85,13 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
      {today?.hotel&&<option value="hotel">Tonight’s hotel · {today.hotel}</option>}
      {steps.filter(s=>s.place||s.title).map(s=><option key={s.id} value={`s:${s.id}`}>{s.time?`${s.time} · `:''}{s.title}</option>)}
     </select></label>}
-  <fieldset><legend>What do we need?</legend><div className="chips">{NEARBY_KINDS.map(([id,label])=><label className={`chip ${kinds.includes(id)?'on':''}`} key={id}><input type="checkbox" checked={kinds.includes(id)} onChange={()=>toggle(id)}/>{label}</label>)}</div></fieldset>
+  {hunt&&offered.length>0&&<fieldset><legend>Still on our list</legend>
+   <p className="nearby-hint">Somewhere that does one of these comes first. Tap off whatever nobody is hunting right now — with none of them on, it just looks for somewhere to eat.</p>
+   <div className="chips">{offered.map(name=><label className={`chip ${dishes.includes(name)?'on':''}`} key={name}><input type="checkbox" checked={dishes.includes(name)} onChange={()=>toggleDish(name)}/>{name}</label>)}</div>
+  </fieldset>}
+  <fieldset><legend>{hunt?'What kind of place?':'What do we need?'}</legend><div className="chips">{(hunt?NEARBY_KINDS.filter(([id])=>FOOD_NEARBY_KINDS.includes(id)):NEARBY_KINDS).map(([id,label])=><label className={`chip ${kinds.includes(id)?'on':''}`} key={id}><input type="checkbox" checked={kinds.includes(id)} onChange={()=>toggle(id)}/>{label}</label>)}</div></fieldset>
   <label>Anything else<input value={note} onChange={e=>setNote(e.target.value)} maxLength={250} placeholder="nothing spicy · we have the pram · twenty minutes before the train"/></label>
-  <button className="primary nearby-go" onClick={ask} disabled={working||busy}><Search size={18}/>{working?'Having a look…':'What is near here?'}</button>
+  <button className="primary nearby-go" onClick={ask} disabled={working||busy}><Search size={18}/>{working?'Having a look…':hunt?'Where can we eat near here?':'What is near here?'}</button>
   {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
   {result&&<div className="nearby-results">
    <h3>Near {result.anchor||today?.city}</h3>
@@ -89,6 +102,7 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
      <div className="section-heading"><div><span className="eyebrow">{nearbyKindLabel(item.kind)}</span><h4>{item.draft.title}</h4></div>
       {item.walkMinutes!==null&&<span className="nearby-walk">{item.walkMinutes}<small>min walk</small></span>}</div>
      {item.draft.japanese&&<p className="destination-japanese" lang="ja">{item.draft.japanese}</p>}
+     {item.dish&&<p className="nearby-dish"><UtensilsCrossed size={15}/>Does <strong>{item.dish}</strong>, which is still on our list</p>}
      <p>{item.what}</p>
      {item.why&&<p className="suggest-why">{item.why}</p>}
      <div className="plan-facts">

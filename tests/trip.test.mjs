@@ -2792,6 +2792,99 @@ test('what is near here answers from a position or a planned place, and adds str
  assert.ok(!/state\.(steps|proposals|documents|journal)\s*=/.test(nearbySource),'a lookup writes nothing into the trip');
 });
 
+test('the food page hunts a dish rather than a meal, and only a dish we asked after',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures,NEARBY_KINDS,FOOD_NEARBY_KINDS,MAX_DISH_HUNT,matchDish}=await import('../src/trip-features.js');
+ const {FOOD}=await import('../src/food-data.js');
+ // The list writes a dish long — "Takoyaki — octopus balls" — and an answer that says "Mochi" is
+ // talking about the same thing. One nobody asked about is an invention, however good it sounds.
+ assert.equal(matchDish('Takoyaki — octopus balls',['Takoyaki — octopus balls']),'Takoyaki — octopus balls');
+ assert.equal(matchDish('Mochi',['Mochi — pounded rice cake']),'Mochi — pounded rice cake');
+ assert.equal(matchDish('Wagyu steak',['Mochi — pounded rice cake']),'');
+ assert.equal(matchDish('',['Mochi — pounded rice cake']),'');
+ assert.equal(matchDish('Mochi',[]),'');
+ assert.equal(matchDish('Mochi ice cream',['Mochi — pounded rice cake']),'','a different dish that starts the same is not ours');
+ for(const id of FOOD_NEARBY_KINDS)assert.ok(NEARBY_KINDS.some(([key])=>key===id),`${id} is a kind the lookup knows`);
+ assert.ok(!FOOD_NEARBY_KINDS.includes('toilet'),'the amenity half is put away when the question is a dish');
+
+ let seen=null;
+ const answer={anchor:'Dotonbori, by the bridge',note:'Stalls move and close — look for the queue.',options:[
+  {title:'FamilyMart',japanese:'ファミリーマート',kind:'konbini',what:'Convenience store with hot food.',
+   area:'Under the bridge',walkMinutes:2,priceBand:'cheap',openNote:'Usually 24 hours, but check',kidFriendly:true,
+   why:'Two minutes away if nobody can wait.',dish:''},
+  {title:'Takoyaki Wanaka',japanese:'たこ焼き わなか',kind:'quick',what:'Takoyaki counter, eight to a tray.',
+   area:'Sennichimae',walkMinutes:6,priceBand:'cheap',openNote:'Daytime into the evening, guessing',kidFriendly:true,
+   why:'The Osaka one the boys have been promised.',dish:'Takoyaki — octopus balls'},
+  {title:'Nakatanidou',japanese:'中谷堂',kind:'quick',what:'Mochi pounded in the shopfront.',
+   area:'Sanjo-dori',walkMinutes:9,priceBand:'cheap',openNote:'Pounding through the day, guessing',kidFriendly:true,
+   why:'Worth the extra three minutes for the show.',dish:'Mochi'},
+  {title:'Sennari Steak',japanese:'',kind:'food',what:'Wagyu counter.',
+   area:'Namba',walkMinutes:4,priceBand:'pricey',openNote:'',kidFriendly:false,
+   why:'Good, but not what was asked for.',dish:'Wagyu steak'}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen=JSON.parse(body);
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m2',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:4000,output_tokens:600,server_tool_use:{web_search_requests:2}},
+    content:[{type:'tool_use',id:'c1',name:'record_nearby',input:answer}]}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {nearbyPlaces}=await import('../server/nearby.mjs');
+  const state=ensureFeatures(structuredClone(seed));
+  const wishlist=['Takoyaki — octopus balls','Mochi — pounded rice cake','','   ','Takoyaki — octopus balls',
+   'D'.repeat(300),...Array.from({length:14},(_,i)=>`Filler dish ${i}`)];
+  const result=await nearbyPlaces({place:'Dotonbori',city:'Osaka',kinds:['food','quick'],wishlist},state);
+
+  // The dishes go with the question, written out as the list writes them, deduped and capped.
+  const asked=seen.messages[0].content;
+  assert.match(asked,/Still on their food list, none of it tried yet/);
+  assert.match(asked,/- Takoyaki — octopus balls/);
+  assert.match(asked,/- Mochi — pounded rice cake/);
+  const listed=asked.slice(asked.indexOf('copied exactly as written here:')).split('\n').slice(1);
+  assert.equal(listed.findIndex(l=>!l.startsWith('- ')),MAX_DISH_HUNT,'a hunt carries twelve dishes, not fifty');
+  assert.ok(!asked.includes('D'.repeat(200)),'a long name is cut down like everything else');
+  assert.ok(!/- \s*$/m.test(asked),'an empty name is dropped rather than asked after');
+  assert.match(seen.tools.find(t=>t.name==='record_nearby').input_schema.properties.options.items.required.join(' '),/dish/);
+  assert.match(seen.system,/a ramen shop is not takoyaki/);
+
+  // The place that does a dish we are hunting goes above the closer one that does not, and a dish
+  // nobody asked after is dropped rather than put on a card.
+  assert.deepEqual(result.options.map(o=>o.draft.title),['Takoyaki Wanaka','Nakatanidou','FamilyMart','Sennari Steak']);
+  const [wanaka,nakatanidou,familymart,steak]=result.options;
+  assert.equal(wanaka.dish,'Takoyaki — octopus balls');
+  assert.equal(nakatanidou.dish,'Mochi — pounded rice cake','the short answer is matched back to the list');
+  assert.equal(familymart.dish,'');
+  assert.equal(steak.dish,'','a dish nobody asked about does not become one we are hunting');
+  assert.match(wanaka.draft.notes,/On our food list: Takoyaki — octopus balls/,'saved or scheduled, it says why it is there');
+  assert.ok(!steak.draft.notes.includes('On our food list'));
+  assert.ok(FOOD.some(f=>f.en==='Takoyaki — octopus balls'),'the hunt is written in the food list’s own words');
+
+  // Asked with no dishes at all it is the street question again: nearest first, nothing about a list.
+  const plain=await nearbyPlaces({place:'Dotonbori',city:'Osaka',kinds:['food'],wishlist:[]},state);
+  assert.ok(!seen.messages[0].content.includes('Still on their food list'));
+  assert.deepEqual(plain.options.map(o=>o.walkMinutes),[2,4,6,9]);
+  for(const o of plain.options)assert.equal(o.dish,'');
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ // The food page asks after what is still untried and shown, and leans on the same panel rather
+ // than a second one of its own.
+ const foodSource=await readFile(new URL('../src/FoodList.jsx',import.meta.url),'utf8');
+ assert.match(foodSource,/type:'nearby',mode:'food'/);
+ assert.match(foodSource,/list\.filter\(i=>!Object\.keys\(triedFood\(state,i\.id\)\)\.length\)/,'only what we have not eaten is hunted');
+ assert.match(foodSource,/config\?\.nearby&&/,'no key, no button');
+ const nearbySource=await readFile(new URL('../src/Nearby.jsx',import.meta.url),'utf8');
+ assert.match(nearbySource,/FOOD_NEARBY_KINDS\.includes\(id\)/,'the food question offers the food kinds');
+});
 test('the recipe book is complete, sensible and reachable from the starting six',async()=>{
  const {ELEMENTS,RECIPES,SIGHTS,elementById,startingElements,combine,discoverable}=await import('../src/kana-data.js');
  const ids=ELEMENTS.map(e=>e.id);

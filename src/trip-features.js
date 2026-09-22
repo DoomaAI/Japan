@@ -813,6 +813,23 @@ export const NEARBY_KINDS=[
  ['shelter','Out of the rain']
 ];
 export const PRICE_BANDS=[['free','Free'],['cheap','Cheap'],['mid','Mid-range'],['pricey','Pricey']];
+// The same question asked from the food page is a narrower one: a toilet and a coin locker are
+// not what somebody reading the food list wants, so only the four that can feed you are offered.
+export const FOOD_NEARBY_KINDS=['food','quick','coffee','konbini'];
+// How many dishes a single hunt carries. The list runs to fifty; asking after all of them at once
+// is asking after nothing in particular.
+export const MAX_DISH_HUNT=12;
+// A place is only said to do one of our dishes if the dish is one we asked about. "Takoyaki" is
+// the dish the list writes as "Takoyaki — octopus balls", so the shorter answer counts; a dish
+// nobody asked after is dropped rather than shown, because that is an invention either way.
+export function matchDish(dish,wishlist){
+ const asked=searchText(dish);
+ if(!asked)return '';
+ return (wishlist||[]).find(name=>{
+  const on=searchText(name);
+  return !!on&&(on===asked||on.startsWith(`${asked} `)||asked.startsWith(`${on} `));
+ })||'';
+}
 export const nearbyKindLabel=id=>(NEARBY_KINDS.find(([key])=>key===id)||NEARBY_KINDS[0])[1];
 export const priceBandLabel=id=>(PRICE_BANDS.find(([key])=>key===id)||['',''])[1];
 // A position is rounded before it goes anywhere: three decimal places is about a hundred metres,
