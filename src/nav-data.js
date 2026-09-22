@@ -24,6 +24,7 @@ export const PAGES={
  weather:{label:'Weather',note:'Every day and every hour, with the graphs'},
  parks:{label:'Theme park rides',note:'Checklists, height limits and park maps'},
  shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need'},
+ shortlist:{label:'Purchase shortlist',note:'Things we have seen in a shop, photographed, priced and still to decide on'},
  guide:{label:'Original travel guide',note:'All 72 pages, linked and searchable'},
  updates:{label:'Family updates',note:'What changed and who has seen it'},
  search:{label:'Search everything',note:'Find a booking, note, shop or guide page'},
@@ -45,7 +46,7 @@ export const PRIMARY={
 // between the bookings and the paperwork.
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','money','food','phrases','meeting','help']],
- ['The plan',['todo','planning','options','parks','shopping','tickets','inbox']],
+ ['The plan',['todo','planning','options','parks','shopping','shortlist','tickets','inbox']],
  ['Looking back',['photos','diary','updates','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
  ['For the boys',['challenges','games','spending','facts','mascot']]
