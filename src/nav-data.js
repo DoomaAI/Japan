@@ -3,6 +3,7 @@
 export const PAGES={
  today:{label:'Home',note:'What’s next today'},
  days:{label:'Days',note:'All sixteen days of the trip'},
+ glance:{label:'Day at a glance',note:'Today\u2019s stops in order, ticked off as they happen'},
  tickets:{label:'Tickets',note:'Bookings, luggage tags and QR codes'},
  inbox:{label:'Forwarded email',note:'Booking emails you sent in, waiting to be filed'},
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
@@ -46,7 +47,7 @@ export const PRIMARY={
 // between the bookings and the paperwork.
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','money','food','phrases','meeting','help']],
- ['The plan',['todo','planning','options','parks','shopping','shortlist','tickets','inbox']],
+ ['The plan',['glance','todo','planning','options','parks','shopping','shortlist','tickets','inbox']],
  ['Looking back',['photos','diary','updates','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
  ['For the boys',['challenges','games','spending','facts','mascot']]

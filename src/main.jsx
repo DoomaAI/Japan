@@ -55,7 +55,7 @@ import {MascotBadge} from './Mascot.jsx';
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
-import {ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Archive,ArchiveRestore,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed} from 'lucide-react';
+import {ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Archive,ArchiveRestore,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed} from 'lucide-react';
 import {activeSteps,dayProgress,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent,scheduleVariance,stayPlan} from './timing.js';
 import {todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,ticketList,isArchived,attachmentsOf,documentSteps,documentStepList,documentServesStep} from './trip-features.js';
 import {armPlayback} from './speech.js';
@@ -309,6 +309,12 @@ function App(){
  }
  if(loading)return <main className="entry"><div className="brand-mark">日</div><h1>Japan 2026</h1><p>Opening your family trip…</p></main>;
  if(!state)return <main className="entry"><img className="entry-photo" src="/cover.jpg" alt="Pasfield family Japan Travel Guide 2026 cover"/><div className="brand-mark">日</div><p className="eyebrow">THE PASFIELD FAMILY</p><h1>Japan, together.</h1><p>Open your private family link to join the trip. No email or password needed.</p>{error&&<p className="callout">{error}</p>}<p>The private parent link is prepared when the app is deployed. No setup key is required.</p></main>;
+ // A screen about one day opens the same way wherever you are: which day it is, and the strip
+ // of dates to move along. Written once here rather than on each screen, because the strip has
+ // to be told where a tap lands — Home when it is Home asking, and the screen you are already
+ // standing on when it is not, so choosing a day on the day at a glance does not send you home.
+ const dayHeading=<div className="day-heading"><div><p className="eyebrow">{today?.city} / {fmtDay(day)}</p><h1>{today?.title}</h1></div><button className="icon" aria-label="Choose day" onClick={()=>setTab('days')}><CalendarDays/></button></div>;
+ const dayStrip=pick=><div className="date-strip" aria-label="Trip days">{state.days.map(d=><button key={d.date} className={day===d.date?'selected':''} onClick={()=>pick(d.date)}><span>{fmtDay(d.date,{weekday:'short'})}</span><strong>{d.date.slice(-2)}</strong>{d.date===japanDate()&&<i aria-label="Today"/>}</button>)}</div>;
  // One place decides what a phrase sounds like, so every SayIt on every screen offers the
  // family's own recording where there is one without being handed props down five levels.
  return <PhraseAudio.Provider value={{clips:visibleState?.phraseAudio||{},user,request,accept,notice,config,busy}}>
@@ -321,17 +327,11 @@ function App(){
       what this screen is for in words he can follow rather than reading the heading at him. */}
   <SpeakRules id={`page-${tab}`} text={pageRule(tab)} label="What is this page?"/>
   {tab==='today'&&<>
-   <div className="day-heading"><div><p className="eyebrow">{today?.city} / {fmtDay(day)}</p><h1>{today?.title}</h1></div><button className="icon" aria-label="Choose day" onClick={()=>setTab('days')}><CalendarDays/></button></div>
-   <div className="date-strip" aria-label="Trip days">{state.days.map(d=><button key={d.date} className={day===d.date?'selected':''} onClick={()=>selectDay(d.date)}><span>{fmtDay(d.date,{weekday:'short'})}</span><strong>{d.date.slice(-2)}</strong>{d.date===japanDate()&&<i aria-label="Today"/>}</button>)}</div>
-   {!!today?.pages?.length&&<section className="day-guide" aria-label="Original guide pages for this day"><div className="section-heading"><div><p className="eyebrow">YOUR ORIGINAL TRAVEL GUIDE</p><h2>This day in the guide</h2></div><Button icon={BookOpen} onClick={()=>openPage(today.pages[0])}>Read guide</Button></div><p>Swipe through the pages · tap any page to read it in full.</p><div className="day-guide-pages" key={day}>{today.pages.map(p=><button key={p} className="day-guide-page" onClick={()=>openPage(p)} aria-label={`Read original guide page ${p}`}><img src={`/api/guide?page=${p}`} alt={`Original travel guide page ${p}`} loading="lazy"/><span>Page {p}<ChevronRight size={16}/></span></button>)}</div></section>}
+   {dayHeading}
+   {dayStrip(selectDay)}
    <MorningNeeds state={visibleState} day={day} clock={japanClock(now)} today={japanDate(now)}/>
-   <Weather state={visibleState} day={day} now={now} mutate={mutate} busy={busy} online={online} notice={notice} dayLabel={fmtDay} go={go}/>
-   <NextUp state={visibleState} day={day} now={now} selectStep={selectStep} open={setModal} go={go} parent={parent}/>
-   <div className="day-tools"><span><CheckCircle2 size={16}/>{done} of {steps.length} completed</span><div><Button icon={ImageIcon} onClick={()=>setModal({type:'media',day})}>Photos</Button><Button icon={Mic} onClick={()=>setModal({type:'voice',day})}>Voice</Button><Button icon={Ticket} onClick={()=>setModal({type:'tickets'})}>Tickets</Button>{config?.nearby&&<Button icon={Compass} onClick={()=>setModal({type:'nearby'})}>Near here</Button>}{parent&&<Button icon={Plus} onClick={()=>setModal({type:'edit',step:null})}>Add</Button>}</div></div>
-   <DayTodos state={visibleState} user={user} day={day} mutate={mutate} busy={busy} go={go}/>
-   <DayFinds state={visibleState} day={day} go={go}/>
    {groups.length>0&&<div className="option-bar">{groups.map(g=><label key={g}>Choose a plan<select disabled={!parent||busy} value={state.choices[g]||''} onChange={e=>mutate({type:'choose',group:g,option:e.target.value})}>{[...new Set(state.steps.filter(s=>s.group===g).map(s=>s.option))].map(o=><option key={o}>{o}</option>)}</select></label>)}</div>}
-   <div className="today-layout"><section className="step-area">
+   <section className="step-area">
    {current?<article className={`step-card ${current.status==='done'?'complete':''}`} onTouchStart={e=>{touch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}} onTouchEnd={e=>{if(!touch.current||['BUTTON','A','INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;const dx=e.changedTouches[0].clientX-touch.current.x,dy=e.changedTouches[0].clientY-touch.current.y;if(Math.abs(dx)>65&&Math.abs(dy)<50)move(dx<0?1:-1);touch.current=null;}}>
     <div className="card-top"><span className="eyebrow">STEP {index+1} / {steps.length}</span><div className="row"><span className={`tag ${current.kind}`}>{current.locked?'Fixed time':current.kind==='optional'?'Optional':current.review?'Check details':'Flexible'}</span>{parent&&<><button className="icon" aria-label={current.locked?'Unlock time':'Lock time'} onClick={()=>mutate({type:'lock',id:current.id,locked:!current.locked})}>{current.locked?<LockKeyhole size={19}/>:<LockKeyholeOpen size={19}/>}</button>{/* The same two answers the timeline row offers, on the stop you are actually standing in front of: the tray moves it to Options on the tap, the bin only opens the question. */}<button className="icon to-options" aria-label={`Save ${current.title} to Options`} onClick={()=>optionStop(current)}><Inbox size={19}/></button><button className="icon remove-stop" aria-label={`Remove ${current.title} from this day`} onClick={()=>removeStop(current)}><Trash2 size={19}/></button></>}</div></div>
     <div className="time-display">{current.time||'Any time'}{current.time&&<span>JST</span>}</div>
@@ -366,8 +366,19 @@ function App(){
    </article>:<div className="empty"><h2>A little room for discovery.</h2><p>Add your first stop for this day.</p></div>}
    <div className="swipe-controls"><Button icon={ArrowLeft} disabled={index<=0} onClick={()=>move(-1)}>Previous</Button><span>Swipe to explore</span><Button disabled={index>=steps.length-1} onClick={()=>move(1)}>Next <ArrowRight size={18}/></Button></div>
    <div className="quick-links"><Link href={directions(today?.hotel)}><House size={18}/><span>Tonight’s hotel<strong>{today?.hotel}</strong></span><ExternalLink size={15}/></Link>{nextFixed&&<button onClick={()=>selectStep(nextFixed)}><LockKeyhole size={18}/><span>Next fixed time<strong>{nextFixed.time} · {nextFixed.title}</strong></span><ChevronRight size={18}/></button>}</div>
-   <div className="row wrap">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
-   </section><DayTimeline steps={steps} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/></div>
+   <div className="row wrap"><Button icon={ListOrdered} onClick={()=>go('glance')}>The day at a glance</Button>{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
+   </section>
+   <NextUp state={visibleState} day={day} now={now} selectStep={selectStep} open={setModal} go={go} parent={parent}/>
+   <div className="day-tools"><span><CheckCircle2 size={16}/>{done} of {steps.length} completed</span><div><Button icon={ImageIcon} onClick={()=>setModal({type:'media',day})}>Photos</Button><Button icon={Mic} onClick={()=>setModal({type:'voice',day})}>Voice</Button><Button icon={Ticket} onClick={()=>setModal({type:'tickets'})}>Tickets</Button>{config?.nearby&&<Button icon={Compass} onClick={()=>setModal({type:'nearby'})}>Near here</Button>}{parent&&<Button icon={Plus} onClick={()=>setModal({type:'edit',step:null})}>Add</Button>}</div></div>
+   {!!today?.pages?.length&&<section className="day-guide" aria-label="Original guide pages for this day"><div className="section-heading"><div><p className="eyebrow">YOUR ORIGINAL TRAVEL GUIDE</p><h2>This day in the guide</h2></div><Button icon={BookOpen} onClick={()=>openPage(today.pages[0])}>Read guide</Button></div><p>Swipe through the pages · tap any page to read it in full.</p><div className="day-guide-pages" key={day}>{today.pages.map(p=><button key={p} className="day-guide-page" onClick={()=>openPage(p)} aria-label={`Read original guide page ${p}`}><img src={`/api/guide?page=${p}`} alt={`Original travel guide page ${p}`} loading="lazy"/><span>Page {p}<ChevronRight size={16}/></span></button>)}</div></section>}
+   <Weather state={visibleState} day={day} now={now} mutate={mutate} busy={busy} online={online} notice={notice} dayLabel={fmtDay} go={go}/>
+   <DayTodos state={visibleState} user={user} day={day} mutate={mutate} busy={busy} go={go}/>
+   <DayFinds state={visibleState} day={day} go={go}/>
+  </>}
+  {tab==='glance'&&<>
+   {dayHeading}
+   {dayStrip(d=>go('glance',d))}
+   <DayTimeline steps={steps} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/>
   </>}
   {tab==='challenges'&&<Challenges key={day+(focus||'')} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy} go={go}/>}
