@@ -8,8 +8,11 @@
 // phone with storage turned off must not be the reason a section disappears — or refuses to.
 const KEY=id=>`japan.fold.${id}`;
 const device=()=>{try{return typeof localStorage==='undefined'?null:localStorage;}catch{return null;}};
-export function isOpen(id,store=device()){
- try{return store?.getItem(KEY(id))!=='closed';}catch{return true;}
+// Two sections fold, and they disagree about what an untouched phone should see: the weather is
+// open until somebody folds it away, the dashboard is a small tile until somebody opens it. So
+// the caller says which, and only a phone that has actually been told overrides it.
+export function isOpen(id,store=device(),unset=true){
+ try{const saved=store?.getItem(KEY(id));return saved==null?unset:saved!=='closed';}catch{return unset;}
 }
 // Hands back what the fold now is, so the screen is drawn from the answer rather than from a
 // guess about whether the phone accepted it.
