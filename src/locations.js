@@ -1,3 +1,4 @@
+import {stepPin} from './trip-features.js';
 export const locationKey=value=>String(value||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff]+/g,' ').trim();
 export function resolveLocation(state,target){
  if(!target)return null;
@@ -11,7 +12,15 @@ export function resolveLocation(state,target){
  return matches.length===1?matches[0]:null;
 }
 export function locationDestination(location){return [location.name,location.address||[location.district,location.city,'Japan'].filter(Boolean).join(', ')].filter(Boolean).join(', ');}
-export function destinationFor(state,target){const match=resolveLocation(state,target);return match?locationDestination(match):typeof target==='string'?target:target?.place||target?.title||'';}
+// A pin beats every other way of saying where something is. It is the one of them the family
+// put there themselves, standing on the spot, and the whole point of dropping it was to be walked
+// back to — so directions, the meeting card and what is next all follow it rather than a name.
+export function destinationFor(state,target){
+ const pin=stepPin(target);
+ if(pin)return `${pin.lat},${pin.lng}`;
+ const match=resolveLocation(state,target);
+ return match?locationDestination(match):typeof target==='string'?target:target?.place||target?.title||'';
+}
 export function locationDirections(location,mode='transit'){return 'https://www.google.com/maps/dir/?'+new URLSearchParams({api:'1',destination:locationDestination(location),travelmode:mode});}
 export function locationsForPage(state,page){
  const ids=new Set(state.steps.filter(s=>s.page===page).map(s=>resolveLocation(state,s)?.id).filter(Boolean));

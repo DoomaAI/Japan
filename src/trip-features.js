@@ -854,6 +854,14 @@ export const priceBandLabel=id=>(PRICE_BANDS.find(([key])=>key===id)||['',''])[1
 export const COORD_PLACES=3;
 export const roundCoord=v=>Math.round(v*10**COORD_PLACES)/10**COORD_PLACES;
 export const validCoords=(lat,lng)=>Number.isFinite(lat)&&Number.isFinite(lng)&&Math.abs(lat)<=90&&Math.abs(lng)<=180;
+// A pin is the other way round from a position sent off to be looked up. Nobody is being asked
+// about it: the family stood somewhere worth coming back to and said so, and the only thing that
+// matters is being able to walk back. Four places is about eleven metres — enough to find the
+// bakery again on a corner with four of them, and still not a record of which table.
+export const PIN_PLACES=4;
+export const validPin=p=>p===null||(!!p&&typeof p==='object'&&!Array.isArray(p)&&['lat','lng'].every(k=>Object.hasOwn(p,k))&&Object.keys(p).length===2&&validCoords(p.lat,p.lng));
+export const stepPin=s=>s&&typeof s==='object'&&validPin(s.pin??null)&&s.pin?s.pin:null;
+export const pinText=p=>`${p.lat.toFixed(PIN_PLACES)}, ${p.lng.toFixed(PIN_PLACES)}`;
 // Walking directions from where you are actually standing, when the phone knows; a plain search
 // for the place otherwise. Built here from pieces the app checked, never from a model's link.
 export function walkingLink(name,area,from){

@@ -1,10 +1,8 @@
 import React,{useState} from 'react';
 import {MapPin,Navigation,Search,Plus,Check,AlertCircle,Clock,Coins,ExternalLink,Inbox,Users,LocateFixed,UtensilsCrossed} from 'lucide-react';
-import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MAX_DISH_HUNT,nearbyKindLabel,priceBandLabel,roundCoord,validCoords,walkingLink,COORD_PLACES} from './trip-features.js';
+import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MAX_DISH_HUNT,nearbyKindLabel,priceBandLabel,walkingLink,COORD_PLACES} from './trip-features.js';
+import {askPhoneWhereItIs} from './geo.js';
 import {activeSteps} from './timing.js';
-const GEO_TROUBLE={1:'This phone has not given the app your position. Allow location for this site in Settings, or choose a planned place below instead.',
- 2:'Your position is not available right now — indoors or underground it often is not. Choose a planned place below instead.',
- 3:'Finding your position took too long. Try again, or choose a planned place below.'};
 // Asked standing in the street, so it opens on what it can answer fastest: where the phone says
 // you are, or the place the itinerary says you should be. Nothing is added anywhere by itself.
 //
@@ -26,15 +24,10 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
  const toggle=id=>setKinds(k=>k.includes(id)?k.filter(x=>x!==id):[...k,id]);
  const toggleDish=name=>setDishes(d=>d.includes(name)?d.filter(x=>x!==name):[...d,name]);
  async function locate(){
-  if(!navigator.geolocation){setError('This phone cannot share its position. Choose a planned place instead.');return;}
   setLocating(true);setError('');
-  try{
-   const at=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:15000,maximumAge:60000}));
-   // Rounded here, before it goes anywhere: about a hundred metres, which finds a konbini and
-   // does not point at a hotel room.
-   setCoords({lat:roundCoord(at.coords.latitude),lng:roundCoord(at.coords.longitude)});
-   setAnchor('me');
-  }catch(e){setError(GEO_TROUBLE[e?.code]||'Your position could not be read. Choose a planned place instead.');}
+  // About a hundred metres, which finds a konbini and does not point at a hotel room.
+  try{setCoords(await askPhoneWhereItIs(COORD_PLACES));setAnchor('me');}
+  catch(e){setError(`${e.message}. Choose a planned place below instead.`);}
   finally{setLocating(false);}
  }
  async function ask(){
