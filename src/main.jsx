@@ -409,9 +409,10 @@ function App(){
    {modal.type==='schedule'&&<form onSubmit={async e=>{e.preventDefault();const f=new FormData(e.currentTarget);if(await mutate({type:'schedule',id:modal.step.id,day:f.get('day'),time:f.get('time')||null}))setModal(null);}}><h3>{modal.step.title}</h3><label>Day<select name="day" defaultValue={day}>{state.days.map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)}</option>)}</select></label><label>Time (optional)<input name="time" type="time"/></label>{modal.step.backlogFrom?.bookingTime&&<p className="callout">Previous booking: {modal.step.backlogFrom.bookingTime}. Confirm any new reservation separately.</p>}<Button className="primary">Add to itinerary</Button></form>}
    {modal.type==='edit'&&<StepForm step={modal.step} before={modal.before} day={modal.backlog?null:day} state={state} busy={busy} onSave={async op=>{const result=await mutate(op);if(!result)return;setModal(null);const added=op.type==='add'&&result.state?.steps?.at(-1);if(added)selectStep(added);}} onRemove={s=>setModal({type:'remove',step:s})} onCancel={()=>setModal(null)}/>}
    {/* The removal is confirmed in the app rather than by the browser's own confirm box, so the
-       question can say which stop is going and what stays behind. Closing it any other way —
-       the X, the backdrop, Escape — keeps the stop. */}
-   {modal.type==='remove'&&<RemoveStop state={state} step={state.steps.find(s=>s.id===modal.step.id)||modal.step} busy={busy} mutate={mutate} notice={notice} dayLabel={fmtDay} close={removed=>{setModal(null);if(removed&&removed.id===selected){setSelected(null);updateUrl(removed.day||day,null);}}}/>}
+       question can say which stop is going, what stays behind, and that Options will keep the
+       whole stop instead. Closing it any other way — the X, the backdrop, Escape — keeps the
+       stop where it is. */}
+   {modal.type==='remove'&&<RemoveStop state={state} step={state.steps.find(s=>s.id===modal.step.id)||modal.step} busy={busy} mutate={mutate} notice={notice} dayLabel={fmtDay} close={gone=>{setModal(null);if(gone&&gone.id===selected){setSelected(null);updateUrl(gone.day||day,null);}}}/>}
    {modal.type==='show'&&<ShowLocation state={state} step={modal.step} notice={notice} maps={maps}/>}
 
    {modal.type==='media'&&<MediaGallery initialSearch={modal.initialSearch} state={state} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} accept={accept} mutate={mutate} notice={notice} request={request}/>}

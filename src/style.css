@@ -299,3 +299,7 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .confirm-actions{margin-top:1.2rem}
 .confirm-actions .danger{border-color:#e4c3bd}
 .confirm-actions .danger:hover{background:#fdf2f0;border-color:#cc9d95}
+/* The reversible answer, offered beside the one that cannot be taken back. */
+.confirm-instead{border:1px solid #cfdcd7;background:#f4f8f6;border-radius:12px;padding:.9rem 1rem;margin-bottom:1rem}
+.confirm-instead strong{display:block;font-size:.95rem;margin-bottom:.3rem}
+.confirm-instead p{font-size:.86rem;margin-bottom:.8rem}
