@@ -3674,7 +3674,8 @@ test('the guide turns like a book, and stops at both covers',async()=>{
  assert.equal((source.match(/flipPage\(1\)/g)||[]).length,2,'the forward button and the right arrow key');
  assert.match(source,/<GuideBook page=\{guidePage\} turn=\{turnPage\} flipRef=\{reading\?null:guideFlip\}/,'and the swipe');
  assert.match(source,/else turnPage\(delta\)/,'without the book, a button still turns the page');
- assert.match(book,/if\(finish\)turn\(dir\)/,'the page only changes once the turn has landed');
+ assert.match(book,/if\(finish\)go\(dir\)/,'the page only changes once the turn has landed');
+ assert.match(book,/const go=d=>\{const to=next\(d\);if\(to!==null\)turn\(to-page\);\}/,'and it lands through turnPage');
  assert.doesNotMatch(source,/setGuidePage\(guidePage[-+]1\)/,'nothing sets the page behind its back');
  // A swipe is a sideways movement, not a scroll, and typing in the page box is not a turn.
  assert.match(book,/swipeDelta\(t,\{x:e\.clientX,y:e\.clientY\}\)===leaf\.dir/);
@@ -3710,11 +3711,44 @@ test('the guide opens full screen like a magazine when the page is tapped',async
  assert.match(reader,/e\.key==='Escape'\)close\(\)/);
  assert.match(reader,/exitFullscreen/);
  // Double tap zooms in to read the small print; a single tap hides the bars.
- assert.match(reader,/zoomable onTap=\{\(\)=>setBare\(b=>!b\)\}/);
+ assert.match(reader,/zoomable spread=\{spread\} onTap=\{\(\)=>setBare\(b=>!b\)\}/);
  assert.match(css,/\.guide-reader \.guide-book\{[^}]*touch-action:none/);
  // It covers the bottom bar, and the page is sized for its own shape — portrait, 1247 by 1800.
  assert.match(css,/\.guide-reader\{position:fixed;inset:0;z-index:50/);
  assert.match(css,/\(100dvh - 150px\)\*\.6928/);
+});
+
+test('full screen, the guide opens as a two-page spread on its side and one page upright',async()=>{
+ const {spreadOf,stepPage}=await import('../src/guide-lens.js');
+ // Laid out as a magazine: the cover alone on the right, even pages facing odd, the back alone.
+ assert.deepEqual(spreadOf(1),[null,1]);
+ assert.deepEqual(spreadOf(2),[2,3]);
+ assert.deepEqual(spreadOf(3),[2,3],'either page of a pair opens the same spread');
+ assert.deepEqual(spreadOf(71),[70,71]);
+ assert.deepEqual(spreadOf(72),[72,null]);
+ // A spread turns a pair at a time, landing on the first page of the next pair either way.
+ assert.equal(stepPage(1,1,true),2);
+ assert.equal(stepPage(3,1,true),4);
+ assert.equal(stepPage(3,-1,true),1);
+ assert.equal(stepPage(71,1,true),72);
+ assert.equal(stepPage(72,-1,true),70);
+ assert.equal(stepPage(1,-1,true),null,'and stops at the front cover');
+ assert.equal(stepPage(72,1,true),null,'and the back one');
+ // One page at a time is unchanged.
+ assert.equal(stepPage(5,1,false),6);
+ assert.equal(stepPage(72,1,false),null);
+ // Which way up decides, not the device — so an iPhone held upright keeps its single page —
+ // and a swap is kept for that way up alone.
+ const reader=await readFile(new URL('../src/GuideReader.jsx',import.meta.url),'utf8');
+ assert.match(reader,/matchMedia\('\(orientation: landscape\)'\)/);
+ assert.match(reader,/return typeof mine==='boolean'\?mine:landscape;/);
+ assert.match(reader,/\[landscape\?'landscape':'portrait'\]:!spread/);
+ assert.match(reader,/try\{localStorage\.setItem\(SPREAD_KEY/,'remembering it can fail without breaking the reader');
+ assert.match(reader,/zoomable spread=\{spread\}/);
+ assert.match(reader,/disabled=\{stepPage\(page,1,spread\)===null\}/);
+ // The page underneath the reader, in the app itself, is always one page.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.doesNotMatch(main,/<GuideBook [^>]*spread/);
 });
 
 test('a zoomed page is held inside the screen',async()=>{
