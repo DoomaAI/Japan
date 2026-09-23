@@ -427,6 +427,31 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .home-actions>button:last-child:nth-child(odd),.dashboard-actions>button:last-child:nth-child(odd){grid-column:1/-1}
 .home-actions svg{flex:none}
 .swipe-controls button{padding-left:0;padding-right:0}
+/* Split days: the family going separate ways, one colour per lane, and where we meet back up. */
+:root{--lane-0:#2f7d6d;--lane-1:#c0633f;--lane-2:#5a6fb0;--lane-3:#9a6a1f}
+.option-group{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem}.split-toggle{min-height:40px;font-size:.82rem}
+.split-day{display:grid;gap:.8rem;margin-bottom:1rem}
+.split-card{border:1px solid var(--border);border-radius:14px;background:var(--paper);padding:.9rem 1rem}
+.split-head{display:flex;align-items:flex-start;gap:.6rem}.split-head>div{flex:1;min-width:0}.split-head h2{font-size:1.25rem;margin:0}.split-head .eyebrow{margin:0}.split-undo{min-height:36px;font-size:.78rem;padding:.4rem .6rem}
+.split-lanes{list-style:none;margin:.7rem 0 0;padding:0;display:grid;gap:.5rem}
+.split-lanes li button{width:100%;display:grid;justify-items:start;justify-content:stretch;text-align:left;gap:.1rem;border-left:5px solid var(--lane);background:#fafbfa}
+.split-lanes li.followed button{background:#eef5f2;border-color:var(--lane)}
+.split-lanes li span{font-size:.82rem;color:var(--muted)}
+.lane-0{--lane:var(--lane-0)}.lane-1{--lane:var(--lane-1)}.lane-2{--lane:var(--lane-2)}.lane-3{--lane:var(--lane-3)}
+.split-meet{width:100%;margin-top:.6rem;justify-content:flex-start;text-align:left;background:#f1f3eb}.split-meet span{flex:1;display:grid}.split-meet strong{font-size:.95rem}
+.where-everyone{border:1px solid var(--border);border-radius:14px;background:var(--paper);padding:.8rem 1rem}.where-everyone h3{display:flex;align-items:center;gap:.4rem;margin:0 0 .5rem}
+.where-everyone ul{list-style:none;margin:0;padding:0;display:grid;gap:.4rem}
+.where-everyone button{width:100%;justify-content:flex-start;text-align:left}.where-everyone button>span:nth-child(2){flex:1;min-width:0}.where-everyone .who{font-weight:700;min-width:4.5rem}
+.whose-day{display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.3rem;margin-bottom:1rem;scrollbar-width:none}
+.whose-day button{min-height:38px;border-radius:20px;padding:.35rem .85rem;white-space:nowrap;font-size:.84rem}
+.whose-day button.selected{background:var(--ink);border-color:var(--ink);color:#fff}
+.timeline-row.in-lane{box-shadow:inset 4px 0 0 var(--lane)}
+.lane-chip{display:inline-block;font-style:normal;font-size:.7rem;font-weight:700;color:var(--lane);margin-left:.4rem}
+.timeline-split{display:flex;align-items:center;gap:.55rem;width:100%;padding:.55rem .7rem;margin:.35rem 0;border-radius:10px;background:#eef2ef;color:var(--ink);font-size:.86rem;font-weight:700;text-align:left;border:1px dashed #b9cac5;min-height:0;justify-content:flex-start}
+.timeline-split span{display:grid}.timeline-split small{font-weight:500}
+.timeline-split.missing{background:#fff5df;border-color:#eddcba;color:#785c28}
+.timeline-other-lane{display:flex;width:100%;justify-content:flex-start;align-items:flex-start;gap:.5rem;padding:.45rem .7rem;margin:.25rem 0;border-style:dashed;font-weight:500;font-size:.8rem;color:var(--muted);text-align:left;min-height:0}
+.timeline-other-lane strong{color:var(--ink)}
 /* Day at a glance, compact: each stop reads on two short lines — title, then status and weather side
    by side — and the parent's tools sit in a 3×2 block beside it, so a phone shows the whole morning. */
 .timeline .timeline-help{background:none;border:0;padding:0;margin:0 0 .4rem;font-size:.78rem;line-height:1.45}

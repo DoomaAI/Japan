@@ -2,7 +2,9 @@ export const japanDate=(date=new Date())=>new Intl.DateTimeFormat('en-CA',{timeZ
 export const japanClock=(date=new Date())=>new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit',hour12:false}).format(date);
 export const minutes=t=>t?Number(t.slice(0,2))*60+Number(t.slice(3)):null;
 export const asClock=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-export const activeSteps=(state,day)=>state.steps.filter(s=>s.day===day&&(!s.group||!state.choices[s.group]||state.choices[s.group]===s.option)).sort((a,b)=>a.order-b.order);
+// A group is either alternatives, where only the chosen option is on the day, or a split, where
+// every option is on the day because each is somebody's (see split.js).
+export const activeSteps=(state,day)=>state.steps.filter(s=>s.day===day&&(!s.group||state.groupModes?.[s.group]==='split'||!state.choices[s.group]||state.choices[s.group]===s.option)).sort((a,b)=>a.order-b.order);
 export function scheduleProposal(steps,delta){
  const changes=[],conflicts=[];
  for(const s of steps){
