@@ -8365,3 +8365,53 @@ test('a ticket’s own photo or PDF read into English and kept on the file',asyn
   await new Promise(r=>upstream.close(r));
  }
 });
+// A split day: the same option group, marked as a split, so each option is a lane somebody is on.
+const splitTrip=()=>{
+ const trip=structuredClone(seed),day='2026-10-02';
+ for(const s of trip.steps.filter(s=>s.group==='tokyo-reset')){
+  if(s.option==='Tsukiji + Akihabara')s.participants=['Damien','Nate'];
+  else if(s.option==='Ueno + dinosaurs')s.participants=['Lauren','Boston'];
+  else{s.group='';s.option='';s.day=null;}
+ }
+ return {trip:applyOperation(trip,{type:'groupMode',group:'tokyo-reset',mode:'split'},parent),day};
+};
+test('a split keeps every lane on the day, each person sees their own, and everyone meets back up',async()=>{
+ const {daySplits,stepsFor,laneOf,splitWarnings}=await import('../src/split.js');
+ const {trip,day}=splitTrip();
+ assert.equal(trip.groupModes['tokyo-reset'],'split');
+ const all=activeSteps(trip,day).map(s=>s.title);
+ assert.ok(all.includes('Games, gachapon and toys')&&all.includes('Ueno museum and park'),'both lanes are on the day, not just the chosen one');
+ const [split]=daySplits(trip,day);
+ assert.deepEqual(split.lanes.map(l=>l.members),[['Damien','Nate'],['Lauren','Boston']]);
+ assert.equal(split.meet.title,'Return to Hilton','the first stop after with everyone on it');
+ assert.equal(laneOf(split,'Boston').option,'Ueno + dinosaurs');
+ const nate=stepsFor(trip,day,'Nate').map(s=>s.title);
+ assert.ok(nate.includes('Breakfast')&&nate.includes('Games, gachapon and toys')&&!nate.includes('Ueno museum and park'),'Nate follows his own lane and the shared stops');
+ assert.equal(stepsFor(trip,day,null).length,all.length,'everyone sees every lane');
+ assert.deepEqual(splitWarnings(split,['Nate','Boston']),[]);
+ const boysAlone=structuredClone(trip);for(const s of boysAlone.steps.filter(s=>s.option==='Ueno + dinosaurs'))s.participants=['Boston'];
+ assert.match(splitWarnings(daySplits(boysAlone,day)[0],['Nate','Boston']).join(' '),/no grown-up/);
+ const back=applyOperation(trip,{type:'groupMode',group:'tokyo-reset',mode:'choose'},parent);
+ assert.ok(!activeSteps(back,day).some(s=>s.title==='Ueno museum and park'),'back to alternatives, only the chosen plan shows');
+ assert.throws(()=>applyOperation(seed,{type:'groupMode',group:'tokyo-reset',mode:'split'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(seed,{type:'groupMode',group:'nope',mode:'split'},parent),/not found/);
+ assert.ok(trip.alerts[0].summary.includes('we split up'),'the family is told');
+});
+test('what somebody else is doing: what they marked arrived first, then the plan, said as the plan',async()=>{
+ const {whereIs}=await import('../src/split.js');
+ const {trip,day}=splitTrip();
+ const ueno=trip.steps.find(s=>s.title==='Ueno museum and park');
+ const arrived=structuredClone(trip);Object.assign(arrived.steps.find(s=>s.id===ueno.id),{status:'started',startedAt:'2026-10-02T01:00:00.000Z'});
+ const boston=whereIs(arrived,day,'Boston',new Date('2026-10-02T02:00:00Z'));
+ assert.equal(boston.how,'at');assert.equal(boston.step.title,'Ueno museum and park');assert.equal(boston.since,'10:00');
+ const nate=whereIs(trip,day,'Nate',new Date('2026-10-02T03:20:00Z'));
+ assert.equal(nate.how,'planned');assert.equal(nate.step.title,'Games, gachapon and toys');
+ const early=whereIs(trip,day,'Nate',new Date('2026-09-20T00:00:00Z'));
+ assert.equal(early.how,'next');assert.equal(early.step.title,'Breakfast');
+});
+test('reordering one lane on a split day keeps the whole day in one order',()=>{
+ const {trip,day}=splitTrip();
+ const ids=activeSteps(trip,day).map(s=>s.id);
+ const moved=applyOperation(trip,{type:'reorder',day,ids:[...ids].reverse()},parent);
+ assert.equal(activeSteps(moved,day)[0].id,ids.at(-1));
+});

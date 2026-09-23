@@ -1,6 +1,7 @@
 import {ensureFeatures,inboxNotes,documentSteps,documentServesStep,documentSpent,validPin} from '../src/trip-features.js';
 import {extraOperation} from './features.mjs';
 import { randomUUID } from 'node:crypto';
+import {activeSteps} from '../src/timing.js';
 export const MEMBERS = ['Damien','Lauren','Nate','Boston'];
 // Where a forwarded email can be filed. A ticket is the default; the rest put it where the
 // family would have put it themselves had they typed it in.
@@ -129,7 +130,7 @@ export function applyOperation(input,op,user){
   if(!state.days.some(d=>d.date===op.day)||!clock(op.time??null))throw new AppError('Choose a valid day and time.');
   step.day=op.day;step.time=op.time||null;step.order=Math.max(0,...state.steps.filter(s=>s.day===op.day).map(s=>s.order))+10;
  }else if(op.type==='reorder'){
-  const active=state.steps.filter(s=>s.day===op.day&&(!s.group||!state.choices[s.group]||state.choices[s.group]===s.option));
+  const active=activeSteps(state,op.day);
   if(!Array.isArray(op.ids)||new Set(op.ids).size!==active.length||op.ids.length!==active.length||op.ids.some(id=>!active.some(s=>s.id===id)))throw new AppError('The day changed. Reload before reordering.');
   const slots=active.map(s=>s.order).sort((a,b)=>a-b);op.ids.forEach((id,i)=>{state.steps.find(s=>s.id===id).order=slots[i];});
  }else if(op.type==='remove'){
@@ -151,6 +152,11 @@ export function applyOperation(input,op,user){
  }else if(op.type==='choose'){
   if(!state.steps.some(s=>s.group===op.group&&s.option===op.option))throw new AppError('Option not found.');
   state.choices[op.group]=op.option;
+ }else if(op.type==='groupMode'){
+  // Whether a group's options are alternatives (pick one) or a split (all at once, by different
+  // people). Nothing about the stops changes, so it can be flipped back without losing anything.
+  if(!['choose','split'].includes(op.mode)||!state.steps.some(s=>s.group&&s.group===op.group))throw new AppError('Option group not found.');
+  if(op.mode==='split')state.groupModes[op.group]='split';else delete state.groupModes[op.group];
  }else if(op.type==='reschedule'){
   if(!Array.isArray(op.changes)||!op.changes.length||op.changes.length>300)throw new AppError('Invalid schedule changes.');
   for(const change of op.changes){const s=state.steps.find(s=>s.id===change.id);if(!s||s.locked||['done','started','skipped'].includes(s.status)||!clock(change.time)||change.time===null)throw new AppError('A locked or invalid step cannot move.');s.time=change.time;}
@@ -237,8 +243,8 @@ export function applyOperation(input,op,user){
  }else throw new AppError('Unknown action.');
  const fields=['time','day','bookingTime','place','title','locked'];
  const diffs=op.type==='patch'&&before?fields.filter(k=>JSON.stringify(before[k]??null)!==JSON.stringify(step[k]??null)).map(k=>`${{time:'Target time',day:'Day',bookingTime:'Booking time',place:'Place',title:'Activity',locked:'Time lock'}[k]}: ${before[k]??'none'} → ${step[k]??'none'}`):[];
- const important=!extra?.private&&(extra?.important||diffs.length>0||['reschedule','choose','backlog','schedule','remove'].includes(op.type));
- if(important){const summary=extra?.summary||(diffs.length?`${step.title}: ${diffs.join('; ')}`:`${step?.title||op.option||'Day plan'} · ${{reschedule:'times adjusted',choose:'alternative selected',backlog:'saved to Options',schedule:'added to a day',remove:'removed from itinerary'}[op.type]||'updated'}`);state.alerts=[{id:randomUUID(),summary,by:user.name,at:now,stepId:step?.id||null,seenBy:{[user.name]:now}},...state.alerts].slice(0,200);}
+ const important=!extra?.private&&(extra?.important||diffs.length>0||['reschedule','choose','groupMode','backlog','schedule','remove'].includes(op.type));
+ if(important){const summary=extra?.summary||(diffs.length?`${step.title}: ${diffs.join('; ')}`:`${step?.title||op.option||op.group||'Day plan'} · ${{reschedule:'times adjusted',choose:'alternative selected',groupMode:op.mode==='split'?'we split up here':'back to choosing one plan',backlog:'saved to Options',schedule:'added to a day',remove:'removed from itinerary'}[op.type]||'updated'}`);state.alerts=[{id:randomUUID(),summary,by:user.name,at:now,stepId:step?.id||null,seenBy:{[user.name]:now}},...state.alerts].slice(0,200);}
  if(op.operationId)state.appliedOperationIds=[...(state.appliedOperationIds||[]),op.operationId].slice(-500);
  // Private notes stay out of the shared alert feed and family history.
  if(!extra?.private)state.history=[{id:randomUUID(),at:now,by:user.name,type:op.type,title:extra?.title||step?.title||op.step?.title||op.title||op.option||'Trip update'},...(state.history||[])].slice(0,200);
