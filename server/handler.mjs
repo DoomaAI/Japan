@@ -16,7 +16,7 @@ import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {askTrip,askReady} from './ask.mjs';
 import {nearbyPlaces,nearbyReady} from './nearby.mjs';
 import {fetchSumoDay,fetchSumoResults,fetchWrestler,sumoReady} from './sumo.mjs';
-import {readDocument,readerReady} from './document-reader.mjs';
+import {readDocument,readerReady,translateStoredFile} from './document-reader.mjs';
 import {coachPhoto,coachReady} from './photo-coach.mjs';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
 const json=(res,data,status=200)=>{res.statusCode=status;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));};
@@ -145,6 +145,31 @@ export default async function handler(req,res){
     const found=next.documents.find(d=>d.id===b.id);
     if(!found)throw new AppError('That booking is no longer in the trip.',404);
     found.translations={...(found.translations||{}),[key]:{...translation,by:user.name,at:new Date().toISOString()}};
+    return next;
+   }),user));
+  }
+  // The same, for a ticket's own photo or PDF: read into English and written onto that file,
+  // so everyone who opens the ticket can read it, with or without signal.
+  if(route==='file-translate'&&post){
+   parent(user);
+   if(b.remove===true)return json(res,visibleEnvelope(await updateTrip(next=>{
+    const found=next.documents.find(d=>d.id===b.id);
+    if(!found?.fileTranslation)return null;
+    delete found.fileTranslation;
+    return next;
+   }),user));
+   const {state}=await readTrip();
+   const doc=state.documents.find(d=>d.id===b.id);
+   if(!doc||doc.category==='memory')throw new AppError('That file is no longer in the trip.',404);
+   const {usage,...translation}=await translateStoredFile(doc,async pathname=>{
+    const result=await get(pathname,{access:'private',useCache:false});
+    if(!result||!result.stream)throw new AppError('That file could not be opened.',404);
+    return Buffer.from(await new Response(result.stream).arrayBuffer());
+   });
+   return json(res,visibleEnvelope(await updateTrip(next=>{
+    const found=next.documents.find(d=>d.id===b.id);
+    if(!found)throw new AppError('That file is no longer in the trip.',404);
+    found.fileTranslation={...translation,by:user.name,at:new Date().toISOString()};
     return next;
    }),user));
   }

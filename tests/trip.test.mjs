@@ -8126,3 +8126,69 @@ test('each bout is numbered within its division, and a refreshed card renumbers 
  assert.equal(n['makuuchi-1'],undefined);
  assert.deepEqual(n['makuuchi-2'],{number:1,of:19,division:'makuuchi'});
 });
+
+test('a ticket’s own photo or PDF read into English and kept on the file',async()=>{
+ const {createServer}=await import('node:http');
+ let seen=null,reply={readable:true,language:'Japanese',kind:'hotel confirmation',title:'Kyoto hotel',
+  summary:['Check-in is from 15:00.'],translation:'Check-in 15:00\nReference AB-9931',actions:[{what:'Show this at the desk',when:''}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen={path:req.url,json:JSON.parse(body)};
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'msg_4',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'end_turn',
+    usage:{input_tokens:1200,output_tokens:140},content:[{type:'text',text:JSON.stringify(reply)}]}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ process.env.LOCAL_DEMO='1';delete process.env.VERCEL;
+ const server=createServer(handler);await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ const base=`http://127.0.0.1:${server.address().port}`;
+ const post=(path,data)=>fetch(base+'/api/'+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify(data)});
+ try{
+  const {translateStoredFile,MAX_FILE_BYTES}=await import('../server/document-reader.mjs');
+  // The file is loaded by its own stored path, and read by the same reader as a photographed page.
+  let loaded=null;
+  const file={pathname:'tickets/u/1-confirm.png',type:'image/png',size:2000};
+  const english=await translateStoredFile(file,async p=>{loaded=p;return Buffer.from('png-bytes');});
+  assert.equal(loaded,file.pathname);
+  assert.equal(english.translation,reply.translation);
+  assert.deepEqual(english.actions,reply.actions);
+  assert.equal(english.usage.input,1200);
+  const sent=seen.json.messages[0].content[0];
+  assert.equal(sent.type,'image');
+  assert.equal(sent.source.media_type,'image/png');
+  assert.equal(sent.source.data,Buffer.from('png-bytes').toString('base64'));
+  // A PDF goes as a document.
+  await translateStoredFile({...file,type:'application/pdf'},async()=>Buffer.from('%PDF'));
+  assert.equal(seen.json.messages[0].content[0].type,'document');
+
+  // What is refused before anything is loaded or sent.
+  const never=async()=>{throw new Error('should not load');};
+  await assert.rejects(()=>translateStoredFile({title:'note only'},never),/no photo or PDF/);
+  await assert.rejects(()=>translateStoredFile({...file,type:'audio/webm'},never),/photo or a PDF/);
+  await assert.rejects(()=>translateStoredFile({...file,size:MAX_FILE_BYTES+1},never),/too large/);
+  // An unreadable file is an error, not an empty translation saved onto the ticket.
+  reply={...reply,readable:false,translation:''};
+  await assert.rejects(()=>translateStoredFile(file,async()=>Buffer.from('x')),/could be read/);
+
+  // Through the API: parents only, a real file only, and a translation can be taken off again.
+  const {revision}=await(await fetch(base+'/api/state')).json();
+  const made=await post('mutate',{revision,operation:{type:'documentNote',title:'Kyoto hotel',category:'reservation',notes:'x'}});
+  const doc=(await made.json()).state.documents.at(-1);
+  assert.equal((await(await post('file-translate',{id:doc.id})).json()).error,'This ticket has no photo or PDF to translate.');
+  assert.equal((await post('file-translate',{id:'missing'})).status,404);
+  const cleared=await post('file-translate',{id:doc.id,remove:true});
+  assert.equal(cleared.status,200);
+  assert.equal((await cleared.json()).state.documents.find(d=>d.id===doc.id).fileTranslation,undefined);
+ }finally{
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+  delete process.env.LOCAL_DEMO;
+  await new Promise(r=>server.close(r));
+  await new Promise(r=>upstream.close(r));
+ }
+});

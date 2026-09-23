@@ -80,3 +80,24 @@ export async function readEmailText({subject='',from='',text=''}){
  const preamble=[`From: ${String(from||'').slice(0,250)}`,`Subject: ${String(subject||'').slice(0,250)}`].join('\n');
  return ask([{type:'text',text:`This is an email the family forwarded in. Read it and tell them what it says.\n\n${preamble}\n\n${body.slice(0,20000)}`}]);
 }
+// A ticket's own photo or PDF, read into English where it is kept. The confirmation that came
+// as a screenshot of Japanese is the one the family most needs to read, and the reading is saved
+// onto the file, so it is paid for once and still there at a gate with no signal. The file is
+// loaded here by its own stored path; nothing the browser sends is read in its place.
+export const FILE_TYPES_READ=[...IMAGE_TYPES,PDF];
+// About 4.4 MB once in base64, just under what the reader will take.
+export const MAX_FILE_BYTES=3_300_000;
+export const MAX_FILE_TRANSLATION=8000;
+export async function translateStoredFile(doc,load){
+ if(!doc?.pathname)throw new AppError('This ticket has no photo or PDF to translate.',422);
+ if(!FILE_TYPES_READ.includes(doc.type))throw new AppError('Only a photo or a PDF can be translated.',422);
+ if(Number(doc.size||0)>MAX_FILE_BYTES)throw new AppError('That file is too large to translate. A photo of the page that matters works better.',413);
+ const bytes=await load(doc.pathname);
+ const reading=await readDocument({file:Buffer.from(bytes).toString('base64'),mediaType:doc.type});
+ if(!reading.readable||!reading.translation)throw new AppError('Nothing on this file could be read. Try a clearer photo of the page.',422);
+ return {language:String(reading.language||''),kind:String(reading.kind||''),title:String(reading.title||''),
+  summary:(reading.summary||[]).slice(0,6).map(String),
+  actions:(reading.actions||[]).slice(0,10).map(a=>({what:String(a?.what||''),when:String(a?.when||'')})).filter(a=>a.what),
+  translation:String(reading.translation).slice(0,MAX_FILE_TRANSLATION),
+  usage:reading.usage};
+}
