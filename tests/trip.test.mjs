@@ -348,7 +348,7 @@ test('the weather folds away on the phone that folded it, and says what it is fo
  assert.match(weather,/const fold=\(\)=>setShown\(v=>setOpen\(FOLD_ID,!v\)\)/);
  assert.match(weather,/aria-expanded=\{open\}/,'and says which way it is folded');
  assert.match(weather,/\{!open&&<span className="weather-peek">\{peek\}<\/span>\}/);
- assert.match(weather,/const peek=today\?`\$\{nowIcon\} \$\{today\.max\}° \/ \$\{today\.min\}°/);
+ assert.match(weather,/const peek=today\?<><SkyIcon icon=\{nowIcon\}\/>\{` \$\{today\.max\}° \/ \$\{today\.min\}°/);
  assert.match(css,/\.weather\.folded\{/);
 });
 test('a day we have walked through folds down and greys in the Days menu',async()=>{
