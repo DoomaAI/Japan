@@ -8058,7 +8058,12 @@ test('the handout details and photos are there for the wrestlers on it',async()=
  }
  assert.deepEqual(sumoProfile('Shodai').notes,['Top-division champion ×1']);
  assert.ok(sumoProfile('Toshinofuji').notes.includes('New to the top division'));
- assert.equal(sumoProfile('Onosato'),null,'not on this page of the handout');
+ // Both pages of the handout: every man in the top division on today's card has his details.
+ // (Dewanoryu is a juryo man fighting up a division today, so he is not on it.)
+ for(const b of PRINTED_CARD.bouts.filter(b=>b.division==='makuuchi'))for(const man of [b.east,b.west])
+  if(!/^Juryo/.test(man.rank))assert.ok(sumoProfile(man.name),`${man.name} has nothing from the handout`);
+ assert.equal(sumoProfile('Onosato').titles,5);assert.ok(sumoProfile('Hoshoryu').absent);
+ assert.equal(sumoProfile('Meisei'),null,'the handout is the top division only');
 });
 
 test('the next bout is the feature, and finished bouts go to the foot, latest first',async()=>{
