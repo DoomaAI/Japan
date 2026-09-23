@@ -313,14 +313,15 @@ test('the dashboard opens as a small tile and keeps the leave-by time on it',asy
  assert.match(home,/const \[shown,setShown\]=useState\(\(\)=>isOpen\(FOLD_ID,undefined,false\)\)/,'the tile starts folded');
  assert.match(home,/const fold=\(\)=>setShown\(v=>setOpen\(FOLD_ID,!v\)\)/);
  assert.match(home,/aria-expanded=\{shown\}/,'and says which way it is folded');
- // Folded, it still carries the stop we are on and the time we have to leave by, and both are
- // still one tap into the step itself.
+ // Folded, it still carries the next stop and the fixed booking as its own small card with the
+ // time we have to leave by, and both are still one tap into the step itself.
  assert.match(home,/className="next-title" onClick=\{\(\)=>selectStep\(current\)\}/);
- assert.match(home,/\{fixed&&!shown&&<button className="next-peek" onClick=\{\(\)=>selectStep\(fixed\)\}/);
- assert.match(home,/leave \{japanClock\(departure\)\}/);
- // The booking detail and the drawer of everything else wait behind the fold.
- assert.match(home,/\{shown&&<>\{fixed&&<div className="departure">/);
- assert.match(home,/className="dashboard-actions"/);
+ assert.match(home,/\{fixed&&<div className=\{`departure/,'the fixed booking card shows folded or not');
+ assert.match(home,/className="next-title" onClick=\{\(\)=>selectStep\(fixed\)\}/);
+ assert.match(home,/Leave by \$\{japanClock\(departure\)\}/);
+ // The estimate detail and the drawer of everything else wait behind the fold.
+ assert.match(home,/\{shown&&<small>Estimate:/);
+ assert.match(home,/\{shown&&<div className="dashboard-actions"/);
  assert.doesNotMatch(home,/<h2>\{current\?'What’s next\?'/,'the display headline went with the full tile');
  assert.match(css,/\.next-up\.folded\{/);
  assert.doesNotMatch(css,/\.next-up h2\{font-size/,'nothing reclaims the headline size');
@@ -776,6 +777,11 @@ test('search spans documents, ideas, shopping, challenges and diary, and diary f
  const c=state.challenges[0];c.completions[c.participants[0]]='2026-09-20T16:00:00Z';c.responses={[c.participants[0]]:'I worked it out'};
  assert.match(diaryDays(state,'2026-09-21')[0].challenges[0],/I worked it out/);
  const fixedDay=state.steps.find(s=>s.locked&&s.time).day;const summary=nextSummary(state,fixedDay);assert.ok(summary.current);assert.ok(summary.departure instanceof Date);
+ // Beneath the hero card the tile names the stop after the one the hero shows, not the same one.
+ const {stepsFor}=await import('../src/split.js');
+ const open=stepsFor(state,fixedDay).filter(s=>!['done','skipped'].includes(s.status));
+ assert.equal(nextSummary(state,fixedDay,null,open[0].id).current?.id,open[1]?.id);
+ assert.equal(nextSummary(state,fixedDay,null,open.at(-1).id).current,undefined,'nothing after the last stop');
 });
 
 test('all imported locations retain source rows and produce correctly encoded directions',async()=>{

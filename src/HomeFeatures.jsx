@@ -11,8 +11,8 @@ import {dayLabel} from './AdventurePages.jsx';
 // to miss — and the rest of it waits behind the fold, remembered per phone rather than sprung
 // open on every reload.
 export const FOLD_ID='dashboard';
-export function NextUp({state,day,person=null,now,selectStep,open,go,parent}){
- const {current,fixed,departure}=nextSummary(state,day,person),tickets=state.documents.filter(d=>documentServesStep(d,(fixed||current)?.id)&&d.category!=='memory'&&!isArchived(d));
+export function NextUp({state,day,person=null,after=null,now,selectStep,open,go,parent}){
+ const {current,fixed,departure}=nextSummary(state,day,person,after),tickets=state.documents.filter(d=>documentServesStep(d,fixed?.id)&&d.category!=='memory'&&!isArchived(d));
  const remaining=departure?Math.round((departure-now)/60000):null;
  const [shown,setShown]=useState(()=>isOpen(FOLD_ID,undefined,false));
  const fold=()=>setShown(v=>setOpen(FOLD_ID,!v));
@@ -20,16 +20,21 @@ export function NextUp({state,day,person=null,now,selectStep,open,go,parent}){
  return <section className={`next-up${shown?'':' folded'}`}>
   <div className="next-up-head">
    <div className="next-up-now">
-    <h2 className="eyebrow">{current?'What’s next?':'Day complete'} · {dayLabel(day)}</h2>
-    {current?<button className="next-title" onClick={()=>selectStep(current)}>{current.time||'Any time'} · {current.title}</button>:<p>Time to capture a favourite memory.</p>}
-    {/* Folded, the tile still says the one thing it is for: the time we have to leave by. A tile
-        that collapses to its own name is a row of wasted space with a chevron on it. */}
-    {fixed&&!shown&&<button className="next-peek" onClick={()=>selectStep(fixed)}><LockKeyhole size={13}/>{fixed.time} · {fixed.title} · leave {japanClock(departure)}{day===japanDate(now)&&remaining<0?` · ${Math.abs(remaining)} min late`:''}</button>}
+    <h2 className="eyebrow">{current?'What’s next?':after?'Last stop of the day':'Day complete'} · {dayLabel(day)}</h2>
+    {current?<button className="next-title" onClick={()=>selectStep(current)}>{current.time||'Any time'} · {current.title}</button>:<p>{after?'Nothing else after this stop today.':'Time to capture a favourite memory.'}</p>}
    </div>
    <button type="button" className="next-up-fold" aria-expanded={shown} aria-label={shown?'Hide the rest of the dashboard':'Show the rest of the dashboard'} onClick={fold}>{shown?<ChevronUp size={18}/>:<ChevronDown size={18}/>}</button>
   </div>
-  {shown&&<>{fixed&&<div className="departure"><span>Next fixed booking</span><strong>{fixed.time} · {fixed.title}</strong><span>{leaveBy}</span><small>Estimate: {fixed.travelMinutes??20} min travel + {fixed.arrivalBuffer??15} min early arrival. Check live directions.</small><div className="row wrap"><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinationFor(state,fixed))}&travelmode=transit`} target="_blank" rel="noreferrer">Directions</a><button onClick={()=>open({type:'tickets',step:fixed})}>{tickets.length?`${tickets.length} ticket / booking details`:'Add / view tickets'}</button>{parent&&<button onClick={()=>open({type:'edit',step:fixed})}>Edit travel estimate</button>}</div></div>}
-  <div className="dashboard-actions"><button onClick={()=>open({type:'offline'})}>Offline readiness</button><button onClick={()=>go('meeting')}>Meeting card</button>{parent&&<><button onClick={()=>open({type:'late'})}>We’re running late</button><button onClick={()=>open({type:'capture'})}>Quick capture</button></>}<button onClick={()=>go('challenges')}>Boys’ missions</button><button onClick={()=>go('spending')}>Spending money</button><button onClick={()=>go('shopping')}>Shopping list</button></div></>}
+  {/* The booking that cannot move is its own small card, folded or not: it is the one line on
+      the tile it would be alarming to miss. */}
+  {fixed&&<div className={`departure${day===japanDate(now)&&remaining<0?' late':''}`}>
+   <span className="eyebrow"><LockKeyhole size={12}/>Next fixed booking</span>
+   <button className="next-title" onClick={()=>selectStep(fixed)}>{fixed.time} · {fixed.title}</button>
+   <span className="departure-leave">{leaveBy}</span>
+   {shown&&<small>Estimate: {fixed.travelMinutes??20} min travel + {fixed.arrivalBuffer??15} min early arrival. Check live directions.</small>}
+   <div className="departure-links"><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinationFor(state,fixed))}&travelmode=transit`} target="_blank" rel="noreferrer">Directions</a><button onClick={()=>open({type:'tickets',step:fixed})}>{tickets.length?`Tickets (${tickets.length})`:'Tickets'}</button>{parent&&shown&&<button onClick={()=>open({type:'edit',step:fixed})}>Edit estimate</button>}</div>
+  </div>}
+  {shown&&<div className="dashboard-actions"><button onClick={()=>open({type:'offline'})}>Offline readiness</button><button onClick={()=>go('meeting')}>Meeting card</button>{parent&&<><button onClick={()=>open({type:'late'})}>We’re running late</button><button onClick={()=>open({type:'capture'})}>Quick capture</button></>}<button onClick={()=>go('challenges')}>Boys’ missions</button><button onClick={()=>go('spending')}>Spending money</button><button onClick={()=>go('shopping')}>Shopping list</button></div>}
  </section>;
 }
 export function RunningLate({state,day,mutate,busy,close}){
