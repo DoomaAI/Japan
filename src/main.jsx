@@ -66,6 +66,8 @@ import {todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,ticketList,isArchiv
 import {armPlayback} from './speech.js';
 import {PhraseAudio} from './PhraseAudio.jsx';
 import {typesText} from './swipe.js';
+import {daySplits,stepsFor} from './split.js';
+import SplitDay,{WhoseDay} from './SplitDay.jsx';
 import './style.css';
 import './guide-theme.css';
 
@@ -96,6 +98,9 @@ function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
  const [focus,setFocus]=useState(new URLSearchParams(location.search).get('item')||null);
+ // Whose day the screen follows on a split: null is your own, '' is everyone, or a name. Changing
+ // it lets go of the stop being looked at, which may not be on the day being switched to.
+ const [lensChoice,setLensChoice]=useState(null),follow=p=>{setLensChoice(p);setSelected(null);};
  const [updateReady,setUpdateReady]=useState(false),[modal,setModal]=useState(null),[busy,setBusy]=useState(false),[online,setOnline]=useState(navigator.onLine),[now,setNow]=useState(new Date()),[queue,setQueue]=useState(stored('japan.queue',[])),[conflict,setConflict]=useState(false);
  // One speaking voice for the whole screen, handed to whatever on it can be read out, so the
  // fact on a step card reads aloud for Nate the same way the pop-up does and two of them can
@@ -226,8 +231,13 @@ function App(){
  const settings=useMemo(()=>readSettings(user?.name),[user?.name,settingsAt]);
  const changeSetting=(id,value)=>{writeSetting(user?.name,id,value);bumpSettings(n=>n+1);};
  const forecast=useForecastCheck({state:visibleState||{days:[]},day:null,mutate,notice});
- const today=state?.days.find(d=>d.date===day),steps=visibleState?activeSteps(visibleState,day):[],current=steps.find(s=>s.id===selected)||steps.find(s=>!['done','skipped'].includes(s.status))||steps.at(-1),index=steps.findIndex(s=>s.id===current?.id);
- const done=steps.filter(s=>s.status==='done').length,nextFixed=steps.find(s=>s.locked&&!['done','skipped'].includes(s.status)&&s.id!==current?.id),groups=state?[...new Set(state.steps.filter(s=>s.day===day&&s.group).map(s=>s.group))]:[];
+ const allSteps=visibleState?activeSteps(visibleState,day):[],splits=visibleState?daySplits(visibleState,day):[];
+ // A link or a tap straight to a stop on somebody else's lane follows that lane, rather than
+ // quietly landing on your own first stop instead.
+ const chosenLens=lensChoice===null?user?.name||'':lensChoice,hiddenLane=selected&&chosenLens&&!stepsFor(visibleState||{steps:[]},day,chosenLens).some(s=>s.id===selected)?splits.flatMap(sp=>sp.lanes).find(l=>l.steps.some(s=>s.id===selected)):null;
+ const lens=hiddenLane?hiddenLane.members[0]:chosenLens;
+ const today=state?.days.find(d=>d.date===day),steps=visibleState?stepsFor(visibleState,day,lens||null):[],current=steps.find(s=>s.id===selected)||steps.find(s=>!['done','skipped'].includes(s.status))||steps.at(-1),index=steps.findIndex(s=>s.id===current?.id);
+ const done=steps.filter(s=>s.status==='done').length,nextFixed=steps.find(s=>s.locked&&!['done','skipped'].includes(s.status)&&s.id!==current?.id),groups=state?[...new Set(state.steps.filter(s=>s.day===day&&s.group&&state.groupModes?.[s.group]!=='split').map(s=>s.group))]:[];
  function go(id,d,item){setFocus(item||null);if(d&&state.days.some(x=>x.date===d)){setDay(d);setSelected(null);}setTab(id);setQuery('');setModal(null);history.replaceState(null,'','/?'+new URLSearchParams({tab:id,day:d||day,...(item?{item}:{})}));}
  // Today on the bar or in the menu means today: on a trip day it lands on today's date rather than
  // whichever day was last being looked at. Before and after the trip it keeps the day in hand.
@@ -344,7 +354,9 @@ function App(){
  const homeWidgets=tab==='today'&&{
   needs:<MorningNeeds state={visibleState} day={day} clock={japanClock(now)} today={japanDate(now)}/>,
   step:<>
-   {groups.length>0&&<div className="option-bar">{groups.map(g=><label key={g}>Choose a plan<select disabled={!parent||busy} value={state.choices[g]||''} onChange={e=>mutate({type:'choose',group:g,option:e.target.value})}>{[...new Set(state.steps.filter(s=>s.group===g).map(s=>s.option))].map(o=><option key={o}>{o}</option>)}</select></label>)}</div>}
+   {groups.length>0&&<div className="option-bar">{groups.map(g=><div key={g} className="option-group"><label>Choose a plan<select disabled={!parent||busy} value={state.choices[g]||''} onChange={e=>mutate({type:'choose',group:g,option:e.target.value})}>{[...new Set(state.steps.filter(s=>s.group===g).map(s=>s.option))].map(o=><option key={o}>{o}</option>)}</select></label>{/* The same options, all at once by different people, rather than one of them for everybody. */}{parent&&new Set(state.steps.filter(s=>s.group===g).map(s=>s.option)).size>1&&<button type="button" className="split-toggle" disabled={busy} onClick={()=>mutate({type:'groupMode',group:g,mode:'split'})}>We split up and do both</button>}</div>)}</div>}
+   <SplitDay state={visibleState} splits={splits} day={day} now={now} user={user} parent={parent} busy={busy} lens={lens} setLens={follow} selectStep={selectStep} mutate={mutate}/>
+   {splits.length>0&&<WhoseDay state={visibleState} user={user} lens={lens} setLens={follow}/>}
    <section className="step-area">
    {current?<article className={`step-card ${current.status==='done'?'complete':''}`} onTouchStart={e=>{touch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}} onTouchEnd={e=>{if(!touch.current||['BUTTON','A','INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;const dx=e.changedTouches[0].clientX-touch.current.x,dy=e.changedTouches[0].clientY-touch.current.y;if(Math.abs(dx)>65&&Math.abs(dy)<50)move(dx<0?1:-1);touch.current=null;}}>
     <div className="card-top"><span className="eyebrow">STEP {index+1} / {steps.length}</span><div className="row"><StepWeather state={visibleState} step={current} steps={steps} pill onOpen={()=>go('weather',day)}/><span className={`tag ${current.kind}`}>{current.locked?'Fixed time':current.kind==='optional'?'Optional':current.review?'Check details':'Flexible'}</span>{parent&&<><button className="icon" aria-label={current.locked?'Unlock time':'Lock time'} onClick={()=>mutate({type:'lock',id:current.id,locked:!current.locked})}>{current.locked?<LockKeyhole size={19}/>:<LockKeyholeOpen size={19}/>}</button>{/* The same two answers the timeline row offers, on the stop you are actually standing in front of: the tray moves it to Options on the tap, the bin only opens the question. */}<button className="icon to-options" aria-label={`Save ${current.title} to Options`} onClick={()=>optionStop(current)}><Inbox size={19}/></button><button className="icon remove-stop" aria-label={`Remove ${current.title} from this day`} onClick={()=>removeStop(current)}><Trash2 size={19}/></button></>}</div></div>
@@ -383,7 +395,7 @@ function App(){
   </>,
   links:<div className="quick-links"><Link href={directions(today?.hotel)}><House size={18}/><span>Tonight’s hotel<strong>{today?.hotel}</strong></span><ExternalLink size={15}/></Link>{nextFixed&&<button onClick={()=>selectStep(nextFixed)}><LockKeyhole size={18}/><span>Next fixed time<strong>{nextFixed.time} · {nextFixed.title}</strong></span><ChevronRight size={18}/></button>}</div>,
   actions:<div className="home-actions"><Button icon={ListOrdered} onClick={()=>go('glance')}>The day at a glance</Button>{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>,
-  nextup:<NextUp state={visibleState} day={day} now={now} selectStep={selectStep} open={setModal} go={go} parent={parent}/>,
+  nextup:<NextUp state={visibleState} day={day} person={lens||null} now={now} selectStep={selectStep} open={setModal} go={go} parent={parent}/>,
   tally:<div className="day-tools"><span><CheckCircle2 size={16}/>{done} of {steps.length} completed</span><div><Button icon={ImageIcon} onClick={()=>setModal({type:'media',day})}>Photos</Button><Button icon={Mic} onClick={()=>setModal({type:'voice',day})}>Voice</Button><Button icon={Ticket} onClick={()=>setModal({type:'tickets'})}>Tickets</Button>{config?.nearby&&<Button icon={Compass} onClick={()=>setModal({type:'nearby'})}>Near here</Button>}{parent&&<Button icon={Plus} onClick={()=>setModal({type:'edit',step:null})}>Add</Button>}</div></div>,
   guide:!!today?.pages?.length&&<section className="day-guide" aria-label="Original guide pages for this day"><div className="section-heading"><div><p className="eyebrow">YOUR ORIGINAL TRAVEL GUIDE</p><h2>This day in the guide</h2></div><Button icon={BookOpen} onClick={()=>openPage(today.pages[0])}>Read guide</Button></div><p>Swipe through the pages · tap any page to read it in full.</p><div className="day-guide-pages" key={day}>{today.pages.map(p=><button key={p} className="day-guide-page" onClick={()=>openPage(p)} aria-label={`Read original guide page ${p}`}><img src={`/api/guide?page=${p}`} alt={`Original travel guide page ${p}`} loading="lazy"/><span>Page {p}<ChevronRight size={16}/></span></button>)}</div></section>,
   weather:<Weather state={visibleState} day={day} now={now} mutate={mutate} busy={busy} online={online} notice={notice} dayLabel={fmtDay} go={go}/>,
@@ -413,7 +425,7 @@ function App(){
   {tab==='glance'&&<>
    {dayHeading}
    {dayStrip(d=>go('glance',d))}
-   <DayTimeline steps={steps} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/>
+   <DayTimeline steps={steps} allSteps={allSteps} splits={splits} lens={lens} setLens={follow} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/>
   </>}
   {tab==='challenges'&&<Challenges key={day+(focus||'')} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy} go={go}/>}
@@ -533,7 +545,7 @@ function StepForm({step,day,before,state,busy,onSave,onRemove,onCancel}){
   <label>Notes<textarea value={form.notes} maxLength={4000} onChange={e=>field('notes',e.target.value)}/></label>
   <fieldset><legend>Who’s going?</legend><div className="checks">{state.members.map(n=><label key={n}><input type="checkbox" checked={form.participants.includes(n)} onChange={e=>field('participants',e.target.checked?[...form.participants,n]:form.participants.filter(x=>x!==n))}/>{n}</label>)}</div></fieldset>
   {!step&&form.day!==null&&<label>Insert before<select value={position} onChange={e=>setPosition(e.target.value)}><option value="end">End of day</option>{state.steps.filter(s=>s.day===form.day).sort((a,b)=>a.order-b.order).map(s=><option key={s.id} value={s.id}>{s.time} {s.title}</option>)}</select></label>}
-  <details><summary>Options and guide link</summary><p>Give alternative plans the same group name, and a different option name. Steps in the same option stay together.</p><label>Option group<input value={form.group} onChange={e=>field('group',e.target.value)}/></label><label>Option name<input value={form.option} onChange={e=>field('option',e.target.value)}/></label><label>Original guide page<input type="number" min="1" max="72" value={form.page} onChange={e=>field('page',e.target.value)}/></label></details>
+  <details><summary>Options and guide link</summary><p>Give alternative plans the same group name, and a different option name. Steps in the same option stay together. To split up instead — both options at once, by different people — give each side its own option name, tick who is going on each, then choose <em>We split up and do both</em> on the day. The first stop afterwards with everyone on it is where we meet back up.</p><label>Option group<input value={form.group} onChange={e=>field('group',e.target.value)}/></label><label>Option name<input value={form.option} onChange={e=>field('option',e.target.value)}/></label><label>Original guide page<input type="number" min="1" max="72" value={form.page} onChange={e=>field('page',e.target.value)}/></label></details>
   <div className="row wrap"><Button className="primary" disabled={busy||!form.participants.length}>Save activity</Button><Button type="button" onClick={onCancel}>Cancel</Button></div>
   {step&&<><hr/><div className="row wrap">{step.day&&<Button type="button" icon={Inbox} disabled={step.locked} onClick={()=>onSave({type:'backlog',id:step.id})}>Missed / save to Options</Button>}<Button type="button" icon={SkipForward} onClick={()=>onSave({type:'status',id:step.id,status:'skipped'})}>Skip this step</Button><Button type="button" icon={RotateCcw} onClick={()=>onSave({type:'status',id:step.id,status:'todo'})}>Reset progress</Button><Button type="button" className="danger" icon={Trash2} onClick={()=>onRemove(step)}>Remove this stop</Button></div>{step.completedAt&&<><label>Correct completion time (Japan)<input type="datetime-local" value={at} onChange={e=>setAt(e.target.value)}/></label><Button type="button" onClick={()=>onSave({type:'status',id:step.id,status:'done',at:new Date(at+':00+09:00').toISOString()})}>Update completion time</Button></>}</>}
  </form>;
