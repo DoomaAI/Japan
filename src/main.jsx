@@ -46,7 +46,7 @@ import DayTimeline from './DayTimeline.jsx';
 import RemoveStop from './RemoveStop.jsx';
 import VoiceNotes from './VoiceNotes.jsx';
 import Games from './Games.jsx';
-import Weather,{MorningNeeds} from './Weather.jsx';
+import Weather,{MorningNeeds,StepWeather} from './Weather.jsx';
 import DocumentReader from './DocumentReader.jsx';
 import EmailInbox from './EmailInbox.jsx';
 import PhotoDay from './PhotoDay.jsx';
@@ -338,6 +338,7 @@ function App(){
     <div className="time-display">{current.time||'Any time'}{current.time&&<span>JST</span>}</div>
     <h2>{current.title}</h2>
     {current.place&&<p className="place-line"><MapPin size={17}/>{current.place}</p>}{resolveLocation(state,current)&&<small className="matched-address">{resolveLocation(state,current).address}</small>}{stepPin(current)&&<small className="matched-address"><LocateFixed size={13}/> Pinned where we stood · {pinText(stepPin(current))} · directions come back here</small>}
+    <StepWeather state={visibleState} step={current} steps={steps}/>
     {phoneLinks(current.phone)&&<ContactRow phone={phoneLinks(current.phone)} title={current.title}/>}
     {current.notes&&<p className="step-notes">{current.notes}</p>}
     {current.review&&<p className="callout"><AlertCircle size={18}/> Check the booking or original guide before relying on this step.</p>}

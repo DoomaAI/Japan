@@ -2,6 +2,7 @@ import React,{useState} from 'react';
 import {CloudSun,RefreshCw,ChevronRight,ChevronDown} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
+import {SunTimes} from './Weather.jsx';
 import {forecastFor,forecastAge,ageLabel,describe,advice,hoursFor} from './weather-data.js';
 import {japanDate,japanClock} from './timing.js';
 // One day, opened up: the hour-by-hour graph, what it means, and the same numbers as a table.
@@ -15,6 +16,7 @@ export function DayWeather({state,day,nowHour}){
    <div><strong>{entry.max}° / {entry.min}°</strong>
     <small>{describe(entry.code)[0]} · {entry.city}{entry.rain!==null?` · ${entry.rain}% rain at its worst`:''}</small></div>
   </div>}
+  <SunTimes entry={entry}/>
   <DayShape hours={hours}/>
   {hours
    ?<><HourlyChart hours={hours} nowHour={nowHour} picked={picked} onPick={setPicked}/><HourlyTable hours={hours}/></>

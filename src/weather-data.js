@@ -1,3 +1,6 @@
+import {activeSteps,minutes} from './timing.js';
+import {resolveLocation} from './locations.js';
+import {stepPin} from './trip-features.js';
 // Where each day of the trip actually is, for a forecast. The Disney days are Urayasu, which
 // is its own spot on the bay and can be several degrees off central Tokyo on a windy day.
 export const CITY_POINTS={
@@ -10,6 +13,98 @@ export const CITY_POINTS={
  'DisneySea / Tokyo':{name:'Tokyo DisneySea',lat:35.6267,lon:139.8850}
 };
 export const pointFor=city=>CITY_POINTS[city]||CITY_POINTS.Tokyo;
+// The neighbourhoods the stops are actually in. A city's forecast is a fair guess for a day, but
+// Arashiyama sits against the hills west of Kyoto and Kamakura is an hour away on the coast, so a
+// stop is forecast for its own patch of the map. Checked in order against the stop's district,
+// then its place, then its name; the first match wins, so the narrower names come first.
+export const AREA_POINTS=[
+ [/haneda/i,{name:'Haneda',lat:35.5494,lon:139.7798}],
+ [/disney|maihama|urayasu/i,{name:'Tokyo Disney Resort',lat:35.6329,lon:139.8804}],
+ [/kamakura/i,{name:'Kamakura',lat:35.3192,lon:139.5467}],
+ [/ginza|yurakucho/i,{name:'Ginza',lat:35.6717,lon:139.765}],
+ [/tsukiji/i,{name:'Tsukiji',lat:35.6655,lon:139.7707}],
+ [/marunouchi|tokyo station/i,{name:'Tokyo Station',lat:35.6812,lon:139.7671}],
+ [/imperial palace|kitanomaru/i,{name:'Imperial Palace',lat:35.6852,lon:139.7528}],
+ [/akasaka|toranomon|azabudai/i,{name:'Toranomon',lat:35.6668,lon:139.7497}],
+ [/roppongi/i,{name:'Roppongi',lat:35.6628,lon:139.7314}],
+ [/harajuku|omotesando|takeshita|cat street|meiji/i,{name:'Harajuku',lat:35.6702,lon:139.7027}],
+ [/daikanyama/i,{name:'Daikanyama',lat:35.6486,lon:139.7031}],
+ [/ebisu/i,{name:'Ebisu',lat:35.6467,lon:139.7101}],
+ [/shibuya|kamiyamacho|miyashita/i,{name:'Shibuya',lat:35.6595,lon:139.7005}],
+ [/shinjuku/i,{name:'Shinjuku',lat:35.6938,lon:139.7034}],
+ [/shimokitazawa/i,{name:'Shimokitazawa',lat:35.6617,lon:139.668}],
+ [/futako|tamagawa/i,{name:'Futako-Tamagawa',lat:35.6114,lon:139.6268}],
+ [/setagaya/i,{name:'Setagaya',lat:35.6466,lon:139.6533}],
+ [/tokyo dome|korakuen|iidabashi/i,{name:'Tokyo Dome',lat:35.7056,lon:139.7519}],
+ [/ueno/i,{name:'Ueno',lat:35.7138,lon:139.7773}],
+ [/asakusa/i,{name:'Asakusa',lat:35.7148,lon:139.7967}],
+ [/skytree|oshiage/i,{name:'Tokyo Skytree',lat:35.7101,lon:139.8107}],
+ [/ryogoku|kokugikan/i,{name:'Ryogoku',lat:35.6962,lon:139.793}],
+ [/odaiba|aomi|teamlab/i,{name:'Odaiba',lat:35.627,lon:139.7768}],
+ [/arashiyama|sagano|saga/i,{name:'Arashiyama',lat:35.0094,lon:135.6668}],
+ [/\buji\b/i,{name:'Uji',lat:34.8843,lon:135.8}],
+ [/fushimi|inari/i,{name:'Fushimi Inari',lat:34.9671,lon:135.7727}],
+ [/kiyomizu|ninenzaka|sannenzaka/i,{name:'Kiyomizu',lat:34.9949,lon:135.785}],
+ [/gion|higashiyama|shirakawa|pontocho/i,{name:'Gion',lat:35.0037,lon:135.7788}],
+ [/okazaki|heian/i,{name:'Okazaki',lat:35.0126,lon:135.7824}],
+ [/kyoto station|shimogyo/i,{name:'Kyoto Station',lat:34.9858,lon:135.7588}],
+ [/nakagyo|shijo|kawaramachi|karasuma|nishiki/i,{name:'Central Kyoto',lat:35.0086,lon:135.765}],
+ [/universal|usj/i,{name:'Universal City',lat:34.6654,lon:135.4323}],
+ [/umeda|osaka station|tenma|ogimachi/i,{name:'Umeda',lat:34.7025,lon:135.4959}],
+ [/shinsaibashi|minamisenba/i,{name:'Shinsaibashi',lat:34.6748,lon:135.5012}],
+ [/dotonbori|namba|nipponbashi|minatomachi/i,{name:'Namba',lat:34.6687,lon:135.5013}],
+ [/uehonmachi/i,{name:'Uehonmachi',lat:34.6653,lon:135.5207}],
+ [/nara park|todaiji|kasuga/i,{name:'Nara Park',lat:34.6851,lon:135.843}],
+ [/\bnara\b/i,{name:'Nara',lat:34.6813,lon:135.828}]
+];
+// Where one stop is, for its forecast: the pin the family dropped standing there, then the
+// neighbourhood it is in, then the city the day is in.
+export function stepPoint(state,step){
+ const pin=stepPin(step);
+ if(pin)return {name:'where we pinned it',lat:Math.round(pin.lat*100)/100,lon:Math.round(pin.lng*100)/100};
+ const location=resolveLocation(state,step);
+ for(const text of [location?.district,step?.place,step?.title,location?.city]){
+  const hit=text&&AREA_POINTS.find(([pattern])=>pattern.test(text));
+  if(hit)return hit[1];
+ }
+ return pointFor(state.days?.find(d=>d.date===step?.day)?.city);
+}
+// The hour a stop happens in. A stop with no time of its own is placed where the plan puts it,
+// after the timed stop before it and everything between, and said to be approximate.
+export function stepHour(steps,step){
+ const at=m=>({h:Math.min(23,Math.max(0,Math.round(m/60)))});
+ if(step?.time)return {...at(minutes(step.time)),approx:false};
+ const i=steps.findIndex(s=>s.id===step?.id);if(i<0)return null;
+ for(let j=i-1,gap=0;j>=0;j--){
+  gap+=Number(steps[j].duration)||0;
+  if(steps[j].time)return {...at(minutes(steps[j].time)+gap),approx:true};
+ }
+ const next=steps.slice(i+1).find(s=>s.time);
+ return next?{...at(minutes(next.time)),approx:true}:null;
+}
+// Every stop the forecast can say something about, grouped by the place it is forecast for, so
+// one lookup per neighbourhood answers every stop in it.
+export function stepTargets(state,fromDay){
+ const byPlace=new Map();
+ for(const d of state.days.filter(d=>!fromDay||d.date>=fromDay)){
+  const list=activeSteps(state,d.date);
+  for(const s of list){
+   const at=stepHour(list,s);if(!at)continue;
+   const point=stepPoint(state,s),key=`${point.lat},${point.lon}`;
+   const got=byPlace.get(key)||{point,items:[]};got.items.push({id:s.id,date:d.date,h:at.h});byPlace.set(key,got);
+  }
+ }
+ return [...byPlace.values()];
+}
+// Sunrise and sunset, which decide whether a stop is in the light, as the clock time Open-Meteo
+// gives for the place in Japan time.
+export const sunClock=stamp=>{const at=/T(\d{2}:\d{2})/.exec(String(stamp||''));return at?at[1]:null;};
+export function isDark(entry,h){
+ if(!entry?.sunrise||!entry?.sunset)return false;
+ return h*60+30<minutes(entry.sunrise)||h*60+30>minutes(entry.sunset);
+}
+// After dark a clear sky is a moon, not a sun.
+export const iconAt=(code,dark)=>dark&&[0,1].includes(code)?'🌙':dark&&code===2?'☁️':describe(code)[1];
 // The WMO codes Open-Meteo returns, in words a family would use and an emoji a five-year-old
 // can read before he can read the words.
 export const WMO={
@@ -28,10 +123,30 @@ export const describe=code=>WMO[code]||['Unknown','🌡️'];
 // Free, no key, no account. Asked for one place at a time because the trip moves about.
 export function forecastUrl({lat,lon},start,end){
  const q=new URLSearchParams({latitude:lat,longitude:lon,timezone:'Asia/Tokyo',
-  daily:'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+  daily:'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset',
   hourly:'temperature_2m,apparent_temperature,precipitation_probability,weather_code',
   start_date:start,end_date:end});
  return `https://api.open-meteo.com/v1/forecast?${q}`;
+}
+// The same hours for several neighbourhoods in one request: Open-Meteo takes a list of places
+// and answers with a list, in the same order.
+export const AREAS_PER_REQUEST=20;
+export function areaForecastUrl(points,start,end){
+ const q=new URLSearchParams({latitude:points.map(p=>p.lat).join(','),longitude:points.map(p=>p.lon).join(','),
+  timezone:'Asia/Tokyo',hourly:'temperature_2m,apparent_temperature,precipitation_probability,weather_code',
+  start_date:start,end_date:end});
+ return `https://api.open-meteo.com/v1/forecast?${q}`;
+}
+// One stop's forecast out of the hours for its place: the hour it happens in, and where.
+export function stepReadings(targets,hoursByPlace){
+ const out={};
+ targets.forEach(({point,items},i)=>{
+  for(const item of items){
+   const hour=hoursByPlace[i]?.[item.date]?.find(x=>x.h===item.h);
+   if(hour)out[item.id]={...hour,area:point.name};
+  }
+ });
+ return out;
 }
 // The same answer, by the hour. This is what makes the difference between "22 degrees" and
 // "cold until ten, then fine until the rain at four", which is the thing that changes a day.
@@ -83,11 +198,24 @@ export function parseForecast(json,city){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return;
   if(!Number.isFinite(code)||!Number.isFinite(max)||!Number.isFinite(min))return;
   if(max<-50||max>60||min<-60||min>50||min>max)return;
-  out[date]={city,code,max:Math.round(max),min:Math.round(min),rain:Number.isFinite(rain)?Math.round(rain):null};
+  out[date]={city,code,max:Math.round(max),min:Math.round(min),rain:Number.isFinite(rain)?Math.round(rain):null,
+   sunrise:sunClock(d.sunrise?.[i]),sunset:sunClock(d.sunset?.[i])};
  });
  return out;
 }
 export const forecastFor=(state,day)=>state.weather?.days?.[day]||null;
+// The weather for one stop, at its hour and in its neighbourhood. The reading saved for the stop
+// is used only while it still describes it — same hour, same place — because a stop moved to the
+// afternoon or to another district after the check is not what was forecast. Failing that, the
+// city's hour stands in, and says it is the city's.
+export function stepWeather(state,step,steps){
+ const at=stepHour(steps||activeSteps(state,step.day),step);if(!at)return null;
+ const day=forecastFor(state,step.day),dark=isDark(day,at.h);
+ const saved=state.weather?.steps?.[step.id],place=stepPoint(state,step).name;
+ if(saved&&saved.h===at.h&&saved.area===place)return {...saved,approx:at.approx,local:true,dark};
+ const hour=hoursFor(state,step.day)?.find(x=>x.h===at.h);
+ return hour?{...hour,area:day?.city||pointFor(state.days?.find(d=>d.date===step.day)?.city).name,approx:at.approx,local:false,dark}:null;
+}
 // A forecast more than a few days out is a guess, and a stale one is worse than none. This is
 // what the screen uses to say how much to trust what it is showing.
 export function forecastAge(state,now=new Date()){
