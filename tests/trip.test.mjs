@@ -5,6 +5,7 @@ import {createServer} from 'node:http';
 import {applyOperation,AppError} from '../server/model.mjs';
 import {activeSteps,scheduleProposal,japanClock,japanDate,scheduleVariance,stayPlan} from '../src/timing.js';
 import handler from '../server/handler.mjs';
+import {REST,MAX_ZOOM,clampView,zoomAbout,pinchView,tapView} from '../src/zoom.js';
 import {htmlToText,parseInbound,addToInbox,MAX_INBOX} from '../server/email.mjs';
 const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url)));
 const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'},child_=child;
@@ -7850,4 +7851,71 @@ test('each stop has its own forecast, for its neighbourhood at its hour, and the
  assert.match(main,/<StepWeather state=\{visibleState\} step=\{current\} steps=\{steps\}\/>/);
  assert.match(timeline,/<StepWeather state=\{state\} step=\{s\} steps=\{steps\} compact\/>/);
  assert.match(weather,/<SunTimes entry=\{today\}\/>/);
+});
+test('a photo pinches in about the fingers, stays inside its frame, and a double tap comes back out',()=>{
+ const w=400,h=300;
+ // Whatever sits under the fingers stays under them as the picture grows.
+ const at=zoomAbout(REST,2,100,50,w,h);assert.deepEqual(at,{s:2,x:-100,y:-50});
+ assert.equal((100-at.x)/at.s,100);assert.equal((50-at.y)/at.s,50);
+ // Never smaller than fitted, never past the cap, never dragged so far an edge comes away.
+ assert.deepEqual(clampView({s:.4,x:30,y:30},w,h),REST);
+ assert.equal(clampView({s:99,x:0,y:0},w,h).s,MAX_ZOOM);
+ assert.deepEqual(clampView({s:2,x:50,y:-900},w,h),{s:2,x:0,y:-300});
+ // Fingers spreading to twice their distance doubles the view they started from, and the
+ // midpoint moving carries the picture along with it.
+ const start={s:2,x:-100,y:-50},from={mx:200,my:150,d:100};
+ assert.deepEqual(pinchView(start,from,{mx:200,my:150,d:200},w,h),{s:4,x:-400,y:-250});
+ assert.deepEqual(pinchView(start,from,{mx:180,my:140,d:100},w,h),{s:2,x:-120,y:-60});
+ assert.deepEqual(pinchView(start,from,{mx:200,my:150,d:10},w,h),REST);
+ // Double tap goes in on the spot, and again comes back to fitting the screen.
+ const tapped=tapView(REST,200,150,w,h);assert.equal(tapped.s,2.5);assert.equal((200-tapped.x)/tapped.s,200);
+ assert.deepEqual(tapView(tapped,10,10,w,h),REST);
+});
+
+test('both photo viewers hand their picture to the zoomable frame, and a zoomed photo holds the swipe back',async()=>{
+ const viewer=await readFile(new URL('../src/TicketViewer.jsx',import.meta.url),'utf8');
+ const gallery=await readFile(new URL('../src/MediaGallery.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(viewer,/<ZoomImage key=\{view\.id\}[^>]*onZoom=/);
+ assert.match(viewer,/onTouchStart=\{e=>\{touch\.current=e\.touches\.length===1&&!zoomed\.current/);
+ assert.match(viewer,/if\(!touch\.current\|\|zoomed\.current/);
+ assert.match(gallery,/<ZoomImage src=\{fileUrl\(view\)\}/);
+ // The frame takes every touch, so the page itself never zooms underneath the photo.
+ assert.match(css,/\.zoom-frame\{[^}]*touch-action:none/);
+});
+
+test('the printed Day 11 programme loads as the card, with no site and no key',async()=>{
+ const {PRINTED_CARD}=await import('../src/sumo-printed.js');
+ const {sumo,sumoCard,boutPredictions}=await import('../src/trip-features.js');
+ let state=applyOperation(structuredClone(seed),{type:'sumoUpdate',...PRINTED_CARD},parent);
+ assert.equal(sumo(state).bouts.length,34);
+ assert.deepEqual(sumoCard(state).map(g=>[g.id,g.bouts.length]),[['juryo',14],['makuuchi',20]]);
+ const last=sumoCard(state).at(-1).bouts.at(-1);
+ assert.equal(`${last.east.name} v ${last.west.name}`,'Onosato v Fujinokawa','the last bout of the day is the last on the sheet');
+ assert.equal(last.east.rank,'Yokozuna · 9-1');assert.equal(last.west.stable,'Isenoumi');
+ for(const b of sumo(state).bouts)for(const man of [b.east,b.west])assert.ok(man.rank,`${man.name} has no rank`);
+ state=applyOperation(state,{type:'sumoPredict',id:last.id,person:'Boston',winner:'Onosato'},child);
+ // Loading it again keeps the picks already made on it.
+ state=applyOperation(state,{type:'sumoUpdate',...PRINTED_CARD},parent);
+ assert.equal(boutPredictions(state,last.id).Boston,'Onosato');
+});
+
+test('every wrestler on the printed card has his name in Japanese and how to say it',async()=>{
+ const {PRINTED_CARD}=await import('../src/sumo-printed.js');
+ const {SUMO_NAMES,sumoName}=await import('../src/sumo-names.js');
+ const {sayName,romajiName,plainName}=await import('../src/sumo-say.js');
+ for(const b of PRINTED_CARD.bouts)for(const man of [b.east,b.west])assert.ok(sumoName(man.name),`${man.name} has no Japanese name`);
+ // The kana is checked against the name as the programme spells it, so a slip in either shows.
+ for(const [name,[kanji,kana]] of Object.entries(SUMO_NAMES)){
+  assert.equal(plainName(kana).toLowerCase(),name.toLowerCase(),`${name}: ${kana} does not read as ${name}`);
+  assert.match(kanji,/^[\p{Script=Han}ノの乃之]+$/u,`${name}: ${kanji}`);
+ }
+ assert.deepEqual(sayName('おおのさと'),{say:'oh-noh-sa-toh',hold:['oh']});
+ assert.equal(romajiName('ほうしょうりゅう'),'Hōshōryū');
+ assert.equal(sayName('だいえいしょう').say,'dye-ay-shoh');
+ // A word boundary is not a long vowel: Hiradoumi is Hirado-umi, not Hiradōmi.
+ assert.equal(romajiName('ひらど・うみ'),'Hiradoumi');assert.equal(sayName('ひらど・うみ').say,'hee-ra-doh-oo-mee');
+ assert.equal(sumoName('Kazuma').kanji,'一意');assert.equal(sumoName('Onokatsu').kanji,'阿武剋');
+ assert.equal(sumoName('Hiradoumi').phrase.ja,'ひらどうみ','the dot is only a marker and is not read aloud');
+ assert.equal(sumoName('Nobody'),null);
 });
