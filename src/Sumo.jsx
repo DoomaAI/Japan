@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
 import {Download,ExternalLink,RefreshCw,Search,Trophy,AlertCircle,User,Clock,X,Check,Lock,Crown,Gem,Star,Award,Medal,Shield,Home,Undo2} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {SUMO_SITE_DIVISIONS,sumoSiteUrl,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,predictionLadder,tippingTable,runningTotals,boutQueue} from './trip-features.js';
+import {SUMO_SITE_DIVISIONS,sumoSiteUrl,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,predictionLadder,tippingTable,runningTotals,boutQueue,boutNumbers} from './trip-features.js';
 import {japanClock} from './timing.js';
 import {PRINTED_CARD} from './sumo-printed.js';
 import {sumoName} from './sumo-names.js';
@@ -32,6 +32,11 @@ const OfficialLinks=({dayNumber})=><div className="row wrap sumo-official">
  {SUMO_SITE_DIVISIONS.map(([id,,label])=><a key={id} className="button" href={sumoSiteUrl(dayNumber??undefined,id)} target="_blank" rel="noopener noreferrer">
   {label} · official <ExternalLink size={14}/></a>)}
 </div>;
+// A bout's number on the day, counted within its division the way the programme counts them, so
+// "bout 14" on the board in the arena is bout 14 here. The division rides with it because the
+// upcoming and finished piles run across divisions.
+const DIVISION_SHORT={makuuchi:'Makuuchi',juryo:'Juryo',makushita:'Makushita',other:'Earlier bouts'};
+const boutTag=n=>n?`Bout ${n.number} of ${n.of} · ${DIVISION_SHORT[n.division]||DIVISION_SHORT.other}`:'';
 // The moment a winner goes in: a trophy that jumps out of his card and a spray of confetti,
 // a second and a half of it, then gone. Still for anyone who has asked for less motion.
 const BURST=Array.from({length:14},(_,i)=>({a:i*360/14+(i%2?9:-9),d:44+(i*37)%30,c:['#e0a32a','#28665a','#da684f','#6b8fd6'][i%4]}));
@@ -45,7 +50,7 @@ const Burst=()=><span className="sumo-burst" aria-hidden="true">
 // zones: drag a name from the bench onto the man they are backing, or back to the bench to take
 // it away. A drag needs a steady thumb in a crowd, so tapping a name and then a wrestler does the
 // same. Picks close the moment the result goes in: you cannot call a bout you have already watched.
-function Bout({state,bout,members,act,busy,user,onLook,now,running,featured,celebrating,onWinner}){
+function Bout({state,bout,number,members,act,busy,user,onLook,now,running,featured,celebrating,onWinner}){
  const result=boutResult(state,bout.id);
  const picks=boutPredictions(state,bout.id),closed=predictionsClosed(state,bout.id);
  const made=members.filter(n=>picks[n]);
@@ -110,7 +115,7 @@ function Bout({state,bout,members,act,busy,user,onLook,now,running,featured,cele
  };
  return <article id={`bout-${bout.id}`} className={`sumo-bout ${now?'now':''} ${featured?'featured':''} ${celebrating?'celebrating':''}`}>
   {featured&&<p className="sumo-next-label">Next up</p>}
-  <span className="sumo-time">{bout.time||'—'}</span>
+  <p className="sumo-bout-meta">{number&&<b className="sumo-bout-no">{boutTag(number)}</b>}<span className="sumo-time">{bout.time||'—'}</span></p>
   <div className="bout-pair">{side('east',bout.east)}<span className="sumo-v">v</span>{side('west',bout.west)}</div>
   <div className="sumo-picks">
    <p className="sumo-picks-head">{closed?<Lock size={13}/>:<Trophy size={13}/>}<strong>Who do we think?</strong>
@@ -158,7 +163,7 @@ function Ladder({ladder,leaders}){
 // The sheet under it: every bout anybody called, and what each of them said. A phone held in one
 // hand in a basement will not hold four columns of names like Kotozakura, so a pick is the side
 // of the card it was on — east or west — with the two names spelled out in the bout column.
-function Sheet({table}){
+function Sheet({table,numbers}){
  if(!table.rows.length)return null;
  return <details className="sumo-sheet"><summary>The sheet — who called what</summary>
   <div className="sumo-sheet-scroll"><table>
@@ -166,7 +171,7 @@ function Sheet({table}){
     {table.people.map(name=><th scope="col" key={name}>{name}</th>)}</tr></thead>
    <tbody>{table.rows.map(row=><tr key={row.id}>
     <th scope="row" className="bout">
-     <small>{row.time||'—'}</small>
+     <small>{numbers[row.id]?`#${numbers[row.id].number} · `:''}{row.time||'—'}</small>
      <b className={row.winner?(row.winner===row.east?'won':'lost'):''}>E&nbsp;{row.east}</b>
      <b className={row.winner?(row.winner===row.west?'won':'lost'):''}>W&nbsp;{row.west}</b>
     </th>
@@ -201,7 +206,7 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
  const [checking,setChecking]=useState(false),[resultsError,setResultsError]=useState('');
  const canFetch=parent&&!!config?.sumo;
  const tally=predictionTally(state),leaders=predictionLeaders(state);
- const ladder=predictionLadder(state,state.members),sheet=tippingTable(state,state.members),running=runningTotals(state,state.members);
+ const ladder=predictionLadder(state,state.members),sheet=tippingTable(state,state.members),running=runningTotals(state,state.members),numbers=boutNumbers(state);
  const clock=japanClock(now||new Date()),onNow=currentBout(state,clock);
  // A wrong tap in a loud arena is easy, so the last few winners and picks can be undone in turn.
  // Kept on this screen rather than in the trip: it is this phone's taps, and it goes when the
@@ -261,8 +266,8 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
     <small>{card.doorsOpen?`Doors ${card.doorsOpen} · `:''}{card.bouts.length} bouts{card.at?` · loaded ${japanClock(new Date(card.at))} by ${card.by}`:''}</small></div>
   </div>}
   {card.notes&&<p className="sumo-notes">{card.notes}</p>}
-  {!!tally.length&&<><Ladder ladder={ladder} leaders={leaders}/><Sheet table={sheet}/></>}
-  {onNow&&<p className="sumo-now"><Clock size={16}/>About now: <strong>{onNow.east.name}</strong> v <strong>{onNow.west.name}</strong> · {divisionLabel(onNow.division)}</p>}
+  {!!tally.length&&<><Ladder ladder={ladder} leaders={leaders}/><Sheet table={sheet} numbers={numbers}/></>}
+  {onNow&&<p className="sumo-now"><Clock size={16}/>About now: <strong>{onNow.east.name}</strong> v <strong>{onNow.west.name}</strong> · {numbers[onNow.id]?boutTag(numbers[onNow.id]):divisionLabel(onNow.division)}</p>}
   {canFetch&&<div className="row wrap">
    <button className="primary" disabled={busy||fetching} onClick={load}>
     {card.bouts.length?<RefreshCw size={16}/>:<Download size={16}/>}
@@ -284,7 +289,7 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
    <h3>No card loaded yet</h3>
    <p>The match-ups are published on the official site the afternoon before, so fetch this the day before or on the morning of {dayLabel(day)}.{parent&&config?.sumo?'':' A parent does this while there is signal.'}</p>
   </div>}
-  {(()=>{const bout_=(bout,featured)=><Bout key={bout.id} state={state} bout={bout} members={state.members} act={act} busy={busy}
+  {(()=>{const bout_=(bout,featured)=><Bout key={bout.id} state={state} bout={bout} number={numbers[bout.id]} members={state.members} act={act} busy={busy}
     running={running[bout.id]} user={user} onLook={look} now={onNow?.id===bout.id} featured={featured}
     celebrating={cheer?.id===bout.id} onWinner={onWinner}/>;
    return <>

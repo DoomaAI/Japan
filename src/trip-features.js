@@ -570,6 +570,14 @@ export function sumoCard(state){
  return SUMO_DIVISIONS.map(([id,label])=>({id,label,bouts:bouts.filter(b=>b.division===id)}))
   .filter(g=>g.bouts.length).sort((a,b)=>order.indexOf(b.id)-order.indexOf(a.id));
 }
+// Each bout's number on the day, counted within its division in running order the way the
+// programme and the official site number them: Makuuchi bout 1 is the first top-division bout.
+// Worked out from the card every time rather than stored, so a refreshed card renumbers itself.
+export function boutNumbers(state){
+ const numbers={};
+ for(const group of sumoCard(state))group.bouts.forEach((b,i)=>{numbers[b.id]={number:i+1,of:group.bouts.length,division:group.id};});
+ return numbers;
+}
 export const boutPredictions=(state,id)=>sumo(state).predictions[id]||{};
 // Everybody picks before the bout, on whichever phone is out — so a pick is locked the moment
 // the result goes in. You cannot call it after you have watched it.

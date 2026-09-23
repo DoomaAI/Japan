@@ -8084,3 +8084,17 @@ test('the next bout is the feature, and finished bouts go to the foot, latest fi
  q=boutQueue(state);assert.equal(q.next.id,ids[2]);assert.equal(q.finished[0].id,ids[5]);
  assert.ok(!q.upcoming.some(b=>b.id===ids[5]));
 });
+test('each bout is numbered within its division, and a refreshed card renumbers itself', async()=>{
+ const {PRINTED_CARD}=await import('../src/sumo-printed.js');
+ const {boutNumbers}=await import('../src/trip-features.js');
+ let state=applyOperation(structuredClone(seed),{type:'sumoUpdate',...PRINTED_CARD},parent);
+ let n=boutNumbers(state);
+ assert.deepEqual(n['juryo-1'],{number:1,of:14,division:'juryo'});
+ assert.deepEqual(n['makuuchi-1'],{number:1,of:20,division:'makuuchi'});
+ assert.deepEqual(n['makuuchi-20'],{number:20,of:20,division:'makuuchi'});
+ // Drop the first top-division bout and load again: everything after it moves up one.
+ state=applyOperation(state,{type:'sumoUpdate',...PRINTED_CARD,bouts:PRINTED_CARD.bouts.filter(b=>b.id!=='makuuchi-1')},parent);
+ n=boutNumbers(state);
+ assert.equal(n['makuuchi-1'],undefined);
+ assert.deepEqual(n['makuuchi-2'],{number:1,of:19,division:'makuuchi'});
+});
