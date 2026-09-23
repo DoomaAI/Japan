@@ -7835,3 +7835,23 @@ test('the printed Day 11 programme loads as the card, with no site and no key',a
  state=applyOperation(state,{type:'sumoUpdate',...PRINTED_CARD},parent);
  assert.equal(boutPredictions(state,last.id).Boston,'Onosato');
 });
+
+test('every wrestler on the printed card has his name in Japanese and how to say it',async()=>{
+ const {PRINTED_CARD}=await import('../src/sumo-printed.js');
+ const {SUMO_NAMES,sumoName}=await import('../src/sumo-names.js');
+ const {sayName,romajiName,plainName}=await import('../src/sumo-say.js');
+ for(const b of PRINTED_CARD.bouts)for(const man of [b.east,b.west])assert.ok(sumoName(man.name),`${man.name} has no Japanese name`);
+ // The kana is checked against the name as the programme spells it, so a slip in either shows.
+ for(const [name,[kanji,kana]] of Object.entries(SUMO_NAMES)){
+  assert.equal(plainName(kana).toLowerCase(),name.toLowerCase(),`${name}: ${kana} does not read as ${name}`);
+  assert.match(kanji,/^[\p{Script=Han}ノの乃之]+$/u,`${name}: ${kanji}`);
+ }
+ assert.deepEqual(sayName('おおのさと'),{say:'oh-noh-sa-toh',hold:['oh']});
+ assert.equal(romajiName('ほうしょうりゅう'),'Hōshōryū');
+ assert.equal(sayName('だいえいしょう').say,'dye-ay-shoh');
+ // A word boundary is not a long vowel: Hiradoumi is Hirado-umi, not Hiradōmi.
+ assert.equal(romajiName('ひらど・うみ'),'Hiradoumi');assert.equal(sayName('ひらど・うみ').say,'hee-ra-doh-oo-mee');
+ assert.equal(sumoName('Kazuma').kanji,'一意');assert.equal(sumoName('Onokatsu').kanji,'阿武剋');
+ assert.equal(sumoName('Hiradoumi').phrase.ja,'ひらどうみ','the dot is only a marker and is not read aloud');
+ assert.equal(sumoName('Nobody'),null);
+});

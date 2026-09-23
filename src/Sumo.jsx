@@ -4,11 +4,17 @@ import {dayLabel} from './AdventurePages.jsx';
 import {SUMO_SITE_DIVISIONS,sumoSiteUrl,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,predictionLadder,tippingTable} from './trip-features.js';
 import {japanClock} from './timing.js';
 import {PRINTED_CARD} from './sumo-printed.js';
-const Side=({man,onLook,won,lost,how})=><button className={`sumo-side ${won?'won':''} ${lost?'lost':''}`} onClick={()=>onLook(man)}>
+import {sumoName} from './sumo-names.js';
+import SayIt from './SayIt.jsx';
+// Each side carries the name as it is written in the arena and how to say it, because the ring
+// announcer calls it in Japanese and the board up top is in kanji.
+const Side=({man,onLook,won,lost,how})=>{const jp=sumoName(man.name);
+ return <button className={`sumo-side ${won?'won':''} ${lost?'lost':''}`} onClick={()=>onLook(man)}>
  <strong>{man.name}</strong>
+ {jp&&<span className="sumo-jp"><span lang="ja">{jp.kanji}</span><i>{jp.say}</i></span>}
  <small>{[man.rank,man.stable].filter(Boolean).join(' · ')||'Tap to look him up'}</small>
  {won&&<span className="sumo-won"><Trophy size={13}/>Won{how?` · ${how}`:''}</span>}
-</button>;
+</button>;};
 // The official pages for the day, one per division. Each division and day has its own address on
 // the association's site, so these go straight to the right page rather than to its front door.
 const OfficialLinks=({dayNumber})=><div className="row wrap sumo-official">
@@ -51,7 +57,7 @@ function Picks({state,bout,result,members,mutate,busy,open,onToggle,onAllIn}){
   return <div key={zone} role="button" tabIndex={held?0:-1} data-sumo-drop={zone} aria-label={held?`Put ${held} on ${label}`:label}
    className={`sumo-drop ${zone} ${over===zone?'over':''} ${held&&sideOf(held)!==zone?'ready':''}`}
    onClick={()=>held&&place(held,zone)} onKeyDown={e=>{if(held&&(e.key==='Enter'||e.key===' ')){e.preventDefault();place(held,zone);}}}>
-   <span className="sumo-drop-label"><strong>{label}</strong>{sub&&<small>{sub}</small>}</span>
+   <span className="sumo-drop-label"><strong>{label}</strong>{zone!=='bench'&&sumoName(label)&&<span className="sumo-jp" lang="ja">{sumoName(label).kanji}</span>}{sub&&<small>{sub}</small>}</span>
    <span className="sumo-drop-chips">{here.map(chip)}
     {!here.length&&<small className="sumo-drop-hint">{zone==='bench'?'Everybody has called it':'Drop a name here'}</small>}</span>
   </div>;};
@@ -180,8 +186,9 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
  }
  async function look(man){
   const known=wrestlerProfile(state,man.name);
-  setLookupError('');setLooking({name:man.name,profile:known,busy:!known});
-  if(known||!parent||!config?.sumo)return;
+  const fetch_=!known&&parent&&!!config?.sumo;
+  setLookupError('');setLooking({name:man.name,profile:known,busy:fetch_});
+  if(!fetch_)return;
   try{
    const profile=await request('sumo-wrestler',{name:man.name});
    await mutate({type:'sumoWrestler',profile});
@@ -246,10 +253,14 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
   {looking&&<div className="sumo-profile">
    <div className="section-heading"><h4><User size={17}/>{looking.name}</h4>
     <button className="icon" aria-label="Close" onClick={()=>{setLooking(null);setLookupError('');}}><X size={18}/></button></div>
+   {sumoName(looking.name)&&<>
+    <p className="destination-japanese" lang="ja">{sumoName(looking.name).kanji}</p>
+    <SayIt phrase={sumoName(looking.name).phrase}/>
+   </>}
    {looking.busy&&<p><Search size={15}/> Looking him up…</p>}
    {lookupError&&<p className="callout"><AlertCircle size={18}/>{lookupError}</p>}
    {looking.profile?<>
-    {looking.profile.japanese&&<p className="destination-japanese" lang="ja">{looking.profile.japanese}</p>}
+    {looking.profile.japanese&&!sumoName(looking.name)&&<p className="destination-japanese" lang="ja">{looking.profile.japanese}</p>}
     <div className="plan-facts">
      {looking.profile.rank&&<span>{looking.profile.rank}</span>}
      {looking.profile.stable&&<span>{looking.profile.stable} stable</span>}
@@ -262,7 +273,7 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
     {!!looking.profile.sources?.length&&<p className="row wrap">{looking.profile.sources.map(s=>
      <a className="button" key={s.url} href={s.url} target="_blank" rel="noopener noreferrer">{s.title||'Source'} <ExternalLink size={13}/></a>)}</p>}
     <small>Records change every day of a tournament. This is what the page said when it was read.</small>
-   </>:!looking.busy&&!lookupError&&<p>Nothing saved about him yet.{parent&&config?.sumo?'':' A parent can look him up while there is signal.'}</p>}
+   </>:!looking.busy&&!lookupError&&!sumoName(looking.name)&&<p>Nothing saved about him yet.{parent&&config?.sumo?'':' A parent can look him up while there is signal.'}</p>}
   </div>}
  </div>;
 }
