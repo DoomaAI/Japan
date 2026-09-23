@@ -415,3 +415,11 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .pack-qty{font-weight:500;color:var(--muted)}
 .pack-nudge{width:100%;cursor:pointer;font:inherit;text-align:left;justify-content:flex-start;margin-bottom:.8rem}
 .pack-tabs{margin-top:1.2rem}
+/* Home action rows: an even two-column grid so buttons share one width and line up with the
+   cards above and below, instead of wrapping into ragged rows. A lone last button spans both. */
+.home-actions,.dashboard-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem}
+.home-actions{margin:0 0 1.2rem}
+.home-actions>button,.dashboard-actions>button{width:100%;min-width:0;white-space:normal;line-height:1.25;text-align:center}
+.home-actions>button:last-child:nth-child(odd),.dashboard-actions>button:last-child:nth-child(odd){grid-column:1/-1}
+.home-actions svg{flex:none}
+.swipe-controls button{padding-left:0;padding-right:0}
