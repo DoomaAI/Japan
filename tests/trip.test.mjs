@@ -3672,7 +3672,7 @@ test('the guide turns like a book, and stops at both covers',async()=>{
  // Every way of turning goes through the book, which hands the page to turnPage once it lands.
  assert.equal((source.match(/flipPage\(-1\)/g)||[]).length,2,'the back button and the left arrow key');
  assert.equal((source.match(/flipPage\(1\)/g)||[]).length,2,'the forward button and the right arrow key');
- assert.match(source,/<GuideBook page=\{guidePage\} turn=\{turnPage\} flipRef=\{guideFlip\}/,'and the swipe');
+ assert.match(source,/<GuideBook page=\{guidePage\} turn=\{turnPage\} flipRef=\{reading\?null:guideFlip\}/,'and the swipe');
  assert.match(source,/else turnPage\(delta\)/,'without the book, a button still turns the page');
  assert.match(book,/if\(finish\)turn\(dir\)/,'the page only changes once the turn has landed');
  assert.doesNotMatch(source,/setGuidePage\(guidePage[-+]1\)/,'nothing sets the page behind its back');
@@ -3689,6 +3689,38 @@ test('the guide turns like a book, and stops at both covers',async()=>{
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  assert.match(css,/\.guide-view\{touch-action:pan-y\}/);
  assert.match(css,/\.guide-leaf\.forward\{transform-origin:left center\}/,'a page turns on its spine');
+});
+
+test('the guide opens full screen like a magazine when the page is tapped',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const reader=await readFile(new URL('../src/GuideReader.jsx',import.meta.url),'utf8');
+ const book=await readFile(new URL('../src/GuideBook.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // A tap on the page, or the button beside Save, opens the reader; a finger that moved is a turn.
+ assert.match(main,/onTap=\{\(\)=>setReading\(true\)\}/);
+ assert.match(main,/aria-label="Read full screen" onClick=\{\(\)=>setReading\(true\)\}/);
+ assert.match(book,/if\(t&&!t\.axis\)return tap\(e\)/);
+ // It turns through the same turnPage, and the arrow keys follow whichever book is showing.
+ assert.match(main,/<GuideReader page=\{guidePage\}[\s\S]{0,200}? turn=\{turnPage\}[\s\S]{0,120}? flipRef=\{guideFlip\}/);
+ assert.match(main,/flipRef=\{reading\?null:guideFlip\}/,'the page underneath lets go of the keys while the reader is open');
+ assert.match(book,/if\(flipRef\.current===mine\)flipRef\.current=null/,'and a book only lets go of the keys if it still holds them');
+ // Truly full screen where the browser allows, and leaving it closes the reader.
+ assert.match(reader,/root\.requestFullscreen\(\)/);
+ assert.match(reader,/addEventListener\('fullscreenchange',left\)/);
+ assert.match(reader,/e\.key==='Escape'\)close\(\)/);
+ assert.match(reader,/exitFullscreen/);
+ // Double tap zooms in to read the small print; a single tap hides the bars.
+ assert.match(reader,/zoomable onTap=\{\(\)=>setBare\(b=>!b\)\}/);
+ assert.match(css,/\.guide-reader \.guide-book\{[^}]*touch-action:none/);
+ // It covers the bottom bar, and the page is sized for its own shape — portrait, 1247 by 1800.
+ assert.match(css,/\.guide-reader\{position:fixed;inset:0;z-index:50/);
+ assert.match(css,/\(100dvh - 150px\)\*\.6928/);
+});
+
+test('a zoomed page is held inside the screen',async()=>{
+ const {panLimit}=await import('../src/guide-lens.js');
+ assert.deepEqual(panLimit(1,400,600),{x:0,y:0},'unzoomed it cannot be dragged at all');
+ assert.deepEqual(panLimit(2.5,400,600),{x:300,y:450});
 });
 
 test('a page being turned stays under the finger that is turning it',async()=>{
