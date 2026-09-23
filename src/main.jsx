@@ -166,6 +166,9 @@ function App(){
   return()=>{stop=true;window.removeEventListener('online',on);window.removeEventListener('offline',off);};
  },[]);
  useEffect(()=>{const i=setInterval(()=>setNow(new Date()),30000);return()=>clearInterval(i);},[]);
+ // The strip of dates opens on the day being shown, not on the first day of the trip, so the
+ // day in hand is always one of the dates in view. Only the strip scrolls, never the page.
+ useEffect(()=>{for(const strip of document.querySelectorAll('.date-strip')){const on=strip.querySelector('.selected');if(on)strip.scrollLeft=on.offsetLeft-(strip.clientWidth-on.offsetWidth)/2;}},[day,tab,!!envelope]);
  // Tell iOS once, at the start, that anything this page plays is media rather than a
  // notification noise. Safari starts every page in the category the silent switch mutes, and
  // the type has to be set early and then left alone.
@@ -361,23 +364,17 @@ function App(){
    <SplitDay state={visibleState} splits={splits} day={day} now={now} user={user} parent={parent} busy={busy} lens={lens} setLens={follow} selectStep={selectStep} mutate={mutate}/>
    {splits.length>0&&<WhoseDay state={visibleState} user={user} lens={lens} setLens={follow}/>}
    <section className="step-area">
+   {/* The step we are on is the one thing Home is for, so all of it that gets used standing in
+       the street fits on one phone screen: where and when, getting there, and ticking it off.
+       Everything read sitting down — notes, the address, who is going, facts, the rating before
+       it is done — folds under More about this stop, and the stop's tools sit in one row. */}
    {current?<article className={`step-card ${current.status==='done'?'complete':''}`} onTouchStart={e=>{touch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}} onTouchEnd={e=>{if(!touch.current||['BUTTON','A','INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;const dx=e.changedTouches[0].clientX-touch.current.x,dy=e.changedTouches[0].clientY-touch.current.y;if(Math.abs(dx)>65&&Math.abs(dy)<50)move(dx<0?1:-1);touch.current=null;}}>
     <div className="card-top"><span className="eyebrow">STEP {index+1} / {steps.length}</span><div className="row"><StepWeather state={visibleState} step={current} steps={steps} pill onOpen={()=>go('weather',day)}/><span className={`tag ${current.kind}`}>{current.locked?'Fixed time':current.kind==='optional'?'Optional':current.review?'Check details':'Flexible'}</span>{parent&&<><button className="icon" aria-label={current.locked?'Unlock time':'Lock time'} onClick={()=>mutate({type:'lock',id:current.id,locked:!current.locked})}>{current.locked?<LockKeyhole size={19}/>:<LockKeyholeOpen size={19}/>}</button>{/* The same two answers the timeline row offers, on the stop you are actually standing in front of: the tray moves it to Options on the tap, the bin only opens the question. */}<button className="icon to-options" aria-label={`Save ${current.title} to Options`} onClick={()=>optionStop(current)}><Inbox size={19}/></button><button className="icon remove-stop" aria-label={`Remove ${current.title} from this day`} onClick={()=>removeStop(current)}><Trash2 size={19}/></button></>}</div></div>
-    <div className="time-display">{current.time||'Any time'}{current.time&&<span>JST</span>}</div>
+    <div className="step-head"><div className="time-display">{current.time||'Any time'}{current.time&&<span>JST</span>}</div><div className="step-stepper"><button className="icon" aria-label="Previous step" disabled={index<=0} onClick={()=>move(-1)}><ArrowLeft size={20}/></button><button className="icon" aria-label="Next step" disabled={index>=steps.length-1} onClick={()=>move(1)}><ArrowRight size={20}/></button></div></div>
     <h2>{current.title}</h2>
-    {current.place&&<p className="place-line"><MapPin size={17}/><span>{current.place}{showLocationDetails(state,current).japanese&&<span className="place-japanese" lang="ja">{showLocationDetails(state,current).japanese}</span>}</span></p>}{resolveLocation(state,current)&&<small className="matched-address">{resolveLocation(state,current).address}{resolveLocation(state,current).japaneseAddress&&<span className="place-japanese" lang="ja">{resolveLocation(state,current).japaneseAddress}</span>}</small>}{stepPin(current)&&<small className="matched-address"><LocateFixed size={13}/> Pinned where we stood · {pinText(stepPin(current))} · directions come back here</small>}
-    {phoneLinks(showLocationDetails(state,current).phone)&&<ContactRow phone={phoneLinks(showLocationDetails(state,current).phone)} title={current.title}/>}
-    {current.notes&&<p className="step-notes">{current.notes}</p>}
-    {current.review&&<p className="callout"><AlertCircle size={18}/> Check the booking or original guide before relying on this step.</p>}
-    <div className="timing-details">{current.originalTime&&current.originalTime!==current.time&&<span>Original target {current.originalTime}</span>}{current.bookingTime&&<span><Ticket size={14}/> Booking {current.bookingTime}</span>}{current.bookingReference&&<span>Ref: {current.bookingReference}</span>}{current.startedAt&&<span>Started {japanClock(new Date(current.startedAt))}</span>}{current.completedAt&&<span className="done-note">Completed {japanClock(new Date(current.completedAt))}{scheduleVariance(current,current.completedAt)&&` · ${scheduleVariance(current,current.completedAt).text}`}</span>}</div>
-    <div className="participants">{current.participants.map(p=><span key={p} className="person">{p}</span>)}{current.pending&&<span className="tag">Waiting to sync</span>}</div>
+    {current.place&&<p className="place-line"><MapPin size={16}/><span>{current.place}{showLocationDetails(state,current).japanese&&<span className="place-japanese" lang="ja">{showLocationDetails(state,current).japanese}</span>}</span></p>}
+    {(current.originalTime&&current.originalTime!==current.time||current.bookingTime||current.bookingReference||current.startedAt||current.completedAt||current.pending)&&<div className="timing-details">{current.originalTime&&current.originalTime!==current.time&&<span>Original target {current.originalTime}</span>}{current.bookingTime&&<span><Ticket size={14}/> Booking {current.bookingTime}</span>}{current.bookingReference&&<span>Ref: {current.bookingReference}</span>}{current.startedAt&&<span>Started {japanClock(new Date(current.startedAt))}</span>}{current.completedAt&&<span className="done-note">Completed {japanClock(new Date(current.completedAt))}{scheduleVariance(current,current.completedAt)&&` · ${scheduleVariance(current,current.completedAt).text}`}</span>}{current.pending&&<span className="tag">Waiting to sync</span>}</div>}
     <div className="primary-actions"><Link className="button primary" href={directions(current.place||stepPin(current)?current:today.hotel)}><Navigation size={18}/>Directions</Link><Button icon={Languages} onClick={()=>setModal({type:'show',step:current})}>Show someone</Button></div>
-    <Link className="button website-link" href={current.website||`https://www.google.com/search?q=${encodeURIComponent((current.place||current.title)+' official website Japan')}`}><ExternalLink size={16}/>{current.website?'Website / booking page':'Find website'}</Link>
-    <div className="card-links"><button onClick={()=>setModal({type:'media',step:current})}><ImageIcon size={16}/>Photos / videos</button><button onClick={()=>setModal({type:'voice',step:current})}><Mic size={16}/>Voice note</button><button onClick={()=>openPage(current.page)}><BookOpen size={16}/>Guide p.{current.page}</button><button onClick={()=>setModal({type:'tickets',step:current})}><Ticket size={16}/>Tickets{state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length?` (${state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length})`:''}</button><button onClick={()=>setModal({type:'alarm',step:current})}><Bell size={16}/>Remind me</button>{config?.nearby&&<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={16}/>Food & amenities near here</button>}<button aria-label="Share this step" onClick={()=>shareStep(current)}><Share2 size={16}/></button></div>
-    <CardFacts facts={factsForStep(current)} openPage={openPage} aloud={factAloudFor(speak,user.name)}/>
-    {parkForDay(day)&&<button className="eyespy-invite" onClick={()=>setModal({type:'park',park:parkForDay(day)})}><span className="eyespy-invite-icon" aria-hidden="true">🎢</span><span>Ride checklist and park map<strong>{parkForDay(day).name}</strong></span><ChevronRight size={18}/></button>}
-    {day===SUMO_DAY&&<button className="eyespy-invite" onClick={()=>setModal({type:'sumo'})}><span className="eyespy-invite-icon" aria-hidden="true">🥋</span><span>Today's sumo card<strong>{sumoState(state).bouts.length?`${sumoState(state).bouts.length} bouts, times and match-ups`:'Match-ups, times and who is who'}</strong></span><ChevronRight size={18}/></button>}
-    {isTrainLeg(current)&&<button className="eyespy-invite" onClick={()=>setModal({type:'eyespy',step:current})}><span className="eyespy-invite-icon" aria-hidden="true">🗻</span><span>Window I spy<strong>{EYE_SPY.length} things to spot from the train</strong></span><ChevronRight size={18}/></button>}
     <div className="completion-actions">{current.status==='done'?<Button className="done-button" icon={RotateCcw} disabled={busy} onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Completed · Undo</Button>:<><Button icon={Play} disabled={busy||(!parent&&!current.participants.includes(user.name))} onClick={async()=>{const at=new Date();
      // Arriving is the moment the question changes from "how do we get there" to "how long have we
      // got", and the answer is already in the plan. Say it here rather than leaving everyone to
@@ -390,10 +387,34 @@ function App(){
      // now stands as well: ticking off is the one moment we know both what was planned and what
      // actually happened, and twelve minutes in hand is worth hearing before the next step.
      setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);}}}>Done</Button></>}{parent&&<button className="icon" aria-label="Edit or skip activity" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal/></button>}</div>
-    <StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore step</button></p>}
+    {/* One row that scrolls sideways rather than three that stack: what only this day has (the
+        park, the sumo, the train window) comes first, then everything every stop has. */}
+    <div className="card-links" aria-label="For this stop">
+     {parkForDay(day)&&<button className="card-link-special" onClick={()=>setModal({type:'park',park:parkForDay(day)})}><span aria-hidden="true">🎢</span>Rides &amp; park map</button>}
+     {day===SUMO_DAY&&<button className="card-link-special" onClick={()=>setModal({type:'sumo'})}><span aria-hidden="true">🥋</span>Sumo card{sumoState(state).bouts.length?` · ${sumoState(state).bouts.length} bouts`:''}</button>}
+     {isTrainLeg(current)&&<button className="card-link-special" onClick={()=>setModal({type:'eyespy',step:current})}><span aria-hidden="true">🗻</span>Window I spy</button>}
+     <Link className="button" href={current.website||`https://www.google.com/search?q=${encodeURIComponent((current.place||current.title)+' official website Japan')}`}><ExternalLink size={15}/>{current.website?'Website':'Find website'}</Link>
+     <button onClick={()=>setModal({type:'tickets',step:current})}><Ticket size={15}/>Tickets{state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length?` (${state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length})`:''}</button>
+     <button onClick={()=>setModal({type:'media',step:current})}><ImageIcon size={15}/>Photos</button>
+     <button onClick={()=>setModal({type:'voice',step:current})}><Mic size={15}/>Voice note</button>
+     <button onClick={()=>openPage(current.page)}><BookOpen size={15}/>Guide p.{current.page}</button>
+     <button onClick={()=>setModal({type:'alarm',step:current})}><Bell size={15}/>Remind me</button>
+     {config?.nearby&&<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={15}/>Food nearby</button>}
+     <button aria-label="Share this step" onClick={()=>shareStep(current)}><Share2 size={15}/>Share</button>
+    </div>
+    {current.status==='done'&&<StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>}
+    <details className="step-more" key={current.id}>
+     <summary><span className="step-more-label">More about this stop</span><span className="step-more-lead">{current.notes||resolveLocation(state,current)?.address||current.participants.join(', ')}</span><ChevronDown size={17}/></summary>
+     {current.notes&&<p className="step-notes">{current.notes}</p>}
+     {current.review&&<p className="callout"><AlertCircle size={18}/> Check the booking or original guide before relying on this step.</p>}
+     {resolveLocation(state,current)&&<small className="matched-address">{resolveLocation(state,current).address}{resolveLocation(state,current).japaneseAddress&&<span className="place-japanese" lang="ja">{resolveLocation(state,current).japaneseAddress}</span>}</small>}{stepPin(current)&&<small className="matched-address"><LocateFixed size={13}/> Pinned where we stood · {pinText(stepPin(current))} · directions come back here</small>}
+     {phoneLinks(showLocationDetails(state,current).phone)&&<ContactRow phone={phoneLinks(showLocationDetails(state,current).phone)} title={current.title}/>}
+     <div className="participants">{current.participants.map(p=><span key={p} className="person">{p}</span>)}</div>
+     <CardFacts facts={factsForStep(current)} openPage={openPage} aloud={factAloudFor(speak,user.name)}/>
+     {current.status!=='done'&&<StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>}
+    </details>
    </article>:<div className="empty"><h2>A little room for discovery.</h2><p>Add your first stop for this day.</p></div>}
-   <div className="swipe-controls"><Button icon={ArrowLeft} disabled={index<=0} onClick={()=>move(-1)}>Previous</Button><span>Swipe to explore</span><Button disabled={index>=steps.length-1} onClick={()=>move(1)}>Next <ArrowRight size={18}/></Button></div>
    </section>
   </>,
   links:<div className="quick-links"><Link href={directions(today?.hotel)}><House size={18}/><span>Tonight’s hotel<strong>{today?.hotel}</strong></span><ExternalLink size={15}/></Link>{nextFixed&&<button onClick={()=>selectStep(nextFixed)}><LockKeyhole size={18}/><span>Next fixed time<strong>{nextFixed.time} · {nextFixed.title}</strong></span><ChevronRight size={18}/></button>}</div>,
@@ -415,16 +436,18 @@ function App(){
       can follow rather than reading the heading at him, and being in the same place on every
       page is what lets him find it without reading anything to find it. */}
   <header className="topbar"><a className="brand" href="/" onClick={e=>{e.preventDefault();setTab('today');}}><span className="brand-mark" aria-hidden="true">✿</span><span>Japan <b>2026</b><small>THE PASFIELD FAMILY</small></span></a><div className="top-actions">{noteForMe&&<button className="icon thank-you-button" aria-label={`A note from ${THANK_YOU_FROM}`} onClick={()=>setModal({type:'thankyou',note:noteForMe})}><Heart size={20}/>{!noteRead&&<i/>}</button>}<button className="icon" aria-label="Search everything" onClick={()=>go('search')}><Search size={20}/></button><button className="icon notification-button" aria-label="Family updates" onClick={()=>go('updates')}><Bell size={20}/>{state.alerts.some(a=>!a.seenBy?.[user.name])&&<i/>}</button><SpeakRules id={`page-${tab}`} text={pageRule(tab)} label="What is this page?" compact/><span className="local-clock"><Clock size={14}/>{japanClock(now)}<small>JAPAN</small></span><button className="avatar" aria-label="Family settings" onClick={()=>setModal({type:'family'})}><MascotBadge state={state} person={user.name} size={38}/></button></div></header>
-  <div className="syncbar">{!online?<><WifiOff size={14}/> Offline · saved on this phone</>:user.demo?<><AlertCircle size={14}/> Local preview · family sharing needs setup</>:queue.length?<><Clock size={14}/>{queue.length} update{queue.length!==1?'s':''} waiting to sync</>:<><Cloud size={14}/> Shared family plan <span>Signed in as {user.name}</span></>}</div>
+  {/* On Home, the line that only says all is well gives its room to the step card; offline, a
+      queue or a local preview still say so there as everywhere else. */}
+  <div className={`syncbar${tab==='today'&&online&&!user.demo&&!queue.length?' quiet':''}`}>{!online?<><WifiOff size={14}/> Offline · saved on this phone</>:user.demo?<><AlertCircle size={14}/> Local preview · family sharing needs setup</>:queue.length?<><Clock size={14}/>{queue.length} update{queue.length!==1?'s':''} waiting to sync</>:<><Cloud size={14}/> Shared family plan <span>Signed in as {user.name}</span></>}</div>
   {conflict&&<div className="conflict"><strong>The family changed the plan while you were offline.</strong><p>Your {queue.length} progress update(s) are still saved. Review them against the latest itinerary.</p><div className="row"><Button onClick={()=>setModal({type:'pending'})}>Review updates</Button><Button onClick={()=>{saveQueue([]);setConflict(false);}}>Discard my pending updates</Button></div></div>}
   <main>
-  {tab==='today'&&<>
+  {tab==='today'&&<div className="home">
    {dayHeading}
    {dayStrip(selectDay)}
    {homeShown(homePrefs).map(id=><React.Fragment key={id}>{homeWidgets[id]}</React.Fragment>)}
    {!homeShown(homePrefs).length&&<div className="empty"><h2>Home is clear.</h2><p>Every widget is put away. Bring back the ones you want from My menu.</p></div>}
    <div className="home-customise"><Button icon={SlidersHorizontal} onClick={()=>go('personalise')}>Customise Home</Button></div>
-  </>}
+  </div>}
   {tab==='glance'&&<>
    {dayHeading}
    {dayStrip(d=>go('glance',d))}

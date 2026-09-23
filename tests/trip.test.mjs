@@ -1789,9 +1789,9 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  const {HOME_WIDGETS,HOME_DEFAULT,emptyHome,cleanHome,homeOrder,homeShown,moveWidget,toggleWidget}=await import('../src/home-widgets.js');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const screen=await readFile(new URL('../src/Personalise.jsx',import.meta.url),'utf8');
- // Untouched, Home is what it always was, in the order it always came in.
+ // Untouched, Home shows everything, with the step we are on first.
  assert.deepEqual(homeShown(emptyHome()),HOME_DEFAULT);
- assert.equal(HOME_DEFAULT[1],'step','the step card is still near the top');
+ assert.equal(HOME_DEFAULT[0],'step','the step card leads Home');
  for(const id of HOME_DEFAULT)assert.ok(HOME_WIDGETS[id].label&&HOME_WIDGETS[id].note,id);
  // Moved and put away, and nothing lost: a widget put away is still in the order to come back.
  let prefs=moveWidget(emptyHome(),'weather',-10);
