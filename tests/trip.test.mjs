@@ -7829,6 +7829,7 @@ test('the printed Day 11 programme loads as the card, with no site and no key',a
  const last=sumoCard(state).at(-1).bouts.at(-1);
  assert.equal(`${last.east.name} v ${last.west.name}`,'Onosato v Fujinokawa','the last bout of the day is the last on the sheet');
  assert.equal(last.east.rank,'Yokozuna · 9-1');assert.equal(last.west.stable,'Isenoumi');
+ for(const b of sumo(state).bouts)for(const man of [b.east,b.west])assert.ok(man.stable,`${man.name} has no stable`);
  for(const b of sumo(state).bouts)for(const man of [b.east,b.west])assert.ok(man.rank,`${man.name} has no rank`);
  state=applyOperation(state,{type:'sumoPredict',id:last.id,person:'Boston',winner:'Onosato'},child);
  // Loading it again keeps the picks already made on it.

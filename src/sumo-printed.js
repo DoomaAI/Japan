@@ -27,7 +27,7 @@ const RANK={
  Kagayaki:['Juryo 11','Takadagawa'],Hitoshi:['Juryo 11','Oitekaze'],Tamashoho:['Juryo 12','Kataonami'],Kayo:['Juryo 12','Nakamura'],
  Meisei:['Juryo 13','Tatsunami'],Tokifudo:['Juryo 13','Tokitsukaze'],Tochitaikai:['Juryo 14','Kasugano'],Nishikigi:['Juryo 14','Isenoumi'],
  // Up from makushita for the day: not on the ranking sheet, and only seven bouts to his record.
- Asahifuji:['Makushita',''],
+ Asahifuji:['Makushita','Isegahama'],
 };
 // [east record, east, west, west record], in running order.
 const JURYO=[['4-6','Meisei','Asahifuji','4-1'],['5-5','Tamashoho','Kayo','8-2'],['10-0','Kagayaki','Hitoshi','7-3'],

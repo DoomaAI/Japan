@@ -6,13 +6,23 @@ import {japanClock} from './timing.js';
 import {PRINTED_CARD} from './sumo-printed.js';
 import {sumoName} from './sumo-names.js';
 import SayIt from './SayIt.jsx';
+// Rank and stable, each on a line of its own and each labelled, because "Isegahama" on its own
+// means nothing to a first-timer. The record going into the day rides on the rank's line, which
+// is where the printed programme puts it too.
+const splitRank=rank=>{const m=/^(.*?)(?:\s*·\s*)?(\d{1,2}-\d{1,2})$/.exec(rank||'');return m?{rank:m[1],record:m[2]}:{rank:rank||'',record:''};};
+const Standing=({man,side})=>{const {rank,record}=splitRank(man.rank);
+ if(!rank&&!record&&!man.stable)return <small className="sumo-standing">{side||'Tap to look him up'}</small>;
+ return <small className="sumo-standing">
+  {(side||rank||record)&&<span>{[side,rank].filter(Boolean).join(' · ')}{record&&<>{side||rank?' · ':''}<b>{record}</b></>}</span>}
+  {man.stable&&<span>{man.stable} stable</span>}
+ </small>;};
 // Each side carries the name as it is written in the arena and how to say it, because the ring
 // announcer calls it in Japanese and the board up top is in kanji.
 const Side=({man,onLook,won,lost,how})=>{const jp=sumoName(man.name);
  return <button className={`sumo-side ${won?'won':''} ${lost?'lost':''}`} onClick={()=>onLook(man)}>
  <strong>{man.name}</strong>
  {jp&&<span className="sumo-jp"><span lang="ja">{jp.kanji}</span><i>{jp.say}</i></span>}
- <small>{[man.rank,man.stable].filter(Boolean).join(' · ')||'Tap to look him up'}</small>
+ <Standing man={man}/>
  {won&&<span className="sumo-won"><Trophy size={13}/>Won{how?` · ${how}`:''}</span>}
 </button>;};
 // The official pages for the day, one per division. Each division and day has its own address on
@@ -53,11 +63,11 @@ function Picks({state,bout,result,members,mutate,busy,open,onToggle,onAllIn}){
  const chip=name=><button key={name} type="button" className={`sumo-chip ${held===name?'held':''} ${drag?.moved&&drag.name===name?'lifting':''}`}
   disabled={busy} aria-pressed={held===name} aria-label={`${name}${picks[name]?`, backing ${picks[name]}`:', not called yet'}. Tap, then tap a wrestler.`}
   onPointerDown={e=>down(name,e)} onPointerMove={move} onPointerUp={up} onPointerCancel={()=>{setDrag(null);setOver(null);}} onClick={e=>e.stopPropagation()}>{name}</button>;
- const dropZone=(zone,label,sub)=>{const here=members.filter(n=>sideOf(n)===zone);
+ const dropZone=(zone,label,man,side)=>{const here=members.filter(n=>sideOf(n)===zone);
   return <div key={zone} role="button" tabIndex={held?0:-1} data-sumo-drop={zone} aria-label={held?`Put ${held} on ${label}`:label}
    className={`sumo-drop ${zone} ${over===zone?'over':''} ${held&&sideOf(held)!==zone?'ready':''}`}
    onClick={()=>held&&place(held,zone)} onKeyDown={e=>{if(held&&(e.key==='Enter'||e.key===' ')){e.preventDefault();place(held,zone);}}}>
-   <span className="sumo-drop-label"><strong>{label}</strong>{zone!=='bench'&&sumoName(label)&&<span className="sumo-jp" lang="ja">{sumoName(label).kanji}</span>}{sub&&<small>{sub}</small>}</span>
+   <span className="sumo-drop-label"><strong>{label}</strong>{zone!=='bench'&&sumoName(label)&&<span className="sumo-jp" lang="ja">{sumoName(label).kanji}</span>}{man&&<Standing man={man} side={side}/>}</span>
    <span className="sumo-drop-chips">{here.map(chip)}
     {!here.length&&<small className="sumo-drop-hint">{zone==='bench'?'Everybody has called it':'Drop a name here'}</small>}</span>
   </div>;};
@@ -79,8 +89,8 @@ function Picks({state,bout,result,members,mutate,busy,open,onToggle,onAllIn}){
      return <span className={`tag pick ${right?'up':'down'}`} key={name}>{right?<Check size={12}/>:<X size={12}/>}{name}: {picks[name]}</span>;})}</div></div>
    :<div className="sumo-board">
     <div className="sumo-board-sides">
-     {dropZone('east',bout.east.name,bout.east.rank?`East · ${bout.east.rank}`:'East')}
-     {dropZone('west',bout.west.name,bout.west.rank?`West · ${bout.west.rank}`:'West')}
+     {dropZone('east',bout.east.name,bout.east,'East')}
+     {dropZone('west',bout.west.name,bout.west,'West')}
     </div>
     {dropZone('bench','Not called yet')}
     <small>{held?`Now tap the wrestler ${held} is backing.`:'Drag each name onto who they think will win — or tap a name, then a wrestler. Drag it back here to take a pick away.'}</small>
