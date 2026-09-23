@@ -42,10 +42,13 @@ for place in sorted({s['place'] for s in seed['steps']}|{d['hotel'] for d in see
  candidates=[l for l in locations if norm(l['name']) in [norm(place),norm(stripped)]]
  if place in reviewed:candidates=[l for l in locations if l['sourceRow']==reviewed[place]]
  if len(candidates)==1 and place not in candidates[0]['aliases']:candidates[0]['aliases'].append(place)
+# Japanese names and addresses live in their own file, keyed by id, so a fresh import keeps them.
+japanese=json.loads((root/'data/location-japanese.json').read_text())
 # Keep all source rows, including possible duplicate listings with different names/notes.
 for l in locations:
  l['guidePages']=sorted({s['page'] for s in seed['steps'] if s['place'] in l['aliases']})
  l['tripDays']=sorted({s['day'] for s in seed['steps'] if s['place'] in l['aliases']})
+ l.update(japanese.get(l['id'],{'japanese':'','japaneseAddress':''}))
 (root/'data/map-locations.json').write_text(json.dumps({'source':source.name,'sheet':'Master List','locations':locations},ensure_ascii=False,indent=2)+'\n')
 matched=[s for s in seed['steps'] if any(s['place'] in l['aliases'] for l in locations)]
 print(f'{len(locations)} source locations, {len(matched)} activity links, {sum(bool(l["guidePages"]) for l in locations)} locations linked to guide pages.')

@@ -1,0 +1,838 @@
+{
+  "map-fe9b51800732": {
+    "japanese": "1ホテル東京",
+    "japaneseAddress": "〒107-0052 東京都港区赤坂2-17-22"
+  },
+  "map-a8ca5448cf99": {
+    "japanese": "スポッテッド ストーン（1ホテル東京内）",
+    "japaneseAddress": "〒107-0052 東京都港区赤坂2-17-22"
+  },
+  "map-f906d0137379": {
+    "japanese": "% ARABICA 京都 嵐山",
+    "japaneseAddress": "〒616-8385 京都府京都市右京区嵯峨天龍寺芒ノ馬場町3-47"
+  },
+  "map-55518e54a88b": {
+    "japanese": "嵐山 竹林の小径",
+    "japaneseAddress": "〒616-8394 京都府京都市右京区嵯峨小倉山田淵山町"
+  },
+  "map-ac06730c5aac": {
+    "japanese": "嵐山モンキーパークいわたやま",
+    "japaneseAddress": "〒616-0004 京都府京都市西京区嵐山中尾下町61"
+  },
+  "map-edf51d58946c": {
+    "japanese": "コーヒースタンド リユニオン 嵐山",
+    "japaneseAddress": "〒616-8373 京都府京都市右京区嵯峨天龍寺車道町42-8"
+  },
+  "map-e2f17d42140a": {
+    "japanese": "八十八良葉舎 嵐山本店",
+    "japaneseAddress": "〒616-8384 京都府京都市右京区嵯峨天龍寺造路町33"
+  },
+  "map-71ebb6866fd6": {
+    "japanese": "雲ノ茶 カフェ 嵐山",
+    "japaneseAddress": "〒616-8384 京都府京都市右京区嵯峨天龍寺造路町20-13"
+  },
+  "map-0f6380ec99c4": {
+    "japanese": "天龍寺",
+    "japaneseAddress": "〒616-8385 京都府京都市右京区嵯峨天龍寺芒ノ馬場町68"
+  },
+  "map-4507156b653b": {
+    "japanese": "渡月橋",
+    "japaneseAddress": "〒616-8383 京都府京都市右京区嵯峨中ノ島町"
+  },
+  "map-c4f7c05a7e69": {
+    "japanese": "八十八浅草",
+    "japaneseAddress": "〒111-0033 東京都台東区花川戸2-14-3"
+  },
+  "map-8ff5fd469e8f": {
+    "japanese": "雷門",
+    "japaneseAddress": "〒111-0032 東京都台東区浅草2-3-1"
+  },
+  "map-032604292176": {
+    "japanese": "仲見世商店街",
+    "japaneseAddress": "〒111-0032 東京都台東区浅草1-36-3"
+  },
+  "map-0f90dbecc7f3": {
+    "japanese": "浅草寺",
+    "japaneseAddress": "〒111-0032 東京都台東区浅草2-3-1"
+  },
+  "map-7632bcffa574": {
+    "japanese": "麻布台ヒルズ",
+    "japaneseAddress": "〒106-0041 東京都港区麻布台1-2-4"
+  },
+  "map-d52e959a870c": {
+    "japanese": "中村藤吉本店 麻布台店",
+    "japaneseAddress": "〒105-0001 東京都港区虎ノ門5-9-1 麻布台ヒルズ ガーデンプラザB 地下1階"
+  },
+  "map-fe3a436f8e54": {
+    "japanese": "チームラボボーダレス",
+    "japaneseAddress": "〒106-0041 東京都港区麻布台1-2-4 麻布台ヒルズ ガーデンプラザB 地下1階"
+  },
+  "map-db68a79a180f": {
+    "japanese": "ファイブラン 烏丸御池",
+    "japaneseAddress": "〒604-8174 京都府京都市中京区室町通三条上る役行者町377"
+  },
+  "map-8f78e2c5c232": {
+    "japanese": "幸せのパンケーキ 京都店",
+    "japaneseAddress": "〒604-8066 京都府京都市中京区御幸町通蛸薬師上る伊勢屋町354-1 Kyara Building 2階"
+  },
+  "map-59d7c2276a61": {
+    "japanese": "(THISIS)SHIZEN 京都",
+    "japaneseAddress": "〒604-8172 京都府京都市中京区場之町586-2 新風館1階"
+  },
+  "map-a9708b2053a8": {
+    "japanese": "丸久小山園 西洞院店・茶房「元庵」",
+    "japaneseAddress": "〒604-8277 京都府京都市中京区西洞院通御池下る西側"
+  },
+  "map-ed0ca6d840a0": {
+    "japanese": "錦市場",
+    "japaneseAddress": "〒604-8054 京都府京都市中京区西大文字町609"
+  },
+  "map-e0b23e6da48b": {
+    "japanese": "温 京都御幸町",
+    "japaneseAddress": "〒604-8066 京都府京都市中京区伊勢屋町341-1"
+  },
+  "map-a625f2bea910": {
+    "japanese": "ポケモンセンターキョウト",
+    "japaneseAddress": "〒600-8009 京都府京都市下京区函谷鉾町78 SUINA室町2階"
+  },
+  "map-a478649a9a6a": {
+    "japanese": "新京極商店街",
+    "japaneseAddress": "〒604-8042 京都府京都市中京区新京極通"
+  },
+  "map-f5704fd00f5f": {
+    "japanese": "寺町商店街",
+    "japaneseAddress": "〒604-8042 京都府京都市中京区寺町通"
+  },
+  "map-98960b6b8468": {
+    "japanese": "中村藤吉本店 大丸京都店",
+    "japaneseAddress": "〒600-8007 京都府京都市下京区四条通高倉西入立売西町79 大丸京都店 地下1階"
+  },
+  "map-0abf37f57bbf": {
+    "japanese": "餃子 チャオチャオ 四条河原町",
+    "japaneseAddress": "〒600-8021 京都府京都市下京区河原町通四条下る順風町312-1"
+  },
+  "map-70209db17652": {
+    "japanese": "丸久小山園 京都高島屋店",
+    "japaneseAddress": "京都府京都市下京区四条通河原町西入 京都髙島屋 地下1階"
+  },
+  "map-211586fe457c": {
+    "japanese": "中村藤吉本店 四条店",
+    "japaneseAddress": "〒600-8002 京都府京都市下京区四条通寺町東入御旅町35 京都髙島屋S.C. T8 3階"
+  },
+  "map-a0535d1f9534": {
+    "japanese": "グランチャ／スタンド グランチャ 奈良",
+    "japaneseAddress": "〒630-8215 奈良県奈良市東向中町22"
+  },
+  "map-97bb6d3b8819": {
+    "japanese": "東向商店街",
+    "japaneseAddress": "〒630-8215 奈良県奈良市東向中町"
+  },
+  "map-5bbaa0b2053b": {
+    "japanese": "依水園",
+    "japaneseAddress": "〒630-8208 奈良県奈良市水門町74"
+  },
+  "map-f44af1c60933": {
+    "japanese": "近鉄奈良駅",
+    "japaneseAddress": "〒630-8215 奈良県奈良市東向中町29"
+  },
+  "map-f33056946491": {
+    "japanese": "興福寺",
+    "japaneseAddress": "〒630-8213 奈良県奈良市登大路町48"
+  },
+  "map-3e3d6a19a476": {
+    "japanese": "中谷堂",
+    "japaneseAddress": "〒630-8217 奈良県奈良市橋本町29"
+  },
+  "map-b63ba127bef9": {
+    "japanese": "代官山 蔦屋書店",
+    "japaneseAddress": "〒150-0033 東京都渋谷区猿楽町17-5"
+  },
+  "map-c0c17465914c": {
+    "japanese": "千房 道頓堀ビル店",
+    "japaneseAddress": "〒542-0071 大阪府大阪市中央区道頓堀1-5-5"
+  },
+  "map-30935571de5c": {
+    "japanese": "道頓堀",
+    "japaneseAddress": "〒542-0071 大阪府大阪市中央区道頓堀"
+  },
+  "map-08d30b93f6b9": {
+    "japanese": "戎橋・グリコサイン",
+    "japaneseAddress": "〒542-0071 大阪府大阪市中央区道頓堀1-10"
+  },
+  "map-b1f0cd078447": {
+    "japanese": "法善寺",
+    "japaneseAddress": "〒542-0076 大阪府大阪市中央区難波1-2-16"
+  },
+  "map-18270d547b0f": {
+    "japanese": "法善寺横丁",
+    "japaneseAddress": "〒542-0076 大阪府大阪市中央区難波1-2"
+  },
+  "map-b89cebe4155c": {
+    "japanese": "黒門市場",
+    "japaneseAddress": "〒542-0073 大阪府大阪市中央区日本橋2"
+  },
+  "map-36b7d5aed301": {
+    "japanese": "串かつだるま なんば本店",
+    "japaneseAddress": "〒542-0076 大阪府大阪市中央区難波1-5-24"
+  },
+  "map-943723f22998": {
+    "japanese": "りくろーおじさんの店 なんば本店",
+    "japaneseAddress": "〒542-0076 大阪府大阪市中央区難波3-2-28"
+  },
+  "map-e44980b1cc03": {
+    "japanese": "たこ焼き わなか 千日前本店",
+    "japaneseAddress": "〒542-0075 大阪府大阪市中央区難波千日前11-19"
+  },
+  "map-1da30b373e23": {
+    "japanese": "ザ・マッチャ・トウキョウ アトレ恵比寿",
+    "japaneseAddress": "〒150-0022 東京都渋谷区恵比寿南1-2-2 アトレ恵比寿 本館3階"
+  },
+  "map-65a8bea2855c": {
+    "japanese": "エイトベーカリー 伏見稲荷",
+    "japaneseAddress": "〒612-0012 京都府京都市伏見区深草一ノ坪町29-4"
+  },
+  "map-4716d83c5bf3": {
+    "japanese": "伏見稲荷大社",
+    "japaneseAddress": "〒612-0882 京都府京都市伏見区深草藪之内町68"
+  },
+  "map-13fbf8e59ef7": {
+    "japanese": "二子玉川 蔦屋家電",
+    "japaneseAddress": "〒158-0094 東京都世田谷区玉川1-14-1 二子玉川ライズS.C. テラスマーケット1〜2階"
+  },
+  "map-1974188436e5": {
+    "japanese": "幸せのパンケーキ 銀座店",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座5-8-5 New Ginza Building No.10 7階B"
+  },
+  "map-c91921d9561f": {
+    "japanese": "アトリエ マッチャ",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座8-18-4"
+  },
+  "map-6e079f3e5378": {
+    "japanese": "セリーヌ 銀座",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座6-10-1"
+  },
+  "map-08c2442fba30": {
+    "japanese": "シャネル 銀座",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座3-5-3"
+  },
+  "map-adeb2575d94b": {
+    "japanese": "クラウドクラブ マッチャ",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座3-14-6"
+  },
+  "map-d21aabc47ddf": {
+    "japanese": "イータリー 銀座店",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座6-10-1 GINZA SIX 6階"
+  },
+  "map-c4b8d7fd1b58": {
+    "japanese": "銀座マネケン",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座5-7-19 第一生命銀座フォリビル1階"
+  },
+  "map-49c5ecf991bc": {
+    "japanese": "銀座三越",
+    "japaneseAddress": "〒104-8212 東京都中央区銀座4-6-16"
+  },
+  "map-57304c1bf189": {
+    "japanese": "ギンザ シックス（GINZA SIX）",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座6-10-1"
+  },
+  "map-ce6b2deb9f85": {
+    "japanese": "エルメス 銀座",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座5-4-1"
+  },
+  "map-6164d074be46": {
+    "japanese": "ルイ・ヴィトン 松屋銀座店",
+    "japaneseAddress": "〒104-8130 東京都中央区銀座3-6-1"
+  },
+  "map-588c9acd5080": {
+    "japanese": "マネケン 銀座",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座5-7-19"
+  },
+  "map-61091dc5ba8d": {
+    "japanese": "松屋銀座",
+    "japaneseAddress": "〒104-8130 東京都中央区銀座3-6-1"
+  },
+  "map-25d6c8249bcc": {
+    "japanese": "中村藤吉本店 銀座店",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座6-10-1 GINZA SIX 4階"
+  },
+  "map-8bccbcb293e3": {
+    "japanese": "資生堂パーラー 銀座本店",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座8-8-3"
+  },
+  "map-d4d17b230e6f": {
+    "japanese": "銀座 YOU（ユー）",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座4-13-17"
+  },
+  "map-24f36a5abe18": {
+    "japanese": "ゼンパンク マッチャ",
+    "japaneseAddress": "〒104-0061 東京都中央区銀座3-14-2 1階"
+  },
+  "map-7b5c1c8d4d2f": {
+    "japanese": "GOKAGO（ゴカゴ）",
+    "japaneseAddress": "〒605-0862 京都府京都市東山区清水2-258"
+  },
+  "map-8b3f72a2ecc8": {
+    "japanese": "花見小路通",
+    "japaneseAddress": "〒605-0074 京都府京都市東山区祇園町南側"
+  },
+  "map-b0dc685ac286": {
+    "japanese": "建仁寺",
+    "japaneseAddress": "〒605-0811 京都府京都市東山区小松町584"
+  },
+  "map-e57891178174": {
+    "japanese": "清水寺",
+    "japaneseAddress": "〒605-0862 京都府京都市東山区清水1-294"
+  },
+  "map-31145627b925": {
+    "japanese": "高台寺",
+    "japaneseAddress": "〒605-0825 京都府京都市東山区下河原町526"
+  },
+  "map-983e398aaa72": {
+    "japanese": "京都着物レンタル 愛和服 祇園四条店",
+    "japaneseAddress": "〒605-0079 京都府京都市東山区常盤町151 Hachigen Building 3階"
+  },
+  "map-70bc85b83841": {
+    "japanese": "円山公園",
+    "japaneseAddress": "〒605-0071 京都府京都市東山区円山町"
+  },
+  "map-45e5c02a602c": {
+    "japanese": "宮川町",
+    "japaneseAddress": "〒605-0801 京都府京都市東山区宮川筋"
+  },
+  "map-54bbe0ec1cbb": {
+    "japanese": "二寧坂",
+    "japaneseAddress": "〒605-0826 京都府京都市東山区桝屋町"
+  },
+  "map-9b3a6bf995cd": {
+    "japanese": "産寧坂",
+    "japaneseAddress": "〒605-0862 京都府京都市東山区清水2丁目"
+  },
+  "map-069391d8c6f1": {
+    "japanese": "八坂の塔（法観寺）",
+    "japaneseAddress": "〒605-0827 京都府京都市東山区八坂上町388"
+  },
+  "map-fceaeca0cd88": {
+    "japanese": "八坂神社",
+    "japaneseAddress": "〒605-0073 京都府京都市東山区祇園町北側625"
+  },
+  "map-3412c8bbb1bb": {
+    "japanese": "八十八良葉舎 清水",
+    "japaneseAddress": "〒605-0824 京都府京都市東山区南町415-6"
+  },
+  "map-9e35a9630f2b": {
+    "japanese": "雲ノ茶 清水三年坂",
+    "japaneseAddress": "〒605-0862 京都府京都市東山区清水3-317（三年坂 松原上る）"
+  },
+  "map-8bfb03285e08": {
+    "japanese": "茶道体験 カメリア フラワー",
+    "japaneseAddress": "〒605-0826 京都府京都市東山区桝屋町349-12"
+  },
+  "map-1c1b37597639": {
+    "japanese": "白川南通",
+    "japaneseAddress": "〒605-0087 京都府京都市東山区元吉町 白川南通"
+  },
+  "map-5b5ea93c9e91": {
+    "japanese": "巽橋",
+    "japaneseAddress": "〒605-0084 京都府京都市東山区清本町372（祇園 巽橋）"
+  },
+  "map-81e68f338280": {
+    "japanese": "羽田空港 第3ターミナル",
+    "japaneseAddress": "〒144-0041 東京都大田区羽田空港2-6-5"
+  },
+  "map-c9a215fcad07": {
+    "japanese": "アナクマカフェ 原宿",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前1-23-28"
+  },
+  "map-e28ce924f12a": {
+    "japanese": "ハリネズミカフェ HARRY 原宿駅前店",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前1-13-21 Shanzele Harajuku No.2 Building 4階"
+  },
+  "map-dbad5e478067": {
+    "japanese": "ハリネズミカフェ HARRY 原宿テラス",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前4-26-5 神宮前426ビル3階"
+  },
+  "map-70115928b296": {
+    "japanese": "カワイイモンスターランド 原宿",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前1-16-4 竹下通りスクエア 地下1階"
+  },
+  "map-074eb5406680": {
+    "japanese": "マイピッグカフェ 原宿",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前1-15-4"
+  },
+  "map-db34ea9d96b0": {
+    "japanese": "たまごっちファクトリー",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前6-31-21 東急プラザ原宿「ハラカド」3階"
+  },
+  "map-6521014df34c": {
+    "japanese": "麺散（めんちらし）",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前6-13-7"
+  },
+  "map-7fdd8a84f1a6": {
+    "japanese": "幸せのパンケーキ 表参道店",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前4-9-3 Kiyohara Building 地下1階"
+  },
+  "map-925f82f3bc7d": {
+    "japanese": "アモーレ ヴィンテージ 表参道",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前5-1-6"
+  },
+  "map-bbc2b1205669": {
+    "japanese": "キャットストリート",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前"
+  },
+  "map-4b0f959f67c5": {
+    "japanese": "セリーヌ 表参道",
+    "japaneseAddress": "〒107-0061 東京都港区北青山3-5-29"
+  },
+  "map-295aad33dfca": {
+    "japanese": "シャネル 表参道",
+    "japaneseAddress": "〒107-0061 東京都港区北青山3-5-3"
+  },
+  "map-e8e8d0609923": {
+    "japanese": "アイム ドーナツ？ 表参道",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前5-10-1"
+  },
+  "map-31de10f9ab12": {
+    "japanese": "キデイランド 原宿店",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前6-1-9"
+  },
+  "map-ddc7d170d42b": {
+    "japanese": "ルイ・ヴィトン 表参道",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前5-7-5"
+  },
+  "map-81975a1244a5": {
+    "japanese": "明治神宮",
+    "japaneseAddress": "〒151-8557 東京都渋谷区代々木神園町1-1"
+  },
+  "map-a079b2abe20a": {
+    "japanese": "表参道",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前"
+  },
+  "map-95e4841d7261": {
+    "japanese": "クー トーキョー 表参道",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前4-11-15"
+  },
+  "map-66dc61d20400": {
+    "japanese": "竹下通り",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前1"
+  },
+  "map-dab62cd2c100": {
+    "japanese": "ザ・マッチャ・トウキョウ 原宿",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前1-13-18"
+  },
+  "map-14c59b8e7861": {
+    "japanese": "ザ・マッチャ・トウキョウ 表参道",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前5-11-13"
+  },
+  "map-50aa3b875be8": {
+    "japanese": "東急プラザ表参道原宿",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前4-30-3"
+  },
+  "map-20925dedf25c": {
+    "japanese": "とんかつ まい泉 青山本店",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前4-8-5"
+  },
+  "map-f795249f31e4": {
+    "japanese": "マイピッグカフェ 原宿 竹下通り",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前1-6-10 DEAR LIFE 原宿竹下通り 1階"
+  },
+  "map-3db26433bb37": {
+    "japanese": "ベースマン 飯田橋",
+    "japaneseAddress": "〒102-0072 東京都千代田区飯田橋1-4-8"
+  },
+  "map-d43a636f5e31": {
+    "japanese": "八十八鎌倉",
+    "japaneseAddress": "〒248-0012 神奈川県鎌倉市御成町11-37"
+  },
+  "map-f9f9274b2f3d": {
+    "japanese": "科学技術館",
+    "japaneseAddress": "〒102-0091 東京都千代田区北の丸公園2-1"
+  },
+  "map-55f3e37bbc7a": {
+    "japanese": "地主神社",
+    "japaneseAddress": "〒605-0862 京都府京都市東山区清水1-317"
+  },
+  "map-8a39cf5b0624": {
+    "japanese": "東本願寺",
+    "japaneseAddress": "〒600-8505 京都府京都市下京区烏丸通七条上る常葉町754"
+  },
+  "map-2904d4cdb94c": {
+    "japanese": "ホテル カンラ 京都",
+    "japaneseAddress": "〒600-8176 京都府京都市下京区烏丸通六条下る北町190"
+  },
+  "map-29bd0c3f3afd": {
+    "japanese": "烏丸ロック 京都",
+    "japaneseAddress": "〒600-8176 京都府京都市下京区烏丸通六条下る北町191"
+  },
+  "map-eeedd72fd506": {
+    "japanese": "京都駅",
+    "japaneseAddress": "〒600-8216 京都府京都市下京区東塩小路釜殿町"
+  },
+  "map-a3493f23817b": {
+    "japanese": "丸久小山園 ジェイアール京都伊勢丹店",
+    "japaneseAddress": "〒600-8555 京都府京都市下京区烏丸通塩小路下る東塩小路町 ジェイアール京都伊勢丹 地下1階 食品フロア"
+  },
+  "map-e861bc14ebf7": {
+    "japanese": "中村藤吉本店 ジェイアール京都伊勢丹店",
+    "japaneseAddress": "〒600-8555 京都府京都市下京区烏丸通塩小路下る東塩小路町 ジェイアール京都伊勢丹 地下1階 食品フロア"
+  },
+  "map-3c1413de02a9": {
+    "japanese": "中村藤吉本店 京都駅店",
+    "japaneseAddress": "〒600-8555 京都府京都市下京区烏丸通塩小路下る東塩小路町 ジェイアール京都伊勢丹 3階 イートパラダイス"
+  },
+  "map-6b133d14ce33": {
+    "japanese": "糖太朗",
+    "japaneseAddress": "〒600-8182 京都府京都市下京区六条通間之町西入塗師屋町101-2"
+  },
+  "map-f4c35e4b5c5e": {
+    "japanese": "トタロ 京都",
+    "japaneseAddress": "〒600-8182 京都府京都市下京区六条通間之町西入塗師屋町101-2"
+  },
+  "map-555e7e22b2f4": {
+    "japanese": "ディズニーアンバサダーホテル／シェフ・ミッキー",
+    "japaneseAddress": "〒279-8522 千葉県浦安市舞浜2-11"
+  },
+  "map-3ad79ff851a6": {
+    "japanese": "ファンタジースプリングス",
+    "japaneseAddress": "〒279-8511 千葉県浦安市舞浜1-13 東京ディズニーシー"
+  },
+  "map-b6732be4c2f2": {
+    "japanese": "舞浜駅",
+    "japaneseAddress": "〒279-0031 千葉県浦安市舞浜26-5"
+  },
+  "map-42a689648c37": {
+    "japanese": "東京ディズニーランド",
+    "japaneseAddress": "〒279-0031 千葉県浦安市舞浜1-1"
+  },
+  "map-ed85428e54c4": {
+    "japanese": "東京ディズニーシー",
+    "japaneseAddress": "〒279-8511 千葉県浦安市舞浜1-13"
+  },
+  "map-807b5de5c91c": {
+    "japanese": "東京ディズニーシー・ファンタジースプリングスホテル",
+    "japaneseAddress": "〒279-8526 千葉県浦安市舞浜1-2"
+  },
+  "map-087ae6dc5a46": {
+    "japanese": "東京キャラクターストリート",
+    "japaneseAddress": "〒100-0005 東京都千代田区丸の内1-9-1 東京駅一番街 地下1階"
+  },
+  "map-52408ecdfc44": {
+    "japanese": "東京駅",
+    "japaneseAddress": "〒100-0005 東京都千代田区丸の内1"
+  },
+  "map-cb7b86eb1a20": {
+    "japanese": "蔦屋書店 丸の内",
+    "japaneseAddress": "〒100-6304 東京都千代田区丸の内2-4-1 丸ビル3〜4階"
+  },
+  "map-e835cf74be03": {
+    "japanese": "オブラ なんば 湊町",
+    "japaneseAddress": "〒556-0017 大阪府大阪市浪速区湊町1-2-13 アパホテル＆リゾート〈大阪難波駅前タワー〉1階"
+  },
+  "map-03b06749f18b": {
+    "japanese": "ナラマイル",
+    "japaneseAddress": "〒630-8213 奈良県奈良市登大路町76 奈良公園バスターミナル 東棟2階"
+  },
+  "map-20809c0fac75": {
+    "japanese": "春日大社",
+    "japaneseAddress": "〒630-8212 奈良県奈良市春日野町160"
+  },
+  "map-b53429a87fef": {
+    "japanese": "奈良公園",
+    "japaneseAddress": "〒630-8501 奈良県奈良市雑司町469"
+  },
+  "map-a1a0b47b0850": {
+    "japanese": "東大寺",
+    "japaneseAddress": "〒630-8587 奈良県奈良市雑司町406-1"
+  },
+  "map-906e2135f25b": {
+    "japanese": "ガチャガチャの森 日本橋オタロード店",
+    "japaneseAddress": "〒556-0005 大阪府大阪市浪速区日本橋3-7-22 Hikari Building"
+  },
+  "map-a0909a23ffc0": {
+    "japanese": "日本科学未来館",
+    "japaneseAddress": "〒135-0064 東京都江東区青海2-3-6"
+  },
+  "map-51916a3fa4c3": {
+    "japanese": "キッズプラザ大阪",
+    "japaneseAddress": "〒530-0025 大阪府大阪市北区扇町2-1-7"
+  },
+  "map-28194718c755": {
+    "japanese": "京都岡崎 蔦屋書店",
+    "japaneseAddress": "〒606-8342 京都府京都市左京区岡崎最勝寺町13 ロームシアター京都 パークプラザ1階"
+  },
+  "map-d39fe817f564": {
+    "japanese": "ザ・マッチャ・トウキョウ 東京スカイツリータウン",
+    "japaneseAddress": "〒131-0045 東京都墨田区押上1-1-2 東京スカイツリータウン・ソラマチ1階"
+  },
+  "map-76df8034aed6": {
+    "japanese": "先斗町",
+    "japaneseAddress": "〒604-8014 京都府京都市中京区先斗町通"
+  },
+  "map-874f87abf2eb": {
+    "japanese": "和牛すき焼き 京都 力山 先斗町",
+    "japaneseAddress": "〒604-8017 京都府京都市中京区材木町185-8"
+  },
+  "map-6fa00568588d": {
+    "japanese": "鴨川（四条・先斗町）",
+    "japaneseAddress": "〒605-0801 京都府京都市東山区 四条大橋付近（鴨川）"
+  },
+  "map-7c1183f169ed": {
+    "japanese": "六本木 蔦屋書店",
+    "japaneseAddress": "〒106-0032 東京都港区六本木6-11-1 六本木ヒルズ けやき坂通り"
+  },
+  "map-0b01727c345a": {
+    "japanese": "東京タワー",
+    "japaneseAddress": "〒105-0011 東京都港区芝公園4-2-8"
+  },
+  "map-2a19437a7c56": {
+    "japanese": "両国ビューホテル",
+    "japaneseAddress": "〒130-0026 東京都墨田区両国2-19-1"
+  },
+  "map-a9c05502fa21": {
+    "japanese": "奈良 蔦屋書店",
+    "japaneseAddress": "〒630-8013 奈良県奈良市三条大路1-1-691-1"
+  },
+  "map-39a9a75c14a1": {
+    "japanese": "豪徳寺",
+    "japaneseAddress": "〒154-0021 東京都世田谷区豪徳寺2-24-7"
+  },
+  "map-6e7a1fa07422": {
+    "japanese": "#C-pla 渋谷センター街",
+    "japaneseAddress": "〒150-0042 東京都渋谷区宇田川町21-8 渋谷平和ビル"
+  },
+  "map-c9c35da1d0fe": {
+    "japanese": "幸せのパンケーキ 渋谷店",
+    "japaneseAddress": "〒150-0043 東京都渋谷区道玄坂1-18-8 道玄坂プラザ Nishinaya Building 3階"
+  },
+  "map-f008378c6ce1": {
+    "japanese": "クリスプ・サラダワークス 渋谷スクランブルスクエア",
+    "japaneseAddress": "〒150-6101 東京都渋谷区渋谷2-24-12 渋谷スクランブルスクエア2階"
+  },
+  "map-cd2648870861": {
+    "japanese": "EDW yellow 渋谷",
+    "japaneseAddress": "〒150-0042 東京都渋谷区宇田川町26-5 Ikuma Building 地下1階"
+  },
+  "map-42da872a09bf": {
+    "japanese": "フリッパーズ 渋谷",
+    "japaneseAddress": "〒150-0041 東京都渋谷区神南1-15-5 神南プラザビル1階"
+  },
+  "map-7f3270b71529": {
+    "japanese": "忠犬ハチ公像",
+    "japaneseAddress": "〒150-0043 東京都渋谷区道玄坂2-1"
+  },
+  "map-3fd0b625dbac": {
+    "japanese": "MEGAドン・キホーテ 渋谷本店",
+    "japaneseAddress": "〒150-0042 東京都渋谷区宇田川町28-6"
+  },
+  "map-8ee68e6f87f8": {
+    "japanese": "ニンテンドートウキョー（渋谷パルコ）",
+    "japaneseAddress": "〒150-8377 東京都渋谷区宇田川町15-1 渋谷PARCO 6階"
+  },
+  "map-1d7833ba8f21": {
+    "japanese": "ポケモンセンターシブヤ",
+    "japaneseAddress": "〒150-8377 東京都渋谷区宇田川町15-1 渋谷PARCO 6階"
+  },
+  "map-0ae12056a88d": {
+    "japanese": "渋谷PARCO",
+    "japaneseAddress": "〒150-8377 東京都渋谷区宇田川町15-1"
+  },
+  "map-df2f06eb337c": {
+    "japanese": "渋谷スクランブル交差点",
+    "japaneseAddress": "〒150-0002 東京都渋谷区渋谷2-24"
+  },
+  "map-be520bf104e5": {
+    "japanese": "渋谷スカイ（SHIBUYA SKY）",
+    "japaneseAddress": "〒150-6145 東京都渋谷区渋谷2-24-12 渋谷スクランブルスクエア"
+  },
+  "map-04fe07d5d504": {
+    "japanese": "八十八 渋谷",
+    "japaneseAddress": "〒150-0047 東京都渋谷区神山町3-8 AISKビル1階"
+  },
+  "map-1d5b690a0275": {
+    "japanese": "ザ・マッチャ・トウキョウ 渋谷 宮下パーク",
+    "japaneseAddress": "〒150-0001 東京都渋谷区神宮前6-20-10 RAYARD MIYASHITA PARK South 2階"
+  },
+  "map-6b5c0b4dfd96": {
+    "japanese": "ベイブレードバー トウキョウ",
+    "japaneseAddress": "〒155-0031 東京都世田谷区北沢2-4-5 mosia 4階"
+  },
+  "map-59b957b9f0b2": {
+    "japanese": "クリスプ・サラダワークス ニュウマン新宿",
+    "japaneseAddress": "〒151-0051 東京都渋谷区千駄ヶ谷5-24-55 ニュウマン新宿 2階 エキソト"
+  },
+  "map-effca637a00b": {
+    "japanese": "ガチャガチャの森 新宿サブナード",
+    "japaneseAddress": "〒160-0021 東京都新宿区歌舞伎町1-2-2 新宿サブナード 401区画"
+  },
+  "map-f7ef1df89178": {
+    "japanese": "ヒルトン東京",
+    "japaneseAddress": "〒160-0023 東京都新宿区西新宿6-6-2"
+  },
+  "map-e974ec844344": {
+    "japanese": "思い出横丁",
+    "japaneseAddress": "〒160-0023 東京都新宿区西新宿1-2"
+  },
+  "map-1a977cf107eb": {
+    "japanese": "セレクション 新宿 野球館",
+    "japaneseAddress": "〒160-0023 東京都新宿区西新宿7-22-37 Stork Nishi-Shinjuku Fukusei Building 105"
+  },
+  "map-b88baab55163": {
+    "japanese": "ザ・マッチャ・トウキョウ ニュウマン新宿",
+    "japaneseAddress": "〒160-0022 東京都新宿区新宿4-1-6 ニュウマン新宿"
+  },
+  "map-9a0b2f2fe3bc": {
+    "japanese": "東京都庁",
+    "japaneseAddress": "〒163-8001 東京都新宿区西新宿2-8-1"
+  },
+  "map-64fbc06be089": {
+    "japanese": "アメリカ村",
+    "japaneseAddress": "〒542-0086 大阪府大阪市中央区西心斎橋"
+  },
+  "map-71a7473c2fc2": {
+    "japanese": "ブランドオフ 心斎橋",
+    "japaneseAddress": "〒542-0085 大阪府大阪市中央区心斎橋筋1-4-12"
+  },
+  "map-0b38751749b6": {
+    "japanese": "大丸心斎橋店",
+    "japaneseAddress": "〒542-8501 大阪府大阪市中央区心斎橋筋1-7-1"
+  },
+  "map-51e57b66be57": {
+    "japanese": "ギャラリーレア 心斎橋",
+    "japaneseAddress": "〒542-0085 大阪府大阪市中央区心斎橋筋2-7-18"
+  },
+  "map-5484df34196c": {
+    "japanese": "ポケモンセンターオーサカDX",
+    "japaneseAddress": "〒542-8501 大阪府大阪市中央区心斎橋筋1-7-1 大丸心斎橋店 本館9階"
+  },
+  "map-989392ef2a36": {
+    "japanese": "心斎橋筋商店街",
+    "japaneseAddress": "〒542-0085 大阪府大阪市中央区心斎橋筋"
+  },
+  "map-17af6a524b0d": {
+    "japanese": "ヴィンテージ クー トーキョー 心斎橋",
+    "japaneseAddress": "〒542-0085 大阪府大阪市中央区心斎橋筋1-1-16 MI Cube 心斎橋 1〜2階"
+  },
+  "map-391ca95c87d6": {
+    "japanese": "CHADO 大阪",
+    "japaneseAddress": "〒542-0081 大阪府大阪市中央区南船場4-13-15"
+  },
+  "map-b5edf2032261": {
+    "japanese": "オブラ 心斎橋",
+    "japaneseAddress": "〒542-0081 大阪府大阪市中央区南船場4-12-9 1階"
+  },
+  "map-3238b1343306": {
+    "japanese": "ジャイアンツストア ボールパーク東京",
+    "japaneseAddress": "〒112-0004 東京都文京区後楽1-3-61 東京ドーム 22ゲート付近"
+  },
+  "map-7b5bda0a619e": {
+    "japanese": "東京ドーム",
+    "japaneseAddress": "〒112-0004 東京都文京区後楽1-3-61"
+  },
+  "map-96696fb16f2a": {
+    "japanese": "東京ドームシティ",
+    "japaneseAddress": "〒112-0004 東京都文京区後楽1-3-61"
+  },
+  "map-89700559e485": {
+    "japanese": "クリスプ・サラダワークス 虎ノ門ヒルズ ビジネスタワー",
+    "japaneseAddress": "〒105-6490 東京都港区虎ノ門1-17-1 虎ノ門ヒルズ ビジネスタワー 地下1階"
+  },
+  "map-e300c832b77b": {
+    "japanese": "抹茶カフェ マルニ",
+    "japaneseAddress": "〒104-0045 東京都中央区築地4-13-8 SOLASIA Building 3階"
+  },
+  "map-5de7be8d1209": {
+    "japanese": "抹茶スタンド マルニ 東京築地",
+    "japaneseAddress": "〒104-0045 東京都中央区築地4-14-18"
+  },
+  "map-3c3bf3d7b906": {
+    "japanese": "くまの手カフェ",
+    "japaneseAddress": "〒542-0062 大阪府大阪市中央区上本町西5-3-11"
+  },
+  "map-55b6dca0e865": {
+    "japanese": "アメ横商店街",
+    "japaneseAddress": "〒110-0005 東京都台東区上野6"
+  },
+  "map-b7bcbf111723": {
+    "japanese": "抹茶ラボ 上野マルイ",
+    "japaneseAddress": "〒110-8502 東京都台東区上野6-15-1 上野マルイ1階"
+  },
+  "map-8738ecd4566c": {
+    "japanese": "国立科学博物館",
+    "japaneseAddress": "〒110-8718 東京都台東区上野公園7-20"
+  },
+  "map-5bd5c9d8ad66": {
+    "japanese": "不忍池",
+    "japaneseAddress": "〒110-0007 東京都台東区上野公園"
+  },
+  "map-306f5425795a": {
+    "japanese": "上野公園",
+    "japaneseAddress": "〒110-0007 東京都台東区上野公園"
+  },
+  "map-bbfd07469768": {
+    "japanese": "上野動物園",
+    "japaneseAddress": "〒110-8711 東京都台東区上野公園9-83"
+  },
+  "map-ea4712643051": {
+    "japanese": "やなぎ茶屋 エキュート上野",
+    "japaneseAddress": "〒110-0005 東京都台東区上野7-1-1 エキュート上野2階（JR改札外）"
+  },
+  "map-001c6537153f": {
+    "japanese": "アメリカンダイナー アンドラ",
+    "japaneseAddress": "〒110-0015 東京都台東区東上野5-13-7"
+  },
+  "map-0359f844a3ce": {
+    "japanese": "セイバー ザ マッチャ",
+    "japaneseAddress": "〒110-0007 東京都台東区上野公園16-25"
+  },
+  "map-8ccb7b0cd442": {
+    "japanese": "平等院表参道",
+    "japaneseAddress": "〒611-0021 京都府宇治市宇治 平等院表参道"
+  },
+  "map-8589828bd690": {
+    "japanese": "平等院",
+    "japaneseAddress": "〒611-0021 京都府宇治市宇治蓮華116"
+  },
+  "map-b576666ab8fe": {
+    "japanese": "丸久小山園 本店",
+    "japaneseAddress": "〒611-0042 京都府宇治市小倉町寺内86"
+  },
+  "map-5b81cfeb76e6": {
+    "japanese": "中村藤吉 平等院店",
+    "japaneseAddress": "〒611-0021 京都府宇治市宇治蓮華5-1"
+  },
+  "map-97c1198c05ca": {
+    "japanese": "中村藤吉本店 宇治本店",
+    "japaneseAddress": "〒611-0021 京都府宇治市宇治壱番10"
+  },
+  "map-50a91f7bad9a": {
+    "japanese": "丸久小山園 槇島工場",
+    "japaneseAddress": "京都府宇治市槇島町中川原172-4"
+  },
+  "map-396811391a80": {
+    "japanese": "クリスプ・サラダワークス KITTE大阪",
+    "japaneseAddress": "〒530-0001 大阪府大阪市北区梅田3-2-2 KITTE大阪 地下1階"
+  },
+  "map-b3cf3cd8e8b3": {
+    "japanese": "中村藤吉本店 大阪店",
+    "japaneseAddress": "〒530-8350 大阪府大阪市北区角田町8-7 阪急うめだ本店 地下1階"
+  },
+  "map-b147c181021f": {
+    "japanese": "大阪駅",
+    "japaneseAddress": "〒530-0001 大阪府大阪市北区梅田3-1-1"
+  },
+  "map-31202a3ed732": {
+    "japanese": "梅田 蔦屋書店",
+    "japaneseAddress": "〒530-8558 大阪府大阪市北区梅田3-1-3 ルクア1100 9階"
+  },
+  "map-eba8a175a993": {
+    "japanese": "ユニバーサルシティ駅",
+    "japaneseAddress": "〒554-0024 大阪府大阪市此花区島屋6-2"
+  },
+  "map-fd94e4672b15": {
+    "japanese": "ユニバーサル・シティウォーク大阪",
+    "japaneseAddress": "〒554-0024 大阪府大阪市此花区島屋6-2-61"
+  },
+  "map-1bbb9883c438": {
+    "japanese": "ユニバーサル・スタジオ・ジャパン",
+    "japaneseAddress": "〒554-0031 大阪府大阪市此花区桜島2-1-33"
+  }
+}
