@@ -16,33 +16,69 @@ const OfficialLinks=({dayNumber})=><div className="row wrap sumo-official">
 </div>;
 // Four picks, one phone. In the arena there is a single phone out and everybody shouting at
 // it, so whoever is holding it enters all four — this is the one place in the app where you
-// record somebody else's answer. Picks close the moment the result goes in: you cannot call a
-// bout you have already watched.
-function Picks({state,bout,result,members,mutate,busy,open,onToggle}){
+// record somebody else's answer. Each of us is a chip: drag it onto the wrestler you are backing,
+// or back to the bench to take the pick away. A drag needs a steady thumb in a crowd, so tapping a
+// chip and then a wrestler does the same thing. Picks close the moment the result goes in: you
+// cannot call a bout you have already watched.
+function Picks({state,bout,result,members,mutate,busy,open,onToggle,onAllIn}){
  const picks=boutPredictions(state,bout.id),closed=predictionsClosed(state,bout.id);
  const made=members.filter(n=>picks[n]);
+ const [held,setHeld]=useState(null),[drag,setDrag]=useState(null),[over,setOver]=useState(null);
+ const sideOf=name=>picks[name]===bout.east.name?'east':picks[name]===bout.west.name?'west':'bench';
+ const zoneAt=(x,y)=>document.elementFromPoint(x,y)?.closest?.('[data-sumo-drop]')?.dataset.sumoDrop||null;
+ async function place(name,zone){
+  setHeld(null);setDrag(null);setOver(null);
+  if(!zone||zone===sideOf(name)||busy)return;
+  const winner=zone==='east'?bout.east.name:zone==='west'?bout.west.name:null;
+  const ok=await mutate({type:'sumoPredict',id:bout.id,person:name,winner});
+  // Everybody is in: move straight on to the next bout nobody has finished calling.
+  if(ok&&winner&&members.every(n=>n===name||picks[n]))onAllIn?.();
+ }
+ const down=(name,e)=>{if(busy||e.button>0)return;e.currentTarget.setPointerCapture?.(e.pointerId);
+  setDrag({name,x0:e.clientX,y0:e.clientY,x:e.clientX,y:e.clientY,moved:false});};
+ const move=e=>{if(!drag)return;const moved=drag.moved||Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)>8;
+  setDrag({...drag,x:e.clientX,y:e.clientY,moved});if(moved)setOver(zoneAt(e.clientX,e.clientY));};
+ const up=e=>{if(!drag)return;const {name,moved}=drag;
+  if(moved)place(name,zoneAt(e.clientX,e.clientY));
+  else{setDrag(null);setHeld(held===name?null:name);}};
+ // Plain functions rather than components, so a re-render mid-drag keeps the same chip (and its
+ // pointer capture) instead of mounting a new one.
+ const chip=name=><button key={name} type="button" className={`sumo-chip ${held===name?'held':''} ${drag?.moved&&drag.name===name?'lifting':''}`}
+  disabled={busy} aria-pressed={held===name} aria-label={`${name}${picks[name]?`, backing ${picks[name]}`:', not called yet'}. Tap, then tap a wrestler.`}
+  onPointerDown={e=>down(name,e)} onPointerMove={move} onPointerUp={up} onPointerCancel={()=>{setDrag(null);setOver(null);}} onClick={e=>e.stopPropagation()}>{name}</button>;
+ const dropZone=(zone,label,sub)=>{const here=members.filter(n=>sideOf(n)===zone);
+  return <div key={zone} role="button" tabIndex={held?0:-1} data-sumo-drop={zone} aria-label={held?`Put ${held} on ${label}`:label}
+   className={`sumo-drop ${zone} ${over===zone?'over':''} ${held&&sideOf(held)!==zone?'ready':''}`}
+   onClick={()=>held&&place(held,zone)} onKeyDown={e=>{if(held&&(e.key==='Enter'||e.key===' ')){e.preventDefault();place(held,zone);}}}>
+   <span className="sumo-drop-label"><strong>{label}</strong>{sub&&<small>{sub}</small>}</span>
+   <span className="sumo-drop-chips">{here.map(chip)}
+    {!here.length&&<small className="sumo-drop-hint">{zone==='bench'?'Everybody has called it':'Drop a name here'}</small>}</span>
+  </div>;};
  return <div className="sumo-picks">
   <div className="row wrap">
    <button className="sumo-pick-toggle" onClick={onToggle} aria-expanded={open}>
     {closed?<Lock size={13}/>:<Trophy size={13}/>}
     {made.length?`${made.length} of ${members.length} called it`:closed?'Nobody called this one':'Who do we think?'}
    </button>
-   {made.map(name=>{
+   {!open&&made.map(name=>{
     const right=result&&result.winner===picks[name];
     return <span className={`tag pick ${result?(right?'up':'down'):''}`} key={name}>
      {result&&(right?<Check size={12}/>:<X size={12}/>)}{name}: {picks[name]}</span>;
    })}
   </div>
-  {open&&<div className="sumo-pick-grid">
-   {closed
-    ?<p><small>This one has been watched, so the picks are closed. Clear the result above to reopen them.</small></p>
-    :members.map(name=><div className="sumo-pick-row" key={name}>
-      <span>{name}</span>
-      {[bout.east.name,bout.west.name].map(side=>
-       <button key={side} className={picks[name]===side?'selected':''} disabled={busy}
-        onClick={()=>mutate({type:'sumoPredict',id:bout.id,person:name,winner:picks[name]===side?null:side})}>{side}</button>)}
-     </div>)}
-  </div>}
+  {open&&(closed
+   ?<div className="sumo-pick-grid"><p><small>This one has been watched, so the picks are closed. Clear the result above to reopen them.</small></p>
+    <div className="row wrap">{made.map(name=>{const right=result&&result.winner===picks[name];
+     return <span className={`tag pick ${right?'up':'down'}`} key={name}>{right?<Check size={12}/>:<X size={12}/>}{name}: {picks[name]}</span>;})}</div></div>
+   :<div className="sumo-board">
+    <div className="sumo-board-sides">
+     {dropZone('east',bout.east.name,bout.east.rank?`East · ${bout.east.rank}`:'East')}
+     {dropZone('west',bout.west.name,bout.west.rank?`West · ${bout.west.rank}`:'West')}
+    </div>
+    {dropZone('bench','Not called yet')}
+    <small>{held?`Now tap the wrestler ${held} is backing.`:'Drag each name onto who they think will win — or tap a name, then a wrestler. Drag it back here to take a pick away.'}</small>
+    {drag?.moved&&<span className="sumo-chip ghost" aria-hidden="true" style={{left:drag.x,top:drag.y}}>{drag.name}</span>}
+   </div>)}
  </div>;
 }
 // The ladder, which is the half of a tipping comp people actually argue about: where everybody
@@ -109,6 +145,11 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
  const tally=predictionTally(state),leaders=predictionLeaders(state);
  const ladder=predictionLadder(state,state.members),sheet=tippingTable(state,state.members);
  const clock=japanClock(now||new Date()),onNow=currentBout(state,clock);
+ // After the last name goes onto a bout, the next one in running order that is still open and
+ // still waiting on somebody, so the phone can go round the table bout after bout.
+ const order=groups.flatMap(g=>g.bouts);
+ const nextToCall=id=>{const from=order.findIndex(b=>b.id===id);
+  return order.slice(from+1).find(b=>!predictionsClosed(state,b.id)&&state.members.some(n=>!boutPredictions(state,b.id)[n]))?.id??null;};
  async function load(){
   setFetching(true);setError('');
   try{
@@ -183,7 +224,7 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
         onClick={()=>mutate({type:'sumoResult',id:bout.id,winner:result?.winner===name?null:name,by:user.name})}>{name}</button>)}
      </div>
      <Picks state={state} bout={bout} result={result} members={state.members} mutate={mutate} busy={busy}
-      open={picking===bout.id} onToggle={()=>setPicking(picking===bout.id?null:bout.id)}/>
+      open={picking===bout.id} onToggle={()=>setPicking(picking===bout.id?null:bout.id)} onAllIn={()=>setPicking(nextToCall(bout.id))}/>
     </article>;})}
   </section>)}
   {!!card.sources.length&&<details className="sumo-sources"><summary>Where this came from</summary>
