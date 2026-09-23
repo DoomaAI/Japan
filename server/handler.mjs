@@ -18,7 +18,12 @@ import {nearbyPlaces,nearbyReady} from './nearby.mjs';
 import {fetchSumoDay,fetchSumoResults,fetchWrestler,sumoReady} from './sumo.mjs';
 import {readDocument,readerReady,translateStoredFile} from './document-reader.mjs';
 import {coachPhoto,coachReady} from './photo-coach.mjs';
+import {shareCheckin,listCheckins} from './checkins.mjs';
+import {parseKml,matchPlacemarks,myMapKmlUrl,roundedPosition,validPosition,PHOTO_PLACES} from '../src/memory-map.js';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
+// A photo's own position, if the phone read one out of it, kept to about ten metres. Anything
+// that is not a plain pair of coordinates is dropped rather than refused: the photo matters more.
+const photoGps=g=>validPosition(g)&&Object.keys(g).length===2?roundedPosition(Number(g.lat),Number(g.lng),PHOTO_PLACES):null;
 const json=(res,data,status=200)=>{res.statusCode=status;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));};
 async function body(req,max=1000000){if(req.body&&typeof req.body==='object')return req.body;let s='';for await(const c of req){s+=c;if(Buffer.byteLength(s)>max)throw new AppError('Request too large.',413);}try{return JSON.parse(s||'{}');}catch{throw new AppError('Invalid request.');}}
 const parent=u=>{if(u.role!=='parent')throw new AppError('A parent can do this.',403);};
@@ -65,6 +70,25 @@ export default async function handler(req,res){
   if(route==='session'&&req.method==='GET')return json(res,{user});
   if(route==='logout'&&post){if(!localDemo()){const c=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('japan_session='))?.slice(14);if(c){const db=await database();await db`DELETE FROM japan_sessions WHERE token_hash=${hash(c)}`;}}setCookie(res,'');return json(res,{ok:true});}
   if(route==='state'&&req.method==='GET')return json(res,visibleEnvelope(await readTrip(),user));
+  // Where we each last said we were. Shared by tapping, never by the app on its own; read by the
+  // map, which only ever gets the ones this person is allowed to see.
+  if(route==='checkins'&&req.method==='GET')return json(res,{checkins:await listCheckins(user)});
+  if(route==='checkin'&&post){await shareCheckin(user,b);return json(res,{checkins:await listCheckins(user)});}
+  // Coordinates for our places, from the family My Map. The map's own KML export is read once,
+  // on a parent's say-so, and each pin is matched to a place by name; nothing is guessed.
+  if(route==='map-coordinates'&&post){
+   parent(user);
+   const {state}=await readTrip(),source=myMapKmlUrl(state);
+   if(!source)throw new AppError('There is no My Map linked to read from.',404);
+   let text;
+   try{const r=await fetch(source,{signal:AbortSignal.timeout(20000)});if(!r.ok)throw new Error();text=await r.text();}
+   catch{throw new AppError('Our My Map could not be read. Check it is shared so anyone with the link can view it.',502);}
+   const found=matchPlacemarks(state.locations,parseKml(text));
+   if(!found.matched)throw new AppError('No pins on our My Map matched a place by name.',422);
+   const at=new Date().toISOString();
+   const saved=await updateTrip(next=>({...next,placeCoords:{places:found.places,at,by:user.name}}));
+   return json(res,{...visibleEnvelope(saved,user),matched:found.matched,unmatched:found.unmatched.slice(0,50)});
+  }
   if(route==='mutate'&&post){
    const current=await readTrip();if(b.operation?.operationId&&current.state.appliedOperationIds?.includes(b.operation.operationId))return json(res,visibleEnvelope(current,user));if(b.revision!==current.revision)throw new AppError('The family updated the trip. Review your change against the latest plan.',409);
    const state=applyOperation(current.state,b.operation,user);
@@ -249,7 +273,7 @@ export default async function handler(req,res){
     score:Number.isInteger(b.feedback.score)?Math.max(1,Math.min(10,b.feedback.score)):null
    }:null;
    current.state.photos=[...current.state.photos,{id:randomUUID(),by:user.name,for:owner,day:b.day,
-    title:(b.title||'').trim(),pathname:b.pathname,type:blob.contentType,size:blob.size,feedback,at:new Date().toISOString()}];
+    title:(b.title||'').trim(),pathname:b.pathname,type:blob.contentType,size:blob.size,feedback,gps:photoGps(b.gps),at:new Date().toISOString()}];
    return json(res,visibleEnvelope(await writeTrip(current.state,current.revision),user));
   }
   if(route==='photo'&&req.method==='GET'){
@@ -420,7 +444,7 @@ export default async function handler(req,res){
    const existing=current.state.documents.find(d=>d.pathname===b.pathname);if(existing)return json(res,visibleEnvelope(current,user));
    // A file added to a ticket already marked used is archived with it, rather than reappearing
    // on the list and in the offline download on its own.
-   current.state.documents.push({id:randomUUID(),title:b.title,...details,...association,...(root?{parentDocumentId:root.id,archivedAt:root.archivedAt??null,archivedBy:root.archivedBy??null}:{}),size:blob.size,pathname:b.pathname,type:blob.contentType,person:b.person||'Family',createdAt:new Date().toISOString()});
+   current.state.documents.push({id:randomUUID(),title:b.title,...details,...association,...(root?{parentDocumentId:root.id,archivedAt:root.archivedAt??null,archivedBy:root.archivedBy??null}:{}),size:blob.size,pathname:b.pathname,type:blob.contentType,person:b.person||'Family',...(details.category==='memory'&&photoGps(b.gps)?{gps:photoGps(b.gps)}:{}),createdAt:new Date().toISOString()});
    return json(res,visibleEnvelope(await writeTrip(current.state,current.revision),user));
   }
   if(route==='document'&&req.method==='GET'){

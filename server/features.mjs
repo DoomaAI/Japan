@@ -8,6 +8,7 @@ const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
+import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
 const MAX_PROPOSALS=300;
 // A shortlist is a list you can still read. Past a couple of hundred finds it is an archive of
 // shops, and the answer to that is to decide on some rather than to keep adding.
@@ -872,6 +873,45 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:changed?`${changed} sumo ${changed===1?'winner':'winners'} in from the official results`:null,important:false,title:'Sumo results'};
   }
   fail('Unknown sumo action.');
+ }else if(typeof op.type==='string'&&op.type.startsWith('tracker')){
+  // Tracker tags are a parent's: they sit on a parent's Apple Account, and the link to where a
+  // bag is belongs with whoever can act on it. Everyone can read the list.
+  if(!parent)fail('A parent looks after the tracker tags.',403);
+  const list=state.trackers,found=()=>{const t=list.find(t=>t.id===op.id);if(!t)fail('That tracker is no longer on the list.',404);return t;};
+  const stamp=()=>{if(!op.at)return now;if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');return new Date(op.at).toISOString();};
+  if(op.type==='trackerAdd'||op.type==='trackerEdit'){
+   if(!string(op.label,120)||!op.label.trim())fail('Say what the tracker is in.');
+   if(op.kind!==undefined&&!TRACKER_KINDS.some(([k])=>k===op.kind))fail('Choose what kind of thing it is in.');
+   if(!['Family',...state.members].includes(op.person||'Family'))fail('Choose a family member.');
+   if(op.owner&&!state.members.includes(op.owner))fail('Choose whose Apple Account it is on.');
+   if(op.forwarded!==undefined&&typeof op.forwarded!=='boolean')fail('Invalid choice.');
+   requireText(op.notes||'',1000,'notes');
+   if(op.type==='trackerAdd'){
+    if(list.length>=MAX_TRACKERS)fail('That is a lot of trackers already. Take one off first.');
+    list.push({...trackerItem(op,randomUUID()),checks:{shared:false,alerts:false},shareUrl:null,shareUrlAt:null,shareUrlBy:null,createdBy:user.name,createdAt:stamp()});
+   }else{const t=found();Object.assign(t,trackerItem(op,t.id));}
+   return {summary:null,important:false,title:op.label.trim()};
+  }
+  if(op.type==='trackerCheck'){
+   const t=found();
+   if(!['shared','alerts'].includes(op.check)||typeof op.done!=='boolean')fail('Invalid tick.');
+   t.checks={...t.checks,[op.check]:op.done};
+   return {summary:null,important:false,title:t.label};
+  }
+  if(op.type==='trackerLink'){
+   // The link itself is never written into the history: the title is the bag, not the URL.
+   const t=found();
+   if(op.url===null||op.url===''){Object.assign(t,{shareUrl:null,shareUrlAt:null,shareUrlBy:null});return {summary:null,important:false,title:t.label};}
+   if(!validShareUrl(op.url))fail('Paste the https link from Find My → Share Item Location.');
+   Object.assign(t,{shareUrl:op.url,shareUrlAt:stamp(),shareUrlBy:user.name});
+   return {summary:null,important:false,title:t.label};
+  }
+  if(op.type==='trackerRemove'){
+   const t=found();
+   state.trackers=list.filter(x=>x.id!==t.id);
+   return {summary:null,important:false,title:t.label};
+  }
+  fail('Unknown tracker action.');
  }else if(op.type==='meeting'){
   dayCheck(op.day);if(!op.day)fail('Choose a day.');
   const m={place:op.place||'',japanese:op.japanese||'',time:op.time||'',notes:op.notes||'',hotelJapanese:op.hotelJapanese||'',hotelAddress:op.hotelAddress||''};

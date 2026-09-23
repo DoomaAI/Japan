@@ -8477,3 +8477,160 @@ test('reordering one lane on a split day keeps the whole day in one order',()=>{
  const moved=applyOperation(trip,{type:'reorder',day,ids:[...ids].reverse()},parent);
  assert.equal(activeSteps(moved,day)[0].id,ids.at(-1));
 });
+test('tracker tags: a parent keeps the list, the boys can read it, and only a parent gets the Find My link',async()=>{
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {linkState,trackerChecks,forwardedTrackers,SHARE_LINK_DAYS}=await import('../src/trackers.js');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ let state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.trackers,[]);
+ assert.throws(()=>applyOperation(state,{type:'trackerAdd',label:'My backpack',kind:'backpack'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'trackerAdd',label:'  ',kind:'suitcase'},parent),/Say what the tracker is in/);
+ assert.throws(()=>applyOperation(state,{type:'trackerAdd',label:'Case',kind:'box'},parent),/Choose what kind/);
+ assert.throws(()=>applyOperation(state,{type:'trackerAdd',label:'Case',kind:'suitcase',owner:'Somebody'},parent),/Apple Account/);
+ state=applyOperation(state,{type:'trackerAdd',label:'Big navy suitcase',kind:'suitcase',person:'Family',owner:'Lauren',forwarded:true,notes:'Orange strap'},parent);
+ const bag=state.trackers[0];
+ assert.equal(bag.label,'Big navy suitcase');assert.equal(bag.owner,'Lauren');assert.equal(bag.forwarded,true);
+ assert.deepEqual(trackerChecks(bag).map(c=>c.done),[false,false]);
+ assert.equal(linkState(bag).state,'none');
+ assert.deepEqual(forwardedTrackers(state).map(t=>t.id),[bag.id]);
+ // Ticking the Find My set-up survives an edit of the wording.
+ state=applyOperation(state,{type:'trackerCheck',id:bag.id,check:'shared',done:true},parent);
+ state=applyOperation(state,{type:'trackerEdit',id:bag.id,label:'Navy suitcase',kind:'suitcase',person:'Family',owner:'Lauren',forwarded:true,notes:''},parent);
+ assert.equal(state.trackers[0].checks.shared,true);assert.equal(state.trackers[0].label,'Navy suitcase');
+ assert.throws(()=>applyOperation(state,{type:'trackerCheck',id:bag.id,check:'battery',done:true},parent),/Invalid tick/);
+ // The link: https only, stamped, and never written into the family history.
+ assert.throws(()=>applyOperation(state,{type:'trackerLink',id:bag.id,url:'javascript:alert(1)'},parent),/Share Item Location/);
+ assert.throws(()=>applyOperation(state,{type:'trackerLink',id:bag.id,url:'http://example.com/x'},parent),/Share Item Location/);
+ const url='https://share.example.com/item/abc123';
+ state=applyOperation(state,{type:'trackerLink',id:bag.id,url},parent);
+ const linked=state.trackers[0];
+ assert.equal(linked.shareUrl,url);assert.equal(linked.shareUrlBy,'Damien');
+ assert.equal(linkState(linked).state,'live');
+ assert.equal(linkState(linked,new Date(Date.parse(linked.shareUrlAt)+(SHARE_LINK_DAYS*24+1)*3600000)).state,'expired');
+ assert.ok(!JSON.stringify(state.history).includes(url),'the link is not in the history');
+ // The boys see the bag and that a link exists, not the link.
+ const boys=visibleTrip(state,child).trackers[0];
+ assert.equal(boys.shareUrl,null);assert.equal(boys.label,'Navy suitcase');assert.equal(linkState(boys).state,'live');
+ assert.equal(visibleTrip(state,parent).trackers[0].shareUrl,url);
+ state=applyOperation(state,{type:'trackerLink',id:bag.id,url:null},parent);
+ assert.equal(state.trackers[0].shareUrl,null);assert.equal(linkState(state.trackers[0]).state,'none');
+ assert.throws(()=>applyOperation(state,{type:'trackerRemove',id:bag.id},child),e=>e.status===403);
+ state=applyOperation(state,{type:'trackerRemove',id:bag.id},parent);
+ assert.equal(state.trackers.length,0);
+ assert.throws(()=>applyOperation(state,{type:'trackerRemove',id:bag.id},parent),e=>e.status===404);
+});
+test('memory map: KML pins become place coordinates by name, and nothing is guessed',async()=>{
+ const {parseKml,matchPlacemarks,myMapKmlUrl}=await import('../src/memory-map.js');
+ const kml=`<?xml version="1.0"?><kml><Document><Folder>
+  <Placemark><name>1 Hotel Tokyo</name><Point><coordinates>139.7410,35.6700,0</coordinates></Point></Placemark>
+  <Placemark><name><![CDATA[Spotted Stone]]></name><description>x</description><Point><coordinates>
+   139.7411,35.6701,0</coordinates></Point></Placemark>
+  <Placemark><name>A walk &amp; a line</name><LineString><coordinates>139,35 140,36</coordinates></LineString></Placemark>
+  <Placemark><name>Nowhere we know</name><Point><coordinates>135.5,34.6,0</coordinates></Point></Placemark>
+  <Placemark><name>Bad</name><Point><coordinates>500,95</coordinates></Point></Placemark>
+ </Folder></Document></kml>`;
+ const pins=parseKml(kml);
+ assert.deepEqual(pins.map(p=>p.name),['1 Hotel Tokyo','Spotted Stone','Nowhere we know']);
+ assert.deepEqual(pins[0],{name:'1 Hotel Tokyo',lat:35.67,lng:139.741});
+ const locations=[{id:'a',name:'1 Hotel Tokyo',aliases:['1 Hotel Tokyo']},{id:'b',name:'Spotted Stone'},{id:'c',name:'Twice',aliases:['Twice']},{id:'d',name:'Senso-ji',japanese:'浅草寺'}];
+ const two=[...pins,{name:'Twice',lat:35,lng:139},{name:'twice',lat:34,lng:135},{name:'浅草寺',lat:35.7148,lng:139.7967}];
+ const found=matchPlacemarks(locations,two);
+ assert.deepEqual(Object.keys(found.places).sort(),['a','b','d']);
+ assert.equal(found.places.d.lat,35.7148,'matched by the Japanese name');
+ assert.ok(!found.places.c,'two different pins with the same name are not guessed between');
+ assert.ok(found.unmatched.includes('Nowhere we know'));
+ assert.equal(myMapKmlUrl(seed),'https://www.google.com/maps/d/kml?mid=1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo&forcekml=1');
+ assert.equal(myMapKmlUrl({mapEmbed:'https://evil.example/?mid=../../x'}),null);
+});
+test('memory map: stops, photos, voice notes, stars and finds are placed where they happened',async()=>{
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {memoryPoints,dayRoute,stepPosition}=await import('../src/memory-map.js');
+ const {activeSteps}=await import('../src/timing.js');
+ const places=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url))).locations;
+ let state={...ensureFeatures(structuredClone(seed)),locations:places};
+ const day=state.days[2].date,[first,second,third]=activeSteps(state,day);
+ // One stop pinned by hand, one at a place with coordinates, one with neither.
+ state.steps=state.steps.map(s=>s.id===first.id?{...s,pin:{lat:35.66,lng:139.7},status:'done'}:s.id===second.id?{...s,locationId:places[0].id}:s.id===third.id?{...s,locationId:null,place:'Somewhere unnamed'}:s);
+ state.placeCoords={places:{[places[0].id]:{lat:35.67,lng:139.741}},at:null,by:null};
+ state.stepReviews={[second.id]:{ratings:{Nate:5,Damien:4},thoughts:{Nate:{text:'The deer!',at:'2026-09-23T01:00:00Z'}}},[third.id]:{ratings:{Boston:3}}};
+ state.voiceNotes=[{id:'v1',by:'Nate',day,stepId:second.id,title:'',seconds:4,pathname:'voice/x/1.m4a'}];
+ state.documents=[...state.documents,
+  {id:'g1',category:'memory',title:'At the stop',stepId:second.id,day,person:'Lauren',type:'image/jpeg',pathname:'tickets/x/1.jpg'},
+  {id:'g2',category:'memory',title:'On the way',stepId:second.id,day,person:'Nate',type:'image/jpeg',pathname:'tickets/x/2.jpg',gps:{lat:35.68,lng:139.75}}];
+ state.photos=[{id:'p1',by:'Boston',for:'Boston',day,title:'Crossing',pathname:'photos/x/1.jpg',gps:{lat:35.69,lng:139.76}},{id:'p2',by:'Nate',day,pathname:'photos/x/2.jpg'}];
+ state.shortlist=[{id:'f1',title:'Kitsune mask',addedBy:'Boston',day,pin:{lat:35.7,lng:139.77}},{id:'f2',title:'No pin',addedBy:'Boston',day,pin:null}];
+ assert.deepEqual(stepPosition(state,state.steps.find(s=>s.id===first.id)),{lat:35.66,lng:139.7,exact:true});
+ assert.deepEqual(stepPosition(state,state.steps.find(s=>s.id===second.id)),{lat:35.67,lng:139.741,exact:false});
+ const {points,unplaced}=memoryPoints(state,{day});
+ const ids=points.map(p=>p.id).sort();
+ assert.deepEqual(ids,[`find-f1`,`media-g2`,`photo-p1`,`stop-${first.id}`,`stop-${second.id}`].sort());
+ const stop=points.find(p=>p.id===`stop-${second.id}`);
+ assert.deepEqual(stop.photos.map(d=>d.id),['g1'],'a photo with its own position is not also at the stop');
+ assert.equal(stop.voice.length,1);assert.equal(stop.count,5);
+ assert.equal(points.find(p=>p.id===`stop-${first.id}`).count,0,'a done stop is on the map even with nothing kept');
+ assert.deepEqual(unplaced.map(p=>p.stepId),[third.id]);
+ // Whose: only Nate's memories, and no bare done stops.
+ const nate=memoryPoints(state,{day,person:'Nate'}).points;
+ assert.deepEqual(nate.map(p=>p.id).sort(),[`media-g2`,`stop-${second.id}`].sort());
+ assert.deepEqual(Object.keys(nate.find(p=>p.kind==='stop').ratings),['Nate']);
+ const route=dayRoute(state,day).map(r=>r.step.id);
+ assert.deepEqual(route.slice(0,2),[first.id,second.id],'the day in order');
+ assert.ok(!route.includes(third.id),'a stop with no position is not on the line');
+ assert.equal(memoryPoints(state,{day:state.days[5].date}).points.some(p=>p.id==='find-f1'),false);
+});
+test('memory map: a JPEG gives up its GPS position and nothing else',async()=>{
+ const {gpsFromJpeg,photoPosition}=await import('../src/exif-gps.js');
+ const jpeg=(latRef,lat,lngRef,lng)=>{
+  const t=new DataView(new ArrayBuffer(200));let o=0;
+  const u16=v=>{t.setUint16(o,v,true);o+=2;},u32=v=>{t.setUint32(o,v,true);o+=4;};
+  u16(0x4949);u16(42);u32(8);
+  u16(1);u16(0x8825);u16(4);u32(1);u32(26);u32(0);            // IFD0 → GPS IFD at 26
+  u16(4);
+  u16(1);u16(2);u32(2);t.setUint8(o,latRef.charCodeAt(0));o+=4;
+  u16(2);u16(5);u32(3);u32(80);
+  u16(3);u16(2);u32(2);t.setUint8(o,lngRef.charCodeAt(0));o+=4;
+  u16(4);u16(5);u32(3);u32(104);
+  u32(0);
+  o=80;for(const [d,m,s] of [lat,lng]){u32(d);u32(1);u32(m);u32(1);u32(s*100);u32(100);}
+  const tiff=new Uint8Array(t.buffer,0,128);
+  const out=new Uint8Array(2+4+6+tiff.length+2);
+  out.set([0xFF,0xD8,0xFF,0xE1,(tiff.length+8)>>8,(tiff.length+8)&255,0x45,0x78,0x69,0x66,0,0]);out.set(tiff,12);out.set([0xFF,0xD9],12+tiff.length);
+  return out.buffer;
+ };
+ const at=gpsFromJpeg(jpeg('N',[34,58,3.6],'E',[135,46,22.8]));
+ assert.ok(Math.abs(at.lat-34.9677)<1e-4&&Math.abs(at.lng-135.773)<1e-4,JSON.stringify(at));
+ const south=gpsFromJpeg(jpeg('S',[33,52,0],'W',[151,12,0]));
+ assert.ok(south.lat<0&&south.lng<0);
+ assert.equal(gpsFromJpeg(new Uint8Array([0xFF,0xD8,0xFF,0xD9]).buffer),null);
+ assert.equal(gpsFromJpeg(new Uint8Array([1,2,3,4]).buffer),null);
+ assert.equal(await photoPosition({type:'image/png'}),null);
+ assert.equal(await photoPosition({type:'image/jpeg',slice:()=>{throw new Error('no');}}),null);
+});
+test('memory map: check-ins are rounded, shared only by tapping, and the boys see only Mum and Dad',async()=>{
+ const {canSeeCheckin,checkinFresh,ageText}=await import('../src/memory-map.js');
+ const {checkPosition,resetDemoCheckins}=await import('../server/checkins.mjs');
+ assert.deepEqual(checkPosition({lat:35.123456,lng:139.987654}),{lat:35.123,lng:139.988});
+ assert.throws(()=>checkPosition({lat:'x',lng:1}),/could not be read/);
+ assert.throws(()=>checkPosition({lat:95,lng:1}),/could not be read/);
+ const P=['Damien','Lauren'];
+ assert.equal(canSeeCheckin({name:'Nate',role:'child'},{name:'Boston'},P),false);
+ assert.equal(canSeeCheckin({name:'Nate',role:'child'},{name:'Lauren'},P),true);
+ assert.equal(canSeeCheckin({name:'Nate',role:'child'},{name:'Nate'},P),true);
+ assert.equal(canSeeCheckin({name:'Lauren',role:'parent'},{name:'Boston'},P),true);
+ const now=new Date('2026-09-23T06:00:00Z');
+ assert.equal(checkinFresh({at:'2026-09-23T03:01:00Z'},now),true);
+ assert.equal(checkinFresh({at:'2026-09-23T02:59:00Z'},now),false);
+ assert.equal(ageText(0),'just now');assert.equal(ageText(75),'1 h 15 min ago');assert.equal(ageText(120),'2 h ago');
+ process.env.LOCAL_DEMO='1';delete process.env.VERCEL;resetDemoCheckins();
+ const server=createServer(handler);await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
+ try{
+  const post=(path,data)=>fetch(base+'/api/'+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify(data)});
+  assert.deepEqual((await(await fetch(base+'/api/checkins')).json()).checkins,[]);
+  const shared=await(await post('checkin',{lat:35.71234,lng:139.79678})).json();
+  assert.equal(shared.checkins.length,1);assert.equal(shared.checkins[0].name,'Damien');assert.equal(shared.checkins[0].lat,35.712);
+  assert.equal((await post('checkin',{lat:'nowhere'})).status,400);
+  const before=await(await fetch(base+'/api/state')).json();
+  assert.ok(!JSON.stringify(before.state).includes('35.712'),'a position is never written into the trip');
+  assert.deepEqual((await(await post('checkin',{stop:true})).json()).checkins,[]);
+ }finally{delete process.env.LOCAL_DEMO;await new Promise(r=>server.close(r));}
+});

@@ -1,7 +1,8 @@
 import React,{useState} from 'react';
-import {Luggage,Plus,X,Pencil,Trash2,RotateCcw,Inbox,MapPin,CloudSun,Compass,User,CalendarDays,Sparkles} from 'lucide-react';
+import {Radar,Luggage,Plus,X,Pencil,Trash2,RotateCcw,Inbox,MapPin,CloudSun,Compass,User,CalendarDays,Sparkles} from 'lucide-react';
 import {packing} from './trip-features.js';
 import {PACK_CATEGORIES,PACK_PRIORITY,PACK_SOURCES,packCategoryLabel,packingSuggestions,dismissedSuggestions,nextPackUp,packingProgress,daysAhead,packingWeather} from './packing-data.js';
+import {forwardedTrackers,linkState} from './trackers.js';
 import {japanDate} from './timing.js';
 const SOURCE_ICONS={japan:MapPin,weather:CloudSun,activity:Compass,person:User,trip:CalendarDays};
 const fmt=date=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(date+'T12:00:00+09:00'));
@@ -46,15 +47,26 @@ function PackRow({item,user,mutate,busy,onEdit}){
 }
 // The line on the day screen the evening before the cases have to be closed, and on the morning
 // itself: where we are going, and how much is still out of the case.
-export function PackingNudge({state,day,go}){
+// A forwarded suitcase with a tracker in it is the one bag we will want to find while it is not
+// with us, so a parent is reminded to share where it is on the same days as the pack-up.
+export function PackingNudge({state,user,day,go}){
  const next=nextPackUp(state,day),{left,total}=packingProgress(state);
  if(!next||!go)return null;
  const tomorrow=state.days[state.days.findIndex(d=>d.date===day)+1]?.date;
  if(next.date!==day&&next.date!==tomorrow)return null;
- return <button className="callout pack-nudge" onClick={()=>go('packing')}>
+ const forwarded=user?.role==='parent'&&!next.home?forwardedTrackers(state):[];
+ const unshared=forwarded.filter(t=>linkState(t).state!=='live').length;
+ return <>
+ <button className="callout pack-nudge" onClick={()=>go('packing')}>
   <Luggage size={18}/><span><strong>{next.date===day?'Packing up today':'Packing up tomorrow'}</strong> · {next.home?'going home':`to ${next.to}`}.
    {' '}{total?(left?`${left} of ${total} still to pack.`:'Everything is packed.'):'Open the packing list.'}</span>
- </button>;
+ </button>
+ {!!forwarded.length&&<button className="callout pack-nudge" onClick={()=>go('trackers')}>
+  <Radar size={18}/><span><strong>{forwarded.length===1?'A forwarded bag has a tracker':`${forwarded.length} forwarded bags have trackers`}</strong> · {unshared
+   ?`share ${unshared===1?'its':'their'} location in Find My and paste the link, so it is to hand while the bag is away.`
+   :'the Find My links are live.'}</span>
+ </button>}
+ </>;
 }
 export default function Packing({state,user,mutate,busy}){
  const today=japanDate(),parent=user.role==='parent';

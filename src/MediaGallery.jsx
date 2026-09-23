@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import {photoPosition} from './exif-gps.js';
 import {upload} from '@vercel/blob/client';
 import {Image as ImageIcon,X,Plus} from 'lucide-react';
 import ZoomImage from './ZoomImage.jsx';
@@ -26,7 +27,7 @@ export default function MediaGallery({state,user,day,step,initialSearch='',confi
     try{
      const blob=item.blob||await upload(`tickets/${user.id}/${crypto.randomUUID()}-${item.file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`,item.file,{access:'private',multipart:true,handleUploadUrl:'/api/upload',onUploadProgress:p=>setProgress(`${i+1}/${pending.length} · ${Math.round(p.percentage)}%`)});
      item.blob=blob;setRetry(item);
-     accept(await request('document',{pathname:blob.pathname,...item.details}));setRetry(null);
+     accept(await request('document',{pathname:blob.pathname,...item.details,gps:await photoPosition(item.file)}));setRetry(null);
     }catch(error){notice(`${error.message||'Upload failed.'} ${i} saved from this batch; ${pending.length-i-1} remaining files were not uploaded. Retry the current file, then select any remaining files.`);throw error;}
    }
    setReset(n=>n+1);notice('Photos and videos added to the family gallery.');
