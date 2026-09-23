@@ -8041,3 +8041,22 @@ test('the tipping comp keeps a running total bout by bout',async()=>{
  assert.equal(after[c.id],undefined,'a bout still to come has no total yet');
  for(const name of state.members)assert.ok(name in after[b.id],`${name} is on the running total from the start`);
 });
+
+test('the handout details and photos are there for the wrestlers on it',async()=>{
+ const {PRINTED_CARD}=await import('../src/sumo-printed.js');
+ const {sumoProfile,SUMO_PROFILE_NAMES}=await import('../src/sumo-profiles.js');
+ const {readdir}=await import('node:fs/promises');
+ const photos=new Set(await readdir(new URL('../src/sumo-photos/',import.meta.url)));
+ const onCard=new Set(PRINTED_CARD.bouts.flatMap(b=>[b.east.name,b.west.name]));
+ for(const name of SUMO_PROFILE_NAMES){
+  const p=sumoProfile(name);
+  assert.ok(photos.has(`${name.toLowerCase()}.jpg`),`no photo for ${name}`);
+  assert.ok(p.age>=18&&p.age<=45&&p.heightCm>=160&&p.heightCm<=210&&p.weightKg>=100&&p.weightKg<=250,`${name} does not look like a wrestler`);
+  // Everybody on the sheet is on today's card, apart from the two it marks absent.
+  assert.equal(onCard.has(name),!p.absent,`${name}: on the card ${onCard.has(name)}, absent ${p.absent}`);
+  if(p.brother)assert.equal(sumoProfile(p.brother).brother,name,'brothers go both ways');
+ }
+ assert.deepEqual(sumoProfile('Shodai').notes,['Top-division champion ×1']);
+ assert.ok(sumoProfile('Toshinofuji').notes.includes('New to the top division'));
+ assert.equal(sumoProfile('Onosato'),null,'not on this page of the handout');
+});
