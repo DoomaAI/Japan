@@ -8127,6 +8127,105 @@ test('each bout is numbered within its division, and a refreshed card renumbers 
  assert.deepEqual(n['makuuchi-2'],{number:1,of:19,division:'makuuchi'});
 });
 
+test('the packing list suggests from where we are, the weather, the days ahead and who is coming',async()=>{
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {allSuggestions,packingSuggestions,dismissedSuggestions,packingWeather,daysAhead,nextPackUp,packingProgress,PACK_CATEGORIES}=await import('../src/packing-data.js');
+ const state=ensureFeatures(structuredClone(seed)),first=seed.days[0].date,ids=list=>list.map(s=>s.id);
+ const before=allSuggestions(state,'2026-09-01');
+ // Japan, whatever the plan: passports, plugs, cash, and somewhere to put our rubbish.
+ for(const id of ['passports','adaptor','cash','ic-card','rubbish','medicines'])assert.ok(ids(before).includes(id),`${id} is always suggested`);
+ assert.equal(before.find(s=>s.id==='passports').qty,seed.members.length,'one passport each');
+ // The days: theme parks, the Shinkansen and the flight home are all on the plan.
+ for(const id of ['ponchos','bigbags','biosecurity','walkingshoes','overnight'])assert.ok(ids(before).includes(id),`${id} follows from the plan`);
+ const ponchos=before.find(s=>s.id==='ponchos');
+ assert.equal(ponchos.sources[0],'activity');assert.match(ponchos.why[0],/Theme parks · /,'it names the days');
+ // A ride called "Flight" is not a flight.
+ assert.ok(!before.find(s=>s.id==='flight-kit').why[0].includes('25 Sept'),'Flight of the Hippogriff is not the plane home');
+ // Who is coming: the boys get their own, and a food card follows a dietary note.
+ assert.ok(before.some(s=>s.id==='meetingcard-Nate'&&s.person==='Nate'));
+ assert.ok(before.some(s=>s.id==='stroller-Nate'),'Nate is five');
+ assert.ok(!before.some(s=>s.id==='stroller-Boston'),'Boston is not');
+ assert.ok(!before.some(s=>s.id.startsWith('foodcard-')));
+ const fussy=ensureFeatures({...structuredClone(seed),party:{people:{Lauren:{age:40,interests:['photo'],dietary:'No shellfish'}}}});
+ const lauren=allSuggestions(fussy,'2026-09-01');
+ assert.match(lauren.find(s=>s.id==='foodcard-Lauren').note,/No shellfish/);
+ assert.ok(lauren.some(s=>s.id==='camera-Lauren'));
+ // Every suggestion is one line, in a real category, with at least one reason.
+ assert.equal(new Set(ids(before)).size,before.length);
+ for(const s of before){assert.ok(PACK_CATEGORIES.some(([id])=>id===s.category),s.id);assert.ok(s.why.length&&s.why.every(Boolean),s.id);}
+ // Weather: with no forecast saved it uses the usual month, and says so.
+ const usual=packingWeather(state,daysAhead(state,'2026-09-01'));
+ assert.equal(usual.forecast,0);
+ assert.match(before.find(s=>s.id==='umbrella').why[0],/typhoon/);
+ assert.match(before.find(s=>s.id==='sunscreen').why[0],/^Usually up to/);
+ // A saved forecast of rain and cold overrides it, and names the day.
+ const wet=ensureFeatures({...structuredClone(seed),weather:{at:null,by:null,hours:{},days:{[first]:{max:12,min:6,rain:90,code:63,city:'Tokyo'}}}});
+ const wetList=allSuggestions(wet,first);
+ assert.match(wetList.find(s=>s.id==='umbrella').why[0],/^Rain forecast/);
+ assert.ok(wetList.some(s=>s.id==='coats'),'six degrees is coat weather');
+ // Once the trip is under way, a day we have already had suggests nothing.
+ const late=allSuggestions(state,'2026-10-06');
+ assert.ok(!ids(late).includes('ponchos'),'the parks are behind us');
+ assert.ok(ids(late).includes('biosecurity'),'the flight home is not');
+ // The next pack-up is the next change of hotel, and the last one is going home.
+ assert.deepEqual(nextPackUp(state,'2026-09-23'),{date:'2026-09-24',from:'1 Hotel Tokyo',to:'Hotel Kanra Kyoto'});
+ assert.equal(nextPackUp(state,'2026-10-06').home,true);
+ assert.equal(nextPackUp(state,'2026-10-07'),null);
+ // Added, it stops being suggested; turned down, it stays gone and can be brought back.
+ const sug=packingSuggestions(state,'2026-09-01');
+ let next=applyOperation(state,{type:'packAdd',title:ponchos.title,category:ponchos.category,person:'Family',qty:ponchos.qty,suggestionId:'ponchos'},child);
+ assert.equal(packingSuggestions(next,'2026-09-01').length,sug.length-1);
+ assert.ok(!ids(packingSuggestions(next,'2026-09-01')).includes('ponchos'));
+ next=applyOperation(next,{type:'packDismiss',suggestionId:'goshuin',dismissed:true},child);
+ assert.ok(!ids(packingSuggestions(next,'2026-09-01')).includes('goshuin'));
+ assert.deepEqual(ids(dismissedSuggestions(next,'2026-09-01')),['goshuin']);
+ assert.ok(ids(packingSuggestions(applyOperation(next,{type:'packDismiss',suggestionId:'goshuin',dismissed:false},parent),'2026-09-01')).includes('goshuin'));
+ // Written in by hand under the same name is the same thing.
+ const byHand=applyOperation(state,{type:'packAdd',title:'passports',category:'documents',person:'Family'},parent);
+ assert.ok(!ids(packingSuggestions(byHand,'2026-09-01')).includes('passports'));
+ // Adding every essential at once, twice, puts each on the list once.
+ const essentials=sug.filter(s=>s.priority==='essential').map(s=>({title:s.title,category:s.category,person:s.person,qty:s.qty,suggestionId:s.id}));
+ let all=applyOperation(state,{type:'packAddAll',items:essentials},parent);
+ all=applyOperation(all,{type:'packAddAll',items:essentials},parent);
+ assert.equal(all.packing.items.length,essentials.length);
+});
+
+test('anyone packs and ticks; changing it is whoever added it, and starting again is a parent’s',async()=>{
+ const {ensureFeatures,pendingProgress}=await import('../src/trip-features.js');
+ const {packingProgress}=await import('../src/packing-data.js');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const offline=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ const boston={name:'Boston',role:'child'};
+ let state=applyOperation(seed,{type:'packAdd',title:'Pokémon cards',category:'kids',person:'Nate',qty:1},child);
+ state=applyOperation(state,{type:'packAdd',title:'Adaptors',category:'tech',person:'Family',qty:3,notes:'Two in the blue bag'},parent);
+ const cards=state.packing.items[0],plugs=state.packing.items[1];
+ assert.equal(cards.createdBy,'Nate');assert.equal(plugs.qty,3);
+ state=applyOperation(state,{type:'packStatus',id:plugs.id,packed:true},boston);
+ assert.equal(state.packing.items[1].packedBy,'Boston');
+ assert.deepEqual(packingProgress(state),{packed:1,total:2,left:1});
+ // Nate changes his own, not the family's; a parent changes either.
+ assert.equal(applyOperation(state,{type:'packEdit',id:cards.id,title:'Pokémon cards and binder',category:'kids',person:'Nate',qty:2},child).packing.items[0].qty,2);
+ assert.throws(()=>applyOperation(state,{type:'packEdit',id:plugs.id,title:'x',category:'tech',person:'Family'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'packRemove',id:plugs.id},boston),e=>e.status===403);
+ assert.equal(applyOperation(state,{type:'packRemove',id:cards.id},parent).packing.items.length,1);
+ // Bad input is refused rather than stored.
+ for(const bad of [{title:'',category:'kids'},{title:'x',category:'sweets'},{title:'x',category:'kids',person:'Grandma'},{title:'x',category:'kids',qty:0},{title:'x',category:'kids',qty:1.5}])
+  assert.throws(()=>applyOperation(state,{type:'packAdd',...bad},parent),e=>e.status===400,JSON.stringify(bad));
+ // The next pack-up unticks everything, and only a parent starts it.
+ assert.throws(()=>applyOperation(state,{type:'packReset'},child),e=>e.status===403);
+ assert.equal(packingProgress(applyOperation(state,{type:'packReset'},parent)).packed,0);
+ // Packing, adding and turning a suggestion down all keep with no signal; starting again does not.
+ for(const op of ['packAdd','packAddAll','packStatus','packDismiss'])assert.ok(offline.includes(op),`${op} should survive with no signal`);
+ for(const op of ['packReset','packEdit','packRemove'])assert.ok(!offline.includes(op),`${op} waits for signal`);
+ const queued=pendingProgress(ensureFeatures(structuredClone(state)),[
+  {operation:{type:'packStatus',id:cards.id,packed:true,by:'Nate',at:'2026-09-23T10:00:00.000Z'}},
+  {operation:{type:'packAddAll',operationId:'q1',items:[{title:'Hats',category:'weather',qty:4}],by:'Nate',at:'2026-09-23T10:00:00.000Z'}},
+  {operation:{type:'packDismiss',suggestionId:'goshuin',dismissed:true,by:'Nate',at:'2026-09-23T10:00:00.000Z'}}]);
+ assert.equal(queued.packing.items.find(i=>i.id===cards.id).packedBy,'Nate');
+ assert.ok(queued.packing.items.some(i=>i.title==='Hats'&&i.pending&&i.qty===4));
+ assert.ok(queued.packing.dismissed.goshuin);
+});
+
 test('a ticket’s own photo or PDF read into English and kept on the file',async()=>{
  const {createServer}=await import('node:http');
  let seen=null,reply={readable:true,language:'Japanese',kind:'hotel confirmation',title:'Kyoto hotel',
