@@ -772,7 +772,7 @@ test('Japanese names and addresses are kept safe from a fresh import and show on
  const kept=JSON.parse(await readFile(new URL('../data/location-japanese.json',import.meta.url)));
  const {showLocationDetails}=await import('../src/locations.js');
  assert.equal(Object.keys(kept).length,locations.length);
- for(const l of locations)assert.deepEqual(kept[l.id],{japanese:l.japanese,japaneseAddress:l.japaneseAddress},l.name);
+ for(const l of locations)assert.deepEqual(kept[l.id],{japanese:l.japanese,japaneseAddress:l.japaneseAddress,...(l.phone?{phone:l.phone}:{})},l.name);
  // An activity's own Japanese wording still wins over the catalogue's.
  assert.equal(showLocationDetails({locations},{place:'1 Hotel Tokyo',japanese:'ワン ホテル'}).japanese,'ワン ホテル');
 });
@@ -834,7 +834,11 @@ test('every catalogue place can be shown to a taxi driver in Japanese',async()=>
  }
  const hotel=showLocationDetails(state,{place:'1 Hotel Tokyo',japanese:''});
  assert.equal(hotel.japanese,'1ホテル東京');assert.equal(hotel.japaneseAddress,'〒107-0052 東京都港区赤坂2-17-22');
- assert.match(hotel.address,/Akasaka/);assert.deepEqual(hotel.copyText.split('\n'),['1ホテル東京','〒107-0052 東京都港区赤坂2-17-22','1 Hotel Tokyo','2-17-22 Akasaka, Minato-ku, Tokyo 107-0052, Japan']);
+ assert.match(hotel.address,/Akasaka/);assert.equal(hotel.phone,'03-6441-3040');
+ assert.deepEqual(hotel.copyText.split('\n'),['1ホテル東京','〒107-0052 東京都港区赤坂2-17-22','TEL 03-6441-3040','1 Hotel Tokyo','2-17-22 Akasaka, Minato-ku, Tokyo 107-0052, Japan']);
+ // Every hotel the family sleeps in has a number a taxi's navigation can find; an activity's own number wins.
+ for(const name of new Set(seed.days.map(d=>d.hotel)))assert.match(showLocationDetails(state,{place:name}).phone,/^0\d{1,3}-\d{3,4}-\d{4}$/,name);
+ assert.equal(showLocationDetails(state,{place:'1 Hotel Tokyo',phone:'03-0000-0000'}).phone,'03-0000-0000');
 });
 test('address matches preserve exact branches and leave ambiguous areas or station entrances alone',async()=>{
  const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
