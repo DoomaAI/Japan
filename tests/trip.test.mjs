@@ -7819,3 +7819,19 @@ test('both photo viewers hand their picture to the zoomable frame, and a zoomed 
  // The frame takes every touch, so the page itself never zooms underneath the photo.
  assert.match(css,/\.zoom-frame\{[^}]*touch-action:none/);
 });
+
+test('the printed Day 11 programme loads as the card, with no site and no key',async()=>{
+ const {PRINTED_CARD}=await import('../src/sumo-printed.js');
+ const {sumo,sumoCard,boutPredictions}=await import('../src/trip-features.js');
+ let state=applyOperation(structuredClone(seed),{type:'sumoUpdate',...PRINTED_CARD},parent);
+ assert.equal(sumo(state).bouts.length,34);
+ assert.deepEqual(sumoCard(state).map(g=>[g.id,g.bouts.length]),[['juryo',14],['makuuchi',20]]);
+ const last=sumoCard(state).at(-1).bouts.at(-1);
+ assert.equal(`${last.east.name} v ${last.west.name}`,'Onosato v Fujinokawa','the last bout of the day is the last on the sheet');
+ assert.equal(last.east.rank,'Yokozuna · 9-1');assert.equal(last.west.stable,'Isenoumi');
+ for(const b of sumo(state).bouts)for(const man of [b.east,b.west])assert.ok(man.rank,`${man.name} has no rank`);
+ state=applyOperation(state,{type:'sumoPredict',id:last.id,person:'Boston',winner:'Onosato'},child);
+ // Loading it again keeps the picks already made on it.
+ state=applyOperation(state,{type:'sumoUpdate',...PRINTED_CARD},parent);
+ assert.equal(boutPredictions(state,last.id).Boston,'Onosato');
+});
