@@ -36,5 +36,7 @@ export function showLocationDetails(state,step){
  // one stays underneath so the family can check it is the right place.
  const japaneseAddress=location?.japaneseAddress||'';
  const address=location?.address||'';
- return {english,japanese,japaneseAddress,address,copyText:[japanese,japaneseAddress,english,address].filter(Boolean).join('\n')};
+ // Most taxi navigation in Japan finds a place from its phone number faster than from its address.
+ const phone=step?.phone?.trim()||location?.phone||'';
+ return {english,japanese,japaneseAddress,address,phone,copyText:[japanese,japaneseAddress,phone&&`TEL ${phone}`,english,address].filter(Boolean).join('\n')};
 }

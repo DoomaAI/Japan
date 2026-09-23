@@ -35,7 +35,7 @@ reviewed={
 'Hatoya Arashiyama Kyoto':8,'Hatoya Shibuya Tokyo':163,"I'm donut Omotesando Tokyo":99,'Kawaii Monster Land Harajuku':90,'ReUnion coffee Arashiyama Kyoto':7,'Rikuro Namba Osaka':46,
 'Ryogoku View Hotel 2-19-1 Ryogoku Tokyo':148,'Ryogoku View Hotel Tokyo':148,'Shibuya Crossing Tokyo':161,'Shinsaibashi-suji Osaka':178,'Tamagotchi Factory Harakado Tokyo':92,
 'Tatsumi Bridge Gion Kyoto':85,'Tokyu Plaza Omotesando OMOKADO':108,'Totaro Kyoto':122,'Yasaka Pagoda Kyoto':79,'EDW yellow 26-5 Udagawacho Tokyo':154,
-'Tokyo Station Marunouchi':131,'Ameyoko Tokyo':189,'teamLab Borderless Azabudai Hills':18}
+'Tokyo Station Marunouchi':131,'Ameyoko Tokyo':189,'teamLab Borderless Azabudai Hills':18,'Fantasy Springs Hotel':129}
 seed=json.loads((root/'data/seed.json').read_text())
 for place in sorted({s['place'] for s in seed['steps']}|{d['hotel'] for d in seed['days']}):
  stripped=re.sub(r' (Tokyo|Kyoto|Osaka|Nara)$','',place)
