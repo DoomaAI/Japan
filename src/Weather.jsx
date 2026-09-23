@@ -33,7 +33,7 @@ export function SunTimes({entry}){
 // What it will be like at one stop, when we are there: its own neighbourhood at its own hour,
 // or the city's hour when that is all there is, and it says which. The card gets the sentence;
 // the day at a glance gets the icon and the number, because it is read down a list. On the card it
-// is a small pill in the top corner: the icon and the number, with the rest kept for a long press
+// is just the icon and the number in the top corner: the icon and the number, with the rest kept for a long press
 // or a screen reader rather than a whole line of the card.
 export function StepWeather({state,step,steps,compact,pill}){
  const w=stepWeather(state,step,steps);
