@@ -13,7 +13,7 @@ export const HOME_WIDGETS={
  step:{label:'The step we are on',note:'The current stop, swipe for the rest of the day'},
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},
  needs:{label:'Before we head out',note:'What to carry out the door this morning'},
- links:{label:'Hotel and next fixed time',note:'Tonight’s hotel and the next time that cannot move'},
+ links:{label:'Next fixed time and hotel',note:'The next time that cannot move, then tonight’s hotel'},
  weather:{label:'Weather',note:'The day’s forecast, folded or open'},
  actions:{label:'Quick actions',note:'The day at a glance, adjust the day, we’re tired, useful apps'},
  todos:{label:'To-dos for the day',note:'Things to do or buy that are on this day'},
