@@ -244,7 +244,7 @@ test('a stop is ticked off where the day is read, and says when it was finished'
 });
 
 test('the day at a glance is its own screen, and Home leads with the step we are on',async()=>{
- const {PAGES,moreIds,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGES,moreIds,primaryNav,MORE_SECTIONS}=await import('../src/nav-data.js');
  const {PAGE_RULES}=await import('../src/spoken-rules.js');
  const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
@@ -254,10 +254,14 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  // be opened on its own and put on the bottom bar by anybody who lives in it.
  assert.ok(PAGES.glance?.label&&PAGES.glance?.note,'the day at a glance has its own entry');
  assert.ok(PAGE_RULES.glance,'and something to say when the speaker is pressed');
- assert.match(nav,/glance:ListOrdered/,'with an icon of its own, not the to-do list one');
+ assert.match(nav,/glance:CalendarCheck/,'with an icon of its own, not the to-do list one');
+ assert.equal(PAGES.glance.label,'Today','and it is the Today tab');
  assert.ok(MORE_SECTIONS.find(([title])=>title==='The plan')[1].includes('glance'),'it is the day\u2019s plan');
- for(const user of [{name:'Damien',role:'parent'},{name:'Nate',role:'child'}])
-  assert.ok(moreIds(user).includes('glance'),`${user.name} can reach it`);
+ // It is on everybody's bar as Today, so it is not repeated under More.
+ for(const user of [{name:'Damien',role:'parent'},{name:'Nate',role:'child'}]){
+  assert.ok(primaryNav(user).includes('glance'),`${user.name} can reach it`);
+  assert.ok(!moreIds(user).includes('glance'),'and only once');
+ }
  // Home no longer splits into two columns, so the step card has the screen to itself and the
  // timeline is not rendered twice.
  assert.equal((main.match(/<DayTimeline /g)||[]).length,1,'the timeline is rendered once, on its own screen');
@@ -1613,8 +1617,8 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   assert.equal(new Set(all).size,all.length,`${user.name} lists a page twice`);
   const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(id!=='inbox'||user.role==='parent'));
   assert.deepEqual([...all].sort(),[...expected].sort(),`${user.name} cannot reach every page`);
-  // The bar holds five, plus More, which is what the layout has room for.
-  assert.equal(bar.length,5,user.name);
+  // The bar holds six, plus More: Home, Today and the Itinerary, and three for whoever it is.
+  assert.equal(bar.length,6,user.name);
   for(const id of all)assert.ok(PAGES[id]?.label&&PAGES[id]?.note,`${id} is missing a label or note`);
   // Sections are non-empty and the pages already in the bar are not repeated below.
   for(const [title,ids] of moreSections(user)){assert.ok(title&&ids.length);for(const id of ids)assert.ok(!bar.includes(id),`${id} is in both`);}
@@ -1640,8 +1644,8 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   assert.deepEqual([...primaryNav(damien),...moreIds(damien)].sort(),expected.sort());
  }finally{setAvailable({inbox:true,ask:true});}
  // Parents reach for tickets and prices; the boys reach for their missions.
- assert.deepEqual(PRIMARY.parent,['today','days','tickets','food','money']);
- assert.deepEqual(PRIMARY.child,['today','days','challenges','food','diary']);
+ assert.deepEqual(PRIMARY.parent,['today','glance','days','tickets','food','money']);
+ assert.deepEqual(PRIMARY.child,['today','glance','days','challenges','food','diary']);
  // And the menu is ordered by whose screen it is. The practical half — the weather on the way
  // out, the ticket at the gate, what is still to buy — is at the top, where the thumb of
  // whoever is navigating lands first. The boys' own screens are the last block, all together,
@@ -1730,7 +1734,9 @@ test('each phone arranges its own menu, and nothing put away is lost',async()=>{
  const bare=primaryNav(lauren,{hidden:['tickets','food','money']});
  for(const id of ['tickets','food','money'])assert.ok(!bare.includes(id),`${id} came back on the bar`);
  assert.ok(bare.length>=BAR_MIN,'and the row is never left short');
- assert.deepEqual(bare,['today','days','weather'],'topped up from the top of the menu');
+ assert.deepEqual(bare,['today','glance','days'],'Home, Today and the Itinerary still make a bar');
+ const barer=primaryNav(lauren,{hidden:['glance','tickets','food','money']});
+ assert.deepEqual(barer,['today','days','weather'],'topped up from the top of the menu');
  // The order things are offered in is the order they already know from More.
  const order=menuOrder(damien);
  assert.deepEqual([...new Set(order)],order,'nothing is offered twice');
@@ -1763,8 +1769,9 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
  // The bar is the one this person arranged, and so is what More has left to show.
  assert.match(nav,/const bar=primaryNav\(user,prefs\);/);
  assert.match(nav,/moreSections\(user,prefs\)/);
- assert.match(main,/<BottomNav tab=\{tab\} user=\{user\} go=\{go\} prefs=\{navPrefs\}/);
- assert.match(main,/<MorePage user=\{user\} tab=\{tab\} go=\{go\} prefs=\{navPrefs\}>/);
+ // Both go through navGo, which sends Today to today's date on a trip day.
+ assert.match(main,/<BottomNav tab=\{tab\} user=\{user\} go=\{navGo\} prefs=\{navPrefs\}/);
+ assert.match(main,/<MorePage user=\{user\} tab=\{tab\} go=\{navGo\} prefs=\{navPrefs\}>/);
  // Kept on the phone, per person, and cleaned on the way in as well as on the way out.
  assert.match(main,/localStorage\.setItem\(`japan\.nav\.\$\{user\.name\}`/);
  assert.match(main,/setNavPrefs\(cleanNav\(stored\(`japan\.nav\.\$\{user\.name\}`,emptyNav\(\)\),user\)\)/);
@@ -1776,6 +1783,50 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
  // And a way out of any arrangement at all.
  assert.match(screen,/setPrefs\(emptyNav\(\)\)/);
  assert.match(main,/tab==='personalise'&&<Personalise/);
+});
+
+test('Home is a column of widgets each phone orders and puts away for itself',async()=>{
+ const {HOME_WIDGETS,HOME_DEFAULT,emptyHome,cleanHome,homeOrder,homeShown,moveWidget,toggleWidget}=await import('../src/home-widgets.js');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const screen=await readFile(new URL('../src/Personalise.jsx',import.meta.url),'utf8');
+ // Untouched, Home is what it always was, in the order it always came in.
+ assert.deepEqual(homeShown(emptyHome()),HOME_DEFAULT);
+ assert.equal(HOME_DEFAULT[1],'step','the step card is still near the top');
+ for(const id of HOME_DEFAULT)assert.ok(HOME_WIDGETS[id].label&&HOME_WIDGETS[id].note,id);
+ // Moved and put away, and nothing lost: a widget put away is still in the order to come back.
+ let prefs=moveWidget(emptyHome(),'weather',-10);
+ assert.deepEqual(homeOrder(prefs),HOME_DEFAULT,'a move off the end does nothing');
+ prefs=moveWidget(emptyHome(),'weather',-1);
+ assert.equal(homeOrder(prefs).indexOf('weather'),HOME_DEFAULT.indexOf('weather')-1);
+ prefs=toggleWidget(prefs,'guide');
+ assert.ok(!homeShown(prefs).includes('guide'));
+ assert.ok(homeOrder(prefs).includes('guide'));
+ assert.ok(homeShown(toggleWidget(prefs,'guide')).includes('guide'),'and it comes back');
+ // Whatever localStorage hands back is cleaned: unknown and repeated ids go, new widgets arrive.
+ assert.deepEqual(cleanHome({order:['finds','nothing','finds'],hidden:['nothing','step']}),
+  {order:['finds',...HOME_DEFAULT.filter(id=>id!=='finds')],hidden:['step']});
+ for(const rubbish of [null,undefined,'x',{order:'x'},{hidden:'step'}])
+  assert.deepEqual(homeShown(rubbish),HOME_DEFAULT,JSON.stringify(rubbish));
+ // Home draws them by id, the day heading and strip stay put, and the phone keeps the choice.
+ assert.match(main,/\{dayStrip\(selectDay\)\}\s*\{homeShown\(homePrefs\)\.map\(id=>/);
+ for(const id of HOME_DEFAULT)assert.match(main,new RegExp(`\\n  ${id}:`),`${id} is drawn`);
+ assert.match(main,/localStorage\.setItem\(`japan\.home\.\$\{user\.name\}`/);
+ assert.match(main,/onClick=\{\(\)=>go\('personalise'\)\}>Customise Home<\/Button>/);
+ assert.match(screen,/<HomeWidgets home=\{home\} setHome=\{setHome\}\/>/);
+ assert.match(screen,/setHome\(emptyHome\(\)\)/);
+});
+
+test('Days is the Itinerary, and Today is its own tab',async()=>{
+ const {PAGES,PRIMARY}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.equal(PAGES.days.label,'Itinerary');
+ assert.match(PAGE_RULES.days,/^Itinerary\./);
+ assert.match(main,/<h1>Our itinerary<\/h1>/);
+ assert.equal(PAGES.glance.label,'Today');
+ assert.match(PAGE_RULES.glance,/^Today\./);
+ for(const bar of Object.values(PRIMARY))assert.deepEqual(bar.slice(0,3),['today','glance','days']);
+ assert.match(main,/function navGo\(id\)\{go\(id,id==='glance'&&[^}]*japanDate\(\)/,'Today lands on today');
 });
 
 test('every row in the menu draws an icon, and the bar swipes across the bottom',async()=>{
@@ -8054,7 +8105,7 @@ test('each stop has its own forecast, for its neighbourhood at its hour, and the
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
  const weather=await readFile(new URL('../src/Weather.jsx',import.meta.url),'utf8');
- assert.match(main,/<StepWeather state=\{visibleState\} step=\{current\} steps=\{steps\} pill\/>/);
+ assert.match(main,/<StepWeather state=\{visibleState\} step=\{current\} steps=\{steps\} pill onOpen=\{\(\)=>go\('weather',day\)\}\/>/);
  assert.match(timeline,/<StepWeather state=\{state\} step=\{s\} steps=\{steps\} compact\/>/);
  assert.match(weather,/<SunTimes entry=\{today\}\/>/);
 });
@@ -8364,6 +8415,56 @@ test('a ticket’s own photo or PDF read into English and kept on the file',asyn
   await new Promise(r=>server.close(r));
   await new Promise(r=>upstream.close(r));
  }
+});
+// A split day: the same option group, marked as a split, so each option is a lane somebody is on.
+const splitTrip=()=>{
+ const trip=structuredClone(seed),day='2026-10-02';
+ for(const s of trip.steps.filter(s=>s.group==='tokyo-reset')){
+  if(s.option==='Tsukiji + Akihabara')s.participants=['Damien','Nate'];
+  else if(s.option==='Ueno + dinosaurs')s.participants=['Lauren','Boston'];
+  else{s.group='';s.option='';s.day=null;}
+ }
+ return {trip:applyOperation(trip,{type:'groupMode',group:'tokyo-reset',mode:'split'},parent),day};
+};
+test('a split keeps every lane on the day, each person sees their own, and everyone meets back up',async()=>{
+ const {daySplits,stepsFor,laneOf,splitWarnings}=await import('../src/split.js');
+ const {trip,day}=splitTrip();
+ assert.equal(trip.groupModes['tokyo-reset'],'split');
+ const all=activeSteps(trip,day).map(s=>s.title);
+ assert.ok(all.includes('Games, gachapon and toys')&&all.includes('Ueno museum and park'),'both lanes are on the day, not just the chosen one');
+ const [split]=daySplits(trip,day);
+ assert.deepEqual(split.lanes.map(l=>l.members),[['Damien','Nate'],['Lauren','Boston']]);
+ assert.equal(split.meet.title,'Return to Hilton','the first stop after with everyone on it');
+ assert.equal(laneOf(split,'Boston').option,'Ueno + dinosaurs');
+ const nate=stepsFor(trip,day,'Nate').map(s=>s.title);
+ assert.ok(nate.includes('Breakfast')&&nate.includes('Games, gachapon and toys')&&!nate.includes('Ueno museum and park'),'Nate follows his own lane and the shared stops');
+ assert.equal(stepsFor(trip,day,null).length,all.length,'everyone sees every lane');
+ assert.deepEqual(splitWarnings(split,['Nate','Boston']),[]);
+ const boysAlone=structuredClone(trip);for(const s of boysAlone.steps.filter(s=>s.option==='Ueno + dinosaurs'))s.participants=['Boston'];
+ assert.match(splitWarnings(daySplits(boysAlone,day)[0],['Nate','Boston']).join(' '),/no grown-up/);
+ const back=applyOperation(trip,{type:'groupMode',group:'tokyo-reset',mode:'choose'},parent);
+ assert.ok(!activeSteps(back,day).some(s=>s.title==='Ueno museum and park'),'back to alternatives, only the chosen plan shows');
+ assert.throws(()=>applyOperation(seed,{type:'groupMode',group:'tokyo-reset',mode:'split'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(seed,{type:'groupMode',group:'nope',mode:'split'},parent),/not found/);
+ assert.ok(trip.alerts[0].summary.includes('we split up'),'the family is told');
+});
+test('what somebody else is doing: what they marked arrived first, then the plan, said as the plan',async()=>{
+ const {whereIs}=await import('../src/split.js');
+ const {trip,day}=splitTrip();
+ const ueno=trip.steps.find(s=>s.title==='Ueno museum and park');
+ const arrived=structuredClone(trip);Object.assign(arrived.steps.find(s=>s.id===ueno.id),{status:'started',startedAt:'2026-10-02T01:00:00.000Z'});
+ const boston=whereIs(arrived,day,'Boston',new Date('2026-10-02T02:00:00Z'));
+ assert.equal(boston.how,'at');assert.equal(boston.step.title,'Ueno museum and park');assert.equal(boston.since,'10:00');
+ const nate=whereIs(trip,day,'Nate',new Date('2026-10-02T03:20:00Z'));
+ assert.equal(nate.how,'planned');assert.equal(nate.step.title,'Games, gachapon and toys');
+ const early=whereIs(trip,day,'Nate',new Date('2026-09-20T00:00:00Z'));
+ assert.equal(early.how,'next');assert.equal(early.step.title,'Breakfast');
+});
+test('reordering one lane on a split day keeps the whole day in one order',()=>{
+ const {trip,day}=splitTrip();
+ const ids=activeSteps(trip,day).map(s=>s.id);
+ const moved=applyOperation(trip,{type:'reorder',day,ids:[...ids].reverse()},parent);
+ assert.equal(activeSteps(moved,day)[0].id,ids.at(-1));
 });
 test('tracker tags: a parent keeps the list, the boys can read it, and only a parent gets the Find My link',async()=>{
  const {ensureFeatures}=await import('../src/trip-features.js');

@@ -11,8 +11,8 @@ import {dayLabel} from './AdventurePages.jsx';
 // to miss — and the rest of it waits behind the fold, remembered per phone rather than sprung
 // open on every reload.
 export const FOLD_ID='dashboard';
-export function NextUp({state,day,now,selectStep,open,go,parent}){
- const {current,fixed,departure}=nextSummary(state,day),tickets=state.documents.filter(d=>documentServesStep(d,(fixed||current)?.id)&&d.category!=='memory'&&!isArchived(d));
+export function NextUp({state,day,person=null,now,selectStep,open,go,parent}){
+ const {current,fixed,departure}=nextSummary(state,day,person),tickets=state.documents.filter(d=>documentServesStep(d,(fixed||current)?.id)&&d.category!=='memory'&&!isArchived(d));
  const remaining=departure?Math.round((departure-now)/60000):null;
  const [shown,setShown]=useState(()=>isOpen(FOLD_ID,undefined,false));
  const fold=()=>setShown(v=>setOpen(FOLD_ID,!v));

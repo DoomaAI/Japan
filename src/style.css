@@ -381,7 +381,7 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .reader-tools{display:flex;gap:.2rem}.guide-book.spread{display:grid;grid-template-columns:1fr 1fr}.guide-half{position:relative;aspect-ratio:1247/1800}.guide-half img{display:block;width:100%;height:100%}.guide-reader .guide-book.spread{width:min(100%,calc((100dvh - 150px)*1.3856));box-shadow:none}.guide-reader.bare .guide-book.spread{width:min(100%,calc((100dvh - 24px)*1.3856))}.guide-reader .guide-book.spread:before{inset:0 auto 0 calc(50% - 26px);width:52px;background:linear-gradient(to right,#0000,#00000030 48%,#0000004d 50%,#00000030 52%,#0000)}.guide-reader .guide-book.spread .guide-half:has(img){box-shadow:0 18px 60px #0009}.guide-book.spread .guide-leaf{width:50%}.guide-book.spread .guide-leaf.forward{left:50%}.guide-book.spread .guide-leaf.back{right:50%}.guide-book.spread .guide-shadow{width:50%}.guide-book.spread .guide-shadow.forward{left:50%}.guide-book.spread .guide-shadow.back{right:50%;left:auto}.guide-back img{display:block;width:100%;height:100%}
 @media(max-height:500px){.guide-reader .guide-book.spread{width:min(100%,calc((100dvh - 100px)*1.3856))}}
 /* Each stop's own forecast, on its card and down the day at a glance, and when the sun comes and goes. */
-.step-weather{display:flex;align-items:center;gap:.6rem;margin:0 0 1rem;padding:.55rem .8rem;border-radius:10px;background:#eef3ea;border:1px solid #d6e2cf;font-size:.92rem}.step-weather-icon{font-size:1.6rem;line-height:1}.step-weather-pill{display:inline-flex;align-items:center;gap:.25rem;flex:none;padding:0 .25rem;font-size:.9rem;font-weight:700;line-height:1.2;white-space:nowrap;color:var(--ink)}.step-weather-pill>span{font-size:1.1rem;line-height:1}.step-weather small{display:block;color:var(--muted);font-size:.78rem;margin-top:.1rem}
+.step-weather{display:flex;align-items:center;gap:.6rem;margin:0 0 1rem;padding:.55rem .8rem;border-radius:10px;background:#eef3ea;border:1px solid #d6e2cf;font-size:.92rem}.step-weather-icon{font-size:1.6rem;line-height:1}.step-weather-pill{display:inline-flex;align-items:center;gap:.25rem;flex:none;padding:0 .25rem;font-size:.9rem;font-weight:700;line-height:1.2;white-space:nowrap;color:var(--ink)}.step-weather-pill:is(button){min-height:34px;min-width:0;border:0;background:transparent;border-radius:8px;cursor:pointer;font-family:inherit}.step-weather-pill:is(button):hover{background:#eef3ea;color:var(--ink)}.step-weather-pill>span{font-size:1.1rem;line-height:1}.step-weather small{display:block;color:var(--muted);font-size:.78rem;margin-top:.1rem}
 .timeline-weather{display:block;color:var(--muted);white-space:nowrap}
 .sun-times{display:flex;flex-wrap:wrap;gap:.4rem 1.1rem;margin:.5rem 0 0;font-size:.85rem;color:#205543}.sun-times span{display:inline-flex;align-items:center;gap:.3rem}
 .zoom-frame{flex:1;min-height:0;display:flex;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}.zoom-frame img{flex:1;min-width:0;min-height:0;transform-origin:0 0;will-change:transform;-webkit-user-drag:none}
@@ -427,5 +427,64 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .home-actions>button:last-child:nth-child(odd),.dashboard-actions>button:last-child:nth-child(odd){grid-column:1/-1}
 .home-actions svg{flex:none}
 .swipe-controls button{padding-left:0;padding-right:0}
+/* Split days: the family going separate ways, one colour per lane, and where we meet back up. */
+:root{--lane-0:#2f7d6d;--lane-1:#c0633f;--lane-2:#5a6fb0;--lane-3:#9a6a1f}
+.option-group{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem}.split-toggle{min-height:40px;font-size:.82rem}
+.split-day{display:grid;gap:.8rem;margin-bottom:1rem}
+.split-card{border:1px solid var(--border);border-radius:14px;background:var(--paper);padding:.9rem 1rem}
+.split-head{display:flex;align-items:flex-start;gap:.6rem}.split-head>div{flex:1;min-width:0}.split-head h2{font-size:1.25rem;margin:0}.split-head .eyebrow{margin:0}.split-undo{min-height:36px;font-size:.78rem;padding:.4rem .6rem}
+.split-lanes{list-style:none;margin:.7rem 0 0;padding:0;display:grid;gap:.5rem}
+.split-lanes li button{width:100%;display:grid;justify-items:start;justify-content:stretch;text-align:left;gap:.1rem;border-left:5px solid var(--lane);background:#fafbfa}
+.split-lanes li.followed button{background:#eef5f2;border-color:var(--lane)}
+.split-lanes li span{font-size:.82rem;color:var(--muted)}
+.lane-0{--lane:var(--lane-0)}.lane-1{--lane:var(--lane-1)}.lane-2{--lane:var(--lane-2)}.lane-3{--lane:var(--lane-3)}
+.split-meet{width:100%;margin-top:.6rem;justify-content:flex-start;text-align:left;background:#f1f3eb}.split-meet span{flex:1;display:grid}.split-meet strong{font-size:.95rem}
+.where-everyone{border:1px solid var(--border);border-radius:14px;background:var(--paper);padding:.8rem 1rem}.where-everyone h3{display:flex;align-items:center;gap:.4rem;margin:0 0 .5rem}
+.where-everyone ul{list-style:none;margin:0;padding:0;display:grid;gap:.4rem}
+.where-everyone button{width:100%;justify-content:flex-start;text-align:left}.where-everyone button>span:nth-child(2){flex:1;min-width:0}.where-everyone .who{font-weight:700;min-width:4.5rem}
+.whose-day{display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.3rem;margin-bottom:1rem;scrollbar-width:none}
+.whose-day button{min-height:38px;border-radius:20px;padding:.35rem .85rem;white-space:nowrap;font-size:.84rem}
+.whose-day button.selected{background:var(--ink);border-color:var(--ink);color:#fff}
+.timeline-row.in-lane{box-shadow:inset 4px 0 0 var(--lane)}
+.lane-chip{display:inline-block;font-style:normal;font-size:.7rem;font-weight:700;color:var(--lane);margin-left:.4rem}
+.timeline-split{display:flex;align-items:center;gap:.55rem;width:100%;padding:.55rem .7rem;margin:.35rem 0;border-radius:10px;background:#eef2ef;color:var(--ink);font-size:.86rem;font-weight:700;text-align:left;border:1px dashed #b9cac5;min-height:0;justify-content:flex-start}
+.timeline-split span{display:grid}.timeline-split small{font-weight:500}
+.timeline-split.missing{background:#fff5df;border-color:#eddcba;color:#785c28}
+.timeline-other-lane{display:flex;width:100%;justify-content:flex-start;align-items:flex-start;gap:.5rem;padding:.45rem .7rem;margin:.25rem 0;border-style:dashed;font-weight:500;font-size:.8rem;color:var(--muted);text-align:left;min-height:0}
+.timeline-other-lane strong{color:var(--ink)}
+/* Day at a glance, compact: each stop reads on two short lines — title, then status and weather side
+   by side — and the parent's tools sit in a 3×2 block beside it, so a phone shows the whole morning. */
+.timeline .timeline-help{background:none;border:0;padding:0;margin:0 0 .4rem;font-size:.78rem;line-height:1.45}
+.timeline .timeline-help>summary{font-size:.78rem;font-weight:600;color:var(--muted);min-height:26px}
+.timeline .timeline-help[open]>summary{margin-bottom:.3rem}
+.timeline .timeline-row{gap:.35rem}
+.timeline .timeline-step{grid-template-columns:42px 14px 1fr;gap:.55rem;padding:.4rem .45rem;min-height:0;border-radius:8px}
+.timeline .timeline-step strong{font-size:.95rem;line-height:1.3}
+.timeline .timeline-time{font-size:.8rem;margin-top:.05rem}
+.timeline .timeline-dot{width:14px;height:14px;margin-top:2px}
+.timeline .timeline-step:not(:last-child) .timeline-dot:after{top:17px;height:30px}
+.timeline .timeline-meta{display:flex;align-items:baseline;flex-wrap:wrap;column-gap:.5rem;margin-top:.05rem}
+.timeline .timeline-meta small{margin:0;font-size:.74rem}
+.timeline .timeline-meta .timeline-weather{font-size:.74rem}
+.timeline .timeline-meta small+small:before{content:'·';margin-right:.5rem}
+.timeline .timeline-tick input{width:20px;height:20px;min-height:20px}
+.timeline .reorder-tools{grid-template-columns:20px 24px 24px;grid-auto-rows:26px;align-items:center}
+.timeline .reorder-tools button{min-height:26px}
+.timeline .reorder-tools .drag-handle{grid-column:auto;grid-row:span 2;min-height:52px}
+.timeline .timeline-insert{min-height:16px;padding-top:0;padding-bottom:0;font-size:.72rem}
+.timeline .timeline-insert svg{width:12px;height:12px}
+.timeline .timeline-insert.end{min-height:36px}
+.timeline .timeline-done-time{margin:-.1rem 0 .15rem;font-size:.72rem}
+.timeline .timeline-done-time input{min-height:30px;padding:.1rem .4rem}
+.home-customise{display:flex;justify-content:center;margin:1.4rem 0 .4rem}
+.home-widgets li.is-hidden{opacity:.6;background:#f4f7f5}
+.home-widgets li>span:first-child{flex:1;min-width:0;display:flex;flex-direction:column;gap:.1rem}
+.home-widgets li>span.menu-buttons{flex:0 0 auto;flex-direction:row;gap:.3rem}
+.phrase-of-day .say-it>small{display:block;margin:.15rem 0 0}
+.phrase-of-day .hear-row{justify-content:center;margin-top:.8rem}
+.phrase-of-day .callout{text-align:left;margin:0 0 .4rem}
+.phrase-of-day .swipe-controls{margin:.4rem 0 .9rem}
+.phrase-of-day>button.primary{width:100%;margin-bottom:.6rem}
+.phrase-of-day>p:last-child{margin:0}
 .tracker-card{margin:1rem 0;display:grid;gap:.6rem}.tracker-card .section-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem}.tracker-card h2{margin:0;overflow-wrap:anywhere}.tracker-card p{margin:0}.tracker-link{display:flex;align-items:center;gap:.4rem;font-size:.88rem}.tracker-link.live{color:var(--green)}.tracker-link.expired{color:#944731}.tracker-link-box{display:grid;gap:.5rem}.tracker-checks{list-style:none;margin:0;padding:0;display:grid;gap:.4rem}.tracker-check{width:100%;justify-content:flex-start;text-align:left;font-weight:400}.tracker-check strong{display:block;font-weight:600}.tracker-check.done{color:var(--green);background:#eef5f1}.tracker-lost{border-top:1px solid var(--border);padding-top:.8rem;display:grid;gap:.6rem}.tracker-lost .destination{margin:0;padding:1rem 1.1rem}.tracker-lost .destination h2{font-size:1.35rem;margin-bottom:.3rem}
 .mm-map{height:62vh;min-height:320px;border-radius:18px;overflow:hidden;border:1px solid var(--border);margin:.4rem 0 .6rem;background:#e8eeec;z-index:0}.mm-marker{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:.85rem;border:3px solid #fff;box-shadow:0 2px 8px #0003}.mm-marker.approx{background:#e8a08f}.mm-marker.photo,.mm-marker.daily{background:#3d6fa6}.mm-marker.find{background:#8a6a1f}.mm-marker.selected{outline:3px solid var(--ink);transform:scale(1.15)}.mm-person{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--green);color:#fff;font-weight:700;border:3px solid #fff;box-shadow:0 0 0 4px #28665a55}.mm-person.old{opacity:.55}.mm-legend{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .6rem;font-size:.78rem;margin:0 0 1rem}.mm-key{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--accent)}.mm-key.approx{background:#e8a08f}.mm-key.photo{background:#3d6fa6}.mm-key.find{background:#8a6a1f}.mm-memory,.mm-family{margin:1rem 0}.mm-memory h2,.mm-family h2{display:flex;align-items:center;gap:.4rem}.mm-photo{width:100%;max-height:50vh;object-fit:contain;border-radius:12px;background:#16251e}.mm-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.4rem;margin-bottom:.8rem}.mm-photos img,.mm-photos video{width:100%;height:110px;object-fit:cover;border-radius:10px;background:#16251e}.mm-review{display:flex;gap:.6rem;align-items:flex-start;margin:.5rem 0}.mm-review p{margin:.2rem 0 0}.mm-stars{display:inline-flex;gap:1px;margin-left:.4rem;color:#c98a1b;vertical-align:middle}.mm-voice{display:grid;grid-template-columns:auto 1fr;gap:.3rem .5rem;align-items:center;margin:.4rem 0}.mm-voice audio{grid-column:1/-1;width:100%}.mm-checkins{margin:.6rem 0;padding-left:1.1rem}
