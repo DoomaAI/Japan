@@ -8054,7 +8054,7 @@ test('each stop has its own forecast, for its neighbourhood at its hour, and the
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
  const weather=await readFile(new URL('../src/Weather.jsx',import.meta.url),'utf8');
- assert.match(main,/<StepWeather state=\{visibleState\} step=\{current\} steps=\{steps\} pill\/>/);
+ assert.match(main,/<StepWeather state=\{visibleState\} step=\{current\} steps=\{steps\} pill onOpen=\{\(\)=>go\('weather',day\)\}\/>/);
  assert.match(timeline,/<StepWeather state=\{state\} step=\{s\} steps=\{steps\} compact\/>/);
  assert.match(weather,/<SunTimes entry=\{today\}\/>/);
 });
