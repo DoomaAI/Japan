@@ -767,14 +767,13 @@ test('all imported locations retain source rows and produce correctly encoded di
  for(const l of locations){assert.ok(l.address);for(const mode of ['transit','walking','driving']){const url=new URL(locationDirections(l,mode));assert.equal(url.hostname,'www.google.com');assert.equal(url.searchParams.get('destination'),locationDestination(l));assert.equal(url.searchParams.get('travelmode'),mode);assert.equal(url.searchParams.get('api'),'1');assert.ok(url.href.length<2048);}}
  const shrine=locations.find(l=>l.name==='Jishu Jinja Shrine');assert.ok(shrine.referenceOnly);assert.match(shrine.notes,/CLOSED/);
 });
-test('every map location carries its Japanese name, kept safe from a fresh import, and shows it to the driver',async()=>{
+test('Japanese names and addresses are kept safe from a fresh import and show on the step card',async()=>{
  const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
- const names=JSON.parse(await readFile(new URL('../data/location-names-ja.json',import.meta.url)));
+ const kept=JSON.parse(await readFile(new URL('../data/location-japanese.json',import.meta.url)));
  const {showLocationDetails}=await import('../src/locations.js');
- for(const l of locations){assert.match(l.japanese||'',/[\u3040-\u30ff\u3400-\u9fff]/,l.name);assert.equal(names[l.id],l.japanese,l.name);}
- const hotel=locations.find(l=>l.name==='1 Hotel Tokyo');
- const shown=showLocationDetails({locations},{place:'1 Hotel Tokyo'});
- assert.equal(shown.japanese,hotel.japanese);assert.match(shown.copyText,new RegExp('^'+hotel.japanese));
+ assert.equal(Object.keys(kept).length,locations.length);
+ for(const l of locations)assert.deepEqual(kept[l.id],{japanese:l.japanese,japaneseAddress:l.japaneseAddress},l.name);
+ // An activity's own Japanese wording still wins over the catalogue's.
  assert.equal(showLocationDetails({locations},{place:'1 Hotel Tokyo',japanese:'ワン ホテル'}).japanese,'ワン ホテル');
 });
 test('asking a phone where it is rounds to the asked precision, and never waits forever',async()=>{
@@ -821,6 +820,21 @@ test('a stop pinned where the family stood is stored whole and beats every other
  for(const bad of [{lat:35.6586},{lat:35.6586,lng:139.7454,accuracy:5},{lat:'35.6586',lng:139.7454},{lat:91,lng:139.7454},{lat:35.6586,lng:181},{lat:NaN,lng:139.7454},[35.6586,139.7454]])
   assert.throws(()=>applyOperation(state,{type:'patch',id:named.id,patch:{pin:bad}},parent),/latitude and a longitude/);
  assert.throws(()=>applyOperation(state,{type:'patch',id:named.id,patch:{pin}},child),e=>e.status===403);
+});
+test('every catalogue place can be shown to a taxi driver in Japanese',async()=>{
+ const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
+ const {showLocationDetails}=await import('../src/locations.js');const state={...seed,locations};
+ const japanese=/[぀-ヿ一-龯]/;
+ for(const l of locations){
+  assert.match(l.japanese||'',japanese,`${l.name} has no Japanese name`);
+  assert.match(l.japaneseAddress||'',japanese,`${l.name} has no Japanese address`);
+  // The block number and postcode must carry over unchanged, or the driver goes to the wrong door.
+  for(const n of l.address.match(/\b\d+(?:-\d+)+\b/g)||[])if(!/^\d{3}-\d{4}$/.test(n))assert.ok(l.japaneseAddress.includes(n),`${l.name}: ${n}`);
+  const postcode=l.address.match(/\b(\d{3}-\d{4})\b/);if(postcode)assert.ok(l.japaneseAddress.includes(`〒${postcode[1]}`),`${l.name} postcode`);
+ }
+ const hotel=showLocationDetails(state,{place:'1 Hotel Tokyo',japanese:''});
+ assert.equal(hotel.japanese,'1ホテル東京');assert.equal(hotel.japaneseAddress,'〒107-0052 東京都港区赤坂2-17-22');
+ assert.match(hotel.address,/Akasaka/);assert.deepEqual(hotel.copyText.split('\n'),['1ホテル東京','〒107-0052 東京都港区赤坂2-17-22','1 Hotel Tokyo','2-17-22 Akasaka, Minato-ku, Tokyo 107-0052, Japan']);
 });
 test('address matches preserve exact branches and leave ambiguous areas or station entrances alone',async()=>{
  const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
