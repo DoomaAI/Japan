@@ -5,6 +5,8 @@ import {SUMO_SITE_DIVISIONS,sumoSiteUrl,sumo,sumoCard,sumoBouts,divisionLabel,wr
 import {japanClock} from './timing.js';
 import {PRINTED_CARD} from './sumo-printed.js';
 import {sumoName} from './sumo-names.js';
+import {sumoProfile} from './sumo-profiles.js';
+import {sumoPhoto} from './sumo-photo.js';
 import SayIt from './SayIt.jsx';
 // Rank and stable, each on a line of its own and each labelled, because "Isegahama" on its own
 // means nothing to a first-timer. The record going into the day rides on the rank's line, which
@@ -69,15 +71,22 @@ function Bout({state,bout,members,act,busy,user,onLook,now,running}){
  const ready=zone=>held&&sideOf(held)!==zone;
  // Each side is the wrestler's card and a drop zone at once. Tapping the card looks him up,
  // unless a name is being held, in which case it puts that name on him.
- const side=(zone,man)=>{const jp=sumoName(man.name),won=result?.winner===man.name,lost=!!result&&!won;
+ const side=(zone,man)=>{const jp=sumoName(man.name),bio=sumoProfile(man.name),won=result?.winner===man.name,lost=!!result&&!won;
   const here=members.filter(n=>sideOf(n)===zone);
   return <div data-sumo-drop={zone} className={`sumo-side ${zone} ${won?'won':''} ${lost?'lost':''} ${over===zone?'over':''} ${ready(zone)?'ready':''}`}
    onClick={()=>ready(zone)&&place(held,zone)}>
    <button type="button" className="sumo-side-look" aria-label={held?`Put ${held} on ${man.name}`:`${man.name} — look him up`}
     onClick={e=>{e.stopPropagation();if(held)place(held,zone);else onLook(man);}}>
     <strong>{man.name}</strong>
-    {jp&&<span className="sumo-jp"><span lang="ja">{jp.kanji}</span><i>{jp.say}</i></span>}
+    <span className="sumo-side-head">
+     {sumoPhoto(man.name)&&<img className="sumo-photo" src={sumoPhoto(man.name)} alt="" width="48" height="48"/>}
+     {jp&&<span className="sumo-jp"><span lang="ja">{jp.kanji}</span><i>{jp.say}</i></span>}
+    </span>
     <Standing man={man}/>
+    {bio&&<small className="sumo-bio">
+     <span>{bio.age} · {bio.from}</span><span>{bio.heightCm} cm · {bio.weightKg} kg</span>
+     {bio.notes.map(n=><em key={n}>{n}</em>)}
+    </small>}
     {won&&<span className="sumo-won"><Trophy size={13}/>Won{result?.kimarite?` · ${result.kimarite}`:''}</span>}
    </button>
    {(here.length>0||(!closed&&drag?.moved))&&<span className="sumo-drop-chips">{here.map(chip)}</span>}
@@ -269,6 +278,11 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
   {looking&&<div className="sumo-profile">
    <div className="section-heading"><h4><User size={17}/>{looking.name}</h4>
     <button className="icon" aria-label="Close" onClick={()=>{setLooking(null);setLookupError('');}}><X size={18}/></button></div>
+   {sumoProfile(looking.name)&&(({age,from,heightCm,weightKg,notes},photo)=><div className="sumo-profile-sheet">
+    {photo&&<img src={photo} alt={`${looking.name}, from the handout`} width="96" height="96"/>}
+    <div><div className="plan-facts"><span>Age {age}</span><span>{from}</span><span>{heightCm} cm</span><span>{weightKg} kg</span></div>
+     {notes.map(n=><p key={n} className="sumo-profile-note">{n}</p>)}</div>
+   </div>)(sumoProfile(looking.name),sumoPhoto(looking.name))}
    {sumoName(looking.name)&&<>
     <p className="destination-japanese" lang="ja">{sumoName(looking.name).kanji}</p>
     <SayIt phrase={sumoName(looking.name).phrase}/>
