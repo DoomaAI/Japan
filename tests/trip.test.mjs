@@ -8046,7 +8046,7 @@ test('a boy can say his answer instead of typing it, and the words are still his
 });
 
 test('each stop has its own forecast, for its neighbourhood at its hour, and the day has its sunrise and sunset',async()=>{
- const {forecastUrl,areaForecastUrl,parseForecast,parseHourly,stepPoint,stepHour,stepTargets,stepReadings,stepWeather,isDark,iconAt,skyPhase,pointFor}=await import('../src/weather-data.js');
+ const {forecastUrl,areaForecastUrl,parseForecast,parseHourly,stepPoint,stepHour,stepTargets,stepReadings,stepWeather,isDark,iconAt,skyPhase,skyFor,sunAt,pointFor}=await import('../src/weather-data.js');
  const {ensureFeatures}=await import('../src/trip-features.js');
  let state=ensureFeatures(structuredClone(seed));
  // Sunrise and sunset come with the day, as clock times in Japan.
@@ -8061,6 +8061,13 @@ test('each stop has its own forecast, for its neighbourhood at its hour, and the
  assert.equal(skyPhase(daily[day],21*60),'night');assert.equal(skyPhase(daily[day],12*60),'day');
  assert.equal(iconAt(0,'sunrise'),'🌅');assert.equal(iconAt(1,'sunset'),'🌇');assert.equal(iconAt(0,'night'),'🌙✨');
  assert.equal(iconAt(63,'sunset'),'🌧️','rain is rain at any hour');
+ // A forecast saved without sunrise and sunset still knows when it is dark: they are worked out
+ // for the city. Kyoto in late September is light by about half past five and dark by six.
+ assert.equal(sunAt('2026-09-26',pointFor('Kyoto'),true).slice(0,2),'05');
+ assert.match(sunAt('2026-09-26',pointFor('Kyoto'),false),/^17:[45]\d$/);
+ const old={weather:{days:{'2026-09-26':{city:'Kyoto',code:0,max:29,min:20,rain:0}}},days:[{date:'2026-09-26',city:'Kyoto'}]};
+ assert.equal(skyPhase(skyFor(old,'2026-09-26'),20*60+30),'night');
+ assert.equal(iconAt(0,skyPhase(skyFor(old,'2026-09-26'),19*60+30)),'🌙✨');
  // A stop is forecast where it is: Arashiyama is not central Kyoto, Haneda is not central Tokyo.
  assert.equal(stepPoint(state,{day:'2026-09-26',place:'Arashiyama Bamboo Grove',title:'Bamboo walk'}).name,'Arashiyama');
  assert.equal(stepPoint(state,{day,place:'Haneda Airport',title:'Arrive'}).name,'Haneda');

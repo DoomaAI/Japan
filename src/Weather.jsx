@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
 import {CloudSun,RefreshCw,X,ChevronRight,ChevronDown,ChevronUp,Sunrise,Sunset} from 'lucide-react';
 import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
-import {pointFor,forecastUrl,areaForecastUrl,AREAS_PER_REQUEST,stepTargets,stepReadings,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,morningNeeds,isMorning,hoursFor,stepWeather,iconAt,skyPhase,hourLabel} from './weather-data.js';
+import {pointFor,forecastUrl,areaForecastUrl,AREAS_PER_REQUEST,stepTargets,stepReadings,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,morningNeeds,isMorning,hoursFor,stepWeather,iconAt,skyPhase,skyFor,hourLabel} from './weather-data.js';
 import {japanDate,japanClock} from './timing.js';
 import {isOpen,setOpen} from './fold.js';
 // The one section that folds away, named here so the phone remembers which one it was.
@@ -124,7 +124,7 @@ export default function Weather({state,day,mutate,busy,online,notice,dayLabel,go
  const nowHour=now&&japanDate(now)===day?Number(japanClock(now).slice(0,2)):null;
  // Today's icon is the sky as it is now — a sunset at six, a moon and stars at nine — not the
  // midday sun of the day as a whole.
- const nowIcon=today?nowHour===null?describe(today.code)[1]:iconAt(today.code,skyPhase(today,nowHour*60+Number(japanClock(now).slice(3,5)))):'';
+ const nowIcon=today?nowHour===null?describe(today.code)[1]:iconAt(today.code,skyPhase(skyFor(state,day),nowHour*60+Number(japanClock(now).slice(3,5)))):'';
  const ahead=state.days.filter(d=>d.date>day).slice(0,4).map(d=>({...d,entry:forecastFor(state,d.date)}));
  const tip=advice(today);
  // Folded, it still says the one thing it is for: what it is doing outside. A section that

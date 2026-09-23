@@ -103,6 +103,31 @@ export function isDark(entry,h){
  if(!entry?.sunrise||!entry?.sunset)return false;
  return h*60+30<minutes(entry.sunrise)||h*60+30>minutes(entry.sunset);
 }
+// Sunrise or sunset worked out from the date and the place, as a clock time in Japan, for when
+// the saved forecast does not carry them — one checked before they were asked for, or a day with
+// only its hours saved. Good to a minute or two, which is all a moon or a sun needs.
+export function sunAt(date,{lat,lon},rising){
+ const [y,m,d]=String(date).split('-').map(Number);if(!y||!m||!d)return null;
+ const rad=Math.PI/180,n=Math.round((Date.UTC(y,m-1,d)-Date.UTC(y,0,0))/86400000),lng=lon/15;
+ const t=n+((rising?6:18)-lng)/24,M=0.9856*t-3.289;
+ const L=((M+1.916*Math.sin(M*rad)+0.02*Math.sin(2*M*rad)+282.634)%360+360)%360;
+ let ra=((Math.atan(0.91764*Math.tan(L*rad))/rad)%360+360)%360;
+ ra=(ra+Math.floor(L/90)*90-Math.floor(ra/90)*90)/15;
+ const sinDec=0.39782*Math.sin(L*rad),cosDec=Math.cos(Math.asin(sinDec));
+ const cosH=(Math.cos(90.833*rad)-sinDec*Math.sin(lat*rad))/(cosDec*Math.cos(lat*rad));
+ if(cosH>1||cosH<-1)return null;
+ const H=(rising?360-Math.acos(cosH)/rad:Math.acos(cosH)/rad)/15;
+ const at=Math.round(((H+ra-0.06571*t-6.622-lng+9)%24+24)%24*60);
+ return `${String(Math.floor(at/60)%24).padStart(2,'0')}:${String(at%60).padStart(2,'0')}`;
+}
+// The day's forecast with its sunrise and sunset always filled in, from the forecast when it has
+// them and worked out for the day's city when it does not.
+export function skyFor(state,day){
+ const entry=forecastFor(state,day);
+ if(entry?.sunrise&&entry?.sunset)return entry;
+ const where=pointFor(entry?.city||state.days?.find(d=>d.date===day)?.city);
+ return {...entry,sunrise:entry?.sunrise||sunAt(day,where,true),sunset:entry?.sunset||sunAt(day,where,false)};
+}
 // Where the sun is at a given minute of the day: coming up, going down, down, or up. The hour
 // either side of sunrise and sunset counts as the sunrise and the sunset.
 export function skyPhase(entry,at){
@@ -227,7 +252,7 @@ export const forecastFor=(state,day)=>state.weather?.days?.[day]||null;
 // city's hour stands in, and says it is the city's.
 export function stepWeather(state,step,steps){
  const at=stepHour(steps||activeSteps(state,step.day),step);if(!at)return null;
- const day=forecastFor(state,step.day),dark=isDark(day,at.h),phase=skyPhase(day,at.h*60+30);
+ const day=forecastFor(state,step.day),sky=skyFor(state,step.day),dark=isDark(sky,at.h),phase=skyPhase(sky,at.h*60+30);
  const saved=state.weather?.steps?.[step.id],place=stepPoint(state,step).name;
  if(saved&&saved.h===at.h&&saved.area===place)return {...saved,approx:at.approx,local:true,dark,phase};
  const hour=hoursFor(state,step.day)?.find(x=>x.h===at.h);
