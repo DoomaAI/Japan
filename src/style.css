@@ -486,3 +486,4 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .phrase-of-day .swipe-controls{margin:.4rem 0 .9rem}
 .phrase-of-day>button.primary{width:100%;margin-bottom:.6rem}
 .phrase-of-day>p:last-child{margin:0}
+.sky-icon{display:inline-block;vertical-align:-.2em;flex:none}
