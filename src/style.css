@@ -415,6 +415,10 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .pack-qty{font-weight:500;color:var(--muted)}
 .pack-nudge{width:100%;cursor:pointer;font:inherit;text-align:left;justify-content:flex-start;margin-bottom:.8rem}
 .pack-tabs{margin-top:1.2rem}
+/* Days: the cover is a book to swipe through, and the day its page belongs to is picked out below. */
+.journey-cover.guide-view{max-width:100%}.journey-cover .guide-book{width:min(100%,calc(65vh*.6928));margin:0}
+.cover-hint{margin:-1.2rem 0 1.6rem}.cover-hint .link-button{border:0;background:none;padding:.3rem .5rem;min-height:0;display:inline-flex;align-items:center;gap:.25rem;font-weight:600;color:#9b4b36}
+.day-tile.on-page{opacity:1;outline:3px solid #9b4b36;outline-offset:3px;transition:outline-color .2s}.day-tile.on-page .eyebrow{color:#9b4b36}
 /* Home action rows: an even two-column grid so buttons share one width and line up with the
    cards above and below, instead of wrapping into ragged rows. A lone last button spans both. */
 .home-actions,.dashboard-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem}

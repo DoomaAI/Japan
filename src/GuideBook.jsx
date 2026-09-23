@@ -14,7 +14,9 @@ const still=()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-mot
 const clamp=(v,m)=>Math.min(m,Math.max(-m,v));
 export const ZOOM=2.5;
 const DOUBLE_TAP_MS=280;
-export default function GuideBook({page,turn,flipRef,onMissing,onTap,zoomable,spread=false}){
+// A page can be drawn from somewhere else — the Days screen shows the cover from the offline
+// shell, so the book opens with no signal — and every other page still comes from the guide.
+export default function GuideBook({page,turn,flipRef,onMissing,onTap,zoomable,spread=false,source=src}){
  const box=useRef(null),touch=useRef(null),timer=useRef(null),flipNow=useRef(null),tapped=useRef(null);
  // dir 1 forward (the right edge lifts and swings left), -1 back (the left edge swings right).
  const [leaf,setLeaf]=useState(null);
@@ -40,8 +42,8 @@ export default function GuideBook({page,turn,flipRef,onMissing,onTap,zoomable,sp
  useEffect(()=>{
   if(typeof Image==='undefined')return;
   const near=spread?[-1,1].map(d=>stepPage(page,d,true)).filter(Boolean).flatMap(n=>spreadOf(n)):[page-1,page+1];
-  for(const n of near)if(n>=1&&n<=LAST_PAGE)new Image().src=src(n);
- },[page,spread]);
+  for(const n of near)if(n>=1&&n<=LAST_PAGE)new Image().src=source(n);
+ },[page,spread,source]);
  const land=(dir,p,finish)=>{
   const ms=still()?0:Math.round(TURN_MS*Math.max(.35,finish?1-p:p));
   setLeaf({dir,p:finish?1:0,ms});
@@ -116,7 +118,7 @@ export default function GuideBook({page,turn,flipRef,onMissing,onTap,zoomable,sp
  const dir=leaf?.dir||1;
  const angle=(leaf?.p||0)*180*(dir>0?-1:1);
  const lens=zoom&&{transform:`translate(${zoom.x}px,${zoom.y}px) scale(${zoom.s})`,transition:`transform ${still()?0:zoom.ms}ms ease-out`};
- const face=(n,cls)=>n?<img className={cls} src={src(n)} alt={`Japan travel guide page ${n}`} draggable={false} onError={onMissing}/>:null;
+ const face=(n,cls)=>n?<img className={cls} src={source(n)} alt={`Japan travel guide page ${n}`} draggable={false} onError={onMissing}/>:null;
  const fade=ms=>({transition:`opacity ${ms}ms ease-out`});
  // What lies flat, and what is in the air. One page: the next page under the one turning.
  // A spread: this spread's untouched side, the next spread's far side, and between them the
@@ -140,9 +142,9 @@ export default function GuideBook({page,turn,flipRef,onMissing,onTap,zoomable,sp
    <i className={`guide-shadow ${dir>0?'forward':'back'}`} style={{opacity:(1-leaf.p)*.5,...fade(leaf.ms)}}/>
    <div className={`guide-leaf ${dir>0?'forward':'back'}`}
     style={{transform:`rotateY(${angle}deg)`,transition:`transform ${leaf.ms}ms ease-out`}}>
-    <img src={src(front)} alt="" draggable={false}/>
+    <img src={source(front)} alt="" draggable={false}/>
     <i className="guide-curl" style={{opacity:Math.min(1,leaf.p*2.2),...fade(leaf.ms)}}/>
-    <b className="guide-back" aria-hidden="true">{back&&<img src={src(back)} alt="" draggable={false}/>}</b>
+    <b className="guide-back" aria-hidden="true">{back&&<img src={source(back)} alt="" draggable={false}/>}</b>
    </div>
   </>}
  </div>;
