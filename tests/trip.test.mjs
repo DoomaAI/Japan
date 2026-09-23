@@ -8024,3 +8024,20 @@ test('every wrestler on the printed card has his name in Japanese and how to say
  assert.equal(sumoName('Hiradoumi').phrase.ja,'ひらどうみ','the dot is only a marker and is not read aloud');
  assert.equal(sumoName('Nobody'),null);
 });
+
+test('the tipping comp keeps a running total bout by bout',async()=>{
+ const {PRINTED_CARD}=await import('../src/sumo-printed.js');
+ const {runningTotals}=await import('../src/trip-features.js');
+ let state=applyOperation(structuredClone(seed),{type:'sumoUpdate',...PRINTED_CARD},parent);
+ const [a,b,c]=PRINTED_CARD.bouts;
+ for(const [bout,person,side] of [[a,'Boston','east'],[a,'Nate','west'],[b,'Boston','east'],[b,'Nate','east'],[c,'Nate','west']])
+  state=applyOperation(state,{type:'sumoPredict',id:bout.id,person,winner:bout[side].name},child);
+ assert.deepEqual(runningTotals(state,state.members),{},'nothing moves before a result');
+ state=applyOperation(state,{type:'sumoResult',id:a.id,winner:a.east.name},child);
+ state=applyOperation(state,{type:'sumoResult',id:b.id,winner:b.east.name},child);
+ const after=runningTotals(state,state.members);
+ assert.equal(after[a.id].Boston,1);assert.equal(after[a.id].Nate,0);
+ assert.equal(after[b.id].Boston,2);assert.equal(after[b.id].Nate,1);
+ assert.equal(after[c.id],undefined,'a bout still to come has no total yet');
+ for(const name of state.members)assert.ok(name in after[b.id],`${name} is on the running total from the start`);
+});

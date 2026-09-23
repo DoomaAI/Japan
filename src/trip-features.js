@@ -615,6 +615,18 @@ export function predictionLadder(state,members=[]){
   return {...row,place,decided,percent:decided?Math.round(row.right*100/decided):null};
  });
 }
+// The score as it stood after each bout, in running order: how many each of us had called right
+// by then. Only bouts with a result move it, and everybody starts on nought.
+export function runningTotals(state,members=[]){
+ const people=predictionPeople(state,members),score=Object.fromEntries(people.map(n=>[n,0])),after={};
+ for(const bout of sumoBouts(state)){
+  const result=boutResult(state,bout.id);if(!result)continue;
+  const picks=boutPredictions(state,bout.id);
+  for(const name of people)if(picks[name]&&picks[name]===result.winner)score[name]+=1;
+  after[bout.id]={...score};
+ }
+ return after;
+}
 // The sheet itself: one row per bout, one column per person, the totals along the bottom. Only
 // the bouts the comp is actually about — somebody called it, or we watched it — because the
 // card runs to forty-odd bouts and nobody has an opinion about the ones before lunch.
