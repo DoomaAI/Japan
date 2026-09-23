@@ -32,6 +32,9 @@ export function showLocationDetails(state,step){
  const location=resolveLocation(state,step);
  const english=step?.place||location?.name||step?.title||'';
  const japanese=step?.japanese?.trim()||location?.japanese||'';
- const address=location?.japaneseAddress||location?.address||'';
- return {english,japanese,address,copyText:[japanese,english,address].filter(Boolean).join('\n')};
+ // The Japanese address is what a taxi driver types into the car's navigation; the English
+ // one stays underneath so the family can check it is the right place.
+ const japaneseAddress=location?.japaneseAddress||'';
+ const address=location?.address||'';
+ return {english,japanese,japaneseAddress,address,copyText:[japanese,japaneseAddress,english,address].filter(Boolean).join('\n')};
 }

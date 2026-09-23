@@ -812,6 +812,21 @@ test('a stop pinned where the family stood is stored whole and beats every other
   assert.throws(()=>applyOperation(state,{type:'patch',id:named.id,patch:{pin:bad}},parent),/latitude and a longitude/);
  assert.throws(()=>applyOperation(state,{type:'patch',id:named.id,patch:{pin}},child),e=>e.status===403);
 });
+test('every catalogue place can be shown to a taxi driver in Japanese',async()=>{
+ const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
+ const {showLocationDetails}=await import('../src/locations.js');const state={...seed,locations};
+ const japanese=/[぀-ヿ一-龯]/;
+ for(const l of locations){
+  assert.match(l.japanese||'',japanese,`${l.name} has no Japanese name`);
+  assert.match(l.japaneseAddress||'',japanese,`${l.name} has no Japanese address`);
+  // The block number and postcode must carry over unchanged, or the driver goes to the wrong door.
+  for(const n of l.address.match(/\b\d+(?:-\d+)+\b/g)||[])if(!/^\d{3}-\d{4}$/.test(n))assert.ok(l.japaneseAddress.includes(n),`${l.name}: ${n}`);
+  const postcode=l.address.match(/\b(\d{3}-\d{4})\b/);if(postcode)assert.ok(l.japaneseAddress.includes(`〒${postcode[1]}`),`${l.name} postcode`);
+ }
+ const hotel=showLocationDetails(state,{place:'1 Hotel Tokyo',japanese:''});
+ assert.equal(hotel.japanese,'1ホテル東京');assert.equal(hotel.japaneseAddress,'〒107-0052 東京都港区赤坂2-17-22');
+ assert.match(hotel.address,/Akasaka/);assert.deepEqual(hotel.copyText.split('\n'),['1ホテル東京','〒107-0052 東京都港区赤坂2-17-22','1 Hotel Tokyo','2-17-22 Akasaka, Minato-ku, Tokyo 107-0052, Japan']);
+});
 test('address matches preserve exact branches and leave ambiguous areas or station entrances alone',async()=>{
  const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
  const {resolveLocation,destinationFor,locationsForPage}=await import('../src/locations.js');const state={...seed,locations};
