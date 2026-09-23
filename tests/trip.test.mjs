@@ -767,6 +767,16 @@ test('all imported locations retain source rows and produce correctly encoded di
  for(const l of locations){assert.ok(l.address);for(const mode of ['transit','walking','driving']){const url=new URL(locationDirections(l,mode));assert.equal(url.hostname,'www.google.com');assert.equal(url.searchParams.get('destination'),locationDestination(l));assert.equal(url.searchParams.get('travelmode'),mode);assert.equal(url.searchParams.get('api'),'1');assert.ok(url.href.length<2048);}}
  const shrine=locations.find(l=>l.name==='Jishu Jinja Shrine');assert.ok(shrine.referenceOnly);assert.match(shrine.notes,/CLOSED/);
 });
+test('every map location carries its Japanese name, kept safe from a fresh import, and shows it to the driver',async()=>{
+ const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
+ const names=JSON.parse(await readFile(new URL('../data/location-names-ja.json',import.meta.url)));
+ const {showLocationDetails}=await import('../src/locations.js');
+ for(const l of locations){assert.match(l.japanese||'',/[\u3040-\u30ff\u3400-\u9fff]/,l.name);assert.equal(names[l.id],l.japanese,l.name);}
+ const hotel=locations.find(l=>l.name==='1 Hotel Tokyo');
+ const shown=showLocationDetails({locations},{place:'1 Hotel Tokyo'});
+ assert.equal(shown.japanese,hotel.japanese);assert.match(shown.copyText,new RegExp('^'+hotel.japanese));
+ assert.equal(showLocationDetails({locations},{place:'1 Hotel Tokyo',japanese:'ワン ホテル'}).japanese,'ワン ホテル');
+});
 test('asking a phone where it is rounds to the asked precision, and never waits forever',async()=>{
  const {askPhoneWhereItIs,GEO_TROUBLE}=await import('../src/geo.js');
  const {COORD_PLACES,PIN_PLACES}=await import('../src/trip-features.js');
