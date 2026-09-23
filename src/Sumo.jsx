@@ -3,6 +3,7 @@ import {Download,ExternalLink,RefreshCw,Search,Trophy,AlertCircle,User,Clock,X,C
 import {dayLabel} from './AdventurePages.jsx';
 import {SUMO_SITE_DIVISIONS,sumoSiteUrl,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,predictionLadder,tippingTable} from './trip-features.js';
 import {japanClock} from './timing.js';
+import {PRINTED_CARD} from './sumo-printed.js';
 const Side=({man,onLook,won,lost,how})=><button className={`sumo-side ${won?'won':''} ${lost?'lost':''}`} onClick={()=>onLook(man)}>
  <strong>{man.name}</strong>
  <small>{[man.rank,man.stable].filter(Boolean).join(' · ')||'Tap to look him up'}</small>
@@ -158,6 +159,13 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
   }catch(e){setError(e.message||'The card could not be fetched. The official schedule is at sumo.or.jp.');}
   finally{setFetching(false);}
  }
+ // The programme from the door, typed in, for when the official site cannot be read. It replaces
+ // the card like a download does, so any winners and picks on bouts it shares are kept.
+ async function usePrinted(){
+  if(card.bouts.length&&!confirm('Replace the card on the phone with the printed Day 11 programme?'))return;
+  setError('');
+  if(await mutate({type:'sumoUpdate',...PRINTED_CARD}))notice?.(`${PRINTED_CARD.bouts.length} bouts loaded from the printed programme. It works from here with no signal.`);
+ }
  // Who has won, as the official site has it. Only ever asked for by a parent pressing the button:
  // each read is a paid call, so it happens when somebody wants it and not on a timer.
  async function updateWinners(){
@@ -195,6 +203,10 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
     {fetching?'Reading the official schedule…':card.bouts.length?'Refresh the card':'Download the day’s card'}</button>
    {card.bouts.length>0&&<button disabled={busy||checking} onClick={updateWinners}>
     <Trophy size={16}/>{checking?'Reading the results…':'Update winners from the site'}</button>}
+  </div>}
+  {parent&&<div className="row wrap">
+   <button className={canFetch?'':'primary'} disabled={busy||fetching} onClick={usePrinted}>
+    <Download size={16}/>{card.bouts.length?'Use the printed programme instead':'Use the printed Day 11 programme'}</button>
   </div>}
   {card.bouts.length>0&&<p className="sumo-results-status"><small>
    {card.resultsAt?`Winners last checked on the official site at ${japanClock(new Date(card.resultsAt))}${card.resultsNote?` — ${card.resultsNote}`:''}.`:'Winners have not been checked on the official site yet.'}
