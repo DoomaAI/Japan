@@ -365,11 +365,26 @@ test('a day we have walked through folds down and greys in the Days menu',async(
  // The tile folds to its name, tally and city, greys, and is still one tap into its photos.
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
- assert.match(main,/className=\{`day-tile\$\{progress\.finished\?' finished':''\}`\}/);
+ assert.match(main,/className=\{`day-tile\$\{progress\.finished\?' finished':''\}/);
  assert.match(main,/progress\.finished\?<small className="day-finished">/);
  assert.match(main,/key=\{d\.date\} onClick=\{\(\)=>go\('glance',d\.date\)\}/,'a day is one tap into its day at a glance');
  assert.match(css,/\.day-tile\.finished\{[^}]*opacity:\.6/);
  assert.match(css,/\.days-grid\{align-items:start\}/,'so a folded tile does not stretch to its neighbour');
+});
+test('the Days cover is a book to swipe, and the day on the open page is picked out below',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const book=await readFile(new URL('../src/GuideBook.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // It opens on the cover the offline shell keeps, and turns through the rest of the guide.
+ assert.match(main,/const coverSource=n=>n===1\?'\/cover\.jpg':`\/api\/guide\?page=\$\{n\}`/);
+ assert.match(main,/<GuideBook page=\{coverPage\} source=\{coverSource\}/);
+ assert.match(book,/source=src\}\)\{/,'the guide tab still draws every page from the guide');
+ // Every page of a day's section lights up that day's tile, and the caption scrolls to it.
+ assert.match(main,/d\.pages\?\.includes\(coverPage\)\?' on-page':''/);
+ assert.match(main,/getElementById\(`day-tile-\$\{onPage\.date\}`\)\?\.scrollIntoView/);
+ assert.match(css,/\.day-tile\.on-page\{opacity:1;outline:/,'a finished day still shows when its page is open');
+ // Every day's guide pages are pages of the book, so each one can be reached by swiping.
+ for(const d of seed.days)for(const n of d.pages||[])assert.ok(n>=1&&n<=72,`${d.date} page ${n}`);
 });
 test('day and activity attachments validate associations and keep caption edits scoped',()=>{
  let state=applyOperation(seed,{type:'documentNote',title:'Luggage',category:'luggage',reference:'ABC123',day:seed.days[0].date,notes:'Blue bag',tags:['Tokyo']},parent);
