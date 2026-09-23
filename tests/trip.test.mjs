@@ -3664,24 +3664,49 @@ test('coming back to the app clears a synthesiser that stopped while it was away
 
 test('the guide turns like a book, and stops at both covers',async()=>{
  const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const book=await readFile(new URL('../src/GuideBook.jsx',import.meta.url),'utf8');
  // One place decides what page we are on, so a swipe, an arrow key and a button cannot drift.
  assert.match(source,/function turnPage\(delta\)\{/);
  assert.match(source,/Math\.min\(72,Math\.max\(1,guidePage\+delta\)\)/,'clamped at both ends rather than wrapping');
  assert.match(source,/if\(n===guidePage\)return;/,'and a turn that changes nothing does nothing');
- // Every way of turning goes through it.
- assert.equal((source.match(/turnPage\(-1\)/g)||[]).length,2,'the back button and the left arrow key');
- assert.equal((source.match(/turnPage\(1\)/g)||[]).length,2,'the forward button and the right arrow key');
- assert.match(source,/turnPage\(dx<0\?1:-1\)/,'and the swipe');
+ // Every way of turning goes through the book, which hands the page to turnPage once it lands.
+ assert.equal((source.match(/flipPage\(-1\)/g)||[]).length,2,'the back button and the left arrow key');
+ assert.equal((source.match(/flipPage\(1\)/g)||[]).length,2,'the forward button and the right arrow key');
+ assert.match(source,/<GuideBook page=\{guidePage\} turn=\{turnPage\} flipRef=\{guideFlip\}/,'and the swipe');
+ assert.match(source,/else turnPage\(delta\)/,'without the book, a button still turns the page');
+ assert.match(book,/if\(finish\)turn\(dir\)/,'the page only changes once the turn has landed');
  assert.doesNotMatch(source,/setGuidePage\(guidePage[-+]1\)/,'nothing sets the page behind its back');
  // A swipe is a sideways movement, not a scroll, and typing in the page box is not a turn.
- assert.match(source,/Math\.abs\(dx\)>55&&Math\.abs\(dy\)<45/);
+ assert.match(book,/swipeDelta\(t,\{x:e\.clientX,y:e\.clientY\}\)===leaf\.dir/);
+ assert.match(book,/t\.axis=Math\.abs\(dx\)>Math\.abs\(dy\)\?'x':'y'/);
  assert.match(source,/if\(typesText\(e\.target\)\)return/);
  // The keys are only listened for while the guide is open, and let go of afterwards.
  assert.match(source,/if\(tab!=='guide'\)return;/);
  assert.match(source,/removeEventListener\('keydown',onKey\)/);
+ // Nobody who has asked for less motion gets a page swinging about.
+ assert.match(book,/prefers-reduced-motion: reduce/);
  // The page can still be scrolled up and down while it is swiped sideways.
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  assert.match(css,/\.guide-view\{touch-action:pan-y\}/);
+ assert.match(css,/\.guide-leaf\.forward\{transform-origin:left center\}/,'a page turns on its spine');
+});
+
+test('a page being turned stays under the finger that is turning it',async()=>{
+ const {leafProgress}=await import('../src/swipe.js');
+ const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-9,`${a} is not ${b}`);
+ // Picked up at the edge of a 300px page: halfway to the spine is a quarter turn over...
+ near(leafProgress(0,300,300,1,true),0);
+ near(leafProgress(-150,300,300,1,true),1/3);
+ near(leafProgress(-300,300,300,1,true),.5);
+ near(leafProgress(-600,300,300,1,true),1);
+ near(leafProgress(-900,300,300,1,true),1,'and never further than all the way');
+ // ...and back the same, the other way.
+ near(leafProgress(300,300,300,-1,true),.5);
+ near(leafProgress(40,300,300,1,true),0,'a finger going the other way does not turn it');
+ // Grabbed by the spine it does not whip over at a touch.
+ assert.ok(leafProgress(-20,5,300,1,true)<.25);
+ // A cover that cannot turn only gives a little.
+ assert.ok(leafProgress(-300,300,300,1,false)<=.08);
 });
 
 test('a to-do belongs to a day, shows on it, and anyone can tick it off',async()=>{
@@ -3786,11 +3811,24 @@ test('the snake quickens with every piece of sushi, but stays steerable',async()
 
 test('a tile can be dragged onto another, and a tap still means a tap',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const lift=await readFile(new URL('../src/lift.js',import.meta.url),'utf8');
+ const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
  // A drag under ten pixels is a tap, so the old way of playing still works.
- assert.match(source,/if\(!d\.moved&&Math\.hypot\(e\.clientX-d\.x,e\.clientY-d\.y\)>10\)d\.moved=true/);
- assert.match(source,/if\(!d\.moved\)return d\.i/,'a tap comes back as the tile that was tapped');
- // The target is where the finger lifted, not where it started.
- assert.match(source,/document\.elementFromPoint\(x,y\)\?\.closest\('\[data-tile\]'\)/);
+ assert.match(source,/if\(!d\.moved&&Math\.hypot\(e\.clientX-d\.x,e\.clientY-d\.y\)>10\)\{d\.moved=true;/);
+ assert.match(source,/if\(!d\.moved\)\{letGo\(d,false\);return d\.i;\}/,'a tap comes back as the tile that was tapped');
+ // The target is where the finger lifted, not where it started — the tile beneath the one
+ // being carried, since that one is under the finger too.
+ assert.match(source,/underFinger\(x,y,'\[data-tile\]',lifted\)/);
+ assert.match(lift,/document\.elementsFromPoint\(x,y\)/);
+ assert.match(lift,/hit!==lifted&&!lifted\?\.contains\(hit\)/);
+ // The tile rides along under the finger while it is dragged, rather than waiting for the drop.
+ assert.match(source,/follow\(d\.el,e\.clientX-d\.x,e\.clientY-d\.y\)/);
+ assert.equal((source.match(/drag\.held===i\?' lifted':''/g)||[]).length,2);
+ // Dropped on nothing it slides home; dropped on a tile it stays where the result is.
+ assert.match(source,/letGo\(d,!took\)/);
+ // The timeline's rows are carried the same way, allowing for the page scrolling under them.
+ assert.match(timeline,/follow\(d\.row,0,e\.clientY-d\.y\+window\.scrollY-d\.scroll\)/);
+ assert.match(timeline,/underFinger\(e\.clientX,e\.clientY,'\[data-step-id\]',d\.row\)/);
  // Both merge games use it, and both mark the tile being dragged over.
  assert.equal((source.match(/useDragTiles\(/g)||[]).length,3,'the helper and its two users');
  assert.equal((source.match(/drag\.over===i\?' over':''/g)||[]).length,2);

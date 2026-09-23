@@ -21,6 +21,17 @@ export function swipeVertical(start,end,limits=SWIPE_UP){
  if(Math.abs(up)<limits.up||Math.abs(across)>limits.across)return 0;
  return up>0?1:-1;
 }
+// How far over the page is, 0 flat to 1 fully turned. The point of the page that was picked up
+// stays under the finger: grabbed g from the spine and moved dx towards it, that point sits at
+// g·cos(angle) from the spine, so the angle is the one that puts it where the finger is now.
+// Picked up right by the spine it would whip over at a touch, so the reach never counts as less
+// than a third of the page. A cover that cannot turn only gives a little, so it is plain there
+// is nothing there.
+export const leafProgress=(dx,grab,width,dir,open)=>{
+ const reach=Math.max(grab,width/3,1),toward=dir>0?-dx:dx;
+ const p=Math.acos(Math.min(1,Math.max(-1,1-Math.max(0,toward)/reach)))/Math.PI;
+ return open?p:Math.min(p,.08);
+};
 // A drag that began on something you press is not a page turn. Audio is in the list because a
 // recorded phrase has a scrub bar, and dragging that must not turn the card.
 const CONTROLS=['BUTTON','A','INPUT','SELECT','TEXTAREA','AUDIO','SUMMARY','LABEL'];

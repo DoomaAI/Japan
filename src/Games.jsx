@@ -10,6 +10,7 @@ import {SpeakRules} from './AdventurePages.jsx';
 import {gameRule} from './spoken-rules.js';
 import {gameGuide} from './game-guide.js';
 import {WinBurst} from './Win.jsx';
+import {underFinger,follow,settle} from './lift.js';
 import Karuta from './Karuta.jsx';
 import AnimalShogi from './AnimalShogi.jsx';
 import Fukuwarai from './Fukuwarai.jsx';
@@ -23,31 +24,36 @@ import Beigoma from './Beigoma.jsx';
 import Hanafuda from './Hanafuda.jsx';
 const PAIRS=6;
 // Dragging one tile onto another, with a tap still meaning what it meant. Pointer events
-// cover a finger and a mouse alike; the target is found from where the finger actually
-// lifted rather than from what the drag started on.
+// cover a finger and a mouse alike. Once it is a drag the tile rides along under the finger, and
+// the target is whatever tile is beneath it where the finger lifts, not where the drag started.
 function useDragTiles(onDrop){
- const drag=useRef(null),[over,setOver]=useState(null);
- const tileAt=(x,y)=>{
-  const el=typeof document!=='undefined'?document.elementFromPoint(x,y)?.closest('[data-tile]'):null;
+ const drag=useRef(null),[over,setOver]=useState(null),[held,setHeld]=useState(null);
+ const tileAt=(x,y,lifted)=>{
+  const el=underFinger(x,y,'[data-tile]',lifted);
   return el?Number(el.dataset.tile):null;
  };
+ const letGo=(d,home)=>{settle(d?.el,home);setOver(null);setHeld(null);};
  return {
-  over,
-  down:i=>e=>{drag.current={i,x:e.clientX,y:e.clientY,moved:false};},
+  over,held,
+  down:i=>e=>{e.currentTarget.setPointerCapture?.(e.pointerId);drag.current={i,x:e.clientX,y:e.clientY,moved:false,el:e.currentTarget};},
   move:e=>{
    const d=drag.current;if(!d)return;
-   if(!d.moved&&Math.hypot(e.clientX-d.x,e.clientY-d.y)>10)d.moved=true;
-   if(d.moved)setOver(tileAt(e.clientX,e.clientY));
+   if(!d.moved&&Math.hypot(e.clientX-d.x,e.clientY-d.y)>10){d.moved=true;setHeld(d.i);}
+   if(!d.moved)return;
+   follow(d.el,e.clientX-d.x,e.clientY-d.y);
+   setOver(tileAt(e.clientX,e.clientY,d.el));
   },
   up:e=>{
-   const d=drag.current;drag.current=null;setOver(null);
-   if(!d)return null;
-   if(!d.moved)return d.i;
-   const to=tileAt(e.clientX,e.clientY);
-   if(to!==null&&to!==d.i)onDrop(d.i,to);
+   const d=drag.current;drag.current=null;
+   if(!d){setOver(null);return null;}
+   if(!d.moved){letGo(d,false);return d.i;}
+   const to=tileAt(e.clientX,e.clientY,d.el);
+   const took=to!==null&&to!==d.i;
+   letGo(d,!took);
+   if(took)onDrop(d.i,to);
    return null;
   },
-  cancel:()=>{drag.current=null;setOver(null);}
+  cancel:()=>{letGo(drag.current,true);drag.current=null;}
  };
 }
 // A row of figures rather than a sentence of them: short numbers are read at a glance, and
@@ -330,7 +336,7 @@ function Kitchen({user,state,mutate,busy}){
   </div>}
   <div className="kitchen-grid" onPointerMove={drag.move} onPointerUp={e=>{const i=drag.up(e);if(i!==null&&shown[i])tap(shown[i].id);}} onPointerCancel={drag.cancel}>
    {shown.map((e,i)=>
-   <button key={e.id} data-tile={i} className={`kitchen-item${first===e.id?' chosen':''}${drag.over===i?' over':''}`} onPointerDown={drag.down(i)}>
+   <button key={e.id} data-tile={i} className={`kitchen-item${first===e.id?' chosen':''}${drag.over===i?' over':''}${drag.held===i?' lifted':''}`} onPointerDown={drag.down(i)}>
     <span aria-hidden="true">{e.icon}</span><small>{e.en}</small></button>)}</div>
   <WinBurst on={!left} label="You found everything!" sub={`All ${total} of them`}/>
   <p className="game-status">{found.length} of {total} found{left?` · ${left} to go`:' · everything!'}
@@ -828,7 +834,7 @@ function Stable({user,state,mutate,busy}){
   <div className="stable-grid" onPointerMove={drag.move} onPointerUp={e=>{const tapped=drag.up(e);if(tapped!==null)tap(tapped);}} onPointerCancel={drag.cancel}>
    {stable.map((level,i)=>{
    const rank=rankAt(level);
-   return <button key={i} data-tile={i} className={`stable-cell${level?' filled':''}${picked===i?' picked':''}${drag.over===i?' over':''}${level===TOP_RANK?' top':''}`}
+   return <button key={i} data-tile={i} className={`stable-cell${level?' filled':''}${picked===i?' picked':''}${drag.over===i?' over':''}${drag.held===i?' lifted':''}${level===TOP_RANK?' top':''}`}
     disabled={fighting} onPointerDown={drag.down(i)}>
     {rank&&<><span aria-hidden="true">{rank.icon}</span><small>{shortRank(rank)}</small></>}</button>;})}</div>
   <div className="row wrap game-actions">
