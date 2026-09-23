@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
 import {Download,ExternalLink,RefreshCw,Search,Trophy,AlertCircle,User,Clock,X,Check,Lock,Crown,Gem,Star,Award,Medal,Shield,Home,Undo2} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {SUMO_SITE_DIVISIONS,sumoSiteUrl,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,predictionLadder,tippingTable} from './trip-features.js';
+import {SUMO_SITE_DIVISIONS,sumoSiteUrl,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,predictionLadder,tippingTable,runningTotals} from './trip-features.js';
 import {japanClock} from './timing.js';
 import {PRINTED_CARD} from './sumo-printed.js';
 import {sumoName} from './sumo-names.js';
@@ -35,7 +35,7 @@ const OfficialLinks=({dayNumber})=><div className="row wrap sumo-official">
 // zones: drag a name from the bench onto the man they are backing, or back to the bench to take
 // it away. A drag needs a steady thumb in a crowd, so tapping a name and then a wrestler does the
 // same. Picks close the moment the result goes in: you cannot call a bout you have already watched.
-function Bout({state,bout,members,act,busy,user,onLook,now}){
+function Bout({state,bout,members,act,busy,user,onLook,now,running}){
  const result=boutResult(state,bout.id);
  const picks=boutPredictions(state,bout.id),closed=predictionsClosed(state,bout.id);
  const made=members.filter(n=>picks[n]);
@@ -109,6 +109,8 @@ function Bout({state,bout,members,act,busy,user,onLook,now}){
      onClick={()=>setWinner(result?.winner===name?null:name)}>{name}</button>)}
    {result&&<button className="sumo-clear" disabled={busy} onClick={()=>setWinner(null)}><X size={14}/>Clear</button>}
   </div>
+  {running&&<p className="sumo-running"><small>Running total</small>{Object.entries(running).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([name,n])=>
+   <span key={name} className={picks[name]&&result&&picks[name]===result.winner?'scored':''}>{name} <b>{n}</b></span>)}</p>}
  </article>;
 }
 // The ladder, which is the half of a tipping comp people actually argue about: where everybody
@@ -172,7 +174,7 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
  const [checking,setChecking]=useState(false),[resultsError,setResultsError]=useState('');
  const canFetch=parent&&!!config?.sumo;
  const tally=predictionTally(state),leaders=predictionLeaders(state);
- const ladder=predictionLadder(state,state.members),sheet=tippingTable(state,state.members);
+ const ladder=predictionLadder(state,state.members),sheet=tippingTable(state,state.members),running=runningTotals(state,state.members);
  const clock=japanClock(now||new Date()),onNow=currentBout(state,clock);
  // A wrong tap in a loud arena is easy, so the last few winners and picks can be undone in turn.
  // Kept on this screen rather than in the trip: it is this phone's taps, and it goes when the
@@ -257,7 +259,7 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
   </div>}
   {groups.map(group=><section className="sumo-group" key={group.id}>
    <h4>{group.label}</h4>
-   {group.bouts.map(bout=><Bout key={bout.id} state={state} bout={bout} members={state.members} act={act} busy={busy}
+   {group.bouts.map(bout=><Bout key={bout.id} state={state} bout={bout} members={state.members} act={act} busy={busy} running={running[bout.id]}
     user={user} onLook={look} now={onNow?.id===bout.id}/>)}
   </section>)}
   {!!card.sources.length&&<details className="sumo-sources"><summary>Where this came from</summary>
@@ -289,10 +291,18 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
     <small>Records change every day of a tournament. This is what the page said when it was read.</small>
    </>:!looking.busy&&!lookupError&&!sumoName(looking.name)&&<p>Nothing saved about him yet.{parent&&config?.sumo?'':' A parent can look him up while there is signal.'}</p>}
   </div>}
+ {card.bouts.length>0&&<div className="tipping-foot">
  {undos.length>0&&<div className="sumo-undo" role="status">
   <span>{undos.at(-1).label}</span>
   <button disabled={busy} onClick={undo}><Undo2 size={16}/>Undo{undos.length>1?` (${undos.length})`:''}</button>
   <button className="icon" aria-label="Dismiss" onClick={()=>setUndos([])}><X size={16}/></button>
+ </div>}
+  {/* The score, pinned to the foot of the screen so it is there whichever bout you are on. */}
+  <div className="sumo-score" aria-label="Correct tips so far">
+   <Trophy size={15} aria-hidden="true"/>
+   {ladder.map(row=><span key={row.name} className={leaders.includes(row.name)&&row.right>0?'leader':''}>
+    {row.name} <b>{row.right}</b>{row.decided>0&&<small>/{row.decided}</small>}</span>)}
+  </div>
  </div>}
  </div>;
 }
