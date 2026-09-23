@@ -427,3 +427,7 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .home-actions>button:last-child:nth-child(odd),.dashboard-actions>button:last-child:nth-child(odd){grid-column:1/-1}
 .home-actions svg{flex:none}
 .swipe-controls button{padding-left:0;padding-right:0}
+.home-customise{display:flex;justify-content:center;margin:1.4rem 0 .4rem}
+.home-widgets li.is-hidden{opacity:.6;background:#f4f7f5}
+.home-widgets li>span:first-child{flex:1;min-width:0;display:flex;flex-direction:column;gap:.1rem}
+.home-widgets li>span.menu-buttons{flex:0 0 auto;flex-direction:row;gap:.3rem}

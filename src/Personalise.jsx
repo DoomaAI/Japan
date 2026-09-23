@@ -2,6 +2,7 @@ import React from 'react';
 import {ArrowUp,ArrowDown,Plus,X,Eye,EyeOff,RotateCcw} from 'lucide-react';
 import {PAGES,BAR_MIN,BAR_MAX,FIXED,pagesFor,primaryNav,hiddenNav,addableNav,cleanNav,emptyNav} from './nav-data.js';
 import {iconFor} from './Navigation.jsx';
+import {HOME_WIDGETS,homeOrder,cleanHome,moveWidget,toggleWidget,emptyHome} from './home-widgets.js';
 // Four of us carry the same app. Lauren opens tickets and the plan; Boston opens his missions
 // and his money; Nate opens three screens in sixteen days and would open two if the third one
 // stopped moving. One bottom bar cannot be right for all of them, so this is where each phone
@@ -15,7 +16,7 @@ import {iconFor} from './Navigation.jsx';
 // Nothing put away is lost. Everything hidden is listed at the bottom of this screen with a
 // button to bring it back, and this screen cannot be hidden itself — nor can Home, which is
 // the way back from wherever a bad arrangement leaves you.
-export default function Personalise({user,prefs,setPrefs}){
+export default function Personalise({user,prefs,setPrefs,home,setHome}){
  const bar=primaryNav(user,prefs),hidden=hiddenNav(user,prefs),spare=addableNav(user,prefs);
  const save=next=>setPrefs(cleanNav(next,user));
  // The first change to a bar nobody has touched starts from the one they have been using,
@@ -36,6 +37,7 @@ export default function Personalise({user,prefs,setPrefs}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR MENU</p><h1>My menu</h1>
   <p>This is your phone only. Nobody else's menu changes, and nothing here changes the trip.</p>
+  <HomeWidgets home={home} setHome={setHome}/>
   <h2>The bar along the bottom</h2>
   <p>These are the buttons at the bottom of the screen, in this order. Swipe the bar sideways
    to reach the ones that do not fit, swipe it up for everything else, and swipe it down to
@@ -74,5 +76,28 @@ export default function Personalise({user,prefs,setPrefs}){
   </>}
   <button type="button" onClick={()=>{if(confirm('Put the menu back the way it started?'))setPrefs(emptyNav());}}>
    <RotateCcw size={16}/> Start again</button>
+ </>;
+}
+// Home is a column of widgets, and this is where they are put in order or put away. The same
+// arrows as the bar, for the same reasons, plus an eye: a widget put away is still listed here,
+// greyed, so there is never anything to go looking for to bring it back.
+function HomeWidgets({home,setHome}){
+ if(!setHome)return null;
+ const {hidden}=cleanHome(home),order=homeOrder(home);
+ return <>
+  <h2>Your Home screen</h2>
+  <p>Home shows these, top to bottom, under the day and its dates. Move them into the order you
+   want and put away the ones you do not need. It changes Home on this phone only.</p>
+  <ol className="menu-order home-widgets">{order.map((id,i)=>{const off=hidden.includes(id);
+   return <li key={id} className={off?'is-hidden':undefined}>
+    <span><strong>{HOME_WIDGETS[id].label}</strong><small>{off?'Put away · ':''}{HOME_WIDGETS[id].note}</small></span>
+    <span className="menu-buttons">
+     <button type="button" aria-label={`Move ${HOME_WIDGETS[id].label} up`} disabled={i===0} onClick={()=>setHome(moveWidget(home,id,-1))}><ArrowUp size={16}/></button>
+     <button type="button" aria-label={`Move ${HOME_WIDGETS[id].label} down`} disabled={i===order.length-1} onClick={()=>setHome(moveWidget(home,id,1))}><ArrowDown size={16}/></button>
+     <button type="button" aria-pressed={!off} aria-label={off?`Show ${HOME_WIDGETS[id].label} on Home`:`Put ${HOME_WIDGETS[id].label} away`} onClick={()=>setHome(toggleWidget(home,id))}>{off?<EyeOff size={16}/>:<Eye size={16}/>}</button>
+    </span>
+   </li>;})}</ol>
+  <button type="button" onClick={()=>{if(confirm('Put Home back the way it started?'))setHome(emptyHome());}}>
+   <RotateCcw size={16}/> Reset Home</button>
  </>;
 }

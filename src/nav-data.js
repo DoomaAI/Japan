@@ -1,9 +1,9 @@
 // One registry drives both the bottom bar and the More screen, so every page is reachable
 // from exactly one place and nothing can be orphaned when a new page is added.
 export const PAGES={
- today:{label:'Home',note:'What’s next today'},
- days:{label:'Days',note:'All sixteen days of the trip'},
- glance:{label:'Day at a glance',note:'Today\u2019s stops in order, ticked off as they happen'},
+ today:{label:'Home',note:'Your own widgets for the day: what’s next, weather, to-dos and more'},
+ days:{label:'Itinerary',note:'All sixteen days of the trip'},
+ glance:{label:'Today',note:'Today\u2019s stops in order, ticked off as they happen'},
  tickets:{label:'Tickets',note:'Bookings, luggage tags and QR codes'},
  inbox:{label:'Forwarded email',note:'Booking emails you sent in, waiting to be filed'},
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
@@ -35,11 +35,13 @@ export const PAGES={
  personalise:{label:'My menu',note:'Choose what you see, and the order it comes in'},
  settings:{label:'Settings',note:'Turn the daily phrase or the daily fun fact off'}
 };
-// The five that earn a place in the bottom bar, by who is holding the phone. Parents reach
-// for tickets and prices; the boys reach for their missions. Everything else lives in More.
+// The ones that earn a place in the bottom bar, by who is holding the phone. Home, Today and the
+// Itinerary are everybody's: Home is the dashboard, Today is the day's stops in order, and the
+// Itinerary is the whole trip. After that, parents reach for tickets and prices and the boys
+// reach for their missions. Everything else lives in More.
 export const PRIMARY={
- parent:['today','days','tickets','food','money'],
- child:['today','days','challenges','food','diary']
+ parent:['today','glance','days','tickets','food','money'],
+ child:['today','glance','days','challenges','food','diary']
 };
 // Ordered by whose hands the screen is for, top to bottom. The practical half of the trip is
 // what Lauren and I open a menu for — the weather on the way out, the ticket at the gate, what
@@ -112,11 +114,11 @@ function fallbackBar(user,hidden){
  return [...base,...rest].slice(0,BAR_MIN);
 }
 // Everything this person can see, in the order the menu itself puts it: the practical half
-// first and the boys' block last, which is the order they already know from More. Home and
-// Days are in every bar rather than in a section, so they come first when one of them has been
-// taken off a bar and is being offered back.
+// first and the boys' block last, which is the order they already know from More. Home, Today
+// and the Itinerary are in every bar rather than in a section, so they come first when one of
+// them has been taken off a bar and is being offered back.
 export const menuOrder=user=>{
- const order=[...new Set(['today','days',...MORE_SECTIONS.flatMap(([,ids])=>ids),...Object.keys(PAGES)])];
+ const order=[...new Set(['today','glance','days',...MORE_SECTIONS.flatMap(([,ids])=>ids),...Object.keys(PAGES)])];
  return order.filter(id=>allowed(id,user));
 };
 // The bar along the bottom: theirs if they have set one, the one for their role if they have not.
