@@ -35,7 +35,7 @@ export function SunTimes({entry}){
 // the day at a glance gets the icon and the number, because it is read down a list. On the card it
 // is just the icon and the number in the top corner: the icon and the number, with the rest kept for a long press
 // or a screen reader rather than a whole line of the card.
-export function StepWeather({state,step,steps,compact,pill}){
+export function StepWeather({state,step,steps,compact,pill,onOpen}){
  const w=stepWeather(state,step,steps);
  if(!w)return null;
  const icon=iconAt(w.code,w.dark),label=w.code===null?'':describe(w.code)[0];
@@ -44,7 +44,11 @@ export function StepWeather({state,step,steps,compact,pill}){
  const feels=Number.isFinite(w.feels)&&Math.abs(w.feels-w.temp)>=3?`feels ${w.feels}°`:'';
  if(pill){
   const detail=[`${w.temp}°${label?` ${label}`:''}`,feels,rain,`${w.approx?'around':'at'} ${hourLabel(w.h)}`,w.local?w.area:`${w.area}, the city forecast`].filter(Boolean).join(' · ');
-  return <span className="step-weather-pill" title={detail} aria-label={`Forecast: ${detail}`}><span aria-hidden="true">{icon}</span>{w.temp}°</span>;
+  const inner=<><span aria-hidden="true">{icon}</span>{w.temp}°</>;
+  // Tapping it opens the whole forecast for this day, which is where the rest of it lives.
+  return onOpen
+   ?<button type="button" className="step-weather-pill" title={detail} aria-label={`Forecast: ${detail}. Open the weather`} onClick={onOpen}>{inner}</button>
+   :<span className="step-weather-pill" title={detail} aria-label={`Forecast: ${detail}`}>{inner}</span>;
  }
  return <p className="step-weather">
   <span className="step-weather-icon" aria-hidden="true">{icon}</span>
