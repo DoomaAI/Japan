@@ -57,7 +57,7 @@ import EmailInbox from './EmailInbox.jsx';
 import PhotoDay from './PhotoDay.jsx';
 import MascotMaker from './MascotMaker.jsx';
 import {MascotBadge} from './Mascot.jsx';
-import React,{useEffect,useMemo,useRef,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
 import {Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Archive,ArchiveRestore,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed} from 'lucide-react';
@@ -68,6 +68,8 @@ import {PhraseAudio} from './PhraseAudio.jsx';
 import {typesText} from './swipe.js';
 import './style.css';
 import './guide-theme.css';
+// The map library is only fetched when the map is opened, so every other screen stays as quick.
+const MemoryMap=lazy(()=>import('./MemoryMap.jsx'));
 
 const API='/api/';
 const APPS={maps:['Google Maps','https://maps.google.com/'],translate:['Google Translate','https://translate.google.com/?sl=en&tl=ja&op=translate'],qantas:['Qantas','https://www.qantas.com/au/en/qantas-app.html'],disney:['Tokyo Disney Resort','https://www.tokyodisneyresort.jp/en/tdr/app.html'],usj:['Universal Studios Japan','https://www.usj.co.jp/web/en/us/service-guide/theme-park-services/official-app'],japan:['Visit Japan Web','https://www.vjw.digital.go.jp/']};
@@ -413,6 +415,7 @@ function App(){
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go}/>}
   {tab==='packing'&&<Packing state={visibleState} user={user} mutate={mutate} busy={busy}/>}
   {tab==='trackers'&&<Trackers state={visibleState} user={user} mutate={mutate} busy={busy}/>}
+  {tab==='memorymap'&&<Suspense fallback={<p>Opening the map…</p>}><MemoryMap state={visibleState} user={user} request={request} accept={accept} notice={notice} busy={busy}/></Suspense>}
   {tab==='spending'&&<Spending state={visibleState} user={user} mutate={mutate} busy={busy} go={go} notice={notice} today={japanDate(now)}/>}
   {tab==='inbox'&&parent&&isAvailable('inbox')&&<EmailInbox state={state} config={config} busy={busy} mutate={mutate} request={request} accept={accept} notice={notice} go={go}/>}
   {tab==='ask'&&<AskTrip state={visibleState} user={user} day={day} config={config} online={online} request={request} go={go} selectDay={selectDay} notice={notice}/>}

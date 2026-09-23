@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import {photoPosition} from './exif-gps.js';
 import {upload} from '@vercel/blob/client';
 import {Camera,Trophy,Trash2,Check,Sparkles,Users} from 'lucide-react';
 import {shrinkPhoto} from './MenuReader.jsx';
@@ -41,7 +42,7 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
    setWorking('Saving it for the family…');
    const blob=await upload(`photos/${user.id}/${crypto.randomUUID()}.jpg`,
     await (await fetch(shot.preview)).blob(),{access:'private',contentType:'image/jpeg',handleUploadUrl:'/api/upload'});
-   accept(await request('photo',{pathname:blob.pathname,day,for:belongsTo,title:feedback?.title||'',feedback}));
+   accept(await request('photo',{pathname:blob.pathname,day,for:belongsTo,title:feedback?.title||'',feedback,gps:await photoPosition(file)}));
    setPreview(null);
    notice(feedback?`${feedback.title} — ${feedback.score}/10`:`Photo added${belongsTo===user.name?'':` for ${belongsTo}`}.`);
   }catch(e){notice(e.message||'That photo could not be added.');setPreview(null);}
