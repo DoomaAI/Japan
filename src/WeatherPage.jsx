@@ -3,7 +3,8 @@ import {CloudSun,RefreshCw,ChevronRight,ChevronDown} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
 import {SunTimes} from './Weather.jsx';
-import {forecastFor,forecastAge,ageLabel,describe,advice,hoursFor} from './weather-data.js';
+import SkyIcon from './SkyIcon.jsx';
+import {forecastFor,forecastAge,ageLabel,describe,advice,hoursFor,iconAt,skyPhase,skyFor} from './weather-data.js';
 import {japanDate,japanClock} from './timing.js';
 // One day, opened up: the hour-by-hour graph, what it means, and the same numbers as a table.
 export function DayWeather({state,day,nowHour}){
@@ -12,7 +13,7 @@ export function DayWeather({state,day,nowHour}){
  if(!entry&&!hours)return <p><small>No forecast saved for this day yet.</small></p>;
  return <div className="day-weather">
   {entry&&<div className="weather-today">
-   <span className="weather-icon" aria-hidden="true">{describe(entry.code)[1]}</span>
+   <span className="weather-icon" aria-hidden="true"><SkyIcon icon={nowHour===null||nowHour===undefined?describe(entry.code)[1]:iconAt(entry.code,skyPhase(skyFor(state,day),nowHour*60+30))}/></span>
    <div><strong>{entry.max}° / {entry.min}°</strong>
     <small>{describe(entry.code)[0]} · {entry.city}{entry.rain!==null?` · ${entry.rain}% rain at its worst`:''}</small></div>
   </div>}
