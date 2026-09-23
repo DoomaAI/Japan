@@ -8060,3 +8060,22 @@ test('the handout details and photos are there for the wrestlers on it',async()=
  assert.ok(sumoProfile('Toshinofuji').notes.includes('New to the top division'));
  assert.equal(sumoProfile('Onosato'),null,'not on this page of the handout');
 });
+
+test('the next bout is the feature, and finished bouts go to the foot, latest first',async()=>{
+ const {PRINTED_CARD}=await import('../src/sumo-printed.js');
+ const {boutQueue}=await import('../src/trip-features.js');
+ let state=applyOperation(structuredClone(seed),{type:'sumoUpdate',...PRINTED_CARD},parent);
+ const ids=PRINTED_CARD.bouts.map(b=>b.id);
+ let q=boutQueue(state);
+ assert.equal(q.next.id,ids[0]);assert.equal(q.upcoming.length,33);assert.equal(q.finished.length,0);
+ for(const id of ids.slice(0,2))state=applyOperation(state,{type:'sumoResult',id,winner:PRINTED_CARD.bouts.find(b=>b.id===id).east.name},child);
+ q=boutQueue(state);
+ assert.equal(q.next.id,ids[2]);assert.deepEqual(q.finished.map(b=>b.id),[ids[1],ids[0]],'latest first');
+ // Held for the moment its win is shown, a decided bout stays where it was.
+ q=boutQueue(state,ids[1]);
+ assert.equal(q.next.id,ids[1]);assert.deepEqual(q.finished.map(b=>b.id),[ids[0]]);
+ // Out of order is fine: the feature is always the first one still open.
+ state=applyOperation(state,{type:'sumoResult',id:ids[5],winner:PRINTED_CARD.bouts[5].west.name},child);
+ q=boutQueue(state);assert.equal(q.next.id,ids[2]);assert.equal(q.finished[0].id,ids[5]);
+ assert.ok(!q.upcoming.some(b=>b.id===ids[5]));
+});
