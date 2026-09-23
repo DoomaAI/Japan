@@ -615,6 +615,16 @@ export function predictionLadder(state,members=[]){
   return {...row,place,decided,percent:decided?Math.round(row.right*100/decided):null};
  });
 }
+// The card as the afternoon uses it: the next bout without a result as the feature, the rest
+// still to come in running order under it, and the finished ones at the foot, latest first.
+// `holding` keeps one bout where it is for a moment after its winner goes in, so the win can be
+// seen before the list moves on.
+export function boutQueue(state,holding=null){
+ const order=sumoCard(state).flatMap(g=>g.bouts);
+ const open=order.filter(b=>b.id===holding||!boutResult(state,b.id));
+ const finished=order.filter(b=>b.id!==holding&&boutResult(state,b.id)).reverse();
+ return {next:open[0]||null,upcoming:open.slice(1),finished};
+}
 // The score as it stood after each bout, in running order: how many each of us had called right
 // by then. Only bouts with a result move it, and everybody starts on nought.
 export function runningTotals(state,members=[]){
