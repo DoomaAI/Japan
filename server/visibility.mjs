@@ -17,9 +17,14 @@ function hideUnthrownHands(state,user){
 // Forwarded email is whatever an email happened to carry — a booking, a bank reference, a
 // letter from a school. Hiding the screen from the boys would not do: the state behind it is
 // one fetch away, so the inbox is removed here, for anyone who is not a parent.
+// A tracker's shared link opens a live map of where that bag is, for as long as the link lasts.
+// The boys can see which bags have a tracker and that a parent can find them; the link itself
+// is removed here, like the inbox, because the state behind the screen is one fetch away.
+const hideTrackerLinks=(state,user)=>user?.role==='parent'||!state.trackers?.length?state
+ :{...state,trackers:state.trackers.map(t=>({...t,shareUrl:null}))};
 const hideInbox=(state,user)=>user?.role==='parent'?state:{...state,inbox:[]};
 export function visibleTrip(state,user,now=new Date()){
- state=hideInbox(hideUnthrownHands(state,user),user);
+ state=hideTrackerLinks(hideInbox(hideUnthrownHands(state,user),user),user);
  if(user?.name===THANK_YOU_FROM)return state;
  if(user?.name!==THANK_YOU_TO)return {...state,thankYou:{seen:{},today:null}};
  const day=japanDate(now),note=thankYouForDay(state,day);

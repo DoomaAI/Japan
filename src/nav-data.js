@@ -21,6 +21,7 @@ export const PAGES={
  planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, and voting on them'},
  ask:{label:'Ask about our trip',note:'Better today or tomorrow? Ask, and get an answer out of our own plan'},
  todo:{label:'To-do list',note:'Things to do or buy, on the day we will do them'},
+ trackers:{label:'Tracker tags',note:'Which AirTag is in which bag, and the Find My link to where it is'},
  packing:{label:'Packing list',note:'What goes in the case, with suggestions for the weather and the days ahead'},
  spending:{label:'Spending money',note:'What the boys have, what they bought and what is left'},
  weather:{label:'Weather',note:'Every day and every hour, with the graphs'},
@@ -48,7 +49,7 @@ export const PRIMARY={
 // between the bookings and the paperwork.
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','money','food','phrases','meeting','help']],
- ['The plan',['glance','todo','packing','planning','options','parks','shopping','shortlist','tickets','inbox']],
+ ['The plan',['glance','todo','packing','trackers','planning','options','parks','shopping','shortlist','tickets','inbox']],
  ['Looking back',['photos','diary','updates','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
  ['For the boys',['challenges','games','spending','facts','mascot']]

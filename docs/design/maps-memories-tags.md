@@ -1,6 +1,6 @@
 # Design note: tags, memories and the family on a map
 
-Status: proposal only. Nothing here has been built.
+Status: section 1 (the tag register) is built — the Tracker tags screen. Sections 2 and 3 are still proposals.
 Date: 23 September 2026 (trip day 3 of 16).
 
 ## What was asked

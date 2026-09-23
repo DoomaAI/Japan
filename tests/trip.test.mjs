@@ -8365,3 +8365,45 @@ test('a ticket’s own photo or PDF read into English and kept on the file',asyn
   await new Promise(r=>upstream.close(r));
  }
 });
+test('tracker tags: a parent keeps the list, the boys can read it, and only a parent gets the Find My link',async()=>{
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {linkState,trackerChecks,forwardedTrackers,SHARE_LINK_DAYS}=await import('../src/trackers.js');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ let state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.trackers,[]);
+ assert.throws(()=>applyOperation(state,{type:'trackerAdd',label:'My backpack',kind:'backpack'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'trackerAdd',label:'  ',kind:'suitcase'},parent),/Say what the tracker is in/);
+ assert.throws(()=>applyOperation(state,{type:'trackerAdd',label:'Case',kind:'box'},parent),/Choose what kind/);
+ assert.throws(()=>applyOperation(state,{type:'trackerAdd',label:'Case',kind:'suitcase',owner:'Somebody'},parent),/Apple Account/);
+ state=applyOperation(state,{type:'trackerAdd',label:'Big navy suitcase',kind:'suitcase',person:'Family',owner:'Lauren',forwarded:true,notes:'Orange strap'},parent);
+ const bag=state.trackers[0];
+ assert.equal(bag.label,'Big navy suitcase');assert.equal(bag.owner,'Lauren');assert.equal(bag.forwarded,true);
+ assert.deepEqual(trackerChecks(bag).map(c=>c.done),[false,false]);
+ assert.equal(linkState(bag).state,'none');
+ assert.deepEqual(forwardedTrackers(state).map(t=>t.id),[bag.id]);
+ // Ticking the Find My set-up survives an edit of the wording.
+ state=applyOperation(state,{type:'trackerCheck',id:bag.id,check:'shared',done:true},parent);
+ state=applyOperation(state,{type:'trackerEdit',id:bag.id,label:'Navy suitcase',kind:'suitcase',person:'Family',owner:'Lauren',forwarded:true,notes:''},parent);
+ assert.equal(state.trackers[0].checks.shared,true);assert.equal(state.trackers[0].label,'Navy suitcase');
+ assert.throws(()=>applyOperation(state,{type:'trackerCheck',id:bag.id,check:'battery',done:true},parent),/Invalid tick/);
+ // The link: https only, stamped, and never written into the family history.
+ assert.throws(()=>applyOperation(state,{type:'trackerLink',id:bag.id,url:'javascript:alert(1)'},parent),/Share Item Location/);
+ assert.throws(()=>applyOperation(state,{type:'trackerLink',id:bag.id,url:'http://example.com/x'},parent),/Share Item Location/);
+ const url='https://share.example.com/item/abc123';
+ state=applyOperation(state,{type:'trackerLink',id:bag.id,url},parent);
+ const linked=state.trackers[0];
+ assert.equal(linked.shareUrl,url);assert.equal(linked.shareUrlBy,'Damien');
+ assert.equal(linkState(linked).state,'live');
+ assert.equal(linkState(linked,new Date(Date.parse(linked.shareUrlAt)+(SHARE_LINK_DAYS*24+1)*3600000)).state,'expired');
+ assert.ok(!JSON.stringify(state.history).includes(url),'the link is not in the history');
+ // The boys see the bag and that a link exists, not the link.
+ const boys=visibleTrip(state,child).trackers[0];
+ assert.equal(boys.shareUrl,null);assert.equal(boys.label,'Navy suitcase');assert.equal(linkState(boys).state,'live');
+ assert.equal(visibleTrip(state,parent).trackers[0].shareUrl,url);
+ state=applyOperation(state,{type:'trackerLink',id:bag.id,url:null},parent);
+ assert.equal(state.trackers[0].shareUrl,null);assert.equal(linkState(state.trackers[0]).state,'none');
+ assert.throws(()=>applyOperation(state,{type:'trackerRemove',id:bag.id},child),e=>e.status===403);
+ state=applyOperation(state,{type:'trackerRemove',id:bag.id},parent);
+ assert.equal(state.trackers.length,0);
+ assert.throws(()=>applyOperation(state,{type:'trackerRemove',id:bag.id},parent),e=>e.status===404);
+});

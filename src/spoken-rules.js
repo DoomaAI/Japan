@@ -57,6 +57,7 @@ export const PAGE_RULES={
  ask:'Ask about our trip. You can type a question here, like is it better to go today or tomorrow, or what should we do if it rains. It reads our plan and then tells you what it thinks. It cannot change anything, so nothing you ask will move the day about. Mum and Dad do that bit.',
  planning:'Planning board. Everybody puts up ideas for things to do, and then we all vote on them. You can add one too.',
  todo:'To do list. Jobs and things to buy, put on the day we are going to do them.',
+ trackers:'Tracker tags. Some of our bags have a little tag inside that tells Mum and Dad where the bag is. If a bag gets lost, they can find it.',
  packing:'Packing list. Everything that goes in the bags. Tick each thing when it is in. There are ideas too, like a hat when it is hot, and you can add your own things.',
  spending:'Spending money. How much money you have left, what you have spent it on, and how much is still there. You can ask for something, and Mum or Dad says yes or no.',
  weather:'Weather. What the weather is doing, so we know whether to take an umbrella or a jumper.',
