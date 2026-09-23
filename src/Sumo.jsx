@@ -1,4 +1,4 @@
-import React,{useState} from 'react';
+import React,{useState,useRef} from 'react';
 import {Download,ExternalLink,RefreshCw,Search,Trophy,AlertCircle,User,Clock,X,Check,Lock,Crown,Gem,Star,Award,Medal,Shield,Home,Undo2} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import {SUMO_SITE_DIVISIONS,sumoSiteUrl,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,predictionLadder,tippingTable,runningTotals,boutQueue,boutNumbers} from './trip-features.js';
@@ -55,6 +55,10 @@ function Bout({state,bout,number,members,act,busy,user,onLook,now,running,featur
  const picks=boutPredictions(state,bout.id),closed=predictionsClosed(state,bout.id);
  const made=members.filter(n=>picks[n]);
  const [held,setHeld]=useState(null),[drag,setDrag]=useState(null),[over,setOver]=useState(null);
+ // The lifted name is drawn inside the bout card, positioned from the card's own on-screen box.
+ // position:fixed drifts away from the finger inside the scrolling dialog on iOS.
+ const card=useRef(null);
+ const at=(x,y)=>{const r=card.current?.getBoundingClientRect();return r?{gx:x-r.left,gy:y-r.top}:{gx:x,gy:y};};
  const sideOf=name=>picks[name]===bout.east.name?'east':picks[name]===bout.west.name?'west':'bench';
  const zoneAt=(x,y)=>document.elementFromPoint(x,y)?.closest?.('[data-sumo-drop]')?.dataset.sumoDrop||null;
  async function place(name,zone){
@@ -67,9 +71,9 @@ function Bout({state,bout,number,members,act,busy,user,onLook,now,running,featur
    {type:'sumoPredict',id:bout.id,person:name,winner:before});
  }
  const down=(name,e)=>{if(busy||e.button>0)return;e.currentTarget.setPointerCapture?.(e.pointerId);
-  setDrag({name,x0:e.clientX,y0:e.clientY,x:e.clientX,y:e.clientY,moved:false});};
+  setDrag({name,x0:e.clientX,y0:e.clientY,...at(e.clientX,e.clientY),moved:false});};
  const move=e=>{if(!drag)return;const moved=drag.moved||Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)>8;
-  setDrag({...drag,x:e.clientX,y:e.clientY,moved});if(moved)setOver(zoneAt(e.clientX,e.clientY));};
+  setDrag({...drag,...at(e.clientX,e.clientY),moved});if(moved)setOver(zoneAt(e.clientX,e.clientY));};
  const up=e=>{if(!drag)return;const {name,moved}=drag;
   if(moved)place(name,zoneAt(e.clientX,e.clientY));
   else{setDrag(null);setHeld(held===name?null:name);}};
@@ -113,7 +117,7 @@ function Bout({state,bout,number,members,act,busy,user,onLook,now,running,featur
    {type:'sumoResult',id:bout.id,winner:result?.winner||null,by:result?.by||user.name});
   if(ok&&winner)onWinner?.(bout.id,winner,members.filter(n=>picks[n]===winner));
  };
- return <article id={`bout-${bout.id}`} className={`sumo-bout ${now?'now':''} ${featured?'featured':''} ${celebrating?'celebrating':''}`}>
+ return <article ref={card} id={`bout-${bout.id}`} className={`sumo-bout ${now?'now':''} ${featured?'featured':''} ${celebrating?'celebrating':''}`}>
   {featured&&<p className="sumo-next-label">Next up</p>}
   <p className="sumo-bout-meta">{number&&<b className="sumo-bout-no">{boutTag(number)}</b>}<span className="sumo-time">{bout.time||'—'}</span></p>
   <div className="bout-pair">{side('east',bout.east)}<span className="sumo-v">v</span>{side('west',bout.west)}</div>
@@ -127,7 +131,7 @@ function Bout({state,bout,number,members,act,busy,user,onLook,now,running,featur
    </div>}
    {!closed&&!made.length&&<small className="sumo-picks-help">{held?`Now tap the wrestler ${held} is backing.`:'Drag each name up onto a wrestler — or tap a name, then a wrestler.'}</small>}
    {!closed&&!!made.length&&held&&<small className="sumo-picks-help">Now tap the wrestler {held} is backing.</small>}
-   {drag?.moved&&<span className="sumo-chip ghost" aria-hidden="true" style={{left:drag.x,top:drag.y}}>{drag.name}</span>}
+   {drag?.moved&&<span className="sumo-chip ghost" aria-hidden="true" style={{left:drag.gx,top:drag.gy}}>{drag.name}</span>}
   </div>
   <div className="row wrap sumo-winner">
    <small>{result?.official?<><Check size={12}/> Official result</>:'Who won?'}</small>
