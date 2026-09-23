@@ -366,7 +366,7 @@ test('a day we have walked through folds down and greys in the Days menu',async(
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  assert.match(main,/className=\{`day-tile\$\{progress\.finished\?' finished':''\}`\}/);
  assert.match(main,/progress\.finished\?<small className="day-finished">/);
- assert.match(main,/onClick=\{\(\)=>selectDay\(d\.date\)\}/,'a finished day is still one tap away');
+ assert.match(main,/key=\{d\.date\} onClick=\{\(\)=>go\('glance',d\.date\)\}/,'a day is one tap into its day at a glance');
  assert.match(css,/\.day-tile\.finished\{[^}]*opacity:\.6/);
  assert.match(css,/\.days-grid\{align-items:start\}/,'so a folded tile does not stretch to its neighbour');
 });
