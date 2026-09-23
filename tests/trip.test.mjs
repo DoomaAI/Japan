@@ -367,7 +367,7 @@ test('a day we have walked through folds down and greys in the Days menu',async(
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  assert.match(main,/className=\{`day-tile\$\{progress\.finished\?' finished':''\}`\}/);
  assert.match(main,/progress\.finished\?<small className="day-finished">/);
- assert.match(main,/onClick=\{\(\)=>selectDay\(d\.date\)\}/,'a finished day is still one tap away');
+ assert.match(main,/key=\{d\.date\} onClick=\{\(\)=>go\('glance',d\.date\)\}/,'a day is one tap into its day at a glance');
  assert.match(css,/\.day-tile\.finished\{[^}]*opacity:\.6/);
  assert.match(css,/\.days-grid\{align-items:start\}/,'so a folded tile does not stretch to its neighbour');
 });
@@ -2504,7 +2504,7 @@ test('a forecast is read, sanity-checked, and kept for when there is no signal',
   weather_code:[61,0,null,3],temperature_2m_max:[24.4,27.8,25,9999],temperature_2m_min:[19.2,20.1,18,3],
   precipitation_probability_max:[80,5,10,null]}},'Tokyo');
  assert.deepEqual(Object.keys(parsed),['2026-09-21','2026-09-22'],'a missing code or a silly temperature is dropped');
- assert.deepEqual(parsed['2026-09-21'],{city:'Tokyo',code:61,max:24,min:19,rain:80});
+ assert.deepEqual(parsed['2026-09-21'],{city:'Tokyo',code:61,max:24,min:19,rain:80,sunrise:null,sunset:null});
  assert.deepEqual(parseForecast({},'Tokyo'),{});
  assert.deepEqual(parseForecast({daily:{time:'nope'}},'Tokyo'),{});
  assert.deepEqual(parseForecast({daily:{time:['2026-09-21'],weather_code:[0],temperature_2m_max:[10],temperature_2m_min:[20]}},'Tokyo'),{},'a minimum above the maximum is not a reading');
@@ -2524,7 +2524,7 @@ test('a forecast is read, sanity-checked, and kept for when there is no signal',
  assert.equal(ageLabel(null),'never checked');
  const at='2026-09-21T00:00:00.000Z';
  state=applyOperation(state,{type:'weatherUpdate',days:{[seed.days[0].date]:{city:'Tokyo',code:61,max:24,min:19,rain:80},'2099-01-01':{city:'Nowhere',code:0,max:20,min:10,rain:0}}},child);
- assert.deepEqual(forecastFor(state,seed.days[0].date),{city:'Tokyo',code:61,max:24,min:19,rain:80});
+ assert.deepEqual(forecastFor(state,seed.days[0].date),{city:'Tokyo',code:61,max:24,min:19,rain:80,sunrise:null,sunset:null});
  assert.equal(forecastFor(state,'2099-01-01'),null,'a day we are not in Japan is not stored');
  assert.ok(state.weather.at&&state.weather.by==='Nate');
  assert.equal(ageLabel(0.2),'checked just now');
@@ -7788,6 +7788,70 @@ test('a boy can say his answer instead of typing it, and the words are still his
  assert.doesNotMatch(ask,/onText=\{[^}]*\bask\(/);
 });
 
+test('each stop has its own forecast, for its neighbourhood at its hour, and the day has its sunrise and sunset',async()=>{
+ const {forecastUrl,areaForecastUrl,parseForecast,parseHourly,stepPoint,stepHour,stepTargets,stepReadings,stepWeather,isDark,iconAt,pointFor}=await import('../src/weather-data.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ let state=ensureFeatures(structuredClone(seed));
+ // Sunrise and sunset come with the day, as clock times in Japan.
+ assert.match(forecastUrl(pointFor('Tokyo'),'2026-09-21','2026-09-21'),/sunrise%2Csunset/);
+ const day=seed.days[0].date;
+ const daily=parseForecast({daily:{time:[day],weather_code:[0],temperature_2m_max:[26],temperature_2m_min:[19],precipitation_probability_max:[10],
+  sunrise:[`${day}T05:29`],sunset:[`${day}T17:41`]}},'Tokyo');
+ assert.equal(daily[day].sunrise,'05:29');assert.equal(daily[day].sunset,'17:41');
+ assert.ok(isDark(daily[day],20)&&isDark(daily[day],4)&&!isDark(daily[day],12));
+ assert.equal(iconAt(0,true),'🌙','a clear night is a moon');assert.equal(iconAt(0,false),'☀️');
+ // A stop is forecast where it is: Arashiyama is not central Kyoto, Haneda is not central Tokyo.
+ assert.equal(stepPoint(state,{day:'2026-09-26',place:'Arashiyama Bamboo Grove',title:'Bamboo walk'}).name,'Arashiyama');
+ assert.equal(stepPoint(state,{day,place:'Haneda Airport',title:'Arrive'}).name,'Haneda');
+ assert.equal(stepPoint(state,{day,place:'Somewhere unheard of',title:'A walk'}).name,'Tokyo','an unknown place falls back to the day’s city');
+ assert.equal(stepPoint(state,{day,place:'x',pin:{lat:35.6581,lng:139.7017}}).name,'where we pinned it');
+ // Every seeded stop lands somewhere in Japan.
+ for(const s of seed.steps){const p=stepPoint(state,s);assert.ok(p.lat>33&&p.lat<37&&p.lon>134&&p.lon<141,`${s.title} has no sensible point`);}
+ // Its hour: its own time, rounded to the nearest hour, or placed after the timed stop before it.
+ const list=[{id:'a',time:'09:40',duration:60},{id:'b',time:null,duration:30},{id:'c',time:null,duration:30},{id:'d',time:'14:10'}];
+ assert.deepEqual(stepHour(list,list[0]),{h:10,approx:false});
+ assert.deepEqual(stepHour(list,list[2]),{h:11,approx:true},'09:40 plus an hour and half an hour');
+ assert.deepEqual(stepHour([{id:'x',time:null},{id:'y',time:'08:00'}],{id:'x'}),{h:8,approx:true});
+ assert.equal(stepHour([{id:'x',time:null}],{id:'x'}),null,'a day with no times at all says nothing');
+ // One lookup per neighbourhood, several neighbourhoods per request.
+ const targets=stepTargets(state,day);
+ assert.ok(targets.length>5&&targets.every(t=>t.items.length));
+ assert.ok(targets.reduce((n,t)=>n+t.items.length,0)>200,'nearly every stop has an hour');
+ const url=new URL(areaForecastUrl(targets.slice(0,3).map(t=>t.point),day,day));
+ assert.equal(url.searchParams.get('latitude').split(',').length,3);
+ assert.equal(url.searchParams.get('timezone'),'Asia/Tokyo');
+ // The hours for each place, read back to each stop.
+ const hourly=date=>({hourly:{time:Array.from({length:24},(_,h)=>`${date}T${String(h).padStart(2,'0')}:00`),
+  temperature_2m:Array.from({length:24},(_,h)=>15+h/2),apparent_temperature:Array(24).fill(14),precipitation_probability:Array(24).fill(60),weather_code:Array(24).fill(61)}});
+ const first=targets.find(t=>t.items.some(x=>x.date===day));
+ const readings=stepReadings([first],[parseHourly(hourly(day))]);
+ const item=first.items.find(x=>x.date===day);
+ assert.equal(readings[item.id].area,first.point.name);assert.equal(readings[item.id].h,item.h);
+ // Kept in the trip and checked on the way in, by anybody.
+ state=applyOperation(state,{type:'weatherUpdate',days:daily,steps:{...readings,'no-such-stop':{h:1,temp:20,area:'x'}}},child);
+ assert.equal(state.weather.steps[item.id].area,first.point.name);
+ assert.equal(state.weather.steps['no-such-stop'],undefined,'a stop that is not in the plan is not kept');
+ for(const bad of [{[item.id]:{h:30,temp:20,area:'x'}},{[item.id]:{h:3,temp:20}},{[item.id]:{h:3,temp:200,area:'x'}},[]])
+  assert.throws(()=>applyOperation(state,{type:'weatherUpdate',days:{},steps:bad},parent),/forecast/i);
+ assert.throws(()=>applyOperation(state,{type:'weatherUpdate',days:{[day]:{...daily[day],sunset:'25:99'}}},parent),/forecast/i);
+ // The card reads the stop's own reading while it still describes the stop.
+ const step=state.steps.find(s=>s.id===item.id);
+ const w=stepWeather(state,step);
+ assert.ok(w.local);assert.equal(w.area,first.point.name);assert.equal(w.rain,60);
+ // Moved to another hour, it falls back to the city's hour, and says so — or to nothing.
+ const moved={...step,time:step.time==='03:00'?'04:00':'03:00',locked:false};
+ assert.equal(stepWeather(state,moved,[moved]),null,'no city hours saved, so nothing rather than a wrong answer');
+ state=applyOperation(state,{type:'weatherUpdate',days:{},hours:parseHourly(hourly(step.day))},parent);
+ const city=stepWeather(state,moved,[moved]);
+ assert.equal(city.local,false);assert.equal(city.h,3);
+ // Shown on the card and down the day at a glance.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
+ const weather=await readFile(new URL('../src/Weather.jsx',import.meta.url),'utf8');
+ assert.match(main,/<StepWeather state=\{visibleState\} step=\{current\} steps=\{steps\}\/>/);
+ assert.match(timeline,/<StepWeather state=\{state\} step=\{s\} steps=\{steps\} compact\/>/);
+ assert.match(weather,/<SunTimes entry=\{today\}\/>/);
+});
 test('a photo pinches in about the fingers, stays inside its frame, and a double tap comes back out',()=>{
  const w=400,h=300;
  // Whatever sits under the fingers stays under them as the picture grows.

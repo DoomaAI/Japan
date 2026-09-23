@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
-import {CloudSun,RefreshCw,X,ChevronRight,ChevronDown,ChevronUp} from 'lucide-react';
+import {CloudSun,RefreshCw,X,ChevronRight,ChevronDown,ChevronUp,Sunrise,Sunset} from 'lucide-react';
 import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
-import {pointFor,forecastUrl,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,morningNeeds,isMorning,hoursFor} from './weather-data.js';
+import {pointFor,forecastUrl,areaForecastUrl,AREAS_PER_REQUEST,stepTargets,stepReadings,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,morningNeeds,isMorning,hoursFor,stepWeather,iconAt,hourLabel} from './weather-data.js';
 import {japanDate,japanClock} from './timing.js';
 import {isOpen,setOpen} from './fold.js';
 // The one section that folds away, named here so the phone remembers which one it was.
@@ -20,6 +20,31 @@ export function MorningNeeds({state,day,clock,today}){
   <div><strong>Before we go out</strong><p>{needs.summary}</p></div>
   <button type="button" aria-label="Dismiss for today" onClick={dismiss}><X size={16}/></button>
  </div>;
+}
+// When it gets light and when it gets dark, which decides how late a walk can start and whether
+// the lanterns will be lit by the time we get there.
+export function SunTimes({entry}){
+ if(!entry?.sunrise&&!entry?.sunset)return null;
+ return <p className="sun-times">
+  {entry.sunrise&&<span><Sunrise size={15}/> Sunrise <strong>{entry.sunrise}</strong></span>}
+  {entry.sunset&&<span><Sunset size={15}/> Sunset <strong>{entry.sunset}</strong></span>}
+ </p>;
+}
+// What it will be like at one stop, when we are there: its own neighbourhood at its own hour,
+// or the city's hour when that is all there is, and it says which. The card gets the sentence;
+// the day at a glance gets the icon and the number, because it is read down a list.
+export function StepWeather({state,step,steps,compact}){
+ const w=stepWeather(state,step,steps);
+ if(!w)return null;
+ const icon=iconAt(w.code,w.dark),label=w.code===null?'':describe(w.code)[0];
+ const rain=Number.isFinite(w.rain)&&w.rain>=20?`${w.rain}% rain`:'';
+ if(compact)return <small className="timeline-weather" aria-label={`Forecast ${w.temp} degrees${rain?`, ${rain}`:''}`}>{icon} {w.temp}°{rain&&` · ${w.rain}%`}</small>;
+ const feels=Number.isFinite(w.feels)&&Math.abs(w.feels-w.temp)>=3?`feels ${w.feels}°`:'';
+ return <p className="step-weather">
+  <span className="step-weather-icon" aria-hidden="true">{icon}</span>
+  <span><strong>{w.temp}°{label&&` · ${label}`}</strong>{[feels,rain].filter(Boolean).length>0&&<> · {[feels,rain].filter(Boolean).join(' · ')}</>}
+   <small>{w.approx?'Around ':'At '}{hourLabel(w.h)} · {w.local?w.area:`${w.area}, the city forecast`}{w.dark?' · after dark':''}</small></span>
+ </p>;
 }
 // The forecast for the days we are actually here, kept in the trip so one phone's lookup
 // serves everyone and the numbers are still on screen with no signal.
@@ -42,7 +67,23 @@ export function useForecastCheck({state,day,mutate,notice}){
     days={...days,...parseForecast(json,point.name)};hours={...hours,...parseHourly(json)};
    }
    if(!Object.keys(days).length)throw new Error('The weather service sent nothing we could read.');
-   if(await mutate({type:'weatherUpdate',days,hours}))notice('Forecast updated for the family, hour by hour.');
+   // Then each stop, in its own neighbourhood at its own hour. A stop is worth more than the
+   // city's day, but not worth losing the city's day over: if this part fails, the rest is kept.
+   let steps;
+   try{
+    const targets=stepTargets(state,day);
+    const dates=targets.flatMap(t=>t.items.map(x=>x.date)).sort();
+    const byPlace=[];
+    for(let i=0;i<targets.length;i+=AREAS_PER_REQUEST){
+     const chunk=targets.slice(i,i+AREAS_PER_REQUEST);
+     const r=await fetch(areaForecastUrl(chunk.map(t=>t.point),dates[0],dates[dates.length-1]));
+     if(!r.ok)throw new Error(String(r.status));
+     const json=await r.json();
+     byPlace.push(...(Array.isArray(json)?json:[json]).map(parseHourly));
+    }
+    if(targets.length)steps=stepReadings(targets,byPlace);
+   }catch{steps=undefined;}
+   if(await mutate({type:'weatherUpdate',days,hours,...(steps?{steps}:{})}))notice(steps?'Forecast updated for the family, hour by hour and stop by stop.':'Forecast updated for the family, hour by hour. The stops’ own forecasts could not be fetched this time.');
   }catch(e){notice(`${e.message||'The forecast could not be fetched.'} The last one we have is still shown.`);}
   finally{setChecking(false);}
  }
@@ -92,6 +133,7 @@ export default function Weather({state,day,mutate,busy,online,notice,dayLabel,go
       <small>{describe(today.code)[0]} · {today.city}{today.rain!==null?` · ${today.rain}% rain`:''}</small>
      </div>
     </div>
+    <SunTimes entry={today}/>
     {tip&&<p className="weather-advice">{tip}</p>}</>
    :<p><small>No forecast saved yet.{online?' Tap Check.':' It needs signal once, then it stays on the phone.'}</small></p>}
   {!!ahead.filter(d=>d.entry).length&&<div className="weather-ahead">{ahead.map(d=>
