@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {Download,ExternalLink,RefreshCw,Search,Trophy,AlertCircle,User,Clock,X,Check,Lock,Crown,Gem,Star,Award,Medal,Shield,Home} from 'lucide-react';
+import {Download,ExternalLink,RefreshCw,Search,Trophy,AlertCircle,User,Clock,X,Check,Lock,Crown,Gem,Star,Award,Medal,Shield,Home,Undo2} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import {SUMO_SITE_DIVISIONS,sumoSiteUrl,sumo,sumoCard,sumoBouts,divisionLabel,wrestlerProfile,boutResult,currentBout,boutPredictions,predictionsClosed,predictionTally,predictionLeaders,predictionLadder,tippingTable} from './trip-features.js';
 import {japanClock} from './timing.js';
@@ -35,7 +35,7 @@ const OfficialLinks=({dayNumber})=><div className="row wrap sumo-official">
 // zones: drag a name from the bench onto the man they are backing, or back to the bench to take
 // it away. A drag needs a steady thumb in a crowd, so tapping a name and then a wrestler does the
 // same. Picks close the moment the result goes in: you cannot call a bout you have already watched.
-function Bout({state,bout,members,mutate,busy,user,onLook,now}){
+function Bout({state,bout,members,act,busy,user,onLook,now}){
  const result=boutResult(state,bout.id);
  const picks=boutPredictions(state,bout.id),closed=predictionsClosed(state,bout.id);
  const made=members.filter(n=>picks[n]);
@@ -46,7 +46,10 @@ function Bout({state,bout,members,mutate,busy,user,onLook,now}){
   setHeld(null);setDrag(null);setOver(null);
   if(!zone||zone===sideOf(name)||busy||closed)return;
   const winner=zone==='east'?bout.east.name:zone==='west'?bout.west.name:null;
-  await mutate({type:'sumoPredict',id:bout.id,person:name,winner});
+  const before=picks[name]||null;
+  await act({type:'sumoPredict',id:bout.id,person:name,winner},
+   winner?`${name} is backing ${winner}.`:`${name}'s pick taken back.`,
+   {type:'sumoPredict',id:bout.id,person:name,winner:before});
  }
  const down=(name,e)=>{if(busy||e.button>0)return;e.currentTarget.setPointerCapture?.(e.pointerId);
   setDrag({name,x0:e.clientX,y0:e.clientY,x:e.clientX,y:e.clientY,moved:false});};
@@ -80,6 +83,10 @@ function Bout({state,bout,members,mutate,busy,user,onLook,now}){
    {(here.length>0||(!closed&&drag?.moved))&&<span className="sumo-drop-chips">{here.map(chip)}</span>}
   </div>;};
  const bench=members.filter(n=>sideOf(n)==='bench');
+ // Every tap here can be taken back: the undo puts the result back exactly as it was before.
+ const setWinner=winner=>act({type:'sumoResult',id:bout.id,winner,by:user.name},
+  winner?`${winner} marked as the winner.`:`Result cleared for ${bout.east.name} v ${bout.west.name}.`,
+  {type:'sumoResult',id:bout.id,winner:result?.winner||null,by:result?.by||user.name});
  return <article className={`sumo-bout ${now?'now':''}`}>
   <span className="sumo-time">{bout.time||'—'}</span>
   <div className="bout-pair">{side('east',bout.east)}<span className="sumo-v">v</span>{side('west',bout.west)}</div>
@@ -99,7 +106,8 @@ function Bout({state,bout,members,mutate,busy,user,onLook,now}){
    <small>{result?.official?<><Check size={12}/> Official result</>:'Who won?'}</small>
    {[bout.east.name,bout.west.name].map(name=>
     <button key={name} className={result?.winner===name?'selected':''} disabled={busy}
-     onClick={()=>mutate({type:'sumoResult',id:bout.id,winner:result?.winner===name?null:name,by:user.name})}>{name}</button>)}
+     onClick={()=>setWinner(result?.winner===name?null:name)}>{name}</button>)}
+   {result&&<button className="sumo-clear" disabled={busy} onClick={()=>setWinner(null)}><X size={14}/>Clear</button>}
   </div>
  </article>;
 }
@@ -166,6 +174,19 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
  const tally=predictionTally(state),leaders=predictionLeaders(state);
  const ladder=predictionLadder(state,state.members),sheet=tippingTable(state,state.members);
  const clock=japanClock(now||new Date()),onNow=currentBout(state,clock);
+ // A wrong tap in a loud arena is easy, so the last few winners and picks can be undone in turn.
+ // Kept on this screen rather than in the trip: it is this phone's taps, and it goes when the
+ // screen closes.
+ const [undos,setUndos]=useState([]);
+ async function act(op,label,inverse){
+  if(!await mutate(op))return false;
+  setUndos(list=>[...list.slice(-9),{label,inverse,at:Date.now()}]);
+  return true;
+ }
+ async function undo(){
+  const last=undos.at(-1);if(!last)return;
+  if(await mutate(last.inverse))setUndos(list=>list.slice(0,-1));
+ }
  async function load(){
   setFetching(true);setError('');
   try{
@@ -236,7 +257,7 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
   </div>}
   {groups.map(group=><section className="sumo-group" key={group.id}>
    <h4>{group.label}</h4>
-   {group.bouts.map(bout=><Bout key={bout.id} state={state} bout={bout} members={state.members} mutate={mutate} busy={busy}
+   {group.bouts.map(bout=><Bout key={bout.id} state={state} bout={bout} members={state.members} act={act} busy={busy}
     user={user} onLook={look} now={onNow?.id===bout.id}/>)}
   </section>)}
   {!!card.sources.length&&<details className="sumo-sources"><summary>Where this came from</summary>
@@ -268,5 +289,10 @@ export default function Sumo({state,user,day,mutate,busy,request,config,notice,n
     <small>Records change every day of a tournament. This is what the page said when it was read.</small>
    </>:!looking.busy&&!lookupError&&!sumoName(looking.name)&&<p>Nothing saved about him yet.{parent&&config?.sumo?'':' A parent can look him up while there is signal.'}</p>}
   </div>}
+ {undos.length>0&&<div className="sumo-undo" role="status">
+  <span>{undos.at(-1).label}</span>
+  <button disabled={busy} onClick={undo}><Undo2 size={16}/>Undo{undos.length>1?` (${undos.length})`:''}</button>
+  <button className="icon" aria-label="Dismiss" onClick={()=>setUndos([])}><X size={16}/></button>
+ </div>}
  </div>;
 }
