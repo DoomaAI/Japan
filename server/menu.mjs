@@ -61,13 +61,54 @@ Rules:
 - "avoid" is for things worth knowing before ordering: very spicy dishes, raw items, whole small fish, natto, anything a child would find a shock. Not a list of dislikes.
 - If the photo is unreadable or is not a menu, set readable to false and leave the arrays empty.
 - You cannot verify allergens from a photograph, and the ingredients you list do not change that. Never state that something is free of an allergen, and never present a list of ingredients as complete; if it matters, say to ask the staff.`;
-export async function readMenu({image,mediaType},state){
- if(!menuReaderReady())throw new AppError('The menu reader is not switched on. Add an Anthropic API key to the deployment.',503);
+// A packet, a bottle or a single thing off a shelf, rather than a menu. Unlike a menu, a packet in
+// Japan prints what is in it, so here the ingredients are read off the label rather than guessed.
+const PACKET_SCHEMA={
+ type:'object',additionalProperties:false,
+ required:['readable','ja','en','dish','maker','what','why','forWhom','matchesOurList','ingredients','allergens','spicy','heat','spiceNote','howTo','warnings','price'],
+ properties:{
+  readable:{type:'boolean',description:'False if the photo is too blurry, too dark or not a food or drink item.'},
+  ja:{type:'string',description:'The product name exactly as printed on the packet, in Japanese.'},
+  en:{type:'string',description:'A short English name for what this is.'},
+  dish:{type:'string',description:'The plain common Japanese name of this kind of food, with the brand and flavour wording dropped: せんべい rather than ばかうけ 青のり味. Empty if it has none.'},
+  maker:{type:'string',description:'The brand or maker if printed, otherwise an empty string.'},
+  what:{type:'string',description:'One or two sentences on what this is and how it tastes, for someone who has never seen it.'},
+  why:{type:'string',description:'One sentence on whether this family would like it, and who.'},
+  forWhom:{type:'array',items:{type:'string',enum:['Damien','Lauren','Nate','Boston']}},
+  matchesOurList:{type:'string',description:'The id of the matching dish on the family food list, or an empty string.'},
+  ingredients:{type:'array',description:'The ingredients as printed on the label (原材料名), translated to short English entries in the printed order, up to fifteen. Empty if the ingredient list is not in the photo.',items:{type:'string'}},
+  allergens:{type:'array',description:'Allergens the label itself names, in English: Wheat, Egg, Milk, Peanut, Buckwheat, Shrimp, Crab, Walnut, Soy, Sesame and the rest. Only what is printed. Empty if the allergen panel is not in the photo.',items:{type:'string'}},
+  spicy:{type:'boolean',description:'True if this is hot enough that a five-year-old could not eat it.'},
+  heat:{type:'string',enum:['none','mild','hot','very hot'],description:'How hot it is. none whenever spicy is false.'},
+  spiceNote:{type:'string',description:'One short line on what makes it hot. Empty when spicy is false.'},
+  howTo:{type:'string',description:'How to prepare or eat it, if the packet says: microwave times and wattage, water to add, whether to heat it. Empty if it is ready to eat or the photo does not show it.'},
+  warnings:{type:'array',description:'Up to three things worth knowing before handing it to a child: contains alcohol, caffeine, raw egg, a choking-size piece, a best-before date that has passed.',items:{type:'string'}},
+  price:{type:'string',description:'The price if a sticker or tag shows one, otherwise an empty string.'}}
+};
+const PACKET_SYSTEM=`You read a photograph of a Japanese food or drink item — a packet, a bottle, a tin, a snack, a convenience-store onigiri, a sweet — for one Australian family, and say what it is and whether they would like it.
+
+The family: Damien and Lauren, and their sons Boston (8) and Nate (5).
+Nate is five: nothing spicy, nothing challenging in texture. Boston is adventurous but still a child.
+
+Rules:
+- Describe only the item in the photo. Never invent a product. If the photo shows several, describe the one most in view.
+- Copy the Japanese product name exactly as printed. This is what they will point at or search for.
+- "dish" is the plain common name of this kind of food in Japanese, with the brand and flavour dropped. A picture is looked up under it.
+- "ingredients" and "allergens" are read off the label in the photo — 原材料名 and the allergen panel (アレルギー物質, 一部に〜を含む). Translate them faithfully and in order. If the label is not in the photo, or you cannot read it, leave them empty and say in "why" that the back of the packet will tell them. Never fill them in from what a product like this usually contains.
+- An allergen missing from the list is never evidence that it is absent: the panel may be cut off, the product may be made on shared lines, and labels only have to name some allergens. Never state that something is free of an allergen; if it matters, say to check the label with the staff or the maker.
+- Prefer things the family already rated highly or still want to try. Set matchesOurList to that dish's id when it is the same food; otherwise leave it empty.
+- Mark "spicy" for anything hot enough that Nate could not eat it — chilli, wasabi, karashi, 激辛 or 辛口 on the packet — and grade it in "heat".
+- "warnings" is for what a parent would want to know: alcohol (some sweets and drinks carry it, and 洋酒 is an ingredient to flag), caffeine, raw egg, something a small child could choke on, an expired date.
+- If the photo is unreadable or is not a food or drink item, set readable to false and leave everything else empty.`;
+function photo({image,mediaType}){
  if(typeof image!=='string'||!image)throw new AppError('Take or choose a photo of the menu.');
  const data=image.includes(',')&&image.startsWith('data:')?image.slice(image.indexOf(',')+1):image;
  if(!/^[A-Za-z0-9+/=]+$/.test(data))throw new AppError('That photo could not be read.');
  if(data.length>MAX_BASE64)throw new AppError('That photo is too large. Try again — the app normally shrinks it for you.',413);
  if(!MEDIA_TYPES.includes(mediaType))throw new AppError('Use a JPEG, PNG or WebP photo.');
+ return data;
+}
+async function readPhoto({data,mediaType,system,schema,ask,what}){
  const {default:Anthropic}=await import('@anthropic-ai/sdk');
  const client=new Anthropic();
  let response;
@@ -75,22 +116,34 @@ export async function readMenu({image,mediaType},state){
   response=await client.messages.create({
    model:'claude-opus-5',
    max_tokens:8000,
-   system:SYSTEM,
+   system,
    // A hungry family is standing at a counter, so this trades some depth for a faster answer.
    thinking:{type:'adaptive'},
-   output_config:{effort:'medium',format:{type:'json_schema',schema:SCHEMA}},
+   output_config:{effort:'medium',format:{type:'json_schema',schema}},
    messages:[{role:'user',content:[
     {type:'image',source:{type:'base64',media_type:mediaType,data}},
-    {type:'text',text:`Read this menu and choose what this family would like.\n\nWhat we already know about their tastes:\n${tastes(state)}`}]}]
+    {type:'text',text:ask}]}]
   });
  }catch(e){
   if(e?.status===401)throw new AppError('The Anthropic API key was rejected. Check it in the deployment settings.',502);
   if(e?.status===429)throw new AppError('The menu reader is busy. Wait a moment and try again.',429);
-  if(e?.status===400)throw new AppError('That photo could not be read as a menu. Try a clearer, closer shot.',400);
+  if(e?.status===400)throw new AppError(`That photo could not be read as ${what}. Try a clearer, closer shot.`,400);
   throw new AppError('The menu reader could not be reached. Order the old-fashioned way and try again later.',502);
  }
  if(response.stop_reason==='refusal')throw new AppError('The menu reader declined to answer for this photo.',422);
  const text=response.content.filter(b=>b.type==='text').map(b=>b.text).join('');
  let parsed;try{parsed=JSON.parse(text);}catch{throw new AppError('The menu reader replied in a form the app could not use. Try again.',502);}
  return {...parsed,usage:{input:response.usage?.input_tokens??0,output:response.usage?.output_tokens??0}};
+}
+export async function readMenu({image,mediaType},state){
+ if(!menuReaderReady())throw new AppError('The menu reader is not switched on. Add an Anthropic API key to the deployment.',503);
+ const data=photo({image,mediaType});
+ return readPhoto({data,mediaType,system:SYSTEM,schema:SCHEMA,what:'a menu',
+  ask:`Read this menu and choose what this family would like.\n\nWhat we already know about their tastes:\n${tastes(state)}`});
+}
+export async function readPacket({image,mediaType},state){
+ if(!menuReaderReady())throw new AppError('The menu reader is not switched on. Add an Anthropic API key to the deployment.',503);
+ const data=photo({image,mediaType});
+ return readPhoto({data,mediaType,system:PACKET_SYSTEM,schema:PACKET_SCHEMA,what:'a food or drink item',
+  ask:`Read this packet and say what it is and whether this family would like it.\n\nWhat we already know about their tastes:\n${tastes(state)}`});
 }
