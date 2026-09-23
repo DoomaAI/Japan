@@ -6,20 +6,23 @@
 //
 // The day's heading and its strip of dates are not widgets. They say which day Home is about,
 // and a Home that could be told to forget which day it was on would be no Home at all.
+// The step we are on comes first and fills the screen on its own; what's next and what to carry
+// sit straight under it, and the things read once a day — the guide, the tally, shop finds —
+// come after.
 export const HOME_WIDGETS={
- needs:{label:'Before we head out',note:'What to carry out the door this morning'},
  step:{label:'The step we are on',note:'The current stop, swipe for the rest of the day'},
- links:{label:'Hotel and next fixed time',note:'Tonight’s hotel and the next time that cannot move'},
- actions:{label:'Quick actions',note:'The day at a glance, adjust the day, we’re tired, useful apps'},
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},
- tally:{label:'Day tally and tools',note:'How many are done, photos, voice notes and tickets'},
- guide:{label:'This day in the guide',note:'The original guide pages for the day'},
+ needs:{label:'Before we head out',note:'What to carry out the door this morning'},
+ links:{label:'Hotel and next fixed time',note:'Tonight’s hotel and the next time that cannot move'},
  weather:{label:'Weather',note:'The day’s forecast, folded or open'},
- packing:{label:'Packing reminder',note:'What is still out of the case before a hotel move'},
+ actions:{label:'Quick actions',note:'The day at a glance, adjust the day, we’re tired, useful apps'},
  todos:{label:'To-dos for the day',note:'Things to do or buy that are on this day'},
- finds:{label:'Shop finds',note:'Things we photographed in a shop on this day'}
+ packing:{label:'Packing reminder',note:'What is still out of the case before a hotel move'},
+ tally:{label:'Day tally and tools',note:'How many are done, photos, voice notes and tickets'},
+ finds:{label:'Shop finds',note:'Things we photographed in a shop on this day'},
+ guide:{label:'This day in the guide',note:'The original guide pages for the day'}
 };
-// The order Home has always come in, which is also where a widget added in a later version
+// The order Home comes in untouched, which is also where a widget added in a later version
 // lands for somebody who has already arranged theirs.
 export const HOME_DEFAULT=Object.keys(HOME_WIDGETS);
 export const emptyHome=()=>({order:null,hidden:[]});
