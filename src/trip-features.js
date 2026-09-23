@@ -420,9 +420,12 @@ export function delayedDayProposal(steps,delay,nowMinute=null){
 export function delayForDay(state,day,delay,now=new Date()){
  return delayedDayProposal(activeSteps(state,day),delay,day===japanDate(now)?minutes(japanClock(now)):null);
 }
-export function nextSummary(state,day,person=null){
- const remaining=stepsFor(state,day,person).filter(s=>!['done','skipped'].includes(s.status));
- const current=remaining.find(s=>s.status==='started')||remaining[0];
+// `after` is the stop the hero card is already showing: the tile beneath it answers what comes
+// after that one, rather than repeating it.
+export function nextSummary(state,day,person=null,after=null){
+ const steps=stepsFor(state,day,person),remaining=steps.filter(s=>!['done','skipped'].includes(s.status));
+ const from=steps.findIndex(s=>s.id===after);
+ const current=from<0?remaining.find(s=>s.status==='started')||remaining[0]:steps.slice(from+1).find(s=>remaining.includes(s));
  const fixed=remaining.filter(s=>s.locked&&s.time).sort((a,b)=>a.time.localeCompare(b.time))[0];
  const departure=fixed?new Date(new Date(`${day}T${fixed.time}:00+09:00`).getTime()-((fixed.travelMinutes??20)+(fixed.arrivalBuffer??15))*60000):null;
  return {current,fixed,departure};
