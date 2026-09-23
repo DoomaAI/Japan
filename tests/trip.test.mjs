@@ -6136,6 +6136,65 @@ test('a dish on a menu can be seen as well as read, and only Wikimedia can put i
  assert.match(server,/dish:\{type:'string',description:'The plain common name/);
 });
 
+test('a packet or a single item off a shelf is read as well as a menu, from what its label prints',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ let seen=null;
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen={path:req.url,json:JSON.parse(body)};
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'msg_2',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'end_turn',
+    usage:{input_tokens:1200,output_tokens:300},
+    content:[{type:'text',text:JSON.stringify({readable:true,ja:'ばかうけ 青のり味',en:'Seaweed rice crackers',dish:'せんべい',maker:'Befco',
+     what:'Crunchy puffed rice crackers dusted with green seaweed.',why:'Salty and plain enough for Nate.',forWhom:['Nate','Boston'],matchesOurList:'',
+     ingredients:['Rice','Vegetable oil','Soy sauce','Green laver'],allergens:['Wheat','Soy'],spicy:false,heat:'none',spiceNote:'',howTo:'',
+     warnings:[],price:'¥198'})}]}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {readPacket}=await import('../server/menu.mjs');
+  const state=ensureFeatures(structuredClone(seed));
+  const pixel='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const answer=await readPacket({image:`data:image/png;base64,${pixel}`,mediaType:'image/png'},state);
+  assert.equal(seen.path,'/v1/messages');
+  assert.equal(seen.json.output_config.format.schema.additionalProperties,false);
+  assert.ok(seen.json.output_config.format.schema.required.includes('allergens'));
+  assert.equal(seen.json.messages[0].content[0].source.data,pixel);
+  // A packet is read for what its label prints, never filled in from what such a thing usually holds.
+  assert.match(seen.json.system,/read off the label in the photo/);
+  assert.match(seen.json.system,/Never fill them in from what a product like this usually contains/);
+  assert.match(seen.json.system,/never evidence that it is absent/);
+  assert.match(seen.json.system,/alcohol/);
+  assert.match(seen.json.messages[0].content[1].text,/Still want to try:/);
+  assert.equal(answer.ja,'ばかうけ 青のり味');
+  assert.deepEqual(answer.allergens,['Wheat','Soy']);
+  assert.deepEqual(answer.usage,{input:1200,output:300});
+  // The same guards as the menu, before anything is sent.
+  await assert.rejects(()=>readPacket({image:pixel,mediaType:'image/gif'},state),/JPEG, PNG or WebP/);
+  await assert.rejects(()=>readPacket({image:'A'.repeat(3_000_001),mediaType:'image/png'},state),/too large/);
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ // The route is a parent's, like the menu, and takes a photo-sized body.
+ const handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handler,/\['menu','packet',/);
+ assert.match(handler,/route==='packet'&&post\)\{\n\s*parent\(user\)/);
+ // And the screen switches between the two, sending a packet to its own reader.
+ const screen=await readFile(new URL('../src/MenuReader.jsx',import.meta.url),'utf8');
+ assert.match(screen,/request\(packet\?'packet':'menu'/);
+ assert.match(screen,/A packet or item/);
+ assert.match(screen,/What the label says is in it/);
+ assert.match(screen,/a missing allergen is never proof it is not there/);
+});
+
 test('what is usually in a dish, and a warning on the ones a five-year-old cannot eat',async()=>{
  const server=await readFile(new URL('../server/menu.mjs',import.meta.url),'utf8');
  // Both come back with the dish rather than costing a second read of the menu.
