@@ -5,7 +5,8 @@ import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
-import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
+import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 const MAX_PROPOSALS=300;
 // A shortlist is a list you can still read. Past a couple of hundred finds it is an archive of
@@ -568,6 +569,61 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:item.title};
   }
   fail('Unknown to-do action.');
+ }else if(typeof op.type==='string'&&op.type.startsWith('pack')){
+  // The packing list. Anyone adds, ticks and turns a suggestion down, because the boys pack their
+  // own bags; changing or removing an item is for whoever added it, or a parent. Starting the
+  // next pack-up unticks the lot, and that is a parent's.
+  const list=state.packing,found=()=>{const i=list.items.find(i=>i.id===op.id);if(!i)fail('That is no longer on the packing list.',404);return i;};
+  const clean=o=>{
+   if(!string(o?.title,200)||!o.title.trim())fail('Say what to pack.');
+   if(!PACK_CATEGORIES.some(([id])=>id===o.category))fail('Choose a category.');
+   if(!['Family',...state.members].includes(o.person||'Family'))fail('Choose a family member.');
+   if(o.qty!==undefined&&(!Number.isInteger(o.qty)||o.qty<1||o.qty>99))fail('Enter how many, from 1 to 99.');
+   requireText(o.notes||'',1000,'notes');
+   if(o.suggestionId!=null&&(!string(o.suggestionId,80)||!o.suggestionId))fail('Invalid suggestion.');
+   return o;
+  };
+  const stamp=()=>{if(!op.at)return now;if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');return new Date(op.at).toISOString();};
+  if(op.type==='packAdd'||op.type==='packAddAll'){
+   const incoming=op.type==='packAdd'?[op]:op.items;
+   if(!Array.isArray(incoming)||!incoming.length||incoming.length>100)fail('Choose what to add.');
+   incoming.forEach(clean);
+   // A suggestion added twice — two phones, one train — is on the list once.
+   const fresh=incoming.filter((o,i)=>!o.suggestionId||(!list.items.some(x=>x.suggestionId===o.suggestionId)&&incoming.findIndex(x=>x.suggestionId===o.suggestionId)===i));
+   if(list.items.length+fresh.length>400)fail('That is four hundred things to pack already. Take some off first.');
+   const at=stamp();
+   list.items.push(...fresh.map(o=>({...packItem(o,randomUUID()),createdBy:user.name,createdAt:at,packedAt:null,packedBy:null})));
+   return {summary:null,important:false,title:fresh.length===1?fresh[0].title.trim():`${fresh.length} things to pack`};
+  }
+  if(op.type==='packEdit'||op.type==='packRemove'){
+   const item=found();
+   if(!parent&&item.createdBy!==user.name)fail('You can change the things you added. Tick it, or ask Mum or Dad.',403);
+   if(op.type==='packRemove'){list.items=list.items.filter(i=>i.id!==item.id);return {summary:null,important:false,title:item.title};}
+   clean(op);
+   Object.assign(item,{...packItem(op,item.id),suggestionId:item.suggestionId});
+   return {summary:null,important:false,title:item.title};
+  }
+  if(op.type==='packStatus'){
+   const item=found();
+   if(typeof op.packed!=='boolean')fail('Invalid tick.');
+   item.packedAt=op.packed?stamp():null;item.packedBy=op.packed?user.name:null;
+   return {summary:null,important:false,title:item.title};
+  }
+  if(op.type==='packDismiss'){
+   if(!string(op.suggestionId,80)||!op.suggestionId)fail('Invalid suggestion.');
+   if(typeof op.dismissed!=='boolean')fail('Invalid choice.');
+   const dismissed={...list.dismissed};
+   if(op.dismissed){if(Object.keys(dismissed).length>=300)fail('That is a lot turned down already.');dismissed[op.suggestionId]={by:user.name,at:stamp()};}
+   else delete dismissed[op.suggestionId];
+   list.dismissed=dismissed;
+   return {summary:null,important:false,title:'Packing suggestion'};
+  }
+  if(op.type==='packReset'){
+   if(!parent)fail('A parent starts the next pack-up.',403);
+   for(const item of list.items){item.packedAt=null;item.packedBy=null;}
+   return {summary:null,important:false,title:'Packing list'};
+  }
+  fail('Unknown packing action.');
  }else if(typeof op.type==='string'&&op.type.startsWith('spend')){
   // Spending money, which is Nate's and Boston's. Money only ever goes in on a parent's say-so —
   // either by hand or as an amount a day — and everything a boy does is about his own purse:

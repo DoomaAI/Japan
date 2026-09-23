@@ -397,7 +397,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(state){
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -685,6 +685,13 @@ export function currentBout(state,clock){
 export const TODO_KINDS=[['do','Something to do'],['buy','Something to buy']];
 export const todoKindLabel=id=>(TODO_KINDS.find(([key])=>key===id)||TODO_KINDS[0])[1];
 export const todos=state=>state.todos||[];
+// The packing list: what we are taking, whose it is, and whether it is in the case yet. The
+// suggestions are worked out in packing-data.js; what lives in the trip is only what we chose
+// and which suggestions we turned down, so a turned-down one stays gone on every phone.
+export const EMPTY_PACKING={items:[],dismissed:{}};
+export const packing=state=>({...EMPTY_PACKING,...(state.packing||{})});
+export const packItem=(o,id)=>({id,title:String(o.title||'').trim(),category:String(o.category||'other'),person:o.person||'Family',
+ qty:Number.isInteger(o.qty)&&o.qty>0?o.qty:1,notes:String(o.notes||'').trim(),suggestionId:o.suggestionId??null});
 // Still to do first, then oldest first, so the list reads as a queue rather than a pile.
 export const sortTodos=list=>[...list].sort((a,b)=>(!!a.doneAt)-(!!b.doneAt)||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
 export const todosFor=(state,day=null)=>sortTodos(todos(state).filter(t=>(t.day??null)===(day??null)));
@@ -1184,6 +1191,15 @@ export function pendingProgress(state,queue){
   if(o.type==='shortlistRating'){const f=next.shortlist.find(f=>f.id===o.id);if(f){f.rating=shortlistRating(o);f.pending=true;}}
   if(o.type==='shortlistStatus'){const f=next.shortlist.find(f=>f.id===o.id);if(f){f.status=o.status;f.decidedBy=o.status==='thinking'?null:(o.by||f.decidedBy);f.decidedAt=o.status==='thinking'?null:o.at;f.pending=true;}}
   if(o.type==='todoAdd')next.todos=[...next.todos,{id:`pending-${o.operationId}`,title:String(o.title||'').trim(),kind:o.kind==='buy'?'buy':'do',day:o.day??null,person:o.person||'Family',notes:String(o.notes||''),createdBy:o.by||'',createdAt:o.at,doneAt:null,doneBy:null,pending:true}];
+  // Something put in the case on a train, and a suggestion added or turned down there, are all
+  // still right whenever they land, so the list shows them at once.
+  if(o.type==='packAdd'||o.type==='packAddAll'){
+   const list=o.type==='packAdd'?[o]:(Array.isArray(o.items)?o.items:[]);
+   next.packing={...next.packing,items:[...next.packing.items,...list.map((item,i)=>({...packItem(item,`pending-${o.operationId}-${i}`),
+    createdBy:o.by||'',createdAt:o.at,packedAt:null,packedBy:null,pending:true}))]};
+  }
+  if(o.type==='packStatus')next.packing={...next.packing,items:next.packing.items.map(i=>i.id!==o.id?i:{...i,packedAt:o.packed?o.at:null,packedBy:o.packed?o.by||i.packedBy:null,pending:true})};
+  if(o.type==='packDismiss'){const dismissed={...next.packing.dismissed};if(o.dismissed)dismissed[o.suggestionId]={by:o.by||'',at:o.at};else delete dismissed[o.suggestionId];next.packing={...next.packing,dismissed};}
   if(o.type==='todoStatus'){const t=next.todos.find(t=>t.id===o.id);if(t){t.doneAt=o.done?o.at:null;t.doneBy=o.done?o.by||t.doneBy:null;t.pending=true;}}
   // Something wanted, and something bought, both with no signal: additions and a record of what
   // happened, so the purse on the screen is right long before it reaches the family plan.
