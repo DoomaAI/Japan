@@ -5,6 +5,7 @@ import {createServer} from 'node:http';
 import {applyOperation,AppError} from '../server/model.mjs';
 import {activeSteps,scheduleProposal,japanClock,japanDate,scheduleVariance,stayPlan} from '../src/timing.js';
 import handler from '../server/handler.mjs';
+import {REST,MAX_ZOOM,clampView,zoomAbout,pinchView,tapView} from '../src/zoom.js';
 import {htmlToText,parseInbound,addToInbox,MAX_INBOX} from '../server/email.mjs';
 const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url)));
 const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'},child_=child;
@@ -7785,4 +7786,36 @@ test('a boy can say his answer instead of typing it, and the words are still his
  // put in the box. Talking does not ask, any more than typing does.
  assert.match(ask,/<Dictate onText=\{heard=>setQuestion\(q=>joinSpoken\(q,heard\)\.slice\(0,ASK_LIMIT\)\)\}/);
  assert.doesNotMatch(ask,/onText=\{[^}]*\bask\(/);
+});
+
+test('a photo pinches in about the fingers, stays inside its frame, and a double tap comes back out',()=>{
+ const w=400,h=300;
+ // Whatever sits under the fingers stays under them as the picture grows.
+ const at=zoomAbout(REST,2,100,50,w,h);assert.deepEqual(at,{s:2,x:-100,y:-50});
+ assert.equal((100-at.x)/at.s,100);assert.equal((50-at.y)/at.s,50);
+ // Never smaller than fitted, never past the cap, never dragged so far an edge comes away.
+ assert.deepEqual(clampView({s:.4,x:30,y:30},w,h),REST);
+ assert.equal(clampView({s:99,x:0,y:0},w,h).s,MAX_ZOOM);
+ assert.deepEqual(clampView({s:2,x:50,y:-900},w,h),{s:2,x:0,y:-300});
+ // Fingers spreading to twice their distance doubles the view they started from, and the
+ // midpoint moving carries the picture along with it.
+ const start={s:2,x:-100,y:-50},from={mx:200,my:150,d:100};
+ assert.deepEqual(pinchView(start,from,{mx:200,my:150,d:200},w,h),{s:4,x:-400,y:-250});
+ assert.deepEqual(pinchView(start,from,{mx:180,my:140,d:100},w,h),{s:2,x:-120,y:-60});
+ assert.deepEqual(pinchView(start,from,{mx:200,my:150,d:10},w,h),REST);
+ // Double tap goes in on the spot, and again comes back to fitting the screen.
+ const tapped=tapView(REST,200,150,w,h);assert.equal(tapped.s,2.5);assert.equal((200-tapped.x)/tapped.s,200);
+ assert.deepEqual(tapView(tapped,10,10,w,h),REST);
+});
+
+test('both photo viewers hand their picture to the zoomable frame, and a zoomed photo holds the swipe back',async()=>{
+ const viewer=await readFile(new URL('../src/TicketViewer.jsx',import.meta.url),'utf8');
+ const gallery=await readFile(new URL('../src/MediaGallery.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(viewer,/<ZoomImage key=\{view\.id\}[^>]*onZoom=/);
+ assert.match(viewer,/onTouchStart=\{e=>\{touch\.current=e\.touches\.length===1&&!zoomed\.current/);
+ assert.match(viewer,/if\(!touch\.current\|\|zoomed\.current/);
+ assert.match(gallery,/<ZoomImage src=\{fileUrl\(view\)\}/);
+ // The frame takes every touch, so the page itself never zooms underneath the photo.
+ assert.match(css,/\.zoom-frame\{[^}]*touch-action:none/);
 });
