@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {RefreshCw,Check,AlertCircle,ArrowLeftRight} from 'lucide-react';
+import {RefreshCw,Check,AlertCircle,ArrowLeftRight,ChevronDown} from 'lucide-react';
 import {yenPerAud,rateIsSet,yenToAud,audToYen,DEFAULT_YEN_PER_AUD} from './trip-features.js';
 import {japanClock,japanDate} from './timing.js';
 // European Central Bank reference rates, free and no key. Strictly optional: the converter
@@ -14,11 +14,13 @@ export default function Currency({state,user,mutate,busy,notice}){
  const rate=yenPerAud(state),set=rateIsSet(state);
  const [amount,setAmount]=useState('1000'),[from,setFrom]=useState('JPY');
  const [checking,setChecking]=useState(false),[found,setFound]=useState(null),[failed,setFailed]=useState('');
+ // Collapsed to one line by default; opens itself while no one has set a rate yet.
+ const [open,setOpen]=useState(!set);
  const parent=user.role==='parent';
  const value=Number(String(amount).replace(/[^\d.]/g,''))||0;
  const converted=from==='JPY'?aud(yenToAud(value,rate)):yen(audToYen(value,rate));
  async function check(){
-  setChecking(true);setFailed('');setFound(null);
+  setChecking(true);setFailed('');setFound(null);setOpen(true);
   try{
    const r=await fetch(RATE_SOURCE);
    if(!r.ok)throw new Error('no');
@@ -35,23 +37,29 @@ export default function Currency({state,user,mutate,busy,notice}){
   <p>Everything in Japan is priced in yen. This converts either way, works with no signal, and uses one rate the whole family shares.</p>
   {!set&&<p className="callout"><AlertCircle size={18}/><span><strong>No one has set the rate yet.</strong> The converter is using an estimate of {rateText(DEFAULT_YEN_PER_AUD)} to the dollar. {parent?'Set the real one below.':'Ask Damien or Lauren to set the real one.'}</span></p>}
 
-  <section className="rate-card">
-   <p className="eyebrow">TODAY’S RATE</p>
-   <strong className="rate-headline">$1 = {rateText(rate)}</strong>
-   <small>{set
-    ?`Set by ${state.rates.by} on ${japanDate(new Date(state.rates.at))} at ${japanClock(new Date(state.rates.at))} JST${state.rates.source==='live'?' from the ECB reference rate':''}.`
-    :'Estimate only — not set by anyone yet.'}</small>
-   {parent&&<div className="row wrap">
-    <button disabled={busy||checking} onClick={check}><RefreshCw size={16}/>{checking?'Checking…':'Check today’s rate'}</button>
+  <section className={`rate-card${open?' open':''}`}>
+   <div className="rate-line">
+    <button type="button" className="rate-toggle" aria-expanded={open} onClick={()=>setOpen(o=>!o)}>
+     <span className="eyebrow">TODAY’S RATE</span>
+     <strong className="rate-headline">$1 = {rateText(rate)}</strong>
+     <ChevronDown size={18} className="rate-chevron"/>
+    </button>
+    {parent&&<button type="button" className="rate-refresh" disabled={busy||checking} onClick={check} aria-label="Check today’s rate" title="Check today’s rate"><RefreshCw size={18} className={checking?'spin':''}/></button>}
+   </div>
+   {open&&<div className="rate-body">
+    <small>{set
+     ?`Set by ${state.rates.by} on ${japanDate(new Date(state.rates.at))} at ${japanClock(new Date(state.rates.at))} JST${state.rates.source==='live'?' from the ECB reference rate':''}.`
+     :'Estimate only — not set by anyone yet.'}</small>
+    {checking&&<small>Checking today’s rate…</small>}
+    {found&&<div className="rate-found"><span>Found <strong>$1 = {rateText(found.perAud)}</strong>{found.date?` (${found.date})`:''}</span>
+     <button className="primary" disabled={busy} onClick={()=>save(found.perAud,'live')}><Check size={16}/>Use this</button></div>}
+    {failed&&<p className="callout"><AlertCircle size={18}/>{failed}</p>}
+    {parent&&<form className="rate-manual" onSubmit={async e=>{e.preventDefault();const v=Number(new FormData(e.currentTarget).get('perAud'));if(!Number.isFinite(v)||v<1||v>1000){notice('Enter how many yen one dollar buys.');return;}await save(v,'manual');}}>
+     <label>Set it by hand — yen per $1<input name="perAud" type="number" step="0.01" min="1" max="1000" defaultValue={rate} inputMode="decimal"/></label>
+     <button disabled={busy}>Save rate</button>
+    </form>}
+    <small>A reference rate. What your card or an ATM actually gives you will be a little worse once fees and the spread are taken out — treat this as “near enough”, not exact.</small>
    </div>}
-   {found&&<div className="rate-found"><span>Found <strong>$1 = {rateText(found.perAud)}</strong>{found.date?` (${found.date})`:''}</span>
-    <button className="primary" disabled={busy} onClick={()=>save(found.perAud,'live')}><Check size={16}/>Use this</button></div>}
-   {failed&&<p className="callout"><AlertCircle size={18}/>{failed}</p>}
-   {parent&&<form className="rate-manual" onSubmit={async e=>{e.preventDefault();const v=Number(new FormData(e.currentTarget).get('perAud'));if(!Number.isFinite(v)||v<1||v>1000){notice('Enter how many yen one dollar buys.');return;}await save(v,'manual');}}>
-    <label>Set it by hand — yen per $1<input name="perAud" type="number" step="0.01" min="1" max="1000" defaultValue={rate} inputMode="decimal"/></label>
-    <button disabled={busy}>Save rate</button>
-   </form>}
-   <small>A reference rate. What your card or an ATM actually gives you will be a little worse once fees and the spread are taken out — treat this as “near enough”, not exact.</small>
   </section>
 
   <section className="converter">
