@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
 import {CloudSun,RefreshCw,X,ChevronRight,ChevronDown,ChevronUp,Sunrise,Sunset} from 'lucide-react';
 import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
-import {pointFor,forecastUrl,areaForecastUrl,AREAS_PER_REQUEST,stepTargets,stepReadings,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,morningNeeds,isMorning,hoursFor,stepWeather,iconAt,hourLabel} from './weather-data.js';
+import {pointFor,forecastUrl,areaForecastUrl,AREAS_PER_REQUEST,stepTargets,stepReadings,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,morningNeeds,isMorning,hoursFor,stepWeather,iconAt,skyPhase,hourLabel} from './weather-data.js';
 import {japanDate,japanClock} from './timing.js';
 import {isOpen,setOpen} from './fold.js';
 // The one section that folds away, named here so the phone remembers which one it was.
@@ -38,7 +38,7 @@ export function SunTimes({entry}){
 export function StepWeather({state,step,steps,compact,pill,onOpen}){
  const w=stepWeather(state,step,steps);
  if(!w)return null;
- const icon=iconAt(w.code,w.dark),label=w.code===null?'':describe(w.code)[0];
+ const icon=iconAt(w.code,w.phase??w.dark),label=w.code===null?'':describe(w.code)[0];
  const rain=Number.isFinite(w.rain)&&w.rain>=20?`${w.rain}% rain`:'';
  if(compact)return <small className="timeline-weather" aria-label={`Forecast ${w.temp} degrees${rain?`, ${rain}`:''}`}>{icon} {w.temp}°{rain&&` · ${w.rain}%`}</small>;
  const feels=Number.isFinite(w.feels)&&Math.abs(w.feels-w.temp)>=3?`feels ${w.feels}°`:'';
@@ -122,11 +122,14 @@ export default function Weather({state,day,mutate,busy,online,notice,dayLabel,go
  const hours=hoursFor(state,day);
  // The "now" line belongs on the day we are actually in, and nowhere else.
  const nowHour=now&&japanDate(now)===day?Number(japanClock(now).slice(0,2)):null;
+ // Today's icon is the sky as it is now — a sunset at six, a moon and stars at nine — not the
+ // midday sun of the day as a whole.
+ const nowIcon=today?nowHour===null?describe(today.code)[1]:iconAt(today.code,skyPhase(today,nowHour*60+Number(japanClock(now).slice(3,5)))):'';
  const ahead=state.days.filter(d=>d.date>day).slice(0,4).map(d=>({...d,entry:forecastFor(state,d.date)}));
  const tip=advice(today);
  // Folded, it still says the one thing it is for: what it is doing outside. A section that
  // collapses to its own name is a row of wasted space with a chevron on it.
- const peek=today?`${describe(today.code)[1]} ${today.max}° / ${today.min}°${today.rain!==null?` · ${today.rain}%`:''}`:'No forecast yet';
+ const peek=today?`${nowIcon} ${today.max}° / ${today.min}°${today.rain!==null?` · ${today.rain}%`:''}`:'No forecast yet';
  return <section className={`weather${open?'':' folded'}`}>
   <div className="weather-head">
    <h3><button type="button" className="weather-fold" aria-expanded={open} onClick={fold}>
@@ -137,7 +140,7 @@ export default function Weather({state,day,mutate,busy,online,notice,dayLabel,go
   </div>
   {open&&<>{today
    ?<><div className="weather-today">
-     <span className="weather-icon" aria-hidden="true">{describe(today.code)[1]}</span>
+     <span className="weather-icon" aria-hidden="true">{nowIcon}</span>
      <div>
       <strong>{today.max}° / {today.min}°</strong>
       <small>{describe(today.code)[0]} · {today.city}{today.rain!==null?` · ${today.rain}% rain`:''}</small>

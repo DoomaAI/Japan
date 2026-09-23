@@ -103,8 +103,25 @@ export function isDark(entry,h){
  if(!entry?.sunrise||!entry?.sunset)return false;
  return h*60+30<minutes(entry.sunrise)||h*60+30>minutes(entry.sunset);
 }
-// After dark a clear sky is a moon, not a sun.
-export const iconAt=(code,dark)=>dark&&[0,1].includes(code)?'🌙':dark&&code===2?'☁️':describe(code)[1];
+// Where the sun is at a given minute of the day: coming up, going down, down, or up. The hour
+// either side of sunrise and sunset counts as the sunrise and the sunset.
+export function skyPhase(entry,at){
+ if(!entry?.sunrise||!entry?.sunset||!Number.isFinite(at))return 'day';
+ const rise=minutes(entry.sunrise),set=minutes(entry.sunset);
+ if(Math.abs(at-rise)<=45)return 'sunrise';
+ if(Math.abs(at-set)<=45)return 'sunset';
+ return at<rise||at>set?'night':'day';
+}
+// A clear sky looks different at different times of day: a sunrise, a sunset, or a crescent moon
+// and stars after dark, rather than a midday sun at every hour. Cloud and rain look the same
+// whenever they come. Passing true or false still means night or day.
+export function iconAt(code,phase){
+ if(phase===true)phase='night';
+ if(phase==='night')return [0,1].includes(code)?'🌙✨':code===2?'☁️':describe(code)[1];
+ if(phase==='sunrise'&&[0,1,2].includes(code))return '🌅';
+ if(phase==='sunset'&&[0,1,2].includes(code))return '🌇';
+ return describe(code)[1];
+}
 // The WMO codes Open-Meteo returns, in words a family would use and an emoji a five-year-old
 // can read before he can read the words.
 export const WMO={
@@ -210,11 +227,11 @@ export const forecastFor=(state,day)=>state.weather?.days?.[day]||null;
 // city's hour stands in, and says it is the city's.
 export function stepWeather(state,step,steps){
  const at=stepHour(steps||activeSteps(state,step.day),step);if(!at)return null;
- const day=forecastFor(state,step.day),dark=isDark(day,at.h);
+ const day=forecastFor(state,step.day),dark=isDark(day,at.h),phase=skyPhase(day,at.h*60+30);
  const saved=state.weather?.steps?.[step.id],place=stepPoint(state,step).name;
- if(saved&&saved.h===at.h&&saved.area===place)return {...saved,approx:at.approx,local:true,dark};
+ if(saved&&saved.h===at.h&&saved.area===place)return {...saved,approx:at.approx,local:true,dark,phase};
  const hour=hoursFor(state,step.day)?.find(x=>x.h===at.h);
- return hour?{...hour,area:day?.city||pointFor(state.days?.find(d=>d.date===step.day)?.city).name,approx:at.approx,local:false,dark}:null;
+ return hour?{...hour,area:day?.city||pointFor(state.days?.find(d=>d.date===step.day)?.city).name,approx:at.approx,local:false,dark,phase}:null;
 }
 // A forecast more than a few days out is a guess, and a stale one is worse than none. This is
 // what the screen uses to say how much to trust what it is showing.
