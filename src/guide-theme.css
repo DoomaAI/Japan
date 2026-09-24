@@ -62,9 +62,15 @@ details{border-radius:5px;background:#f5f3ed}summary{font-size:1rem}.callout{bor
 .home .timing-details span{display:inline-flex;align-items:center;gap:.25rem}
 .home .primary-actions{margin-top:.55rem}
 .home .primary-actions>*{min-height:44px}
-.home .completion-actions{margin-top:.5rem;padding-top:.5rem}
-.home .completion-actions>*{min-height:44px}
+.home .completion-actions{display:flex;align-items:center;gap:.45rem;margin-top:.7rem;padding-top:0;border-top:0}
 .home .completion-actions button{white-space:nowrap}
+.status-pill{flex:0 0 auto!important;display:inline-flex;align-items:center;gap:.35rem;min-height:38px;padding:.35rem .85rem!important;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--ink);font-size:.8rem!important;font-weight:600;line-height:1}
+.status-pill svg{width:15px;height:15px}
+.status-pill.start-pill.is-on{background:#252520;border-color:#252520;color:#fff}
+.status-pill.done-button{background:#ecf2e7;border-color:#d6e8de;color:#205543}
+.status-pill:disabled{opacity:.5}
+.completion-actions .completion-more{margin-left:auto;border:0}
+.place-pin{color:inherit;text-decoration:underline;text-underline-offset:2px}
 .home .card-links{flex-wrap:nowrap;justify-content:flex-start;gap:.4rem;overflow-x:auto;margin:.55rem -1.1rem 0;padding:.1rem 1.1rem .15rem;scrollbar-width:none;overscroll-behavior-x:contain}
 .home .card-links::-webkit-scrollbar{display:none}
 .home .card-links>*{flex:0 0 auto;min-height:36px;padding:.35rem .75rem;border:1px solid var(--border);border-radius:999px;background:#f7f9f8;color:var(--ink);font-size:.78rem;font-weight:600;gap:.35rem;white-space:nowrap;text-decoration:none}
