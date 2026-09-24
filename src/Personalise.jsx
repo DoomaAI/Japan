@@ -87,7 +87,9 @@ function HomeWidgets({home,setHome}){
  return <>
   <h2>Your Home screen</h2>
   <p>Home shows these, top to bottom, under the day and its dates. Move them into the order you
-   want and put away the ones you do not need. It changes Home on this phone only.</p>
+   want and put away the ones you do not need. The day’s buttons — the day at a glance, adjust the
+   day, we’re tired, useful apps — live on Today and start put away here; tap the eye to add any of
+   them to Home too. It changes Home on this phone only.</p>
   <ol className="menu-order home-widgets">{order.map((id,i)=>{const off=hidden.includes(id);
    return <li key={id} className={off?'is-hidden':undefined}>
     <span><strong>{HOME_WIDGETS[id].label}</strong><small>{off?'Put away · ':''}{HOME_WIDGETS[id].note}</small></span>

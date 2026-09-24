@@ -265,7 +265,7 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  // Home no longer splits into two columns, so the step card has the screen to itself and the
  // timeline is not rendered twice.
  assert.equal((main.match(/<DayTimeline /g)||[]).length,1,'the timeline is rendered once, on its own screen');
- assert.match(main,/\{tab==='glance'&&<>\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*<DayTimeline /,'it opens with the day it is about');
+ assert.match(main,/\{tab==='glance'&&<>\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayTimeline /,'it opens with the day it is about, then the day\u2019s buttons');
  assert.doesNotMatch(main,/today-layout/,'Home is one column now');
  assert.doesNotMatch(css,/today-layout/,'and the grid that made two of them is gone with it');
  // Choosing a day on the day at a glance stays on the day at a glance. selectDay goes Home, so
@@ -1792,11 +1792,13 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
 });
 
 test('Home is a column of widgets each phone orders and puts away for itself',async()=>{
- const {HOME_WIDGETS,HOME_DEFAULT,emptyHome,cleanHome,homeOrder,homeShown,moveWidget,toggleWidget}=await import('../src/home-widgets.js');
+ const {HOME_WIDGETS,HOME_DEFAULT,HOME_OFF,emptyHome,cleanHome,homeOrder,homeShown,homeRuns,moveWidget,toggleWidget}=await import('../src/home-widgets.js');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const screen=await readFile(new URL('../src/Personalise.jsx',import.meta.url),'utf8');
- // Untouched, Home shows everything, with the step we are on first.
- assert.deepEqual(homeShown(emptyHome()),HOME_DEFAULT);
+ // Untouched, Home shows everything but the day's buttons, with the step we are on first.
+ const ON=HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id));
+ assert.deepEqual(HOME_OFF,['glance','adjust','tired','apps']);
+ assert.deepEqual(homeShown(emptyHome()),ON);
  assert.equal(HOME_DEFAULT[0],'step','the step card leads Home');
  for(const id of HOME_DEFAULT)assert.ok(HOME_WIDGETS[id].label&&HOME_WIDGETS[id].note,id);
  // Moved and put away, and nothing lost: a widget put away is still in the order to come back.
@@ -1810,11 +1812,23 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.ok(homeShown(toggleWidget(prefs,'guide')).includes('guide'),'and it comes back');
  // Whatever localStorage hands back is cleaned: unknown and repeated ids go, new widgets arrive.
  assert.deepEqual(cleanHome({order:['finds','nothing','finds'],hidden:['nothing','step']}),
-  {order:['finds',...HOME_DEFAULT.filter(id=>id!=='finds')],hidden:['step']});
+  {order:['finds',...HOME_DEFAULT.filter(id=>id!=='finds')],hidden:['step',...HOME_OFF],shown:[]});
  for(const rubbish of [null,undefined,'x',{order:'x'},{hidden:'step'}])
-  assert.deepEqual(homeShown(rubbish),HOME_DEFAULT,JSON.stringify(rubbish));
+  assert.deepEqual(homeShown(rubbish),ON,JSON.stringify(rubbish));
+ // The day's buttons can be brought onto Home one by one, moved, and put away again.
+ prefs=toggleWidget(emptyHome(),'tired');
+ assert.ok(homeShown(prefs).includes('tired')&&!homeShown(prefs).includes('apps'));
+ prefs=moveWidget(prefs,'tired',-HOME_DEFAULT.indexOf('tired'));
+ assert.equal(homeShown(cleanHome(JSON.parse(JSON.stringify(prefs))))[0],'tired','kept through storage');
+ assert.ok(!homeShown(toggleWidget(prefs,'tired')).includes('tired'));
+ // An older phone's single 'actions' widget becomes the four, in its place.
+ assert.deepEqual(homeOrder({order:['actions','step'],hidden:['actions']}).slice(0,5),[...HOME_OFF,'step']);
+ // Side by side they share one grid; apart, each is its own.
+ assert.deepEqual(homeRuns(['step','tired','apps','weather','glance']),['step',['tired','apps'],'weather',['glance']]);
  // Home draws them by id, the day heading and strip stay put, and the phone keeps the choice.
- assert.match(main,/\{dayStrip\(selectDay\)\}\s*\{homeShown\(homePrefs\)\.map\(id=>/);
+ assert.match(main,/\{dayStrip\(selectDay\)\}\s*\{homeRuns\(homeShown\(homePrefs\)\)\.map\(run=>/);
+ // Today carries the day's buttons above its stops.
+ assert.match(main,/\{dayStrip\(d=>go\('glance',d\)\)\}[\s\S]{0,200}<div className="home-actions day-actions">[\s\S]*?We’re tired[\s\S]*?Useful apps[\s\S]*?<DayTimeline/);
  for(const id of HOME_DEFAULT)assert.match(main,new RegExp(`\\n  ${id}:`),`${id} is drawn`);
  assert.match(main,/localStorage\.setItem\(`japan\.home\.\$\{user\.name\}`/);
  assert.match(main,/onClick=\{\(\)=>go\('personalise'\)\}>Customise Home<\/Button>/);

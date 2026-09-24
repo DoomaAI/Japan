@@ -3,7 +3,7 @@
 export const PAGES={
  today:{label:'Home',note:'Your own widgets for the day: what’s next, weather, to-dos and more'},
  days:{label:'Itinerary',note:'All sixteen days of the trip'},
- glance:{label:'Today',note:'Today\u2019s stops in order, ticked off as they happen'},
+ glance:{label:'Today',note:'Today\u2019s stops in order, ticked off as they happen, with adjust the day and we\u2019re tired'},
  tickets:{label:'Tickets',note:'Bookings, luggage tags and QR codes'},
  inbox:{label:'Forwarded email',note:'Booking emails you sent in, waiting to be filed'},
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
