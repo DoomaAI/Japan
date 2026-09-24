@@ -225,6 +225,7 @@ function App(){
   }finally{working.current=false;setBusy(false);}
  }
  const visibleState=state?pendingProgress(state,queue):null;
+ const toastBar=<div className="toast" role="status">{toast}<button aria-label="Dismiss" onClick={()=>setToast('')}><X size={16}/></button></div>;
  const [photoPerson,setPhotoPerson]=useState(()=>new URLSearchParams(location.search).get('who')||'');
  // What this person has asked not to be shown, kept on their own phone and read under their
  // own name, because two people sharing a phone do not share an opinion about a pop-up.
@@ -500,7 +501,7 @@ function App(){
   </main>
   <BottomNav tab={tab} user={user} go={navGo} prefs={navPrefs} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
-  {toast&&<div className="toast" role="status">{toast}<button aria-label="Dismiss" onClick={()=>setToast('')}><X size={16}/></button></div>}
+  {toast&&!modal&&toastBar}
   {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',eyespy:'Window I spy',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${THANK_YOU_FROM}`}[modal.type]} onClose={()=>setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo'].includes(modal.type)}>
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} mode={modal.mode} wishlist={modal.wishlist} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)}/>}
@@ -532,6 +533,10 @@ function App(){
    {modal.type==='reschedule'&&<Reschedule steps={steps} mutate={mutate} close={()=>setModal(null)}/>}
    {modal.type==='tired'&&<><p>Keep the next fixed booking and take out a little of the walking or waiting.</p>{nextFixed&&<p className="callout">Protect {nextFixed.time} · {nextFixed.title}</p>}{steps.filter(s=>s.kind==='optional'&&!s.locked&&s.status==='todo').map(s=><div className="list-row" key={s.id}><span>{s.time} {s.title}</span>{parent&&<Button onClick={()=>mutate({type:'backlog',id:s.id})}>Save to Options</Button>}</div>)}<Link className="button primary" href={directions(today.hotel,'driving')}>Driving directions to hotel</Link></>}
    {modal.type==='pending'&&<><p>The current shared plan is loaded behind this panel. Applying your updates changes only progress, not the schedule.</p>{queue.map(q=><p key={q.operation.operationId}>{state.steps.find(s=>s.id===q.operation.id)?.title||state.challenges.find(c=>c.id===q.operation.id)?.title} → {q.operation.status||(q.operation.done?'Completed':'Reset')} at {japanClock(new Date(q.operation.at))}</p>)}<Button className="primary" onClick={async()=>{await flush(true);setModal(null);}}>Apply my progress to the latest plan</Button></>}
+   {/* A pop-up opens in the browser's top layer, above everything on the page, so a message
+       shown on the page sits hidden behind it — a save that failed looked like a save that did
+       nothing. While a pop-up is open the message is shown inside it instead. */}
+   {toast&&toastBar}
   </Dialog>}
   </div>
  </PhraseAudio.Provider>;
