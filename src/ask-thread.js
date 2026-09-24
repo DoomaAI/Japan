@@ -57,3 +57,11 @@ export function askStarters(state,day,now=new Date()){
  out.push(`What is the one thing we would regret missing in ${on.city}?`);
  return out.slice(0,4);
 }
+// Asked from a stop's own card. These are the questions somebody standing at the entrance
+// actually has — how long, what to eat, what the boys will like — each naming the stop.
+export function stepStarters(step){
+ if(!step?.title)return [];
+ const name=step.place||step.title;
+ return [`How long do we really need at ${name}?`,`What should the boys not miss at ${name}?`,
+  `Is there somewhere to eat near ${name}?`,`What is the best way to get to ${name} from the stop before?`];
+}

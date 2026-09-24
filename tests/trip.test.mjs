@@ -7920,6 +7920,14 @@ test('a question about the trip is answered out of the plan, and cannot change a
   // No day chosen means the whole trip, anchored on the Japan day it actually is.
   assert.match(seen.messages.at(-1).content,/They are asking about 2026-09-24/);
 
+  // Asked from a stop's card, the stop is named on its own and the day is that stop's.
+  const nozomi=state.steps.find(s=>s.title==='Nozomi 33 to Kyoto');
+  const fromCard=await askTrip({question:'How long do we need here?',step:nozomi.id},state,parent,now);
+  assert.match(seen.messages.at(-1).content,/asked from the card for one stop on 2026-09-24[\s\S]*12:30 · Nozomi 33 to Kyoto/);
+  assert.equal(fromCard.step,nozomi.id);
+  assert.equal(fromCard.about,'2026-09-24');
+  await assert.rejects(()=>askTrip({question:'Here?',step:'gone'},state,parent,now),/no longer on the plan/);
+
   // Half a conversation is not a conversation. Anything that would make the API refuse the
   // call — a dangling question, two of the same speaker in a row, an empty turn — is dropped
   // here rather than sent and rejected.
@@ -7957,6 +7965,9 @@ test('a question about the trip is answered out of the plan, and cannot change a
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/ask:!!config\?\.ask\|\|hasAskHistory\(user\)/);
  assert.match(main,/tab==='ask'&&<AskTrip/);
+ // Every stop's card offers the same box, about that stop, where there is a key behind it.
+ assert.match(main,/config\?\.ask&&<button onClick=\{\(\)=>setModal\(\{type:'ask',step:current\}\)\}/);
+ assert.match(main,/modal\.type==='ask'&&<AskTrip[^>]*step=\{modal\.step\}/);
  // A link to it, or an old bar setting holding it, cannot strand somebody on a screen this
  // deployment cannot answer with: they land back on Home, the way forwarded email works.
  assert.match(main,/if\(tab==='ask'&&user&&!isAvailable\('ask'\)\)setTab\('today'\);\},\[tab,user\?\.name,config\?\.ask\]\)/);
