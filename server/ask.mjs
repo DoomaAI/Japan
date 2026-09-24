@@ -90,7 +90,7 @@ function dayBlock(state,day,detail){
 // Everything the answer is allowed to lean on, written the way a person would say it. The whole
 // trip goes in rather than the matching day alone: "is it better today or tomorrow" is answered
 // by what tomorrow already holds, and "when should we do this at all" by all sixteen days.
-export function tripBrief(state,{day,now=new Date()}={}){
+export function tripBrief(state,{day,step,now=new Date()}={}){
  const today=japanDate(now);
  const focus=state.days.find(d=>d.date===day)||state.days.find(d=>d.date===today)||state.days[0];
  const from=state.days.findIndex(d=>d.date===focus.date);
@@ -102,6 +102,10 @@ export function tripBrief(state,{day,now=new Date()}={}){
   `They are asking about ${focus.date} — ${focus.title}, in ${focus.city} — and the days around it.`,
   '','Their plan, day by day. The days written out in full are the ones being asked about; the rest give their shape and whatever is booked to a time:',
   ...state.days.map(d=>dayBlock(state,d,detailed.has(d.date)))];
+ // Asked from a stop's own card, the question is about that stop: "how long do we need here",
+ // "is there food inside". It is named on its own so "here" and "this" have something to mean.
+ if(step)lines.push('',`The question was asked from the card for one stop on ${step.day}, so "here", "this" and "it" mean this stop:`,
+  stepLine(step,true).trim()+(step.japanese?`\n    in Japanese: ${clamp(step.japanese,200)}`:''));
  const age=forecastAge(state,now);
  lines.push('',`The forecast above was ${ageLabel(age)}${state.weather?.by?`, by ${state.weather.by}`:''}. There is no forecast for a day that does not show one.`);
  const open=proposals(state).filter(p=>proposalPlacement(state,p).state==='open');
@@ -140,16 +144,19 @@ export function conversation(history){
  for(const turn of recent.slice(start))if(!out.length||out.at(-1).role!==turn.role)out.push(turn);
  return out.at(-1).role==='assistant'?out:out.slice(0,-1);
 }
-export async function askTrip({question,day,history},state,user,now=new Date()){
+export async function askTrip({question,day,step:stepId,history},state,user,now=new Date()){
  if(!askReady())throw new AppError('Asking about the trip is not switched on. Add an Anthropic API key to the deployment.',503);
  const asked=clamp(question,MAX_QUESTION+1);
  if(!asked)throw new AppError('Type a question first.');
  if(asked.length>MAX_QUESTION)throw new AppError(`Keep the question under ${MAX_QUESTION} characters. Two questions get one muddled answer — ask them one at a time.`);
  if(day&&!state.days.some(d=>d.date===day))throw new AppError('Choose a trip day.');
+ const step=stepId?state.steps.find(s=>s.id===stepId):null;
+ if(stepId&&!step)throw new AppError('That stop is no longer on the plan.');
+ if(step&&!day)day=step.day;
  const {default:Anthropic}=await import('@anthropic-ai/sdk');
  const client=new Anthropic();
  const who=user?.name&&MEMBERS.includes(user.name)?user.name:'someone in the family';
- const ask=`${tripBrief(state,{day,now})}
+ const ask=`${tripBrief(state,{day,step,now})}
 
 ${user?.role==='child'?`${who} is asking, and he is one of the boys. Keep it short and kind, in words he can follow, and never talk about money he does not have or a booking he cannot change.`:`${who} is asking.`}
 
@@ -180,6 +187,6 @@ Their question: ${asked}`;
  if(!call?.input)throw new AppError(message.stop_reason==='max_tokens'?'The answer ran long and did not finish. Ask it in smaller pieces.':'Nothing came back. Try asking it another way.',502);
  const answer=normaliseAnswer(call.input,state);
  if(!answer.answer&&!answer.verdict)throw new AppError('Nothing usable came back. Try asking it another way.',502);
- return {...answer,question:asked,about:day||null,
+ return {...answer,question:asked,about:day||null,step:step?.id||null,
   usage:{input:message.usage?.input_tokens??0,output:message.usage?.output_tokens??0,searches:message.usage?.server_tool_use?.web_search_requests??0}};
 }
