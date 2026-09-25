@@ -80,3 +80,64 @@ export function ridePlanned(state,park,ride){
   return key.length>0&&key.slice(0,3).every(w=>title.includes(w));
  });
 }
+// Universal Express Pass 8: Mine Cart & The Flying Dinosaur Special, for 25 September. Each of
+// us holds one, so a timed slot is used person by person, and a ☆ choice is picked person by
+// person. `stepIds` ties each ride (or the slot itself, for an area entry) to the activity in
+// the day that covers it, so the pass can say what is already in the plan without guessing
+// from titles.
+export const EXPRESS_SEED=1;
+export const EXPRESS_TICKET=[
+ {id:'usj-x-snw',park:'usj',label:'Super Nintendo World area entry',start:'11:00',end:'12:00',rides:[],stepIds:{'usj-x-snw':'2026-09-25-09'}},
+ {id:'usj-x-mariokart',park:'usj',label:'',start:'11:00',end:'11:30',rides:['usj-mariokart'],stepIds:{'usj-mariokart':'2026-09-25-10'}},
+ {id:'usj-x-yoshi',park:'usj',label:'',start:'11:30',end:'12:00',rides:['usj-yoshi'],stepIds:{'usj-yoshi':'2026-09-25-11'}},
+ {id:'usj-x-minecart',park:'usj',label:'',start:'12:00',end:'12:30',rides:['usj-minecart'],stepIds:{'usj-minecart':'2026-09-25-12'}},
+ {id:'usj-x-minionblast',park:'usj',label:'',start:'16:00',end:'16:30',rides:['usj-minionblast'],stepIds:{'usj-minionblast':'2026-09-25-19'}},
+ {id:'usj-x-hippogriff',park:'usj',label:'',start:'17:30',end:'18:00',rides:['usj-hippogriff'],stepIds:{'usj-hippogriff':'2026-09-25-21'}},
+ {id:'usj-x-forbidden',park:'usj',label:'',start:null,end:null,rides:['usj-forbidden'],stepIds:{'usj-forbidden':'2026-09-25-22'}},
+ {id:'usj-x-choice-a',park:'usj',label:'Choice A',start:null,end:null,rides:['usj-flyingdino','usj-hollywooddream','usj-minion'],stepIds:{'usj-flyingdino':'2026-09-25-06','usj-hollywooddream':'2026-09-25-07','usj-minion':'2026-09-25-17'},
+  picks:{Damien:'usj-flyingdino',Boston:'usj-flyingdino'},used:{Damien:true,Boston:true}},
+ {id:'usj-x-choice-b',park:'usj',label:'Choice B',start:null,end:null,rides:['usj-jaws','usj-jurassic'],stepIds:{'usj-jaws':'2026-09-25-23','usj-jurassic':'2026-09-25-05'}}
+];
+// How the ticket lands on the day that was planned before it arrived: each window written onto
+// the activity it covers, Minion Blast confirmed at 16:00, and the Flying Dinosaur that Damien
+// and Boston rode on entry. A step the family has since removed or already re-timed is left as
+// they have it.
+const EXPRESS_PLAN={
+ '2026-09-25-09':{note:'Express Pass: Super Nintendo World area entry 11:00–12:00.'},
+ '2026-09-25-10':{note:'Express Pass window 11:00–11:30.'},
+ '2026-09-25-11':{note:'Express Pass window 11:30–12:00.',title:['Yoshi\'s Adventure','Yoshi\'s Adventure — Express Pass']},
+ '2026-09-25-12':{note:'Express Pass window 12:00–12:30.'},
+ '2026-09-25-19':{note:'Express Pass window 16:00–16:30.',when:s=>s.kind==='review',patch:{title:'Minion Blast — Express Pass',kind:'fixed',locked:true,time:'16:00',bookingTime:'16:00',review:false}},
+ '2026-09-25-21':{note:'Express Pass window 17:30–18:00.'},
+ '2026-09-25-22':{note:'Express Pass — any time today.'},
+ '2026-09-25-06':{note:'Express Choice A. Damien and Boston rode it on entry.',title:['Flying Dinosaur / nearby break','The Flying Dinosaur — Express Choice A'],when:s=>s.status==='todo',patch:{participants:['Damien','Boston']}},
+ '2026-09-25-07':{note:'Express Choice A option — pick in the Express Pass panel.'},
+ '2026-09-25-17':{note:'Express Choice A option — pick in the Express Pass panel.'},
+ '2026-09-25-05':{note:'Express Choice B option (or JAWS) — pick in the Express Pass panel.'},
+ '2026-09-25-23':{note:'Express Choice B option (or Jurassic Park) — pick in the Express Pass panel.'}
+};
+export function expressSeeded(state){
+ if((state.expressSeed||0)>=EXPRESS_SEED)return {expressSlots:state.expressSlots||[],expressSeed:state.expressSeed};
+ const have=new Set((state.expressSlots||[]).map(s=>s.id));
+ const steps=(state.steps||[]).map(s=>{
+  const fix=EXPRESS_PLAN[s.id];if(!fix)return s;
+  const next={...s};
+  if(!(s.notes||'').includes(fix.note))next.notes=[s.notes,fix.note].filter(Boolean).join(' ');
+  if(fix.title&&s.title===fix.title[0])next.title=fix.title[1];
+  if(fix.patch&&(!fix.when||fix.when(s)))Object.assign(next,fix.patch);
+  return next;
+ });
+ return {steps,expressSeed:EXPRESS_SEED,expressSlots:[...(state.expressSlots||[]),...EXPRESS_TICKET.filter(t=>!have.has(t.id)).map(t=>({picks:{},used:{},...structuredClone(t)}))]};
+}
+export const expressSlotsFor=(state,park)=>(state.expressSlots||[]).filter(s=>s.park===park.id).sort((a,b)=>(a.start||'99').localeCompare(b.start||'99'));
+export const slotChoice=slot=>slot.rides.length>1;
+export const slotName=slot=>slot.label&&!slotChoice(slot)?slot.label:slot.rides.length===1?findRide(slot.rides[0])?.name||slot.label:slot.label||'Express slot';
+// The activity covering one option of a slot: the one it was tied to, while it is still on the
+// park's day, else the rough title match the ride checklist already uses.
+export function slotStep(state,park,slot,key){
+ const linked=state.steps.find(s=>s.id===slot.stepIds?.[key]&&s.day===park.day);
+ if(linked)return linked;
+ const ride=findRide(key);if(!ride)return null;
+ const words=ride.name.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().split(' ').filter(w=>w.length>3).slice(0,2);
+ return words.length?state.steps.find(s=>s.day===park.day&&words.every(w=>s.title.toLowerCase().includes(w)))||null:null;
+}
