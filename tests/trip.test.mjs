@@ -7,6 +7,7 @@ import {activeSteps,scheduleProposal,japanClock,japanDate,scheduleVariance,stayP
 import handler from '../server/handler.mjs';
 import {REST,MAX_ZOOM,clampView,zoomAbout,pinchView,tapView} from '../src/zoom.js';
 import {htmlToText,parseInbound,addToInbox,MAX_INBOX} from '../server/email.mjs';
+import {ensureFeatures as upgraded} from '../src/trip-features.js';
 const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url)));
 const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'},child_=child;
 
@@ -88,7 +89,8 @@ test('reorder moves only active steps and preserves all target times and alterna
  const day='2026-10-02',active=activeSteps(seed,day),ids=active.map(s=>s.id).reverse();
  const result=applyOperation(seed,{type:'reorder',day,ids},parent);
  assert.deepEqual(activeSteps(result,day).map(s=>s.id),ids);
- for(const s of result.steps){const old=seed.steps.find(x=>x.id===s.id);assert.equal(s.time,old.time);assert.equal(s.bookingTime,old.bookingTime);if(!ids.includes(s.id))assert.equal(s.order,old.order);}
+ const before=upgraded(seed);
+ for(const s of result.steps){const old=before.steps.find(x=>x.id===s.id);assert.equal(s.time,old.time);assert.equal(s.bookingTime,old.bookingTime);if(!ids.includes(s.id))assert.equal(s.order,old.order);}
  assert.throws(()=>applyOperation(seed,{type:'reorder',day,ids:ids.slice(1)},parent),/Reload/);
  assert.throws(()=>applyOperation(seed,{type:'reorder',day,ids},child),e=>e.status===403);
 });
@@ -7310,7 +7312,7 @@ test('the character stands in for you wherever your name is, and is designed wit
  assert.equal(ensureFeatures({...seed,mascots:{Nate:{name:'コン'}}}).mascots.Nate.name,'コン');
  // Designing one is recording something new, so it waits on the phone like any other progress,
  // and it stands beside the name straight away rather than waiting for the sync.
- assert.match(main,/'mascotSave','mascotRemove'\]/);
+ assert.match(main,/'mascotSave','mascotRemove'[,\]]/);
  const {pendingProgress}=await import('../src/trip-features.js');
  const queued=[{operation:{type:'mascotSave',person:'Nate',mascot:{name:'コン',shape:'fox'},at:'2026-09-21T02:00:00.000Z'}}];
  assert.equal(pendingProgress(seed,queued).mascots.Nate.name,'コン');
@@ -8664,4 +8666,47 @@ test('memory map: check-ins are rounded, shared only by tapping, and the boys se
   assert.ok(!JSON.stringify(before.state).includes('35.712'),'a position is never written into the trip');
   assert.deepEqual((await(await post('checkin',{stop:true})).json()).checkins,[]);
  }finally{delete process.env.LOCAL_DEMO;await new Promise(r=>server.close(r));}
+});
+test('the USJ Express Pass is seeded once onto the planned day, with Choice A used by Damien and Boston',async()=>{
+ const {expressSlotsFor,slotStep,parkById,EXPRESS_TICKET}=await import('../src/park-data.js');
+ const state=upgraded(seed),park=parkById('usj'),slots=expressSlotsFor(state,park);
+ assert.equal(slots.length,EXPRESS_TICKET.length);
+ for(const slot of slots)for(const key of slot.rides.length?slot.rides:[slot.id])assert.ok(slotStep(state,park,slot,key),`${slot.id} ${key} is not in the plan`);
+ const blast=state.steps.find(s=>s.id==='2026-09-25-19');
+ assert.equal(blast.kind,'fixed');assert.equal(blast.locked,true);assert.equal(blast.bookingTime,'16:00');
+ const a=slots.find(s=>s.id==='usj-x-choice-a');
+ assert.deepEqual(a.picks,{Damien:'usj-flyingdino',Boston:'usj-flyingdino'});assert.ok(a.used.Damien&&a.used.Boston);
+ assert.deepEqual(state.steps.find(s=>s.id==='2026-09-25-06').participants,['Damien','Boston']);
+ // Seeded once: a slot the family removed stays removed, and notes are not appended twice.
+ const removed=applyOperation(state,{type:'expressSlotRemove',id:'usj-x-choice-b'},parent);
+ const again=upgraded(removed);
+ assert.ok(!again.expressSlots.some(s=>s.id==='usj-x-choice-b'));
+ assert.equal(again.steps.find(s=>s.id==='2026-09-25-10').notes.split('Express Pass window').length,2);
+});
+test('each of us picks our own Express choice and ticks our own slot, which ticks the ride',()=>{
+ const state=upgraded(seed),nate={name:'Nate',role:'child'};
+ const picked=applyOperation(state,{type:'expressPick',id:'usj-x-choice-a',person:'Nate',rideId:'usj-minion'},nate);
+ assert.equal(picked.expressSlots.find(s=>s.id==='usj-x-choice-a').picks.Nate,'usj-minion');
+ assert.throws(()=>applyOperation(state,{type:'expressPick',id:'usj-x-choice-a',person:'Lauren',rideId:'usj-minion'},nate),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'expressPick',id:'usj-x-choice-a',person:'Nate',rideId:'usj-jaws'},nate),/choose one/i);
+ assert.throws(()=>applyOperation(state,{type:'expressUsed',id:'usj-x-choice-b',person:'Nate',done:true},nate),/Pick a ride/);
+ const used=applyOperation(picked,{type:'expressUsed',id:'usj-x-choice-a',person:'Nate',done:true},nate);
+ assert.ok(used.expressSlots.find(s=>s.id==='usj-x-choice-a').used.Nate);
+ assert.ok(used.parkRides['usj-minion'].ridden.Nate);
+ assert.throws(()=>applyOperation(state,{type:'expressSlotAdd',park:'usj',rides:['usj-jaws']},nate),e=>e.status===403);
+});
+test('a parent adds an Express slot and it lands in the day at its time',()=>{
+ const state=upgraded(seed);
+ const next=applyOperation(state,{type:'expressSlotAdd',park:'usj',start:'14:00',end:'14:30',rides:['usj-spiderman'],addToPlan:true},parent);
+ const slot=next.expressSlots.at(-1),step=next.steps.find(s=>s.id===slot.stepIds['usj-spiderman']);
+ assert.equal(step.day,'2026-09-25');assert.equal(step.time,'14:00');assert.equal(step.locked,true);assert.equal(step.duration,30);
+ const day=activeSteps(next,'2026-09-25').map(s=>s.time).filter(Boolean);
+ assert.deepEqual(day,[...day].sort(),'the new stop sits in time order');
+ const later=applyOperation(next,{type:'expressSlotAdd',park:'usj',label:'Choice C',rides:['usj-snoopy','usj-elmo']},parent);
+ const c=later.expressSlots.at(-1);assert.deepEqual(c.stepIds,{});
+ const planned=applyOperation(later,{type:'expressPlan',id:c.id,rideId:'usj-snoopy'},parent);
+ assert.ok(planned.expressSlots.at(-1).stepIds['usj-snoopy']);
+ assert.throws(()=>applyOperation(planned,{type:'expressPlan',id:c.id,rideId:'usj-snoopy'},parent),/already/);
+ assert.throws(()=>applyOperation(state,{type:'expressSlotAdd',park:'usj',start:'15:00',end:'14:00',rides:['usj-jaws']},parent),/end after/);
+ assert.throws(()=>applyOperation(state,{type:'expressSlotAdd',park:'usj',rides:['tdl-space']},parent),/this park/);
 });

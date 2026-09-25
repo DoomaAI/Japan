@@ -3,6 +3,7 @@ import {Check,Star,MapPin,ExternalLink,Ticket,AlertCircle,Ruler} from 'lucide-re
 import {PARKS,parkLands,ridePlanned} from './park-data.js';
 import {BOYS,riddenBy,isMustDo,heightCheck,parkProgress} from './trip-features.js';
 import {CardFacts,factAloudFor} from './FunFacts.jsx';
+import ExpressPass from './ExpressPass.jsx';
 import {factsForItem} from './fact-data.js';
 const mapSearch=(ride,park)=>`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${ride.name} ${park.name}`)}`;
 export default function ParkGuide({state,user,speak,openPage,park:initial,mutate,busy,open}){
@@ -36,6 +37,8 @@ export default function ParkGuide({state,user,speak,openPage,park:initial,mutate
    </div>
    <small>The parks’ own maps are their copyright, so the app links to them rather than shipping a copy. To have one offline, save a screenshot or the app’s PDF under Tickets with the tag <strong>park map</strong> and the park’s name in the title — it then downloads with the rest of that day.</small>
   </section>
+
+  <ExpressPass state={state} user={user} park={park} mutate={mutate} busy={busy}/>
 
   <section className="park-heights">
    <div className="section-heading"><h3><Ruler size={16}/> How tall are the boys?</h3>{parent&&<button onClick={()=>setEditHeights(v=>!v)}>{editHeights?'Cancel':'Set heights'}</button>}</div>
