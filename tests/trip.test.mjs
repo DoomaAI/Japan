@@ -8845,6 +8845,13 @@ test('every train and transfer has its route: line, direction, each station and 
  assert.deepEqual((({left,ready})=>({left,ready}))(trackLeg(back,{lat:35.0100,lng:135.7418})),{left:3,ready:false});
  assert.equal(trackLeg(back,{lat:34.9875,lng:135.7430}).ready,true);
  assert.equal(trackLeg(back,{lat:35.6812,lng:139.7671}).on,false);
+ // The next stop, not the nearest: standing at Nijo the next is Tambaguchi; a third of the way
+ // from Emmachi it is Nijo still to come; past Nijo it is Tambaguchi.
+ const along=(a,b,f)=>({lat:a.lat+(b.lat-a.lat)*f,lng:a.lng+(b.lng-a.lng)*f});
+ assert.deepEqual((({at,upcoming,togo})=>({at,next:upcoming.name,togo}))(trackLeg(back,back[4])),{at:true,next:'Tambaguchi',togo:3});
+ assert.deepEqual((({at,upcoming})=>({at,next:upcoming.name}))(trackLeg(back,along(back[3],back[4],.35))),{at:false,next:'Nijo'});
+ assert.equal(trackLeg(back,along(back[4],back[5],.6)).upcoming.name,'Tambaguchi');
+ assert.equal(trackLeg(back,back[7]).arrived,true);
 });
 test('tracking at a change follows the ride still to come',async()=>{
  const {legStops,whereOnRoute}=await import('../src/route-data.js');

@@ -32,7 +32,9 @@ function Tracker({legs,rides,track}){
   {on&&!fix&&!trouble&&<span>Finding you…</span>}
   {trouble&&<span>{trouble}. Count the stops from the list instead.</span>}
   {on&&fix&&!where&&<span>Not near any station on this route yet.</span>}
-  {on&&where&&<span><strong>{where.arrived?`At ${stationLabel(where.nearest)}`:where.ready?`Next stop: ${stationLabel(stops[stops.length-1])} — get ready`:`Near ${stationLabel(where.nearest)}`}</strong>{!where.arrived&&` · ${where.left} stop${where.left===1?'':'s'} to go on the ${LINES[leg.line].name}`}{where.arrived&&leg.exit?` · ${leg.exit}`:''}</span>}
+  {on&&where&&(where.arrived
+   ?<p className="route-now"><strong>At {stationLabel(where.nearest)}. Get off here.</strong>{leg.exit&&<span>{leg.exit}</span>}</p>
+   :<p className="route-now"><small>{where.at?'Next stop':'Approaching'}{where.next===stops.length-1?' · get off here':''}</small><strong>{stationLabel(where.upcoming)}</strong><span>{where.at?`Now at ${stationLabel(where.nearest)} · `:''}{where.togo} stop{where.togo===1?'':'s'} to {stationLabel(stops[stops.length-1])} on the {LINES[leg.line].name}</span></p>)}
   {on&&fix&&age>=2&&<small>Last position {age} min ago; underground the phone often loses it.</small>}
  </div>;
 }
@@ -40,11 +42,13 @@ const KIND_ICON={Subway:TrainFrontTunnel,Bus,Monorail:TramFront};
 export default function RouteCard({legs}){
  const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
  const rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
+ // The tracker sits with the station list of the ride it is following (the first ride until it knows).
+ const trackAt=where?where.i:0;
  return <section className="route-card" aria-label="Route">
   <p className="eyebrow">ROUTE</p>
   {legs.map((leg,k)=>{
    if(leg.mode==='walk')return <p className="route-walk" key={k}><Footprints size={15}/><span>{leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span></p>;
-   const r=rideAt[k],line=LINES[leg.line],stops=rides[r],here=where&&where.i===r?where.index:-1;
+   const r=rideAt[k],line=LINES[leg.line],stops=rides[r],on=where&&where.i===r,here=on?where.index:-1,next=on&&!where.arrived?where.next:-1;
    const Icon=KIND_ICON[line.kind]||TrainFront;
    return <div className="route-ride" key={k} style={{'--line':line.colour}}>
     <strong className="route-line"><Icon size={16}/>{line.name} <span lang="ja">{line.ja}</span></strong>
@@ -52,13 +56,15 @@ export default function RouteCard({legs}){
     <p className="route-look"><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>
     <p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>
     <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes?` · about ${leg.minutes} min`:''}</p>
-    <details open={here>=0||undefined}><summary>Every station</summary>
-     <ol className="route-stops">{stops.map((s,n)=><li key={n} className={n===here?'here':n<here?'passed':''}><span>{s.name}</span>{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span></li>)}</ol>
-    </details>
-    {leg.exit&&<p className="route-exit"><b>Exit:</b> {leg.exit}</p>}
+    <div className="route-follow">
+     <details open={here>=0||undefined}><summary>Every station</summary>
+      <ol className="route-stops">{stops.map((s,n)=><li key={n} className={n===next?'next':n===here&&where.at?'here':n<(next>=0?next:here)?'passed':''}><span>{s.name}</span>{n===next&&<em>Next</em>}{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span></li>)}</ol>
+     </details>
+     {r===trackAt&&<Tracker legs={legs} rides={rides} track={track}/>}
+    </div>
     <div className="route-links"><a href={liveTimes(leg)} target="_blank" rel="noreferrer"><Radio size={14}/>Live times</a><a href={line.status} target="_blank" rel="noreferrer"><ExternalLink size={14}/>{line.operator} service status</a></div>
+    {leg.exit&&<p className="route-exit"><b>Exit:</b> {leg.exit}</p>}
    </div>;
   })}
-  {rides.length>0&&<Tracker legs={legs} rides={rides} track={track}/>}
  </section>;
 }

@@ -133,8 +133,11 @@ export function distance(a,b){
 export function trackLeg(stops,at,near=2500){
  const d=stops.map(s=>distance(at,s)),i=d.indexOf(Math.min(...d)),last=stops.length-1;
  if(d[i]>near)return {on:false,metres:d[i],nearest:stops[i]};
- const left=last-i;
- return {on:true,index:i,nearest:stops[i],metres:d[i],left,ready:left<=1,arrived:left===0&&d[i]<400};
+ const left=last-i,still=d[i]<250;
+ // The next stop: the one after this station when standing at it, otherwise whichever side of the
+ // nearest station the phone is on (closer to the one after means it is already past).
+ const next=still||i===0?Math.min(i+1,last):i===last?last:d[i+1]<d[i-1]?i+1:i;
+ return {on:true,index:i,nearest:stops[i],metres:d[i],left,ready:left<=1,arrived:left===0&&d[i]<400,at:still,next,upcoming:stops[next],togo:last-next+1};
 }
 // Which ride the phone is on: the nearest station across every ride, and at a change (the same
 // station ending one ride and starting the next) the ride that is still to come.
