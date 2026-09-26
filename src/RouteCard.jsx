@@ -49,7 +49,7 @@ export default function RouteCard({legs}){
   {legs.map((leg,k)=>{
    if(leg.mode==='walk')return <p className="route-walk" key={k}><Footprints size={15}/><span>{leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span></p>;
    const r=rideAt[k],line=LINES[leg.line],stops=rides[r],on=where&&where.i===r,here=on?where.index:-1,next=on&&!where.arrived?where.next:-1;
-   const Icon=KIND_ICON[line.kind]||TrainFront;
+   const Icon=KIND_ICON[line.kind]||TrainFront,fast=line.fast||[];
    return <div className="route-ride" key={k} style={{'--line':line.colour}}>
     <strong className="route-line"><Icon size={16}/>{line.name} <span lang="ja">{line.ja}</span></strong>
     <p className="route-kind"><i aria-hidden="true"/>{line.kind} · {line.operator}</p>
@@ -59,7 +59,8 @@ export default function RouteCard({legs}){
     {leg.options&&<div className="route-options"><b>Options</b>{leg.options.map(o=><div key={o.name}><strong>{o.name} {o.ja&&<span lang="ja">{o.ja}</span>}<small>about {o.minutes} min</small></strong><span>{o.fare}</span><p>{o.how}</p></div>)}</div>}
     <div className="route-follow">
      <details open={here>=0||undefined}><summary>{line.kind==='Bus'?'Every stop':'Every station'}</summary>
-      <ol className="route-stops">{stops.map((s,n)=><li key={n} className={n===next?'next':n===here&&where.at?'here':n<(next>=0?next:here)?'passed':''}><span>{s.name}</span>{n===next&&<em>Next</em>}{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span></li>)}</ol>
+      {fast.length>0&&<p className="route-fast">{line.allStop} trains stop at all of these. {fast.map(f=><span key={f.tag}><mark>{f.tag}</mark> marks where {/^[AEIOU]/.test(f.name)?'an':'a'} {f.name} stops{f.some?'; “some” means only some of them':''}. </span>)}</p>}
+      <ol className="route-stops">{stops.map((s,n)=><li key={n} className={n===next?'next':n===here&&where.at?'here':n<(next>=0?next:here)?'passed':''}><span>{s.name}</span>{n===next&&<em>Next</em>}{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span>{fast.map(f=>f.at.includes(s.name)?<mark key={f.tag}>{f.tag}</mark>:f.some?.includes(s.name)?<mark key={f.tag} className="some">{f.tag}, some</mark>:null)}</li>)}</ol>
      </details>
      {r===trackAt&&<Tracker legs={legs} rides={rides} track={track}/>}
     </div>
