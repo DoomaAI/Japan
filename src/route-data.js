@@ -7,12 +7,12 @@ export const LINES={
   ['Gojo','五条','K10',34.9960,135.7596],['Kyoto','京都','K11',34.9858,135.7588]]},
  sagano:{name:'JR Sagano Line',ja:'嵯峨野線',operator:'JR West',status:'https://trafficinfo.westjr.co.jp/kinki.html',stations:[
   ['Kyoto','京都','JR-E01',34.9858,135.7588],['Umekoji-Kyotonishi','梅小路京都西','JR-E02',34.9873,135.7421],['Tambaguchi','丹波口','JR-E03',34.9960,135.7424],['Nijo','二条','JR-E04',35.0107,135.7418],['Emmachi','円町','JR-E05',35.0196,135.7328],['Hanazono','花園','JR-E06',35.0175,135.7215],['Uzumasa','太秦','JR-E07',35.0170,135.7079],['Saga-Arashiyama','嵯峨嵐山','JR-E08',35.0182,135.6813]]},
- // The Express's main stops. Some Expresses also call at Toji and Kodo; station numbers are
- // given for the ends, where they are certain.
+ // Stops of a Nara-bound Express (急行). Yamato-Saidaiji is B26 on the Kyoto Line and A26 on the
+ // Nara Line.
  kintetsu:{name:'Kintetsu Kyoto & Nara Lines, Express',ja:'近鉄 急行',operator:'Kintetsu',status:'https://www.kintetsu.jp/unkou/unkou.html',stations:[
-  ['Kyoto','京都','B01',34.9844,135.7577],['Takeda','竹田','',34.9530,135.7560],['Kintetsu-Tambabashi','近鉄丹波橋','',34.9360,135.7678],['Momoyamagoryo-mae','桃山御陵前','',34.9322,135.7721],['Mukaijima','向島','',34.9126,135.7699],['Okubo','大久保','',34.8781,135.7820],['Shin-Tanabe','新田辺','',34.8196,135.7696],['Shin-Hosono','新祝園','',34.7610,135.7960],['Takanohara','高の原','',34.7196,135.7863],['Yamato-Saidaiji','大和西大寺','A26',34.6938,135.7825],['Shin-Omiya','新大宮','A27',34.6849,135.8127],['Kintetsu-Nara','近鉄奈良','A28',34.6844,135.8279]]},
- naraBus:{name:'Nara Kotsu bus 2, 77, 97 or 163',ja:'奈良交通バス',operator:'Nara Kotsu',status:'https://www.narakotsu.co.jp/',stations:[
-  ['Kintetsu-Nara Station (stop 1)','近鉄奈良駅','',34.6848,135.8285],['Kencho-mae','県庁前','',34.6853,135.8331],['Himurojinja / National Museum','氷室神社・国立博物館','',34.6853,135.8372],['Todaiji Daibutsuden / Kasugataisha-mae','東大寺大仏殿・春日大社前','',34.6848,135.8418]]},
+  ['Kyoto','京都','B01',34.9844,135.7577],['Toji','東寺','B02',34.9807,135.7497],['Takeda','竹田','B05',34.9530,135.7560],['Kintetsu-Tambabashi','近鉄丹波橋','B07',34.9360,135.7678],['Momoyamagoryo-mae','桃山御陵前','B08',34.9322,135.7721],['Okubo','大久保','B12',34.8781,135.7820],['Shin-Tanabe','新田辺','B16',34.8196,135.7696],['Shin-Hosono','新祝園','B21',34.7610,135.7960],['Takanohara','高の原','B24',34.7196,135.7863],['Yamato-Saidaiji','大和西大寺','A26',34.6938,135.7825],['Shin-Omiya','新大宮','A27',34.6849,135.8127],['Kintetsu-Nara','近鉄奈良','A28',34.6844,135.8279]]},
+ naraBus:{name:'Nara Kotsu bus 2, 77 or 97',ja:'奈良交通バス',operator:'Nara Kotsu',status:'https://www.narakotsu.co.jp/',stations:[
+  ['Kintetsu-Nara Station (stop 1)','近鉄奈良駅','',34.6848,135.8285],['Kencho-mae','県庁前','',34.6852,135.8318],['Kencho-higashi','県庁東','',34.6856,135.8350],['Himurojinja / National Museum','氷室神社・国立博物館','',34.6852,135.8378],['Todaiji Daibutsuden / Kasugataisha-mae','東大寺大仏殿・春日大社前','',34.6848,135.8418]]},
  // A daytime Special Rapid's stops. Nagaokakyo (JR-A35) is a Rapid stop that daytime Special
  // Rapids pass.
  jrKyoto:{name:'JR Kyoto Line, Special Rapid',ja:'JR京都線 新快速',operator:'JR West',status:'https://trafficinfo.westjr.co.jp/kinki.html',stations:[
@@ -44,15 +44,15 @@ const walk=(text,minutes)=>({mode:'walk',text,minutes});
 // Keyed by stop id. `towards` is what the platform sign says; `exit` is for the stop after.
 export const ROUTES={
  '2026-09-26-01':[walk('Hotel Kanra to Gojo Station, Exit 8.',1),
-  ride('karasuma','Gojo','Kyoto',{towards:'Takeda (竹田)',minutes:2,exit:'Follow the JR signs to the Sagano Line, platforms 31–33 at the west end.'}),
+  ride('karasuma','Gojo','Kyoto',{towards:'Takeda / Kintetsu (竹田・近鉄方面); any train',minutes:2,exit:'Follow the JR signs to the Sagano Line, platforms 31–33 at the west end.'}),
   ride('sagano','Kyoto','Saga-Arashiyama',{towards:'Sonobe / Kameoka',minutes:16,exit:'South Exit (南口), then about 10 min on foot to the bamboo grove.'})],
  '2026-09-26-07':[walk('% Arabica north up Nagatsuji-dori to JR Saga-Arashiyama.',15),
   ride('sagano','Saga-Arashiyama','Kyoto',{towards:'Kyoto (京都方面); every train ends there',minutes:16,exit:'Central Gate (中央口), then follow signs for JR Kyoto Isetan; the food hall is on B1.'})],
  '2026-09-26-09':[walk('Isetan to the Karasuma Line gates, under the station.',5),
   ride('karasuma','Kyoto','Gojo',{towards:'Kokusaikaikan (国際会館)',minutes:2,exit:'Exit 8. Hotel Kanra is about 1 minute from it.'})],
  '2026-09-27-03':[walk('Hotel Kanra to Kintetsu Kyoto, on the south (Hachijo) side of Kyoto Station.',15),
-  ride('kintetsu','Kyoto','Kintetsu-Nara',{towards:'Nara (奈良). A train for Kashihara-jingu-mae means changing at Yamato-Saidaiji to a Nara train, 2 stops.',minutes:45,exit:'Exit 1 or 2, then Bus Stop No. 1 at street level.'})],
- '2026-09-27-04':[walk('Kintetsu-Nara gates to Bus Stop No. 1 (eastbound).',5),
+  ride('kintetsu','Kyoto','Kintetsu-Nara',{towards:'Nara (奈良). A train for Kashihara-jingu-mae means changing at Yamato-Saidaiji to a Nara train, 2 stops.',minutes:45,exit:'West Gate (西改札), then Exit 5 (5番出口). At street level turn back; Bus Stop No. 1 (by the 7-Eleven) is the first stop.'})],
+ '2026-09-27-04':[walk('Kintetsu-Nara West Gate, Exit 5, then back along the street to Bus Stop No. 1 (eastbound, by the 7-Eleven).',5),
   ride('naraBus','Kintetsu-Nara Station (stop 1)','Todaiji Daibutsuden / Kasugataisha-mae',{towards:'Nara Park / Todai-ji',minutes:5,exit:'Deer and the Todai-ji approach are right there.'})],
  '2026-09-27-08':[walk('Nakatanidou to Kintetsu-Nara along Sanjo-dori.',5),
   ride('kintetsu','Kintetsu-Nara','Kyoto',{towards:'Kyoto (京都). Otherwise change at Yamato-Saidaiji to a Kyoto train.',minutes:45,exit:'Out through the Kintetsu gates, then the Karasuma Line one stop to Gojo, or 12–15 min on foot north up Karasuma-dori.'})],
@@ -76,22 +76,22 @@ export const ROUTES={
  '2026-10-01-14':[walk('DisneySea main gate to Tokyo DisneySea Station.',5),
   ride('resort','Tokyo DisneySea Station','Resort Gateway',{towards:'any train; the loop runs one way',minutes:4,exit:'Across to JR Maihama.'}),
   ride('keiyo','Maihama','Tokyo',{towards:'Tokyo (東京)',minutes:15,exit:'Follow signs for the Marunouchi Line (丸ノ内線), a long walk north through the station, 15–20 min.'}),
-  ride('marunouchi','Tokyo','Nishi-shinjuku',{towards:'Ogikubo (荻窪)',minutes:20,exit:'Follow signs for Hilton Tokyo through the underground Hiltopia passage.'})],
- '2026-10-02-02':[walk('Hilton Tokyo to Tochomae Station.',8),
+  ride('marunouchi','Tokyo','Nishi-shinjuku',{towards:'Ogikubo (荻窪)',minutes:20,exit:'Exit C8, then up into the Hiltopia arcade under Hilton Tokyo, about 2 min.'})],
+ '2026-10-02-02':[walk('Hilton Tokyo through Hiltopia to Exit C8, which links underground to Tochomae Station.',5),
   ride('oedo','Tochomae','Tsukijishijo',{towards:'Roppongi / Daimon (六本木・大門方面)',minutes:21,exit:'Exit A1, then about 3 min to the outer market.'})],
  '2026-10-02-04':[walk('Tsukiji Outer Market to Tsukiji Station (Hibiya Line).',5),
-  ride('hibiya','Tsukiji','Akihabara',{towards:'Kita-senju (北千住)',minutes:11,exit:'Follow signs for Electric Town (電気街) and Chuo-dori.'})],
+  ride('hibiya','Tsukiji','Akihabara',{towards:'Kita-senju (北千住)',minutes:11,exit:'Exit 3 to Chuo-dori and Electric Town (電気街).'})],
  '2026-10-02-09':[walk('Into JR Akihabara Station, Chuo-Sobu Line (yellow) platform.',10),
-  ride('chuoSobu','Akihabara','Shinjuku',{towards:'Mitaka / Shinjuku (westbound, yellow line)',minutes:20,exit:'West Exit (西口) for the Hilton shuttle, or the Marunouchi Line one stop to Nishi-shinjuku.'})],
- '2026-10-03-02':[walk('Hilton shuttle to Shinjuku Station West Exit (free).',10),
-  ride('yamanote','Shinjuku','Harajuku',{towards:'Shibuya / Shinagawa (outer loop, 外回り)',minutes:4,exit:'Takeshita Exit (竹下口); Takeshita Street is straight across the road.'})],
+  ride('chuoSobu','Akihabara','Shinjuku',{towards:'Mitaka / Shinjuku (westbound, yellow line)',minutes:20,exit:'West Exit (西口) for the Hilton shuttle (bus stop 28 on Chuo-dori, near underground Exit 9), or the Marunouchi Line one stop to Nishi-shinjuku.'})],
+ '2026-10-03-02':[walk('Hilton shuttle to Shinjuku West Exit (free; fewer trips since 2026, so check the timetable at the desk), or about 15 min on foot.',10),
+  ride('yamanote','Shinjuku','Harajuku',{towards:'Shibuya / Shinagawa (inner loop, 内回り), platform 14',minutes:4,exit:'Takeshita Exit (竹下口); Takeshita Street is straight across the road.'})],
  '2026-10-03-12':[walk('THE MATCHA TOKYO to JR Harajuku.',10),
-  ride('yamanote','Harajuku','Shinjuku',{towards:'Shinjuku / Ikebukuro (inner loop, 内回り)',minutes:4,exit:'West Exit (西口) for the Hilton shuttle, or 15 min on foot.'})],
- '2026-10-03-14':[walk('Hilton Tokyo through the Hiltopia passage to Nishi-shinjuku.',5),
+  ride('yamanote','Harajuku','Shinjuku',{towards:'Shinjuku / Ikebukuro (outer loop, 外回り)',minutes:4,exit:'West Exit (西口) for the Hilton shuttle (bus stop 28 on Chuo-dori, near underground Exit 9), or 15 min on foot.'})],
+ '2026-10-03-14':[walk('Hilton Tokyo through Hiltopia to Nishi-shinjuku, Exit C8.',5),
   ride('marunouchi','Nishi-shinjuku','Korakuen',{towards:'Ikebukuro (池袋)',minutes:25,exit:'Exit 2 to Tokyo Dome City.'})],
  '2026-10-03-18':[walk('Tokyo Dome to Korakuen Station; expect crowds.',10),
-  ride('marunouchi','Korakuen','Nishi-shinjuku',{towards:'Ogikubo (荻窪)',minutes:25,exit:'Follow signs for Hilton Tokyo through the Hiltopia passage.'})],
- '2026-10-04-02':[walk('Hilton Tokyo through the Hiltopia passage to Nishi-shinjuku.',5),
+  ride('marunouchi','Korakuen','Nishi-shinjuku',{towards:'Ogikubo (荻窪)',minutes:25,exit:'Exit C8, then up into the Hiltopia arcade under Hilton Tokyo, about 2 min.'})],
+ '2026-10-04-02':[walk('Hilton Tokyo through Hiltopia to Nishi-shinjuku, Exit C8.',5),
   ride('marunouchi','Nishi-shinjuku','Ginza',{towards:'Ikebukuro (池袋)',minutes:20,exit:'Follow signs for GINZA SIX (Exit A3 side).'})],
  '2026-10-04-06':[walk('Chuo-dori north to Tokyo Station, Marunouchi side. Or one stop on the Marunouchi Line from Ginza (M16) to Tokyo (M17), towards Ikebukuro.',20)],
  '2026-10-04-11':[walk('Tokyo Station to the Marunouchi Line gates.',5),
@@ -101,11 +101,11 @@ export const ROUTES={
   ride('odakyu','Shimokitazawa','Shinjuku',{towards:'Shinjuku (新宿); every train ends there',minutes:8,exit:'Follow Maps to dinner, about 10 min.'})],
  '2026-10-04-15':[walk('Shinjuku West Exit (西口): the Hilton shuttle, or about 15 min on foot through the underground passage to Hilton Tokyo. A taxi is about 5 min.',15)],
  '2026-10-05-10':[walk('Shibuya to JR Shibuya Station, Yamanote Line.',8),
-  ride('yamanote','Shibuya','Shinjuku',{towards:'Shinjuku / Ikebukuro (inner loop, 内回り)',minutes:7,exit:'West Exit (西口) for the Hilton shuttle, or 15 min on foot.'})],
+  ride('yamanote','Shibuya','Shinjuku',{towards:'Shinjuku / Ikebukuro (outer loop, 外回り)',minutes:7,exit:'West Exit (西口) for the Hilton shuttle (bus stop 28 on Chuo-dori, near underground Exit 9), or 15 min on foot.'})],
  '2026-10-06-03':[walk('Hilton shuttle or on foot to Odakyu Shinjuku.',15),
   ride('odakyu','Shinjuku','Gotokuji',{towards:'A Local (各駅停車) — the only trains that stop at Gotokuji',minutes:15,exit:'Out of the station, then about 10 min on foot to the temple.'})],
  '2026-10-06-05':[walk('Gotokuji Temple to Gotokuji Station.',10),
-  ride('odakyu','Gotokuji','Shinjuku',{towards:'Shinjuku (新宿)',minutes:15,exit:'West Exit (西口) for the Hilton shuttle, or 15 min on foot.'})],
+  ride('odakyu','Gotokuji','Shinjuku',{towards:'Shinjuku (新宿)',minutes:15,exit:'West Exit (西口) for the Hilton shuttle (bus stop 28 on Chuo-dori, near underground Exit 9), or 15 min on foot.'})],
 };
 const station=([name,ja,code,lat,lng])=>({name,ja,code,lat,lng});
 // The stations a leg passes, boarding and getting off included, in the order the train reaches

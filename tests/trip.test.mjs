@@ -8848,3 +8848,15 @@ test('tracking at a change follows the ride still to come',async()=>{
  const rides=[legStops({line:'karasuma',from:'Gojo',to:'Kyoto'}),legStops({line:'sagano',from:'Kyoto',to:'Saga-Arashiyama'})];
  assert.equal(whereOnRoute(rides,{lat:34.9858,lng:135.7588}).i,1);
 });
+test('route notes corrected after checking the operators reach a trip that already had the first notes',async()=>{
+ const {STOP_NOTES}=await import('../src/stop-notes.js');
+ const {NOTES_V1}=await import('../src/stop-notes-v1.js');
+ const old=structuredClone(seed);old.notesSeed=1;
+ for(const [id,text] of Object.entries(NOTES_V1))old.steps.find(s=>s.id===id).notes=text;
+ old.steps.find(s=>s.id==='2026-10-03-02').notes='We will taxi';
+ const state=upgraded(old);
+ assert.equal(state.steps.find(s=>s.id==='2026-09-29-08').notes,STOP_NOTES['2026-09-29-08'].notes);
+ assert.match(state.steps.find(s=>s.id==='2026-09-29-08').notes,/adult ¥260 · child ¥130/);
+ assert.equal(state.steps.find(s=>s.id==='2026-10-03-02').notes,'We will taxi');
+ assert.equal(upgraded(state).steps.find(s=>s.id==='2026-09-29-08').notes,STOP_NOTES['2026-09-29-08'].notes);
+});
