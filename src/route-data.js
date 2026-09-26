@@ -11,13 +11,13 @@ export const LINES={
   ['Kyoto','京都','JR-E01',34.9858,135.7588],['Umekoji-Kyotonishi','梅小路京都西','JR-E02',34.9873,135.7421],['Tambaguchi','丹波口','JR-E03',34.9960,135.7424],['Nijo','二条','JR-E04',35.0107,135.7418],['Emmachi','円町','JR-E05',35.0196,135.7328],['Hanazono','花園','JR-E06',35.0175,135.7215],['Uzumasa','太秦','JR-E07',35.0170,135.7079],['Saga-Arashiyama','嵯峨嵐山','JR-E08',35.0182,135.6813]]},
  // Stops of a Nara-bound Express (急行). Yamato-Saidaiji is B26 on the Kyoto Line and A26 on the
  // Nara Line.
- kintetsu:{name:'Kintetsu Kyoto & Nara Lines, Express',ja:'近鉄 急行',operator:'Kintetsu',status:'https://www.kintetsu.jp/unkou/unkou.html',kind:'Private railway',colour:'#B5122E',look:'Kintetsu (近鉄) signs and its own gates, on the south side of Kyoto Station, apart from JR. Trains are maroon-red and white. Board one shown as 急行 (Express); a 特急 (Limited Express) needs its own reserved ticket.',stations:[
+ kintetsu:{name:'Kintetsu Kyoto & Nara Lines, Express',ja:'近鉄 急行',operator:'Kintetsu',status:'https://www.kintetsu.jp/unkou/unkou.html',kind:'Private railway',colour:'#B5122E',look:'Kintetsu (近鉄) signs and its own gates, on the south side of Kyoto Station, apart from JR. Trains are maroon-red and white. Board one shown as 急行 (Express); a 特急 (Limited Express) is quicker but needs a seat ticket; see the options.',stations:[
   ['Kyoto','京都','B01',34.9844,135.7577],['Toji','東寺','B02',34.9807,135.7497],['Takeda','竹田','B05',34.9530,135.7560],['Kintetsu-Tambabashi','近鉄丹波橋','B07',34.9360,135.7678],['Momoyamagoryo-mae','桃山御陵前','B08',34.9322,135.7721],['Okubo','大久保','B12',34.8781,135.7820],['Shin-Tanabe','新田辺','B16',34.8196,135.7696],['Shin-Hosono','新祝園','B21',34.7610,135.7960],['Takanohara','高の原','B24',34.7196,135.7863],['Yamato-Saidaiji','大和西大寺','A26',34.6938,135.7825],['Shin-Omiya','新大宮','A27',34.6849,135.8127],['Kintetsu-Nara','近鉄奈良','A28',34.6844,135.8279]]},
  naraBus:{name:'Nara Kotsu bus 2, 77, 97 or 163',ja:'奈良交通バス',operator:'Nara Kotsu',status:'https://www.narakotsu.co.jp/',kind:'Bus',colour:'#3C7D3E',look:'Green-and-beige Nara Kotsu buses; the yellow Loop buses go past too. Check the number and 東大寺大仏殿 (Todai-ji Daibutsuden) on the front. Get on by the middle door and pay by IC card at the front as you get off.',stations:[
   ['Kintetsu-Nara Station (stop 1)','近鉄奈良駅','',34.6848,135.8285],['Kencho-mae','県庁前','',34.6852,135.8318],['Kencho-higashi','県庁東','',34.6856,135.8350],['Himurojinja / National Museum','氷室神社・国立博物館','',34.6852,135.8378],['Todaiji Daibutsuden / Kasugataisha-mae','東大寺大仏殿・春日大社前','',34.6848,135.8418]]},
  // A daytime Special Rapid's stops. Nagaokakyo (JR-A35) is a Rapid stop that daytime Special
  // Rapids pass.
- jrKyoto:{name:'JR Kyoto Line, Special Rapid',ja:'JR京都線 新快速',operator:'JR West',status:'https://trafficinfo.westjr.co.jp/kinki.html',kind:'JR',colour:'#0072BC',look:'Blue signs marked A (JR京都線). Take a 新快速 (Special Rapid) on the departure board; trains are silver-white with blue and brown stripes. Car 9 on some trains is A-Seat, an extra fee.',stations:[
+ jrKyoto:{name:'JR Kyoto Line, Special Rapid',ja:'JR京都線 新快速',operator:'JR West',status:'https://trafficinfo.westjr.co.jp/kinki.html',kind:'JR',colour:'#0072BC',look:'Blue signs marked A (JR京都線). Take a 新快速 (Special Rapid) on the departure board; trains are silver-white with blue and brown stripes. Car 9 on some trains is A-Seat, a reserved seat for an extra fee; see the options.',stations:[
   ['Kyoto','京都','JR-A31',34.9858,135.7588],['Takatsuki','高槻','JR-A38',34.8513,135.6177],['Shin-Osaka','新大阪','JR-A46',34.7335,135.5003],['Osaka','大阪','JR-A47',34.7025,135.4959]]},
  midosuji:{name:'Midosuji Line',ja:'御堂筋線',operator:'Osaka Metro',status:'https://subway.osakametro.co.jp/guide/traffic_information.php',kind:'Subway',colour:'#E5171F',look:'Red signs marked M (御堂筋線, Osaka Metro). Trains have a red stripe. Umeda is its own station, apart from JR Osaka.',stations:[
   ['Umeda','梅田','M16',34.7033,135.4985],['Yodoyabashi','淀屋橋','M17',34.6928,135.5013],['Hommachi','本町','M18',34.6822,135.5003],['Shinsaibashi','心斎橋','M19',34.6751,135.5009],['Namba','なんば','M20',34.6660,135.5011]]},
@@ -43,6 +43,15 @@ export const LINES={
 };
 const ride=(line,from,to,extra={})=>({mode:'ride',line,from,to,...extra});
 const walk=(text,minutes)=>({mode:'walk',text,minutes});
+// Choices on the same ride, with time, fare and how to pay, so the family can pick on the day.
+const KINTETSU_OPTIONS=[
+ {name:'Express',ja:'急行',minutes:45,fare:'adult ¥760 · child ¥380',how:'Tap an IC card (ICOCA, Suica, PASMO) at the Kintetsu gates, or buy a paper ticket from the fare machines. No seat reservation; sit anywhere free.'},
+ {name:'Limited Express',ja:'特急',minutes:35,fare:'adult ¥1,280 · child ¥640 (fare plus ¥520 / ¥260 for the seat)',how:'Tap in with an IC card as usual, then buy a Limited Express ticket for each person at the Limited Express machine inside the gates (or the ticket counter): choose the train, pay by cash, card or IC card. It gives a car and seat number. Show it if the conductor asks.'},
+];
+const JR_KYOTO_OPTIONS=[
+ {name:'Special Rapid',ja:'新快速',minutes:29,fare:'adult ¥580 · child ¥290',how:'Tap an IC card at the JR gates. Unreserved; stand by the door marks on the platform.'},
+ {name:'A-Seat on the same train',ja:'Aシート',minutes:29,fare:'the fare plus ¥600 a seat booked ahead, or ¥840 on the day',how:'Car 9 on some Special Rapids only; check for Aシート on the departure board. Book on JR West\'s e5489 site (free WESTER sign-up) for ¥600, or buy at a ticket machine or ticket office for ¥840. Tap an IC card at the gates for the fare as usual.'},
+];
 // Keyed by stop id. `towards` is what the platform sign says; `exit` is for the stop after.
 export const ROUTES={
  '2026-09-26-01':[walk('Hotel Kanra to Gojo Station, Exit 8.',1),
@@ -53,17 +62,17 @@ export const ROUTES={
  '2026-09-26-09':[walk('Isetan to the Karasuma Line gates, under the station.',5),
   ride('karasuma','Kyoto','Gojo',{towards:'Kokusaikaikan (国際会館)',minutes:2,exit:'Exit 8. Hotel Kanra is about 1 minute from it.'})],
  '2026-09-27-03':[walk('Hotel Kanra to Kintetsu Kyoto, on the south (Hachijo) side of Kyoto Station.',15),
-  ride('kintetsu','Kyoto','Kintetsu-Nara',{towards:'Nara (奈良). A train for Kashihara-jingu-mae means changing at Yamato-Saidaiji to a Nara train, 2 stops.',minutes:45,exit:'East Gate (東改札) and Exit 1, as the guide says, or West Gate (西改札) and Exit 5. Bus Stop No. 1 (eastbound, Nara Park side) is at street level.'})],
+  ride('kintetsu','Kyoto','Kintetsu-Nara',{towards:'Nara (奈良). A train for Kashihara-jingu-mae means changing at Yamato-Saidaiji to a Nara train, 2 stops.',minutes:45,options:KINTETSU_OPTIONS,exit:'East Gate (東改札) and Exit 1, as the guide says, or West Gate (西改札) and Exit 5. Bus Stop No. 1 (eastbound, Nara Park side) is at street level.'})],
  '2026-09-27-04':[walk('Kintetsu-Nara: East Gate, Exit 1 (or West Gate, Exit 5) up to Bus Stop No. 1, the eastbound stop on the Nara Park side. Any bus showing 東大寺大仏殿・春日大社前 (Todai-ji Daibutsuden / Kasuga Taisha-mae) or 市内循環外回り (City Loop, outer) goes there.',5),
   ride('naraBus','Kintetsu-Nara Station (stop 1)','Todaiji Daibutsuden / Kasugataisha-mae',{towards:'Nara Park / Todai-ji',minutes:5,exit:'Deer and the Todai-ji approach are right there.'})],
  '2026-09-27-08':[walk('Nakatanidou to Kintetsu-Nara along Sanjo-dori.',5),
-  ride('kintetsu','Kintetsu-Nara','Kyoto',{towards:'Kyoto (京都). Otherwise change at Yamato-Saidaiji to a Kyoto train.',minutes:45,exit:'Out through the Kintetsu gates, then the Karasuma Line one stop to Gojo, or 12–15 min on foot north up Karasuma-dori.'})],
+  ride('kintetsu','Kintetsu-Nara','Kyoto',{towards:'Kyoto (京都). Otherwise change at Yamato-Saidaiji to a Kyoto train.',minutes:45,options:KINTETSU_OPTIONS,exit:'Out through the Kintetsu gates, then the Karasuma Line one stop to Gojo, or 12–15 min on foot north up Karasuma-dori.'})],
  '2026-09-28-02-2':[walk('Hotel Kanra to Kyoto Station, JR gates.',15),
-  ride('jrKyoto','Kyoto','Osaka',{towards:'Osaka / Kobe / Himeji',minutes:29,exit:'Follow signs for the Midosuji Line (御堂筋線), Umeda, about 5–10 min.'}),
+  ride('jrKyoto','Kyoto','Osaka',{towards:'Osaka / Kobe / Himeji',minutes:29,options:JR_KYOTO_OPTIONS,exit:'Follow signs for the Midosuji Line (御堂筋線), Umeda, about 5–10 min.'}),
   ride('midosuji','Umeda','Shinsaibashi',{towards:'Namba / Tennoji / Nakamozu',minutes:7,exit:'North gate (北改札), then Exit 1 or 2 on the west side of Midosuji, into Minamisenba 4-chome for CHADO. Follow Maps for the last few minutes.'})],
  '2026-09-28-14':[walk('Dotonbori / Ebisubashi to Namba Station, Midosuji Line.',8),
   ride('midosuji','Namba','Umeda',{towards:'Umeda / Shin-Osaka / Esaka / Senri-Chuo / Minoh-Kayano',minutes:9,exit:'Follow signs for JR Osaka Station, about 8–10 min.'}),
-  ride('jrKyoto','Osaka','Kyoto',{towards:'Kyoto / Yasu / Maibara',minutes:29,exit:'Central Gate (中央口), then 12–15 min north up Karasuma-dori, or a taxi.'})],
+  ride('jrKyoto','Osaka','Kyoto',{towards:'Kyoto / Yasu / Maibara',minutes:29,options:JR_KYOTO_OPTIONS,exit:'Central Gate (中央口), then 12–15 min north up Karasuma-dori, or a taxi.'})],
  '2026-09-29-06':[ride('nozomi','Kyoto','Tokyo',{towards:'Tokyo (東京). Green Car 8.',minutes:135,exit:'Follow the red-and-white signs for the Keiyo Line (京葉線); the transfer is next.'})],
  '2026-09-29-07':[walk('Shinkansen platforms to the Keiyo Line: follow 京葉線 (Keiyo Line) signs south through the long underground walkway with moving walkways.',20)],
  '2026-09-29-08':[ride('keiyo','Tokyo','Maihama',{towards:'Any train; every Keiyo train stops at Maihama (Soga / Kaihin-Makuhari / Nishi-Funabashi / Fuchuhommachi)',minutes:15,exit:'South Exit, then about 5 min to Resort Gateway.'})],

@@ -56,6 +56,7 @@ export default function RouteCard({legs}){
     <p className="route-look"><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>
     <p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>
     <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes?` · about ${leg.minutes} min`:''}</p>
+    {leg.options&&<div className="route-options"><b>Options</b>{leg.options.map(o=><div key={o.name}><strong>{o.name} {o.ja&&<span lang="ja">{o.ja}</span>}<small>about {o.minutes} min</small></strong><span>{o.fare}</span><p>{o.how}</p></div>)}</div>}
     <div className="route-follow">
      <details open={here>=0||undefined}><summary>{line.kind==='Bus'?'Every stop':'Every station'}</summary>
       <ol className="route-stops">{stops.map((s,n)=><li key={n} className={n===next?'next':n===here&&where.at?'here':n<(next>=0?next:here)?'passed':''}><span>{s.name}</span>{n===next&&<em>Next</em>}{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span></li>)}</ol>
