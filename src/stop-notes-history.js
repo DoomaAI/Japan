@@ -6,7 +6,8 @@ export const NOTES_BEFORE={
  ],
  "2026-09-27-04": [
   "Travel: about 10 min. Follow signs to Bus Stop No. 1 (about 5 min from the gates), then 4–5 min on bus 2, 77, 97 or 163 to Todai-ji Daibutsuden / Kasugataisha-mae. Walking instead is 15–20 min.\nFare: adult ¥250 · child ¥130 each.\nUse live directions and bus signs; guide suggests eastbound bus stop 1.",
-  "Travel: about 10 min. West Gate (西改札), Exit 5, then back along the street to Bus Stop No. 1 by the 7-Eleven; 4–5 min on bus 2, 77 or 97 to Todai-ji Daibutsuden / Kasugataisha-mae. Walking instead is 15–20 min.\nFare: adult ¥250 · child ¥130 each.\nUse live directions and bus signs; guide suggests eastbound bus stop 1."
+  "Travel: about 10 min. West Gate (西改札), Exit 5, then back along the street to Bus Stop No. 1 by the 7-Eleven; 4–5 min on bus 2, 77 or 97 to Todai-ji Daibutsuden / Kasugataisha-mae. Walking instead is 15–20 min.\nFare: adult ¥250 · child ¥130 each.\nUse live directions and bus signs; guide suggests eastbound bus stop 1.",
+  "Travel: about 10 min. East Gate (東改札), Exit 1, or West Gate (西改札), Exit 5, up to Bus Stop No. 1; 4–5 min on bus 2, 77, 97 or 163 (any bus showing 東大寺大仏殿・春日大社前) to Todai-ji Daibutsuden / Kasugataisha-mae. Walking instead is 15–20 min.\nFare: adult ¥250 · child ¥130 each.\nUse live directions and bus signs; guide suggests eastbound bus stop 1."
  ],
  "2026-09-27-10": [
   "Travel: about 15 min by taxi, about ¥1,200–1,500 per car."

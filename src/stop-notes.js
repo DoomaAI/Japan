@@ -7,7 +7,7 @@
 import {NOTES_BEFORE} from './stop-notes-history.js';
 // 2: fares, loop directions and exits checked against the operators' own pages.
 // 3: contradictions with the printed guide settled, each checked again.
-export const NOTES_SEED=3;
+export const NOTES_SEED=4;
 const PLANS={
  '2026-09-26-01':{title:'Leave Kanra for Arashiyama',was:'Gojo → Kyoto → JR Sagano Line. Check Maps for departures.',lines:[
   'Travel: about 40 min. 1 min walk to Gojo Exit 8, subway 2 min (Gojo K10 → Kyoto K11), about 10 min to change at Kyoto, then about 16 min on the JR Sagano Line to Saga-Arashiyama (JR-E08).',
@@ -39,7 +39,7 @@ const PLANS={
   'Fare: adult ¥760 · child ¥380 each (Kintetsu, Kyoto → Kintetsu-Nara). A Limited Express adds ¥520 / ¥260.',
  ]},
  '2026-09-27-04':{title:'Bus towards Nara Park',was:'Use live directions and bus signs; guide suggests eastbound bus stop 1.',lines:[
-  'Travel: about 10 min. East Gate (東改札), Exit 1, or West Gate (西改札), Exit 5, up to Bus Stop No. 1; 4–5 min on bus 2, 77, 97 or 163 (any bus showing 東大寺大仏殿・春日大社前) to Todai-ji Daibutsuden / Kasugataisha-mae. Walking instead is 15–20 min.',
+  'Travel: about 10 min. East Gate (東改札), Exit 1, or West Gate (西改札), Exit 5, up to Bus Stop No. 1; 4–5 min on bus 2, 77, 97 or 163 (any bus showing 東大寺大仏殿・春日大社前, Todai-ji Daibutsuden / Kasuga Taisha-mae) to Todai-ji Daibutsuden / Kasugataisha-mae. Walking instead is 15–20 min.',
   'Fare: adult ¥250 · child ¥130 each.',
  ]},
  '2026-09-27-08':{title:'Train back to Kyoto',lines:[

@@ -8831,6 +8831,10 @@ test('every train and transfer has its route: line, direction, each station and 
    assert.ok(['JR','JR Shinkansen','Subway','Private railway','Bus','Monorail'].includes(line.kind)&&/^#[0-9A-F]{6}$/.test(line.colour)&&line.look.length>40,`${leg.line} kind, colour, look`);
    // Neighbouring stations are a few hundred metres to a few hundred kilometres apart: a
    // coordinate typed wrong would put a station in the sea.
+   // Fast-train stops name stations the ride actually passes.
+   for(const f of line.fast||[])for(const n of [...f.at,...(f.some||[])])assert.ok(line.stations.some(s=>s[0]===n),`${leg.line} ${f.name} ${n}`);
+   // A choice on the ride says how long, what it costs for adult and child, and how to pay.
+   for(const o of leg.options||[])assert.ok(o.name&&o.minutes>0&&/adult ¥|fare plus/.test(o.fare)&&o.how.length>40,`${id} ${o.name}`);
    stops.slice(1).forEach((s,i)=>assert.ok(distance(stops[i],s)>200&&distance(stops[i],s)<400000,`${id} ${stops[i].name} → ${s.name}`));
   }
  }
