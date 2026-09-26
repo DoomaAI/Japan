@@ -32,7 +32,9 @@ function Tracker({legs,rides,track}){
   {on&&!fix&&!trouble&&<span>Finding you…</span>}
   {trouble&&<span>{trouble}. Count the stops from the list instead.</span>}
   {on&&fix&&!where&&<span>Not near any station on this route yet.</span>}
-  {on&&where&&<span><strong>{where.arrived?`At ${stationLabel(where.nearest)}`:where.ready?`Next stop: ${stationLabel(stops[stops.length-1])} — get ready`:`Near ${stationLabel(where.nearest)}`}</strong>{!where.arrived&&` · ${where.left} stop${where.left===1?'':'s'} to go on the ${LINES[leg.line].name}`}{where.arrived&&leg.exit?` · ${leg.exit}`:''}</span>}
+  {on&&where&&(where.arrived
+   ?<p className="route-now"><strong>At {stationLabel(where.nearest)}. Get off here.</strong>{leg.exit&&<span>{leg.exit}</span>}</p>
+   :<p className="route-now"><small>{where.at?'Next stop':'Approaching'}{where.next===stops.length-1?' · get off here':''}</small><strong>{stationLabel(where.upcoming)}</strong><span>{where.at?`Now at ${stationLabel(where.nearest)} · `:''}{where.togo} stop{where.togo===1?'':'s'} to {stationLabel(stops[stops.length-1])} on the {LINES[leg.line].name}</span></p>)}
   {on&&fix&&age>=2&&<small>Last position {age} min ago; underground the phone often loses it.</small>}
  </div>;
 }
@@ -46,7 +48,7 @@ export default function RouteCard({legs}){
   <p className="eyebrow">ROUTE</p>
   {legs.map((leg,k)=>{
    if(leg.mode==='walk')return <p className="route-walk" key={k}><Footprints size={15}/><span>{leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span></p>;
-   const r=rideAt[k],line=LINES[leg.line],stops=rides[r],here=where&&where.i===r?where.index:-1;
+   const r=rideAt[k],line=LINES[leg.line],stops=rides[r],on=where&&where.i===r,here=on?where.index:-1,next=on&&!where.arrived?where.next:-1;
    const Icon=KIND_ICON[line.kind]||TrainFront;
    return <div className="route-ride" key={k} style={{'--line':line.colour}}>
     <strong className="route-line"><Icon size={16}/>{line.name} <span lang="ja">{line.ja}</span></strong>
@@ -56,7 +58,7 @@ export default function RouteCard({legs}){
     <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes?` · about ${leg.minutes} min`:''}</p>
     <div className="route-follow">
      <details open={here>=0||undefined}><summary>Every station</summary>
-      <ol className="route-stops">{stops.map((s,n)=><li key={n} className={n===here?'here':n<here?'passed':''}><span>{s.name}</span>{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span></li>)}</ol>
+      <ol className="route-stops">{stops.map((s,n)=><li key={n} className={n===next?'next':n===here&&where.at?'here':n<(next>=0?next:here)?'passed':''}><span>{s.name}</span>{n===next&&<em>Next</em>}{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span></li>)}</ol>
      </details>
      {r===trackAt&&<Tracker legs={legs} rides={rides} track={track}/>}
     </div>
