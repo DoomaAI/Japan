@@ -12,7 +12,7 @@ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url
 const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'},child_=child;
 
 test('every day, activity and alternative is linked to a real guide page',()=>{
- assert.equal(seed.days.length,16);assert.equal(seed.steps.length,237);assert.equal(new Set(seed.steps.map(s=>s.id)).size,237);
+ assert.equal(seed.days.length,16);assert.equal(seed.steps.length,246);assert.equal(new Set(seed.steps.map(s=>s.id)).size,246);
  for(const s of seed.steps){assert.ok(seed.days.some(d=>d.date===s.day));assert.ok(s.page>=1&&s.page<=72);assert.equal(Boolean(s.group),Boolean(s.option));}
  for(const [g,o]of Object.entries(seed.choices))assert.ok(seed.steps.some(s=>s.group===g&&s.option===o));
 });
@@ -893,7 +893,7 @@ test('every catalogue place can be shown to a taxi driver in Japanese',async()=>
 test('address matches preserve exact branches and leave ambiguous areas or station entrances alone',async()=>{
  const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
  const {resolveLocation,destinationFor,locationsForPage}=await import('../src/locations.js');const state={...seed,locations};
- assert.equal(seed.steps.filter(s=>resolveLocation(state,s)).length,186);
+ assert.equal(seed.steps.filter(s=>resolveLocation(state,s)).length,195);
  const harry=resolveLocation(state,'HARRY Harajuku Terrace');assert.match(harry.name,/Terrace/);assert.doesNotMatch(harry.name,/Station Front/);
  assert.equal(resolveLocation(state,'Harajuku Tokyo'),null);assert.equal(resolveLocation(state,'Tokyo Station Yaesu entrance'),null);
  assert.equal(resolveLocation(state,'THE MATCHA TOKYO Omotesando').name,'THE MATCHA TOKYO Omotesando');
@@ -2032,7 +2032,8 @@ test('a fact rides the card for the thing it is about, and only that card',async
  // The card's own words are the linkage, so the fact lands on the thing rather than on the day.
  const step=t=>seed.steps.find(s=>s.title===t);
  assert.deepEqual(ids(factsForStep(step('Find seats and enjoy sumo'))),['sumo-old','sumo-ring','sumo-salt','sumo-topknot','sumo-tournament']);
- assert.deepEqual(ids(factsForStep(step('Crossing and Hachiko'))),['hachiko','crossing']);
+ assert.deepEqual(ids(factsForStep(step('Shibuya Crossing'))),['crossing']);
+ assert.deepEqual(ids(factsForStep(step('Hachiko Statue'))),['hachiko']);
  assert.deepEqual(ids(factsForStep(step('Deer feeding'))),['deer-bow','deer-crackers']);
  assert.deepEqual(ids(factsForStep(step('Explore Gotokuji'))),['maneki-neko','which-paw','cat-shelves','shoes','temizuya']);
  // Same day, same guide page, different card: the taxi to Kyoto Station is not the bullet train,
@@ -8498,19 +8499,19 @@ test('a split keeps every lane on the day, each person sees their own, and every
  const {trip,day}=splitTrip();
  assert.equal(trip.groupModes['tokyo-reset'],'split');
  const all=activeSteps(trip,day).map(s=>s.title);
- assert.ok(all.includes('Games, gachapon and toys')&&all.includes('Ueno museum and park'),'both lanes are on the day, not just the chosen one');
+ assert.ok(all.includes('Games, gachapon and toys')&&all.includes('National Museum of Nature and Science'),'both lanes are on the day, not just the chosen one');
  const [split]=daySplits(trip,day);
  assert.deepEqual(split.lanes.map(l=>l.members),[['Damien','Nate'],['Lauren','Boston']]);
  assert.equal(split.meet.title,'Return to Hilton','the first stop after with everyone on it');
  assert.equal(laneOf(split,'Boston').option,'Ueno + dinosaurs');
  const nate=stepsFor(trip,day,'Nate').map(s=>s.title);
- assert.ok(nate.includes('Breakfast')&&nate.includes('Games, gachapon and toys')&&!nate.includes('Ueno museum and park'),'Nate follows his own lane and the shared stops');
+ assert.ok(nate.includes('Breakfast')&&nate.includes('Games, gachapon and toys')&&!nate.includes('National Museum of Nature and Science'),'Nate follows his own lane and the shared stops');
  assert.equal(stepsFor(trip,day,null).length,all.length,'everyone sees every lane');
  assert.deepEqual(splitWarnings(split,['Nate','Boston']),[]);
  const boysAlone=structuredClone(trip);for(const s of boysAlone.steps.filter(s=>s.option==='Ueno + dinosaurs'))s.participants=['Boston'];
  assert.match(splitWarnings(daySplits(boysAlone,day)[0],['Nate','Boston']).join(' '),/no grown-up/);
  const back=applyOperation(trip,{type:'groupMode',group:'tokyo-reset',mode:'choose'},parent);
- assert.ok(!activeSteps(back,day).some(s=>s.title==='Ueno museum and park'),'back to alternatives, only the chosen plan shows');
+ assert.ok(!activeSteps(back,day).some(s=>s.title==='National Museum of Nature and Science'),'back to alternatives, only the chosen plan shows');
  assert.throws(()=>applyOperation(seed,{type:'groupMode',group:'tokyo-reset',mode:'split'},child),e=>e.status===403);
  assert.throws(()=>applyOperation(seed,{type:'groupMode',group:'nope',mode:'split'},parent),/not found/);
  assert.ok(trip.alerts[0].summary.includes('we split up'),'the family is told');
@@ -8518,10 +8519,10 @@ test('a split keeps every lane on the day, each person sees their own, and every
 test('what somebody else is doing: what they marked arrived first, then the plan, said as the plan',async()=>{
  const {whereIs}=await import('../src/split.js');
  const {trip,day}=splitTrip();
- const ueno=trip.steps.find(s=>s.title==='Ueno museum and park');
+ const ueno=trip.steps.find(s=>s.title==='National Museum of Nature and Science');
  const arrived=structuredClone(trip);Object.assign(arrived.steps.find(s=>s.id===ueno.id),{status:'started',startedAt:'2026-10-02T01:00:00.000Z'});
  const boston=whereIs(arrived,day,'Boston',new Date('2026-10-02T02:00:00Z'));
- assert.equal(boston.how,'at');assert.equal(boston.step.title,'Ueno museum and park');assert.equal(boston.since,'10:00');
+ assert.equal(boston.how,'at');assert.equal(boston.step.title,'National Museum of Nature and Science');assert.equal(boston.since,'10:00');
  const nate=whereIs(trip,day,'Nate',new Date('2026-10-02T03:20:00Z'));
  assert.equal(nate.how,'planned');assert.equal(nate.step.title,'Games, gachapon and toys');
  const early=whereIs(trip,day,'Nate',new Date('2026-09-20T00:00:00Z'));
@@ -8734,6 +8735,33 @@ test('a parent adds an Express slot and it lands in the day at its time',()=>{
  assert.throws(()=>applyOperation(state,{type:'expressSlotAdd',park:'usj',rides:['tdl-space']},parent),/this park/);
 });
 
+test('a stop that named several places is split once into its own stops, keeping progress',async()=>{
+ const {STOP_SPLITS,splitStop}=await import('../src/stop-splits.js');
+ // The live trip was seeded before the split: rebuild that shape from the plan.
+ const old=structuredClone(seed);
+ for(const [id,plan] of Object.entries(STOP_SPLITS)){
+  const first=old.steps.find(s=>s.id===id);
+  old.steps=old.steps.filter(s=>!s.id.startsWith(`${id}-`));
+  Object.assign(first,{title:plan.title,duration:30});
+ }
+ assert.equal(old.steps.length,237);
+ const bridge=old.steps.find(s=>s.id==='2026-09-26-06');
+ Object.assign(bridge,{status:'done',completedAt:'2026-09-26T01:00:00.000Z',time:'10:00'});
+ const hachiko=old.steps.find(s=>s.id==='2026-09-22-13');hachiko.title='Hachiko only';
+ const state=upgraded(old);
+ assert.equal(state.steps.length,237+8);
+ const day=activeSteps(state,'2026-09-26').map(s=>[s.title,s.time,s.status]);
+ assert.deepEqual(day.filter(([t])=>['Togetsukyo Bridge','% Arabica'].includes(t)),[['Togetsukyo Bridge','10:00','done'],['% Arabica','10:20','done']]);
+ // A stop the family renamed is theirs now, and a second read does not split again.
+ assert.equal(state.steps.find(s=>s.id==='2026-09-22-13').title,'Hachiko only');
+ assert.equal(upgraded(state).steps.length,state.steps.length);
+ const started=splitStop({id:'x',title:'A',place:'P',time:null,originalTime:null,order:10,status:'started',startedAt:'t',pin:{lat:1,lng:2}},[{title:'A',place:'P',at:0},{title:'B',place:'Q',at:15}]);
+ assert.deepEqual(started.map(s=>[s.id,s.status,s.order,s.time,'pin' in s]),[['x','started',10,null,true],['x-2','todo',13,null,false]]);
+ // Every new stop points at a place on the family's map.
+ const {resolveLocation}=await import('../src/locations.js');
+ const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
+ for(const [id,plan] of Object.entries(STOP_SPLITS))plan.parts.forEach((p,i)=>assert.ok(resolveLocation({locations},p.place)||p.place==='Tsukiji Outer Market Tokyo',`${id} part ${i} ${p.place}`));
+});
 test('a fun fact about an activity pops up once, when that activity starts',async()=>{
  const {factsForStep}=await import('../src/fact-data.js');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
