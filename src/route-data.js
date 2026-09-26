@@ -31,7 +31,7 @@ export const LINES={
  oedo:{name:'Toei Oedo Line',ja:'都営大江戸線',operator:'Toei',status:'https://www.kotsu.metro.tokyo.jp/eng/',stations:[
   ['Tochomae','都庁前','E28',35.6907,139.6926],['Shinjuku','新宿','E27',35.6880,139.6990],['Yoyogi','代々木','E26',35.6831,139.7020],['Kokuritsu-kyogijo','国立競技場','E25',35.6800,139.7148],['Aoyama-itchome','青山一丁目','E24',35.6727,139.7240],['Roppongi','六本木','E23',35.6641,139.7321],['Azabu-juban','麻布十番','E22',35.6547,139.7372],['Akabanebashi','赤羽橋','E21',35.6552,139.7437],['Daimon','大門','E20',35.6563,139.7560],['Shiodome','汐留','E19',35.6639,139.7600],['Tsukijishijo','築地市場','E18',35.6652,139.7666]]},
  hibiya:{name:'Hibiya Line',ja:'日比谷線',operator:'Tokyo Metro',status:'https://www.tokyometro.jp/lang_en/index.html',stations:[
-  ['Tsukiji','築地','H11',35.6680,139.7719],['Hatchobori','八丁堀','H12',35.6749,139.7777],['Kayabacho','茅場町','H13',35.6799,139.7797],['Ningyocho','人形町','H14',35.6862,139.7825],['Kodemmacho','小伝馬町','H15',35.6912,139.7784],['Akihabara','秋葉原','H16',35.6983,139.7745]]},
+  ['Ginza','銀座','H09',35.6717,139.7640],['Higashi-ginza','東銀座','H10',35.6694,139.7671],['Tsukiji','築地','H11',35.6680,139.7719],['Hatchobori','八丁堀','H12',35.6749,139.7777],['Kayabacho','茅場町','H13',35.6799,139.7797],['Ningyocho','人形町','H14',35.6862,139.7825],['Kodemmacho','小伝馬町','H15',35.6912,139.7784],['Akihabara','秋葉原','H16',35.6983,139.7745]]},
  chuoSobu:{name:'JR Chuo-Sobu Line (Local)',ja:'中央・総武線 各駅停車',operator:'JR East',status:'https://traininfo.jreast.co.jp/train_info/e/kanto.aspx',stations:[
   ['Akihabara','秋葉原','JB19',35.6984,139.7731],['Ochanomizu','御茶ノ水','JB18',35.6993,139.7651],['Suidobashi','水道橋','JB17',35.7021,139.7535],['Iidabashi','飯田橋','JB16',35.7020,139.7450],['Ichigaya','市ケ谷','JB15',35.6912,139.7355],['Yotsuya','四ツ谷','JB14',35.6860,139.7302],['Shinanomachi','信濃町','JB13',35.6801,139.7202],['Sendagaya','千駄ケ谷','JB12',35.6812,139.7113],['Yoyogi','代々木','JB11',35.6830,139.7020],['Shinjuku','新宿','JB10',35.6896,139.7006]]},
  yamanote:{name:'JR Yamanote Line',ja:'山手線',operator:'JR East',status:'https://traininfo.jreast.co.jp/train_info/e/kanto.aspx',stations:[
@@ -77,16 +77,17 @@ export const ROUTES={
   ride('resort','Bayside','Resort Gateway',{towards:'any train; the loop runs one way',minutes:8,exit:'Across to JR Maihama.'}),
   ride('keiyo','Maihama','Tokyo',{towards:'Tokyo (東京)',minutes:15,exit:'Follow signs for the Marunouchi Line (丸ノ内線), a long walk north through the station, 15–20 min.'}),
   ride('marunouchi','Tokyo','Nishi-shinjuku',{towards:'Ogikubo (荻窪)',minutes:20,exit:'Exit C8, then up into the Hiltopia arcade under Hilton Tokyo, about 2 min.'})],
- '2026-10-02-02':[walk('Hilton Tokyo through Hiltopia to Exit C8, which links underground to Tochomae Station.',5),
-  ride('oedo','Tochomae','Tsukijishijo',{towards:'Roppongi / Daimon (六本木・大門方面)',minutes:21,exit:'Exit A1, then about 3 min to the outer market.'})],
+ '2026-10-02-02':[walk('Hilton Tokyo through Hiltopia to Nishi-shinjuku, Exit C8.',5),
+  ride('marunouchi','Nishi-shinjuku','Ginza',{towards:'Ikebukuro (池袋)',minutes:20,exit:'Follow the grey H signs to the Hibiya Line, about 3–4 min.'}),
+  ride('hibiya','Ginza','Tsukiji',{towards:'Kita-senju (北千住)',minutes:3,exit:'Exit 1 (or 2), then about 1 min to the outer market. No-change alternative: Oedo Line from Tochomae (E28) to Tsukijishijo (E18), Exit A1, about the same time but ¥280.'})],
  '2026-10-02-04':[walk('Tsukiji Outer Market to Tsukiji Station (Hibiya Line).',5),
   ride('hibiya','Tsukiji','Akihabara',{towards:'Kita-senju (北千住)',minutes:11,exit:'Exit 3 to Chuo-dori and Electric Town (電気街).'})],
  '2026-10-02-09':[walk('Into JR Akihabara Station, Chuo-Sobu Line (yellow) platform.',10),
-  ride('chuoSobu','Akihabara','Shinjuku',{towards:'Mitaka / Shinjuku (westbound, yellow line)',minutes:20,exit:'West Exit (西口) for the Hilton shuttle (bus stop 28 on Chuo-dori, near underground Exit 9), or the Marunouchi Line one stop to Nishi-shinjuku.'})],
- '2026-10-03-02':[walk('Hilton shuttle to Shinjuku West Exit (free; fewer trips since 2026, so check the timetable at the desk), or about 15 min on foot.',10),
+  ride('chuoSobu','Akihabara','Shinjuku',{towards:'Mitaka / Shinjuku (westbound, yellow line)',minutes:20,exit:'West Exit (西口) for the Hilton shuttle (bus stop 28 on Chuo-dori, by underground Exit 9; about every 20 min, last bus 20:40), or the Marunouchi Line one stop to Nishi-shinjuku.'})],
+ '2026-10-03-02':[walk('Hilton shuttle to Shinjuku West Exit, under 10 min (free, about every 20 min; check the timetable at the desk), or about 15 min on foot.',10),
   ride('yamanote','Shinjuku','Harajuku',{towards:'Shibuya / Shinagawa (inner loop, 内回り), platform 14',minutes:4,exit:'Takeshita Exit (竹下口); Takeshita Street is straight across the road.'})],
  '2026-10-03-12':[walk('THE MATCHA TOKYO to JR Harajuku.',10),
-  ride('yamanote','Harajuku','Shinjuku',{towards:'Shinjuku / Ikebukuro (outer loop, 外回り)',minutes:4,exit:'West Exit (西口) for the Hilton shuttle (bus stop 28 on Chuo-dori, near underground Exit 9), or 15 min on foot.'})],
+  ride('yamanote','Harajuku','Shinjuku',{towards:'Shinjuku / Ikebukuro (outer loop, 外回り)',minutes:4,exit:'West Exit (西口) for the Hilton shuttle (bus stop 28 on Chuo-dori, by underground Exit 9; about every 20 min, last bus 20:40), or 15 min on foot.'})],
  '2026-10-03-14':[walk('Hilton Tokyo through Hiltopia to Nishi-shinjuku, Exit C8.',5),
   ride('marunouchi','Nishi-shinjuku','Korakuen',{towards:'Ikebukuro (池袋)',minutes:25,exit:'Exit 2 to Tokyo Dome City.'})],
  '2026-10-03-18':[walk('Tokyo Dome to Korakuen Station; expect crowds.',10),
@@ -96,16 +97,18 @@ export const ROUTES={
  '2026-10-04-06':[walk('Chuo-dori north to Tokyo Station, Marunouchi side. Or one stop on the Marunouchi Line from Ginza (M16) to Tokyo (M17), towards Ikebukuro.',20)],
  '2026-10-04-11':[walk('Tokyo Station to the Marunouchi Line gates.',5),
   ride('marunouchi','Tokyo','Shinjuku',{towards:'Ogikubo (荻窪)',minutes:17,exit:'Follow signs for the Odakyu Line (小田急線), about 5 min.'}),
-  ride('odakyu','Shinjuku','Shimokitazawa',{towards:'Odawara / Fujisawa. An Express skips the small stations.',minutes:8,exit:'Follow Maps to Beyblade Bar, a few minutes away.'})],
+  ride('odakyu','Shinjuku','Shimokitazawa',{towards:'Odawara / Fujisawa. An Express skips the small stations.',minutes:8,exit:'Follow Maps to Beyblade Bar, a few minutes away. Door to door is 35–40 min, not the guide\'s 15; JR Chuo Rapid from Tokyo to Shinjuku is a few minutes quicker than the Marunouchi Line.'})],
  '2026-10-04-13':[walk('Beyblade Bar to Shimokitazawa Station, Odakyu Line.',5),
   ride('odakyu','Shimokitazawa','Shinjuku',{towards:'Shinjuku (新宿); every train ends there',minutes:8,exit:'Follow Maps to dinner, about 10 min.'})],
  '2026-10-04-15':[walk('Shinjuku West Exit (西口): the Hilton shuttle, or about 15 min on foot through the underground passage to Hilton Tokyo. A taxi is about 5 min.',15)],
+ '2026-10-05-01':[walk('Hilton shuttle to Shinjuku West Exit, under 10 min, or about 15 min on foot.',10),
+  ride('yamanote','Shinjuku','Shibuya',{towards:'Shibuya / Shinagawa (inner loop, 内回り), platform 14',minutes:7,exit:'Hachiko Exit (ハチ公口), then about 7 min on foot to FLIPPER\'S, 1-15-5 Jinnan.'})],
  '2026-10-05-10':[walk('Shibuya to JR Shibuya Station, Yamanote Line.',8),
-  ride('yamanote','Shibuya','Shinjuku',{towards:'Shinjuku / Ikebukuro (outer loop, 外回り)',minutes:7,exit:'West Exit (西口) for the Hilton shuttle (bus stop 28 on Chuo-dori, near underground Exit 9), or 15 min on foot.'})],
+  ride('yamanote','Shibuya','Shinjuku',{towards:'Shinjuku / Ikebukuro (outer loop, 外回り), platform 1',minutes:7,exit:'West Exit (西口) for the Hilton shuttle (bus stop 28 on Chuo-dori, by underground Exit 9; about every 20 min, last bus 20:40), or 15 min on foot.'})],
  '2026-10-06-03':[walk('Hilton shuttle or on foot to Odakyu Shinjuku.',15),
   ride('odakyu','Shinjuku','Gotokuji',{towards:'A Local (各駅停車) — the only trains that stop at Gotokuji',minutes:15,exit:'Out of the station, then about 10 min on foot to the temple.'})],
  '2026-10-06-05':[walk('Gotokuji Temple to Gotokuji Station.',10),
-  ride('odakyu','Gotokuji','Shinjuku',{towards:'Shinjuku (新宿)',minutes:15,exit:'West Exit (西口) for the Hilton shuttle (bus stop 28 on Chuo-dori, near underground Exit 9), or 15 min on foot.'})],
+  ride('odakyu','Gotokuji','Shinjuku',{towards:'Shinjuku (新宿)',minutes:15,exit:'West Exit (西口) for the Hilton shuttle (bus stop 28 on Chuo-dori, by underground Exit 9; about every 20 min, last bus 20:40), or 15 min on foot.'})],
 };
 const station=([name,ja,code,lat,lng])=>({name,ja,code,lat,lng});
 // The stations a leg passes, boarding and getting off included, in the order the train reaches

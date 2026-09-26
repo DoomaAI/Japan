@@ -8848,15 +8848,21 @@ test('tracking at a change follows the ride still to come',async()=>{
  const rides=[legStops({line:'karasuma',from:'Gojo',to:'Kyoto'}),legStops({line:'sagano',from:'Kyoto',to:'Saga-Arashiyama'})];
  assert.equal(whereOnRoute(rides,{lat:34.9858,lng:135.7588}).i,1);
 });
-test('route notes corrected after checking the operators reach a trip that already had the first notes',async()=>{
+test('route notes corrected since reach a trip that already had an earlier version',async()=>{
  const {STOP_NOTES}=await import('../src/stop-notes.js');
- const {NOTES_V1}=await import('../src/stop-notes-v1.js');
- const old=structuredClone(seed);old.notesSeed=1;
- for(const [id,text] of Object.entries(NOTES_V1))old.steps.find(s=>s.id===id).notes=text;
- old.steps.find(s=>s.id==='2026-10-03-02').notes='We will taxi';
- const state=upgraded(old);
- assert.equal(state.steps.find(s=>s.id==='2026-09-29-08').notes,STOP_NOTES['2026-09-29-08'].notes);
- assert.match(state.steps.find(s=>s.id==='2026-09-29-08').notes,/adult ¥260 · child ¥130/);
- assert.equal(state.steps.find(s=>s.id==='2026-10-03-02').notes,'We will taxi');
- assert.equal(upgraded(state).steps.find(s=>s.id==='2026-09-29-08').notes,STOP_NOTES['2026-09-29-08'].notes);
+ const {NOTES_BEFORE}=await import('../src/stop-notes-history.js');
+ for(const version of [0,1]){
+  const old=structuredClone(seed);old.notesSeed=2;
+  for(const [id,texts] of Object.entries(NOTES_BEFORE))old.steps.find(s=>s.id===id).notes=texts[Math.min(version,texts.length-1)];
+  old.steps.find(s=>s.id==='2026-10-03-02').notes='We will taxi';
+  const state=upgraded(old);
+  for(const id of Object.keys(NOTES_BEFORE).filter(id=>id!=='2026-10-03-02'))assert.equal(state.steps.find(s=>s.id===id).notes,STOP_NOTES[id].notes,id);
+  assert.equal(state.steps.find(s=>s.id==='2026-10-03-02').notes,'We will taxi');
+  assert.equal(upgraded(state).steps.find(s=>s.id==='2026-09-29-08').notes,STOP_NOTES['2026-09-29-08'].notes);
+ }
+ // Checked against the operators and the guide: the loop that leaves Shinjuku for Shibuya, the
+ // Keiyo fare, and the Fantasy Springs way out.
+ assert.match(STOP_NOTES['2026-10-05-01'].notes,/inner loop \(内回り\) from platform 14/);
+ assert.match(STOP_NOTES['2026-09-29-08'].notes,/adult ¥260 · child ¥130/);
+ assert.match(STOP_NOTES['2026-10-01-14'].notes,/Fantasy Springs Entrance/);
 });
