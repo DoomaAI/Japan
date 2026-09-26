@@ -40,6 +40,8 @@ const KIND_ICON={Subway:TrainFrontTunnel,Bus,Monorail:TramFront};
 export default function RouteCard({legs}){
  const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
  const rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
+ // The tracker sits with the station list of the ride it is following (the first ride until it knows).
+ const trackAt=where?where.i:0;
  return <section className="route-card" aria-label="Route">
   <p className="eyebrow">ROUTE</p>
   {legs.map((leg,k)=>{
@@ -52,13 +54,15 @@ export default function RouteCard({legs}){
     <p className="route-look"><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>
     <p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>
     <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes?` · about ${leg.minutes} min`:''}</p>
-    <details open={here>=0||undefined}><summary>Every station</summary>
-     <ol className="route-stops">{stops.map((s,n)=><li key={n} className={n===here?'here':n<here?'passed':''}><span>{s.name}</span>{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span></li>)}</ol>
-    </details>
-    {leg.exit&&<p className="route-exit"><b>Exit:</b> {leg.exit}</p>}
+    <div className="route-follow">
+     <details open={here>=0||undefined}><summary>Every station</summary>
+      <ol className="route-stops">{stops.map((s,n)=><li key={n} className={n===here?'here':n<here?'passed':''}><span>{s.name}</span>{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span></li>)}</ol>
+     </details>
+     {r===trackAt&&<Tracker legs={legs} rides={rides} track={track}/>}
+    </div>
     <div className="route-links"><a href={liveTimes(leg)} target="_blank" rel="noreferrer"><Radio size={14}/>Live times</a><a href={line.status} target="_blank" rel="noreferrer"><ExternalLink size={14}/>{line.operator} service status</a></div>
+    {leg.exit&&<p className="route-exit"><b>Exit:</b> {leg.exit}</p>}
    </div>;
   })}
-  {rides.length>0&&<Tracker legs={legs} rides={rides} track={track}/>}
  </section>;
 }
