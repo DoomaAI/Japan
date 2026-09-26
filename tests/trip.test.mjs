@@ -8794,3 +8794,26 @@ test('a fun fact about an activity pops up once, when that activity starts',asyn
  assert.match(main,/japan\.stepfact\.\$\{startedWithFact\.id\}/);
  assert.match(main,/japan\.stepfact\.fact\.\$\{f\.id\}/);
 });
+test('travel stops carry their time and fares once, without overwriting family notes',async()=>{
+ const {STOP_NOTES}=await import('../src/stop-notes.js');
+ for(const [id,plan] of Object.entries(STOP_NOTES)){
+  assert.equal(seed.steps.find(s=>s.id===id).notes,plan.notes,id);
+  // Every walk, taxi and train says how long it takes; the guide's own note stays underneath.
+  assert.match(plan.notes,/^Travel: about|^Travel: allow|^Travel: 2 h/,id);
+  if(plan.was)assert.ok(plan.notes.endsWith(plan.was),id);
+  if(/\btrain\b|subway|bus|Resort Line|Nozomi/i.test(plan.title))assert.match(plan.notes,/adult ¥[\d,]+ · child ¥[\d,]+|Tickets are booked/,id);
+ }
+ const back=STOP_NOTES['2026-09-26-07'].notes;
+ // Where from, which line, every station with its number, and the exit for the next stop.
+ for(const bit of ['From: % Arabica','JR Sagano Line','7 stops','JR-E08','Nijo JR-E04','Kyoto JR-E01','Central Gate','Isetan','adult ¥240 · child ¥120'])assert.ok(back.includes(bit),bit);
+ // The live trip was seeded with the guide's notes.
+ const old=structuredClone(seed);
+ for(const [id,plan] of Object.entries(STOP_NOTES))old.steps.find(s=>s.id===id).notes=plan.was;
+ old.steps.find(s=>s.id==='2026-09-27-03').notes='Taking the Limited Express';
+ const state=upgraded(old);
+ assert.equal(state.steps.find(s=>s.id==='2026-09-26-07').notes,back);
+ assert.equal(state.steps.find(s=>s.id==='2026-09-27-03').notes,'Taking the Limited Express');
+ // Cleared later by the family, it stays cleared.
+ state.steps.find(s=>s.id==='2026-09-26-07').notes='';
+ assert.equal(upgraded(state).steps.find(s=>s.id==='2026-09-26-07').notes,'');
+});
