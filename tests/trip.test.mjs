@@ -8794,3 +8794,19 @@ test('a fun fact about an activity pops up once, when that activity starts',asyn
  assert.match(main,/japan\.stepfact\.\$\{startedWithFact\.id\}/);
  assert.match(main,/japan\.stepfact\.fact\.\$\{f\.id\}/);
 });
+test('the walk back to Kyoto Station carries its route once, without overwriting family notes',async()=>{
+ const {STOP_NOTES}=await import('../src/stop-notes.js');
+ const plan=STOP_NOTES['2026-09-26-07'];
+ assert.equal(seed.steps.find(s=>s.id==='2026-09-26-07').notes,plan.notes);
+ // Where from, which line, every station with its number, and the exit for the next stop.
+ for(const bit of ['From: % Arabica','JR Sagano Line','7 stops','JR-E08','Nijo JR-E04','Kyoto JR-E01','Central Gate','Isetan'])assert.ok(plan.notes.includes(bit),bit);
+ // The live trip was seeded without notes.
+ const old=structuredClone(seed);old.steps.find(s=>s.id==='2026-09-26-07').notes='';
+ const state=upgraded(old);
+ assert.equal(state.steps.find(s=>s.id==='2026-09-26-07').notes,plan.notes);
+ const mine=structuredClone(old);mine.steps.find(s=>s.id==='2026-09-26-07').notes='Taking the Randen instead';
+ assert.equal(upgraded(mine).steps.find(s=>s.id==='2026-09-26-07').notes,'Taking the Randen instead');
+ // Cleared later by the family, it stays cleared.
+ state.steps.find(s=>s.id==='2026-09-26-07').notes='';
+ assert.equal(upgraded(state).steps.find(s=>s.id==='2026-09-26-07').notes,'');
+});
