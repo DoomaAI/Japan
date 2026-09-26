@@ -17,7 +17,7 @@ export const SETTINGS=[
   on:'One new Japanese phrase each morning, with how to say it.',
   off:'No phrase will pop up. The whole phrasebook stays under More, and Show me another still hands over the next one.'},
  {id:'dailyFact',label:'Fun fact of the day',
-  on:'One fact each morning about what that day actually holds, out of our own guide.',
+  on:'One fact each morning about what that day actually holds, out of our own guide — and one as each activity it is about gets started.',
   off:'No fact will pop up. Every fact stays under More, and Show me another still hands over the next one.'}
 ];
 // On unless somebody has said otherwise, so a phone that has never opened this page behaves

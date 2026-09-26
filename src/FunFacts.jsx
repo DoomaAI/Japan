@@ -12,7 +12,7 @@ import SoundCheck from './SoundCheck.jsx';
 // nobody is ever shown the same fact twice.
 // `young` is Nate: he is five, so the fact is no use to him as words on a screen. The phone
 // reads it to him, slower than talking pace, and the button to do it comes before the rest.
-export function FactOfDay({queue,dateLabel,busy,dismiss,openPage,young}){
+export function FactOfDay({queue,dateLabel,heading,busy,dismiss,openPage,young}){
  const [index,setIndex]=useState(0),touch=useRef(null),seen=useRef(new Set());
  const {supported:canRead,reading,read,problem}=useReadAloud();
  const fact=queue[index]||queue[0];
@@ -33,7 +33,7 @@ export function FactOfDay({queue,dateLabel,busy,dismiss,openPage,young}){
    move(swipeDelta(touch.current,{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY}));
    touch.current=null;
   }}>
-  <p className="eyebrow"><Lightbulb size={14}/> {index?`ONE MORE · ${index+1} OF ${queue.length}`:`TODAY’S FUN FACT · ${dateLabel}`}</p>
+  <p className="eyebrow"><Lightbulb size={14}/> {index?`ONE MORE · ${index+1} OF ${queue.length}`:heading||`TODAY’S FUN FACT · ${dateLabel}`}</p>
   <span className="fact-picture" role="img" aria-label={fact.title}>{fact.icon}</span>
   <strong className="fact-title">{fact.title}</strong>
   <p className="fact-text">{fact.text}</p>
@@ -46,7 +46,7 @@ export function FactOfDay({queue,dateLabel,busy,dismiss,openPage,young}){
   </div>}
   <button className="primary" disabled={busy} onClick={()=>dismiss([...seen.current])}>Got it</button>
   {openPage&&<button type="button" onClick={()=>openPage(fact.page,[...seen.current])}><BookOpen size={16}/> Page {fact.page} of the guide</button>}
-  <p><small>{young?'One fact each day about what we are doing that day. Tap Read to me to hear it, then One more for another. Nothing here has to be read.':'One fact each day about what that day actually holds, straight out of the guide, and as many more as you like. Everything you see is kept under More → Fun facts.'}</small></p>
+  {!heading&&<p><small>{young?'One fact each day about what we are doing that day. Tap Read to me to hear it, then One more for another. Nothing here has to be read.':'One fact each day about what that day actually holds, straight out of the guide, and as many more as you like. Everything you see is kept under More → Fun facts.'}</small></p>}
  </div>;
 }
 // The whole collection, the ones tied to today, and everything this person has already met.
