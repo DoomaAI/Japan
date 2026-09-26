@@ -372,11 +372,34 @@ test('a day we have walked through folds down and greys in the Days menu',async(
  // The tile folds to its name, tally and city, greys, and is still one tap into its photos.
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
- assert.match(main,/className=\{`day-tile\$\{progress\.finished\?' finished':''\}/);
- assert.match(main,/progress\.finished\?<small className="day-finished">/);
+ assert.match(main,/className=\{`day-tile\$\{behind\?' finished':''\}/);
+ assert.match(main,/behind\?<small className="day-finished">/);
+ assert.match(main,/\{behind&&<span className="day-tick" aria-label="Completed">/,'a completed day carries a tick');
  assert.match(main,/key=\{d\.date\} onClick=\{\(\)=>go\('glance',d\.date\)\}/,'a day is one tap into its day at a glance');
  assert.match(css,/\.day-tile\.finished\{[^}]*opacity:\.6/);
  assert.match(css,/\.days-grid\{align-items:start\}/,'so a folded tile does not stretch to its neighbour');
+});
+test('the trip countdown counts down in Japan days, then counts the days of the trip',async()=>{
+ const {tripCountdown,dayBehind,japanDate}=await import('../src/timing.js');
+ const days=seed.days,first=days[0].date,last=days.at(-1).date,total=days.length;
+ assert.equal(tripCountdown([],first),null);
+ assert.deepEqual(tripCountdown(days,'2026-09-11'),{phase:'before',days:10,total,text:'10 days to go'});
+ assert.equal(tripCountdown(days,'2026-09-20').text,'Tomorrow we fly!');
+ assert.equal(tripCountdown(days,first).text,`Day 1 of ${total}`);
+ assert.equal(tripCountdown(days,last).sub,'Our last day');
+ assert.equal(tripCountdown(days,'2026-12-01').phase,'after');
+ // Tokyo's midnight turns the number over, not the phone's.
+ assert.equal(japanDate(new Date('2026-09-20T15:30:00Z')),first);
+ // A day is behind us once its date has gone, even if nobody ticked every stop.
+ assert.equal(dayBehind(seed,first,last),true);
+ assert.equal(dayBehind(seed,last,first),false);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const {HOME_WIDGETS,homeShown,toggleWidget,emptyHome}=await import('../src/home-widgets.js');
+ assert.ok(!homeShown(emptyHome()).includes('countdown'),'an option, put away until somebody wants it');
+ assert.equal(homeShown(toggleWidget(emptyHome(),'countdown'))[0],'countdown','and it leads Home once brought out');
+ assert.ok(HOME_WIDGETS.countdown.label);
+ assert.match(main,/countdown:\(c=>c&&<section className=\{`countdown-card/);
+ assert.match(main,/\{behind&&<Check className="strip-tick"/,'the date strip ticks the days behind us');
 });
 test('the Days cover is a book to swipe, and the day on the open page is picked out below',async()=>{
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
@@ -1799,9 +1822,9 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  const screen=await readFile(new URL('../src/Personalise.jsx',import.meta.url),'utf8');
  // Untouched, Home shows everything but the day's buttons, with the step we are on first.
  const ON=HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id));
- assert.deepEqual(HOME_OFF,['glance','adjust','tired','apps']);
+ assert.deepEqual(HOME_OFF,['countdown','glance','adjust','tired','apps']);
  assert.deepEqual(homeShown(emptyHome()),ON);
- assert.equal(HOME_DEFAULT[0],'step','the step card leads Home');
+ assert.equal(ON[0],'step','the step card leads Home');
  for(const id of HOME_DEFAULT)assert.ok(HOME_WIDGETS[id].label&&HOME_WIDGETS[id].note,id);
  // Moved and put away, and nothing lost: a widget put away is still in the order to come back.
  let prefs=moveWidget(emptyHome(),'weather',-10);
@@ -1824,7 +1847,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.equal(homeShown(cleanHome(JSON.parse(JSON.stringify(prefs))))[0],'tired','kept through storage');
  assert.ok(!homeShown(toggleWidget(prefs,'tired')).includes('tired'));
  // An older phone's single 'actions' widget becomes the four, in its place.
- assert.deepEqual(homeOrder({order:['actions','step'],hidden:['actions']}).slice(0,5),[...HOME_OFF,'step']);
+ assert.deepEqual(homeOrder({order:['actions','step'],hidden:['actions']}).slice(0,5),['glance','adjust','tired','apps','step']);
  // Side by side they share one grid; apart, each is its own.
  assert.deepEqual(homeRuns(['step','tired','apps','weather','glance']),['step',['tired','apps'],'weather',['glance']]);
  // Home draws them by id, the day heading and strip stay put, and the phone keeps the choice.

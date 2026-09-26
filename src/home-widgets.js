@@ -10,6 +10,7 @@
 // sit straight under it, and the things read once a day — the guide, the tally, shop finds —
 // come after.
 export const HOME_WIDGETS={
+ countdown:{label:'Trip countdown',note:'Days to go before we fly, then which day of the trip it is',off:true},
  step:{label:'The step we are on',note:'The current stop, swipe for the rest of the day'},
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},
  needs:{label:'Before we head out',note:'What to carry out the door this morning'},
@@ -25,12 +26,13 @@ export const HOME_WIDGETS={
  finds:{label:'Shop finds',note:'Things we photographed in a shop on this day'},
  guide:{label:'This day in the guide',note:'The original guide pages for the day'}
 };
+// The countdown starts put away and sits at the top once brought out, above the step card.
 // The day's buttons — the day at a glance, adjust the day, we're tired, useful apps — live on
 // Today, beside the stops they act on, so Home starts without them. Each can still be put on
 // Home as a widget of its own; side by side they share one grid rather than stacking.
 export const HOME_OFF=Object.keys(HOME_WIDGETS).filter(id=>HOME_WIDGETS[id].off);
 // Older phones stored the four as one 'actions' widget; wherever it sat, the four sit instead.
-const LEGACY={actions:HOME_OFF};
+const LEGACY={actions:Object.keys(HOME_WIDGETS).filter(id=>HOME_WIDGETS[id].action)};
 // The order Home comes in untouched, which is also where a widget added in a later version
 // lands for somebody who has already arranged theirs.
 export const HOME_DEFAULT=Object.keys(HOME_WIDGETS);
