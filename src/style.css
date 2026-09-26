@@ -467,7 +467,13 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .timeline .timeline-meta small{margin:0;font-size:.74rem}
 .timeline .timeline-meta .timeline-weather{font-size:.74rem}
 .timeline .timeline-meta small+small:before{content:'·';margin-right:.5rem}
-.timeline .timeline-tick input{width:20px;height:20px;min-height:20px}
+/* The dot on the card is the tick: the checkbox sits invisibly over it with a finger-sized hit
+   area, so a stop has one completion mark rather than a box beside a dot saying the same thing. */
+.timeline .timeline-row{position:relative}
+.timeline .timeline-tick{position:absolute;z-index:1;left:calc(42px + 1rem - 9px);top:calc(.4rem - 7px);padding:0}
+.timeline .timeline-tick input{width:32px;height:32px;min-height:32px;margin:0;opacity:0;cursor:pointer}
+.timeline .timeline-tick input:disabled{pointer-events:none}
+.timeline-row:has(.timeline-tick input:focus-visible) .timeline-dot{outline:2px solid var(--green);outline-offset:2px}
 .timeline .reorder-tools{grid-template-columns:20px 24px 24px;grid-auto-rows:26px;align-items:center}
 .timeline .reorder-tools button{min-height:26px}
 .timeline .reorder-tools .drag-handle{grid-column:auto;grid-row:span 2;min-height:52px}
@@ -476,7 +482,7 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .timeline .timeline-insert.end{min-height:36px}
 /* The finished time reads as one more grey line of the stop's meta, aligned under its title and
    faded with it, rather than a boxed field; a dotted underline is the only hint it can be changed. */
-.timeline .timeline-done-time{gap:.3rem;margin:-.45rem 0 .2rem;padding-left:calc(83px + 2.05rem);font-size:.74rem;font-weight:400;opacity:.55}
+.timeline .timeline-done-time{gap:.3rem;margin:-.45rem 0 .2rem;padding-left:calc(57px + 1.55rem);font-size:.74rem;font-weight:400;opacity:.55}
 .timeline .timeline-done-time input{width:auto;min-height:0;height:auto;padding:0;border:0;border-bottom:1px dotted currentColor;border-radius:0;background:none;box-shadow:none;color:inherit;font-size:inherit;line-height:1.3}
 .timeline .timeline-done-time input::-webkit-calendar-picker-indicator{display:none}
 .home-customise{display:flex;justify-content:center;margin:1.4rem 0 .4rem}
