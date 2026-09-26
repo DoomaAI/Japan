@@ -8826,6 +8826,9 @@ test('every train and transfer has its route: line, direction, each station and 
    if(leg.mode==='walk'){assert.ok(leg.text&&leg.minutes>0,id);continue;}
    const stops=legStops(leg);
    assert.ok(stops.length>=2&&leg.towards&&leg.exit&&leg.minutes>0&&LINES[leg.line].status.startsWith('https://'),`${id} ${leg.line}`);
+   // Whose line it is, its sign colour and what to look for on the way.
+   const line=LINES[leg.line];
+   assert.ok(['JR','JR Shinkansen','Subway','Private railway','Bus','Monorail'].includes(line.kind)&&/^#[0-9A-F]{6}$/.test(line.colour)&&line.look.length>40,`${leg.line} kind, colour, look`);
    // Neighbouring stations are a few hundred metres to a few hundred kilometres apart: a
    // coordinate typed wrong would put a station in the sea.
    stops.slice(1).forEach((s,i)=>assert.ok(distance(stops[i],s)>200&&distance(stops[i],s)<400000,`${id} ${stops[i].name} → ${s.name}`));
