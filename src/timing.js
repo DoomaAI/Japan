@@ -69,3 +69,18 @@ export function dayProgress(state,date){
  const skipped=steps.filter(s=>s.status==='skipped').length;
  return {steps:steps.length,done,skipped,finished:steps.length>0&&done+skipped===steps.length};
 }
+// How far off the trip is, counted in Japan's calendar days so the number turns over at midnight
+// in Tokyo rather than wherever the phone happens to be. Before we fly it counts down; once we
+// land it says which day of the trip this is and how many are left; after, it says we are home.
+const dayGap=(from,to)=>Math.round((Date.parse(`${to}T00:00:00Z`)-Date.parse(`${from}T00:00:00Z`))/86400000);
+export function tripCountdown(days,today=japanDate()){
+ const dates=(days||[]).map(d=>d.date).filter(Boolean).sort(),first=dates[0],last=dates.at(-1);
+ if(!first)return null;
+ const total=dayGap(first,last)+1;
+ if(today<first){const n=dayGap(today,first);return {phase:'before',days:n,total,text:n===1?'Tomorrow we fly!':`${n} days to go`};}
+ if(today>last)return {phase:'after',days:0,total,text:'Home again'};
+ const day=dayGap(first,today)+1,left=total-day;
+ return {phase:'during',day,days:left,total,text:`Day ${day} of ${total}`,sub:left===0?'Our last day':left===1?'1 more day after today':`${left} more days after today`};
+}
+// A day is behind us once every stop on it is settled, or once Japan's calendar has moved past it.
+export const dayBehind=(state,date,today=japanDate())=>dayProgress(state,date).finished||date<today;
