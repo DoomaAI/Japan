@@ -13,7 +13,8 @@ export const LINES={
   ['Kyoto','京都','B01',34.9844,135.7577],['Takeda','竹田','',34.9530,135.7560],['Kintetsu-Tambabashi','近鉄丹波橋','',34.9360,135.7678],['Momoyamagoryo-mae','桃山御陵前','',34.9322,135.7721],['Mukaijima','向島','',34.9126,135.7699],['Okubo','大久保','',34.8781,135.7820],['Shin-Tanabe','新田辺','',34.8196,135.7696],['Shin-Hosono','新祝園','',34.7610,135.7960],['Takanohara','高の原','',34.7196,135.7863],['Yamato-Saidaiji','大和西大寺','A26',34.6938,135.7825],['Shin-Omiya','新大宮','A27',34.6849,135.8127],['Kintetsu-Nara','近鉄奈良','A28',34.6844,135.8279]]},
  naraBus:{name:'Nara Kotsu bus 2, 77, 97 or 163',ja:'奈良交通バス',operator:'Nara Kotsu',status:'https://www.narakotsu.co.jp/',stations:[
   ['Kintetsu-Nara Station (stop 1)','近鉄奈良駅','',34.6848,135.8285],['Kencho-mae','県庁前','',34.6853,135.8331],['Himurojinja / National Museum','氷室神社・国立博物館','',34.6853,135.8372],['Todaiji Daibutsuden / Kasugataisha-mae','東大寺大仏殿・春日大社前','',34.6848,135.8418]]},
- // A Special Rapid's stops; some also stop at Nagaokakyo (JR-A33).
+ // A daytime Special Rapid's stops. Nagaokakyo (JR-A35) is a Rapid stop that daytime Special
+ // Rapids pass.
  jrKyoto:{name:'JR Kyoto Line, Special Rapid',ja:'JR京都線 新快速',operator:'JR West',status:'https://trafficinfo.westjr.co.jp/kinki.html',stations:[
   ['Kyoto','京都','JR-A31',34.9858,135.7588],['Takatsuki','高槻','JR-A38',34.8513,135.6177],['Shin-Osaka','新大阪','JR-A46',34.7335,135.5003],['Osaka','大阪','JR-A47',34.7025,135.4959]]},
  midosuji:{name:'Midosuji Line',ja:'御堂筋線',operator:'Osaka Metro',status:'https://subway.osakametro.co.jp/guide/traffic_information.php',stations:[
@@ -57,18 +58,18 @@ export const ROUTES={
   ride('kintetsu','Kintetsu-Nara','Kyoto',{towards:'Kyoto (京都). Otherwise change at Yamato-Saidaiji to a Kyoto train.',minutes:45,exit:'Out through the Kintetsu gates, then the Karasuma Line one stop to Gojo, or 12–15 min on foot north up Karasuma-dori.'})],
  '2026-09-28-02-2':[walk('Hotel Kanra to Kyoto Station, JR gates.',15),
   ride('jrKyoto','Kyoto','Osaka',{towards:'Osaka / Kobe / Himeji',minutes:29,exit:'Follow signs for the Midosuji Line (御堂筋線), Umeda, about 5–10 min.'}),
-  ride('midosuji','Umeda','Shinsaibashi',{towards:'Namba / Tennoji',minutes:6,exit:'A north-end exit on the east side, towards Shinsaibashi-suji (心斎橋筋) and CHADO in Minamisenba.'})],
+  ride('midosuji','Umeda','Shinsaibashi',{towards:'Namba / Tennoji / Nakamozu',minutes:6,exit:'North gate (北改札), then Exit 1 or 2 on the west side of Midosuji, into Minamisenba 4-chome for CHADO. Follow Maps for the last few minutes.'})],
  '2026-09-28-14':[walk('Dotonbori to Namba Station, Midosuji Line.',5),
-  ride('midosuji','Namba','Umeda',{towards:'Umeda / Shin-Osaka / Senri-Chuo',minutes:8,exit:'Follow signs for JR Osaka Station, about 5–10 min.'}),
+  ride('midosuji','Namba','Umeda',{towards:'Umeda / Shin-Osaka / Senri-Chuo / Minoh-Kayano',minutes:8,exit:'Follow signs for JR Osaka Station, about 5–10 min.'}),
   ride('jrKyoto','Osaka','Kyoto',{towards:'Kyoto / Yasu / Maibara',minutes:29,exit:'Central Gate (中央口), then 12–15 min north up Karasuma-dori, or a taxi.'})],
  '2026-09-29-06':[ride('nozomi','Kyoto','Tokyo',{towards:'Tokyo (東京). Green Car 8.',minutes:135,exit:'Follow the red-and-white signs for the Keiyo Line (京葉線); the transfer is next.'})],
  '2026-09-29-07':[walk('Shinkansen platforms to the Keiyo Line: follow 京葉線 signs south through the long underground walkway with moving walkways.',20)],
- '2026-09-29-08':[ride('keiyo','Tokyo','Maihama',{towards:'Soga / Kaihin-Makuhari. Commuter Rapids (通勤快速) skip Maihama.',minutes:15,exit:'South Exit, then about 5 min to Resort Gateway.'})],
+ '2026-09-29-08':[ride('keiyo','Tokyo','Maihama',{towards:'Any train; every Keiyo train stops at Maihama (Soga / Kaihin-Makuhari / Nishi-Funabashi / Fuchuhommachi)',minutes:15,exit:'South Exit, then about 5 min to Resort Gateway.'})],
  '2026-09-29-09':[walk('JR Maihama South Exit to Resort Gateway Station.',5),
   ride('resort','Resort Gateway','Bayside',{towards:'any train; the loop runs one way',minutes:10,exit:'Follow signs for Fantasy Springs Hotel.'})],
- '2026-09-29-11':[walk('Fantasy Springs Hotel to Bayside Station.',10),
+ '2026-09-29-11':[walk('Fantasy Springs Hotel to Bayside Station.',5),
   ride('resort','Bayside','Resort Gateway',{towards:'any train; the loop runs one way',minutes:8,exit:'Down to Ikspiari; the Disney Ambassador Hotel is beside it.'})],
- '2026-09-30-02':[walk('Fantasy Springs Hotel to Bayside Station.',10),
+ '2026-09-30-02':[walk('Fantasy Springs Hotel to Bayside Station.',5),
   ride('resort','Bayside','Tokyo Disneyland Station',{towards:'any train; the loop runs one way',minutes:13,exit:'Straight ahead to the Tokyo Disneyland gates.'})],
  '2026-09-30-19':[walk('Tokyo Disneyland gates to Tokyo Disneyland Station.',5),
   ride('resort','Tokyo Disneyland Station','Bayside',{towards:'any train; the loop runs one way',minutes:4,exit:'Follow signs for Fantasy Springs Hotel.'})],
