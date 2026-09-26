@@ -8817,3 +8817,34 @@ test('travel stops carry their time and fares once, without overwriting family n
  state.steps.find(s=>s.id==='2026-09-26-07').notes='';
  assert.equal(upgraded(state).steps.find(s=>s.id==='2026-09-26-07').notes,'');
 });
+test('every train and transfer has its route: line, direction, each station and the exit',async()=>{
+ const {ROUTES,LINES,legStops,trackLeg,distance}=await import('../src/route-data.js');
+ for(const [id,legs] of Object.entries(ROUTES)){
+  const step=seed.steps.find(s=>s.id===id);
+  assert.ok(step?.day,id);
+  for(const leg of legs){
+   if(leg.mode==='walk'){assert.ok(leg.text&&leg.minutes>0,id);continue;}
+   const stops=legStops(leg);
+   assert.ok(stops.length>=2&&leg.towards&&leg.exit&&leg.minutes>0&&LINES[leg.line].status.startsWith('https://'),`${id} ${leg.line}`);
+   // Neighbouring stations are a few hundred metres to a few hundred kilometres apart: a
+   // coordinate typed wrong would put a station in the sea.
+   stops.slice(1).forEach((s,i)=>assert.ok(distance(stops[i],s)>200&&distance(stops[i],s)<400000,`${id} ${stops[i].name} → ${s.name}`));
+  }
+ }
+ // Every train, subway, monorail and station transfer still to come.
+ const rides=seed.steps.filter(s=>s.day>='2026-09-27'&&/\btrain\b|subway|Resort Line|Nozomi|transfer|Bus towards|Leave (hotel )?for|journey to Hilton|Head to (Tsukiji|Ginza)|Travel to|Return to (Hilton|Kyoto|Fantasy)|Return after|Browse or head home|Head to Gotokuji/i.test(s.title)&&!/Chauffeur|Walk/.test(s.title));
+ for(const s of rides)assert.ok(ROUTES[s.id],`${s.id} ${s.title}`);
+ // The loop line wraps round, and the return runs the other way.
+ assert.deepEqual(legStops({line:'resort',from:'Bayside',to:'Tokyo Disneyland Station'}).map(s=>s.name),['Bayside','Tokyo DisneySea Station','Resort Gateway','Tokyo Disneyland Station']);
+ assert.deepEqual(legStops({line:'sagano',from:'Saga-Arashiyama',to:'Kyoto'}).map(s=>s.code),['JR-E08','JR-E07','JR-E06','JR-E05','JR-E04','JR-E03','JR-E02','JR-E01']);
+ // Riding past Nijo: three stops to go. One stop out: get ready. Far away: not on it.
+ const back=legStops({line:'sagano',from:'Saga-Arashiyama',to:'Kyoto'});
+ assert.deepEqual((({left,ready})=>({left,ready}))(trackLeg(back,{lat:35.0100,lng:135.7418})),{left:3,ready:false});
+ assert.equal(trackLeg(back,{lat:34.9875,lng:135.7430}).ready,true);
+ assert.equal(trackLeg(back,{lat:35.6812,lng:139.7671}).on,false);
+});
+test('tracking at a change follows the ride still to come',async()=>{
+ const {legStops,whereOnRoute}=await import('../src/route-data.js');
+ const rides=[legStops({line:'karasuma',from:'Gojo',to:'Kyoto'}),legStops({line:'sagano',from:'Kyoto',to:'Saga-Arashiyama'})];
+ assert.equal(whereOnRoute(rides,{lat:34.9858,lng:135.7588}).i,1);
+});
