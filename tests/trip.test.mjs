@@ -8739,3 +8739,18 @@ test('a stop that named several places is split once into its own stops, keeping
  const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
  for(const [id,plan] of Object.entries(STOP_SPLITS))plan.parts.forEach((p,i)=>assert.ok(resolveLocation({locations},p.place)||p.place==='Tsukiji Outer Market Tokyo',`${id} part ${i} ${p.place}`));
 });
+test('a fun fact about an activity pops up once, when that activity starts',async()=>{
+ const {factsForStep}=await import('../src/fact-data.js');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // The activities that have something to say: Hachikō's stop carries Hachikō.
+ const hachiko=seed.steps.find(s=>factsForStep(s).some(f=>f.id==='hachiko'));
+ assert.ok(hachiko,'an activity carries the Hachikō fact');
+ // Only once it is started, only for the people on it, under the same switch as the fact of
+ // the day, and never ahead of the day's own pop-ups.
+ assert.match(main,/settingOn\(settings,'dailyFact'\)\?stepsFor\(visibleState,dayOnTrip,user\.name\)\.find\(s=>s\.status==='started'&&s\.participants\?\.includes\(user\.name\)/);
+ assert.match(main,/if\(todaysFact&&!factDone\)return;\n  stepFactShown/);
+ // Once per activity and once per fact on this phone, so two stops that share a fact do not
+ // both pop it up.
+ assert.match(main,/japan\.stepfact\.\$\{startedWithFact\.id\}/);
+ assert.match(main,/japan\.stepfact\.fact\.\$\{f\.id\}/);
+});
