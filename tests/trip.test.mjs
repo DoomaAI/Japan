@@ -4035,7 +4035,6 @@ test('a tile can be dragged onto another, and a tap still means a tap',async()=>
  assert.match(source,/letGo\(d,!took\)/);
  // The timeline's rows are carried the same way, allowing for the page scrolling under them.
  assert.match(timeline,/follow\(d\.row,0,e\.clientY-d\.y\+window\.scrollY-d\.scroll\)/);
- assert.match(timeline,/underFinger\(e\.clientX,e\.clientY,'\[data-step-id\]',d\.row\)/);
  // Both merge games use it, and both mark the tile being dragged over.
  assert.equal((source.match(/useDragTiles\(/g)||[]).length,3,'the helper and its two users');
  assert.equal((source.match(/drag\.over===i\?' over':''/g)||[]).length,2);
@@ -4043,6 +4042,24 @@ test('a tile can be dragged onto another, and a tap still means a tap',async()=>
  // Dragging a board must not scroll the page under it.
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  assert.match(css,/\.stable-grid,\.kitchen-grid\{touch-action:none\}/);
+});
+
+test('a timeline stop lifts only on a deliberate hold and lands on the line between two stops',async()=>{
+ const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // A finger has to rest before the row lifts; wandering first means it was a scroll.
+ assert.match(timeline,/const HOLD=\d+,SLOP=\d+/);
+ assert.match(timeline,/if\(e\.pointerType==='mouse'\)lift\(d\);else d\.timer=setTimeout\(/);
+ assert.match(timeline,/if\(!d\.lifted\)\{if\(Math\.hypot\(e\.clientX-d\.x,e\.clientY-d\.y\)>SLOP\)letGo\(\);return;\}/);
+ // So the handle lets a swipe scroll the page, and only a lifted row stops it.
+ assert.match(css,/\.reorder-tools \.drag-handle\{[^}]*touch-action:pan-y/);
+ assert.match(timeline,/if\(drag\.current\?\.lifted\)e\.preventDefault\(\);\};document\.addEventListener\('touchmove',stop,\{passive:false\}\)/);
+ // The target is a gap, marked on the add-a-stop line, never a stop itself.
+ assert.doesNotMatch(timeline,/drop-target/);
+ assert.match(timeline,/target===\(before\?\?END\)\?' drop-gap':''/);
+ assert.match(css,/\.timeline-insert\.drop-gap:after\{border-top:3px solid var\(--green\)\}/);
+ // The lines either side of the stop being carried would leave it where it is, so they are no target.
+ assert.match(timeline,/const still=\(d,gap\)=>gap===d\.id\|\|gap===\(steps\[d\.i\+1\]\?\.id\?\?END\)/);
 });
 
 test('sumo has a speed for everyone, and the pairs boards can be sized',async()=>{
