@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Footprints,TrainFront,Radio,ExternalLink,LocateFixed,Square} from 'lucide-react';
+import {Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye} from 'lucide-react';
 import {LINES,legStops,stationLabel,whereOnRoute,liveTimes} from './route-data.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
 // Follows the phone along the route while it is open and tracking is on. GPS fades underground,
@@ -36,6 +36,7 @@ function Tracker({legs,rides,track}){
   {on&&fix&&age>=2&&<small>Last position {age} min ago; underground the phone often loses it.</small>}
  </div>;
 }
+const KIND_ICON={Subway:TrainFrontTunnel,Bus,Monorail:TramFront};
 export default function RouteCard({legs}){
  const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
  const rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
@@ -44,8 +45,11 @@ export default function RouteCard({legs}){
   {legs.map((leg,k)=>{
    if(leg.mode==='walk')return <p className="route-walk" key={k}><Footprints size={15}/><span>{leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span></p>;
    const r=rideAt[k],line=LINES[leg.line],stops=rides[r],here=where&&where.i===r?where.index:-1;
-   return <div className="route-ride" key={k}>
-    <strong className="route-line"><TrainFront size={16}/>{line.name} <span lang="ja">{line.ja}</span></strong>
+   const Icon=KIND_ICON[line.kind]||TrainFront;
+   return <div className="route-ride" key={k} style={{'--line':line.colour}}>
+    <strong className="route-line"><Icon size={16}/>{line.name} <span lang="ja">{line.ja}</span></strong>
+    <p className="route-kind"><i aria-hidden="true"/>{line.kind} · {line.operator}</p>
+    <p className="route-look"><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>
     <p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>
     <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes?` · about ${leg.minutes} min`:''}</p>
     <details open={here>=0||undefined}><summary>Every station</summary>
