@@ -4,7 +4,9 @@
 // paid by IC card; a child fare is for ages 6–11 and under-6s ride free. Taxi fares are per car.
 // Written once onto a stop the family has not renamed or re-noted: `was` is the guide's note,
 // which is kept underneath.
-export const NOTES_SEED=1;
+import {NOTES_V1} from './stop-notes-v1.js';
+// 2: fares, loop directions and exits checked against the operators' own pages.
+export const NOTES_SEED=2;
 const PLANS={
  '2026-09-26-01':{title:'Leave Kanra for Arashiyama',was:'Gojo → Kyoto → JR Sagano Line. Check Maps for departures.',lines:[
   'Travel: about 40 min. 1 min walk to Gojo Exit 8, subway 2 min (Gojo K10 → Kyoto K11), about 10 min to change at Kyoto, then about 16 min on the JR Sagano Line to Saga-Arashiyama (JR-E08).',
@@ -33,10 +35,10 @@ const PLANS={
  ]},
  '2026-09-27-03':{title:'Train to Nara',was:'Check current Kintetsu service.',lines:[
   'Travel: about 45 min on an Express (急行) to Kintetsu-Nara; about 35 min on a Limited Express (特急), which needs an extra reserved-seat ticket.',
-  'Fare: adult ¥760 · child ¥380 each (Kintetsu, Kyoto → Kintetsu-Nara).',
+  'Fare: adult ¥760 · child ¥380 each (Kintetsu, Kyoto → Kintetsu-Nara). A Limited Express adds ¥520 / ¥260.',
  ]},
  '2026-09-27-04':{title:'Bus towards Nara Park',was:'Use live directions and bus signs; guide suggests eastbound bus stop 1.',lines:[
-  'Travel: about 10 min. Follow signs to Bus Stop No. 1 (about 5 min from the gates), then 4–5 min on bus 2, 77, 97 or 163 to Todai-ji Daibutsuden / Kasugataisha-mae. Walking instead is 15–20 min.',
+  'Travel: about 10 min. West Gate (西改札), Exit 5, then back along the street to Bus Stop No. 1 by the 7-Eleven; 4–5 min on bus 2, 77 or 97 to Todai-ji Daibutsuden / Kasugataisha-mae. Walking instead is 15–20 min.',
   'Fare: adult ¥250 · child ¥130 each.',
  ]},
  '2026-09-27-08':{title:'Train back to Kyoto',lines:[
@@ -73,35 +75,35 @@ const PLANS={
   'Travel: allow 15–20 min on foot. The Keiyo Line platforms are deep underground at the south end of the station, along long moving walkways.',
  ]},
  '2026-09-29-08':{title:'Train to Maihama',lines:[
-  'Travel: about 15 min, direct. Commuter Rapid (通勤快速) trains skip Maihama; take a Local or Rapid.',
-  'Fare: adult ¥230 · child ¥110 each (JR, Tokyo → Maihama).',
+  'Travel: about 15 min, direct. Every Keiyo train stops at Maihama.',
+  'Fare: adult ¥260 · child ¥130 each (JR, Tokyo → Maihama).',
  ]},
  '2026-09-29-09':{title:'Resort Line to Bayside',lines:[
-  'Travel: about 15 min. 5 min on foot from Maihama to Resort Gateway, then about 10 min on the monorail, 2 stops (Tokyo Disneyland Station, Bayside).',
-  'Fare: adult ¥300 · child ¥150 each, unless the hotel package includes Resort Line passes.',
+  'Travel: about 15 min. 5 min on foot from Maihama to Resort Gateway, then about 10 min on the monorail, 2 stops (Tokyo Disneyland Station, Bayside); the hotel is 2–3 min from Bayside.',
+  'Fare: adult ¥300 · child ¥150 each. Hotel guests do not get free passes; a 1-day Free Ticket is ¥700 / ¥350.',
  ]},
  '2026-09-29-11':{title:'Leave for Chef Mickey',lines:[
-  'Travel: about 30 min. About 10 min on foot to Bayside, Resort Line 2 stops (Tokyo DisneySea, Resort Gateway) about 8 min, then about 5 min on foot to the Disney Ambassador Hotel.',
-  'Fare: adult ¥300 · child ¥150 each, unless the hotel package includes Resort Line passes.',
+  'Travel: about 25 min. About 5 min on foot to Bayside, Resort Line 2 stops (Tokyo DisneySea, Resort Gateway) about 8 min, then about 5 min on foot to the Disney Ambassador Hotel.',
+  'Fare: adult ¥300 · child ¥150 each. Hotel guests do not get free passes; a 1-day Free Ticket is ¥700 / ¥350.',
  ]},
  '2026-09-30-02':{title:'Leave hotel for Disneyland',lines:[
-  'Travel: about 30 min. About 10 min on foot to Bayside, Resort Line 3 stops (Tokyo DisneySea, Resort Gateway, Tokyo Disneyland Station) about 13 min, then about 5 min on foot to the gates.',
-  'Fare: adult ¥300 · child ¥150 each, unless the hotel package includes Resort Line passes.',
+  'Travel: about 25 min. About 5 min on foot to Bayside, Resort Line 3 stops (Tokyo DisneySea, Resort Gateway, Tokyo Disneyland Station) about 13 min, then about 5 min on foot to the gates.',
+  'Fare: adult ¥300 · child ¥150 each. Hotel guests do not get free passes; a 1-day Free Ticket is ¥700 / ¥350.',
  ]},
  '2026-09-30-19':{title:'Return to Fantasy Springs',lines:[
-  'Travel: about 25 min, plus queues after the night show. Resort Line from Tokyo Disneyland Station to Bayside, 1 stop, about 4 min, then about 10 min on foot.',
-  'Fare: adult ¥300 · child ¥150 each, unless the hotel package includes Resort Line passes.',
+  'Travel: about 25 min, plus queues after the night show. Resort Line from Tokyo Disneyland Station to Bayside, 1 stop, about 4 min, then about 5 min on foot.',
+  'Fare: adult ¥300 · child ¥150 each. Hotel guests do not get free passes; a 1-day Free Ticket is ¥700 / ¥350.',
  ]},
  '2026-10-01-14':{title:'Begin exit and journey to Hilton',was:'Resort Line → Maihama → Tokyo → Nishi-shinjuku. Check live routing.',lines:[
-  'Travel: about 75–90 min. Resort Line to Resort Gateway (about 5 min), 5 min on foot to JR Maihama, Keiyo Line to Tokyo (about 15 min), 15–20 min on foot to the Marunouchi Line, Marunouchi Line towards Ogikubo to Nishi-shinjuku M07 (about 20 min), then 5 min through the Hiltopia passage.',
-  'Fare: adult ¥740 · child ¥370 each (Resort Line ¥300/¥150 + JR ¥230/¥110 + Metro ¥210/¥110).',
+  'Travel: about 75–90 min. Resort Line to Resort Gateway (about 5 min), 5 min on foot to JR Maihama, Keiyo Line to Tokyo (about 15 min), 15–20 min on foot to the Marunouchi Line, Marunouchi Line towards Ogikubo to Nishi-shinjuku M07 (about 20 min), then Exit C8 into Hiltopia, about 2 min.',
+  'Fare: adult ¥770 · child ¥390 each (Resort Line ¥300/¥150 + JR ¥260/¥130 + Metro ¥210/¥110).',
  ]},
  '2026-10-02-02':{title:'Head to Tsukiji',lines:[
-  'Travel: about 40 min. 5–8 min on foot to Tochomae (E28), Toei Oedo Line towards Roppongi, 10 stops, about 21 min to Tsukijishijo (E18), then about 3 min on foot.',
+  'Travel: about 35 min. About 5 min underground via Exit C8 to Tochomae (E28), Toei Oedo Line towards Roppongi, 10 stops, about 21 min to Tsukijishijo (E18), then about 3 min on foot.',
   'Fare: adult ¥280 · child ¥140 each.',
  ]},
  '2026-10-02-04':{title:'Train to Akihabara',lines:[
-  'Travel: about 20–25 min. About 5 min on foot to Tsukiji Station, then the Hibiya Line towards Kita-senju, 5 stops, about 11 min to Akihabara.',
+  'Travel: about 20–25 min. About 5 min on foot to Tsukiji Station, then the Hibiya Line towards Kita-senju, 5 stops, about 11 min to Akihabara; Exit 3 for Electric Town.',
   'Fare: adult ¥180 · child ¥90 each.',
  ]},
  '2026-10-02-09':{title:'Return to Hilton',lines:[
@@ -109,15 +111,15 @@ const PLANS={
   'Fare: adult ¥210 · child ¥100 each (JR), plus ¥180/¥90 if we take the Marunouchi Line instead of the shuttle.',
  ]},
  '2026-10-03-02':{title:'Shuttle and train to Harajuku',was:'JR Yamanote Line; use Takeshita Exit.',lines:[
-  'Travel: about 30 min. Hilton shuttle to Shinjuku Station West Exit, about 10 min (free), then the JR Yamanote Line 2 stops (Yoyogi, Harajuku), about 4 min.',
-  'Fare: adult ¥170 · child ¥80 each.',
+  'Travel: about 30 min. Hilton shuttle to Shinjuku Station West Exit, about 10 min (free), then the JR Yamanote Line 2 stops (Yoyogi, Harajuku), about 4 min. The shuttle runs fewer trips since 2026; check the timetable at the desk.',
+  'Fare: adult ¥160 · child ¥80 each.',
  ]},
  '2026-10-03-12':{title:'Hard stop: return to Hilton',was:'Planning lock to protect the hotel rest and game transfer. Not a reservation.',lines:[
   'Travel: about 35 min. About 10 min on foot to JR Harajuku, Yamanote Line 2 stops to Shinjuku, about 4 min, then the Hilton shuttle or a 15 min walk.',
-  'Fare: adult ¥170 · child ¥80 each.',
+  'Fare: adult ¥160 · child ¥80 each.',
  ]},
  '2026-10-03-14':{title:'Leave for Tokyo Dome',was:'Guide route: Marunouchi Line to Korakuen, Exit 2. Check live route.',lines:[
-  'Travel: about 35 min. 5 min through the Hiltopia passage to Nishi-shinjuku (M07), Marunouchi Line towards Ikebukuro, direct to Korakuen (M22), about 25 min, then Exit 2 to Tokyo Dome City.',
+  'Travel: about 35 min. 5 min through Hiltopia to Nishi-shinjuku (M07), Exit C8, Marunouchi Line towards Ikebukuro, direct to Korakuen (M22), about 25 min, then Exit 2 to Tokyo Dome City.',
   'Fare: adult ¥260 · child ¥130 each.',
  ]},
  '2026-10-03-18':{title:'Return after the game',was:'Finish time is an estimate.',lines:[
@@ -125,7 +127,7 @@ const PLANS={
   'Fare: adult ¥260 · child ¥130 each.',
  ]},
  '2026-10-04-02':{title:'Head to Ginza',lines:[
-  'Travel: about 30 min. 5 min through the Hiltopia passage to Nishi-shinjuku (M07), then the Marunouchi Line towards Ikebukuro, 9 stops, about 20 min to Ginza (M16).',
+  'Travel: about 30 min. 5 min through Hiltopia to Nishi-shinjuku (M07), Exit C8, then the Marunouchi Line towards Ikebukuro, 9 stops, about 20 min to Ginza (M16).',
   'Fare: adult ¥210 · child ¥110 each.',
  ]},
  '2026-10-04-06':{title:'Head to Tokyo Station',lines:[
@@ -133,11 +135,11 @@ const PLANS={
  ]},
  '2026-10-04-11':{title:'Travel to Shimokitazawa',was:'The guide\'s 15-minute transfer target needs checking in Maps.',lines:[
   'Travel: about 40 min. Marunouchi Line from Tokyo (M17) to Shinjuku (M08), about 17 min, 5 min on foot to the Odakyu Line, then 7–10 min to Shimokitazawa.',
-  'Fare: adult ¥380 · child ¥200 each (Metro ¥210/¥110 + Odakyu ¥170/¥90).',
+  'Fare: adult ¥380 · child ¥200 each (Metro ¥210/¥110 + Odakyu ¥170/¥90). A child on an IC card pays a flat ¥50 on Odakyu.',
  ]},
  '2026-10-04-13':{title:'Travel to Shinjuku',lines:[
   'Travel: about 25 min. Odakyu Line towards Shinjuku, 8–10 min, then about 10 min on foot to dinner.',
-  'Fare: adult ¥170 · child ¥90 each.',
+  'Fare: adult ¥170 · child ¥90 each. A child on an IC card pays a flat ¥50 on Odakyu.',
  ]},
  '2026-10-04-15':{title:'Return to Hilton',lines:[
   'Travel: about 20 min. Hilton shuttle from Shinjuku West Exit, or about 15 min on foot; a taxi is about 5 min and about ¥800 per car.',
@@ -147,15 +149,15 @@ const PLANS={
  ]},
  '2026-10-05-10':{title:'Browse or head home',lines:[
   'Travel: about 35 min. 5–10 min on foot to Shibuya Station, JR Yamanote Line 3 stops (Harajuku, Yoyogi, Shinjuku), about 7 min, then the Hilton shuttle or a 15 min walk. A taxi is about 20 min and about ¥2,000–2,500 per car.',
-  'Fare: adult ¥170 · child ¥80 each.',
+  'Fare: adult ¥200 · child ¥100 each.',
  ]},
  '2026-10-06-03':{title:'Head to Gotokuji',lines:[
   'Travel: about 45 min. Shuttle or 15 min on foot to Shinjuku, Odakyu Line Local (各駅停車, the only trains that stop there) about 15 min to Gotokuji, then about 10 min on foot to the temple.',
-  'Fare: adult ¥200 · child ¥100 each.',
+  'Fare: adult ¥200 · child ¥100 each. A child on an IC card pays a flat ¥50 on Odakyu.',
  ]},
  '2026-10-06-05':{title:'Return to Hilton',lines:[
   'Travel: about 45 min. 10 min on foot to Gotokuji Station, Odakyu Line towards Shinjuku about 15 min, then the Hilton shuttle or a 15 min walk.',
-  'Fare: adult ¥200 · child ¥100 each.',
+  'Fare: adult ¥200 · child ¥100 each. A child on an IC card pays a flat ¥50 on Odakyu.',
  ]},
  '2026-10-06-09':{title:'Chauffeur pickup',was:'Confirm pickup with provider. Keep airport buffer.',lines:[
   'Travel: about 30–45 min by car to Haneda Terminal 3, longer in evening traffic. Prebooked.',
@@ -166,7 +168,8 @@ export function notesSeeded(state){
  if((state.notesSeed||0)>=NOTES_SEED)return state;
  const steps=(state.steps||[]).map(s=>{
   const plan=STOP_NOTES[s.id];
-  return plan&&s.title===plan.title&&(s.notes||'')===plan.was?{...s,notes:plan.notes}:s;
+  const from=(state.notesSeed||0)<1?plan?.was:NOTES_V1[s.id];
+  return plan&&from!==undefined&&s.title===plan.title&&(s.notes||'')===from?{...s,notes:plan.notes}:s;
  });
  return {...state,steps,notesSeed:NOTES_SEED};
 }
