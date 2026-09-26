@@ -31,7 +31,7 @@ function Tracker({legs,rides,track}){
   <button className={on?'is-on':''} aria-pressed={on} onClick={()=>setOn(!on)}>{on?<><Square size={15}/>Stop tracking</>:<><LocateFixed size={15}/>Track this ride</>}</button>
   {on&&!fix&&!trouble&&<span>Finding you…</span>}
   {trouble&&<span>{trouble}. Count the stops from the list instead.</span>}
-  {on&&fix&&!where&&<span>Not near any station on this route yet.</span>}
+  {on&&fix&&!where&&<span>Not near any {rideLegs.some(l=>LINES[l.line].kind!=='Bus')?'station':'stop'} on this route yet.</span>}
   {on&&where&&(where.arrived
    ?<p className="route-now"><strong>At {stationLabel(where.nearest)}. Get off here.</strong>{leg.exit&&<span>{leg.exit}</span>}</p>
    :<p className="route-now"><small>{where.at?'Next stop':'Approaching'}{where.next===stops.length-1?' · get off here':''}</small><strong>{stationLabel(where.upcoming)}</strong><span>{where.at?`Now at ${stationLabel(where.nearest)} · `:''}{where.togo} stop{where.togo===1?'':'s'} to {stationLabel(stops[stops.length-1])} on the {LINES[leg.line].name}</span></p>)}
@@ -57,7 +57,7 @@ export default function RouteCard({legs}){
     <p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>
     <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes?` · about ${leg.minutes} min`:''}</p>
     <div className="route-follow">
-     <details open={here>=0||undefined}><summary>Every station</summary>
+     <details open={here>=0||undefined}><summary>{line.kind==='Bus'?'Every stop':'Every station'}</summary>
       <ol className="route-stops">{stops.map((s,n)=><li key={n} className={n===next?'next':n===here&&where.at?'here':n<(next>=0?next:here)?'passed':''}><span>{s.name}</span>{n===next&&<em>Next</em>}{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span></li>)}</ol>
      </details>
      {r===trackAt&&<Tracker legs={legs} rides={rides} track={track}/>}
