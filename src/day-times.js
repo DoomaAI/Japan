@@ -9,7 +9,8 @@
 //
 // Applied once to the live trip. A stop whose time or length the family has already changed is
 // left as they have it, and so is a stop that has been renamed.
-export const TIMES_SEED=1;
+// 2: Rikuro's closing time written onto its stop.
+export const TIMES_SEED=2;
 export const DAY_TIMES={
  '2026-09-28-02':{title:'Breakfast',time:'08:00',duration:45},
  '2026-09-28-01':{title:'Forward luggage — confirm destination',time:'08:45',duration:15},
@@ -37,11 +38,20 @@ export const TIMES_BEFORE={
  '2026-09-28-11':{time:null,duration:30},'2026-09-28-12':{time:null,duration:30},'2026-09-28-13':{time:null,duration:30},
  '2026-09-28-14':{time:'20:00',duration:30},
 };
+// Notes a stop needs for its time to make sense, written only onto a stop with no note of its
+// own. Rikuro's Namba main store sells until 8:00 pm (the upstairs café shuts at 5:30), which is
+// why the pickup is at 7:35 and not after dinner.
+export const DAY_NOTES={
+ '2026-09-28-13':{title:'Rikuro cheesecake',notes:'Namba main store: open 9:00 am – 8:00 pm, so be in the queue well before 8. Take-away only by then (the café upstairs closes at 5:30 pm). If the queue is long, pick it up before dinner instead.'},
+};
 export function timesSeeded(state){
- if((state.timesSeed||0)>=TIMES_SEED)return state;
+ const seed=state.timesSeed||0;
+ if(seed>=TIMES_SEED)return state;
  const steps=(state.steps||[]).map(s=>{
+  const note=DAY_NOTES[s.id];
+  if(note&&s.title===note.title&&!s.notes)s={...s,notes:note.notes};
   const plan=DAY_TIMES[s.id],was=TIMES_BEFORE[s.id];
-  if(!plan||s.title!==plan.title)return s;
+  if(seed>=1||!plan||s.title!==plan.title)return s;
   const next={...s};
   if((s.time??null)===was.time){next.time=plan.time;if((s.originalTime??null)===was.time)next.originalTime=plan.time;}
   if(s.duration===was.duration)next.duration=plan.duration;
