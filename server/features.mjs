@@ -8,6 +8,7 @@ const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
+import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
 const MAX_PROPOSALS=300;
@@ -538,6 +539,41 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:entry.title};
   }
   fail('Unknown shortlist action.');
+ }else if(typeof op.type==='string'&&op.type.startsWith('payMethod')){
+  // The cards and cash the family carries, and what each charges. Parents only, and removed
+  // from the boys' copy of the trip, like the ledger.
+  if(!parent)fail('Which card to use is for Mum and Dad.',403);
+  const found=()=>{const m=state.payMethods.find(m=>m.id===op.id);if(!m)fail('That card is no longer in the list.',404);return m;};
+  if(op.type==='payMethodAdd'||op.type==='payMethodEdit'){
+   if(!string(op.name,120)||!op.name.trim())fail('Name the card, such as “CBA Mastercard” or “Wise”.');
+   if(!PAY_KINDS.some(([k])=>k===op.kind))fail('Choose what kind of card it is.');
+   if(!PAY_HOLDERS.includes(op.holder))fail('Choose whose it is.');
+   const values={name:op.name.trim(),kind:op.kind,holder:op.holder};
+   for(const [field,label,,min,max] of FEE_FIELDS){
+    const v=op[field]??null;
+    if(v!==null&&(typeof v!=='number'||!Number.isFinite(v)||v<min||v>max))fail(`${label} must be between ${min} and ${max}, or left blank.`);
+    values[field]=v===null?null:Math.round(v*100)/100;
+   }
+   requireText(op.notes||'',1000,'notes');values.notes=(op.notes||'').trim();
+   if(op.researched!==undefined){
+    const r=op.researched;
+    if(r!==null){
+     if(typeof r!=='object'||!Array.isArray(r.sources)||r.sources.length>8||!string(r.checkFirst||'',1000)||!string(r.summary||'',1000))fail('Invalid research.');
+     const sources=r.sources.map(x=>{let u=null;try{u=new URL(x?.url);}catch{}if(!u||u.protocol!=='https:'||!string(x?.title||'',200))fail('Invalid source.');return {title:x.title||u.hostname,url:u.href};});
+     values.researched={at:now,by:user.name,summary:r.summary||'',checkFirst:r.checkFirst||'',sources};
+    }else values.researched=null;
+   }
+   if(op.type==='payMethodEdit'){Object.assign(found(),values);return {summary:null,important:false,title:values.name};}
+   if(state.payMethods.length>=MAX_PAY_METHODS)fail(`That is ${MAX_PAY_METHODS} cards already.`);
+   state.payMethods.push({id:randomUUID(),researched:null,...values,createdBy:user.name,createdAt:now});
+   return {summary:null,important:false,title:values.name};
+  }
+  if(op.type==='payMethodRemove'){
+   const m=found();
+   state.payMethods=state.payMethods.filter(x=>x.id!==m.id);
+   return {summary:null,important:false,title:m.name};
+  }
+  fail('Unknown card action.');
  }else if(typeof op.type==='string'&&op.type.startsWith('expense')){
   // The family ledger. Parents only: the boys have their own purses, and this is the parents'
   // money. Entered in yen, whole numbers, the way the receipt reads.

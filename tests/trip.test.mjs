@@ -1646,7 +1646,7 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   const bar=primaryNav(user),more=moreIds(user),all=[...bar,...more];
   // Nothing appears twice, and nothing is stranded.
   assert.equal(new Set(all).size,all.length,`${user.name} lists a page twice`);
-  const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(!['inbox','ledger'].includes(id)||user.role==='parent'));
+  const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(!['inbox','ledger','paying'].includes(id)||user.role==='parent'));
   assert.deepEqual([...all].sort(),[...expected].sort(),`${user.name} cannot reach every page`);
   // The bar holds six, plus More: Home, Today and the Itinerary, and three for whoever it is.
   assert.equal(bar.length,6,user.name);
@@ -8998,4 +8998,87 @@ test('family spending: parents record payments in yen, see dollars and budget, a
  assert.match(source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1],/'expenseAdd'/);
  const shown=pendingProgress(state,[{operation:{type:'expenseAdd',operationId:'x1',title:'Taxi',yen:2400,category:'transport',method:'cash',paidBy:'Lauren',day,at:'2026-09-24T10:00:00Z',by:'Lauren'}}]);
  assert.ok(shown.expenses.some(e=>e.id==='pending-x1'&&e.pending&&e.yen===2400));
+});
+
+test('is everything running: one status link per train company we ride that day, and flight status on flight days',async()=>{
+ const {runningToday}=await import('../src/running-data.js');
+ const {HOME_WIDGETS}=await import('../src/home-widgets.js');
+ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url),'utf8'));
+ assert.ok(HOME_WIDGETS.running?.label);
+ const shinkansen=runningToday(seed,'2026-09-29');
+ assert.ok(shinkansen.operators.some(o=>o.operator==='JR Central'&&o.lines.some(l=>/Nozomi/.test(l))));
+ for(const o of shinkansen.operators)assert.match(o.status,/^https:\/\//);
+ assert.equal(new Set(shinkansen.operators.map(o=>o.operator)).size,shinkansen.operators.length,'one row per company');
+ const home=runningToday(seed,'2026-10-06');
+ const links=home.flights.flatMap(f=>f.links.map(([label])=>label));
+ assert.ok(links.includes('Qantas flight status')&&links.includes('Haneda Airport departures and arrivals'));
+ assert.equal(links.length,new Set(links).size,'the airport page is offered once, not once per airport step');
+ // Theme-park rides with Flight in the name are not flights.
+ for(const d of ['2026-09-25','2026-09-30','2026-10-01'])assert.deepEqual(runningToday(seed,d).flights,[],d);
+ // A skipped stop's trains are not today's trains.
+ const skipped={...seed,steps:seed.steps.map(s=>s.day==='2026-09-29'?{...s,status:'skipped'}:s)};
+ assert.deepEqual(runningToday(skipped,'2026-09-29').operators,[]);
+});
+
+test('shopping tax-free: the rules are on the shopping list',async()=>{
+ const src=await readFile(new URL('../src/TaxFree.jsx',import.meta.url),'utf8');
+ const shop=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ assert.match(src,/¥5,000 or more/);
+ assert.match(src,/passport/i);
+ assert.match(src,/Do not open it until we have left Japan/);
+ assert.match(src,/duty-free allowance/);
+ assert.match(shop,/<TaxFree\/>/);
+});
+
+test('which card: the cheapest way to pay or take cash out, with unknown fees never looking free',async()=>{
+ const {advise,paymentCost,withdrawalSizes}=await import('../src/pay-advice.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ const {normalisePayFindings}=await import('../server/pay-research.mjs');
+ let state={...ensureFeatures(structuredClone(seed)),rates:{perAud:100,at:'2026-09-20T00:00:00Z'}};
+ assert.deepEqual(state.payMethods,[]);
+ const add=(s,o)=>applyOperation(s,{type:'payMethodAdd',name:'Card',kind:'debit',holder:'Damien',...o},parent);
+ state=add(state,{name:'Big bank Visa',kind:'credit',fxFeePct:3,marginPct:0,atmFeeAud:5,atmFeePct:0,cashAdvancePct:2});
+ state=add(state,{name:'No-fee debit',kind:'debit',fxFeePct:0,marginPct:0,atmFeeAud:0,atmFeePct:0});
+ state=add(state,{name:'Mystery card',kind:'travel'});
+ state=add(state,{name:'Suica',kind:'ic',holder:'Family'});
+ state=add(state,{name:'Yen from home',kind:'cash',holder:'Family'});
+ // Validation, and the boys neither change nor receive it.
+ for(const bad of [{name:''},{kind:'bitcoin'},{holder:'Nate'},{fxFeePct:-1},{fxFeePct:11},{atmFeeAud:51},{fxFeePct:'3'}])
+  assert.throws(()=>add(state,bad),AppError,JSON.stringify(bad));
+ assert.throws(()=>applyOperation(state,{type:'payMethodAdd',name:'Mine',kind:'debit',holder:'Damien'},child),AppError);
+ assert.deepEqual(visibleTrip(state,child).payMethods,[]);
+ assert.equal(visibleTrip(state,parent).payMethods.length,5);
+ // In a shop, ¥10,000 at ¥100 to the dollar: $100, plus 3% on the Visa.
+ const shop=advise(state,{yen:10000,situation:'shop'}).options;
+ assert.deepEqual(shop.map(o=>o.method.name),['No-fee debit','Suica','Big bank Visa','Mystery card'],'cash from home is not a card payment; the unknown one comes last');
+ assert.equal(shop.find(o=>o.method.name==='Big bank Visa').total,103);
+ assert.ok(shop.at(-1).unknown.length>0);
+ // At an ATM: the IC card and cash drop out; the credit card pays its fixed fee, the cash advance
+ // fee and the ATM operator's own fee, and is warned about interest.
+ const atm=advise(state,{yen:30000,situation:'atm',atmOperatorYen:220}).options;
+ assert.deepEqual(atm.map(o=>o.method.name),['No-fee debit','Big bank Visa','Mystery card']);
+ const visa=atm.find(o=>o.method.name==='Big bank Visa');
+ assert.equal(visa.total,300+15+5+2.2,'3% + 2% of $300, $5, and ¥220');
+ assert.match(visa.note,/cash advance/);
+ assert.equal(atm[0].total,302.2,'the ATM’s own fee is paid whichever card');
+ // Take out more at once and the fixed part shrinks.
+ const sizes=withdrawalSizes(state.payMethods[0],{rate:100,atmOperatorYen:220});
+ assert.ok(sizes[0].fixedPct>sizes.at(-1).fixedPct);
+ assert.equal(paymentCost(state.payMethods[4],{yen:1000,rate:100,situation:'shop'}),null);
+ // Editing stores research with https sources only; removing works.
+ const id=state.payMethods[2].id;
+ state=applyOperation(state,{type:'payMethodEdit',id,name:'Mystery card',kind:'travel',holder:'Lauren',fxFeePct:0,marginPct:1.5,
+  researched:{summary:'Loads yen at a margin.',checkFirst:'Check the PDS.',sources:[{title:'Issuer',url:'https://example.com/fees'}]}},parent);
+ const edited=state.payMethods.find(m=>m.id===id);
+ assert.equal(edited.marginPct,1.5);assert.equal(edited.researched.by,'Damien');
+ assert.throws(()=>applyOperation(state,{type:'payMethodEdit',id,name:'X',kind:'travel',holder:'Lauren',researched:{summary:'',checkFirst:'',sources:[{title:'x',url:'http://insecure.example'}]}},parent),AppError);
+ state=applyOperation(state,{type:'payMethodRemove',id},parent);
+ assert.equal(state.payMethods.length,4);
+ // What a lookup returns is never trusted: out-of-range fees become unknown, links must be https.
+ const n=normalisePayFindings({product:'Card',kind:'debit',fxFeePct:3,marginPct:-2,atmFeeAud:500,atmFeePct:null,cashAdvancePct:'2',summary:'s',checkFirst:'c',
+  sources:[{title:'ok',url:'https://bank.example/fees'},{title:'bad',url:'javascript:alert(1)'}]});
+ assert.equal(n.draft.fxFeePct,3);
+ for(const k of ['marginPct','atmFeeAud','atmFeePct','cashAdvancePct'])assert.equal(n.draft[k],null,k);
+ assert.deepEqual(n.sources.map(s=>s.title),['ok']);
 });

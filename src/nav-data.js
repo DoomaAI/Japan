@@ -8,6 +8,7 @@ export const PAGES={
  inbox:{label:'Forwarded email',note:'Booking emails you sent in, waiting to be filed'},
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
  money:{label:'Yen',note:'What a price is in dollars, signal or not'},
+ paying:{label:'Which card?',note:'The cheapest card or cash for a payment or an ATM, and each card\u2019s fees looked up'},
  ledger:{label:'Family spending',note:'What we have spent, by day and category, in yen and dollars'},
  challenges:{label:'Missions',note:'Daily missions and whole-trip quests'},
  games:{label:'Games',note:'Letters, sumo, snake, and spot the difference in our own photos'},
@@ -54,7 +55,7 @@ export const PRIMARY={
 // as one block they can scroll to and recognise, rather than their missions being stranded
 // between the bookings and the paperwork.
 export const MORE_SECTIONS=[
- ['Out and about',['weather','ask','places','money','ledger','food','phrases','meeting','safety','help']],
+ ['Out and about',['weather','ask','places','money','paying','ledger','food','phrases','meeting','safety','help']],
  ['The plan',['glance','todo','packing','trackers','planning','options','parks','shopping','shortlist','tickets','inbox']],
  ['Looking back',['photos','memorymap','diary','highlights','updates','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
@@ -72,7 +73,7 @@ export const MORE_SECTIONS=[
 let available={inbox:false,ask:false};
 export const setAvailable=next=>{available={...available,...next};};
 export const isAvailable=id=>!(id in available)||available[id];
-const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(!['inbox','ledger'].includes(id)||user?.role==='parent')&&isAvailable(id);
+const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(!['inbox','ledger','paying'].includes(id)||user?.role==='parent')&&isAvailable(id);
 export const pagesFor=user=>Object.keys(PAGES).filter(id=>allowed(id,user));
 // The menu, as this person has arranged it. Four of us carry the same app and want different
 // things out of it: Lauren lives on tickets and the plan, Boston on his missions and his money,

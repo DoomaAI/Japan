@@ -50,6 +50,7 @@ export const PAGE_RULES={
  facts:'Fun facts. A new fact every day about somewhere we are going or something we are about to see. Press the speaker to hear it. All the ones you have already had are kept in here too.',
  highlights:'Trip highlights. After the trip we will make a short film of our best bits, from our own photos and videos and voice notes. This page counts up everything we have saved for it so far.',
  safety:'Safety. What to do if something goes wrong. There are phone numbers for help, and your own card to show a grown up if you get lost. It has your name and our phone numbers on it, written in Japanese.',
+ paying:'Which card. This is for Mum and Dad. It helps them choose the card that costs the least to use in Japan, and when to use cash.',
  ledger:'Family spending. This is where Mum and Dad write down what they spend on the trip, like food and trains and tickets. It adds it all up. Your own money is on the spending money page.',
  diary:'Diary. Everything we have already done, with the photos and the notes from those days. This is the trip so far.',
  places:'Places and our map. Every place we are going, and a button that opens the map and takes you there.',
