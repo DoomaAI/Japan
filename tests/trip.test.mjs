@@ -9082,3 +9082,56 @@ test('which card: the cheapest way to pay or take cash out, with unknown fees ne
  for(const k of ['marginPct','atmFeeAud','atmFeePct','cashAdvancePct'])assert.equal(n.draft[k],null,k);
  assert.deepEqual(n.sources.map(s=>s.title),['ok']);
 });
+
+test('the hunts: every matcha and gachapon added, rated by each of us, best first',async()=>{
+ const {ensureFeatures,pendingProgress}=await import('../src/trip-features.js');
+ const {HUNTS,huntBoard,huntAverage,allHunts}=await import('../src/hunt-data.js');
+ const boston={name:'Boston',role:'child'};
+ let state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.hunts,{custom:[],entries:[]});
+ assert.ok(['matcha','gachapon','ramen'].every(id=>HUNTS.some(h=>h.id===id)));
+ const day=seed.days[5].date;
+ // Anyone adds a find, the boys included, with their own stars.
+ state=applyOperation(state,{type:'huntAdd',hunt:'matcha',title:'Maruni iced matcha',place:'Tsukiji',day,yen:650,rating:4},parent);
+ state=applyOperation(state,{type:'huntAdd',hunt:'matcha',title:'Uji matcha soft serve',rating:5},child);
+ state=applyOperation(state,{type:'huntAdd',hunt:'gachapon',title:'Tiny sushi keyring'},boston);
+ const [maruni,uji]=state.hunts.entries;
+ assert.deepEqual(maruni.ratings,{Damien:4});assert.equal(uji.by,'Nate');
+ // Everybody rates for themselves; a boy cannot rate for somebody else; a parent can.
+ state=applyOperation(state,{type:'huntRate',id:maruni.id,person:'Boston',rating:5},boston);
+ assert.throws(()=>applyOperation(state,{type:'huntRate',id:maruni.id,person:'Nate',rating:1},boston),AppError);
+ state=applyOperation(state,{type:'huntRate',id:uji.id,person:'Lauren',rating:3},parent);
+ for(const bad of [{hunt:'nope'},{title:''},{yen:-1},{day:'2030-01-01'},{rating:6}])
+  assert.throws(()=>applyOperation(state,{type:'huntAdd',hunt:'matcha',title:'x',...bad},parent),AppError,JSON.stringify(bad));
+ // The leaderboard: best average first, and each person's own favourite.
+ const board=huntBoard(state,'matcha');
+ assert.equal(board.count,2);
+ assert.equal(huntAverage(board.entries[0]),4.5);assert.equal(board.entries[0].title,'Maruni iced matcha');
+ assert.equal(board.best.title,'Maruni iced matcha');
+ assert.equal(board.favourites.Nate.title,'Uji matcha soft serve');
+ assert.equal(board.favourites.Boston.title,'Maruni iced matcha');
+ assert.equal(huntBoard(state,'gachapon').best,null,'nothing rated is nothing best');
+ // Only whoever added it, or a parent, changes or removes it.
+ const keyring=state.hunts.entries[2];
+ assert.throws(()=>applyOperation(state,{type:'huntRemove',id:keyring.id},child),AppError);
+ state=applyOperation(state,{type:'huntEdit',id:keyring.id,title:'Tiny salmon sushi keyring'},boston);
+ assert.equal(state.hunts.entries[2].title,'Tiny salmon sushi keyring');
+ state=applyOperation(state,{type:'huntRemove',id:keyring.id},parent);
+ assert.equal(huntBoard(state,'gachapon').count,0);
+ // A new hunt of our own, once.
+ state=applyOperation(state,{type:'huntNew',title:'Melon pan',icon:'🥐'},boston);
+ assert.ok(allHunts(state).some(h=>h.title==='Melon pan'));
+ assert.throws(()=>applyOperation(state,{type:'huntNew',title:'melon pan'},parent),AppError);
+ const melon=allHunts(state).find(h=>h.title==='Melon pan');
+ state=applyOperation(state,{type:'huntAdd',hunt:melon.id,title:'Asakusa giant melon pan',rating:5},boston);
+ assert.equal(huntBoard(state,melon.id).best.title,'Asakusa giant melon pan');
+ // With no signal, a find and a rating wait on the phone and show at once.
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const offline=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1];
+ assert.match(offline,/'huntAdd'/);assert.match(offline,/'huntRate'/);
+ const shown=pendingProgress(state,[
+  {operation:{type:'huntAdd',operationId:'h1',hunt:'ramen',title:'Ichiran',rating:4,by:'Lauren',at:'2026-09-27T10:00:00Z'}},
+  {operation:{type:'huntRate',id:maruni.id,person:'Lauren',rating:2}}]);
+ assert.ok(shown.hunts.entries.some(e=>e.id==='pending-h1'&&e.ratings.Lauren===4&&e.pending));
+ assert.equal(shown.hunts.entries.find(e=>e.id===maruni.id).ratings.Lauren,2);
+});

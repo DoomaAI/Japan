@@ -7,6 +7,7 @@ export const PAGES={
  tickets:{label:'Tickets',note:'Bookings, luggage tags and QR codes'},
  inbox:{label:'Forwarded email',note:'Booking emails you sent in, waiting to be filed'},
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
+ hunts:{label:'The hunts',note:'Rate every matcha, gachapon and ramen we try, and see which was best'},
  money:{label:'Yen',note:'What a price is in dollars, signal or not'},
  paying:{label:'Which card?',note:'The cheapest card or cash for a payment or an ATM, and each card\u2019s fees looked up'},
  ledger:{label:'Family spending',note:'What we have spent, by day and category, in yen and dollars'},
@@ -55,7 +56,7 @@ export const PRIMARY={
 // as one block they can scroll to and recognise, rather than their missions being stranded
 // between the bookings and the paperwork.
 export const MORE_SECTIONS=[
- ['Out and about',['weather','ask','places','money','paying','ledger','food','phrases','meeting','safety','help']],
+ ['Out and about',['weather','ask','places','money','paying','ledger','food','hunts','phrases','meeting','safety','help']],
  ['The plan',['glance','todo','packing','trackers','planning','options','parks','shopping','shortlist','tickets','inbox']],
  ['Looking back',['photos','memorymap','diary','highlights','updates','search','guide']],
  ['Just for you',['personalise','settings','thanks']],

@@ -9,6 +9,7 @@ import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,va
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
+import {HUNTS,MAX_CUSTOM_HUNTS,MAX_HUNT_ENTRIES,huntEntryFields} from '../src/hunt-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
 const MAX_PROPOSALS=300;
@@ -539,6 +540,60 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:entry.title};
   }
   fail('Unknown shortlist action.');
+ }else if(typeof op.type==='string'&&op.type.startsWith('hunt')){
+  // The hunts. Anyone adds a find and anyone starts a new hunt, the boys included; everyone
+  // rates for themselves; changing or removing a find is for whoever added it, or a parent.
+  const hunts=state.hunts;
+  const known=id=>HUNTS.some(h=>h.id===id)||hunts.custom.some(h=>h.id===id);
+  const found=()=>{const e=hunts.entries.find(e=>e.id===op.id);if(!e)fail('That one is no longer on the list.',404);return e;};
+  const stamp=()=>{if(!op.at)return now;if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');return new Date(op.at).toISOString();};
+  const rating=v=>{if(v!==0&&!(Number.isInteger(v)&&v>=1&&v<=5))fail('Rate it from 1 to 5 stars.');return v;};
+  const check=o=>{
+   if(!known(o.hunt))fail('Choose a hunt.');
+   if(!string(o.title,120)||!o.title.trim())fail('Say what it was.');
+   requireText(o.place||'',200,'place');requireText(o.note||'',1000,'note');
+   dayCheck(o.day??null);
+   if(o.yen!=null&&!(Number.isInteger(o.yen)&&o.yen>=0&&o.yen<=1000000))fail('Enter the price as whole yen.');
+  };
+  if(op.type==='huntNew'){
+   if(!string(op.title,60)||!op.title.trim())fail('Name the hunt, such as “Melon pan”.');
+   if(!string(op.icon||'',16))fail('Invalid icon.');
+   if(hunts.custom.length>=MAX_CUSTOM_HUNTS)fail(`That is ${MAX_CUSTOM_HUNTS} hunts already.`);
+   const title=op.title.trim();
+   if([...HUNTS,...hunts.custom].some(h=>h.title.toLowerCase()===title.toLowerCase()))fail('There is already a hunt with that name.');
+   hunts.custom=[...hunts.custom,{id:randomUUID(),title,icon:(op.icon||'').trim()||'⭐',hint:'',by:user.name,at:now}];
+   return {summary:null,important:false,title};
+  }
+  if(op.type==='huntAdd'){
+   check(op);
+   if(hunts.entries.length>=MAX_HUNT_ENTRIES)fail('That is a thousand finds already.');
+   const ratings={};if(op.rating!==undefined&&rating(op.rating))ratings[user.name]=op.rating;
+   hunts.entries=[...hunts.entries,{id:randomUUID(),...huntEntryFields(op),ratings,by:user.name,at:stamp()}];
+   return {summary:null,important:false,title:op.title.trim()};
+  }
+  if(op.type==='huntEdit'){
+   const e=found();
+   if(!parent&&e.by!==user.name)fail('Only whoever added it, or a parent, can change it.',403);
+   check({...op,hunt:e.hunt});
+   Object.assign(e,{...huntEntryFields({...op,hunt:e.hunt})});
+   return {summary:null,important:false,title:e.title};
+  }
+  if(op.type==='huntRate'){
+   const e=found();
+   if(!state.members.includes(op.person))fail('Choose a family member.');
+   if(!parent&&op.person!==user.name)fail('Rate only for yourself.',403);
+   const ratings={...(e.ratings||{})};
+   if(rating(op.rating))ratings[op.person]=op.rating;else delete ratings[op.person];
+   e.ratings=ratings;
+   return {summary:null,important:false,title:e.title};
+  }
+  if(op.type==='huntRemove'){
+   const e=found();
+   if(!parent&&e.by!==user.name)fail('Only whoever added it, or a parent, can take it off.',403);
+   hunts.entries=hunts.entries.filter(x=>x.id!==e.id);
+   return {summary:null,important:false,title:e.title};
+  }
+  fail('Unknown hunt action.');
  }else if(typeof op.type==='string'&&op.type.startsWith('payMethod')){
   // The cards and cash the family carries, and what each charges. Parents only, and removed
   // from the boys' copy of the trip, like the ledger.

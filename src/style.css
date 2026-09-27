@@ -527,3 +527,13 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .pay-cost{text-align:right;display:flex;flex-direction:column}.pay-cost strong{font-size:1.2rem}
 .pay-found p{margin:.4rem 0}
 .pay-amount{margin-top:.8rem}
+.hunt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.7rem;margin:1rem 0}
+.hunt-card{display:flex;flex-direction:column;align-items:flex-start;gap:.2rem;text-align:left;padding:1rem;border-radius:14px;background:#fff;border:1px solid #d8d2c4}
+.hunt-icon{font-size:2rem;line-height:1}.hunt-best{color:#375948;display:flex;gap:.25rem;align-items:center}
+.hunt-list{list-style:none;padding:0}.hunt-list>li{border-bottom:1px solid #e4dece;padding:.8rem .3rem}
+.hunt-list>li.top{background:#eef4ef;border-radius:12px}
+.hunt-head{display:grid;grid-template-columns:1fr auto;gap:.6rem}.hunt-head>div:first-child{display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere}
+.hunt-avg{text-align:right;display:flex;flex-direction:column}.hunt-avg strong{font-size:1.4rem}
+.hunt-ratings{display:grid;gap:.1rem;margin:.4rem 0}.hunt-rating{display:grid;grid-template-columns:4.5rem 1fr;align-items:center}
+.hunt-favs{padding-left:1.1rem}.link-back{background:none;border:0;padding:.3rem 0;display:flex;align-items:center;gap:.2rem}
+.hunt-link{margin:.2rem 0 1rem}

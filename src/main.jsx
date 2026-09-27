@@ -43,6 +43,7 @@ import Safety,{LostCards} from './Safety.jsx';
 import Ledger from './Ledger.jsx';
 import Running from './Running.jsx';
 import WhichCard from './WhichCard.jsx';
+import Hunts from './Hunts.jsx';
 import Planning from './Planning.jsx';
 import Nearby from './Nearby.jsx';
 import AskTrip from './AskTrip.jsx';
@@ -103,7 +104,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
 const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove',
- 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed'];
+ 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntRate','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed'];
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
@@ -503,7 +504,7 @@ function App(){
   {tab==='facts'&&<><p className="eyebrow">SOMETHING WORTH KNOWING EVERY DAY</p><h1>Fun facts</h1><p>A fact a day about what is actually coming up, taken out of the guide. Swipe for more whenever you want another.</p><FunFacts state={visibleState} user={user} day={japanDate(now)} mutate={mutate} busy={busy} openPage={openPage}/></>}
   {tab==='phrases'&&<><p className="eyebrow">A LITTLE JAPANESE GOES A LONG WAY</p><h1>Phrases</h1><Phrasebook state={visibleState} user={user} day={japanDate(now)} mutate={mutate} busy={busy} request={request} notice={notice} config={config}/></>}
   {tab==='money'&&<><p className="eyebrow">WHAT DOES THAT COST?</p><h1>Yen converter</h1><Currency state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice}/></>}
-  {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><FoodList state={visibleState} user={user} speak={speak} openPage={openPage} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
+  {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><button className="hunt-link" onClick={()=>go('hunts')}>🍵 🎰 🍜 The hunts: rate every one we try</button><FoodList state={visibleState} user={user} speak={speak} openPage={openPage} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal}/></>}
   {tab==='thanks'&&user.name===THANK_YOU_FROM&&<ThankYouEditor state={state} mutate={mutate} busy={busy}/>}
   {tab==='settings'&&<Settings user={user} settings={settings} change={changeSetting}/>}
@@ -517,6 +518,7 @@ function App(){
   {tab==='inbox'&&parent&&isAvailable('inbox')&&<EmailInbox state={state} config={config} busy={busy} mutate={mutate} request={request} accept={accept} notice={notice} go={go}/>}
   {tab==='ask'&&<AskTrip state={visibleState} user={user} day={day} config={config} online={online} request={request} go={go} selectDay={selectDay} notice={notice}/>}
   {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
+  {tab==='hunts'&&<Hunts state={visibleState} user={user} mutate={mutate} busy={busy}/>}
   {tab==='paying'&&parent&&<WhichCard state={visibleState} user={user} config={config} request={request} mutate={mutate} busy={busy} notice={notice}/>}
   {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy}/>}
   {tab==='safety'&&<Safety state={visibleState} user={user} day={day} go={go}/>}
