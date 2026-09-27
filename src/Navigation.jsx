@@ -14,14 +14,20 @@ export const iconFor=id=>ICONS[id]||Circle;
 const SLACK=8;
 export function BottomNav({tab,user,go,unread,prefs}){
  const strip=useRef(null);
- // The five tabs swipe sideways when the phone is too narrow for them. More does not travel
+ // The tabs swipe sideways when the phone is too narrow for them. More does not travel
  // with them: it is pinned to the end of the bar, because it is the way to every other screen
  // and a way out that can be swiped off the edge is no way out at all.
  useEffect(()=>{
   const box=strip.current,on=box?.querySelector('.active');
   if(!box||!on||!box.scrollTo)return;
+  // Only when it is actually cut off, and only as far as it takes. Centring every tab tapped
+  // slid the whole strip sideways under the thumb, so the tab next to it was never where it
+  // had been a moment ago.
+  const left=on.offsetLeft,right=left+on.offsetWidth,view=box.scrollLeft+box.clientWidth;
+  const to=left<box.scrollLeft?left-SLACK:right>view?right-box.clientWidth+SLACK:null;
+  if(to===null)return;
   const behavior=window.matchMedia?.('(prefers-reduced-motion:reduce)').matches?'auto':'smooth';
-  box.scrollTo({left:on.offsetLeft-(box.clientWidth-on.offsetWidth)/2,behavior});
+  box.scrollTo({left:Math.max(0,to),behavior});
  },[tab,user?.name,user?.role,prefs]);
  // Which way there is more to swipe, so the strip can fade on that side. A tab cut off by a
  // hard edge reads as the end of the bar; a tab fading out reads as something to swipe for.

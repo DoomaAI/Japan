@@ -1887,9 +1887,11 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  assert.match(nav,/export const iconFor=id=>ICONS\[id\]\|\|Circle;/);
  assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,2,'the bar and the More list both go through the fallback');
  assert.ok(!/const Icon=ICONS\[id\]/.test(nav),'nothing indexes ICONS directly any more');
- // Six tabs do not fit a narrow phone at a readable size, so the five that are yours scroll.
- assert.match(css,/\.nav-tabs\{flex:1;min-width:0;display:flex;[^}]*overflow-x:auto/);
- assert.match(css,/\.nav-tabs button\{flex:1 0 auto;min-width:68px;scroll-snap-align:center\}/);
+ // The tabs share the bar equally and scroll only on a phone too narrow for them all. Six
+ // must fit a standard iPhone: at 60px a tab the sixth was faded off the edge on every one.
+ assert.match(css,/\.nav-tabs\{position:relative;flex:1;min-width:0;display:flex;[^}]*overflow-x:auto/);
+ assert.match(css,/\.nav-tabs button\{flex:1 1 0;min-width:68px;scroll-snap-align:center\}/);
+ assert.match(css,/@media\(max-width:600px\)\{[^@]*\.nav-tabs button\{min-width:48px;/);
  assert.match(css,/\.nav-tabs::-webkit-scrollbar\{display:none\}/);
  // Auto margins centre the strip while it fits and fall to zero when it overflows, so the
  // first tab stays reachable — which is exactly what justify-content:center would clip.
@@ -1904,8 +1906,10 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  for(const side of ['end','start','both'])assert.match(css,new RegExp(`\\.nav-tabs\\[data-swipe="${side}"\\]\\{-webkit-mask-image:linear-gradient`),side);
  // And a strip that is a couple of stray pixels over reads as fitting, rather than fading for nothing.
  assert.match(nav,/const room=box\.scrollWidth-box\.clientWidth;\n\s*setSwipe\(room<SLACK\?''/);
- // Whatever is lit is brought into view, so the current tab is never parked off the edge.
- assert.match(nav,/box\.scrollTo\(\{left:on\.offsetLeft-\(box\.clientWidth-on\.offsetWidth\)\/2/);
+ // Whatever is lit is brought into view, so the current tab is never parked off the edge —
+ // but only when it is cut off, so tapping a tab already in sight does not slide the strip.
+ assert.match(nav,/const to=left<box\.scrollLeft\?left-SLACK:right>view\?right-box\.clientWidth\+SLACK:null;\n\s*if\(to===null\)return;/);
+ assert.ok(!/offsetWidth\)\/2/.test(nav),'the strip no longer re-centres on every tap');
  assert.match(nav,/prefers-reduced-motion:reduce/,'and it does not animate for anyone who asked it not to');
 });
 
