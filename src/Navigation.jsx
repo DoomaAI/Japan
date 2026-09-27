@@ -47,6 +47,32 @@ export function BottomNav({tab,user,go,unread,prefs}){
   watch?.observe(box);
   return ()=>{box.removeEventListener('scroll',mark);watch?.disconnect();};
  },[user?.name,user?.role,prefs]);
+ // iOS sometimes loses track of where the bottom of the screen is — most often after the
+ // keyboard closes on the Home Screen app — and a bar pinned to "the bottom" then floats
+ // halfway up with the page showing underneath it. The visual viewport is what is actually on
+ // the glass, so whenever the bar's bottom edge sits above it, the bar is moved down by the
+ // gap. It never moves up: with the keyboard open the bar belongs behind it, as it always has.
+ const nav=useRef(null),[drop,setDrop]=useState(0);
+ useEffect(()=>{
+  const vv=window.visualViewport,box=nav.current;
+  if(!vv||!box)return;
+  let frame=0,current=0;
+  const measure=()=>{
+   frame=0;
+   const bottom=box.getBoundingClientRect().bottom-current,seen=vv.offsetTop+vv.height;
+   const gap=seen-bottom>1?Math.round(seen-bottom):0;
+   if(gap!==current){current=gap;setDrop(gap);}
+  };
+  const soon=()=>{if(!frame)frame=requestAnimationFrame(measure);};
+  // Closing the keyboard is where iOS leaves the stale height behind, and a nudge of the
+  // scroll position is what makes it work the layout out again.
+  const settle=()=>setTimeout(()=>{window.scrollTo(window.scrollX,window.scrollY);soon();},250);
+  const events=[[vv,'resize'],[vv,'scroll'],[window,'resize'],[window,'scroll'],[window,'orientationchange'],[window,'pageshow']];
+  for(const [on,type] of events)on.addEventListener(type,soon,{passive:true});
+  document.addEventListener('focusout',settle);
+  soon();
+  return ()=>{for(const [on,type] of events)on.removeEventListener(type,soon);document.removeEventListener('focusout',settle);if(frame)cancelAnimationFrame(frame);};
+ },[]);
  // Up the bar for everything else, down to come back. The bar is already a sideways swipe
  // between the screens on it, so up and down are the two directions it was not using, and
  // they are the two a thumb resting there can do without looking. The More button does the
@@ -54,7 +80,8 @@ export function BottomNav({tab,user,go,unread,prefs}){
  const drag=useRef(null);
  const bar=primaryNav(user,prefs);
  const moreOn=navActive(tab,'more',user,prefs);
- return <nav className="bottom-nav" aria-label="Main navigation"
+ return <nav className="bottom-nav" aria-label="Main navigation" ref={nav}
+  style={drop?{transform:`translate(-50%,${drop}px)`}:undefined}
   onTouchStart={e=>{drag.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
   onTouchEnd={e=>{
    const from=drag.current;drag.current=null;

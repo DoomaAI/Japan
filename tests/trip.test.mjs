@@ -1911,6 +1911,12 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  assert.match(nav,/const to=left<box\.scrollLeft\?left-SLACK:right>view\?right-box\.clientWidth\+SLACK:null;\n\s*if\(to===null\)return;/);
  assert.ok(!/offsetWidth\)\/2/.test(nav),'the strip no longer re-centres on every tap');
  assert.match(nav,/prefers-reduced-motion:reduce/,'and it does not animate for anyone who asked it not to');
+ // iOS can lose the bottom of the screen after the keyboard closes and float the bar halfway up
+ // the page. The bar follows the visual viewport down to the glass, and never up over the keyboard.
+ assert.match(nav,/const bottom=box\.getBoundingClientRect\(\)\.bottom-current,seen=vv\.offsetTop\+vv\.height;/);
+ assert.match(nav,/const gap=seen-bottom>1\?Math\.round\(seen-bottom\):0;/);
+ assert.match(nav,/style=\{drop\?\{transform:`translate\(-50%,\$\{drop\}px\)`\}:undefined\}/);
+ assert.match(nav,/document\.addEventListener\('focusout',settle\)/);
 });
 
 test('every Japanese word and phrase in the app carries a sound-it-out',async()=>{
