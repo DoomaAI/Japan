@@ -53,10 +53,10 @@ export default function RouteCard({legs}){
    return <div className="route-ride" key={k} style={{'--line':line.colour}}>
     <strong className="route-line"><Icon size={16}/>{line.name} <span lang="ja">{line.ja}</span></strong>
     <p className="route-kind"><i aria-hidden="true"/>{line.kind} · {line.operator}</p>
-    <p className="route-look"><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>
     <p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>
-    <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes?` · about ${leg.minutes} min`:''}</p>
+    <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes&&!leg.options?` · about ${leg.minutes} min`:''}</p>
     {leg.options&&<div className="route-options"><b>Options</b>{leg.options.map(o=><div key={o.name}><strong>{o.name} {o.ja&&<span lang="ja">{o.ja}</span>}<small>about {o.minutes} min</small></strong><span>{o.fare}</span><p>{o.how}</p></div>)}</div>}
+    <p className="route-look"><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>
     <div className="route-follow">
      <details open={here>=0||undefined}><summary>{line.kind==='Bus'?'Every stop':'Every station'}</summary>
       {fast.length>0&&<p className="route-fast">{line.allStop} trains stop at all of these. {fast.map(f=><span key={f.tag}><mark>{f.tag}</mark> marks where {/^[AEIOU]/.test(f.name)?'an':'a'} {f.name} stops{f.some?'; “some” means only some of them':''}. </span>)}</p>}
