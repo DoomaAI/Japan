@@ -7,6 +7,7 @@ import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
+import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
 const MAX_PROPOSALS=300;
@@ -537,6 +538,32 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:entry.title};
   }
   fail('Unknown shortlist action.');
+ }else if(typeof op.type==='string'&&op.type.startsWith('expense')){
+  // The family ledger. Parents only: the boys have their own purses, and this is the parents'
+  // money. Entered in yen, whole numbers, the way the receipt reads.
+  if(!parent)fail('The family spending is for Mum and Dad. Your own money is under Spending money.',403);
+  const found=()=>{const e=state.expenses.find(e=>e.id===op.id);if(!e)fail('That payment is no longer in the list.',404);return e;};
+  if(op.type==='expenseAdd'||op.type==='expenseEdit'){
+   if(!string(op.title,200)||!op.title.trim())fail('Say what it was for.');
+   if(!Number.isInteger(op.yen)||op.yen<1||op.yen>10000000)fail('Enter the amount as whole yen, up to 10,000,000.');
+   if(!EXPENSE_CATEGORIES.some(([k])=>k===op.category))fail('Choose a category.');
+   if(!PAY_METHODS.some(([k])=>k===op.method))fail('Choose how it was paid.');
+   if(!PAYERS.includes(op.paidBy))fail('Choose who paid.');
+   dayCheck(op.day??null);
+   requireText(op.notes||'',1000,'notes');
+   const values=expenseFields(op);
+   if(op.type==='expenseEdit'){Object.assign(found(),values);return {summary:null,important:false,title:values.title};}
+   if(state.expenses.length>=2000)fail('That is two thousand payments already.');
+   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+   state.expenses.push({id:randomUUID(),...values,createdBy:user.name,createdAt:at});
+   return {summary:null,important:false,title:values.title};
+  }
+  if(op.type==='expenseRemove'){
+   const item=found();
+   state.expenses=state.expenses.filter(e=>e.id!==item.id);
+   return {summary:null,important:false,title:item.title};
+  }
+  fail('Unknown spending action.');
  }else if(typeof op.type==='string'&&op.type.startsWith('todo')){
   // The to-do list. Anyone adds one and anyone ticks it off, the way the shopping list works;
   // changing somebody else's wording or removing it is a parent's.

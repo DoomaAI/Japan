@@ -508,3 +508,11 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .lost-card .japanese{font-size:1.7rem;line-height:1.4;margin:.3rem 0}
 .lost-card p{overflow-wrap:anywhere}
 @media print{body.print-lost *{visibility:hidden}body.print-lost .lost-card,body.print-lost .lost-card *{visibility:visible}body.print-lost .lost-card{position:absolute;left:0;top:0;width:100%;margin:0}}
+.ledger-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.8rem;margin:1rem 0}
+.ledger-totals>div{background:#fff;border:1px solid #d8d2c4;border-radius:14px;padding:1rem;display:flex;flex-direction:column;gap:.15rem}
+.ledger-totals strong{font-size:1.6rem}.ledger-totals .over{color:#b3261e;font-weight:600}
+.ledger-breakdown{margin:1rem 0}.ledger-bar{display:grid;grid-template-columns:8.5rem 1fr auto;gap:.6rem;align-items:center;margin:.35rem 0;font-size:.92rem}
+.ledger-track{background:#ece6d8;border-radius:6px;height:10px;overflow:hidden}.ledger-track span{display:block;height:100%;background:#375948}
+.ledger-list{list-style:none;padding:0}.ledger-list li{display:grid;grid-template-columns:1fr auto auto;gap:.6rem;align-items:center;padding:.7rem 0;border-bottom:1px solid #e4dece}
+.ledger-list li>div:first-child{display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere}.ledger-amount{text-align:right;display:flex;flex-direction:column}
+.ledger-show{margin-top:1rem}

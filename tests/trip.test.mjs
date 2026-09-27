@@ -1646,7 +1646,7 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   const bar=primaryNav(user),more=moreIds(user),all=[...bar,...more];
   // Nothing appears twice, and nothing is stranded.
   assert.equal(new Set(all).size,all.length,`${user.name} lists a page twice`);
-  const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(id!=='inbox'||user.role==='parent'));
+  const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(!['inbox','ledger'].includes(id)||user.role==='parent'));
   assert.deepEqual([...all].sort(),[...expected].sort(),`${user.name} cannot reach every page`);
   // The bar holds six, plus More: Home, Today and the Itinerary, and three for whoever it is.
   assert.equal(bar.length,6,user.name);
@@ -8950,4 +8950,52 @@ test('safety page: emergency numbers work offline, and each boy has a lost card 
  assert.equal(withJa.hotel.name,'ホテル');
  assert.equal(withJa.hotel.english,seed.days[2].hotel);
  assert.equal(withJa.age,8);
+});
+
+test('family spending: parents record payments in yen, see dollars and budget, and the boys never see it',async()=>{
+ const {ensureFeatures,expenseSummary,expensesCsv,expenses,pendingProgress}=await import('../src/trip-features.js');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ let state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.expenses,[]);
+ const day=seed.days[3].date,other=seed.days[4].date;
+ state={...state,rates:{perAud:100,at:'2026-09-20T00:00:00Z'},party:{...(state.party||{}),budget:20000}};
+ const add=(s,o)=>applyOperation(s,{type:'expenseAdd',title:'Lunch',yen:3200,category:'food',method:'card',paidBy:'Damien',day,...o},parent);
+ state=add(state,{});
+ state=add(state,{title:'Train, "Nozomi"',yen:15000,category:'transport',method:'ic',paidBy:'Lauren'});
+ state=add(state,{title:'Kokeshi',yen:5000,category:'shopping',method:'cash',day:other});
+ assert.equal(state.expenses.length,3);
+ assert.equal(state.expenses[0].createdBy,'Damien');
+ // Validation: whole yen, a real category, method and payer, a trip day.
+ for(const bad of [{yen:0},{yen:12.5},{yen:'3200'},{category:'wine'},{method:'bitcoin'},{paidBy:'Nate'},{day:'2030-01-01'},{title:''}])
+  assert.throws(()=>add(state,bad),AppError,JSON.stringify(bad));
+ // The boys cannot add, change or remove, and never receive the ledger at all.
+ assert.throws(()=>applyOperation(state,{type:'expenseAdd',title:'Sweets',yen:300,category:'food',method:'cash',paidBy:'Damien',day},child),AppError);
+ assert.deepEqual(visibleTrip(state,child).expenses,[]);
+ assert.equal(visibleTrip(state,parent).expenses.length,3);
+ // Totals: the day against the travel party's daily budget, the trip with a daily average.
+ const d=expenseSummary(state,{day});
+ assert.equal(d.total,18200);
+ assert.equal(d.aud,182);
+ assert.deepEqual(d.byCategory,{food:3200,transport:15000});
+ assert.deepEqual(d.byMethod,{card:3200,ic:15000});
+ assert.deepEqual(d.byPayer,{Damien:3200,Lauren:15000});
+ assert.equal(d.overBudget,-1800,'¥1,800 left of ¥20,000');
+ const all=expenseSummary(state);
+ assert.equal(all.total,23200);
+ assert.equal(all.dailyAverage,11600,'over the two days with spending');
+ // Editing and removing.
+ const id=state.expenses[0].id;
+ state=applyOperation(state,{type:'expenseEdit',id,title:'Lunch',yen:4000,category:'food',method:'cash',paidBy:'Damien',day},parent);
+ assert.equal(state.expenses.find(e=>e.id===id).yen,4000);
+ state=applyOperation(state,{type:'expenseRemove',id},parent);
+ assert.equal(expenses(state).length,2);
+ // The spreadsheet quotes what needs quoting and carries both currencies.
+ const csv=expensesCsv(state).trim().split('\n');
+ assert.equal(csv[0],'Date,What,Category,Paid by,Method,Yen,AUD (at shared rate),Notes');
+ assert.ok(csv.some(r=>r.includes('"Train, ""Nozomi"""')&&r.endsWith(',15000,150.00,')));
+ // A payment at a till with no signal waits on the phone and shows straight away.
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1],/'expenseAdd'/);
+ const shown=pendingProgress(state,[{operation:{type:'expenseAdd',operationId:'x1',title:'Taxi',yen:2400,category:'transport',method:'cash',paidBy:'Lauren',day,at:'2026-09-24T10:00:00Z',by:'Lauren'}}]);
+ assert.ok(shown.expenses.some(e=>e.id==='pending-x1'&&e.pending&&e.yen===2400));
 });
