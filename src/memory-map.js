@@ -3,6 +3,7 @@
 // place it is at, once that place has coordinates from our My Map. A photo that carried its own
 // position is placed there instead. Nothing here asks the phone where it is.
 import {stepPin,validCoords,documentSteps} from './trip-features.js';
+import {HUNTS} from './hunt-data.js';
 import {resolveLocation,locationKey} from './locations.js';
 import {activeSteps} from './timing.js';
 // A position somebody shares with the family is rounded to about a hundred metres, and is gone
@@ -93,6 +94,17 @@ export function memoryPoints(state,{day=null,person=null}={}){
  }
  for(const f of (state.shortlist||[]).filter(f=>validPosition(f.pin)&&mine(person,f.addedBy)&&(!day||f.day===day)))
   points.push({id:`find-${f.id}`,kind:'find',title:f.title,day:f.day||null,lat:f.pin.lat,lng:f.pin.lng,exact:true,find:f,photos:[],voice:[],ratings:{},thoughts:{},count:1});
+ // A hunt find goes where it was pinned, else on its stop, else on its place off our map.
+ const hunts=state.hunts||{},icons=Object.fromEntries([...HUNTS,...(hunts.custom||[])].map(h=>[h.id,h.icon]));
+ for(const e of (hunts.entries||[]).filter(e=>e.status!=='want'&&mine(person,e.by,...Object.keys(e.ratings||{})))){
+  const step=e.stepId?(state.steps||[]).find(s=>s.id===e.stepId):null,date=step?.day||e.day||null;
+  if(day&&date!==day)continue;
+  const coords=placeCoords(state)[e.locationId];
+  const at=validPosition(e.pin)?{lat:e.pin.lat,lng:e.pin.lng,exact:true}:step?stepPosition(state,step):validPosition(coords)?{lat:coords.lat,lng:coords.lng,exact:false}:null;
+  if(!at)continue;
+  const ratings=Object.fromEntries(Object.entries(e.ratings||{}).filter(([n])=>mine(person,n)).map(([n,v])=>[n,v]));
+  points.push({id:`hunt-${e.id}`,kind:'hunt',title:e.title,day:date,...at,hunt:e,icon:icons[e.hunt]||'⭐',photos:[],voice:[],ratings,thoughts:{},count:1});
+ }
  return {points,unplaced};
 }
 // ---- The family, where they last said they were ---------------------------------------------

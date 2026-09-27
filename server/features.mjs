@@ -9,6 +9,7 @@ import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,va
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
+import {HUNTS,MAX_CUSTOM_HUNTS,MAX_HUNT_ENTRIES,huntEntryFields} from '../src/hunt-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
 const MAX_PROPOSALS=300;
@@ -539,6 +540,122 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:entry.title};
   }
   fail('Unknown shortlist action.');
+ }else if(typeof op.type==='string'&&op.type.startsWith('hunt')){
+  // The hunts. Anyone adds a find and anyone starts a new hunt, the boys included; everyone
+  // rates for themselves; changing or removing a find is for whoever added it, or a parent.
+  const hunts=state.hunts;hunts.rankings=hunts.rankings||{};
+  const findHuntTitle=id=>[...HUNTS,...hunts.custom].find(h=>h.id===id)?.title||'';
+  const known=id=>HUNTS.some(h=>h.id===id)||hunts.custom.some(h=>h.id===id);
+  const found=()=>{const e=hunts.entries.find(e=>e.id===op.id);if(!e)fail('That one is no longer on the list.',404);return e;};
+  const stamp=()=>{if(!op.at)return now;if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');return new Date(op.at).toISOString();};
+  const rating=v=>{if(v!==0&&!(Number.isInteger(v)&&v>=1&&v<=5))fail('Rate it from 1 to 5 stars.');return v;};
+  const check=o=>{
+   if(!known(o.hunt))fail('Choose a hunt.');
+   if(!string(o.title,120)||!o.title.trim())fail('Say what it was.');
+   requireText(o.place||'',200,'place');requireText(o.note||'',1000,'note');
+   dayCheck(o.day??null);
+   if(o.yen!=null&&!(Number.isInteger(o.yen)&&o.yen>=0&&o.yen<=1000000))fail('Enter the price as whole yen.');
+   // Where it was: a stop on the plan or a place off our map, not both, and optionally where the
+   // phone was standing, stored as read, the same as a shop find.
+   if(o.stepId&&o.locationId)fail('Tag it to a stop or to a place, not both.');
+   if(o.stepId&&!state.steps.some(s=>s.id===o.stepId))fail('Activity not found.',404);
+   if(o.locationId&&!(state.locations||[]).some(l=>l.id===o.locationId))fail('Choose a place from the map list.');
+   if(!validPin(o.pin??null))fail('That position could not be read.');
+   if(o.status!=null&&!['want','tried'].includes(o.status))fail('Choose tried or want to try.');
+  };
+  if(op.type==='huntNew'){
+   if(!string(op.title,60)||!op.title.trim())fail('Name the hunt, such as “Melon pan”.');
+   if(!string(op.icon||'',16))fail('Invalid icon.');
+   if(hunts.custom.length>=MAX_CUSTOM_HUNTS)fail(`That is ${MAX_CUSTOM_HUNTS} hunts already.`);
+   const title=op.title.trim();
+   if([...HUNTS,...hunts.custom].some(h=>h.title.toLowerCase()===title.toLowerCase()))fail('There is already a hunt with that name.');
+   if(!string(op.hint||'',200))fail('Keep the description short.');
+   hunts.custom=[...hunts.custom,{id:randomUUID(),title,icon:(op.icon||'').trim()||'⭐',hint:(op.hint||'').trim(),by:user.name,at:now}];
+   return {summary:null,important:false,title};
+  }
+  if(op.type==='huntAdd'){
+   check(op);
+   if(hunts.entries.length>=MAX_HUNT_ENTRIES)fail('That is a thousand finds already.');
+   // Something bought off the shortlist, going in to be rated: once only, and it has to exist.
+   if(op.shortlistId!=null){
+    if(!(state.shortlist||[]).some(f=>f.id===op.shortlistId))fail('That shop find is no longer on the shortlist.',404);
+    if(hunts.entries.some(e=>e.shortlistId===op.shortlistId))fail('That one is already in a list.');
+   }
+   const ratings={};if(op.status!=='want'&&op.rating!==undefined&&rating(op.rating))ratings[user.name]=op.rating;
+   const at=stamp(),fields=huntEntryFields(op);
+   hunts.entries=[...hunts.entries,{id:randomUUID(),...fields,ratings,by:user.name,at,...(fields.status==='tried'?{triedAt:at,triedBy:user.name}:{})}];
+   return {summary:null,important:false,title:op.title.trim()};
+  }
+  if(op.type==='huntEdit'){
+   const e=found();
+   if(!parent&&e.by!==user.name)fail('Only whoever added it, or a parent, can change it.',403);
+   check({...op,hunt:e.hunt,status:undefined});
+   Object.assign(e,{...huntEntryFields({...op,hunt:e.hunt,status:e.status,shortlistId:e.shortlistId})});
+   return {summary:null,important:false,title:e.title};
+  }
+  if(op.type==='huntRate'){
+   const e=found();
+   if(!state.members.includes(op.person))fail('Choose a family member.');
+   if(!parent&&op.person!==user.name)fail('Rate only for yourself.',403);
+   const ratings={...(e.ratings||{})};
+   if(rating(op.rating))ratings[op.person]=op.rating;else delete ratings[op.person];
+   e.ratings=ratings;
+   // Giving it stars is saying we have had it.
+   if(op.rating&&e.status==='want')Object.assign(e,{status:'tried',triedAt:now,triedBy:user.name});
+   return {summary:null,important:false,title:e.title};
+  }
+  if(op.type==='huntRemove'){
+   const e=found();
+   if(!parent&&e.by!==user.name)fail('Only whoever added it, or a parent, can take it off.',403);
+   hunts.entries=hunts.entries.filter(x=>x.id!==e.id);
+   const lists=hunts.rankings[e.hunt]||{};
+   hunts.rankings={...hunts.rankings,[e.hunt]:Object.fromEntries(Object.entries(lists).map(([n,ids])=>[n,ids.filter(id=>id!==e.id)]))};
+   return {summary:null,important:false,title:e.title};
+  }
+  // Found it and tried it — or, taken back, still to find. Anyone ticks it, like the to-do list.
+  // Going back to "want to try" takes it out of everybody's order until it is tried again.
+  if(op.type==='huntTried'){
+   const e=found();
+   if(typeof op.done!=='boolean')fail('Invalid tick.');
+   if(op.done)Object.assign(e,{status:'tried',triedAt:stamp(),triedBy:user.name});
+   else{
+    Object.assign(e,{status:'want',triedAt:null,triedBy:null});
+    const lists=hunts.rankings[e.hunt]||{};
+    hunts.rankings={...hunts.rankings,[e.hunt]:Object.fromEntries(Object.entries(lists).map(([n,ids])=>[n,ids.filter(id=>id!==e.id)]))};
+   }
+   return {summary:null,important:false,title:e.title};
+  }
+  // Each person's own order, dragged into place. Only finds from that hunt, each once; a boy
+  // orders his own list and nobody else's.
+  if(op.type==='huntRank'){
+   if(!known(op.hunt))fail('Choose a hunt.');
+   if(!state.members.includes(op.person))fail('Choose a family member.');
+   if(!parent&&op.person!==user.name)fail('Put only your own list in order.',403);
+   const ids=hunts.entries.filter(e=>e.hunt===op.hunt&&e.status!=='want').map(e=>e.id);
+   if(!Array.isArray(op.order)||op.order.length>ids.length||new Set(op.order).size!==op.order.length||op.order.some(id=>!ids.includes(id)))fail('That order does not match the list.');
+   hunts.rankings={...hunts.rankings,[op.hunt]:{...(hunts.rankings[op.hunt]||{}),[op.person]:op.order}};
+   return {summary:null,important:false,title:findHuntTitle(op.hunt)};
+  }
+  // A list of our own can be renamed or taken away by whoever started it, or a parent. The
+  // built-in ones stay.
+  if(op.type==='huntListEdit'||op.type==='huntListRemove'){
+   const list=hunts.custom.find(h=>h.id===op.id);
+   if(!list)fail(HUNTS.some(h=>h.id===op.id)?'The built-in hunts stay. Start a list of your own instead.':'That list is no longer there.',404);
+   if(!parent&&list.by!==user.name)fail('Only whoever started it, or a parent, can change it.',403);
+   if(op.type==='huntListRemove'){
+    hunts.custom=hunts.custom.filter(h=>h.id!==list.id);
+    hunts.entries=hunts.entries.filter(e=>e.hunt!==list.id);
+    const {[list.id]:gone,...rest}=hunts.rankings;hunts.rankings=rest;
+    return {summary:null,important:false,title:list.title};
+   }
+   if(!string(op.title,60)||!op.title.trim())fail('Name the list.');
+   if(!string(op.icon||'',16)||!string(op.hint||'',200))fail('Keep it short.');
+   const title=op.title.trim();
+   if([...HUNTS,...hunts.custom.filter(h=>h.id!==list.id)].some(h=>h.title.toLowerCase()===title.toLowerCase()))fail('There is already a list with that name.');
+   Object.assign(list,{title,icon:(op.icon||'').trim()||'⭐',hint:(op.hint||'').trim()});
+   return {summary:null,important:false,title};
+  }
+  fail('Unknown hunt action.');
  }else if(typeof op.type==='string'&&op.type.startsWith('payMethod')){
   // The cards and cash the family carries, and what each charges. Parents only, and removed
   // from the boys' copy of the trip, like the ledger.

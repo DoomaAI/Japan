@@ -1,8 +1,8 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,Clapperboard,ShieldAlert,Receipt,CreditCard} from 'lucide-react';
+import {Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,Clapperboard,ShieldAlert,Receipt,CreditCard,Medal} from 'lucide-react';
 import {PAGES,primaryNav,moreSections,navActive} from './nav-data.js';
 import {swipeVertical} from './swipe.js';
-const ICONS={today:House,days:CalendarDays,glance:CalendarCheck,tickets:Ticket,food:UtensilsCrossed,money:Coins,ledger:Receipt,paying:CreditCard,challenges:Trophy,games:Dices,photos:Camera,
+const ICONS={today:House,days:CalendarDays,glance:CalendarCheck,tickets:Ticket,food:UtensilsCrossed,money:Coins,ledger:Receipt,paying:CreditCard,hunts:Medal,challenges:Trophy,games:Dices,photos:Camera,
  diary:NotebookPen,highlights:Clapperboard,places:MapPin,meeting:Users,safety:ShieldAlert,help:LifeBuoy,options:Inbox,parks:FerrisWheel,weather:CloudSun,todo:ListChecks,packing:Luggage,trackers:Radar,memorymap:MapIcon,
  planning:ClipboardList,inbox:Mail,ask:MessageCircleQuestion,
  shopping:ShoppingBag,shortlist:CameraIcon,spending:PiggyBank,phrases:MessageSquare,facts:Lightbulb,guide:BookOpen,updates:Bell,search:Search,thanks:Heart,mascot:Sparkles,
