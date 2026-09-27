@@ -8880,3 +8880,32 @@ test('route notes corrected since reach a trip that already had an earlier versi
  assert.match(STOP_NOTES['2026-09-29-08'].notes,/adult ¥260 · child ¥130/);
  assert.match(STOP_NOTES['2026-10-01-14'].notes,/Fantasy Springs Entrance/);
 });
+
+test('the highlights placeholder counts what the video will be made from',async()=>{
+ const {highlightsMaterial}=await import('../src/recap-data.js');
+ const empty=highlightsMaterial({days:[{date:'2026-09-22'}],steps:[],documents:[]});
+ assert.equal(empty.galleryPhotos,0);
+ assert.equal(empty.daysWithWinner,0);
+ assert.equal(empty.days.length,1);
+ const state={
+  days:[{date:'2026-09-22'},{date:'2026-09-23'}],
+  steps:[{id:'s1',day:'2026-09-22',title:'Deer at Nara'},{id:'s2',day:'2026-09-23',title:'Sumo'}],
+  documents:[
+   {id:'a',category:'memory',type:'image/jpeg'},
+   {id:'b',category:'memory',type:'video/mp4'},
+   {id:'c',category:'memory',type:'image/jpeg',parentDocumentId:'a'},
+   {id:'d',category:'ticket',type:'application/pdf'}
+  ],
+  photos:[{id:'p1',day:'2026-09-22',by:'Nate',at:'1'}],
+  photoVotes:{'2026-09-22':{Boston:'p1'}},
+  voiceNotes:[{id:'v1',day:'2026-09-22',at:'1'}],
+  stepReviews:{s1:{ratings:{Nate:5,Boston:4}},s2:{ratings:{Nate:2}}}
+ };
+ const m=highlightsMaterial(state);
+ assert.equal(m.galleryPhotos,1,'a later page of the same upload is not a second photo, and tickets are not photos');
+ assert.equal(m.videos,1);
+ assert.equal(m.boysPhotos,1);
+ assert.equal(m.voiceNotes,1);
+ assert.equal(m.daysWithWinner,1);
+ assert.deepEqual(m.topRated.map(r=>r.step.id),['s1'],'only the ones we rated four or more');
+});
