@@ -9253,3 +9253,34 @@ test('shopping list: the add form opens straight under Add an item, above the se
  assert.ok(search>form,'the search comes after the form');
  assert.match(shop,/scrollIntoView/,'an item opened for editing brings the form into view');
 });
+
+test('28 September has a time on every stop, from the guide, and the live trip picks them up once',async()=>{
+ const {DAY_TIMES,timesSeeded,TIMES_SEED}=await import('../src/day-times.js');
+ const {minutes}=await import('../src/timing.js');
+ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url),'utf8'));
+ const day=seed.steps.filter(s=>s.day==='2026-09-28').sort((a,b)=>a.order-b.order);
+ assert.equal(day.length,16);
+ for(const s of day)assert.ok(s.time,`${s.title} has a time`);
+ // In plan order, and no stop runs into the next one.
+ const planned=[...day].sort((a,b)=>minutes(a.time)-minutes(b.time));
+ for(let i=1;i<planned.length;i++)assert.ok(minutes(planned[i-1].time)+planned[i-1].duration<=minutes(planned[i].time),`${planned[i-1].title} overruns ${planned[i].title}`);
+ // The guide's own anchors stay where it put them.
+ const at=id=>day.find(s=>s.id===id).time;
+ assert.equal(at('2026-09-28-07'),'13:45');assert.equal(at('2026-09-28-08'),'14:00');assert.equal(at('2026-09-28-09'),'15:30');assert.equal(at('2026-09-28-14'),'20:00');
+ // Home by about 9:15, as the guide says.
+ assert.ok(minutes('20:00')+DAY_TIMES['2026-09-28-14'].duration<=minutes('21:15'));
+ // The live trip: untouched stops take the new times; a stop the family moved or renamed keeps theirs.
+ const live={steps:[
+  {id:'2026-09-28-03',title:'CHADO Matcha',time:null,originalTime:null,duration:30},
+  {id:'2026-09-28-04',title:'Shinsaibashi shopping',time:'11:00',originalTime:null,duration:30},
+  {id:'2026-09-28-05',title:'Amerikamura and a nap',time:null,originalTime:null,duration:30},
+ ]};
+ const out=timesSeeded(live);
+ assert.deepEqual([out.steps[0].time,out.steps[0].originalTime,out.steps[0].duration],['10:00','10:00',40]);
+ assert.equal(out.steps[1].time,'11:00','a time the family set is theirs');
+ assert.equal(out.steps[1].duration,75,'but an untouched length still updates');
+ assert.equal(out.steps[2].time,null,'a renamed stop is left alone');
+ assert.equal(out.timesSeed,TIMES_SEED);
+ const moved={...out,steps:[{...out.steps[0],time:'10:30'}]};
+ assert.equal(timesSeeded(moved).steps[0].time,'10:30','and it only ever runs once');
+});
