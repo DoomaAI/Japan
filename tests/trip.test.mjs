@@ -8999,3 +8999,33 @@ test('family spending: parents record payments in yen, see dollars and budget, a
  const shown=pendingProgress(state,[{operation:{type:'expenseAdd',operationId:'x1',title:'Taxi',yen:2400,category:'transport',method:'cash',paidBy:'Lauren',day,at:'2026-09-24T10:00:00Z',by:'Lauren'}}]);
  assert.ok(shown.expenses.some(e=>e.id==='pending-x1'&&e.pending&&e.yen===2400));
 });
+
+test('is everything running: one status link per train company we ride that day, and flight status on flight days',async()=>{
+ const {runningToday}=await import('../src/running-data.js');
+ const {HOME_WIDGETS}=await import('../src/home-widgets.js');
+ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url),'utf8'));
+ assert.ok(HOME_WIDGETS.running?.label);
+ const shinkansen=runningToday(seed,'2026-09-29');
+ assert.ok(shinkansen.operators.some(o=>o.operator==='JR Central'&&o.lines.some(l=>/Nozomi/.test(l))));
+ for(const o of shinkansen.operators)assert.match(o.status,/^https:\/\//);
+ assert.equal(new Set(shinkansen.operators.map(o=>o.operator)).size,shinkansen.operators.length,'one row per company');
+ const home=runningToday(seed,'2026-10-06');
+ const links=home.flights.flatMap(f=>f.links.map(([label])=>label));
+ assert.ok(links.includes('Qantas flight status')&&links.includes('Haneda Airport departures and arrivals'));
+ assert.equal(links.length,new Set(links).size,'the airport page is offered once, not once per airport step');
+ // Theme-park rides with Flight in the name are not flights.
+ for(const d of ['2026-09-25','2026-09-30','2026-10-01'])assert.deepEqual(runningToday(seed,d).flights,[],d);
+ // A skipped stop's trains are not today's trains.
+ const skipped={...seed,steps:seed.steps.map(s=>s.day==='2026-09-29'?{...s,status:'skipped'}:s)};
+ assert.deepEqual(runningToday(skipped,'2026-09-29').operators,[]);
+});
+
+test('shopping tax-free: the rules are on the shopping list',async()=>{
+ const src=await readFile(new URL('../src/TaxFree.jsx',import.meta.url),'utf8');
+ const shop=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ assert.match(src,/¥5,000 or more/);
+ assert.match(src,/passport/i);
+ assert.match(src,/Do not open it until we have left Japan/);
+ assert.match(src,/duty-free allowance/);
+ assert.match(shop,/<TaxFree\/>/);
+});

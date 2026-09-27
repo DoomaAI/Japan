@@ -15,6 +15,7 @@ export const HOME_WIDGETS={
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},
  needs:{label:'Before we head out',note:'What to carry out the door this morning'},
  links:{label:'Next fixed time and hotel',note:'The next time that cannot move, then tonight’s hotel'},
+ running:{label:'Is everything running?',note:'Service status for today’s trains, and flight status on a flight day'},
  weather:{label:'Weather',note:'The day’s forecast, folded or open'},
  glance:{label:'The day at a glance',note:'A button to the day’s stops in order',off:true,action:true},
  adjust:{label:'Adjust the day',note:'Move the rest of the day on (parents only)',off:true,action:true},

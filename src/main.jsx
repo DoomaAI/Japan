@@ -41,6 +41,7 @@ import MediaGallery from './MediaGallery.jsx';
 import Highlights from './Highlights.jsx';
 import Safety,{LostCards} from './Safety.jsx';
 import Ledger from './Ledger.jsx';
+import Running from './Running.jsx';
 import Planning from './Planning.jsx';
 import Nearby from './Nearby.jsx';
 import AskTrip from './AskTrip.jsx';
@@ -457,6 +458,7 @@ function App(){
   tally:<div className="day-tools"><span><CheckCircle2 size={16}/>{done} of {steps.length} completed</span><div><Button icon={ImageIcon} onClick={()=>setModal({type:'media',day})}>Photos</Button><Button icon={Mic} onClick={()=>setModal({type:'voice',day})}>Voice</Button><Button icon={Ticket} onClick={()=>setModal({type:'tickets'})}>Tickets</Button>{config?.nearby&&<Button icon={Compass} onClick={()=>setModal({type:'nearby'})}>Near here</Button>}{parent&&<Button icon={Plus} onClick={()=>setModal({type:'edit',step:null})}>Add</Button>}</div></div>,
   guide:!!today?.pages?.length&&<section className="day-guide" aria-label="Original guide pages for this day"><div className="section-heading"><div><p className="eyebrow">YOUR ORIGINAL TRAVEL GUIDE</p><h2>This day in the guide</h2></div><Button icon={BookOpen} onClick={()=>openPage(today.pages[0])}>Read guide</Button></div><p>Swipe through the pages · tap any page to read it in full.</p><div className="day-guide-pages" key={day}>{today.pages.map(p=><button key={p} className="day-guide-page" onClick={()=>openPage(p)} aria-label={`Read original guide page ${p}`}><img src={`/api/guide?page=${p}`} alt={`Original travel guide page ${p}`} loading="lazy"/><span>Page {p}<ChevronRight size={16}/></span></button>)}</div></section>,
   weather:<Weather state={visibleState} day={day} now={now} mutate={mutate} busy={busy} online={online} notice={notice} dayLabel={fmtDay} go={go}/>,
+  running:<Running state={visibleState} day={day}/>,
   packing:<PackingNudge state={visibleState} user={user} day={day} go={go}/>,
   todos:<DayTodos state={visibleState} user={user} day={day} mutate={mutate} busy={busy} go={go}/>,
   finds:<DayFinds state={visibleState} day={day} go={go}/>
