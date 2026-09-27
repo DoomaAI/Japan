@@ -89,7 +89,9 @@ export default function Picross({user,state,mutate,busy}){
   <div className="game-stats cols-4">
    <span><small>Puzzle</small><strong>{done?picture.en:`${n} × ${n}`}</strong></span>
    <span><small>Clock</small><strong>{Math.round(seconds)}s</strong></span>
-   <span><small>Wrong so far</small><strong>{wrong}</strong></span>
+   {/* Counted as you go but only shown at the end: a number that ticks up the moment a square
+       is wrong would let you test every square instead of working it out. */}
+   <span><small>Filled wrong</small><strong>{solved?wrong:'—'}</strong></span>
    <span><small>Your best</small><strong>{bestScore(state,user.name,game)||'—'}</strong></span>
   </div>
   <div className="row wrap game-actions">

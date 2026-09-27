@@ -251,7 +251,7 @@ export const GAME_GUIDES={
   setup:['Nothing to set up. The eight things you start with are already on the shelf.'],
   rules:[
    'Drag one thing on top of another, or tap one and then tap another.',
-   'If those two make something, it appears and joins your shelf. Rice and water make cooked rice.',
+   'If those two make something, it appears and joins your shelf.',
    'If they do not make anything, nothing is lost. Try a different pair.',
    'Anything new can be used to make something else, so keep going with what you just made.',
    'The line underneath says how many there are and how many you still have to find.'

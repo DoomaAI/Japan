@@ -1,6 +1,6 @@
 import React,{useState,useEffect,useRef} from 'react';
 import {Trophy,RotateCcw} from 'lucide-react';
-import {YAKU,HIKARI,TANE,TAN,KASU,deal,step,stop,koikoi,hisMove,heStops,scoreOf,matches,payout,monthOf} from './hanafuda.js';
+import {YAKU,HIKARI,TANE,TAN,KASU,deal,step,stop,koikoi,hisMove,heStops,scoreOf,payout,monthOf} from './hanafuda.js';
 import HanafudaCard from './HanafudaCard.jsx';
 import {bestScore} from './trip-features.js';
 import {WinBurst} from './Win.jsx';
@@ -60,11 +60,9 @@ export default function Hanafuda({user,state,mutate,busy}){
     })}</div>
     {picking&&<p className="game-status">Your {monthOf(game.pending.card.m).en.toLowerCase()} can take
      either. Tap the one you want.</p>}
-    <div className="fuda-hand">{game.hands.me.map(c=>{
-     const can=playable()&&matches(c,table).length>0;
-     return <HanafudaCard key={c.id} card={c} chosen={can}
-      onClick={playable()?()=>setGame(step(game,{cardId:c.id})):undefined}/>;
-    })}</div>
+    {/* Nothing in the hand is lit up: seeing which card matches the table is the game. */}
+    <div className="fuda-hand">{game.hands.me.map(c=>
+     <HanafudaCard key={c.id} card={c} onClick={playable()?()=>setGame(step(game,{cardId:c.id})):undefined}/>)}</div>
     <div className="fuda-side mine">
      <small>Yours</small><Pile cards={game.piles.me}/>
      <b>{myScore.points}</b>
@@ -87,7 +85,7 @@ export default function Hanafuda({user,state,mutate,busy}){
        :'The hands ran out and nobody stopped. Nobody scores.'
      :deciding?'Your call.'
      :picking?'Choose which one to take.'
-     :mine?'Your turn. A card with a green edge has a match on the table.'
+     :mine?'Your turn. Play a card of the same month as one on the table.'
      :'His turn.'}</p>
     <div className="game-stats cols-4">
      <span><small>In the deck</small><strong>{game.deck.length}</strong></span>

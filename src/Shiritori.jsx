@@ -70,10 +70,11 @@ export default function Shiritori({user,state,mutate,busy}){
       :<>You said <b lang="ja">{over.word.ja}</b>, and it ends in {DEAD}.</>}</p>
      <p>{chain.length} words long{over.won||over.how==='dry'?` — ${shiritoriScore(level.id,chain.length)} points`:'. A word ending in ん loses, however long the chain was.'}</p>
     </div>
+   // On the words level the kana is all there is: romaji would spell out which one ends in n.
    :<div className={`shiri-options${pictures?' pictures':''}`}>{options.map(w=>
      <button key={w.id} className={`shiri-card${nudge===w?' wrong':''}`} onClick={()=>take(w)}>
       {pictures&&<b aria-hidden="true">{w.icon}</b>}
-      <strong lang="ja">{w.ja}</strong><small>{w.romaji}</small>{pictures&&<small>{w.en}</small>}</button>)}</div>}
+      <strong lang="ja">{w.ja}</strong>{pictures&&<><small>{w.romaji}</small><small>{w.en}</small></>}</button>)}</div>}
   {nudge&&<p className="game-status"><X size={15}/> <b lang="ja">{nudge.ja}</b> starts with <b lang="ja">{nudge.head}</b>, not <b lang="ja">{letter}</b>.</p>}
   <div className="game-stats cols-4">
    <span><small>Chain</small><strong>{chain.length}</strong></span>
