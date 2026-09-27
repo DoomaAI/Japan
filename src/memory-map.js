@@ -96,7 +96,7 @@ export function memoryPoints(state,{day=null,person=null}={}){
   points.push({id:`find-${f.id}`,kind:'find',title:f.title,day:f.day||null,lat:f.pin.lat,lng:f.pin.lng,exact:true,find:f,photos:[],voice:[],ratings:{},thoughts:{},count:1});
  // A hunt find goes where it was pinned, else on its stop, else on its place off our map.
  const hunts=state.hunts||{},icons=Object.fromEntries([...HUNTS,...(hunts.custom||[])].map(h=>[h.id,h.icon]));
- for(const e of (hunts.entries||[]).filter(e=>mine(person,e.by,...Object.keys(e.ratings||{})))){
+ for(const e of (hunts.entries||[]).filter(e=>e.status!=='want'&&mine(person,e.by,...Object.keys(e.ratings||{})))){
   const step=e.stepId?(state.steps||[]).find(s=>s.id===e.stepId):null,date=step?.day||e.day||null;
   if(day&&date!==day)continue;
   const coords=placeCoords(state)[e.locationId];

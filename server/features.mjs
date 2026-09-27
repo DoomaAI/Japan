@@ -561,6 +561,7 @@ export function extraOperation(state,op,user,fail,now){
    if(o.stepId&&!state.steps.some(s=>s.id===o.stepId))fail('Activity not found.',404);
    if(o.locationId&&!(state.locations||[]).some(l=>l.id===o.locationId))fail('Choose a place from the map list.');
    if(!validPin(o.pin??null))fail('That position could not be read.');
+   if(o.status!=null&&!['want','tried'].includes(o.status))fail('Choose tried or want to try.');
   };
   if(op.type==='huntNew'){
    if(!string(op.title,60)||!op.title.trim())fail('Name the hunt, such as “Melon pan”.');
@@ -575,15 +576,21 @@ export function extraOperation(state,op,user,fail,now){
   if(op.type==='huntAdd'){
    check(op);
    if(hunts.entries.length>=MAX_HUNT_ENTRIES)fail('That is a thousand finds already.');
-   const ratings={};if(op.rating!==undefined&&rating(op.rating))ratings[user.name]=op.rating;
-   hunts.entries=[...hunts.entries,{id:randomUUID(),...huntEntryFields(op),ratings,by:user.name,at:stamp()}];
+   // Something bought off the shortlist, going in to be rated: once only, and it has to exist.
+   if(op.shortlistId!=null){
+    if(!(state.shortlist||[]).some(f=>f.id===op.shortlistId))fail('That shop find is no longer on the shortlist.',404);
+    if(hunts.entries.some(e=>e.shortlistId===op.shortlistId))fail('That one is already in a list.');
+   }
+   const ratings={};if(op.status!=='want'&&op.rating!==undefined&&rating(op.rating))ratings[user.name]=op.rating;
+   const at=stamp(),fields=huntEntryFields(op);
+   hunts.entries=[...hunts.entries,{id:randomUUID(),...fields,ratings,by:user.name,at,...(fields.status==='tried'?{triedAt:at,triedBy:user.name}:{})}];
    return {summary:null,important:false,title:op.title.trim()};
   }
   if(op.type==='huntEdit'){
    const e=found();
    if(!parent&&e.by!==user.name)fail('Only whoever added it, or a parent, can change it.',403);
-   check({...op,hunt:e.hunt});
-   Object.assign(e,{...huntEntryFields({...op,hunt:e.hunt})});
+   check({...op,hunt:e.hunt,status:undefined});
+   Object.assign(e,{...huntEntryFields({...op,hunt:e.hunt,status:e.status,shortlistId:e.shortlistId})});
    return {summary:null,important:false,title:e.title};
   }
   if(op.type==='huntRate'){
@@ -593,6 +600,8 @@ export function extraOperation(state,op,user,fail,now){
    const ratings={...(e.ratings||{})};
    if(rating(op.rating))ratings[op.person]=op.rating;else delete ratings[op.person];
    e.ratings=ratings;
+   // Giving it stars is saying we have had it.
+   if(op.rating&&e.status==='want')Object.assign(e,{status:'tried',triedAt:now,triedBy:user.name});
    return {summary:null,important:false,title:e.title};
   }
   if(op.type==='huntRemove'){
@@ -603,13 +612,26 @@ export function extraOperation(state,op,user,fail,now){
    hunts.rankings={...hunts.rankings,[e.hunt]:Object.fromEntries(Object.entries(lists).map(([n,ids])=>[n,ids.filter(id=>id!==e.id)]))};
    return {summary:null,important:false,title:e.title};
   }
+  // Found it and tried it — or, taken back, still to find. Anyone ticks it, like the to-do list.
+  // Going back to "want to try" takes it out of everybody's order until it is tried again.
+  if(op.type==='huntTried'){
+   const e=found();
+   if(typeof op.done!=='boolean')fail('Invalid tick.');
+   if(op.done)Object.assign(e,{status:'tried',triedAt:stamp(),triedBy:user.name});
+   else{
+    Object.assign(e,{status:'want',triedAt:null,triedBy:null});
+    const lists=hunts.rankings[e.hunt]||{};
+    hunts.rankings={...hunts.rankings,[e.hunt]:Object.fromEntries(Object.entries(lists).map(([n,ids])=>[n,ids.filter(id=>id!==e.id)]))};
+   }
+   return {summary:null,important:false,title:e.title};
+  }
   // Each person's own order, dragged into place. Only finds from that hunt, each once; a boy
   // orders his own list and nobody else's.
   if(op.type==='huntRank'){
    if(!known(op.hunt))fail('Choose a hunt.');
    if(!state.members.includes(op.person))fail('Choose a family member.');
    if(!parent&&op.person!==user.name)fail('Put only your own list in order.',403);
-   const ids=hunts.entries.filter(e=>e.hunt===op.hunt).map(e=>e.id);
+   const ids=hunts.entries.filter(e=>e.hunt===op.hunt&&e.status!=='want').map(e=>e.id);
    if(!Array.isArray(op.order)||op.order.length>ids.length||new Set(op.order).size!==op.order.length||op.order.some(id=>!ids.includes(id)))fail('That order does not match the list.');
    hunts.rankings={...hunts.rankings,[op.hunt]:{...(hunts.rankings[op.hunt]||{}),[op.person]:op.order}};
    return {summary:null,important:false,title:findHuntTitle(op.hunt)};

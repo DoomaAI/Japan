@@ -9191,3 +9191,46 @@ test('hunts & lists: tagged to where it was, dragged into each person’s order,
  assert.ok(!allHunts(state).some(h=>h.id===temples.id));
  assert.ok(!state.hunts.entries.some(e=>e.hunt===temples.id)&&!state.hunts.rankings[temples.id]);
 });
+
+test('hunts & lists: a want-to-try stage, and a bought shop find going into a list to be rated',async()=>{
+ const {ensureFeatures,pendingProgress}=await import('../src/trip-features.js');
+ const {huntBoard,huntWants,personalOrder,familyRanking,huntForShortlist,shortlistToHunt}=await import('../src/hunt-data.js');
+ const {memoryPoints}=await import('../src/memory-map.js');
+ const boston={name:'Boston',role:'child'};
+ let state=ensureFeatures(structuredClone(seed));
+ // Want to try: on the list to find, not rated, not ranked, not on the map.
+ state=applyOperation(state,{type:'huntAdd',hunt:'softserve',title:'Hokkaido melon soft serve',status:'want',rating:5,pin:{lat:35.7,lng:139.7}},boston);
+ state=applyOperation(state,{type:'huntAdd',hunt:'softserve',title:'Vanilla at Nara',rating:4},boston);
+ const [melon,vanilla]=state.hunts.entries;
+ assert.equal(melon.status,'want');assert.deepEqual(melon.ratings,{},'no stars for something not tried yet');
+ assert.equal(vanilla.status,'tried');assert.equal(vanilla.triedBy,'Boston');
+ assert.deepEqual(huntWants(state,'softserve').map(e=>e.title),['Hokkaido melon soft serve']);
+ assert.equal(huntBoard(state,'softserve').count,1);assert.equal(huntBoard(state,'softserve').wants,1);
+ assert.deepEqual(personalOrder(state,'softserve','Boston'),[vanilla.id]);
+ assert.throws(()=>applyOperation(state,{type:'huntRank',hunt:'softserve',person:'Boston',order:[melon.id,vanilla.id]},boston),AppError,'a want cannot be ranked');
+ assert.ok(!memoryPoints(state).points.some(p=>p.title==='Hokkaido melon soft serve'));
+ assert.throws(()=>applyOperation(state,{type:'huntAdd',hunt:'softserve',title:'x',status:'maybe'},parent),AppError);
+ // Found it: anyone ticks it, and then it rates and ranks like the rest.
+ state=applyOperation(state,{type:'huntTried',id:melon.id,done:true},child);
+ assert.equal(state.hunts.entries[0].status,'tried');assert.equal(state.hunts.entries[0].triedBy,'Nate');
+ state=applyOperation(state,{type:'huntRank',hunt:'softserve',person:'Boston',order:[melon.id,vanilla.id]},boston);
+ assert.equal(familyRanking(state,'softserve').ranked[0].entry.title,'Hokkaido melon soft serve');
+ // Taken back: out of everybody's order until it is tried again. Rating it counts as trying it.
+ state=applyOperation(state,{type:'huntTried',id:melon.id,done:false},parent);
+ assert.deepEqual(state.hunts.rankings.softserve.Boston,[vanilla.id]);
+ state=applyOperation(state,{type:'huntRate',id:melon.id,person:'Lauren',rating:5},parent);
+ assert.equal(state.hunts.entries[0].status,'tried');
+ // Editing keeps where it is up to.
+ state=applyOperation(state,{type:'huntEdit',id:vanilla.id,title:'Vanilla soft serve, Nara',status:'want'},boston);
+ assert.equal(state.hunts.entries[1].status,'tried');
+ // Offline: a tick shows at once.
+ assert.equal(pendingProgress(state,[{operation:{type:'huntTried',id:vanilla.id,done:false}}]).hunts.entries[1].status,'want');
+ // A bought shop find goes into a list, carrying its details, once.
+ state=applyOperation(state,{type:'shortlistAdd',title:'Sakura KitKat',shop:'Don Quijote',price:540,tags:['snack']},parent);
+ const kitkat=state.shortlist.at(-1);
+ state=applyOperation(state,{type:'huntAdd',hunt:'kitkat',...shortlistToHunt(kitkat)},parent);
+ const linked=huntForShortlist(state,kitkat.id);
+ assert.equal(linked.hunt,'kitkat');assert.equal(linked.place,'Don Quijote');assert.equal(linked.yen,540);assert.equal(linked.status,'tried');
+ assert.throws(()=>applyOperation(state,{type:'huntAdd',hunt:'kitkat',...shortlistToHunt(kitkat)},parent),AppError,'only once');
+ assert.throws(()=>applyOperation(state,{type:'huntAdd',hunt:'kitkat',title:'Ghost',shortlistId:'nope'},parent),AppError);
+});

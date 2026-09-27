@@ -544,3 +544,7 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .rank-pos{font-weight:700;font-size:1.2rem;text-align:center}.rank-body{display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere}
 .rank-grip{touch-action:none;cursor:grab;background:none;border:0;padding:.3rem}.rank-arrows{display:flex;gap:.2rem}
 .rank-list li:not(:has(.rank-grip)){grid-template-columns:2rem 1fr}
+.hunt-wants{margin:1rem 0}.hunt-wants ul{list-style:none;padding:0}
+.hunt-wants li{display:grid;grid-template-columns:1fr auto;gap:.5rem;align-items:center;padding:.6rem .3rem;border-bottom:1px dashed #d8d2c4}
+.hunt-wants li>div:first-child{display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere}
+.find-tolist{display:flex;flex-wrap:wrap;gap:.5rem;align-items:flex-end;margin:.4rem 0}

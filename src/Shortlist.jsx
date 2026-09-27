@@ -8,6 +8,7 @@ import {SHORTLIST_STATUS,SHORTLIST_SORTS,SHORTLIST_STARS,shortlistStatusLabel,sh
 import {askPhoneWhereItIs} from './geo.js';
 import {locationDirections} from './locations.js';
 import {dayLabel} from './AdventurePages.jsx';
+import {allHunts,huntForShortlist,shortlistToHunt} from './hunt-data.js';
 import {japanClock} from './timing.js';
 export const shortlistPhotoUrl=s=>`/api/shortlist?id=${encodeURIComponent(s.id)}`;
 const yen=n=>`¥${Math.round(n||0).toLocaleString('en-AU')}`;
@@ -62,6 +63,15 @@ export const readAnchor=v=>({stepId:String(v||'').startsWith('step:')?String(v).
 // A find, and what has been decided about it. The picture is the point of the card — it is the
 // thing itself, which is what nobody can describe three days later — so it is first and it is
 // large, and the words sit underneath it rather than beside it.
+// Bought it: now it can go into one of the hunts or our own lists to be rated against the rest —
+// the KitKat into KitKat flavours. Once; after that the card says where it went.
+function ToList({state,user,item,busy,mutate,go}){
+ const linked=huntForShortlist(state,item.id),lists=allHunts(state);
+ const [list,setList]=useState(lists.find(h=>`${item.title} ${(item.tags||[]).join(' ')}`.toLowerCase().includes(h.title.split(' ')[0].toLowerCase()))?.id||lists[0]?.id||'');
+ if(linked){const h=lists.find(x=>x.id===linked.hunt);return <small className="find-shopped">{h?.icon} In {h?.title||'a list'} to be rated{go&&<> · <button className="linkish" onClick={()=>go('hunts')}>open it</button></>}</small>;}
+ return <div className="find-tolist"><label>Rate it in a list<select value={list} onChange={e=>setList(e.target.value)}>{lists.map(h=><option key={h.id} value={h.id}>{h.icon} {h.title}</option>)}</select></label>
+  <button disabled={busy||!list} onClick={()=>mutate({type:'huntAdd',hunt:list,...shortlistToHunt(item),by:user.name})}>Add to that list</button></div>;
+}
 export function Find({item,state,user,parent,busy,mutate,photo,drop,edit,onTag,onPin,rate,go}){
  const stars=shortlistRating(item)??0,pin=shortlistPin(item);
  // A find still waiting on signal has no id the trip knows yet, so nothing that names one by id
@@ -108,6 +118,7 @@ export function Find({item,state,user,parent,busy,mutate,photo,drop,edit,onTag,o
   {item.decidedBy&&<small>{shortlistStatusLabel(item.status)} · {item.decidedBy}{item.decidedAt?` · ${japanClock(new Date(item.decidedAt))} JST`:''}</small>}
   {toShop&&<button className="find-toshop" disabled={busy}
    onClick={()=>mutate({type:'shortlistShop',id:item.id})}><ShoppingBag size={15}/>Put it on the shopping list</button>}
+  {!held&&item.status==='bought'&&<ToList state={state} user={user} item={item} busy={busy} mutate={mutate} go={go}/>}
   {shopped&&<small className="find-shopped"><ShoppingBag size={13}/> On the shopping list{go&&<> · <button className="linkish" onClick={()=>go('shopping',null,item.shoppingId)}>open it</button></>}</small>}
   <div className="row wrap">
    <a href={findMap(state,item)} target="_blank" rel="noreferrer">{pin||place?'Walk there':'Find the shop'}</a>

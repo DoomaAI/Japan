@@ -1,17 +1,18 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Plus,Pencil,Trash2,ChevronLeft,Crown,MapPin,LocateFixed,X,GripVertical,ChevronUp,ChevronDown} from 'lucide-react';
+import {Plus,Pencil,Trash2,ChevronLeft,Crown,MapPin,LocateFixed,X,GripVertical,ChevronUp,ChevronDown,Check,Search} from 'lucide-react';
 import {Stars} from './StepReview.jsx';
 import {AnchorSelect,anchorValue,readAnchor} from './Shortlist.jsx';
 import {askPhoneWhereItIs} from './geo.js';
 import {PIN_PLACES,pinText} from './trip-features.js';
 import {underFinger,follow,settle} from './lift.js';
-import {allHunts,findHunt,huntBoard,huntAverage,huntWhere,huntCities,personalOrder,hasRanked,familyRanking} from './hunt-data.js';
+import {allHunts,findHunt,huntBoard,huntAverage,huntWhere,huntCities,personalOrder,hasRanked,familyRanking,huntWants} from './hunt-data.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {japanDate} from './timing.js';
 // The hunts: pick one, add what you tried, and everybody rates it. The best rises to the top.
-function EntryForm({state,user,hunt,editing,mutate,busy,done}){
+function EntryForm({state,user,hunt,editing,mutate,busy,done,want:startWant=false}){
  const today=japanDate(),onTrip=state.days.some(d=>d.date===today);
  const [f,setF]=useState({title:editing?.title||'',place:editing?.place||'',day:editing?editing.day||'':onTrip?today:'',yen:editing?.yen??'',note:editing?.note||'',rating:0});
+ const [want,setWant]=useState(editing?editing.status==='want':startWant);
  const [anchor,setAnchor]=useState(anchorValue(editing)),[pin,setPin]=useState(editing?.pin||null),[locating,setLocating]=useState(false),[trouble,setTrouble]=useState('');
  async function pinHere(){setLocating(true);setTrouble('');try{setPin(await askPhoneWhereItIs(PIN_PLACES));}catch(e){setTrouble(`${e.message}. Choose a stop or place instead.`);}finally{setLocating(false);}}
  const set=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -21,20 +22,23 @@ function EntryForm({state,user,hunt,editing,mutate,busy,done}){
   const where=readAnchor(anchor);
   const op={title:f.title,place:f.place,day:where.stepId?null:(f.day||null),yen,note:f.note,...where,pin:pin||null};
   const ok=editing?await mutate({type:'huntEdit',id:editing.id,...op})
-   :await mutate({type:'huntAdd',hunt:hunt.id,...op,...(f.rating?{rating:f.rating}:{}),by:user.name});
+   :await mutate({type:'huntAdd',hunt:hunt.id,...op,status:want?'want':'tried',...(!want&&f.rating?{rating:f.rating}:{}),by:user.name});
   if(ok)done();
  }
  return <form className="feature-card" onSubmit={save}>
-  <label>What was it<input required maxLength={120} value={f.title} onChange={e=>set('title',e.target.value)} placeholder={hunt.id==='gachapon'?'Tiny sushi keyring':hunt.id==='matcha'?'Iced matcha latte':'What it was called'}/></label>
+  {!editing&&<div className="segmented" role="group" aria-label="Tried it or want to">
+   <button type="button" className={!want?'primary':''} aria-pressed={!want} onClick={()=>setWant(false)}><Check size={15}/> We’ve tried it</button>
+   <button type="button" className={want?'primary':''} aria-pressed={want} onClick={()=>setWant(true)}><Search size={15}/> Want to try</button></div>}
+  <label>{want?'What do we want to try':'What was it'}<input required maxLength={120} value={f.title} onChange={e=>set('title',e.target.value)} placeholder={hunt.id==='gachapon'?'Tiny sushi keyring':hunt.id==='matcha'?'Iced matcha latte':'What it was called'}/></label>
   <label>Where<input maxLength={200} value={f.place} onChange={e=>set('place',e.target.value)} placeholder="The shop or stall"/></label>
-  <label>Tag it to a stop or a place<AnchorSelect state={state} value={anchor} onChange={e=>setAnchor(e.target.value)}/></label>
+  <label>{want?'Where to find it: a stop or a place':'Tag it to a stop or a place'}<AnchorSelect state={state} value={anchor} onChange={e=>setAnchor(e.target.value)}/></label>
   {!anchor.startsWith('step:')&&<label>Day<select value={f.day} onChange={e=>set('day',e.target.value)}><option value="">Not on a trip day</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)}</option>)}</select></label>}
   <div className="pin-row"><button type="button" disabled={busy||locating} onClick={pinHere}><LocateFixed size={16}/>{locating?'Finding you…':pin?'Move the pin to where I am now':'Pin where we are standing'}</button>
    {pin&&<span className="tag pin-tag"><MapPin size={13}/>{pinText(pin)}<button type="button" aria-label="Remove the pinned position" onClick={()=>setPin(null)}><X size={14}/></button></span>}</div>
   {trouble&&<p><small>{trouble}</small></p>}
-  <label>Price in yen (if you like)<input inputMode="numeric" value={f.yen} onChange={e=>set('yen',e.target.value)}/></label>
+  <label>{want?'Price, if we know it (yen)':'Price in yen (if you like)'}<input inputMode="numeric" value={f.yen} onChange={e=>set('yen',e.target.value)}/></label>
   <label>Note<input maxLength={1000} value={f.note} onChange={e=>set('note',e.target.value)} placeholder="Too sweet, perfect, got a double…"/></label>
-  {!editing&&<div><small>Your stars</small><Stars value={f.rating} onPick={n=>set('rating',n)} disabled={busy} label="Your rating"/></div>}
+  {!editing&&!want&&<div><small>Your stars</small><Stars value={f.rating} onPick={n=>set('rating',n)} disabled={busy} label="Your rating"/></div>}
   <div className="row wrap"><button className="primary" disabled={busy}>{editing?'Save':'Add it'}</button><button type="button" onClick={done}>Cancel</button></div>
  </form>;
 }
@@ -85,7 +89,7 @@ function ListEditor({hunt,mutate,busy,done}){
 }
 function HuntPage({state,user,hunt,mutate,busy,back}){
  const parent=user.role==='parent',[form,setForm]=useState(null),[view,setView]=useState('stars'),[city,setCity]=useState(''),[editing,setEditing]=useState(false);
- const board=huntBoard(state,hunt.id),cities=huntCities(state,hunt.id);
+ const board=huntBoard(state,hunt.id),cities=huntCities(state,hunt.id),wants=huntWants(state,hunt.id);
  const here=e=>!city||huntWhere(state,e).city===city;
  const entries=board.entries.filter(here);
  const family=familyRanking(state,hunt.id);
@@ -99,8 +103,16 @@ function HuntPage({state,user,hunt,mutate,busy,back}){
   {editing&&<ListEditor hunt={hunt} mutate={mutate} busy={busy} done={()=>setEditing(false)}/>}
   <p><strong>{board.count}</strong> tried so far{board.best?<> · best by stars: <strong>{board.best.title}</strong> ({huntAverage(board.best)} out of 5)</>:''}</p>
   {Object.keys(board.favourites).length>0&&<ul className="hunt-favs">{Object.entries(board.favourites).map(([n,e])=><li key={n}><strong>{n}</strong>’s favourite: {e.title} <small>({e.ratings[n]}★)</small></li>)}</ul>}
-  {!form&&<button className="primary" onClick={()=>setForm({})}><Plus size={16}/> Add one we tried</button>}
-  {form&&<EntryForm state={state} user={user} hunt={hunt} editing={form.id?form:null} mutate={mutate} busy={busy} done={()=>setForm(null)}/>}
+  {!form&&<div className="row wrap"><button className="primary" onClick={()=>setForm({})}><Plus size={16}/> Add one we tried</button>
+   <button onClick={()=>setForm({want:true})}><Search size={16}/> Add one to look for</button></div>}
+  {form&&<EntryForm key={form.id||(form.want?'want':'tried')} state={state} user={user} hunt={hunt} editing={form.id?form:null} want={!!form.want} mutate={mutate} busy={busy} done={()=>setForm(null)}/>}
+  {wants.length>0&&<section className="hunt-wants"><h2>Still to find ({wants.length})</h2>
+   <ul>{wants.map(e=><li key={e.id}><div><strong>{e.title}</strong><Where state={state} entry={e}/>{e.note&&<small>{e.note}</small>}</div>
+    <div className="row">{!e.pending&&<button className="primary" disabled={busy} onClick={()=>mutate({type:'huntTried',id:e.id,done:true,by:user.name})}><Check size={15}/> Tried it</button>}
+     {!e.pending&&(parent||e.by===user.name)&&<><button aria-label={`Change ${e.title}`} onClick={()=>setForm(e)}><Pencil size={15}/></button>
+      <button aria-label={`Remove ${e.title}`} disabled={busy} onClick={()=>{if(confirm(`Take ${e.title} off the list?`))mutate({type:'huntRemove',id:e.id});}}><Trash2 size={15}/></button></>}</div></li>)}</ul>
+  </section>}
+  {board.count>0&&<h2>Tried ({board.count})</h2>}
   {board.count>0&&<div className="hunt-views">
    <div className="segmented" role="tablist">{[['stars','Stars'],['family','Family ranking'],['mine','My order']].map(([id,label])=>
     <button key={id} role="tab" aria-selected={view===id} className={view===id?'primary':''} onClick={()=>setView(id)}>{label}</button>)}</div>
@@ -124,6 +136,7 @@ function HuntPage({state,user,hunt,mutate,busy,back}){
     <Stars value={(e.ratings||{})[n]||0} disabled={busy||e.pending||(!parent&&n!==user.name)} label={`${n}’s rating for ${e.title}`}
      onPick={v=>mutate({type:'huntRate',id:e.id,person:n,rating:v,by:user.name})}/></div>)}</div>
    {!e.pending&&(parent||mine)&&<div className="row"><button aria-label={`Change ${e.title}`} onClick={()=>setForm(e)}><Pencil size={15}/></button>
+    <button aria-label={`Put ${e.title} back to still to find`} disabled={busy} onClick={()=>{if(confirm(`Put ${e.title} back on the list to find? It leaves everybody’s order.`))mutate({type:'huntTried',id:e.id,done:false,by:user.name});}}><Search size={15}/></button>
     <button aria-label={`Remove ${e.title}`} disabled={busy} onClick={()=>{if(confirm(`Take ${e.title} off the list?`))mutate({type:'huntRemove',id:e.id});}}><Trash2 size={15}/></button></div>}
   </li>;})}</ol>}
  </>;
@@ -139,7 +152,7 @@ export default function Hunts({state,user,mutate,busy}){
   <p>Every matcha, every gachapon, every bowl of ramen, and any list of our own. Add each one we try, tag where it was, give it stars, and drag your own list into order.</p>
   <div className="hunt-grid">{allHunts(state).map(h=>{const b=huntBoard(state,h.id);return <button key={h.id} className="hunt-card" onClick={()=>setOpen(h.id)}>
    <span className="hunt-icon" aria-hidden="true">{h.icon}</span><strong>{h.title}</strong>
-   <small>{b.count?`${b.count} tried`:'None yet'}{h.by?` · ${h.by}’s list`:''}</small>
+   <small>{b.count||b.wants?[b.count&&`${b.count} tried`,b.wants&&`${b.wants} to find`].filter(Boolean).join(' · '):'None yet'}{h.by?` · ${h.by}’s list`:''}</small>
    {b.best&&<small className="hunt-best"><Crown size={12}/> {b.best.title}</small>}
   </button>;})}</div>
   {!adding&&<button onClick={()=>setAdding(true)}><Plus size={16}/> Make our own list</button>}
