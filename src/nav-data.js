@@ -16,6 +16,7 @@ export const PAGES={
  highlights:{label:'Trip highlights',note:'The highlights video, coming after the trip, and what it will be made from'},
  places:{label:'Places & our map',note:'Directions and our Google My Map'},
  meeting:{label:'Meeting card',note:'If we get separated'},
+ safety:{label:'Safety & emergencies',note:'Emergency numbers, the boys\u2019 lost cards, the embassy, earthquakes and typhoons'},
  phrases:{label:'Phrases',note:'Greetings and travel Japanese, with how to say it'},
  facts:{label:'Fun facts',note:'A fact a day about what is coming up, and the whole collection'},
  help:{label:'Help & useful apps',note:'Translation, hotel directions, reminders'},
@@ -52,7 +53,7 @@ export const PRIMARY={
 // as one block they can scroll to and recognise, rather than their missions being stranded
 // between the bookings and the paperwork.
 export const MORE_SECTIONS=[
- ['Out and about',['weather','ask','places','money','food','phrases','meeting','help']],
+ ['Out and about',['weather','ask','places','money','food','phrases','meeting','safety','help']],
  ['The plan',['glance','todo','packing','trackers','planning','options','parks','shopping','shortlist','tickets','inbox']],
  ['Looking back',['photos','memorymap','diary','highlights','updates','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
