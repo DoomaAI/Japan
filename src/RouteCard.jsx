@@ -27,8 +27,9 @@ function Tracker({legs,rides,track}){
  useEffect(()=>{if(!on)return;const t=setInterval(()=>setNow(Date.now()),15000);return ()=>clearInterval(t);},[on]);
  const rideLegs=legs.filter(l=>l.mode==='ride'),leg=where&&rideLegs[where.i],stops=where&&rides[where.i];
  const age=fix?Math.round((now-fix.at)/60000):0;
- return <div className={`route-track${where?.ready?' ready':''}`} aria-live="polite">
-  <button className={on?'is-on':''} aria-pressed={on} onClick={()=>setOn(!on)}>{on?<><Square size={15}/>Stop tracking</>:<><LocateFixed size={15}/>Track this ride</>}</button>
+ return <>
+ <button className={`route-track-toggle${on?' is-on':''}`} aria-pressed={on} onClick={()=>setOn(!on)}>{on?<><Square size={14}/>Stop tracking</>:<><LocateFixed size={14}/>Track this ride</>}</button>
+ <div className={`route-track${where?.ready?' ready':''}`} aria-live="polite">
   {on&&!fix&&!trouble&&<span>Finding you…</span>}
   {trouble&&<span>{trouble}. Count the stops from the list instead.</span>}
   {on&&fix&&!where&&<span>Not near any {rideLegs.some(l=>LINES[l.line].kind!=='Bus')?'station':'stop'} on this route yet.</span>}
@@ -36,7 +37,8 @@ function Tracker({legs,rides,track}){
    ?<p className="route-now"><strong>At {stationLabel(where.nearest)}. Get off here.</strong>{leg.exit&&<span>{leg.exit}</span>}</p>
    :<p className="route-now"><small>{where.at?'Next stop':'Approaching'}{where.next===stops.length-1?' · get off here':''}</small><strong>{stationLabel(where.upcoming)}</strong><span>{where.at?`Now at ${stationLabel(where.nearest)} · `:''}{where.togo} stop{where.togo===1?'':'s'} to {stationLabel(stops[stops.length-1])} on the {LINES[leg.line].name}</span></p>)}
   {on&&fix&&age>=2&&<small>Last position {age} min ago; underground the phone often loses it.</small>}
- </div>;
+ </div>
+ </>;
 }
 const KIND_ICON={Subway:TrainFrontTunnel,Bus,Monorail:TramFront};
 export default function RouteCard({legs}){
@@ -58,7 +60,7 @@ export default function RouteCard({legs}){
     {leg.options&&<div className="route-options"><b>Options</b>{leg.options.map(o=><div key={o.name}><strong>{o.name} {o.ja&&<span lang="ja">{o.ja}</span>}<small>about {o.minutes} min</small></strong><span>{o.fare}</span><p>{o.how}</p></div>)}</div>}
     <p className="route-look"><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>
     <div className="route-follow">
-     <details open={here>=0||undefined}><summary>{line.kind==='Bus'?'Every stop':'Every station'}</summary>
+     <details open={here>=0||undefined}><summary>{line.kind==='Bus'?'Stops':'Stations'}</summary>
       {fast.length>0&&<p className="route-fast">{line.allStop} trains stop at all of these. {fast.map(f=><span key={f.tag}><mark>{f.tag}</mark> marks where {/^[AEIOU]/.test(f.name)?'an':'a'} {f.name} stops{f.some?'; “some” means only some of them':''}. </span>)}</p>}
       <ol className="route-stops">{stops.map((s,n)=><li key={n} className={n===next?'next':n===here&&where.at?'here':n<(next>=0?next:here)?'passed':''}><span>{s.name}</span>{n===next&&<em>Next</em>}{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span>{fast.map(f=>f.at.includes(s.name)?<mark key={f.tag}>{f.tag}</mark>:f.some?.includes(s.name)?<mark key={f.tag} className="some">{f.tag}, some</mark>:null)}</li>)}</ol>
      </details>
