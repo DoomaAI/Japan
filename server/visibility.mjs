@@ -23,8 +23,10 @@ function hideUnthrownHands(state,user){
 const hideTrackerLinks=(state,user)=>user?.role==='parent'||!state.trackers?.length?state
  :{...state,trackers:state.trackers.map(t=>({...t,shareUrl:null}))};
 const hideInbox=(state,user)=>user?.role==='parent'?state:{...state,inbox:[]};
+// The family ledger is the parents' money, and like the inbox it is removed at the boundary.
+const hideExpenses=(state,user)=>user?.role==='parent'?state:{...state,expenses:[]};
 export function visibleTrip(state,user,now=new Date()){
- state=hideTrackerLinks(hideInbox(hideUnthrownHands(state,user),user),user);
+ state=hideExpenses(hideTrackerLinks(hideInbox(hideUnthrownHands(state,user),user),user),user);
  if(user?.name===THANK_YOU_FROM)return state;
  if(user?.name!==THANK_YOU_TO)return {...state,thankYou:{seen:{},today:null}};
  const day=japanDate(now),note=thankYouForDay(state,day);

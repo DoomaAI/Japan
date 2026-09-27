@@ -402,7 +402,7 @@ export function seededChallenges(state){
 }
 export function ensureFeatures(input){
  const state=notesSeeded(splitSeeded({...input,...expressSeeded(input)}));
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -1203,6 +1203,7 @@ export function pendingProgress(state,queue){
   // where there is no signal, so it is given on the spot and lands whenever the phone does.
   if(o.type==='shortlistRating'){const f=next.shortlist.find(f=>f.id===o.id);if(f){f.rating=shortlistRating(o);f.pending=true;}}
   if(o.type==='shortlistStatus'){const f=next.shortlist.find(f=>f.id===o.id);if(f){f.status=o.status;f.decidedBy=o.status==='thinking'?null:(o.by||f.decidedBy);f.decidedAt=o.status==='thinking'?null:o.at;f.pending=true;}}
+  if(o.type==='expenseAdd')next.expenses=[...(next.expenses||[]),{id:`pending-${o.operationId}`,...expenseFields(o),createdBy:o.by||'',createdAt:o.at,pending:true}];
   if(o.type==='todoAdd')next.todos=[...next.todos,{id:`pending-${o.operationId}`,title:String(o.title||'').trim(),kind:o.kind==='buy'?'buy':'do',day:o.day??null,person:o.person||'Family',notes:String(o.notes||''),createdBy:o.by||'',createdAt:o.at,doneAt:null,doneBy:null,pending:true}];
   // Something put in the case on a train, and a suggestion added or turned down there, are all
   // still right whenever they land, so the list shows them at once.
@@ -1224,4 +1225,43 @@ export function pendingProgress(state,queue){
   if(o.type==='challengeStatus'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.completions={...c.completions};if(o.done)c.completions[o.person]=c.completions[o.person]||o.at;else delete c.completions[o.person];if(o.response!==undefined)c.responses={...(c.responses||{}),[o.person]:o.response};}}
  }
  return next;
+}
+
+// The family ledger: what Damien and Lauren spend, as opposed to the boys' purses. Kept in yen,
+// because that is what the receipt says, and shown in dollars at the one rate the family
+// shares, so the total reads the same on both phones. Parents only, like the email inbox.
+export const EXPENSE_CATEGORIES=[['food','Food & drink'],['transport','Transport'],['activities','Tickets & activities'],
+ ['shopping','Shopping & souvenirs'],['stay','Hotels'],['other','Everything else']];
+export const PAY_METHODS=[['card','Card'],['cash','Cash'],['ic','IC card']];
+export const PAYERS=['Damien','Lauren'];
+export const expenseCategoryLabel=id=>(EXPENSE_CATEGORIES.find(([k])=>k===id)||EXPENSE_CATEGORIES.at(-1))[1];
+export const payMethodLabel=id=>(PAY_METHODS.find(([k])=>k===id)||PAY_METHODS[0])[1];
+export function expenseFields(o){
+ return {title:String(o.title||'').trim(),yen:o.yen,day:o.day??null,
+  category:EXPENSE_CATEGORIES.some(([k])=>k===o.category)?o.category:'other',
+  method:PAY_METHODS.some(([k])=>k===o.method)?o.method:'card',
+  paidBy:PAYERS.includes(o.paidBy)?o.paidBy:'Damien',notes:String(o.notes||'').trim()};
+}
+export const expenses=state=>[...(state.expenses||[])]
+ .sort((a,b)=>String(b.day||'').localeCompare(String(a.day||''))||String(b.createdAt).localeCompare(String(a.createdAt)));
+// Totals for the whole trip or one day: overall, by category, by how it was paid and by who
+// paid, with the daily budget from the travel party beside it where one has been set.
+export function expenseSummary(state,{day=null}={}){
+ const list=(state.expenses||[]).filter(e=>!day||e.day===day);
+ const sum=rows=>rows.reduce((a,e)=>a+(Number.isFinite(e.yen)?e.yen:0),0);
+ const by=(key,ids)=>Object.fromEntries(ids.map(id=>[id,sum(list.filter(e=>e[key]===id))]).filter(([,v])=>v>0));
+ const total=sum(list),rate=yenPerAud(state),budget=party(state).budget||null;
+ const days=[...new Set((state.expenses||[]).map(e=>e.day).filter(Boolean))].length;
+ return {count:list.length,total,aud:yenToAud(total,rate),rate,
+  byCategory:by('category',EXPENSE_CATEGORIES.map(([k])=>k)),byMethod:by('method',PAY_METHODS.map(([k])=>k)),byPayer:by('paidBy',PAYERS),
+  budget,overBudget:day&&budget?total-budget:null,
+  dailyAverage:!day&&days?Math.round(total/days):null};
+}
+// A spreadsheet of the lot, for reconciling against the card statements at home.
+export function expensesCsv(state){
+ const rate=yenPerAud(state),q=v=>{const t=String(v??'');return /[",\n]/.test(t)?`"${t.replace(/"/g,'""')}"`:t;};
+ const rows=[['Date','What','Category','Paid by','Method','Yen','AUD (at shared rate)','Notes']];
+ for(const e of [...(state.expenses||[])].sort((a,b)=>String(a.day||'').localeCompare(String(b.day||''))||String(a.createdAt).localeCompare(String(b.createdAt))))
+  rows.push([e.day||'',e.title,expenseCategoryLabel(e.category),e.paidBy,payMethodLabel(e.method),e.yen,yenToAud(e.yen,rate).toFixed(2),e.notes]);
+ return rows.map(r=>r.map(q).join(',')).join('\n')+'\n';
 }

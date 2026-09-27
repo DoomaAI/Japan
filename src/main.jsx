@@ -40,6 +40,7 @@ import {MeetingCard,QuickCapture,GlobalSearch,Diary} from './PracticalPages.jsx'
 import MediaGallery from './MediaGallery.jsx';
 import Highlights from './Highlights.jsx';
 import Safety,{LostCards} from './Safety.jsx';
+import Ledger from './Ledger.jsx';
 import Planning from './Planning.jsx';
 import Nearby from './Nearby.jsx';
 import AskTrip from './AskTrip.jsx';
@@ -100,7 +101,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
 const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove',
- 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed'];
+ 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed'];
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
@@ -304,6 +305,7 @@ function App(){
  useEffect(()=>{if(tab==='thanks'&&user&&user.name!==THANK_YOU_FROM)setTab('today');},[tab,user?.name]);
  useEffect(()=>{if(tab==='inbox'&&user&&!(parent&&isAvailable('inbox')))setTab('today');},[tab,user?.role,config?.emailInbox]);
  useEffect(()=>{if(tab==='ask'&&user&&!isAvailable('ask'))setTab('today');},[tab,user?.name,config?.ask]);
+ useEffect(()=>{if(tab==='ledger'&&user&&!parent)setTab('today');},[tab,user?.role]);
  // Nate and Boston open straight onto their own missions, unless a link names a screen.
  useEffect(()=>{
   if(!user||landed.current)return;landed.current=true;
@@ -512,6 +514,7 @@ function App(){
   {tab==='inbox'&&parent&&isAvailable('inbox')&&<EmailInbox state={state} config={config} busy={busy} mutate={mutate} request={request} accept={accept} notice={notice} go={go}/>}
   {tab==='ask'&&<AskTrip state={visibleState} user={user} day={day} config={config} online={online} request={request} go={go} selectDay={selectDay} notice={notice}/>}
   {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
+  {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy}/>}
   {tab==='safety'&&<Safety state={visibleState} user={user} day={day} go={go}/>}
   {tab==='highlights'&&<Highlights state={visibleState} dayLabel={fmtDay}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}
