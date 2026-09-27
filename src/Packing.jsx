@@ -4,6 +4,8 @@ import {packing} from './trip-features.js';
 import {PACK_CATEGORIES,PACK_PRIORITY,PACK_SOURCES,packCategoryLabel,packingSuggestions,dismissedSuggestions,nextPackUp,packingProgress,daysAhead,packingWeather} from './packing-data.js';
 import {forwardedTrackers,linkState} from './trackers.js';
 import {japanDate} from './timing.js';
+import GoingHome from './GoingHome.jsx';
+import {goingHomeSoon} from './going-home.js';
 const SOURCE_ICONS={japan:MapPin,weather:CloudSun,activity:Compass,person:User,trip:CalendarDays};
 const fmt=date=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(date+'T12:00:00+09:00'));
 const whose=person=>person==='Family'?'All of us':`For ${person}`;
@@ -66,6 +68,7 @@ export function PackingNudge({state,user,day,go}){
    ?`share ${unshared===1?'its':'their'} location in Find My and paste the link, so it is to hand while the bag is away.`
    :'the Find My links are live.'}</span>
  </button>}
+ {next.home&&<GoingHome/>}
  </>;
 }
 export default function Packing({state,user,mutate,busy}){
@@ -85,7 +88,7 @@ export default function Packing({state,user,mutate,busy}){
   const values={title:f.get('title'),category:f.get('category'),person:f.get('person'),qty:Number(f.get('qty'))||1,notes:f.get('notes'),by:user.name};
   if(await mutate(edit.id?{type:'packEdit',id:edit.id,...values}:{type:'packAdd',...values})){setEdit(null);setView('list');}
  }
- return <><p className="eyebrow">WHAT GOES IN THE CASE</p><h1>Packing list</h1>
+ return <><p className="eyebrow">WHAT GOES IN THE CASE</p><h1>Packing list</h1><GoingHome open={goingHomeSoon(state,today)}/>
  <p>Our own list, ticked off as it goes in — and suggestions worked out from where we are going, the weather, what is on the days ahead and who is coming. Add what suits us, turn down what does not, and write in anything it missed. Anyone can add and tick, with no signal needed.</p>
  {next&&<p className="callout"><Luggage size={18}/><span><strong>Next pack-up: {fmt(next.date)}</strong> · {next.from} → {next.home?'home':next.to}.
   {parent&&!!packed&&<> <button disabled={busy} onClick={()=>{if(confirm('Untick everything, ready to pack again for the next move?'))mutate({type:'packReset'});}}><RotateCcw size={14}/>Start this pack-up again</button></>}</span></p>}

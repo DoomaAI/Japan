@@ -13,6 +13,7 @@ export const PAGES={
  photos:{label:'Photos',note:'Everyone\u2019s photos, whose is whose, and the daily vote'},
  memorymap:{label:'Memory map',note:'Photos, voice notes and stars where they happened, and where the family last was'},
  diary:{label:'Diary',note:'Completed activities, discoveries and photos'},
+ highlights:{label:'Trip highlights',note:'The highlights video, coming after the trip, and what it will be made from'},
  places:{label:'Places & our map',note:'Directions and our Google My Map'},
  meeting:{label:'Meeting card',note:'If we get separated'},
  phrases:{label:'Phrases',note:'Greetings and travel Japanese, with how to say it'},
@@ -53,7 +54,7 @@ export const PRIMARY={
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','money','food','phrases','meeting','help']],
  ['The plan',['glance','todo','packing','trackers','planning','options','parks','shopping','shortlist','tickets','inbox']],
- ['Looking back',['photos','memorymap','diary','updates','search','guide']],
+ ['Looking back',['photos','memorymap','diary','highlights','updates','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
  ['For the boys',['challenges','games','spending','facts','mascot']]
 ];
