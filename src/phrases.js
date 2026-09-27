@@ -12,6 +12,10 @@ export const PHRASES={
   en:'I am separated from my family. Please help me contact my parents.',
   romaji:'kazoku to hagurete shimaimashita. oya ni renraku suru no o tetsudatte kudasai.',
   say:'ka-zo-koo to ha-goo-reh-teh shee-mye-mash-ta · oh-ya nee ren-ra-koo soo-roo no oh tet-soo-dat-teh koo-da-sigh'},
+ help:{ja:'助けてください。',en:'Please help me.',romaji:'tasukete kudasai',say:'ta-soo-keh-teh koo-da-sigh'},
+ ambulance:{ja:'救急車を呼んでください。',en:'Please call an ambulance.',romaji:'kyūkyūsha o yonde kudasai',say:'kyoo-kyoo-sha oh yon-deh koo-da-sigh'},
+ police:{ja:'警察を呼んでください。',en:'Please call the police.',romaji:'keisatsu o yonde kudasai',say:'keh-sat-soo oh yon-deh koo-da-sigh'},
+ hospital:{ja:'病院はどこですか。',en:'Where is the hospital?',romaji:'byōin wa doko desu ka',say:'byoh-een wa do-ko dess ka'},
  thankYou:{ja:'ありがとうございます。',en:'Thank you.',romaji:'arigatō gozaimasu',say:'a-ree-ga-toh go-zye-mass'},
  hello:{ja:'こんにちは。',en:'Hello.',romaji:'konnichiwa',say:'kon-nee-chee-wa'},
  excuseMe:{ja:'すみません。',en:'Excuse me / sorry.',romaji:'sumimasen',say:'soo-mee-ma-sen'}

@@ -8927,3 +8927,27 @@ test('coming home: duty-free allowances and what to declare, on the last two day
  const packing=await readFile(new URL('../src/Packing.jsx',import.meta.url),'utf8');
  assert.match(packing,/next\.home&&<GoingHome\/>/,'the Home packing nudge carries it on the last two days');
 });
+
+test('safety page: emergency numbers work offline, and each boy has a lost card in Japanese',async()=>{
+ const {EMERGENCY,CONSULAR,SAFETY_LINKS,DISASTER,lostCard,lostCardNames}=await import('../src/safety-data.js');
+ const {PHRASES}=await import('../src/phrases.js');
+ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url),'utf8'));
+ assert.deepEqual(EMERGENCY.slice(0,2).map(e=>e.number),['110','119']);
+ assert.ok(CONSULAR.some(c=>/Tokyo/.test(c.title))&&CONSULAR.some(c=>/Osaka/.test(c.title)));
+ for(const [,href] of SAFETY_LINKS)assert.match(href,/^https:\/\//);
+ assert.deepEqual(DISASTER.map(d=>d.id),['quake','tsunami','typhoon']);
+ for(const k of ['help','ambulance','police','hospital'])assert.ok(PHRASES[k]?.ja&&PHRASES[k]?.say,k);
+ assert.deepEqual(lostCardNames(seed),['Nate','Boston'].filter(n=>seed.members.includes(n)));
+ const state={...seed,contacts:{Damien:'+61 400 000 000',Lauren:''},meetings:{}};
+ const nate=lostCard(state,'Nate',seed.days[2].date);
+ assert.equal(nate.kana,'ネイト');
+ assert.ok(nate.ja.some(l=>l.includes('ネイト')&&l.includes('5歳')),'his name and age in Japanese');
+ assert.ok(nate.ja.includes('親に電話してください。'));
+ assert.equal(nate.parents.find(p=>p.name==='Damien').phone,'+61 400 000 000');
+ assert.equal(nate.hotel.name,seed.days[2].hotel,'tonight’s hotel');
+ // A hotel name in Japanese, where a parent has entered one, is what the card leads with.
+ const withJa=lostCard({...state,meetings:{[seed.days[2].date]:{hotelJapanese:'ホテル',hotelAddress:'東京'}}},'Boston',seed.days[2].date);
+ assert.equal(withJa.hotel.name,'ホテル');
+ assert.equal(withJa.hotel.english,seed.days[2].hotel);
+ assert.equal(withJa.age,8);
+});
