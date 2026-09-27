@@ -110,7 +110,9 @@ const ACTIVITY_RULES=[
   {id:'powerbank-cabin',title:'Power banks in the carry-on, not the checked bags',category:'tech',priority:'essential',why:'Flights',
    note:'Airlines do not allow spare lithium batteries in checked luggage.'},
   {id:'biosecurity',title:'Know what to declare coming home to Australia',category:'documents',priority:'essential',why:'Flying home',
-   note:'Australian biosecurity: declare all food, wooden souvenirs, plant material and anything with seeds on the Incoming Passenger Card.'}]}
+   note:'Australian biosecurity: declare all food, wooden, bamboo and straw souvenirs, plant material and anything with seeds on the Incoming Passenger Card, and clean the mud off our shoes.'},
+  {id:'duty-free',title:'Add up what we bought against the duty-free allowance',category:'documents',priority:'recommended',why:'Flying home',
+   note:'A$900 per adult and A$450 per child for goods bought overseas, and 2.25 litres of alcohol per adult. Declare anything over.'}]}
 ];
 // Japan, whatever the plan: what catches visitors out.
 const JAPAN=[

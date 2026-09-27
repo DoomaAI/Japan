@@ -8909,3 +8909,21 @@ test('the highlights placeholder counts what the video will be made from',async(
  assert.equal(m.daysWithWinner,1);
  assert.deepEqual(m.topRated.map(r=>r.step.id),['s1'],'only the ones we rated four or more');
 });
+
+test('coming home: duty-free allowances and what to declare, on the last two days and in the packing list',async()=>{
+ const {DUTY_FREE,DECLARE,DECLARE_RULE,BORDER_LINKS,goingHomeSoon}=await import('../src/going-home.js');
+ const {allSuggestions}=await import('../src/packing-data.js');
+ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url),'utf8'));
+ assert.ok(DUTY_FREE.some(d=>/A\$900/.test(d.text)&&/A\$450/.test(d.text)),'the adult and child goods allowances');
+ assert.ok(DUTY_FREE.some(d=>/2\.25 litres/.test(d.text)),'the alcohol allowance');
+ for(const id of ['food','plants','animal','wood','soil'])assert.ok(DECLARE.some(d=>d.id===id),id);
+ assert.match(DECLARE_RULE,/If in doubt, declare/);
+ for(const [,href] of BORDER_LINKS)assert.match(href,/^https:\/\/www\.(abf|agriculture)\.gov\.au\//);
+ const last=seed.days.at(-1).date,before=seed.days.at(-2).date,first=seed.days[0].date;
+ assert.ok(goingHomeSoon(seed,last)&&goingHomeSoon(seed,before));
+ assert.ok(!goingHomeSoon(seed,first));
+ const ids=allSuggestions(seed,before).map(s=>s.id);
+ assert.ok(ids.includes('biosecurity')&&ids.includes('duty-free'),'both are suggested for the flight home');
+ const packing=await readFile(new URL('../src/Packing.jsx',import.meta.url),'utf8');
+ assert.match(packing,/next\.home&&<GoingHome\/>/,'the Home packing nudge carries it on the last two days');
+});
