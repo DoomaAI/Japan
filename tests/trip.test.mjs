@@ -9281,6 +9281,12 @@ test('28 September has a time on every stop, from the guide, and the live trip p
  assert.equal(out.steps[1].duration,75,'but an untouched length still updates');
  assert.equal(out.steps[2].time,null,'a renamed stop is left alone');
  assert.equal(out.timesSeed,TIMES_SEED);
+ // Rikuro's closing time goes onto its stop, on a trip that already had the times, and never over a note of ours.
+ const rik={timesSeed:1,steps:[{id:'2026-09-28-13',title:'Rikuro cheesecake',time:'19:00',duration:30,notes:''},{id:'2026-09-28-03',title:'CHADO Matcha',time:null,duration:30}]};
+ const after=timesSeeded(rik);
+ assert.match(after.steps[0].notes,/8:00 pm/);assert.equal(after.steps[0].time,'19:00','times are not re-applied');
+ assert.equal(after.steps[1].time,null);
+ assert.equal(timesSeeded({timesSeed:1,steps:[{...rik.steps[0],notes:'Get two'}]}).steps[0].notes,'Get two');
  const moved={...out,steps:[{...out.steps[0],time:'10:30'}]};
  assert.equal(timesSeeded(moved).steps[0].time,'10:30','and it only ever runs once');
 });
