@@ -12,6 +12,7 @@ import {visibleEnvelope,visibleTrip} from './visibility.mjs';
 import {readMenu,readPacket,menuReaderReady} from './menu.mjs';
 import {translatePhrase,translatorReady,translateTicketText,TICKET_FIELDS,TICKET_DIRECTIONS,ticketTranslationKey} from './translate.mjs';
 import {researchPlace,researchReady} from './research.mjs';
+import {researchPayMethod} from './pay-research.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {askTrip,askReady} from './ask.mjs';
 import {nearbyPlaces,nearbyReady} from './nearby.mjs';
@@ -203,6 +204,12 @@ export default async function handler(req,res){
   }
   // Looking a place up reads nothing private and writes nothing: it hands back a draft for a
   // parent to check and save themselves, through the ordinary revision-checked mutate.
+  // Looking a card's fees up reads nothing from the trip and writes nothing: the figures come
+  // back for a parent to check and save through the ordinary mutate.
+  if(route==='pay-research'&&post){
+   parent(user);
+   return json(res,await researchPayMethod(b));
+  }
   if(route==='research'&&post){
    parent(user);const {state}=await readTrip();
    return json(res,await researchPlace(b,state));

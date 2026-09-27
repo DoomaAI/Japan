@@ -42,6 +42,7 @@ import Highlights from './Highlights.jsx';
 import Safety,{LostCards} from './Safety.jsx';
 import Ledger from './Ledger.jsx';
 import Running from './Running.jsx';
+import WhichCard from './WhichCard.jsx';
 import Planning from './Planning.jsx';
 import Nearby from './Nearby.jsx';
 import AskTrip from './AskTrip.jsx';
@@ -306,7 +307,7 @@ function App(){
  useEffect(()=>{if(tab==='thanks'&&user&&user.name!==THANK_YOU_FROM)setTab('today');},[tab,user?.name]);
  useEffect(()=>{if(tab==='inbox'&&user&&!(parent&&isAvailable('inbox')))setTab('today');},[tab,user?.role,config?.emailInbox]);
  useEffect(()=>{if(tab==='ask'&&user&&!isAvailable('ask'))setTab('today');},[tab,user?.name,config?.ask]);
- useEffect(()=>{if(tab==='ledger'&&user&&!parent)setTab('today');},[tab,user?.role]);
+ useEffect(()=>{if(['ledger','paying'].includes(tab)&&user&&!parent)setTab('today');},[tab,user?.role]);
  // Nate and Boston open straight onto their own missions, unless a link names a screen.
  useEffect(()=>{
   if(!user||landed.current)return;landed.current=true;
@@ -516,6 +517,7 @@ function App(){
   {tab==='inbox'&&parent&&isAvailable('inbox')&&<EmailInbox state={state} config={config} busy={busy} mutate={mutate} request={request} accept={accept} notice={notice} go={go}/>}
   {tab==='ask'&&<AskTrip state={visibleState} user={user} day={day} config={config} online={online} request={request} go={go} selectDay={selectDay} notice={notice}/>}
   {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
+  {tab==='paying'&&parent&&<WhichCard state={visibleState} user={user} config={config} request={request} mutate={mutate} busy={busy} notice={notice}/>}
   {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy}/>}
   {tab==='safety'&&<Safety state={visibleState} user={user} day={day} go={go}/>}
   {tab==='highlights'&&<Highlights state={visibleState} dayLabel={fmtDay}/>}

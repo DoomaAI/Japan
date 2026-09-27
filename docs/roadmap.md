@@ -13,6 +13,8 @@ Compared against TripIt Pro, Wanderlog, Google Maps/Travel, Polarsteps, the Japa
 7. **Explainer done (on the shopping list); per-item flag not built.** **Tax-free shopping.** A short explainer (passport, stores with the tax-free sign, the minimum spend, keep the goods sealed) and a tax-free flag on the shopping list and purchase shortlist.
 8. **Visit Japan Web.** A card with the official link and the steps: register everyone, enter each trip, and have the immigration and customs QR codes ready before landing. It only covers entering Japan, so for this trip it matters only if the app is used again. Put the Australian arrival paperwork for the flight home on the same card.
 
+8a. **Done.** **Which card should we use?** Cards and their overseas fees, ranked for a shop payment or an ATM withdrawal, with fees looked up on the web.
+
 ## After the trip
 
 9. **Trip highlights video.** Placeholder live now under More → Looking back → **Trip highlights**. See the design below.
