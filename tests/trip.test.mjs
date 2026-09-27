@@ -9244,3 +9244,12 @@ test('hunts & lists: a want-to-try stage, and a bought shop find going into a li
  assert.throws(()=>applyOperation(state,{type:'huntAdd',hunt:'kitkat',...shortlistToHunt(kitkat)},parent),AppError,'only once');
  assert.throws(()=>applyOperation(state,{type:'huntAdd',hunt:'kitkat',title:'Ghost',shortlistId:'nope'},parent),AppError);
 });
+
+test('shopping list: the add form opens straight under Add an item, above the search',async()=>{
+ const src=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ const shop=src.slice(src.indexOf('export function Shopping('));
+ const button=shop.indexOf('>Add an item</button>'),form=shop.indexOf('{edit&&<form'),search=shop.indexOf('Search');
+ assert.ok(button>0&&form>button&&form-button<40,'the form follows the button');
+ assert.ok(search>form,'the search comes after the form');
+ assert.match(shop,/scrollIntoView/,'an item opened for editing brings the form into view');
+});
