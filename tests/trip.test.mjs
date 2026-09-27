@@ -9088,7 +9088,7 @@ test('the hunts: every matcha and gachapon added, rated by each of us, best firs
  const {HUNTS,huntBoard,huntAverage,allHunts}=await import('../src/hunt-data.js');
  const boston={name:'Boston',role:'child'};
  let state=ensureFeatures(structuredClone(seed));
- assert.deepEqual(state.hunts,{custom:[],entries:[]});
+ assert.deepEqual(state.hunts,{custom:[],entries:[],rankings:{}});
  assert.ok(['matcha','gachapon','ramen'].every(id=>HUNTS.some(h=>h.id===id)));
  const day=seed.days[5].date;
  // Anyone adds a find, the boys included, with their own stars.
@@ -9134,4 +9134,60 @@ test('the hunts: every matcha and gachapon added, rated by each of us, best firs
   {operation:{type:'huntRate',id:maruni.id,person:'Lauren',rating:2}}]);
  assert.ok(shown.hunts.entries.some(e=>e.id==='pending-h1'&&e.ratings.Lauren===4&&e.pending));
  assert.equal(shown.hunts.entries.find(e=>e.id===maruni.id).ratings.Lauren,2);
+});
+
+test('hunts & lists: tagged to where it was, dragged into each person’s order, and lists of our own',async()=>{
+ const {ensureFeatures,pendingProgress}=await import('../src/trip-features.js');
+ const {huntWhere,huntCities,personalOrder,familyRanking,allHunts}=await import('../src/hunt-data.js');
+ const {memoryPoints}=await import('../src/memory-map.js');
+ const boston={name:'Boston',role:'child'};
+ let state=ensureFeatures(structuredClone(seed));
+ const kyotoDay=seed.days.find(d=>/kyoto/i.test(d.city)),tokyoDay=seed.days.find(d=>/tokyo/i.test(d.city));
+ const step=seed.steps.find(s=>s.day===kyotoDay.date);
+ // Tagged to a stop, to a day, and pinned where we stood.
+ state=applyOperation(state,{type:'huntAdd',hunt:'matcha',title:'Uji latte',stepId:step.id,day:tokyoDay.date},parent);
+ state=applyOperation(state,{type:'huntAdd',hunt:'matcha',title:'Tsukiji iced',day:tokyoDay.date,pin:{lat:35.6655,lng:139.7707}},parent);
+ state=applyOperation(state,{type:'huntAdd',hunt:'matcha',title:'Station KitKat matcha'},parent);
+ const [uji,tsukiji,kitkat]=state.hunts.entries;
+ assert.equal(uji.day,null,'a find on a stop takes its day from the stop');
+ assert.equal(huntWhere(state,uji).day,kyotoDay.date);
+ assert.equal(huntWhere(state,uji).city,kyotoDay.city);
+ assert.equal(huntWhere(state,tsukiji).city,tokyoDay.city);
+ assert.match(huntWhere(state,tsukiji).mapUrl,/destination=35\.6655,139\.7707/);
+ assert.deepEqual(huntCities(state,'matcha'),[kyotoDay.city,tokyoDay.city].sort());
+ for(const bad of [{stepId:'nope'},{locationId:'nope'},{stepId:step.id,locationId:(state.locations||[])[0]?.id||'x'},{pin:{lat:999,lng:0}}])
+  assert.throws(()=>applyOperation(state,{type:'huntAdd',hunt:'matcha',title:'x',...bad},parent),AppError,JSON.stringify(bad));
+ // Everyone's own order; new ones wait at the bottom; a boy orders only his own.
+ assert.deepEqual(personalOrder(state,'matcha','Boston'),[uji.id,tsukiji.id,kitkat.id]);
+ state=applyOperation(state,{type:'huntRank',hunt:'matcha',person:'Boston',order:[kitkat.id,uji.id]},boston);
+ assert.deepEqual(personalOrder(state,'matcha','Boston'),[kitkat.id,uji.id,tsukiji.id]);
+ assert.throws(()=>applyOperation(state,{type:'huntRank',hunt:'matcha',person:'Nate',order:[uji.id]},boston),AppError);
+ for(const order of [[uji.id,uji.id],['nope'],[uji.id,tsukiji.id,kitkat.id,'x']])
+  assert.throws(()=>applyOperation(state,{type:'huntRank',hunt:'matcha',person:'Damien',order},parent),AppError,JSON.stringify(order));
+ state=applyOperation(state,{type:'huntRank',hunt:'matcha',person:'Damien',order:[uji.id,kitkat.id,tsukiji.id]},parent);
+ // Family: Boston puts KitKat 1st of 2 (1) and Uji 2nd (0); Damien has Uji 1st (1), KitKat 2nd (0.5), Tsukiji 3rd (0).
+ const fam=familyRanking(state,'matcha');
+ assert.deepEqual(fam.ranked.map(r=>[r.entry.title,r.score]),[['Station KitKat matcha',0.75],['Uji latte',0.5],['Tsukiji iced',0]]);
+ assert.deepEqual(fam.people.sort(),['Boston','Damien']);
+ // Taking one off takes it out of everybody's order.
+ state=applyOperation(state,{type:'huntRemove',id:kitkat.id},parent);
+ assert.deepEqual(state.hunts.rankings.matcha.Boston,[uji.id]);
+ // Offline, a new order shows at once.
+ const shown=pendingProgress(state,[{operation:{type:'huntRank',hunt:'matcha',person:'Lauren',order:[tsukiji.id,uji.id]}}]);
+ assert.deepEqual(shown.hunts.rankings.matcha.Lauren,[tsukiji.id,uji.id]);
+ // A pinned find is on the memory map.
+ assert.ok(memoryPoints(state).points.some(p=>p.kind==='hunt'&&p.title==='Tsukiji iced'&&p.exact&&p.icon==='🍵'));
+ // Lists of our own: renamed or deleted by whoever started one, or a parent; the built-ins stay.
+ state=applyOperation(state,{type:'huntNew',title:'Temples',icon:'⛩️',hint:'Every temple we visit'},boston);
+ const temples=allHunts(state).find(h=>h.title==='Temples');
+ assert.equal(temples.hint,'Every temple we visit');
+ state=applyOperation(state,{type:'huntAdd',hunt:temples.id,title:'Kinkaku-ji'},boston);
+ state=applyOperation(state,{type:'huntRank',hunt:temples.id,person:'Boston',order:[state.hunts.entries.at(-1).id]},boston);
+ assert.throws(()=>applyOperation(state,{type:'huntListEdit',id:temples.id,title:'Shrines'},child),AppError);
+ state=applyOperation(state,{type:'huntListEdit',id:temples.id,title:'Temples & shrines',icon:'⛩️',hint:''},boston);
+ assert.equal(allHunts(state).find(h=>h.id===temples.id).title,'Temples & shrines');
+ assert.throws(()=>applyOperation(state,{type:'huntListRemove',id:'matcha'},parent),AppError);
+ state=applyOperation(state,{type:'huntListRemove',id:temples.id},parent);
+ assert.ok(!allHunts(state).some(h=>h.id===temples.id));
+ assert.ok(!state.hunts.entries.some(e=>e.hunt===temples.id)&&!state.hunts.rankings[temples.id]);
 });

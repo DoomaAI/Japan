@@ -537,3 +537,10 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .hunt-ratings{display:grid;gap:.1rem;margin:.4rem 0}.hunt-rating{display:grid;grid-template-columns:4.5rem 1fr;align-items:center}
 .hunt-favs{padding-left:1.1rem}.link-back{background:none;border:0;padding:.3rem 0;display:flex;align-items:center;gap:.2rem}
 .hunt-link{margin:.2rem 0 1rem}
+.hunt-views{margin:1rem 0 .4rem}.segmented{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.6rem}
+.rank-list{list-style:none;padding:0;margin:.4rem 0}
+.rank-list li{display:grid;grid-template-columns:2rem auto 1fr auto;gap:.5rem;align-items:center;padding:.6rem .3rem;border-bottom:1px solid #e4dece;background:#fffdf8}
+.rank-list li.held{box-shadow:0 6px 18px rgba(0,0,0,.18);position:relative;z-index:2;border-radius:10px}
+.rank-pos{font-weight:700;font-size:1.2rem;text-align:center}.rank-body{display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere}
+.rank-grip{touch-action:none;cursor:grab;background:none;border:0;padding:.3rem}.rank-arrows{display:flex;gap:.2rem}
+.rank-list li:not(:has(.rank-grip)){grid-template-columns:2rem 1fr}

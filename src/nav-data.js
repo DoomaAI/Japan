@@ -7,7 +7,7 @@ export const PAGES={
  tickets:{label:'Tickets',note:'Bookings, luggage tags and QR codes'},
  inbox:{label:'Forwarded email',note:'Booking emails you sent in, waiting to be filed'},
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
- hunts:{label:'The hunts',note:'Rate every matcha, gachapon and ramen we try, and see which was best'},
+ hunts:{label:'Hunts & lists',note:'Rate and rank every matcha, gachapon and ramen, lists of our own, and where each one was'},
  money:{label:'Yen',note:'What a price is in dollars, signal or not'},
  paying:{label:'Which card?',note:'The cheapest card or cash for a payment or an ATM, and each card\u2019s fees looked up'},
  ledger:{label:'Family spending',note:'What we have spent, by day and category, in yen and dollars'},

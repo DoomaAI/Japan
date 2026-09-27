@@ -13,7 +13,7 @@ export const HUNTS=[
  {id:'vending',title:'Vending machine drinks',icon:'🥤',hint:'The strange ones included'}
 ];
 export const MAX_CUSTOM_HUNTS=20,MAX_HUNT_ENTRIES=1000;
-export const EMPTY_HUNTS={custom:[],entries:[]};
+export const EMPTY_HUNTS={custom:[],entries:[],rankings:{}};
 export const huntState=state=>({...EMPTY_HUNTS,...(state.hunts||{})});
 export const allHunts=state=>[...HUNTS,...huntState(state).custom];
 export const findHunt=(state,id)=>allHunts(state).find(h=>h.id===id)||null;
@@ -35,6 +35,44 @@ export function huntBoard(state,huntId){
  return {entries:ranked,count:list.length,best,favourites};
 }
 export function huntEntryFields(o){
- return {hunt:o.hunt,title:String(o.title||'').trim(),place:String(o.place||'').trim(),day:o.day??null,
-  yen:Number.isInteger(o.yen)&&o.yen>=0?o.yen:null,note:String(o.note||'').trim()};
+ return {hunt:o.hunt,title:String(o.title||'').trim(),place:String(o.place||'').trim(),day:o.stepId?null:(o.day??null),
+  yen:Number.isInteger(o.yen)&&o.yen>=0?o.yen:null,note:String(o.note||'').trim(),
+  stepId:o.stepId||null,locationId:o.locationId||null,pin:o.pin&&Number.isFinite(o.pin.lat)&&Number.isFinite(o.pin.lng)?{lat:o.pin.lat,lng:o.pin.lng}:null};
+}
+// Where a find was: pinned where the phone stood, a stop on the plan, or a place off our map.
+// The city comes from whichever of those it has, so a hunt can be read one city at a time.
+export function huntWhere(state,e){
+ const step=e.stepId?(state.steps||[]).find(s=>s.id===e.stepId)||null:null;
+ const loc=e.locationId?(state.locations||[]).find(l=>l.id===e.locationId)||null:null;
+ const day=step?.day||e.day||null;
+ const city=loc?.city||(day?(state.days||[]).find(d=>d.date===day)?.city:null)||null;
+ const label=[loc?.name||step?.title||'',e.place].filter(Boolean).join(' · ');
+ const mapUrl=e.pin?`https://www.google.com/maps/dir/?api=1&destination=${e.pin.lat},${e.pin.lng}&travelmode=walking`
+  :(loc||step||e.place)?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([e.place,loc?.name,loc?.address,step?.place||step?.title,city,'Japan'].filter(Boolean).join(' '))}`:null;
+ return {step,loc,day,city,label,mapUrl};
+}
+export const huntCities=(state,huntId)=>[...new Set(huntState(state).entries.filter(e=>e.hunt===huntId).map(e=>huntWhere(state,e).city).filter(Boolean))].sort();
+// Each person's own order for a hunt, best first. Finds they have not placed yet go on the end,
+// newest last, so a new one waits at the bottom of their list to be dragged into place.
+export function personalOrder(state,huntId,person){
+ const entries=huntState(state).entries.filter(e=>e.hunt===huntId);
+ const saved=(huntState(state).rankings?.[huntId]?.[person]||[]).filter(id=>entries.some(e=>e.id===id));
+ const rest=entries.filter(e=>!saved.includes(e.id)).sort((a,b)=>String(a.at).localeCompare(String(b.at))).map(e=>e.id);
+ return [...saved,...rest];
+}
+export const hasRanked=(state,huntId,person)=>(huntState(state).rankings?.[huntId]?.[person]||[]).length>0;
+// The family's order, from everybody who has dragged theirs: first place in a list of n is worth
+// 1, last is worth 0, and a find's score is the average of what it got from each list it is in.
+// Ties fall back to the stars.
+export function familyRanking(state,huntId){
+ const entries=huntState(state).entries.filter(e=>e.hunt===huntId);
+ const lists=Object.entries(huntState(state).rankings?.[huntId]||{}).filter(([,ids])=>Array.isArray(ids)&&ids.length);
+ const score={},votes={};
+ for(const [,ids] of lists){
+  const valid=ids.filter(id=>entries.some(e=>e.id===id)),n=valid.length;
+  valid.forEach((id,i)=>{score[id]=(score[id]||0)+(n>1?1-i/(n-1):1);votes[id]=(votes[id]||0)+1;});
+ }
+ const ranked=entries.map(e=>({entry:e,score:votes[e.id]?Math.round(score[e.id]/votes[e.id]*100)/100:null,votes:votes[e.id]||0}))
+  .sort((a,b)=>(b.score??-1)-(a.score??-1)||(huntAverage(b.entry)??-1)-(huntAverage(a.entry)??-1));
+ return {ranked,people:lists.map(([n])=>n)};
 }
