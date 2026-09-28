@@ -1,18 +1,14 @@
 import React,{useState} from 'react';
-import {Check,Star,Languages,Plus,Trash2,Copy,AlertCircle,Compass} from 'lucide-react';
+import {Check,Languages,Plus,Trash2,Copy,AlertCircle,Compass} from 'lucide-react';
 import {FOOD,FOOD_KINDS,FOOD_KIND_LABEL,ORDERING,SAY_TIP} from './food-data.js';
 import SayIt from './SayIt.jsx';
 import {PHRASES} from './phrases.js';
 import {triedFood,foodRatings,foodAverage,isFavourite,FAVOURITE_AT,searchText,MAX_DISH_HUNT} from './trip-features.js';
 import MenuReader from './MenuReader.jsx';
+import {Stars} from './StepReview.jsx';
 import {CardFacts,factAloudFor} from './FunFacts.jsx';
 import {factsForItem} from './fact-data.js';
 export const allFood=state=>[...FOOD,...(state.foodItems||[]).map(i=>({...i,custom:true}))];
-function Stars({value,onRate,disabled,label}){
- return <span className="stars" role="group" aria-label={label}>{[1,2,3,4,5].map(n=>
-  <button key={n} type="button" className={`star${n<=value?' on':''}`} disabled={disabled} aria-label={`${n} star${n>1?'s':''}`} aria-pressed={n===value}
-   onClick={()=>onRate(n===value?0:n)}><Star size={17}/></button>)}</span>;
-}
 export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,notice,show,request,config}){
  const [kind,setKind]=useState(''),[only,setOnly]=useState(''),[query,setQuery]=useState(''),[edit,setEdit]=useState(null);
  const parent=user.role==='parent',items=allFood(state);
@@ -83,8 +79,8 @@ export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,
      <div className="food-person" key={n}>
       <button className={`rider${tried[n]?' on':''}`} disabled={busy||(!parent&&n!==user.name)} aria-pressed={!!tried[n]}
        onClick={()=>mutate({type:'foodTried',itemId:item.id,person:n,done:!tried[n]})}>{tried[n]&&<Check size={14}/>}{n}</button>
-      <Stars value={ratings[n]||0} disabled={busy||(!parent&&n!==user.name)} label={`${n}’s rating for ${item.en}`}
-       onRate={rating=>mutate({type:'foodRating',itemId:item.id,person:n,rating})}/>
+      <Stars size={22} value={ratings[n]||0} disabled={busy||(!parent&&n!==user.name)} label={`${n}’s rating for ${item.en}`}
+       onPick={rating=>mutate({type:'foodRating',itemId:item.id,person:n,rating})}/>
      </div>)}</div>
     <div className="row wrap">
      {item.ja&&<button onClick={()=>show({type:'foodcard',item})}><Languages size={16}/>Show someone</button>}
