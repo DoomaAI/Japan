@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye} from 'lucide-react';
-import {LINES,legStops,stationLabel,whereOnRoute,liveTimes} from './route-data.js';
+import {Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket} from 'lucide-react';
+import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen} from './route-data.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
 // Follows the phone along the route while it is open and tracking is on. GPS fades underground,
 // so the last good fix is kept and its age shown rather than guessing.
@@ -43,11 +43,12 @@ function Tracker({legs,rides,track,status,onPress}){
 const KIND_ICON={Subway:TrainFrontTunnel,Bus,Monorail:TramFront};
 export default function RouteCard({legs}){
  const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
- const rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
+ const fares=routeFares(legs),rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
  // Every ride offers the one tracker; its status sits with the ride it is following (the one pressed until it knows).
  const [pressed,setPressed]=useState(0),trackAt=where?where.i:pressed;
  return <section className="route-card" aria-label="Route">
   <p className="eyebrow">ROUTE</p>
+  {fares&&<p className="route-fares"><Ticket size={15}/><span><b>Fare: adult {yen(fares.adult)} · child {yen(fares.child)} each,</b> as {fares.rides.length} separate tickets, one per company: {fares.rides.map(r=>`${r.operator} ${yen(r.yen[0])} / ${yen(r.yen[1])}`).join(' + ')}. An IC card covers them all: tap out at one company's gates and in again at the next, and each part is charged.{legs.some(l=>l.options)?' Seat tickets on the options below are extra.':''}</span></p>}
   {legs.map((leg,k)=>{
    if(leg.mode==='walk')return <p className="route-walk" key={k}><Footprints size={15}/><span>{leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span></p>;
    const r=rideAt[k],line=LINES[leg.line],stops=rides[r],on=where&&where.i===r,here=on?where.index:-1,next=on&&!where.arrived?where.next:-1;
@@ -57,6 +58,7 @@ export default function RouteCard({legs}){
     <p className="route-kind"><i aria-hidden="true"/>{line.kind} · {line.operator}</p>
     <p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>
     <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes&&!leg.options?` · about ${leg.minutes} min`:''}</p>
+    {leg.yen&&!leg.options&&<p className="route-fare"><b>Fare:</b> adult {yen(leg.yen[0])} · child {yen(leg.yen[1])}{fares?`, a separate ${line.operator} ticket`:''}. Tap an IC card at the gates, or buy a ticket from the fare machines.</p>}
     {leg.options&&<div className="route-options"><b>Options</b>{leg.options.map(o=><div key={o.name}><strong>{o.name} {o.ja&&<span lang="ja">{o.ja}</span>}<small>about {o.minutes} min</small></strong><span>{o.fare}</span><p>{o.how}</p></div>)}</div>}
     <p className="route-look"><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>
     <div className="route-follow">

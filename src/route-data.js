@@ -45,13 +45,14 @@ const ride=(line,from,to,extra={})=>({mode:'ride',line,from,to,...extra});
 const walk=(text,minutes)=>({mode:'walk',text,minutes});
 // Choices on the same ride, with time, fare and how to pay, so the family can pick on the day.
 const KINTETSU_OPTIONS=[
- {name:'Express',ja:'急行',minutes:45,fare:'adult ¥760 · child ¥380',how:'Tap an IC card (ICOCA, Suica, PASMO) at the Kintetsu gates, or buy a paper ticket from the fare machines. No seat reservation; sit anywhere free.'},
+ {name:'Express',ja:'急行',minutes:45,yen:[760,380],fare:'adult ¥760 · child ¥380',how:'Tap an IC card (ICOCA, Suica, PASMO) at the Kintetsu gates, or buy a paper ticket from the fare machines. No seat reservation; sit anywhere free.'},
  {name:'Limited Express',ja:'特急',minutes:35,fare:'adult ¥1,280 · child ¥640 (fare plus ¥520 / ¥260 for the seat)',how:'Tap in with an IC card as usual, then buy a Limited Express ticket for each person at the Limited Express machine inside the gates (or the ticket counter): choose the train, pay by cash, card or IC card. It gives a car and seat number. Show it if the conductor asks.'},
 ];
 const JR_KYOTO_OPTIONS=[
- {name:'Special Rapid',ja:'新快速',minutes:29,fare:'adult ¥580 · child ¥290',how:'Tap an IC card at the JR gates. Unreserved; stand by the door marks on the platform.'},
+ {name:'Special Rapid',ja:'新快速',minutes:29,yen:[580,290],fare:'adult ¥580 · child ¥290',how:'Tap an IC card at the JR gates. Unreserved; stand by the door marks on the platform.'},
  {name:'A-Seat on the same train',ja:'Aシート',minutes:29,fare:'the fare plus ¥600 a seat booked ahead, or ¥840 on the day',how:'Car 9 on some Special Rapids only; check for Aシート on the departure board. Book on JR West\'s e5489 site (free WESTER sign-up) for ¥600, or buy at a ticket machine or ticket office for ¥840. Tap an IC card at the gates for the fare as usual.'},
 ];
+// A ride's `yen` is [adult, child] per person by IC card; with options, the first option's is the usual fare.
 // Keyed by stop id. `towards` is what the platform sign says; `exit` is for the stop after.
 export const ROUTES={
  '2026-09-26-01':[walk('Hotel Kanra to Gojo Station, Exit 8.',1),
@@ -69,9 +70,9 @@ export const ROUTES={
   ride('kintetsu','Kintetsu-Nara','Kyoto',{towards:'Kyoto (京都). Otherwise change at Yamato-Saidaiji to a Kyoto train.',minutes:45,options:KINTETSU_OPTIONS,exit:'Out through the Kintetsu gates, then the Karasuma Line one stop to Gojo, or 12–15 min on foot north up Karasuma-dori.'})],
  '2026-09-28-02-2':[walk('Hotel Kanra to Kyoto Station, JR gates.',15),
   ride('jrKyoto','Kyoto','Osaka',{towards:'Osaka / Kobe / Himeji',minutes:29,options:JR_KYOTO_OPTIONS,exit:'Follow signs for the Midosuji Line (御堂筋線), Umeda, about 5–10 min.'}),
-  ride('midosuji','Umeda','Shinsaibashi',{towards:'Namba / Tennoji / Nakamozu',minutes:7,exit:'North gate (北改札), then Exit 1 or 2 on the west side of Midosuji, into Minamisenba 4-chome for CHADO. Follow Maps for the last few minutes.'})],
+  ride('midosuji','Umeda','Shinsaibashi',{towards:'Namba / Tennoji / Nakamozu',minutes:7,yen:[240,120],exit:'North gate (北改札), then Exit 1 or 2 on the west side of Midosuji, into Minamisenba 4-chome for CHADO. Follow Maps for the last few minutes.'})],
  '2026-09-28-14':[walk('Dotonbori / Ebisubashi to Namba Station, Midosuji Line.',8),
-  ride('midosuji','Namba','Umeda',{towards:'Umeda / Shin-Osaka / Esaka / Senri-Chuo / Minoh-Kayano',minutes:9,exit:'Follow signs for JR Osaka Station, about 8–10 min.'}),
+  ride('midosuji','Namba','Umeda',{towards:'Umeda / Shin-Osaka / Esaka / Senri-Chuo / Minoh-Kayano',minutes:9,yen:[240,120],exit:'Follow signs for JR Osaka Station, about 8–10 min.'}),
   ride('jrKyoto','Osaka','Kyoto',{towards:'Kyoto / Yasu / Maibara',minutes:29,options:JR_KYOTO_OPTIONS,exit:'Central Gate (中央口), then 12–15 min north up Karasuma-dori, or a taxi.'})],
  '2026-09-29-06':[ride('nozomi','Kyoto','Tokyo',{towards:'Tokyo (東京). Green Car 8.',minutes:135,exit:'Follow the red-and-white signs for the Keiyo Line (京葉線); the transfer is next.'})],
  '2026-09-29-07':[walk('Shinkansen platforms to the Keiyo Line: follow 京葉線 (Keiyo Line) signs south through the long underground walkway with moving walkways.',20)],
@@ -131,6 +132,15 @@ export function legStops(leg){
  return (i<=j?all.slice(i,j+1):all.slice(j,i+1).reverse()).map(station);
 }
 export const routeFor=step=>ROUTES[step?.id]||null;
+// What each ride costs, and the total when the route crosses companies: each company is its own
+// ticket, and an IC card pays each part as it taps out and in again at the change.
+const fareOf=l=>l.yen||l.options?.[0]?.yen;
+export function routeFares(legs){
+ const rides=legs.filter(l=>l.mode==='ride'&&fareOf(l)).map(l=>({operator:LINES[l.line].operator,yen:fareOf(l)}));
+ if(rides.length<2)return null;
+ return {rides,adult:rides.reduce((t,r)=>t+r.yen[0],0),child:rides.reduce((t,r)=>t+r.yen[1],0)};
+}
+export const yen=n=>`¥${n.toLocaleString('en')}`;
 export const stationLabel=s=>s.code?`${s.name} (${s.code})`:s.name;
 // Metres between two points; plenty accurate over a city.
 export function distance(a,b){
