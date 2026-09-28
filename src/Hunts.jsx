@@ -89,6 +89,9 @@ function ListEditor({hunt,mutate,busy,done}){
 }
 function HuntPage({state,user,hunt,mutate,busy,back}){
  const parent=user.role==='parent',[form,setForm]=useState(null),[view,setView]=useState('stars'),[city,setCity]=useState(''),[editing,setEditing]=useState(false);
+ // Each find sits folded to its name, where and average so the whole list stays in view after
+ // adding one; open it for the note, everybody's stars and the buttons.
+ const [open,setOpen]=useState(()=>new Set()),toggle=id=>setOpen(o=>{const n=new Set(o);n.has(id)?n.delete(id):n.add(id);return n;});
  const board=huntBoard(state,hunt.id),cities=huntCities(state,hunt.id),wants=huntWants(state,hunt.id);
  const here=e=>!city||huntWhere(state,e).city===city;
  const entries=board.entries.filter(here);
@@ -125,19 +128,20 @@ function HuntPage({state,user,hunt,mutate,busy,back}){
     <div className="rank-body"><strong>{i===0&&r.score!==null&&<Crown size={15} aria-label="Top of the family ranking"/>} {r.entry.title}</strong><Where state={state} entry={r.entry}/>
      {r.votes>0&&<small>In {r.votes} {r.votes===1?'list':'lists'}{huntAverage(r.entry)!==null?` · ${huntAverage(r.entry)}★`:''}</small>}</div></li>)}</ol>
   </>}
-  {view==='stars'&&<ol className="hunt-list">{entries.map((e,i)=>{const avg=huntAverage(e),mine=e.by===user.name;return <li key={e.id} className={i===0&&avg!==null?'top':''}>
+  {view==='stars'&&<ol className="hunt-list">{entries.map((e,i)=>{const avg=huntAverage(e),mine=e.by===user.name,shown=open.has(e.id);return <li key={e.id} className={`${i===0&&avg!==null?'top':''} ${shown?'open':''}`}>
    <div className="hunt-head">
     <div><strong>{i===0&&avg!==null&&<Crown size={15} aria-label="Best so far"/>} {e.title}</strong>
      <Where state={state} entry={e}/>
-     {e.note&&<small>{e.note}</small>}</div>
+     {shown&&e.note&&<small>{e.note}</small>}</div>
     <div className="hunt-avg">{avg!==null?<><strong>{avg}</strong><small>out of 5</small></>:<small>not rated</small>}</div>
+    <button type="button" className="hunt-toggle" aria-expanded={shown} aria-label={`${shown?'Fold':'Open'} ${e.title}`} onClick={()=>toggle(e.id)}><ChevronDown size={18}/></button>
    </div>
-   <div className="hunt-ratings">{(state.members||[]).map(n=><div key={n} className="hunt-rating"><span>{n}</span>
+   {shown&&<><div className="hunt-ratings">{(state.members||[]).map(n=><div key={n} className="hunt-rating"><span>{n}</span>
     <Stars value={(e.ratings||{})[n]||0} disabled={busy||e.pending||(!parent&&n!==user.name)} label={`${n}’s rating for ${e.title}`}
      onPick={v=>mutate({type:'huntRate',id:e.id,person:n,rating:v,by:user.name})}/></div>)}</div>
    {!e.pending&&(parent||mine)&&<div className="row"><button aria-label={`Change ${e.title}`} onClick={()=>setForm(e)}><Pencil size={15}/></button>
     <button aria-label={`Put ${e.title} back to still to find`} disabled={busy} onClick={()=>{if(confirm(`Put ${e.title} back on the list to find? It leaves everybody’s order.`))mutate({type:'huntTried',id:e.id,done:false,by:user.name});}}><Search size={15}/></button>
-    <button aria-label={`Remove ${e.title}`} disabled={busy} onClick={()=>{if(confirm(`Take ${e.title} off the list?`))mutate({type:'huntRemove',id:e.id});}}><Trash2 size={15}/></button></div>}
+    <button aria-label={`Remove ${e.title}`} disabled={busy} onClick={()=>{if(confirm(`Take ${e.title} off the list?`))mutate({type:'huntRemove',id:e.id});}}><Trash2 size={15}/></button></div>}</>}
   </li>;})}</ol>}
  </>;
 }
