@@ -107,8 +107,10 @@ function KanaMatch({user,mutate,busy,state}){
   <p>Tap a Japanese letter, then the sound it makes. {set==='katakana'?'Katakana is the one on menus and signs.':'Hiragana is the everyday one.'}</p>
   <div className="kana-grid">{cards.map(c=>{
    const matched=done.includes(c.pair),up=matched||picked.some(p=>p.key===c.key);
+   // Face down means nothing in the button at all: text only coloured out still reads aloud,
+   // selects on a long press and names the button, which is every letter on the board.
    return <button key={c.key} className={`kana-card${matched?' matched':''}${up?' up':''}${c.ja?' ja':''}`}
-    disabled={matched} onClick={()=>tap(c)} lang={c.ja?'ja':undefined}>{c.face}</button>;
+    disabled={matched} onClick={()=>tap(c)} lang={c.ja&&up?'ja':undefined} aria-label={up?undefined:'Face-down card'}>{up?c.face:''}</button>;
   })}</div>
   <WinBurst on={finished} label="All matched!" sub={`${pairs} pairs in ${taps} taps`}/>
   <p className="game-status">{finished?<><Trophy size={16}/> All {pairs} matched in {taps} taps.</>:`${done.length} of ${pairs} matched`}</p>

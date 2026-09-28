@@ -95,7 +95,8 @@ export default function Karuta({user,state,mutate,busy}){
   {Object.keys(board).length>1&&<p className="game-status">
    {Object.entries(board).map(([name,points])=>`${name} ${points}`).join(' · ')}</p>}
   <button onClick={()=>reset()}><RotateCcw size={16}/> New round</button>
-  {kotowaza&&<details className="merge-ladder"><summary>What the sayings mean</summary>
+  {/* It pairs every saying with its picture, so it is an answer sheet until the round is over. */}
+  {kotowaza&&finished&&<details className="merge-ladder"><summary>What the sayings mean</summary>
    <div className="ladder-grid notes">{round.cards.map(c=>
     <span key={c.id}><b aria-hidden="true">{c.face}</b><b lang="ja">{c.ja}</b><small>{c.romaji}</small>
      <small>{c.literal} {c.meaning}</small></span>)}</div>
