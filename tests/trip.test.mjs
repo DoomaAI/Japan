@@ -9436,3 +9436,23 @@ test('saved list items fold to one line so the whole list stays in view, and ope
  assert.match(hunts,/className="hunt-toggle" aria-expanded=\{shown\}/,'each find has a fold toggle');
  assert.match(hunts,/\{shown&&<><div className="hunt-ratings">/,'everybody’s stars only when opened');
 });
+test('every stop in the plan reads as a sort of stop, and a parent can set it by hand',async()=>{
+ const {entryType,guessEntryType,ENTRY_TYPE_IDS}=await import('../src/entry-types.js');
+ const by=t=>guessEntryType(seed.steps.find(s=>s.title===t));
+ assert.equal(by('Tonkatsu Maisen lunch'),'food');
+ assert.equal(by('Nozomi 33 to Kyoto'),'transport');
+ assert.equal(by('Shinsaibashi shopping'),'shopping');
+ assert.equal(by('Mario Kart — Express Pass'),'entertainment');
+ assert.equal(by('Flight of the Hippogriff'),'entertainment');
+ assert.equal(by('Yasaka Shrine at dusk'),'sightseeing');
+ assert.equal(by('mipig café'),'cafe');
+ assert.equal(by('Check in and settle in'),'hotel');
+ assert.equal(by('Chuo-dori shopping and snacks'),'shopping');
+ for(const s of seed.steps)assert.notEqual(guessEntryType(s),'other',s.title);
+ const s=seed.steps.find(s=>s.title==='Tonkatsu Maisen lunch');
+ const edited=applyOperation(seed,{type:'patch',id:s.id,patch:{category:'sightseeing'}},parent).steps.find(x=>x.id===s.id);
+ assert.equal(entryType(edited).id,'sightseeing');
+ assert.equal(entryType(applyOperation(seed,{type:'patch',id:s.id,patch:{category:''}},parent).steps.find(x=>x.id===s.id)).id,'food');
+ assert.throws(()=>applyOperation(seed,{type:'patch',id:s.id,patch:{category:'spa'}},parent),/sort of stop/);
+ assert.ok(ENTRY_TYPE_IDS.includes('food'));
+});

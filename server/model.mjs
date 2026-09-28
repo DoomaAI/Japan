@@ -4,6 +4,7 @@ import {expressOperation} from './express.mjs';
 import { randomUUID } from 'node:crypto';
 import {activeSteps} from '../src/timing.js';
 import {legCount,tickLeg} from '../src/route-data.js';
+import {ENTRY_TYPE_IDS} from '../src/entry-types.js';
 export const MEMBERS = ['Damien','Lauren','Nate','Boston'];
 // Where a forwarded email can be filed. A ticket is the default; the rest put it where the
 // family would have put it themselves had they typed it in.
@@ -40,7 +41,7 @@ export function ticketParent(id,state){
  return doc;
 }
 export function validatePatch(p,state){
- const allowed=['title','notes','place','japanese','time','duration','kind','day','page','group','option','participants','order','review','bookingTime','bookingReference','locked','website','travelMinutes','arrivalBuffer','locationId','phone','pin'];
+ const allowed=['title','notes','place','japanese','time','duration','kind','day','page','group','option','participants','order','review','bookingTime','bookingReference','locked','website','travelMinutes','arrivalBuffer','locationId','phone','pin','category'];
  if(!p || typeof p!=='object' || Array.isArray(p))throw new AppError('Invalid change.');
  for(const [k,v] of Object.entries(p)){
   if(!allowed.includes(k))throw new AppError('Unsupported field.');
@@ -60,6 +61,7 @@ export function validatePatch(p,state){
   if(k==='page'&&(!Number.isInteger(v)||v<1||v>72))throw new AppError('Choose a guide page from 1 to 72.');
   if(k==='order'&&(!Number.isFinite(v)||Math.abs(v)>100000))throw new AppError('Invalid position.');
   if(k==='kind'&&!['fixed','flexible','optional','review'].includes(v))throw new AppError('Invalid activity type.');
+  if(k==='category'&&v!==''&&!ENTRY_TYPE_IDS.includes(v))throw new AppError('Choose a sort of stop from the list.');
   if(k==='review'&&typeof v!=='boolean')throw new AppError('Invalid review flag.');
   if(k==='participants'&&(!Array.isArray(v)||!v.length||v.some(n=>!MEMBERS.includes(n))))throw new AppError('Choose family members.');
  }
