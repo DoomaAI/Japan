@@ -53,6 +53,7 @@ export const PAGE_RULES={
  paying:'Which card. This is for Mum and Dad. It helps them choose the card that costs the least to use in Japan, and when to use cash.',
  hunts:'The hunts. Every time we try a matcha, or get a gachapon, or eat a bowl of ramen, put it in here. Then everybody gives it stars, and the best one goes to the top. You can make your own list too, and drag your list into order with your favourite at the top.',
  ledger:'Family spending. This is where Mum and Dad write down what they spend on the trip, like food and trains and tickets. It adds it all up. Your own money is on the spending money page.',
+ noticed:'Things we noticed. When you see something funny or strange or lovely, press the big microphone and say it. Then say where it was, or what it was about. It all goes in the diary and on the memory map.',
  diary:'Diary. Everything we have already done, with the photos and the notes from those days. This is the trip so far.',
  places:'Places and our map. Every place we are going, and a button that opens the map and takes you there.',
  meeting:'Meeting card. If you ever get lost, show this to a grown up who works there. It has our hotel and Mum and Dad on it, in Japanese.',

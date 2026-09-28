@@ -10,6 +10,7 @@ import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
 import {HUNTS,MAX_CUSTOM_HUNTS,MAX_HUNT_ENTRIES,huntEntryFields} from '../src/hunt-data.js';
+import {MAX_NOTICED,NOTICED_TEXT,noticedFields} from '../src/noticed-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
 const MAX_PROPOSALS=300;
@@ -540,6 +541,29 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:entry.title};
   }
   fail('Unknown shortlist action.');
+ }else if(op.type==='noticedAdd'||op.type==='noticedEdit'||op.type==='noticedRemove'){
+  // Things we noticed. Anyone adds one, the boys included; changing or removing one is for
+  // whoever said it, or a parent.
+  const list=state.noticed;
+  const found=()=>{const n=list.find(n=>n.id===op.id);if(!n)fail('That one is no longer there.',404);
+   if(!parent&&n.by!==user.name)fail('Only whoever said it, or a parent, can change it.',403);return n;};
+  if(op.type==='noticedRemove'){const n=found();state.noticed=list.filter(x=>x.id!==n.id);return {summary:null,important:false,title:'Something we noticed'};}
+  if(!string(op.text,NOTICED_TEXT)||!op.text.trim())fail('Say what you noticed.');
+  dayCheck(op.day??null);
+  if(op.stepId&&op.locationId)fail('Tag it to a stop or to a place, not both.');
+  if(op.stepId&&!state.steps.some(s=>s.id===op.stepId))fail('Activity not found.',404);
+  if(op.locationId&&!(state.locations||[]).some(l=>l.id===op.locationId))fail('Choose a place from the map list.');
+  if(!validPin(op.pin??null))fail('That position could not be read.');
+  if(op.item!=null){
+   const kinds={hunt:()=>(state.hunts?.entries||[]).some(e=>e.id===op.item.id),find:()=>(state.shortlist||[]).some(f=>f.id===op.item.id)};
+   if(typeof op.item!=='object'||!kinds[op.item.kind]||typeof op.item.id!=='string'||!kinds[op.item.kind]())fail('That item is no longer on its list.');
+  }
+  const fields=noticedFields(op);
+  if(op.type==='noticedEdit'){const n=found();Object.assign(n,fields,{spoken:n.spoken||fields.spoken});return {summary:null,important:false,title:'Something we noticed'};}
+  if(list.length>=MAX_NOTICED)fail(`That is ${MAX_NOTICED} already.`);
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+  state.noticed=[...list,{id:randomUUID(),...fields,by:user.name,at}];
+  return {summary:null,important:false,title:'Something we noticed'};
  }else if(typeof op.type==='string'&&op.type.startsWith('hunt')){
   // The hunts. Anyone adds a find and anyone starts a new hunt, the boys included; everyone
   // rates for themselves; changing or removing a find is for whoever added it, or a parent.

@@ -9301,3 +9301,44 @@ test('28 September has a time on every stop, from the guide, and the live trip p
  const moved={...out,steps:[{...out.steps[0],time:'10:30'}]};
  assert.equal(timesSeeded(moved).steps[0].time,'10:30','and it only ever runs once');
 });
+test('things we noticed: said out loud, tagged to where it was and what it was about, and in the diary and on the map',async()=>{
+ const {ensureFeatures,pendingProgress,searchTrip,diaryDays}=await import('../src/trip-features.js');
+ const {noticedWhere,noticedItem,noticedFor}=await import('../src/noticed-data.js');
+ const {memoryPoints}=await import('../src/memory-map.js');
+ const boston={name:'Boston',role:'child'};
+ let state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.noticed,[]);
+ const kyotoDay=seed.days.find(d=>/kyoto/i.test(d.city)),step=seed.steps.find(s=>s.day===kyotoDay.date);
+ state=applyOperation(state,{type:'huntAdd',hunt:'matcha',title:'Uji latte'},parent);
+ const latte=state.hunts.entries[0];
+ // A boy can say one, tagged to a stop and to a hunt find; a stop gives it its day.
+ state=applyOperation(state,{type:'noticedAdd',text:'  The deer bowed back to us  ',stepId:step.id,day:kyotoDay.date,item:{kind:'hunt',id:latte.id},spoken:true},child);
+ state=applyOperation(state,{type:'noticedAdd',text:'A vending machine that sang',day:kyotoDay.date,pin:{lat:35.0116,lng:135.7681}},boston);
+ const [deer,machine]=state.noticed;
+ assert.equal(deer.text,'The deer bowed back to us');assert.equal(deer.by,'Nate');assert.equal(deer.day,null);assert.ok(deer.spoken);
+ assert.equal(noticedWhere(state,deer).day,kyotoDay.date);
+ assert.match(noticedItem(state,deer).label,/Uji latte/);
+ for(const bad of [{text:''},{text:'x',stepId:'nope'},{text:'x',locationId:'nope'},{text:'x',pin:{lat:999,lng:0}},{text:'x',item:{kind:'hunt',id:'nope'}},{text:'x',item:{kind:'other',id:latte.id}},{text:'x'.repeat(2001)}])
+  assert.throws(()=>applyOperation(state,{type:'noticedAdd',...bad},parent),AppError,JSON.stringify(bad).slice(0,60));
+ // Only whoever said it, or a parent, changes or removes it.
+ assert.throws(()=>applyOperation(state,{type:'noticedEdit',id:deer.id,text:'Mine now'},boston),AppError);
+ state=applyOperation(state,{type:'noticedEdit',id:deer.id,text:'The deer bowed first',stepId:step.id},child);
+ assert.equal(state.noticed[0].text,'The deer bowed first');assert.ok(state.noticed[0].spoken,'still said out loud');
+ // In the diary, in search and on the map.
+ assert.deepEqual(diaryDays(state,kyotoDay.date)[0].noticed.map(n=>n.text),['The deer bowed first','A vending machine that sang']);
+ assert.ok(searchTrip(state,'vending').some(h=>h.type==='Noticed'&&h.id===machine.id));
+ assert.ok(memoryPoints(state).points.some(p=>p.kind==='noticed'&&p.noticed.id===machine.id&&p.exact));
+ assert.deepEqual(noticedFor(state,{person:'Boston'}).map(n=>n.id),[machine.id]);
+ // Removing the hunt find leaves the noticing; removing the stop puts it back on the stop's day.
+ state=applyOperation(state,{type:'huntRemove',id:latte.id},parent);
+ assert.equal(noticedItem(state,state.noticed[0]),null);
+ state=applyOperation(state,{type:'patch',id:step.id,patch:{locked:false}},parent);
+ state=applyOperation(state,{type:'lock',id:step.id,locked:false},parent);
+ state=applyOperation(state,{type:'remove',id:step.id},parent);
+ assert.equal(state.noticed[0].stepId,null);assert.equal(state.noticed[0].day,kyotoDay.date);
+ // Offline, a new one shows at once.
+ const shown=pendingProgress(state,[{operation:{type:'noticedAdd',operationId:'n1',text:'Lanterns',by:'Lauren',at:new Date().toISOString()}}]);
+ assert.ok(shown.noticed.some(n=>n.id==='pending-n1'&&n.pending&&n.by==='Lauren'));
+ state=applyOperation(state,{type:'noticedRemove',id:machine.id},boston);
+ assert.equal(state.noticed.length,1);
+});

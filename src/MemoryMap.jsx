@@ -17,7 +17,7 @@ const JAPAN=[[31,129.5],[43.5,145.5]];
 // Markers are drawn from counts and initials only, never from anything a person typed, and
 // what little text there is goes through esc() on its way into the marker's HTML.
 function markerIcon(point,selected){
- const label=point.kind==='hunt'?point.icon:point.kind==='find'?'¥':point.kind==='photo'||point.kind==='daily'?'◉':point.count||'✓';
+ const label=point.kind==='noticed'?'!':point.kind==='hunt'?point.icon:point.kind==='find'?'¥':point.kind==='photo'||point.kind==='daily'?'◉':point.count||'✓';
  return L.divIcon({className:'',iconSize:[34,34],iconAnchor:[17,17],
   html:`<span class="mm-marker ${point.kind}${point.exact?'':' approx'}${selected?' selected':''}">${esc(label)}</span>`});
 }
@@ -27,9 +27,10 @@ function Memory({point,state}){
  const {photos,voice,ratings,thoughts}=point;
  const names=[...new Set([...Object.keys(ratings),...Object.keys(thoughts)])];
  return <section className="feature-card mm-memory" aria-live="polite">
-  <p className="eyebrow">{point.day?dayLabel(point.day):point.kind==='hunt'?'From our hunts':'Shop find'}{point.time?` · ${point.time}`:''}{point.exact?'':' · at the place, roughly'}</p>
+  <p className="eyebrow">{point.day?dayLabel(point.day):point.kind==='hunt'?'From our hunts':point.kind==='noticed'?'Something we noticed':'Shop find'}{point.time?` · ${point.time}`:''}{point.exact?'':' · at the place, roughly'}</p>
   <h2>{point.title}</h2>
   {point.kind==='daily'&&<img className="mm-photo" src={photoUrl(point.daily)} alt={point.title} loading="lazy"/>}
+  {point.kind==='noticed'&&<><p>{point.noticed.text}</p><p><small>noticed by {point.noticed.by}</small></p></>}
   {point.kind==='hunt'&&<p>{point.hunt.place||''}{Number.isInteger(point.hunt.yen)?` · ¥${point.hunt.yen}`:''} · added by {point.hunt.by}</p>}
   {point.kind==='find'&&<>{point.find.photo&&<img className="mm-photo" src={findUrl(point.find)} alt={point.title} loading="lazy"/>}
    <p>{point.find.shop||'A shop'}{point.find.price?` · ¥${point.find.price}`:''} · found by {point.find.addedBy}</p></>}
@@ -127,7 +128,7 @@ export default function MemoryMap({state,user,request,accept,notice,busy}){
  </div>
  <label className="checkline"><input type="checkbox" checked={showFamily} onChange={e=>setShowFamily(e.target.checked)}/>Show the family on the map</label></div>
  <div className="mm-map" ref={box} role="region" aria-label="Map of our memories"/>
- <p className="mm-legend"><span className="mm-key stop"/>A stop <span className="mm-key stop approx"/>At the place, roughly <span className="mm-key photo"/>Where a photo was taken <span className="mm-key find"/>A shop find{day&&route.length>1&&<> · the dashed line is the day in order</>}</p>
+ <p className="mm-legend"><span className="mm-key stop"/>A stop <span className="mm-key stop approx"/>At the place, roughly <span className="mm-key photo"/>Where a photo was taken <span className="mm-key find"/>A shop find <span className="mm-key noticed"/>Something we noticed{day&&route.length>1&&<> · the dashed line is the day in order</>}</p>
  {chosen?<Memory point={chosen} state={state}/>:<p><small>{points.length?`${points.length} ${points.length===1?'place':'places'} on the map.`:'Nothing on the map for this yet.'}</small></p>}
  {!!unplaced.length&&<section className="feature-card">
   <h2><MapPinOff size={18}/> Not on the map yet</h2>
