@@ -22,14 +22,14 @@ function useTracking(rides){
  },[where?.i,where?.ready]);
  return {on,setOn,fix,where,trouble};
 }
-function Tracker({legs,rides,track}){
+function Tracker({legs,rides,track,status,onPress}){
  const {on,setOn,fix,where,trouble}=track,[now,setNow]=useState(Date.now());
  useEffect(()=>{if(!on)return;const t=setInterval(()=>setNow(Date.now()),15000);return ()=>clearInterval(t);},[on]);
  const rideLegs=legs.filter(l=>l.mode==='ride'),leg=where&&rideLegs[where.i],stops=where&&rides[where.i];
  const age=fix?Math.round((now-fix.at)/60000):0;
  return <>
- <button className={`route-track-toggle${on?' is-on':''}`} aria-pressed={on} onClick={()=>setOn(!on)}>{on?<><Square size={14}/>Stop tracking</>:<><LocateFixed size={14}/>Track this ride</>}</button>
- <div className={`route-track${where?.ready?' ready':''}`} aria-live="polite">
+ <button className={`route-track-toggle${on?' is-on':''}`} aria-pressed={on} onClick={()=>{onPress();setOn(!on);}}>{on?<><Square size={14}/>Stop tracking</>:<><LocateFixed size={14}/>Track this ride</>}</button>
+ {status&&<div className={`route-track${where?.ready?' ready':''}`} aria-live="polite">
   {on&&!fix&&!trouble&&<span>Finding you…</span>}
   {trouble&&<span>{trouble}. Count the stops from the list instead.</span>}
   {on&&fix&&!where&&<span>Not near any {rideLegs.some(l=>LINES[l.line].kind!=='Bus')?'station':'stop'} on this route yet.</span>}
@@ -37,15 +37,15 @@ function Tracker({legs,rides,track}){
    ?<p className="route-now"><strong>At {stationLabel(where.nearest)}. Get off here.</strong>{leg.exit&&<span>{leg.exit}</span>}</p>
    :<p className="route-now"><small>{where.at?'Next stop':'Approaching'}{where.next===stops.length-1?' · get off here':''}</small><strong>{stationLabel(where.upcoming)}</strong><span>{where.at?`Now at ${stationLabel(where.nearest)} · `:''}{where.togo} stop{where.togo===1?'':'s'} to {stationLabel(stops[stops.length-1])} on the {LINES[leg.line].name}</span></p>)}
   {on&&fix&&age>=2&&<small>Last position {age} min ago; underground the phone often loses it.</small>}
- </div>
+ </div>}
  </>;
 }
 const KIND_ICON={Subway:TrainFrontTunnel,Bus,Monorail:TramFront};
 export default function RouteCard({legs}){
  const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
  const rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
- // The tracker sits with the station list of the ride it is following (the first ride until it knows).
- const trackAt=where?where.i:0;
+ // Every ride offers the one tracker; its status sits with the ride it is following (the one pressed until it knows).
+ const [pressed,setPressed]=useState(0),trackAt=where?where.i:pressed;
  return <section className="route-card" aria-label="Route">
   <p className="eyebrow">ROUTE</p>
   {legs.map((leg,k)=>{
@@ -64,7 +64,7 @@ export default function RouteCard({legs}){
       {fast.length>0&&<p className="route-fast">{line.allStop} trains stop at all of these. {fast.map(f=><span key={f.tag}><mark>{f.tag}</mark> marks where {/^[AEIOU]/.test(f.name)?'an':'a'} {f.name} stops{f.some?'; “some” means only some of them':''}. </span>)}</p>}
       <ol className="route-stops">{stops.map((s,n)=><li key={n} className={n===next?'next':n===here&&where.at?'here':n<(next>=0?next:here)?'passed':''}><span>{s.name}</span>{n===next&&<em>Next</em>}{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span>{fast.map(f=>f.at.includes(s.name)?<mark key={f.tag}>{f.tag}</mark>:f.some?.includes(s.name)?<mark key={f.tag} className="some">{f.tag}, some</mark>:null)}</li>)}</ol>
      </details>
-     {r===trackAt&&<Tracker legs={legs} rides={rides} track={track}/>}
+     <Tracker legs={legs} rides={rides} track={track} status={r===trackAt} onPress={()=>setPressed(r)}/>
     </div>
     <div className="route-links"><a href={liveTimes(leg)} target="_blank" rel="noreferrer"><Radio size={14}/>Live times</a><a href={line.status} target="_blank" rel="noreferrer"><ExternalLink size={14}/>{line.operator} service status</a></div>
     {leg.exit&&<p className="route-exit"><b>Exit:</b> {leg.exit}</p>}
