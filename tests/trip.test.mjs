@@ -9343,3 +9343,14 @@ test('leg ticks are checked like stop ticks',()=>{
  const theirs={...seed,steps:seed.steps.map(s=>s.id===multi.id?{...s,participants:['Damien']}:s)};
  assert.throws(()=>applyOperation(theirs,{type:'legStatus',id:multi.id,leg:0,done:true},child),e=>e.status===403);
 });
+
+test('saved list items fold to one line so the whole list stays in view, and open for more',async()=>{
+ const src=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ const shop=src.slice(src.indexOf('export function Shopping('));
+ assert.match(shop,/className="shop-toggle" aria-expanded=\{shown\}/,'each item has a fold toggle');
+ assert.match(shop,/\{shown&&<div className="shop-more">/,'shop, notes and buttons only when opened');
+ assert.match(shop,/new Set\(initial\?\[initial\.id\]:\[\]\)/,'an item opened from a link starts open');
+ const hunts=await readFile(new URL('../src/Hunts.jsx',import.meta.url),'utf8');
+ assert.match(hunts,/className="hunt-toggle" aria-expanded=\{shown\}/,'each find has a fold toggle');
+ assert.match(hunts,/\{shown&&<><div className="hunt-ratings">/,'everybody’s stars only when opened');
+});
