@@ -42,7 +42,7 @@ function Memory({point,state}){
    <div><strong>{n}</strong>{ratings[n]&&<span className="mm-stars" aria-label={`${ratings[n]} of 5 stars`}>{Array.from({length:5},(_,i)=><Star key={i} size={14} fill={i<ratings[n]?'currentColor':'none'}/>)}</span>}
     {thoughts[n]&&<p>{thoughts[n].text}</p>}</div>
   </div>)}
-  {voice.map(v=><div className="mm-voice" key={v.id}><Mic size={15}/><span>{v.title||`${v.by}’s voice note`}</span><audio controls preload="none" src={voiceUrl(v)}/></div>)}
+  {voice.map(v=><div className="mm-voice" key={v.id}><Mic size={15}/><span>{v.title||`${v.by}’s voice note`}</span><audio controls preload="none" src={voiceUrl(v)}/>{v.transcript&&<p className="voice-words">“{v.transcript}”</p>}</div>)}
   {point.kind==='stop'&&!point.count&&<p><small>Done, with nothing kept from it yet.</small></p>}
  </section>;
 }

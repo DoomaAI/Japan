@@ -6,7 +6,7 @@ import {AnchorSelect,anchorValue,readAnchor} from './Shortlist.jsx';
 import {askPhoneWhereItIs} from './geo.js';
 import {PIN_PLACES,pinText} from './trip-features.js';
 import {noticedFeed,noticedWhere,noticedItem,noticedItems,itemKey,readItem,voiceTitle,NOTICED_TEXT} from './noticed-data.js';
-import {voiceUrl} from './VoiceNotes.jsx';
+import {voiceUrl,VoiceWords} from './VoiceNotes.jsx';
 import {voiceLength} from './trip-features.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {japanDate} from './timing.js';
@@ -68,7 +68,7 @@ function Noticing({state,user,n,mutate,busy,onEdit}){
   <p>{n.text}</p>
   <small>{bits.join(' · ')}{n.spoken?' · said out loud':''}{n.pending?' · waiting to sync':''}
    {n.pin&&<> · <MapPin size={12}/> pinned</>}{w.mapUrl&&<> · <a href={w.mapUrl} target="_blank" rel="noopener noreferrer">map</a></>}</small>
-  {item?.kind==='voice'?<VoicePlayer voice={item.voice}/>:item&&<span className="tag"><Tag size={12}/>{item.label}</span>}
+  {item?.kind==='voice'?<><VoicePlayer voice={item.voice}/><VoiceWords note={item.voice} user={user} mutate={mutate} busy={busy}/></>:item&&<span className="tag"><Tag size={12}/>{item.label}</span>}
   {mine&&!n.pending&&<div className="row wrap noticed-actions">
    <button type="button" onClick={onEdit}><Pencil size={14}/>Change</button>
    <button type="button" disabled={busy} onClick={()=>confirm('Take this one out?')&&mutate({type:'noticedRemove',id:n.id})}><Trash2 size={14}/>Remove</button></div>}
@@ -81,11 +81,12 @@ function VoicePlayer({voice}){
 // A voice note recorded anywhere in the app — on a stop, on a day, or from here. It keeps its
 // own place and day; a few words written against it turn it into something we noticed, with the
 // recording inside it.
-function VoiceClip({state,v,onTell}){
+function VoiceClip({state,user,v,onTell,mutate,busy}){
  const step=v.stepId?state.steps.find(s=>s.id===v.stepId):null;
  const bits=[v.by,v.day&&dayLabel(v.day),step?.title].filter(Boolean);
  return <li className="noticed-item voice">
   <VoicePlayer voice={v}/>
+  <VoiceWords note={v} user={user} mutate={mutate} busy={busy}/>
   <small>{bits.join(' · ')}</small>
   <div className="row wrap noticed-actions"><button type="button" onClick={onTell}><Pencil size={14}/>Say what it was</button></div>
  </li>;
@@ -110,7 +111,7 @@ export default function Noticed({state,user,mutate,busy,show}){
   <ul className="noticed-list">{list.map(({kind,id,noticed:n,voice:v})=>kind==='voice'
    ?telling===id
     ?<li key={id}><NoticedForm state={state} user={user} preset={{item:{kind:'voice',id},stepId:v.stepId,day:v.day}} mutate={mutate} busy={busy} done={()=>setTelling(null)}/></li>
-    :<VoiceClip key={id} state={state} v={v} onTell={()=>setTelling(id)}/>
+    :<VoiceClip key={id} state={state} user={user} v={v} mutate={mutate} busy={busy} onTell={()=>setTelling(id)}/>
    :editing?.id===id
    ?<li key={id}><NoticedForm state={state} user={user} editing={n} mutate={mutate} busy={busy} done={()=>setOpen(null)}/></li>
    :<Noticing key={id} state={state} user={user} n={n} mutate={mutate} busy={busy} onEdit={()=>setOpen(id)}/>)}</ul>

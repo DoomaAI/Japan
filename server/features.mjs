@@ -385,6 +385,13 @@ export function extraOperation(state,op,user,fail,now){
   if(!parent&&note.by!==user.name)fail('You can only label your own voice notes.',403);
   if(typeof op.title!=='string'||op.title.length>200)fail('Keep the label short.');
   note.title=op.title.trim();
+ }else if(op.type==='voiceNoteWords'){
+  // The words of a voice note, added or corrected afterwards by whoever recorded it, or a parent.
+  const note=state.voiceNotes.find(v=>v.id===op.id);if(!note)fail('Voice note not found.',404);
+  if(!parent&&note.by!==user.name)fail('You can only write down your own voice notes.',403);
+  if(typeof op.transcript!=='string'||op.transcript.length>6000)fail('The words are too long to keep.');
+  const words=op.transcript.trim();if(words)note.transcript=words;else delete note.transcript;
+  return {summary:null,important:false,title:note.title||'Voice note'};
  }else if(op.type==='exchangeRate'){
   if(!parent)fail('A parent can set the rate.',403);
   if(!Number.isFinite(op.perAud)||op.perAud<1||op.perAud>1000)fail('Enter how many yen one Australian dollar buys.');

@@ -7593,13 +7593,13 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  const store=(saved={})=>({getItem:k=>saved[k]??null,setItem:(k,v)=>{saved[k]=v;},saved});
  // Nothing is off until somebody says so, so a phone that never opens this page behaves
  // exactly as it always did.
- assert.deepEqual(DEFAULTS,{dailyPhrase:true,dailyFact:true});
+ assert.deepEqual(DEFAULTS,{dailyPhrase:true,dailyFact:true,transcribeVoice:false});
  assert.deepEqual(readSettings('Nate',store()),DEFAULTS);
  // One at a time: turning the fun fact off leaves the phrase alone, which is the whole point
  // of two switches rather than one.
  const phone=store();
- assert.deepEqual(writeSetting('Nate','dailyFact',false,phone),{dailyPhrase:true,dailyFact:false});
- assert.deepEqual(readSettings('Nate',phone),{dailyPhrase:true,dailyFact:false});
+ assert.deepEqual(writeSetting('Nate','dailyFact',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false});
+ assert.deepEqual(readSettings('Nate',phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false});
  // Under the person's own name. Two boys sharing a phone do not share an opinion about a
  // pop-up, and switching one off must never switch it off for somebody else.
  assert.deepEqual(readSettings('Boston',phone),DEFAULTS);
@@ -7613,7 +7613,8 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'not json at all'})),DEFAULTS);
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'{"dailyFact":"no"}'})),DEFAULTS);
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'{"dailyLater":false}'})),DEFAULTS);
- assert.deepEqual(writeSetting('Nate','dailyLater',false,phone),{dailyPhrase:true,dailyFact:false},'a setting nothing knows about is not written');
+ assert.deepEqual(writeSetting('Nate','dailyLater',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false},'a setting nothing knows about is not written');
+ assert.equal(settingOn(undefined,'transcribeVoice'),false,'writing voice notes down starts off');
  assert.equal(settingOn(undefined,'dailyFact'),true,'before anything is read, everything is still on');
  // And the switches are actually wired to the pop-ups. Off counts as done with it, so the
  // phrase never opens — and the fun fact behind it stops waiting on a phrase that is never
@@ -7629,7 +7630,7 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  // what stops somebody turning a thing off is not knowing what else goes with it.
  for(const s of SETTINGS){
   assert.ok(s.label&&s.on&&s.off,`${s.id} is missing its label or its two lines`);
-  assert.match(s.off,/stays under More|Show me another/,`${s.id} does not say what is left when it is off`);
+  if(!s.group)assert.match(s.off,/stays under More|Show me another/,`${s.id} does not say what is left when it is off`);
  }
  // It is a switch to a screen reader too, not a button whose meaning is in the word beside it.
  assert.match(page,/role="switch" aria-checked=\{on\} aria-label=\{s\.label\}/);
@@ -9352,4 +9353,30 @@ test('things we noticed: said out loud, tagged to where it was and what it was a
  assert.equal(noticedItem(state,state.noticed.at(-1)).voice.id,'v2');
  assert.ok(!noticedFeed(state).some(e=>e.kind==='voice'&&e.id==='v2'),'shown inside its noticing');
  assert.throws(()=>applyOperation(state,{type:'noticedAdd',text:'x',item:{kind:'voice',id:'gone'}},child),AppError);
+});
+test('voice notes can be written down, fixed afterwards, and found by what was said',async()=>{
+ const {checkVoiceNote,addVoiceNote}=await import('../server/voice.mjs');
+ const {ensureFeatures,searchTrip,pendingProgress}=await import('../src/trip-features.js');
+ const nate={id:'g-nate',name:'Nate',role:'child'},boston={name:'Boston',role:'child'};
+ let state=ensureFeatures(structuredClone(seed));const day=seed.days[2].date;
+ const blob={contentType:'audio/mp4',size:20000};
+ // Written down by the phone while it recorded, and sent with the recording.
+ const checked=checkVoiceNote(state,{pathname:'voice/g-nate/a.m4a',day,seconds:9,transcript:'  The deer bowed at me three times  '},nate);
+ assert.equal(checked.transcript,'The deer bowed at me three times');
+ assert.ok(!('transcript' in checkVoiceNote(state,{pathname:'voice/g-nate/b.m4a',day,seconds:9},nate)),'sound only when nothing was written down');
+ assert.throws(()=>checkVoiceNote(state,{pathname:'voice/g-nate/c.m4a',day,seconds:9,transcript:'x'.repeat(6001)},nate),AppError);
+ state=addVoiceNote(state,checked,nate,blob);
+ state=addVoiceNote(state,checkVoiceNote(state,{pathname:'voice/g-nate/b.m4a',day,seconds:4},nate),nate,blob);
+ const [deer,quiet]=state.voiceNotes;
+ // Found by what was said, not only by its label.
+ assert.ok(searchTrip(state,'bowed at me').some(h=>h.type==='Voice note'&&h.id===deer.id));
+ // Words added afterwards by whoever recorded it, or a parent; nobody else.
+ assert.throws(()=>applyOperation(state,{type:'voiceNoteWords',id:quiet.id,transcript:'Mine'},boston),AppError);
+ state=applyOperation(state,{type:'voiceNoteWords',id:quiet.id,transcript:'Lanterns on the river'},nate);
+ assert.ok(searchTrip(state,'lanterns').some(h=>h.id===quiet.id));
+ state=applyOperation(state,{type:'voiceNoteWords',id:quiet.id,transcript:'  '},parent);
+ assert.ok(!('transcript' in state.voiceNotes[1]),'emptied is taken away');
+ // Offline, fixed words show at once.
+ const shown=pendingProgress(state,[{operation:{type:'voiceNoteWords',id:deer.id,transcript:'Four times, actually'}}]);
+ assert.equal(shown.voiceNotes[0].transcript,'Four times, actually');
 });

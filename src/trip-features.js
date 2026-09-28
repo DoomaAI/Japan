@@ -1125,6 +1125,8 @@ export function searchTrip(state,query,guide=[]){
  for(const i of spending(state).items)if(match(i.title,i.notes,i.person))hits.push({type:'Spending',id:i.id,title:i.title,detail:`${i.person}’s spending money`,day:i.day});
  for(const c of state.challenges)if(match(c.title,c.notes))hits.push({type:'Challenge',id:c.id,title:c.title,day:c.day});
  for(const [day,m]of Object.entries(state.meetings))if(match(m.place,m.japanese,m.notes))hits.push({type:'Meeting',id:day,title:m.place,detail:m.notes,day});
+ // A voice note is found by its label and, once written down, by what was actually said in it.
+ for(const v of state.voiceNotes||[])if(match(v.title,v.transcript,v.by))hits.push({type:'Voice note',id:v.id,title:v.title||`${v.by}’s voice note`,detail:v.transcript||'',day:v.day});
  for(const n of state.noticed||[])if(match(n.text,n.by,noticedWhere(state,n).label))hits.push({type:'Noticed',id:n.id,title:n.text.slice(0,80),detail:[n.by,noticedWhere(state,n).label].filter(Boolean).join(' · '),day:noticedWhere(state,n).day});
  for(const [day,n]of Object.entries(state.journal))if(match(n))hits.push({type:'Diary',id:day,title:`Diary · ${day}`,detail:n,day});
  for(const p of guide)if(match(p.text))hits.push({type:'Guide',id:p.number,title:`Guide page ${p.number}`,page:p.number});
@@ -1162,6 +1164,7 @@ export function pendingProgress(state,queue){
   }
   if(o.type==='foodTried'){const e=next.food[o.itemId]||{},tried={...(e.tried||{})};if(o.done)tried[o.person]=tried[o.person]||o.at;else delete tried[o.person];next.food={...next.food,[o.itemId]:{...e,tried}};}
   if(o.type==='huntAdd'){const h={custom:[],entries:[],...(next.hunts||{})};const ratings=Number.isInteger(o.rating)&&o.rating>0&&o.by?{[o.by]:o.rating}:{};next.hunts={...h,entries:[...h.entries,{id:`pending-${o.operationId}`,hunt:o.hunt,title:String(o.title||'').trim(),place:String(o.place||'').trim(),day:o.stepId?null:(o.day??null),yen:Number.isInteger(o.yen)?o.yen:null,note:String(o.note||'').trim(),status:o.status==='want'?'want':'tried',shortlistId:o.shortlistId||null,stepId:o.stepId||null,locationId:o.locationId||null,pin:validPin(o.pin??null)?(o.pin??null):null,ratings:o.status==='want'?{}:ratings,by:o.by||'',at:o.at,pending:true}]};}
+  if(o.type==='voiceNoteWords'){next.voiceNotes=(next.voiceNotes||[]).map(v=>v.id===o.id?{...v,transcript:String(o.transcript||'').trim()||undefined,pending:true}:v);}
   if(o.type==='noticedAdd'){next.noticed=[...(next.noticed||[]),{id:`pending-${o.operationId}`,...noticedFields(o),by:o.by||'',at:o.at,pending:true}];}
   if(o.type==='huntTried'){const h={custom:[],entries:[],rankings:{},...(next.hunts||{})};next.hunts={...h,entries:h.entries.map(e=>e.id===o.id?{...e,status:o.done?'tried':'want',pending:true}:e)};}
   if(o.type==='huntRate'&&o.rating){const h=next.hunts||{};if(h.entries)next.hunts={...h,entries:h.entries.map(e=>e.id===o.id&&e.status==='want'?{...e,status:'tried'}:e)};}
