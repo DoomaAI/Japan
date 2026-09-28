@@ -18,11 +18,16 @@ export const SETTINGS=[
   off:'No phrase will pop up. The whole phrasebook stays under More, and Show me another still hands over the next one.'},
  {id:'dailyFact',label:'Fun fact of the day',
   on:'One fact each morning about what that day actually holds, out of our own guide — and one as each activity it is about gets started.',
-  off:'No fact will pop up. Every fact stays under More, and Show me another still hands over the next one.'}
+  off:'No fact will pop up. Every fact stays under More, and Show me another still hands over the next one.'},
+ // Off until asked for: it listens with the phone's speech engine while a voice note records,
+ // which on some phones means the words go through Apple's or Google's servers.
+ {id:'transcribeVoice',label:'Write down my voice notes',group:'voice',default:false,
+  on:'While you record a voice note, the phone writes down what is said. You read it and fix it before saving, and the words can be found in Search everything.',
+  off:'Voice notes are kept as sound only. Words can still be added to any of your notes afterwards, by typing or saying them.'}
 ];
 // On unless somebody has said otherwise, so a phone that has never opened this page behaves
-// exactly as it always did.
-export const DEFAULTS=Object.fromEntries(SETTINGS.map(s=>[s.id,true]));
+// exactly as it always did — apart from a setting that says it starts off.
+export const DEFAULTS=Object.fromEntries(SETTINGS.map(s=>[s.id,s.default??true]));
 const KEY=person=>`japan.settings.${person||'everyone'}`;
 const device=()=>{try{return typeof localStorage==='undefined'?null:localStorage;}catch{return null;}};
 // Only the settings this version knows about, and only where the saved value is a real
@@ -47,4 +52,4 @@ export function writeSetting(person,id,value,store=device()){
  try{store?.setItem(KEY(person),JSON.stringify(next));}catch{}
  return next;
 }
-export const settingOn=(settings,id)=>settings?.[id]!==false;
+export const settingOn=(settings,id)=>(settings?.[id]??DEFAULTS[id]??true)!==false;

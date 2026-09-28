@@ -44,6 +44,7 @@ import Ledger from './Ledger.jsx';
 import Running from './Running.jsx';
 import WhichCard from './WhichCard.jsx';
 import Hunts from './Hunts.jsx';
+import Noticed from './Noticed.jsx';
 import Planning from './Planning.jsx';
 import Nearby from './Nearby.jsx';
 import AskTrip from './AskTrip.jsx';
@@ -103,8 +104,8 @@ const TABS=[...Object.keys(PAGES),'more'];
 // to be safe, a stale exchange rate or forecast overwriting a fresh one is worse than not
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
 const OFFLINE_OPS=['status','legStatus','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
- 'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove',
- 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed'];
+ 'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove','voiceNoteWords',
+ 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed'];
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
@@ -530,6 +531,7 @@ function App(){
   {tab==='ask'&&<AskTrip state={visibleState} user={user} day={day} config={config} online={online} request={request} go={go} selectDay={selectDay} notice={notice}/>}
   {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
   {tab==='hunts'&&<Hunts state={visibleState} user={user} mutate={mutate} busy={busy}/>}
+  {tab==='noticed'&&<Noticed state={visibleState} user={user} mutate={mutate} busy={busy} show={setModal}/>}
   {tab==='paying'&&parent&&<WhichCard state={visibleState} user={user} config={config} request={request} mutate={mutate} busy={busy} notice={notice}/>}
   {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy}/>}
   {tab==='safety'&&<Safety state={visibleState} user={user} day={day} go={go}/>}
@@ -561,7 +563,7 @@ function App(){
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} mode={modal.mode} wishlist={modal.wishlist} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)}/>}
    {modal.type==='ask'&&<AskTrip state={visibleState} user={user} day={modal.step?.day||day} step={modal.step} config={config} online={online} request={request} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
-   {modal.type==='voice'&&<VoiceNotes state={visibleState} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay}/>}
+   {modal.type==='voice'&&<VoiceNotes state={visibleState} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay} transcribe={settingOn(settings,'transcribeVoice')}/>}
    {modal.type==='foodcard'&&<FoodCard item={modal.item} notice={notice}/>}
    {modal.type==='park'&&<ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={modal.park} mutate={mutate} busy={busy} open={setModal}/>}
    {modal.type==='phrase'&&<PhraseOfDay queue={phraseQueue(visibleState,user.name,modal.day)} day={modal.day} dateLabel={fmtDay(modal.day)} busy={busy} dismiss={ids=>seePhrase(modal.day,ids)}/>}

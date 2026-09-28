@@ -1,5 +1,8 @@
 import {randomUUID} from 'node:crypto';
 import {AppError} from './model.mjs';
+// What was said, written down: by the phone while it recorded, or typed or said afterwards.
+// Five minutes of talking is well under this.
+export const VOICE_WORDS=6000;
 import {validateAudio,VOICE_MAX_SECONDS} from './files.mjs';
 // Everything about a voice note that can be decided without reaching storage, so the rules
 // are the same whether or not a blob is involved and can be checked on their own.
@@ -8,9 +11,11 @@ export function checkVoiceNote(state,body,user){
  if(!body.day||!state.days.some(d=>d.date===body.day))throw new AppError('Choose a trip day.');
  if(body.stepId&&!state.steps.some(s=>s.id===body.stepId&&s.day===body.day))throw new AppError('Activity not found on that day.');
  if(body.title!==undefined&&body.title!==null&&(typeof body.title!=='string'||body.title.length>200))throw new AppError('Keep the label short.');
+ if(body.transcript!==undefined&&body.transcript!==null&&(typeof body.transcript!=='string'||body.transcript.length>VOICE_WORDS))throw new AppError('The words are too long to keep.');
  const seconds=Math.round(Number(body.seconds));
  if(!Number.isFinite(seconds)||seconds<1||seconds>VOICE_MAX_SECONDS)throw new AppError('Record between one second and five minutes.');
- return {pathname:body.pathname,day:body.day,stepId:body.stepId||null,title:(body.title||'').trim(),seconds};
+ const transcript=(body.transcript||'').trim();
+ return {pathname:body.pathname,day:body.day,stepId:body.stepId||null,title:(body.title||'').trim(),seconds,...(transcript?{transcript}:{})};
 }
 // The blob is described by storage, not by the phone, so a note cannot claim to be something
 // it is not. Saving the same recording twice is the same note.
