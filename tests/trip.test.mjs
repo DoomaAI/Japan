@@ -9341,4 +9341,15 @@ test('things we noticed: said out loud, tagged to where it was and what it was a
  assert.ok(shown.noticed.some(n=>n.id==='pending-n1'&&n.pending&&n.by==='Lauren'));
  state=applyOperation(state,{type:'noticedRemove',id:machine.id},boston);
  assert.equal(state.noticed.length,1);
+ // Voice notes from anywhere in the app are in the same list; one a noticing is about is shown inside it, not twice.
+ const {noticedFeed}=await import('../src/noticed-data.js');
+ state.voiceNotes=[{id:'v1',by:'Lauren',pathname:'voice/x/a.m4a',day:kyotoDay.date,stepId:null,title:'',seconds:12,type:'audio/mp4',size:10,at:'2026-10-02T01:00:00.000Z'},
+  {id:'v2',by:'Nate',pathname:'voice/x/b.m4a',day:kyotoDay.date,stepId:null,title:'Temple bell',seconds:5,type:'audio/mp4',size:10,at:'2026-10-02T02:00:00.000Z'}];
+ assert.deepEqual(noticedFeed(state).filter(e=>e.kind==='voice').map(e=>e.id),['v2','v1']);
+ assert.deepEqual(noticedFeed(state,{person:'Lauren'}).map(e=>e.id),['v1']);
+ assert.ok(!noticedFeed(state,{voice:false}).some(e=>e.kind==='voice'));
+ state=applyOperation(state,{type:'noticedAdd',text:'The bell at closing time',day:kyotoDay.date,item:{kind:'voice',id:'v2'}},child);
+ assert.equal(noticedItem(state,state.noticed.at(-1)).voice.id,'v2');
+ assert.ok(!noticedFeed(state).some(e=>e.kind==='voice'&&e.id==='v2'),'shown inside its noticing');
+ assert.throws(()=>applyOperation(state,{type:'noticedAdd',text:'x',item:{kind:'voice',id:'gone'}},child),AppError);
 });

@@ -5,7 +5,9 @@ import {joinSpoken} from './dictation.js';
 import {AnchorSelect,anchorValue,readAnchor} from './Shortlist.jsx';
 import {askPhoneWhereItIs} from './geo.js';
 import {PIN_PLACES,pinText} from './trip-features.js';
-import {noticedFor,noticedWhere,noticedItem,noticedItems,itemKey,readItem,NOTICED_TEXT} from './noticed-data.js';
+import {noticedFeed,noticedWhere,noticedItem,noticedItems,itemKey,readItem,voiceTitle,NOTICED_TEXT} from './noticed-data.js';
+import {voiceUrl} from './VoiceNotes.jsx';
+import {voiceLength} from './trip-features.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {japanDate} from './timing.js';
 // Things we noticed. The page is a microphone first: tap, say it, and the words land in the box
@@ -20,16 +22,17 @@ function ItemSelect({state,value,onChange}){
    <option key={itemKey(i)} value={itemKey(i)}>{i.label}</option>)}</optgroup>)}
  </select>;
 }
-function NoticedForm({state,user,editing,mutate,busy,done}){
+function NoticedForm({state,user,editing,preset,mutate,busy,done}){
+ const from=editing||preset;
  const today=japanDate(),onTrip=state.days.some(d=>d.date===today);
  const [text,setText]=useState(editing?.text||''),[spoken,setSpoken]=useState(false);
- const [day,setDay]=useState(editing?editing.day||'':onTrip?today:'');
- const [anchor,setAnchor]=useState(anchorValue(editing)),[item,setItem]=useState(itemKey(editing?.item));
+ const [day,setDay]=useState(from?from.day||'':onTrip?today:'');
+ const [anchor,setAnchor]=useState(anchorValue(from)),[item,setItem]=useState(itemKey(from?.item));
  const [pin,setPin]=useState(editing?.pin||null),[locating,setLocating]=useState(false),[trouble,setTrouble]=useState('');
  const dictation=useDictation({onText:heard=>{setText(t=>joinSpoken(t,heard).slice(0,NOTICED_TEXT));setSpoken(true);}});
  // A new one starts as the big microphone alone. The tap that opens the form is the tap that
  // starts listening: an iPhone will only open the microphone from a tap, not after one.
- const [open,setOpen]=useState(!!editing);
+ const [open,setOpen]=useState(!!from);
  async function pinHere(){setLocating(true);setTrouble('');try{setPin(await askPhoneWhereItIs(PIN_PLACES));}catch(e){setTrouble(`${e.message}. Choose a stop or place instead.`);}finally{setLocating(false);}}
  async function save(e){
   e.preventDefault();dictation.stop();
@@ -46,7 +49,8 @@ function NoticedForm({state,user,editing,mutate,busy,done}){
    {dictation.listening?<><Square size={22}/>Stop listening</>:<><Mic size={22}/>{text?'Say some more':'Say it'}</>}</button>}
   {dictation.listening&&<p className="dictate-live" aria-live="polite">{dictation.thinking||'Listening…'}</p>}
   {dictation.problem&&<small className="hear-problem">{dictation.problem}</small>}
-  <label>What did you notice?<textarea required rows={4} maxLength={NOTICED_TEXT} value={text} onChange={e=>setText(e.target.value)}
+  {preset?.item?.kind==='voice'&&<VoicePlayer voice={noticedItem(state,preset)?.voice}/>}
+  <label>{preset?.item?.kind==='voice'?'What was it? Say what the recording is about':'What did you notice?'}<textarea required rows={4} maxLength={NOTICED_TEXT} value={text} onChange={e=>setText(e.target.value)}
    placeholder="The train conductor bowed to the whole carriage before he left."/></label>
   <label>Where was it: a stop or a place<AnchorSelect state={state} value={anchor} onChange={e=>setAnchor(e.target.value)}/></label>
   {!anchor.startsWith('step:')&&<label>Day<select value={day} onChange={e=>setDay(e.target.value)}><option value="">Not on a trip day</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)}</option>)}</select></label>}
@@ -64,27 +68,51 @@ function Noticing({state,user,n,mutate,busy,onEdit}){
   <p>{n.text}</p>
   <small>{bits.join(' · ')}{n.spoken?' · said out loud':''}{n.pending?' · waiting to sync':''}
    {n.pin&&<> · <MapPin size={12}/> pinned</>}{w.mapUrl&&<> · <a href={w.mapUrl} target="_blank" rel="noopener noreferrer">map</a></>}</small>
-  {item&&<span className="tag"><Tag size={12}/>{item.label}</span>}
+  {item?.kind==='voice'?<VoicePlayer voice={item.voice}/>:item&&<span className="tag"><Tag size={12}/>{item.label}</span>}
   {mine&&!n.pending&&<div className="row wrap noticed-actions">
    <button type="button" onClick={onEdit}><Pencil size={14}/>Change</button>
    <button type="button" disabled={busy} onClick={()=>confirm('Take this one out?')&&mutate({type:'noticedRemove',id:n.id})}><Trash2 size={14}/>Remove</button></div>}
  </li>;
 }
-export default function Noticed({state,user,mutate,busy}){
+function VoicePlayer({voice}){
+ if(!voice)return null;
+ return <div className="noticed-voice"><Mic size={15}/><span>{voiceTitle(voice)} · {voiceLength(voice.seconds)}</span><audio controls preload="none" src={voiceUrl(voice)}/></div>;
+}
+// A voice note recorded anywhere in the app — on a stop, on a day, or from here. It keeps its
+// own place and day; a few words written against it turn it into something we noticed, with the
+// recording inside it.
+function VoiceClip({state,v,onTell}){
+ const step=v.stepId?state.steps.find(s=>s.id===v.stepId):null;
+ const bits=[v.by,v.day&&dayLabel(v.day),step?.title].filter(Boolean);
+ return <li className="noticed-item voice">
+  <VoicePlayer voice={v}/>
+  <small>{bits.join(' · ')}</small>
+  <div className="row wrap noticed-actions"><button type="button" onClick={onTell}><Pencil size={14}/>Say what it was</button></div>
+ </li>;
+}
+export default function Noticed({state,user,mutate,busy,show}){
  const [open,setOpen]=useState(null),[fresh,setFresh]=useState(0),[who,setWho]=useState(''),[day,setDay]=useState('');
- const list=noticedFor(state,{person:who||null,day:day||null});
+ const [voice,setVoice]=useState(true),[telling,setTelling]=useState(null);
+ const list=noticedFeed(state,{person:who||null,day:day||null,voice});
  const editing=open?(state.noticed||[]).find(n=>n.id===open):null;
+ const recordings=(state.voiceNotes||[]).length;
  return <>
   <p className="eyebrow">THE LITTLE THINGS</p><h1>Things we noticed</h1>
-  <p>The moments that are not a stop or a photo. Tap the microphone and say it; tag it to where it was, or to something on our lists.</p>
+  <p>The moments that are not a stop or a photo. Tap the microphone and say it; tag it to where it was, or to something on our lists. Every voice note recorded in the app is here too.</p>
   <NoticedForm key={fresh} state={state} user={user} mutate={mutate} busy={busy} done={()=>setFresh(f=>f+1)}/>
+  {show&&<button type="button" className="noticed-record" onClick={()=>show({type:'voice',day:day||(state.days.some(d=>d.date===japanDate())?japanDate():undefined)})}><Mic size={16}/>Record a voice note instead</button>}
   <div className="form-row">
    <label>Who<select value={who} onChange={e=>setWho(e.target.value)}><option value="">All of us</option>{(state.members||[]).map(m=><option key={m}>{m}</option>)}</select></label>
    <label>Day<select value={day} onChange={e=>setDay(e.target.value)}><option value="">Whole trip</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)}</option>)}</select></label>
   </div>
+  {!!recordings&&<label className="check-row"><input type="checkbox" checked={voice} onChange={e=>setVoice(e.target.checked)}/> Show voice notes ({recordings})</label>}
   {!list.length&&<p><small>{who||day?'Nothing noticed here yet.':'Nothing yet. The first thing that makes somebody say “look at that” goes here.'}</small></p>}
-  <ul className="noticed-list">{list.map(n=>editing?.id===n.id
-   ?<li key={n.id}><NoticedForm state={state} user={user} editing={n} mutate={mutate} busy={busy} done={()=>setOpen(null)}/></li>
-   :<Noticing key={n.id} state={state} user={user} n={n} mutate={mutate} busy={busy} onEdit={()=>setOpen(n.id)}/>)}</ul>
+  <ul className="noticed-list">{list.map(({kind,id,noticed:n,voice:v})=>kind==='voice'
+   ?telling===id
+    ?<li key={id}><NoticedForm state={state} user={user} preset={{item:{kind:'voice',id},stepId:v.stepId,day:v.day}} mutate={mutate} busy={busy} done={()=>setTelling(null)}/></li>
+    :<VoiceClip key={id} state={state} v={v} onTell={()=>setTelling(id)}/>
+   :editing?.id===id
+   ?<li key={id}><NoticedForm state={state} user={user} editing={n} mutate={mutate} busy={busy} done={()=>setOpen(null)}/></li>
+   :<Noticing key={id} state={state} user={user} n={n} mutate={mutate} busy={busy} onEdit={()=>setOpen(id)}/>)}</ul>
  </>;
 }

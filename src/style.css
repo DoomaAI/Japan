@@ -566,3 +566,7 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .noticed-item p{margin:0 0 .25rem;white-space:pre-wrap}
 .noticed-item .tag{margin-top:.35rem}
 .noticed-actions{margin-top:.4rem}.noticed-actions button{font-size:.8rem;min-height:34px;padding:.3rem .7rem}
+.noticed-voice{display:grid;grid-template-columns:auto 1fr;gap:.3rem .5rem;align-items:center;margin:.3rem 0}.noticed-voice audio{grid-column:1/-1;width:100%}
+.noticed-item.voice{background:#f5f1fa;border-radius:12px;padding:.7rem .6rem;margin:.3rem 0}
+.noticed-record{display:flex;align-items:center;gap:.4rem;margin:-.4rem 0 1rem;font-size:.85rem}
+.check-row{display:flex;align-items:center;gap:.4rem;margin:.2rem 0 .6rem;font-size:.9rem}

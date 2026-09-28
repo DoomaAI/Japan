@@ -520,7 +520,7 @@ function App(){
   {tab==='ask'&&<AskTrip state={visibleState} user={user} day={day} config={config} online={online} request={request} go={go} selectDay={selectDay} notice={notice}/>}
   {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
   {tab==='hunts'&&<Hunts state={visibleState} user={user} mutate={mutate} busy={busy}/>}
-  {tab==='noticed'&&<Noticed state={visibleState} user={user} mutate={mutate} busy={busy}/>}
+  {tab==='noticed'&&<Noticed state={visibleState} user={user} mutate={mutate} busy={busy} show={setModal}/>}
   {tab==='paying'&&parent&&<WhichCard state={visibleState} user={user} config={config} request={request} mutate={mutate} busy={busy} notice={notice}/>}
   {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy}/>}
   {tab==='safety'&&<Safety state={visibleState} user={user} day={day} go={go}/>}

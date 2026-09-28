@@ -555,7 +555,7 @@ export function extraOperation(state,op,user,fail,now){
   if(op.locationId&&!(state.locations||[]).some(l=>l.id===op.locationId))fail('Choose a place from the map list.');
   if(!validPin(op.pin??null))fail('That position could not be read.');
   if(op.item!=null){
-   const kinds={hunt:()=>(state.hunts?.entries||[]).some(e=>e.id===op.item.id),find:()=>(state.shortlist||[]).some(f=>f.id===op.item.id)};
+   const kinds={hunt:()=>(state.hunts?.entries||[]).some(e=>e.id===op.item.id),find:()=>(state.shortlist||[]).some(f=>f.id===op.item.id),voice:()=>(state.voiceNotes||[]).some(v=>v.id===op.item.id)};
    if(typeof op.item!=='object'||!kinds[op.item.kind]||typeof op.item.id!=='string'||!kinds[op.item.kind]())fail('That item is no longer on its list.');
   }
   const fields=noticedFields(op);

@@ -5,9 +5,11 @@
 // map, or where the phone was standing) and to a thing it was about (a hunt find or a shop find).
 import {huntState,findHunt} from './hunt-data.js';
 export const MAX_NOTICED=1000,NOTICED_TEXT=2000;
-// What a noticing can be about, other than a place: something already on one of our lists.
-// Stored as `kind:id`, so it can say which list it came from without a second field to disagree.
-export const NOTICED_ITEM_KINDS=['hunt','find'];
+// What a noticing can be about, other than a place: something already on one of our lists, or a
+// voice note somebody recorded on a stop or a day. Stored as `kind:id`, so it can say which list
+// it came from without a second field to disagree.
+export const NOTICED_ITEM_KINDS=['hunt','find','voice'];
+export const voiceTitle=v=>v.title||`${v.by}’s voice note`;
 export const noticedState=state=>state.noticed||[];
 export const itemKey=item=>item?`${item.kind}:${item.id}`:'';
 export function readItem(value){
@@ -19,7 +21,9 @@ export function noticedItems(state){
  const hunts=huntState(state).entries.map(e=>{const h=findHunt(state,e.hunt);
   return {kind:'hunt',id:e.id,label:`${h?.icon||'⭐'} ${e.title}`,group:h?.title||'Our lists'};});
  const finds=(state.shortlist||[]).map(f=>({kind:'find',id:f.id,label:`🛍️ ${f.title}`,group:'Shop finds'}));
- return [...hunts,...finds];
+ const voice=[...(state.voiceNotes||[])].sort((a,b)=>String(b.at).localeCompare(String(a.at)))
+  .map(v=>({kind:'voice',id:v.id,label:`🎙️ ${voiceTitle(v)}`,group:'Voice notes',voice:v}));
+ return [...hunts,...finds,...voice];
 }
 // The thing a noticing is tagged to, or null once it has gone from its list: the noticing stays.
 export function noticedItem(state,n){
@@ -42,6 +46,17 @@ export function noticedWhere(state,n){
  const mapUrl=n.pin?`https://www.google.com/maps/search/?api=1&query=${n.pin.lat},${n.pin.lng}`
   :loc?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([loc.name,loc.address,city,'Japan'].filter(Boolean).join(' '))}`:null;
  return {step,loc,day,city,label,mapUrl};
+}
+// The page's one list: what we noticed and every voice note recorded anywhere in the app — on a
+// stop, on a day, or from here — newest first. A voice note a noticing is already about is shown
+// inside that noticing rather than twice.
+export function noticedFeed(state,{day=null,person=null,voice=true}={}){
+ const notes=noticedFor(state,{day,person}).map(n=>({kind:'noticed',id:n.id,at:n.at,noticed:n}));
+ if(!voice)return notes;
+ const told=new Set(noticedState(state).filter(n=>n.item?.kind==='voice').map(n=>n.item.id));
+ const clips=(state.voiceNotes||[]).filter(v=>!told.has(v.id)&&(!person||v.by===person)&&(!day||v.day===day))
+  .map(v=>({kind:'voice',id:v.id,at:v.at,voice:v}));
+ return [...notes,...clips].sort((a,b)=>String(b.at).localeCompare(String(a.at)));
 }
 // Newest first, optionally for one day, one of us, or one stop.
 export function noticedFor(state,{day=null,person=null,stepId=null}={}){
