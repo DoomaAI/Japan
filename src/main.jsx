@@ -434,7 +434,7 @@ function App(){
      {config?.ask&&<button onClick={()=>setModal({type:'ask',step:current})}><MessageCircleQuestion size={15}/>Ask a question</button>}
      <button onClick={()=>openPage(current.page)}><BookOpen size={15}/>Guide p.{current.page}</button>
      <button onClick={()=>setModal({type:'alarm',step:current})}><Bell size={15}/>Remind me</button>
-     {config?.nearby&&<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={15}/>Food nearby</button>}
+     {config?.nearby&&<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={15}/>Nearby</button>}
      <button aria-label="Share this step" onClick={()=>shareStep(current)}><Share2 size={15}/>Share</button>
     </div>
     {current.status==='done'&&<StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>}
