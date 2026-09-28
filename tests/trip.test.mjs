@@ -9301,3 +9301,40 @@ test('28 September has a time on every stop, from the guide, and the live trip p
  const moved={...out,steps:[{...out.steps[0],time:'10:30'}]};
  assert.equal(timesSeeded(moved).steps[0].time,'10:30','and it only ever runs once');
 });
+test('a stop reached by several legs is ticked leg by leg, and the last leg ticks the stop',async()=>{
+ const {legCount,legsTicked}=await import('../src/route-data.js');
+ const {pendingProgress}=await import('../src/trip-features.js');
+ const s=seed.steps.find(s=>s.id==='2026-09-26-01');
+ assert.equal(legCount(s),3);
+ const at=k=>`2026-09-26T0${k}:00:00.000Z`;
+ let state=applyOperation(seed,{type:'legStatus',id:s.id,leg:0,done:true,at:at(1)},child);
+ let step=state.steps.find(x=>x.id===s.id);
+ assert.equal(step.status,'started');assert.equal(step.startedAt,at(1));assert.equal(legsTicked(step),1);assert.equal(step.completedAt,undefined);
+ state=applyOperation(state,{type:'legStatus',id:s.id,leg:2,done:true,at:at(2)},child);
+ assert.equal(state.steps.find(x=>x.id===s.id).status,'started');
+ state=applyOperation(state,{type:'legStatus',id:s.id,leg:1,done:true,at:at(3)},child);
+ step=state.steps.find(x=>x.id===s.id);
+ assert.equal(step.status,'done');assert.equal(step.completedAt,at(3));assert.equal(legsTicked(step),3);
+ // Unticking one leg takes the stop back off, and leaves the other legs ticked.
+ const undone=applyOperation(state,{type:'legStatus',id:s.id,leg:1,done:false},child).steps.find(x=>x.id===s.id);
+ assert.equal(undone.status,'started');assert.equal(undone.completedAt,undefined);assert.equal(legsTicked(undone),2);
+ // Unticking a leg of a stop ticked as a whole keeps the rest ticked too.
+ const whole=applyOperation(seed,{type:'status',id:s.id,status:'done',at:at(4)},parent);
+ assert.equal(legsTicked(applyOperation(whole,{type:'legStatus',id:s.id,leg:0,done:false},parent).steps.find(x=>x.id===s.id)),2);
+ // Resetting the stop clears its legs.
+ assert.equal(applyOperation(state,{type:'status',id:s.id,status:'todo'},parent).steps.find(x=>x.id===s.id).legsDone,undefined);
+ // Offline, the queued ticks replay to the same result.
+ const queue=[0,1,2].map((leg,k)=>({operation:{type:'legStatus',id:s.id,leg,done:true,at:at(k+1)}}));
+ const shown=pendingProgress(seed,queue).steps.find(x=>x.id===s.id);
+ assert.equal(shown.status,'done');assert.equal(shown.completedAt,at(3));
+});
+test('leg ticks are checked like stop ticks',()=>{
+ const multi=seed.steps.find(s=>s.id==='2026-09-26-01'),single=seed.steps.find(s=>s.id==='2026-09-29-06');
+ for(const leg of [-1,3,1.5,'0'])assert.throws(()=>applyOperation(seed,{type:'legStatus',id:multi.id,leg,done:true},parent),/Invalid progress change/);
+ assert.throws(()=>applyOperation(seed,{type:'legStatus',id:single.id,leg:0,done:true},parent),/Invalid progress change/);
+ assert.throws(()=>applyOperation(seed,{type:'legStatus',id:multi.id,leg:0,done:'yes'},parent),/Invalid progress change/);
+ assert.throws(()=>applyOperation(seed,{type:'legStatus',id:'missing',leg:0,done:true},parent),e=>e.status===404);
+ assert.throws(()=>applyOperation(seed,{type:'legStatus',id:multi.id,leg:0,done:true,at:new Date(Date.now()+3600000).toISOString()},parent),/valid past completion time/);
+ const theirs={...seed,steps:seed.steps.map(s=>s.id===multi.id?{...s,participants:['Damien']}:s)};
+ assert.throws(()=>applyOperation(theirs,{type:'legStatus',id:multi.id,leg:0,done:true},child),e=>e.status===403);
+});
