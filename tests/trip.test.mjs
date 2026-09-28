@@ -230,8 +230,11 @@ test('a stop is ticked off where the day is read, and says when it was finished'
  assert.match(timeline,/s\.status==='done'&&s\.completedAt\?doneClock\(s\):\(s\.time\|\|'—'\)/);
  assert.match(timeline,/`Completed\$\{s\.time\?` · due \$\{s\.time\}`:''\}`/);
  assert.match(timeline,/className=\{`timeline-row \$\{s\.status\}/);
- assert.match(css,/\.timeline-row\.done \.timeline-step\{opacity:\.55\}/);
- assert.match(css,/\.timeline-row\.done \.timeline-step \.timeline-dot\{opacity:1\}/);
+ // A finished stop fades everything but its circle, which stays the same as every other stop's,
+ // outlined and unfaded, with a green tick inside rather than a filled green disc.
+ assert.match(css,/\.timeline-row\.done \.timeline-step>:not\(\.timeline-dot\)\{opacity:\.55\}/);
+ assert.match(css,/\.timeline-step\.done \.timeline-dot\{color:var\(--green\)\}/);
+ assert.doesNotMatch(css,/\.timeline-step\.done \.timeline-dot\{[^}]*background/);
  // The two clock helpers agree with each other: a stamp read back in Japan time is the time that
  // was typed, whatever the phone reading it is set to.
  const step={day:'2026-10-02',completedAt:doneStamp({day:'2026-10-02'},'14:20').toISOString()};
