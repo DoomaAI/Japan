@@ -581,9 +581,8 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:none;appearance:none;display:block;max-width:100%;text-align:left;line-height:1.25}input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and-time-value,input[type=datetime-local]::-webkit-date-and-time-value{text-align:left;min-height:1.25em;margin:0}.dialog-body label>:is(input:not([type=checkbox],[type=radio],[type=range],[type=file]),select){height:3rem;min-height:3rem;line-height:1.25}
 
 /* What sort of stop it is: a small coloured icon down the day at a glance and on What's next, and
-   the icon with its word on the step card. */
+   at the start of the title on the step card. */
 .entry-type{--entry:#5c7477;--entry-bg:#eef2f1;display:inline-flex;align-items:center;justify-content:center;flex:none;width:20px;height:20px;border-radius:6px;color:var(--entry);background:var(--entry-bg);vertical-align:-4px;margin-right:.4rem}
-.entry-type.with-label{width:auto;height:auto;gap:.35rem;padding:.25rem .55rem;border-radius:999px;font-size:.78rem;font-weight:700;margin:0 0 .45rem}
 .entry-food{--entry:#b4492f;--entry-bg:#fbe9e3}
 .entry-cafe{--entry:#4f7a2a;--entry-bg:#eaf3df}
 .entry-shopping{--entry:#a3367a;--entry-bg:#f8e6f1}
@@ -595,3 +594,4 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .timeline .entry-type{width:18px;height:18px;border-radius:5px;margin-right:.35rem;vertical-align:-3px}
 .timeline-row.done .entry-type{filter:grayscale(1)}
 .next-title .entry-type{vertical-align:-3px}
+.step-card h2 .entry-type{width:1.05em;height:1.05em;border-radius:.28em;vertical-align:-.1em;margin-right:.3em}
