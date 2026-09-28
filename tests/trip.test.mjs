@@ -8867,6 +8867,17 @@ test('every train and transfer has its route: line, direction, each station and 
  assert.equal(trackLeg(back,along(back[4],back[5],.6)).upcoming.name,'Tambaguchi');
  assert.equal(trackLeg(back,back[7]).arrived,true);
 });
+test('a route across companies adds up the separate fares the stop notes quote',async()=>{
+ const {ROUTES,routeFares}=await import('../src/route-data.js');
+ const {STOP_NOTES}=await import('../src/stop-notes.js');
+ for(const id of ['2026-09-28-02-2','2026-09-28-14']){
+  const f=routeFares(ROUTES[id]);
+  assert.deepEqual([f.adult,f.child,f.rides.map(r=>r.operator).sort()],[820,410,['JR West','Osaka Metro']],id);
+  assert.match(STOP_NOTES[id].notes,/adult ¥820 · child ¥410/,id);
+ }
+ // One company, one ticket: no total to add up.
+ assert.equal(routeFares(ROUTES['2026-09-27-03']),null);
+});
 test('tracking at a change follows the ride still to come',async()=>{
  const {legStops,whereOnRoute}=await import('../src/route-data.js');
  const rides=[legStops({line:'karasuma',from:'Gojo',to:'Kyoto'}),legStops({line:'sagano',from:'Kyoto',to:'Saga-Arashiyama'})];
