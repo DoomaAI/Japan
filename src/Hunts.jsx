@@ -3,7 +3,7 @@ import {Plus,Pencil,Trash2,ChevronLeft,Crown,MapPin,LocateFixed,X,GripVertical,C
 import {Stars} from './StepReview.jsx';
 import {AnchorSelect,anchorValue,readAnchor} from './Shortlist.jsx';
 import {askPhoneWhereItIs} from './geo.js';
-import {PIN_PLACES,pinText} from './trip-features.js';
+import {PIN_PLACES,pinText,starText} from './trip-features.js';
 import {underFinger,follow,settle} from './lift.js';
 import {allHunts,findHunt,huntBoard,huntAverage,huntWhere,huntCities,personalOrder,hasRanked,familyRanking,huntWants} from './hunt-data.js';
 import {dayLabel} from './AdventurePages.jsx';
@@ -105,7 +105,7 @@ function HuntPage({state,user,hunt,mutate,busy,back}){
    <button disabled={busy} onClick={()=>{if(confirm(`Delete the ${hunt.title} list and everything on it?`))mutate({type:'huntListRemove',id:hunt.id}).then(ok=>ok&&back());}}><Trash2 size={15}/> Delete list</button></div>}
   {editing&&<ListEditor hunt={hunt} mutate={mutate} busy={busy} done={()=>setEditing(false)}/>}
   <p><strong>{board.count}</strong> tried so far{board.best?<> · best by stars: <strong>{board.best.title}</strong> ({huntAverage(board.best)} out of 5)</>:''}</p>
-  {Object.keys(board.favourites).length>0&&<ul className="hunt-favs">{Object.entries(board.favourites).map(([n,e])=><li key={n}><strong>{n}</strong>’s favourite: {e.title} <small>({e.ratings[n]}★)</small></li>)}</ul>}
+  {Object.keys(board.favourites).length>0&&<ul className="hunt-favs">{Object.entries(board.favourites).map(([n,e])=><li key={n}><strong>{n}</strong>’s favourite: {e.title} <small>({starText(e.ratings[n])}★)</small></li>)}</ul>}
   {!form&&<div className="row wrap"><button className="primary" onClick={()=>setForm({})}><Plus size={16}/> Add one we tried</button>
    <button onClick={()=>setForm({want:true})}><Search size={16}/> Add one to look for</button></div>}
   {form&&<EntryForm key={form.id||(form.want?'want':'tried')} state={state} user={user} hunt={hunt} editing={form.id?form:null} want={!!form.want} mutate={mutate} busy={busy} done={()=>setForm(null)}/>}

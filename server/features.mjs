@@ -5,7 +5,7 @@ import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
-import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isHalfStar,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
@@ -60,7 +60,7 @@ export function extraOperation(state,op,user,fail,now){
     if(op.done)tried[op.person]=tried[op.person]||at;else delete tried[op.person];
     state.food={...state.food,[op.itemId]:{...entry,tried}};
    }else{
-    if(op.rating!==0&&!(Number.isInteger(op.rating)&&op.rating>=1&&op.rating<=5))fail('Rate it from 1 to 5 stars.');
+    if(op.rating!==0&&!isHalfStar(op.rating))fail('Rate it from ½ to 5 stars.');
     const ratings={...(entry.ratings||{})},tried={...(entry.tried||{})};
     if(op.rating){ratings[op.person]=op.rating;tried[op.person]=tried[op.person]||now;}else delete ratings[op.person];
     state.food={...state.food,[op.itemId]:{...entry,ratings,tried}};
@@ -548,7 +548,7 @@ export function extraOperation(state,op,user,fail,now){
   const known=id=>HUNTS.some(h=>h.id===id)||hunts.custom.some(h=>h.id===id);
   const found=()=>{const e=hunts.entries.find(e=>e.id===op.id);if(!e)fail('That one is no longer on the list.',404);return e;};
   const stamp=()=>{if(!op.at)return now;if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');return new Date(op.at).toISOString();};
-  const rating=v=>{if(v!==0&&!(Number.isInteger(v)&&v>=1&&v<=5))fail('Rate it from 1 to 5 stars.');return v;};
+  const rating=v=>{if(v!==0&&!isHalfStar(v))fail('Rate it from ½ to 5 stars.');return v;};
   const check=o=>{
    if(!known(o.hunt))fail('Choose a hunt.');
    if(!string(o.title,120)||!o.title.trim())fail('Say what it was.');
@@ -949,7 +949,7 @@ export function extraOperation(state,op,user,fail,now){
   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
   const entry={...(state.stepReviews[op.id]||{})};
   if(op.type==='stepRating'){
-   if(op.rating!==0&&!(Number.isInteger(op.rating)&&op.rating>=1&&op.rating<=5))fail('Rate it from 1 to 5 stars.');
+   if(op.rating!==0&&!isHalfStar(op.rating))fail('Rate it from ½ to 5 stars.');
    const ratings={...(entry.ratings||{})};
    if(op.rating)ratings[op.person]=op.rating;else delete ratings[op.person];
    entry.ratings=ratings;
