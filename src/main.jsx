@@ -4,7 +4,7 @@ import {destinationFor,resolveLocation,showLocationDetails} from './locations.js
 import {ensureFeatures,pendingProgress,phoneLinks,isTrainLeg,EYE_SPY,eyeSpySpotted,PIN_PLACES,stepPin,pinText} from './trip-features.js';
 import {askPhoneWhereItIs} from './geo.js';
 import RouteCard from './RouteCard.jsx';
-import {routeFor} from './route-data.js';
+import {routeFor,legCount,legsTicked} from './route-data.js';
 import {Challenges,Shopping,SpeakRules,useReadAloud} from './AdventurePages.jsx';
 import Shortlist,{DayFinds} from './Shortlist.jsx';
 import {NextUp,RunningLate,OfflineReadiness,Updates} from './HomeFeatures.jsx';
@@ -102,7 +102,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // What is missing is deliberate: anything that reshapes the plan needs the latest revision
 // to be safe, a stale exchange rate or forecast overwriting a fresh one is worse than not
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
-const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
+const OFFLINE_OPS=['status','legStatus','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove',
  'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed'];
 function App(){
@@ -252,6 +252,17 @@ function App(){
  const chosenLens=lensChoice===null?user?.name||'':lensChoice,hiddenLane=selected&&chosenLens&&!stepsFor(visibleState||{steps:[]},day,chosenLens).some(s=>s.id===selected)?splits.flatMap(sp=>sp.lanes).find(l=>l.steps.some(s=>s.id===selected)):null;
  const lens=hiddenLane?hiddenLane.members[0]:chosenLens;
  const today=state?.days.find(d=>d.date===day),steps=visibleState?stepsFor(visibleState,day,lens||null):[],current=steps.find(s=>s.id===selected)||steps.find(s=>!['done','skipped'].includes(s.status))||steps.at(-1),index=steps.findIndex(s=>s.id===current?.id);
+ // One leg of the way to a stop — a walk, a train, the change between two — ticked as it is
+ // done. The last leg ticks the stop itself, so the stop is finished the moment the family is
+ // actually there, and nobody has to remember to tick it twice.
+ async function tickRouteLeg(leg,finished){
+  const s=current,total=legCount(s),left=total-legsTicked(s),at=new Date(),used=finished&&left===1?ticketList(state,{step:s,all:false}).length:0;
+  if(!await mutate({type:'legStatus',id:s.id,leg,done:finished}))return;
+  if(!finished){notice(`Leg ${leg+1} of ${total} is back on the list${s.status==='done'?`, and so is ${s.title}`:''}.`);return;}
+  if(left>1){notice(`Leg ${leg+1} of ${total} done. ${left-1} to go.`);return;}
+  const variance=scheduleVariance(s,at);
+  notice(`All ${total} legs done: ${s.title} completed ${japanClock(at)}${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used.`:''}`);
+ }
  const done=steps.filter(s=>s.status==='done').length,nextFixed=steps.find(s=>s.locked&&!['done','skipped'].includes(s.status)&&s.id!==current?.id),groups=state?[...new Set(state.steps.filter(s=>s.day===day&&s.group&&state.groupModes?.[s.group]!=='split').map(s=>s.group))]:[];
  function go(id,d,item){setFocus(item||null);if(d&&state.days.some(x=>x.date===d)){setDay(d);setSelected(null);}setTab(id);setQuery('');setModal(null);history.replaceState(null,'','/?'+new URLSearchParams({tab:id,day:d||day,...(item?{item}:{})}));}
  // Today on the bar or in the menu means today: on a trip day it lands on today's date rather than
@@ -419,7 +430,7 @@ function App(){
      // now stands as well: ticking off is the one moment we know both what was planned and what
      // actually happened, and twelve minutes in hand is worth hearing before the next step.
      setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);}}}>Done</Button></>}{parent&&<button className="icon completion-more" aria-label="Edit or skip activity" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal size={18}/></button>}</div>
-    {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)}/>}
+    {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg}/>}
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore step</button></p>}
     {/* One row that scrolls sideways rather than three that stack: what only this day has (the
         park, the sumo, the train window) comes first, then everything every stop has. */}
@@ -578,7 +589,7 @@ function App(){
    {modal.type==='alarm'&&<><p><strong>{modal.step.title}</strong><br/>{fmtDay(modal.step.day)} · {modal.step.time||'No target time'} Japan time</p>{!modal.step.time?<p>Set a target time first.</p>:<><Button className="primary" icon={CalendarDays} onClick={()=>{const file=new Blob([calendarEvent(modal.step)],{type:'text/calendar;charset=utf-8'}),url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download='japan-reminder.ics';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notice('Open the calendar file to add the event and 15-minute alert.');}}>Add to Calendar</Button><p>A dated calendar event with a 15-minute alert. Check it was added on your phone.</p><details><summary>Use a phone alarm Shortcut</summary><p>Create an Apple Shortcut named <strong>Japan Alarm</strong>: receive text input → Get Dictionary from Input → Get Dictionary Value “time” → Create Alarm. Use dictionary value “label” for the alarm label.</p><p>This creates a Clock alarm for a time of day, not a future trip date. Use it only for today, with the phone timezone set to Japan. Test once on each phone.</p><label>Installed shortcut name<input value={clockShortcut} placeholder="Japan Alarm" onChange={e=>{setClockShortcut(e.target.value);localStorage.setItem('japan.shortcut',e.target.value);}}/></label>{clockShortcut&&modal.step.day===japanDate()&&Intl.DateTimeFormat().resolvedOptions().timeZone==='Asia/Tokyo'?<a className="button" href={`shortcuts://run-shortcut?name=${encodeURIComponent(clockShortcut)}&input=text&text=${encodeURIComponent(JSON.stringify({time:modal.step.time,label:modal.step.title}))}`}>Run alarm shortcut</a>:<p>Alarm link becomes available on the activity day when this phone uses Japan time.</p>}</details><p className="callout">If the itinerary changes, update any calendar event or phone alarm yourself. Existing reminders do not change automatically.</p></>}</>}
    {modal.type==='reschedule'&&<Reschedule steps={steps} mutate={mutate} close={()=>setModal(null)}/>}
    {modal.type==='tired'&&<><p>Keep the next fixed booking and take out a little of the walking or waiting.</p>{nextFixed&&<p className="callout">Protect {nextFixed.time} · {nextFixed.title}</p>}{steps.filter(s=>s.kind==='optional'&&!s.locked&&s.status==='todo').map(s=><div className="list-row" key={s.id}><span>{s.time} {s.title}</span>{parent&&<Button onClick={()=>mutate({type:'backlog',id:s.id})}>Save to Options</Button>}</div>)}<Link className="button primary" href={directions(today.hotel,'driving')}>Driving directions to hotel</Link></>}
-   {modal.type==='pending'&&<><p>The current shared plan is loaded behind this panel. Applying your updates changes only progress, not the schedule.</p>{queue.map(q=><p key={q.operation.operationId}>{state.steps.find(s=>s.id===q.operation.id)?.title||state.challenges.find(c=>c.id===q.operation.id)?.title} → {q.operation.status||(q.operation.done?'Completed':'Reset')} at {japanClock(new Date(q.operation.at))}</p>)}<Button className="primary" onClick={async()=>{await flush(true);setModal(null);}}>Apply my progress to the latest plan</Button></>}
+   {modal.type==='pending'&&<><p>The current shared plan is loaded behind this panel. Applying your updates changes only progress, not the schedule.</p>{queue.map(q=><p key={q.operation.operationId}>{state.steps.find(s=>s.id===q.operation.id)?.title||state.challenges.find(c=>c.id===q.operation.id)?.title} → {q.operation.type==='legStatus'?`leg ${q.operation.leg+1} ${q.operation.done?'done':'undone'}`:q.operation.status||(q.operation.done?'Completed':'Reset')} at {japanClock(new Date(q.operation.at))}</p>)}<Button className="primary" onClick={async()=>{await flush(true);setModal(null);}}>Apply my progress to the latest plan</Button></>}
    {/* A pop-up opens in the browser's top layer, above everything on the page, so a message
        shown on the page sits hidden behind it — a save that failed looked like a save that did
        nothing. While a pop-up is open the message is shown inside it instead. */}

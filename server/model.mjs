@@ -3,6 +3,7 @@ import {extraOperation} from './features.mjs';
 import {expressOperation} from './express.mjs';
 import { randomUUID } from 'node:crypto';
 import {activeSteps} from '../src/timing.js';
+import {legCount,tickLeg} from '../src/route-data.js';
 export const MEMBERS = ['Damien','Lauren','Nate','Boston'];
 // Where a forwarded email can be filed. A ticket is the default; the rest put it where the
 // family would have put it themselves had they typed it in.
@@ -76,14 +77,31 @@ function addStep(state,p){
  if(p.group&&!state.choices[p.group])state.choices[p.group]=p.option;
  return step;
 }
+// When something was done: now, or a time given for it that has already passed.
+function pastTime(given,now){
+ if(!given)return now;
+ if(!Number.isFinite(Date.parse(given))||Date.parse(given)>Date.now()+60000)throw new AppError('Choose a valid past completion time.');
+ return new Date(given).toISOString();
+}
+// Ticking off the activity ticks off what got you in. The gate ticket for a train that has
+// been caught is used, and nobody wants to remember to say so twice, so the booking held
+// against this activity is marked used the moment the activity is done. It is remembered
+// which activity took it, so undoing the activity brings its tickets back with it; one
+// archived by hand beforehand is left where the family put it.
+function ticketsUsed(state,step,at,user){
+ for(const doc of state.documents.filter(d=>documentServesStep(d,step.id)&&documentSpent(state.steps,d)&&d.category!=='memory'&&!d.archivedAt))Object.assign(doc,{archivedAt:at,archivedBy:user.name,archivedWith:step.id});
+}
+function ticketsBack(state,step){
+ for(const doc of state.documents.filter(d=>d.archivedWith&&documentServesStep(d,step.id)))Object.assign(doc,{archivedAt:null,archivedBy:null,archivedWith:null});
+}
 export function applyOperation(input,op,user){
  if(!op||typeof op!=='object')throw new AppError('Invalid action.');
  if(op.operationId!==undefined&&(!text(op.operationId,80)||!op.operationId.length))throw new AppError('Invalid operation identifier.');
  const state=ensureFeatures(structuredClone(input)),now=new Date().toISOString();
  const parent=user.role==='parent';
  const step=state.steps.find(s=>s.id===op.id);
- if(!parent && !['status','challengeStatus','challengeSkip','challengeNew','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore','weatherUpdate','jankenThrow','jankenNewRound','voiceNoteRemove','voiceNoteLabel','shoppingAdd','shoppingStatus','shortlistAdd','shortlistEdit','shortlistStatus','shortlistRating','shortlistShop','shortlistRemove','todoAdd','todoStatus','packAdd','packAddAll','packEdit','packStatus','packRemove','packDismiss','huntNew','huntAdd','huntEdit','huntRate','huntRemove','huntRank','huntTried','huntListEdit','huntListRemove','spendAdd','spendEdit','spendBought','spendRemove','spendRequest','spendRequestCancel','sumoResult','sumoPredict','stepRating','stepThought','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust','partyPerson','photoVote','photoRemove','photoAssign','drawingRemove','mascotSave','mascotRemove','expressPick','expressUsed'].includes(op.type))throw new AppError('A parent can make this change.',403);
- if(['status','patch','lock','remove','backlog','schedule'].includes(op.type)&&!step)throw new AppError('Activity not found.',404);
+ if(!parent && !['status','legStatus','challengeStatus','challengeSkip','challengeNew','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore','weatherUpdate','jankenThrow','jankenNewRound','voiceNoteRemove','voiceNoteLabel','shoppingAdd','shoppingStatus','shortlistAdd','shortlistEdit','shortlistStatus','shortlistRating','shortlistShop','shortlistRemove','todoAdd','todoStatus','packAdd','packAddAll','packEdit','packStatus','packRemove','packDismiss','huntNew','huntAdd','huntEdit','huntRate','huntRemove','huntRank','huntTried','huntListEdit','huntListRemove','spendAdd','spendEdit','spendBought','spendRemove','spendRequest','spendRequestCancel','sumoResult','sumoPredict','stepRating','stepThought','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust','partyPerson','photoVote','photoRemove','photoAssign','drawingRemove','mascotSave','mascotRemove','expressPick','expressUsed'].includes(op.type))throw new AppError('A parent can make this change.',403);
+ if(['status','legStatus','patch','lock','remove','backlog','schedule'].includes(op.type)&&!step)throw new AppError('Activity not found.',404);
  const before=step?structuredClone(step):null;
  const fail=(message,status=400)=>{throw new AppError(message,status);};
  let extra=expressOperation(state,op,user,fail,now,(st,p)=>addStep(st,validatePatch(p,st)))||extraOperation(state,op,user,fail,now);
@@ -91,24 +109,22 @@ export function applyOperation(input,op,user){
  }else if(op.type==='status'){
   if(!parent&&!step.participants.includes(user.name))throw new AppError('This activity is assigned to other family members.',403);
   if(!['todo','started','done','skipped'].includes(op.status)||(!parent&&op.status==='skipped'))throw new AppError('Invalid progress change.',403);
-  let at=now;
-  if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)throw new AppError('Choose a valid past completion time.');at=new Date(op.at).toISOString();}
+  const at=pastTime(op.at,now);
   step.status=op.status;step.updatedBy=user.name;
   if(op.status==='started')step.startedAt=at;
-  // Ticking off the activity ticks off what got you in. The gate ticket for a train that has
-  // been caught is used, and nobody wants to remember to say so twice, so the booking held
-  // against this activity is marked used the moment the activity is done. It is remembered
-  // which activity took it, so undoing the activity brings its tickets back with it; one
-  // archived by hand beforehand is left where the family put it.
-  if(op.status==='done'){
-   step.completedAt=at;
-   for(const doc of state.documents.filter(d=>documentServesStep(d,step.id)&&documentSpent(state.steps,d)&&d.category!=='memory'&&!d.archivedAt))Object.assign(doc,{archivedAt:at,archivedBy:user.name,archivedWith:step.id});
-  }
-  if(op.status==='todo'){
-   delete step.completedAt;delete step.startedAt;
-   for(const doc of state.documents.filter(d=>d.archivedWith&&documentServesStep(d,step.id)))Object.assign(doc,{archivedAt:null,archivedBy:null,archivedWith:null});
-  }
+  if(op.status==='done'){step.completedAt=at;ticketsUsed(state,step,at,user);}
+  if(op.status==='todo'){delete step.completedAt;delete step.startedAt;delete step.legsDone;ticketsBack(state,step);}
   if(op.status==='skipped')delete step.completedAt;
+ }else if(op.type==='legStatus'){
+  // One leg of a stop's route: the same people may tick it as may tick the stop, and the last
+  // leg ticked is the stop ticked, tickets and all, exactly as if the stop had been ticked.
+  if(!parent&&!step.participants.includes(user.name))throw new AppError('This activity is assigned to other family members.',403);
+  if(typeof op.done!=='boolean'||!Number.isInteger(op.leg)||op.leg<0||op.leg>=legCount(step))throw new AppError('Invalid progress change.');
+  const at=pastTime(op.at,now);
+  step.updatedBy=user.name;
+  const outcome=tickLeg(step,op.leg,op.done,at);
+  if(outcome==='done')ticketsUsed(state,step,at,user);
+  if(outcome==='undone')ticketsBack(state,step);
  }else if(op.type==='patch'){
   const patch=validatePatch(op.patch,state);
   if(step.locked && patch.locked!==false && (('time' in patch && patch.time!==step.time)||('day'in patch&&patch.day!==step.day)||('bookingTime'in patch&&patch.bookingTime!==(step.bookingTime??null))))throw new AppError('Unlock this time before moving it.');
@@ -125,7 +141,7 @@ export function applyOperation(input,op,user){
  }else if(op.type==='backlog'){
   if(step.locked)throw new AppError('Unlock the fixed time before saving this activity for later.');
   step.backlogFrom={day:step.day,time:step.time,bookingTime:step.bookingTime,status:step.status};
-  step.day=null;step.time=null;step.bookingTime=null;step.group='';step.option='';step.status='todo';delete step.startedAt;delete step.completedAt;
+  step.day=null;step.time=null;step.bookingTime=null;step.group='';step.option='';step.status='todo';delete step.startedAt;delete step.completedAt;delete step.legsDone;
  }else if(op.type==='schedule'){
   if(step.day!==null)throw new AppError('This activity is already on a day.');
   if(!state.days.some(d=>d.date===op.day)||!clock(op.time??null))throw new AppError('Choose a valid day and time.');

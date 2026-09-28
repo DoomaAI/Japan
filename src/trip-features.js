@@ -4,6 +4,7 @@ import {expressSeeded} from './park-data.js';
 import {splitSeeded} from './stop-splits.js';
 import {timesSeeded} from './day-times.js';
 import {notesSeeded} from './stop-notes.js';
+import {tickLeg} from './route-data.js';
 import {ORDERED_PHRASES,phraseForDay} from './phrasebook-data.js';
 import {ALL_FACTS,orderedFacts} from './fact-data.js';
 export const BOYS=['Nate','Boston'];
@@ -1139,7 +1140,13 @@ export function diaryDays(state,day){
 export function pendingProgress(state,queue){
  const next=ensureFeatures(structuredClone(state));
  for(const {operation:o}of queue){
-  if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=true;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;}
+  // A leg ticked with no signal is replayed the same way the server will apply it, so the stop
+  // it finishes shows as finished, and its tickets leave the list, straight away.
+  if(o.type==='legStatus'){const s=next.steps.find(s=>s.id===o.id);if(s){s.pending=true;const outcome=tickLeg(s,o.leg,o.done,o.at);
+   if(outcome==='done')next.documents=next.documents.map(d=>documentServesStep(d,s.id)&&documentSpent(next.steps,d)&&d.category!=='memory'&&!d.archivedAt?{...d,archivedAt:o.at,archivedWith:s.id,pending:true}:d);
+   if(outcome==='undone')next.documents=next.documents.map(d=>d.archivedWith&&documentServesStep(d,s.id)?{...d,archivedAt:null,archivedBy:null,archivedWith:null,pending:true}:d);
+  }}
+  if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=true;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;delete s.legsDone;}
    // The tickets for an activity ticked off on a train with no signal leave the list there and
    // then, exactly as they will when the change lands, rather than lingering until it syncs.
    if(o.status==='done')next.documents=next.documents.map(d=>documentServesStep(d,s.id)&&documentSpent(next.steps,d)&&d.category!=='memory'&&!d.archivedAt?{...d,archivedAt:o.at,archivedWith:s.id,pending:true}:d);
