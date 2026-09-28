@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket} from 'lucide-react';
+import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket} from 'lucide-react';
 import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,legCount,legDone,legsTicked} from './route-data.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
 // Follows the phone along the route while it is open and tracking is on. GPS fades underground,
@@ -42,10 +42,11 @@ function Tracker({legs,rides,track,status,onPress}){
 }
 const KIND_ICON={Subway:TrainFrontTunnel,Bus,Monorail:TramFront};
 // The tick beside one leg. Whoever may tick the stop may tick its legs; everyone else still sees
-// which legs are behind the family.
+// which legs are behind the family. The mark is the same circle as a stop's on the day at a glance,
+// with the checkbox laid invisibly over the whole label so the finger target stays generous.
 function LegTick({step,k,label,canTick,busy,onTick}){
  const done=legDone(step,k);
- return <label className={`route-leg-tick${done?' is-done':''}`}><input type="checkbox" checked={done} disabled={busy||!canTick} aria-label={`${done?'Done':'Mark done'}: leg ${k+1}, ${label}`} onChange={e=>onTick(k,e.target.checked)}/><span>{done?'Done':'Done?'}</span></label>;
+ return <label className={`route-leg-tick${done?' is-done':''}`}><input type="checkbox" checked={done} disabled={busy||!canTick} aria-label={`${done?'Done':'Mark done'}: leg ${k+1}, ${label}`} onChange={e=>onTick(k,e.target.checked)}/><span className="route-leg-dot" aria-hidden="true">{done&&<Check size={10} strokeWidth={3}/>}</span><span>{done?'Done':'Done?'}</span></label>;
 }
 export default function RouteCard({legs,step,canTick,busy,onTick}){
  const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
