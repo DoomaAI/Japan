@@ -1,3 +1,4 @@
+import {isHalfStar} from './trip-features.js';
 // The hunts: things we try again and again and want to know which was best. The food list rates
 // a dish once each; a hunt rates every one of them — the matcha at Maruni against the one in
 // Uji, this capsule against the last — and keeps a leaderboard. Anyone adds a find and everyone
@@ -25,7 +26,7 @@ export const huntWants=(state,huntId)=>huntState(state).entries.filter(e=>e.hunt
  .sort((a,b)=>String(a.at).localeCompare(String(b.at)));
 const triedIn=(state,huntId)=>huntState(state).entries.filter(e=>e.hunt===huntId&&isTried(e));
 export function huntAverage(entry){
- const v=Object.values(entry.ratings||{}).filter(n=>Number.isInteger(n)&&n>0);
+ const v=Object.values(entry.ratings||{}).filter(isHalfStar);
  return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*10)/10:null;
 }
 // Best first: by the average, then by how many rated it, then newest. Unrated ones last.

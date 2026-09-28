@@ -1,17 +1,32 @@
 import React,{useRef,useState} from 'react';
 import {Star,Pencil,Check} from 'lucide-react';
 import Dictate from './Dictate.jsx';
-import {STEP_STARS,stepRatings,stepThoughts,stepAverage,stepRated} from './trip-features.js';
+import {STEP_STARS,starText,stepRatings,stepThoughts,stepAverage,stepRated} from './trip-features.js';
 // Stars, and what we actually thought. Kept per person so nobody's average washes out somebody
 // else's — Nate giving the deer five and Lauren giving them two is the interesting bit, and an
 // average that hides it is worth less than the two numbers.
-export function Stars({value,onPick,disabled,label}){
- return <div className="stars" role="group" aria-label={label}>
-  {Array.from({length:STEP_STARS},(_,i)=>i+1).map(n=>
-   <button key={n} type="button" className={n<=value?'on':''} disabled={disabled}
-    aria-label={`${n} star${n>1?'s':''}`} aria-pressed={n===value}
-    onClick={()=>onPick(n===value?0:n)}><Star size={20}/></button>)}
+// Each star is two targets: the left half of it gives a half star, the right half the whole
+// one. Tapping what is already showing takes the rating back.
+export function StarIcon({fill,size}){
+ return <span className={`star-icon${fill?' on':''}`} style={{width:size,height:size}} aria-hidden="true">
+  <Star size={size}/>{fill>0&&<span className="star-fill" style={{width:fill<1?'50%':'100%'}}><Star size={size} fill="currentColor"/></span>}
+ </span>;
+}
+export const starFill=(value,n)=>value>=n?1:value>=n-.5?.5:0;
+export function Stars({value,onPick,disabled,label,size=26}){
+ return <div className="stars half-stars" role="group" aria-label={label}>
+  {Array.from({length:STEP_STARS},(_,i)=>i+1).map(n=><span key={n} className="half-star">
+   <StarIcon fill={starFill(value,n)} size={size}/>
+   {[n-.5,n].map(v=><button key={v} type="button" disabled={disabled}
+    aria-label={`${starText(v)} star${v>1?'s':''}`} aria-pressed={v===value}
+    onClick={()=>onPick(v===value?0:v)}/>)}
+  </span>)}
+  {value>0&&<small className="stars-value">{starText(value)}</small>}
  </div>;
+}
+export function ReadStars({value,size=15,label}){
+ return <span className="stars read" aria-label={label}>
+  {Array.from({length:STEP_STARS},(_,i)=><StarIcon key={i} fill={starFill(value,i+1)} size={size}/>)}</span>;
 }
 export default function StepReview({state,user,step,mutate,busy,compact}){
  const [writing,setWriting]=useState(false);
@@ -49,8 +64,7 @@ export default function StepReview({state,user,step,mutate,busy,compact}){
   {others.map(name=><div className="review-other" key={name}>
    <div className="review-mine"><span>{name}</span>
     {ratings[name]
-     ?<span className="stars read" aria-label={`${name} gave ${ratings[name]} of ${STEP_STARS}`}>
-       {Array.from({length:STEP_STARS},(_,i)=><Star key={i} size={15} className={i<ratings[name]?'on':''}/>)}</span>
+     ?<ReadStars value={ratings[name]} label={`${name} gave ${starText(ratings[name])} of ${STEP_STARS}`}/>
      :<small>no stars yet</small>}</div>
    {thoughts[name]&&<p>{thoughts[name].text}</p>}
   </div>)}

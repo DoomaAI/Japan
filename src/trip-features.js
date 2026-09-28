@@ -537,6 +537,10 @@ export function stepAverage(state,id){
 }
 export const stepRated=(state,id)=>Object.keys(stepRatings(state,id)).length;
 export const STEP_STARS=5;
+// A rating of our own is whole or half stars from ½ to 5 — "better than a three, not a four" is
+// the answer a family actually gives. Nought is not a rating; it takes one back.
+export const isHalfStar=v=>typeof v==='number'&&v>=0.5&&v<=STEP_STARS&&Number.isInteger(v*2);
+export const starText=v=>`${Math.floor(v)||''}${v%1?'½':''}`;
 // The days we would do again, best first — the trip's own highlights, built out of what the
 // four of them actually said rather than out of what was planned.
 export function ratedSteps(state,{day=null,min=0}={}){
@@ -1166,7 +1170,7 @@ export function pendingProgress(state,queue){
    next.games={...next.games,scores:{...next.games.scores,[o.person]:mine}};
   }
   if(o.type==='foodTried'){const e=next.food[o.itemId]||{},tried={...(e.tried||{})};if(o.done)tried[o.person]=tried[o.person]||o.at;else delete tried[o.person];next.food={...next.food,[o.itemId]:{...e,tried}};}
-  if(o.type==='huntAdd'){const h={custom:[],entries:[],...(next.hunts||{})};const ratings=Number.isInteger(o.rating)&&o.rating>0&&o.by?{[o.by]:o.rating}:{};next.hunts={...h,entries:[...h.entries,{id:`pending-${o.operationId}`,hunt:o.hunt,title:String(o.title||'').trim(),place:String(o.place||'').trim(),day:o.stepId?null:(o.day??null),yen:Number.isInteger(o.yen)?o.yen:null,note:String(o.note||'').trim(),status:o.status==='want'?'want':'tried',shortlistId:o.shortlistId||null,stepId:o.stepId||null,locationId:o.locationId||null,pin:validPin(o.pin??null)?(o.pin??null):null,ratings:o.status==='want'?{}:ratings,by:o.by||'',at:o.at,pending:true}]};}
+  if(o.type==='huntAdd'){const h={custom:[],entries:[],...(next.hunts||{})};const ratings=isHalfStar(o.rating)&&o.by?{[o.by]:o.rating}:{};next.hunts={...h,entries:[...h.entries,{id:`pending-${o.operationId}`,hunt:o.hunt,title:String(o.title||'').trim(),place:String(o.place||'').trim(),day:o.stepId?null:(o.day??null),yen:Number.isInteger(o.yen)?o.yen:null,note:String(o.note||'').trim(),status:o.status==='want'?'want':'tried',shortlistId:o.shortlistId||null,stepId:o.stepId||null,locationId:o.locationId||null,pin:validPin(o.pin??null)?(o.pin??null):null,ratings:o.status==='want'?{}:ratings,by:o.by||'',at:o.at,pending:true}]};}
   if(o.type==='huntTried'){const h={custom:[],entries:[],rankings:{},...(next.hunts||{})};next.hunts={...h,entries:h.entries.map(e=>e.id===o.id?{...e,status:o.done?'tried':'want',pending:true}:e)};}
   if(o.type==='huntRate'&&o.rating){const h=next.hunts||{};if(h.entries)next.hunts={...h,entries:h.entries.map(e=>e.id===o.id&&e.status==='want'?{...e,status:'tried'}:e)};}
   if(o.type==='huntRank'&&Array.isArray(o.order)){const h={custom:[],entries:[],rankings:{},...(next.hunts||{})};next.hunts={...h,rankings:{...h.rankings,[o.hunt]:{...(h.rankings[o.hunt]||{}),[o.person]:o.order}}};}
