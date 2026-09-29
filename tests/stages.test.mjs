@@ -429,3 +429,27 @@ test('keepsakes say whether the trip has given them enough to be made from',asyn
  for(const k of KEEPSAKES){assert.ok(['before','after'].includes(k.when));assert.ok(k.from in m,`${k.id} is made from something counted`);assert.equal(k.provider,null,'no print provider chosen yet');}
  assert.deepEqual(keepsakeMaterial({}),{characters:0,photos:0,days:0,stamps:0});
 });
+test('the trip shop log keeps what was sorted and whether it was worth it, for the next trip',async()=>{
+ const {applyOperation}=await import('../server/model.mjs');
+ const {shopEntry,shopLogged}=await import('../src/shop-data.js');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ const lauren={name:'Lauren',role:'parent'};
+ let state=upgraded(seed);
+ assert.deepEqual(state.shopLog,{});
+ state=applyOperation(state,{type:'shopLog',id:'esim',sorted:true},lauren);
+ state=applyOperation(state,{type:'shopLog',id:'esim',verdict:'no',note:'  Dropped out in Hakone.  '},lauren);
+ const e=shopEntry(state,'esim');
+ assert.ok(e.sortedAt,'the tick survives a later note');assert.equal(e.verdict,'no');assert.equal(e.note,'Dropped out in Hakone.');assert.equal(e.by,'Lauren');
+ state=applyOperation(state,{type:'shopLog',id:'esim',verdict:''},lauren);
+ assert.equal(shopEntry(state,'esim').verdict,null);assert.equal(shopEntry(state,'esim').note,'Dropped out in Hakone.');
+ state=applyOperation(state,{type:'shopLog',id:'book',sorted:true},lauren);
+ assert.deepEqual(shopLogged(state),{sorted:1,total:8,notes:1},'a keepsake ordered is not an essential sorted');
+ assert.throws(()=>applyOperation(state,{type:'shopLog',id:'esim',sorted:true},{name:'Nate',role:'child'}),/parent/);
+ assert.throws(()=>applyOperation(state,{type:'shopLog',id:'nope',sorted:true},lauren),/Unknown trip shop item/);
+ assert.throws(()=>applyOperation(state,{type:'shopLog',id:'esim',verdict:'maybe'},lauren),/worth it/);
+ assert.throws(()=>applyOperation(state,{type:'shopLog',id:'esim',note:'x'.repeat(281)},lauren),/Invalid note/);
+ assert.throws(()=>applyOperation(state,{type:'shopLog',id:'esim',sorted:'yes'},lauren),/Invalid tick/);
+ assert.ok(visibleTrip(state,{name:'Nate',role:'child'}).shopLog.esim,'the boys can read what was learned');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/'bookingWindowBooked','shopLog'\]/,'a tick made with no signal is queued');
+});

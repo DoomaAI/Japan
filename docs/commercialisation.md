@@ -133,6 +133,7 @@ Each essential links to the shop or the official page and to the screen in the a
 | `shopLink(url)` and `PARTNERS` | `src/shop-data.js` | Every outbound link goes through one function. A referral or affiliate tag is added per host in `PARTNERS`, and every link to that host picks it up. |
 | `partnered(url)` | `src/shop-data.js` | Drives a plain disclosure line on the page and `rel="sponsored"` on the link as soon as any link carries a tag. |
 | `lead` per essential, `essentialDue()` | `src/shop-data.js` | Days-before-flight for each item, so the pack can join the run-up milestones (#205), booking windows (#210) and push reminders (#214). |
+| `shopLog` in the trip state, `shopLogged()` | `src/shop-data.js`, `server/features.mjs` | A parent's sorted or ordered tick, worth it or not, and a line for next time on every item. It is kept with the trip, so a later trip, or a commercial version's \"what other families said\", starts from it. |
 | `from` and `provider` per keepsake, `keepsakeMaterial()` | `src/shop-data.js` | Names the trip material a keepsake is made from and the print provider (none chosen), so ordering can become a server call that sends the family's own images. |
 
 ### Candidate partners to assess
@@ -154,7 +155,6 @@ Each essential links to the shop or the official page and to the screen in the a
 
 ### Not built yet
 
-- A per-item "sorted" tick and a "worth it?" note for the next trip, kept in the trip state (needs a new server mutation).
 - The pack on the run-up countdown and in push reminders.
 - Ordering a keepsake from the app.
 

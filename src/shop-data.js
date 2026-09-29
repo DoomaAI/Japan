@@ -111,3 +111,16 @@ export function keepsakeReady(item,material){
  const need={characters:1,photos:6,days:3,stamps:10}[item.from]||1;
  return {have:n,need,ready:n>=need};
 }
+
+// The log kept for next time: a parent ticks an item sorted, says whether it was worth it, and
+// leaves a line about it ("the Ubigi eSIM dropped out in Hakone"). It is kept in the trip, not on
+// one phone, so the next trip starts from what we learned on this one.
+export const SHOP_VERDICTS=['','yes','no'];
+export const SHOP_NOTE_MAX=280;
+export const findShopItem=id=>ESSENTIALS.find(i=>i.id===id)||KEEPSAKES.find(i=>i.id===id)||null;
+export const shopEntry=(state,id)=>state?.shopLog?.[id]||null;
+export function shopLogged(state){
+ const log=state?.shopLog||{};
+ return {sorted:ESSENTIALS.filter(i=>log[i.id]?.sortedAt).length,total:ESSENTIALS.length,
+  notes:Object.entries(log).filter(([id,e])=>findShopItem(id)&&(e.verdict||e.note)).length};
+}
