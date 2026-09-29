@@ -1,9 +1,9 @@
 import React from 'react';
-import {MessageSquare,Lightbulb,Mic,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2} from 'lucide-react';
+import {MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import {BarShortcuts} from './Personalise.jsx';
 import {CARD_LINKS,linkOrder,stepLink} from './card-links.js';
-const ICONS={dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic};
+const ICONS={dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
 // off is not knowing what else goes with it. Nothing here is lost by turning it off: the
@@ -54,6 +54,10 @@ export default function Settings({user,settings,change,navPrefs,setNavPrefs,link
   <section className="settings-section">
    <h2>Voice notes</h2>
    {SETTINGS.filter(s=>s.group==='voice').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
+  </section>
+  <section className="settings-section">
+   <h2>Route cards</h2>
+   {SETTINGS.filter(s=>s.group==='route').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
   {setNavPrefs&&<section className="settings-section"><BarShortcuts user={user} prefs={navPrefs} setPrefs={setNavPrefs}/></section>}
   {setLinkPrefs&&<section className="settings-section"><StopButtonOrder prefs={linkPrefs} setPrefs={setLinkPrefs}/></section>}

@@ -56,13 +56,14 @@ function LegTick({step,k,label,canTick,busy,onTick}){
  const done=legDone(step,k);
  return <label className={`route-leg-tick${done?' is-done':''}`}><input type="checkbox" checked={done} disabled={busy||!canTick} aria-label={`${done?'Done':'Mark done'}: leg ${k+1}, ${label}`} onChange={e=>onTick(k,e.target.checked)}/><span className="route-leg-dot" aria-hidden="true">{done&&<Check size={10} strokeWidth={3}/>}</span><span>{done?'Done':'Done?'}</span></label>;
 }
-export default function RouteCard({legs,step,canTick,busy,onTick}){
+export default function RouteCard({legs,step,canTick,busy,onTick,lookOpen=false}){
  const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
  const fares=routeFares(legs),priced=legs.some(l=>l.yen||l.options),rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
  // Every ride offers the one tracker; its status sits with the ride it is following (the one pressed until it knows).
  const [pressed,setPressed]=useState(0),trackAt=where?where.i:pressed;
- // Tapping a line's name opens what to look for to find it; closed until asked.
- const [looking,setLooking]=useState(()=>new Set()),toggleLook=k=>setLooking(s=>{const n=new Set(s);n.has(k)?n.delete(k):n.add(k);return n;});
+ // Tapping a line's name opens or closes what to look for to find it. Settings chooses how each
+ // one starts; the lines tapped since are kept as the ones flipped from that.
+ const [flipped,setFlipped]=useState(()=>new Set()),looking=k=>lookOpen!==flipped.has(k),toggleLook=k=>setFlipped(s=>{const n=new Set(s);n.has(k)?n.delete(k):n.add(k);return n;});
  const ticks=step&&onTick?legCount(step):0,tick=(k,label)=>ticks?<LegTick step={step} k={k} label={label} canTick={canTick} busy={busy} onTick={onTick}/>:null,doneClass=k=>ticks>0&&legDone(step,k)?' leg-done':'';
  return <section className="route-card" aria-label="Route">
   <p className="eyebrow">ROUTE</p>
@@ -74,8 +75,8 @@ export default function RouteCard({legs,step,canTick,busy,onTick}){
    const r=rideAt[k],line=LINES[leg.line],stops=rides[r],on=where&&where.i===r,here=on?where.index:-1,next=on&&!where.arrived?where.next:-1;
    const Icon=KIND_ICON[line.kind]||TrainFront,fast=line.fast||[],symbols=lineSymbols(stops);
    return <div className={`route-ride${doneClass(k)}`} key={k} style={{'--line':line.colour}}>
-    <div className="route-head"><strong className="route-line"><button type="button" className="route-line-toggle" aria-expanded={looking.has(k)} aria-controls={`route-look-${k}`} onClick={()=>toggleLook(k)}><Icon size={16}/>{symbols.map(c=><LineSymbol key={c} code={c} line={line}/>)}{line.name} <span lang="ja">{line.ja}</span><ChevronDown size={15} className="route-line-chevron" aria-hidden="true"/></button></strong>{tick(k,line.name)}</div>
-    {looking.has(k)&&<p className="route-look" id={`route-look-${k}`}><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>}
+    <div className="route-head"><strong className="route-line"><button type="button" className="route-line-toggle" aria-expanded={looking(k)} aria-controls={`route-look-${k}`} onClick={()=>toggleLook(k)}><Icon size={16}/>{symbols.map(c=><LineSymbol key={c} code={c} line={line}/>)}{line.name} <span lang="ja">{line.ja}</span><ChevronDown size={15} className="route-line-chevron" aria-hidden="true"/></button></strong>{tick(k,line.name)}</div>
+    {looking(k)&&<p className="route-look" id={`route-look-${k}`}><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>}
     <p className="route-kind">{symbols.length===0&&<i aria-hidden="true"/>}{line.kind} · {line.operator}</p>
     <p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>
     <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes&&!leg.options?` · about ${leg.minutes} min`:''}</p>

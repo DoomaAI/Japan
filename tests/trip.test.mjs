@@ -7630,13 +7630,13 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  const store=(saved={})=>({getItem:k=>saved[k]??null,setItem:(k,v)=>{saved[k]=v;},saved});
  // Nothing is off until somebody says so, so a phone that never opens this page behaves
  // exactly as it always did.
- assert.deepEqual(DEFAULTS,{dailyPhrase:true,dailyFact:true,transcribeVoice:false});
+ assert.deepEqual(DEFAULTS,{dailyPhrase:true,dailyFact:true,transcribeVoice:false,routeLookOpen:false});
  assert.deepEqual(readSettings('Nate',store()),DEFAULTS);
  // One at a time: turning the fun fact off leaves the phrase alone, which is the whole point
  // of two switches rather than one.
  const phone=store();
- assert.deepEqual(writeSetting('Nate','dailyFact',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false});
- assert.deepEqual(readSettings('Nate',phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false});
+ assert.deepEqual(writeSetting('Nate','dailyFact',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,routeLookOpen:false});
+ assert.deepEqual(readSettings('Nate',phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,routeLookOpen:false});
  // Under the person's own name. Two boys sharing a phone do not share an opinion about a
  // pop-up, and switching one off must never switch it off for somebody else.
  assert.deepEqual(readSettings('Boston',phone),DEFAULTS);
@@ -7650,8 +7650,10 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'not json at all'})),DEFAULTS);
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'{"dailyFact":"no"}'})),DEFAULTS);
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'{"dailyLater":false}'})),DEFAULTS);
- assert.deepEqual(writeSetting('Nate','dailyLater',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false},'a setting nothing knows about is not written');
+ assert.deepEqual(writeSetting('Nate','dailyLater',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,routeLookOpen:false},'a setting nothing knows about is not written');
  assert.equal(settingOn(undefined,'transcribeVoice'),false,'writing voice notes down starts off');
+ assert.equal(settingOn(undefined,'routeLookOpen'),false,'what to look for on a route card starts closed');
+ assert.match(main,/lookOpen=\{settingOn\(settings,'routeLookOpen'\)\}/,'the route card is told how each line starts');
  assert.equal(settingOn(undefined,'dailyFact'),true,'before anything is read, everything is still on');
  // And the switches are actually wired to the pop-ups. Off counts as done with it, so the
  // phrase never opens — and the fun fact behind it stops waiting on a phrase that is never
