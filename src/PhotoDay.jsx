@@ -81,7 +81,6 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
   </>}
   {preview&&<img className="menu-shot" src={preview} alt="The photo being added"/>}
   {failed&&!working&&<p className="callout"><AlertCircle size={16}/> {failed}<button type="button" className="try-again" disabled={busy} onClick={()=>add(last.current)}>Try again</button></p>}
-  {!config?.photoCoach&&canEnter&&!whole&&<p><small>Photo tips are not switched on for this trip yet. Photos and voting work without them.</small></p>}
   {!whole&&result?.winners?.length===1&&<p className="photo-winner"><Trophy size={16}/> <strong>{photoOwner(result.winners[0])}</strong> has photo of the day with {result.votes} vote{result.votes===1?'':'s'}.</p>}
   {!whole&&result?.winners?.length>1&&<p className="photo-winner"><Trophy size={16}/> A tie on {result.votes} vote{result.votes===1?'':'s'} — {result.winners.map(photoOwner).join(' and ')}.</p>}
   {!entries.length&&<p className="callout">{whole?`Nothing of ${person}’s yet.`:'No photos yet today. First one in sets the bar.'}</p>}

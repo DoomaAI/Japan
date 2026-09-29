@@ -52,7 +52,7 @@ export default function TicketTranslate({ticket,user,config,busy,setBusy,request
     </div>}
    </div>;
   })}
-  {parent&&!!fields.length&&<details open={open} onToggle={e=>setOpen(e.currentTarget.open)}>
+  {parent&&!!fields.length&&config?.translator&&<details open={open} onToggle={e=>setOpen(e.currentTarget.open)}>
    <summary><Languages size={15}/> Translate what this booking says</summary>
    {!config?.translator
     ?<p className="callout">Translating a booking is not switched on for this trip yet. Everything else on this ticket works without it.</p>

@@ -34,9 +34,17 @@ export default function Currency({state,user,mutate,busy,notice}){
   if(await mutate({type:'exchangeRate',perAud,source})){setFound(null);notice(`Rate saved: $1 = ${rateText(perAud)}`);}
  }
  return <>
-  <p>Everything in Japan is priced in yen. This converts either way, works with no signal, and uses one rate the whole family shares.</p>
-  {!set&&<p className="callout"><AlertCircle size={18}/><span><strong>No one has set the rate yet.</strong> The converter is using an estimate of {rateText(DEFAULT_YEN_PER_AUD)} to the dollar. {parent?'Set the real one below.':'Ask Damien or Lauren to set the real one.'}</span></p>}
-
+  {/* The tool comes first; the rate it uses and how it works sit under it. */}
+  <section className="converter">
+   <div className="segmented">
+    <button className={from==='JPY'?'selected':''} onClick={()=>setFrom('JPY')}>Yen → dollars</button>
+    <button className={from==='AUD'?'selected':''} onClick={()=>setFrom('AUD')}>Dollars → yen</button>
+   </div>
+   <label>{from==='JPY'?'Price in yen':'Amount in dollars'}
+    <input id="convert-amount" value={amount} inputMode="decimal" onChange={e=>setAmount(e.target.value)} placeholder={from==='JPY'?'1000':'20'}/></label>
+   <p className="converted"><ArrowLeftRight size={18}/><strong>{converted}</strong></p>
+  </section>
+  {!set&&<p className="callout"><AlertCircle size={18}/><span><strong>Using an estimate of {rateText(DEFAULT_YEN_PER_AUD)} to the dollar.</strong> {parent?'Set the real rate below.':'Ask Damien or Lauren to set the real rate.'}</span></p>}
   <section className={`rate-card${open?' open':''}`}>
    <div className="rate-line">
     <button type="button" className="rate-toggle" aria-expanded={open} onClick={()=>setOpen(o=>!o)}>
@@ -62,16 +70,8 @@ export default function Currency({state,user,mutate,busy,notice}){
    </div>}
   </section>
 
-  <section className="converter">
-   <div className="segmented">
-    <button className={from==='JPY'?'selected':''} onClick={()=>setFrom('JPY')}>Yen → dollars</button>
-    <button className={from==='AUD'?'selected':''} onClick={()=>setFrom('AUD')}>Dollars → yen</button>
-   </div>
-   <label>{from==='JPY'?'Price in yen':'Amount in dollars'}
-    <input value={amount} inputMode="decimal" onChange={e=>setAmount(e.target.value)} placeholder={from==='JPY'?'1000':'20'}/></label>
-   <p className="converted"><ArrowLeftRight size={18}/><strong>{converted}</strong></p>
-  </section>
 
+  <details className="page-help"><summary>How this works</summary>Everything in Japan is priced in yen. This converts either way, works with no signal, and uses one rate the whole family shares.</details>
   <h2>At a glance</h2>
   <div className="rate-table">{COMMON.map(n=><div className="rate-row" key={n}><span>{yen(n)}</span><strong>{aud(yenToAud(n,rate))}</strong></div>)}</div>
   <p><small>Handy rule of thumb: drop two zeros from the yen price and you are within a few cents of the dollar amount at around {yen(100)} to the dollar.</small></p>

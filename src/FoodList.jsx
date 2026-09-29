@@ -34,11 +34,12 @@ export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,
   if(await mutate(op))setEdit(null);
  }
  return <>
-  <p className="callout"><AlertCircle size={18}/>The Japanese is how a dish is usually written on a menu, as a helper for reading and pointing. Menus vary and shops write things their own way. <strong>Anything allergy-related must be confirmed with the restaurant, not with this list.</strong></p>
-  {config?.menuReader
-   ?user.role==='parent'&&<MenuReader state={state} user={user} request={request} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={show}/>
-   :<details className="menu-reader"><summary>Read a menu from a photo</summary><p>Reading a menu from a photo is not switched on for this trip yet. Everything else on this page works without it.</p></details>}
-  <div className="quest-progress"><strong>{tallies} / {items.length} tried</strong><progress max={items.length} value={tallies}/><span>Rate what you eat. Four stars or more and it lands in Our favourites.</span></div>
+  {/* One line for what matters at the table; the rest folds away. A reader that is not switched
+      on is left off rather than explained. */}
+  <p className="callout food-allergy"><AlertCircle size={18}/><strong>Allergies: always confirm with the restaurant, not with this list.</strong></p>
+  {config?.menuReader&&user.role==='parent'&&<MenuReader state={state} user={user} request={request} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={show}/>}
+  <div className="quest-progress"><strong>{tallies} / {items.length} tried</strong><progress max={items.length} value={tallies}/></div>
+  <details className="page-help"><summary>How this works</summary>The Japanese is how a dish is usually written on a menu, as a helper for reading and pointing. Menus vary and shops write things their own way. Rate what you eat: four stars or more and it lands in Our favourites.</details>
   <div className="document-filters">
    <label>Search<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Dish, Japanese or note"/></label>
    <div className="form-row">

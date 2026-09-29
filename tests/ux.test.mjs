@@ -73,3 +73,16 @@ test('dark mode is built into every stylesheet, and the status bar follows the p
  assert.match(html,/<meta name="theme-color" media="\(prefers-color-scheme: dark\)" content="#262523"\/>/);
  assert.doesNotMatch(html,/#102e32/);
 });
+test('screens lead with the tool, and a feature not switched on is left off rather than explained',async()=>{
+ const yen=await source('Currency.jsx'),food=await source('FoodList.jsx'),main=await source('main.jsx');
+ assert.ok(yen.indexOf('<section className="converter">')<yen.indexOf('<section className={`rate-card'),'the converter comes before the rate');
+ assert.match(yen,/<details className="page-help"><summary>How this works<\/summary>Everything in Japan is priced in yen/);
+ assert.match(food,/<strong>Allergies: always confirm with the restaurant, not with this list\.<\/strong>/);
+ assert.match(main,/<div className="row wrap page-links"><button onClick=\{\(\)=>go\('allergy'\)\}>/);
+ assert.doesNotMatch(main,/🥜 Allergy card/);
+ for(const f of ['DocumentReader.jsx','FileTranslate.jsx','FoodList.jsx','PhotoDay.jsx','TicketTranslate.jsx'])
+  assert.doesNotMatch(await source(f),/is not switched on for this trip yet\. Everything else|Photo tips are not switched on|Translating a file is not switched on/,f);
+ assert.match(await source('DocumentReader.jsx'),/if\(!config\?\.documentReader\)return null;/);
+ assert.match(main,/\{!parent&&<SpeakRules id=\{`page-\$\{tab\}`\}/,'the read-aloud button is on the boys\' phones');
+ assert.match(await source('style.css'),/\.date-strip\{-webkit-mask-image:linear-gradient/,'the date strip fades at its edges so a cut-off day reads as more to scroll');
+});
