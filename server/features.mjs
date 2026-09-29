@@ -5,7 +5,7 @@ import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
-import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
@@ -150,6 +150,16 @@ export function extraOperation(state,op,user,fail,now){
    state.proposals=board.filter(x=>x.id!==p.id);
    return {summary:null,important:false,title:p.title};
   }
+  // A board idea becomes a step on a day. One shape whether it goes on a day of its own or as the
+  // other lane of a split, so the two cannot drift apart.
+  const stepFromProposal=(p,{day,time,kind,locked,participants,group,option,order})=>{
+   state.steps.push({id:randomUUID(),title:p.title,day,time,originalTime:time,duration:p.duration||30,
+    notes:proposalStepNotes(p),place:p.place,japanese:p.japanese,website:p.ticketUrl||p.website,phone:'',
+    page:state.days.find(d=>d.date===day)?.pages?.[0]||1,kind,group,option,participants,order,
+    travelMinutes:20,arrivalBuffer:15,locationId:null,locked,bookingTime:locked?time:null,status:'todo',
+    fromProposalId:p.id});
+   Object.assign(p,{stepId:state.steps.at(-1).id,scheduledBy:user.name,scheduledAt:now,parked:false});
+  };
   if(op.type==='proposalSchedule'){
    if(!parent)fail('A parent adds an idea to the itinerary.',403);
    const p=found();
@@ -161,14 +171,37 @@ export function extraOperation(state,op,user,fail,now){
    const locked=kind==='fixed'||op.locked===true;
    if(locked&&!time)fail('A locked time needs a time.');
    const participants=p.suitableFor.length?[...p.suitableFor]:[...state.members];
-   state.steps.push({id:randomUUID(),title:p.title,day:op.day,time,originalTime:time,duration:p.duration||30,
-    notes:proposalStepNotes(p),place:p.place,japanese:p.japanese,website:p.ticketUrl||p.website,phone:'',
-    page:state.days.find(d=>d.date===op.day)?.pages?.[0]||1,kind,group:'',option:'',participants,
-    order:Math.max(0,...state.steps.filter(s=>s.day===op.day).map(s=>s.order))+10,
-    travelMinutes:20,arrivalBuffer:15,locationId:null,locked,bookingTime:locked?time:null,status:'todo',
-    fromProposalId:p.id});
-   Object.assign(p,{stepId:state.steps.at(-1).id,scheduledBy:user.name,scheduledAt:now,parked:false});
+   stepFromProposal(p,{day:op.day,time,kind,locked,participants,group:'',option:'',
+    order:Math.max(0,...state.steps.filter(s=>s.day===op.day).map(s=>s.order))+10});
    return {summary:`${p.title} added to ${op.day}${time?` at ${time}`:''} from the planning board`,important:true,title:p.title};
+  }
+  if(op.type==='proposalInstead'){
+   // Somebody would rather not do a stop that is on the plan. The idea they would do instead goes
+   // on the day beside it, at the same time, and the two become a split: the ones sitting it out
+   // on the new lane, everyone else on the planned one, meeting back up at the next shared stop.
+   if(!parent)fail('A parent splits the day.',403);
+   const p=found();
+   if(proposalPlacement(state,p).step)fail('This idea is already on the itinerary. Move it instead.');
+   const step=state.steps.find(s=>s.id===op.stepId);
+   if(!step?.day)fail('Choose a stop on the plan.');
+   if(step.group)fail('That stop is already one of a set of alternatives.');
+   if(['done','skipped'].includes(step.status))fail('That stop is already finished.');
+   const who=[...new Set(Array.isArray(op.who)?op.who:[])];
+   if(!who.length||who.some(n=>!step.participants.includes(n)))fail('Choose who would rather not go.');
+   const staying=step.participants.filter(n=>!who.includes(n));
+   if(!staying.length)fail('If nobody is going, swap the stop instead of splitting the day.');
+   const taken=new Set(state.steps.map(s=>s.group).filter(Boolean));
+   let group=`${step.title} or ${p.title}`.slice(0,120);
+   for(let n=2;taken.has(group);n++)group=`${`${step.title} or ${p.title}`.slice(0,110)} (${n})`;
+   const option=step.title.slice(0,250);
+   const after=state.steps.filter(s=>s.day===step.day&&s.order>step.order).map(s=>s.order);
+   Object.assign(step,{group,option,participants:staying});
+   const locked=p.timing==='fixed'&&!!step.time;
+   stepFromProposal(p,{day:step.day,time:step.time||null,kind:locked?'fixed':'flexible',locked,participants:who,group,option:p.title.slice(0,250),
+    order:after.length?(step.order+Math.min(...after))/2:step.order+5});
+   state.choices[group]=option;
+   state.groupModes[group]='split';
+   return {summary:`${who.join(' and ')}: ${p.title} instead of ${step.title}`,important:true,title:p.title};
   }
   fail('Unknown planning action.');
  }else if(op.type==='partyPerson'||op.type==='partyTrip'){
@@ -181,11 +214,15 @@ export function extraOperation(state,op,user,fail,now){
    const me=personProfile(state,op.name);
    const values={age:op.age===undefined?me.age:(op.age===null||op.age===''?null:Number(op.age)),
     interests:[...new Set(Array.isArray(op.interests)?op.interests:[])],
+    likes:op.likes===undefined?me.likes:cleanLikes(op.likes),
     loves:(op.loves??me.loves??'').trim(),avoid:(op.avoid??me.avoid??'').trim(),
     dietary:(op.dietary??me.dietary??'').trim(),notes:(op.notes??me.notes??'').trim()};
    if(values.age!==null&&(!Number.isInteger(values.age)||values.age<0||values.age>120))fail('Enter an age between 0 and 120.');
    if(values.interests.some(id=>!INTERESTS.some(([key])=>key===id)))fail('Choose interests from the list.');
    if(values.interests.length>INTERESTS.length)fail('Choose interests from the list.');
+   if(op.likes!==undefined&&!Array.isArray(op.likes))fail('Add likes as a list of tags.');
+   if(values.likes.length>MAX_LIKES)fail(`Keep it to ${MAX_LIKES} likes.`);
+   if(values.likes.some(t=>t.length>MAX_LIKE_LENGTH))fail(`Keep each like under ${MAX_LIKE_LENGTH} characters.`);
    for(const key of ['loves','avoid','dietary','notes'])requireText(values[key],500,key);
    state.party={...current,people:{...current.people,[op.name]:{...values,by:user.name,at:now}}};
    return {summary:null,important:false,title:`${op.name}’s travel profile`};
