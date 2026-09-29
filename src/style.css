@@ -729,3 +729,5 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .page-links{margin:.2rem 0 1rem;gap:.5rem}.page-links button{min-height:40px;font-size:.9rem}.food-allergy{padding-block:.6rem}
 .date-strip{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 1.2rem,#000 calc(100% - 1.2rem),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 1.2rem,#000 calc(100% - 1.2rem),transparent 100%)}
 .party-match{margin:.5rem 0}.party-match-head{display:flex;flex-wrap:wrap;gap:.35rem;margin:0 0 .3rem}.party-match .picked-why{margin:.2rem 0}.party-top{background:var(--green);color:#fff;border-color:var(--green)}.party-match.none{margin:.3rem 0;color:var(--muted)}.suggest-travel{font-weight:650;color:var(--ink)}
+.suggest-rating{font-weight:650;color:#9a6a1f}.suggest-rating svg{fill:currentColor}
+.card-links{margin:.6rem 0 .2rem;gap:.4rem}.card-links .button{display:inline-flex;align-items:center;gap:.3rem}

@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
-import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split,MapPin,LocateFixed,Tag} from 'lucide-react';
+import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split,MapPin,LocateFixed,Tag,Star,Navigation,Globe,Ticket,ExternalLink} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf,rankByParty,travelText,COORD_PLACES} from './trip-features.js';
+import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf,rankByParty,travelText,COORD_PLACES,ratingText,UNRATED_STARS,directionsLink,bookingSearchLink} from './trip-features.js';
 import {activeSteps} from './timing.js';
 import {askPhoneWhereItIs} from './geo.js';
 import {photoUrl} from './PhotoDay.jsx';
@@ -149,6 +149,19 @@ export function PickedFor({state,user,mutate,busy,onOpen}){
 // Ideas for a place, in the flavours asked for — the famous ones, the ones nobody finds on their
 // own, and everything in between. Nothing is added to the board here: each one is put up by a
 // person, and the rest of the family votes on it like any other idea.
+// Getting there and getting in, on every card: directions built by the app from where the day
+// starts, the place's own website and its booking page when the search actually turned them up,
+// and a search for tickets when it did not but the place is usually booked ahead.
+export function CardLinks({item,from}){
+ const {title,place,website,ticketUrl}=item.draft;
+ const out={target:'_blank',rel:'noopener noreferrer'};
+ return <div className="row wrap card-links">
+  <a className="button" href={directionsLink(title,place||item.area,from,item.travelMode)} {...out}><Navigation size={16}/>Directions<ExternalLink size={12}/></a>
+  {website&&<a className="button" href={website} {...out}><Globe size={16}/>Website<ExternalLink size={12}/></a>}
+  {ticketUrl?<a className="button primary" href={ticketUrl} {...out}><Ticket size={16}/>{item.kind?'Book a table':'Book'}<ExternalLink size={12}/></a>
+   :item.bookAhead&&<a className="button" href={bookingSearchLink(title,place)} {...out}><Ticket size={16}/>Find where to book<ExternalLink size={12}/></a>}
+ </div>;
+}
 export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded}){
  const [scope,setScope]=useState(day?`d:${day}`:'');
  const [elsewhere,setElsewhere]=useState(''),[kinds,setKinds]=useState(['landmark','unique']),[count,setCount]=useState(6);
@@ -214,7 +227,9 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
  // us are sitting a stop out and the rest carry on, straight onto the day as a split.
  const splitting=!!(result?.instead?.staying.length&&!insteadGone);
  // Dealt with the ones that please the most of us on top; the model's own order breaks a tie.
- const ranked=result?rankByParty(result.suggestions,state,i=>i.draft):[];
+ // After the party, the better-rated of two equal fits. Something with no rating counts as an
+ // ordinary place, as on Near here, rather than as the worst one.
+ const ranked=result?rankByParty(result.suggestions,state,i=>i.draft,(a,b)=>(b.rating??UNRATED_STARS)-(a.rating??UNRATED_STARS)):[];
  return <details className="party-panel suggest-panel">
   <summary><Sparkles size={17}/>Suggest some ideas</summary>
   <p>Built from who is going and what each of us said we are into{filled.length?` — ${filled.join(', ')} so far`:''}. {filled.length<state.members.length&&<strong>Fill in the rest above and these get sharper.</strong>}</p>
@@ -275,11 +290,13 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
      <div className="plan-facts">
       {item.travelMinutes!=null&&<span className="suggest-travel"><MapPin size={14}/>{travelText(item.travelMinutes,item.travelMode,result.from)}</span>}
       <span><Tag size={14}/>{kindLabel(item.draft.category)}</span>
+      {item.rating!=null&&<span className="suggest-rating"><Star size={14}/>{ratingText(item.rating,item.ratingCount)} on Google</span>}
       {!!item.draft.duration&&<span><Clock size={14}/>About {item.draft.duration} min</span>}
       {item.draft.cost!==null&&<span><Coins size={14}/>Around ¥{item.draft.cost.toLocaleString()}{item.draft.costNote?` · ${item.draft.costNote}`:''}</span>}
       {item.bookAhead&&<span>Usually booked ahead</span>}
       <span>{item.draft.suitableFor.length?`Suits ${item.draft.suitableFor.join(', ')}`:'Suits everyone'}</span>
      </div>
+     <CardLinks item={item} from={start==='me'&&coords?coords:result.from}/>
      <div className="row wrap">
       {splitting&&<button disabled={busy} onClick={()=>add(item,false)}><Plus size={16}/>Just put it on the board</button>}
       <button disabled={busy} onClick={()=>add(item,true)}><Search size={16}/>Add and look it up</button>
