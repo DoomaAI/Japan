@@ -8895,6 +8895,22 @@ test('a route across companies adds up the separate fares the stop notes quote',
  // One company, one ticket: no total to add up.
  assert.equal(routeFares(ROUTES['2026-09-27-03']),null);
 });
+test('every ride says what it costs, and the fares add up to what the stop notes quote',async()=>{
+ const {ROUTES}=await import('../src/route-data.js');
+ const {STOP_NOTES}=await import('../src/stop-notes.js');
+ for(const [id,legs] of Object.entries(ROUTES)){
+  const rides=legs.filter(l=>l.mode==='ride');
+  rides.forEach((l,k)=>{
+   assert.ok(l.yen||l.options||l.booked||l.sameTicket,`${id} ${l.line}: no fare`);
+   if(l.through)assert.ok(rides[k+1]?.sameTicket,`${id}: nothing rides on the through ticket`);
+   if(l.sameTicket)assert.ok(rides[k-1]?.through,`${id}: no ticket to ride on`);
+  });
+  const quoted=STOP_NOTES[id]?.notes.match(/^Fare: adult ¥([\d,]+) · child ¥([\d,]+) each/m);
+  if(!quoted)continue;
+  const sum=i=>rides.reduce((t,l)=>t+((l.yen||l.options?.[0]?.yen)?.[i]||0),0);
+  assert.deepEqual([sum(0),sum(1)],[+quoted[1].replace(',',''),+quoted[2].replace(',','')],id);
+ }
+});
 test('each ride shows the line symbol its signs carry',async()=>{
  const {legStops,lineSymbols,inkOn}=await import('../src/route-data.js');
  assert.deepEqual(lineSymbols(legStops({line:'midosuji',from:'Umeda',to:'Shinsaibashi'})),['M']);

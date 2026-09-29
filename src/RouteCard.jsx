@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket} from 'lucide-react';
+import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket,Baby} from 'lucide-react';
 import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked} from './route-data.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
 // Follows the phone along the route while it is open and tracking is on. GPS fades underground,
@@ -58,7 +58,7 @@ function LegTick({step,k,label,canTick,busy,onTick}){
 }
 export default function RouteCard({legs,step,canTick,busy,onTick}){
  const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
- const fares=routeFares(legs),rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
+ const fares=routeFares(legs),priced=legs.some(l=>l.yen||l.options),rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
  // Every ride offers the one tracker; its status sits with the ride it is following (the one pressed until it knows).
  const [pressed,setPressed]=useState(0),trackAt=where?where.i:pressed;
  const ticks=step&&onTick?legCount(step):0,tick=(k,label)=>ticks?<LegTick step={step} k={k} label={label} canTick={canTick} busy={busy} onTick={onTick}/>:null,doneClass=k=>ticks>0&&legDone(step,k)?' leg-done':'';
@@ -66,6 +66,7 @@ export default function RouteCard({legs,step,canTick,busy,onTick}){
   <p className="eyebrow">ROUTE</p>
   {ticks>0&&<p className="route-progress"><CheckCircle2 size={15}/><span><b>{legsTicked(step)} of {ticks} legs done.</b> {step.status==='done'?'This stop is complete.':'Tick each leg as you finish it; the last one ticks off the whole stop.'}</span></p>}
   {fares&&<p className="route-fares"><Ticket size={15}/><span><b>Fare: adult {yen(fares.adult)} · child {yen(fares.child)} each,</b> as {fares.rides.length} separate tickets, one per company: {fares.rides.map(r=>`${r.operator} ${yen(r.yen[0])} / ${yen(r.yen[1])}`).join(' + ')}. An IC card covers them all: tap out at one company's gates and in again at the next, and each part is charged.{legs.some(l=>l.options)?' Seat tickets on the options below are extra.':''}</span></p>}
+  {priced&&<p className="route-fares"><Baby size={15}/><span><b>Under 6 (not yet at school): free.</b> Up to two ride free with each paying adult or child, no ticket; walk through the wide gate with a parent. Only a child aged 6 or over pays the child fare.</span></p>}
   {legs.map((leg,k)=>{
    if(leg.mode==='walk')return <p className={`route-walk${doneClass(k)}`} key={k}><Footprints size={15}/><span>{leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span>{tick(k,'walk')}</p>;
    const r=rideAt[k],line=LINES[leg.line],stops=rides[r],on=where&&where.i===r,here=on?where.index:-1,next=on&&!where.arrived?where.next:-1;
@@ -75,7 +76,9 @@ export default function RouteCard({legs,step,canTick,busy,onTick}){
     <p className="route-kind">{symbols.length===0&&<i aria-hidden="true"/>}{line.kind} · {line.operator}</p>
     <p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>
     <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes&&!leg.options?` · about ${leg.minutes} min`:''}</p>
-    {leg.yen&&!leg.options&&<p className="route-fare"><b>Fare:</b> adult {yen(leg.yen[0])} · child {yen(leg.yen[1])}{fares?`, a separate ${line.operator} ticket`:''}. Tap an IC card at the gates, or buy a ticket from the fare machines.</p>}
+    {leg.yen&&!leg.options&&<p className="route-fare"><b>Fare:</b> adult {yen(leg.yen[0])} · child {yen(leg.yen[1])}{fares?`, a separate ${line.operator} ticket`:''}{leg.through?`, which also covers the ${LINES[legs[k+1]?.line]?.name||'next ride'} after it: change trains without going out through the gates`:''}. Tap an IC card at the gates, or buy a ticket from the fare machines.{line.childIc?` ${line.childIc}`:''}</p>}
+    {leg.sameTicket&&<p className="route-fare"><b>Fare:</b> nothing more; the ticket or IC tap from the ride before covers this one. Stay inside the gates to change.</p>}
+    {leg.booked&&<p className="route-fare"><b>Tickets:</b> {leg.booked}</p>}
     {leg.options&&<div className="route-options"><b>Options</b>{leg.options.map(o=><div key={o.name}><strong>{o.name} {o.ja&&<span lang="ja">{o.ja}</span>}<small>about {o.minutes} min</small></strong><span>{o.fare}</span><p>{o.how}</p></div>)}</div>}
     <p className="route-look"><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>
     <div className="route-follow">
