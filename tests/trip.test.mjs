@@ -265,7 +265,7 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  assert.ok(PAGES.glance?.label&&PAGES.glance?.note,'the day at a glance has its own entry');
  assert.ok(PAGE_RULES.glance,'and something to say when the speaker is pressed');
  assert.match(nav,/glance:CalendarCheck/,'with an icon of its own, not the to-do list one');
- assert.equal(PAGES.glance.label,'Today','and it is the Today tab');
+ assert.equal(PAGES.glance.label,'Plan','and it is the Plan tab, today first');
  assert.ok(MORE_SECTIONS.find(([title])=>title==='The plan')[1].includes('glance'),'it is the day\u2019s plan');
  // It is on everybody's bar as Today, so it is not repeated under More.
  for(const user of [{name:'Damien',role:'parent'},{name:'Nate',role:'child'}]){
@@ -275,7 +275,7 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  // Home no longer splits into two columns, so the step card has the screen to itself and the
  // timeline is not rendered twice.
  assert.equal((main.match(/<DayTimeline /g)||[]).length,1,'the timeline is rendered once, on its own screen');
- assert.match(main,/\{tab==='glance'&&<>\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayTimeline /,'it opens with the day it is about, then the day\u2019s buttons');
+ assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayTimeline /,'it opens with the day it is about, then the day\u2019s buttons');
  assert.doesNotMatch(main,/today-layout/,'Home is one column now');
  assert.doesNotMatch(css,/today-layout/,'and the grid that made two of them is gone with it');
  // Choosing a day on the day at a glance stays on the day at a glance. selectDay goes Home, so
@@ -1705,8 +1705,8 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   assert.equal(new Set(all).size,all.length,`${user.name} lists a page twice`);
   const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(!['inbox','ledger','paying','vault'].includes(id)||user.role==='parent'));
   assert.deepEqual([...all].sort(),[...expected].sort(),`${user.name} cannot reach every page`);
-  // The bar holds six, plus More: Home, Today and the Itinerary, and three for whoever it is.
-  assert.equal(bar.length,6,user.name);
+  // The bar holds four, plus More: Home and Plan, and two for whoever it is.
+  assert.equal(bar.length,4,user.name);
   for(const id of all)assert.ok(PAGES[id]?.label&&PAGES[id]?.note,`${id} is missing a label or note`);
   // Sections are non-empty and the pages already in the bar are not repeated below.
   for(const [title,ids] of moreSections(user)){assert.ok(title&&ids.length);for(const id of ids)assert.ok(!bar.includes(id),`${id} is in both`);}
@@ -1731,9 +1731,9 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   const expected=Object.keys(PAGES).filter(id=>!['inbox','ask'].includes(id)&&(id!=='thanks'||'Damien'==='Damien'));
   assert.deepEqual([...primaryNav(damien),...moreIds(damien)].sort(),expected.sort());
  }finally{setAvailable({inbox:true,ask:true});}
- // Parents reach for tickets and prices; the boys reach for their missions.
- assert.deepEqual(PRIMARY.parent,['today','glance','days','tickets','food','money']);
- assert.deepEqual(PRIMARY.child,['today','glance','days','challenges','food','diary']);
+ // Four and More: parents reach for the wallet and prices; the boys reach for their missions.
+ assert.deepEqual(PRIMARY.parent,['today','glance','tickets','money']);
+ assert.deepEqual(PRIMARY.child,['today','glance','challenges','food']);
  // And the menu is ordered by whose screen it is. The practical half — the weather on the way
  // out, the ticket at the gate, what is still to buy — is at the top, where the thumb of
  // whoever is navigating lands first. The boys' own screens are the last block, all together,
@@ -1747,7 +1747,7 @@ test('every screen is reachable exactly once, from the bar or from More',async()
  for(const user of [damien,lauren,nate])
   assert.equal(moreSections(user).at(-1)[0],'For the boys',`${user.name} is shown the boys' block last`);
  // The bug this replaces: on a sub-page nothing used to be highlighted, so you lost your place.
- for(const [tab,expected] of [['food','food'],['today','today'],['parks','more'],['guide','more'],['thanks','more'],['search','more']]){
+ for(const [tab,expected] of [['money','money'],['today','today'],['days','glance'],['food','more'],['parks','more'],['guide','more'],['thanks','more'],['search','more']]){
   const lit=[...primaryNav(damien),'more'].filter(id=>navActive(tab,id,damien));
   assert.deepEqual(lit,[expected],`on ${tab}`);
  }
@@ -1929,16 +1929,18 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.match(screen,/setHome\(emptyHome\(\)\)/);
 });
 
-test('Days is the Itinerary, and Today is its own tab',async()=>{
+test('Days is the Itinerary, and Plan holds today with the whole trip one switch away',async()=>{
  const {PAGES,PRIMARY}=await import('../src/nav-data.js');
  const {PAGE_RULES}=await import('../src/spoken-rules.js');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.equal(PAGES.days.label,'Itinerary');
  assert.match(PAGE_RULES.days,/^Itinerary\./);
  assert.match(main,/<h1>Our itinerary<\/h1>/);
- assert.equal(PAGES.glance.label,'Today');
- assert.match(PAGE_RULES.glance,/^Today\./);
- for(const bar of Object.values(PRIMARY))assert.deepEqual(bar.slice(0,3),['today','glance','days']);
+ assert.equal(PAGES.glance.label,'Plan');
+ assert.match(PAGE_RULES.glance,/^Plan\./);
+ for(const bar of Object.values(PRIMARY))assert.deepEqual(bar.slice(0,2),['today','glance']);
+ assert.match(main,/const planSwitch=<div className="segmented plan-switch"/);
+ assert.match(main,/\{tab==='days'&&<>\{planSwitch\}/);
  assert.match(main,/function navGo\(id\)\{go\(id,id==='glance'&&[^}]*japanDate\(\)/,'Today lands on today');
 });
 
@@ -3251,6 +3253,88 @@ test('an idea can go on a day as a split, for the ones who would rather not do a
  state=applyOperation(state,{type:'proposalAdd',person:'Damien',title:'Arcade'},parent);
  assert.throws(()=>applyOperation(state,{type:'proposalInstead',id:state.proposals.at(-1).id,stepId:planned.id,who:['Nate']},parent),/already one of a set/);
  assert.throws(()=>applyOperation(state,{type:'proposalInstead',id:idea.id,stepId:meet.id,who:['Nate']},parent),/already on the itinerary/);
+});
+test('what is on while we are there: dated events, near where we stay, with only sources a search returned',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures,dayAreas,tripAreas,eventDays}=await import('../src/trip-features.js');
+ let state=ensureFeatures(structuredClone(seed));
+ // The day labels are what the day is; the places an event can be near are the bases.
+ assert.deepEqual(dayAreas({city:'DisneySea / Tokyo'}),['Tokyo']);
+ assert.deepEqual(dayAreas({city:'Nara / Kyoto'}),['Nara','Kyoto']);
+ assert.deepEqual(tripAreas(state).sort(),['Kyoto','Nara','Osaka','Tokyo']);
+ assert.deepEqual(eventDays(state,{start:'2026-09-20',end:'2026-09-25',near:['Kyoto']}),['2026-09-24']);
+ assert.deepEqual(eventDays(state,{start:'2026-10-01',end:'2026-10-10',near:['Tokyo'],from:'2026-10-05'}),['2026-10-05','2026-10-06'],'not a day that has gone by');
+ let seen=null;
+ const found='https://example.jp/sumo-tokyo-tournament';
+ const answer={note:'Checked the league and festival calendars.',events:[
+  {title:'Baseball: Giants v Tigers',japanese:'',kind:'sport',venue:'Tokyo Dome, Tokyo',startDate:'2026-10-03',endDate:'2026-10-03',startTime:'18:00',
+   reachableFrom:['Tokyo'],travelMinutes:25,duration:210,cost:3500,tickets:'on sale',suitableFor:['Damien','Boston'],
+   notes:'A night game.',why:'Boston ticked sport.',source:found},
+  {title:'Kyoto autumn illumination',japanese:'',kind:'seasonal',venue:'Kyoto',startDate:'2026-10-20',endDate:'2026-11-30',startTime:'',
+   reachableFrom:['Kyoto'],travelMinutes:10,duration:60,cost:null,tickets:'unknown',suitableFor:[],notes:'',why:'',source:found},
+  {title:'Osaka festival',japanese:'',kind:'festival',venue:'Osaka',startDate:'2026-09-25',endDate:'2026-10-04',startTime:'nonsense',
+   reachableFrom:['Osaka','Atlantis'],travelMinutes:20,duration:90,cost:0,tickets:'free',suitableFor:['Grandma'],
+   notes:'Stalls and dancing.',why:'Everyone likes food.',source:'https://made-up.example/festival'},
+  {title:'No dates',kind:'music',startDate:'soon',endDate:'',reachableFrom:['Tokyo'],source:found}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen=JSON.parse(body);
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m1',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:9000,output_tokens:1200,server_tool_use:{web_search_requests:4}},
+    content:[{type:'server_tool_use',id:'s1',name:'web_search',input:{query:'Tokyo events October 2026'}},
+     {type:'web_search_tool_result',tool_use_id:'s1',content:[{type:'web_search_result',url:found,title:'Tournament',encrypted_content:'x',page_age:null}]},
+     {type:'tool_use',id:'c1',name:'record_events',input:answer}]}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {findEvents,eventWindow}=await import('../server/events.mjs');
+  // The window is the rest of the trip from today, one base, or one day.
+  assert.deepEqual(eventWindow(state,{},'2026-09-29').from,'2026-09-29');
+  assert.equal(eventWindow(state,{},'2026-09-01').from,'2026-09-21','before we go, the whole trip');
+  assert.deepEqual(eventWindow(state,{area:'Kyoto'},'2026-09-01'),{from:'2026-09-24',to:'2026-09-27',areas:['Kyoto']});
+  assert.throws(()=>eventWindow(state,{area:'Kyoto'},'2026-09-29'),/finished with Kyoto/);
+  assert.throws(()=>eventWindow(state,{area:'Paris'},'2026-09-29'),/places we are staying/);
+  assert.throws(()=>eventWindow(state,{day:'2027-01-01'},'2026-09-29'),/trip day/);
+  const result=await findEvents({kinds:['sport','festival','seasonal'],count:6},state,{today:'2026-09-29'});
+  const ask=seen.messages[0].content;
+  assert.match(ask,/between 2026-09-29 and 2026-10-06/);
+  assert.match(ask,/Tokyo: 2026-09-29, 2026-09-30, 2026-10-01/);
+  assert.match(ask,/Sport, Festivals & matsuri, Seasonal & illuminations/);
+  assert.match(seen.system,/Never invent an event, a date or an address/);
+  assert.deepEqual(seen.tools.find(t=>t.name==='record_events').input_schema.properties.events.items.properties.reachableFrom.items.enum.sort(),['Kyoto','Nara','Osaka','Tokyo']);
+  // Outside the window and undated are dropped; the rest are board-ready on a day we can go.
+  assert.deepEqual(result.events.map(e=>e.draft.title),['Baseball: Giants v Tigers','Osaka festival']);
+  const [game,festival]=result.events;
+  assert.equal(game.draft.category,'event');
+  assert.equal(game.draft.day,'2026-10-03');assert.equal(game.draft.time,'18:00');assert.equal(game.draft.timing,'fixed');
+  assert.equal(game.draft.website,found,'a source the search returned is kept');
+  assert.ok(game.verified);
+  assert.ok(game.draft.tags.includes('book ahead'));
+  assert.equal(game.draft.availability,'2026-10-03 · from 18:00');
+  assert.equal(festival.draft.website,'','a source the search never returned is dropped');
+  assert.equal(festival.verified,false);
+  assert.deepEqual(festival.near,['Osaka']);
+  assert.deepEqual(festival.days,[],'we have left Osaka by the time the window starts');
+  assert.equal(festival.draft.day,null);assert.equal(festival.draft.time,null);
+  assert.deepEqual(festival.draft.suitableFor,[]);
+  assert.equal(festival.draft.availability,'2026-09-25 to 2026-10-04');
+  // It goes on the board as an ordinary idea, on the day it fits.
+  state=applyOperation(state,{type:'proposalAdd',person:'Damien',...game.draft},parent);
+  assert.equal(state.proposals.at(-1).day,'2026-10-03');
+  await assert.rejects(()=>findEvents({kinds:[]},state,{today:'2026-09-29'}),/at least one kind/);
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ const handlerSource=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handlerSource,/route==='events'&&post\)\{\s*parent\(user\)/,'finding events is a parent\'s, like suggestions');
 });
 test('suggestions are built from who is going, and land on the board as ordinary ideas',async()=>{
  const {createServer}=await import('node:http');
@@ -10411,7 +10495,7 @@ test('one word for each idea on the screen: a stop is a stop, and the screen tha
  assert.match(await read('Personalise.jsx'),/<h1>Customise<\/h1>/);
  assert.ok(!main.includes('from My menu'),'Home points at Customise by its name');
  // Home is the dashboard and Today is the day's stops, and those two stay as they are.
- assert.equal(PAGES.today.label,'Home');assert.equal(PAGES.glance.label,'Today');
+ assert.equal(PAGES.today.label,'Home');assert.equal(PAGES.glance.label,'Plan');
 });
 
 test('a stop booked through someone else keeps the place’s website apart from the booking',async()=>{
@@ -10549,6 +10633,52 @@ test('one line under each title, and the rest of the why behind How this works',
  assert.match(css,/\.how-this-works summary\{[^}]*min-height:40px/,'the fold is a proper tap target');
 });
 
+test('the palette is named once, the fonts carry their own weights, and night is a choice',async()=>{
+ const {THEMES,readTheme,saveTheme,isDark,applyTheme,THEME_COLOUR}=await import('../src/theme.js');
+ const store=(saved={})=>({getItem:k=>saved[k]??null,setItem:(k,v)=>{saved[k]=v;},saved});
+ // Light until told otherwise, however the phone stored it (plain, or in quotes through the JSON hook).
+ assert.equal(readTheme(store()),'light');
+ assert.equal(readTheme(store({'japan.theme':'dark'})),'dark');
+ assert.equal(readTheme(store({'japan.theme':'"auto"'})),'auto');
+ assert.equal(readTheme(store({'japan.theme':'purple'})),'light');
+ assert.equal(readTheme({getItem(){throw new Error('no');}}),'light','a phone that refuses storage is light, not broken');
+ const st=store();assert.equal(saveTheme('dark',st),'dark');assert.equal(st.saved['japan.theme'],'dark');assert.equal(saveTheme('nope',st),'light');
+ assert.equal(isDark('dark'),true);assert.equal(isDark('light',true),false);assert.equal(isDark('auto',true),true);assert.equal(isDark('auto',false),false);
+ // Applying puts the choice on the page and matches the bar above the app to it.
+ const meta={content:'',setAttribute(k,v){this.content=v;}},doc={documentElement:{dataset:{}},querySelector:()=>meta};
+ applyTheme('dark',doc,false);assert.equal(doc.documentElement.dataset.theme,'dark');assert.equal(meta.content,THEME_COLOUR.dark);
+ applyTheme('auto',doc,false);assert.equal(meta.content,THEME_COLOUR.light);
+ assert.equal(applyTheme('light',null),'light','no document, nothing to do');
+ assert.deepEqual(THEMES.map(([id])=>id),['light','dark','auto']);
+ const read=async f=>readFile(new URL(`../src/${f}`,import.meta.url),'utf8');
+ const base=await read('style.css'),guide=await read('guide-theme.css'),stages=await read('stages.css');
+ // One set of names, declared in the base sheet and given the guide's values in the guide sheet.
+ for(const name of ['--paper','--page','--tint','--tint-deep','--tint-border','--cream','--sand','--sand-border','--sand-ink','--blush','--blush-border','--danger','--danger-bright','--green-deep','--mint','--stone','--ink-deep'])
+  for(const [sheet,label] of [[base,'style.css'],[guide,'guide-theme.css']])assert.match(sheet,new RegExp(`:root\\{[^}]*${name}:#`),`${name} in ${label}`);
+ // Night: the same names, under a choice or under the phone's own setting; never unasked.
+ assert.match(guide,/:root\[data-theme=dark\]\{--ink:#/);
+ assert.match(guide,/@media \(prefers-color-scheme:dark\)\{:root\[data-theme=auto\]\{--ink:#/);
+ assert.doesNotMatch(guide,/@media \(prefers-color-scheme:dark\)\{:root\{/,'a phone in dark mode is not switched without being asked');
+ // The colours went onto the names: what is left raw is shadows, transparencies and one-offs.
+ const raw=sheet=>(sheet.replace(/:root(\[[^\]]*\])?\{[^}]*\}/g,'').match(/#[0-9a-fA-F]{3,8}\b/g)||[]).filter(h=>h.length===4||h.length===7);
+ assert.ok(raw(base).length<300,`${raw(base).length} raw colours left in style.css`);
+ assert.ok(raw(guide).length<20,`${raw(guide).length} raw colours left in guide-theme.css`);
+ assert.doesNotMatch(base,/(?<=[:,\s])white\b/,'no colour keywords either');
+ // The boards keep literal colours: a board is the same at night, and its empty and filled squares are compared as real channels.
+ assert.match(base,/\.merge-tile\.filled\{background:#fff/);
+ // Real weights: the guide's two families as variable woff2 files, no TTF single weights left.
+ for(const f of ['robotocondensed','robotocondensed-italic','playfairdisplay','playfairdisplay-italic'])assert.match(guide,new RegExp(`url\\('\\./fonts/${f}\\.woff2'\\) format\\('woff2'\\)`),f);
+ assert.match(guide,/font-family:Guide Sans;src:url\('\.\/fonts\/robotocondensed\.woff2'\)[^}]*font-weight:100 900/);
+ assert.match(guide,/font-family:Guide Serif;src:url\('\.\/fonts\/playfairdisplay\.woff2'\)[^}]*font-weight:400 900/);
+ assert.doesNotMatch(guide,/\.ttf/);
+ await assert.rejects(()=>readFile(new URL('../src/fonts/guide-sans.ttf',import.meta.url)));
+ assert.match(guide,/font-synthesis:none/,'bold is drawn by the font, never thickened by the browser');
+ // Chosen in Settings, applied before the first paint.
+ assert.match(await read('Settings.jsx'),/<Appearance\/>/);
+ assert.match(await read('main.jsx'),/applyTheme\(readTheme\(\)\);\ncreateRoot/);
+ assert.ok(stages.includes('var(--paper)'),'the third sheet uses the names too');
+});
+
 test('suggestions and places near here are dealt with what pleases the most of us first, and say how far',async()=>{
  const {partyFit,rankByParty,travelText}=await import('../src/trip-features.js');
  const {normaliseSuggestion}=await import('../server/suggest.mjs');
@@ -10580,7 +10710,7 @@ test('suggestions and places near here are dealt with what pleases the most of u
  const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
  const nearby=await readFile(new URL('../src/Nearby.jsx',import.meta.url),'utf8');
  const server=await readFile(new URL('../server/suggest.mjs',import.meta.url),'utf8');
- assert.match(party,/const ranked=result\?rankByParty\(result\.suggestions,state,i=>i\.draft\):\[\]/);
+ assert.match(party,/const ranked=result\?rankByParty\(result\.suggestions,state,i=>i\.draft,/);
  assert.match(party,/<PartyMatch fit=\{item\.fit\}/);
  assert.match(party,/travelText\(item\.travelMinutes,item\.travelMode,result\.from\)/);
  assert.match(party,/Nothing is planned for \{dayLabel\(scopeDay\.date\)\} yet/);
@@ -10589,4 +10719,106 @@ test('suggestions and places near here are dealt with what pleases the most of u
  assert.match(nearby,/<SuggestDeck key=\{round\} items=\{ranked\}/);
  assert.match(nearby,/\(b\.dish\?1:0\)-\(a\.dish\?1:0\)\|\|\(b\.fit\?\.fans\.length\|\|0\)-\(a\.fit\?\.fans\.length\|\|0\)/);
  assert.match(nearby,/fit:isRatedKind\(o\.kind\)\?partyFit\(state,o\.draft\):null/,'a toilet is the nearest one, whoever likes what');
+});
+
+test('activity suggestions carry the Google rating where there is one, and it settles a tie in the party',async()=>{
+ const {normaliseSuggestion}=await import('../server/suggest.mjs');
+ const {rankByParty,UNRATED_STARS}=await import('../src/trip-features.js');
+ const state=upgraded(structuredClone(seed));
+ const s=normaliseSuggestion({title:'Tokyo National Museum',notes:'Samurai armour.',rating:4.56,ratingCount:21000},state);
+ assert.equal(s.rating,4.6);assert.equal(s.ratingCount,21000);
+ assert.match(s.draft.notes,/Google 4\.6 · 21,000 ratings/,'it goes onto the board with the idea');
+ // Never a rating it did not earn: out of range, a handful of votes, or not given.
+ for(const bad of [{rating:6,ratingCount:100},{rating:4.9,ratingCount:3},{rating:null,ratingCount:null},{}]){
+  const r=normaliseSuggestion({title:'X',...bad},state);
+  assert.equal(r.rating,null,JSON.stringify(bad));assert.equal(r.ratingCount,null);assert.doesNotMatch(r.draft.notes,/Google/);
+ }
+ // With nobody's likes to choose between them, the better rated goes first, and an unrated one
+ // sits as an ordinary place rather than the worst.
+ const card=(title,rating)=>({draft:{title,place:'',notes:'',tags:[],category:'place',suitableFor:[]},rating});
+ const order=rankByParty([card('Low',3.2),card('None',null),card('High',4.7)],state,i=>i.draft,(a,b)=>(b.rating??UNRATED_STARS)-(a.rating??UNRATED_STARS)).map(i=>i.draft.title);
+ assert.deepEqual(order,['High','None','Low']);
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ assert.match(party,/\{item\.rating!=null&&<span className="suggest-rating"><Star size=\{14\}\/>\{ratingText\(item\.rating,item\.ratingCount\)\} on Google<\/span>\}/);
+ const server=await readFile(new URL('../server/suggest.mjs',import.meta.url),'utf8');
+ assert.match(server,/'travelMinutes','travelMode','rating','ratingCount'/);
+});
+
+test('every card has directions, and a website or booking link only when the search actually turned it up',async()=>{
+ const {seenHosts,checkedLink}=await import('../server/links.mjs');
+ const {normaliseSuggestion}=await import('../server/suggest.mjs');
+ const {normaliseNearby}=await import('../server/nearby.mjs');
+ const {directionsLink,bookingSearchLink}=await import('../src/trip-features.js');
+ const state=upgraded(structuredClone(seed));
+ // What the searches in the answer returned, from results and from citations alike.
+ const hosts=seenHosts([[{type:'web_search_tool_result',content:[{type:'web_search_result',url:'https://www.teamlab.art/e/planets/'},{url:'http://insecure.example/'}]},
+  {type:'text',text:'x',citations:[{url:'https://ticket.teamlab.art/'},{url:'https://www.tablecheck.com/en/shops/sushi'}]}]]);
+ assert.deepEqual([...hosts].sort(),['teamlab.art','ticket.teamlab.art','tablecheck.com'].sort());
+ assert.equal(checkedLink('https://planets.teamlab.art/tokyo/',hosts),'https://planets.teamlab.art/tokyo/','a page on a site that came up');
+ assert.equal(checkedLink('https://teamlab-tickets.com/buy',hosts),'','a site the search never returned is dropped');
+ assert.equal(checkedLink('http://www.teamlab.art/',hosts),'','not HTTPS');
+ assert.equal(checkedLink('https://user:pw@teamlab.art/',hosts),'');
+ assert.equal(checkedLink('javascript:alert(1)',hosts),'');
+ assert.equal(checkedLink('https://teamlab.art/',new Set()),'','with no search, no link');
+ assert.equal(checkedLink('https://evilteamlab.art/',hosts),'','a look-alike is not a subdomain');
+ // Suggestions and near-here places keep what was seen and drop what was not.
+ const s=normaliseSuggestion({title:'teamLab Planets',website:'https://www.teamlab.art/e/planets/',bookingUrl:'https://made-up-tickets.jp/teamlab'},state,hosts);
+ assert.equal(s.draft.website,'https://www.teamlab.art/e/planets/');assert.equal(s.draft.ticketUrl,'');
+ const n=normaliseNearby({title:'Sushi Saito',kind:'sushi',website:'',bookingUrl:'https://www.tablecheck.com/en/shops/sushi'},state,[],hosts);
+ assert.equal(n.draft.ticketUrl,'https://www.tablecheck.com/en/shops/sushi');
+ assert.equal(normaliseSuggestion({title:'X',website:'https://www.teamlab.art/'},state).draft.website,'','no searches seen, no links');
+ // Directions go from where the day starts, the way the card says to travel.
+ assert.equal(directionsLink('Tokyo Tower','Minato','Hotel Gracery','train'),'https://www.google.com/maps/dir/?api=1&origin=Hotel%20Gracery&destination=Tokyo%20Tower%20Minato&travelmode=transit');
+ assert.match(directionsLink('Tokyo Tower','',{lat:35.66,lng:139.75}),/origin=35\.66%2C139\.75&destination=Tokyo%20Tower&travelmode=walking$/);
+ assert.doesNotMatch(directionsLink('Tokyo Tower','',null),/origin=/,'no start, Maps asks');
+ assert.match(bookingSearchLink('Ghibli Museum','Mitaka'),/^https:\/\/www\.google\.com\/search\?q=Ghibli%20Museum%20Mitaka%20official%20tickets%20booking$/);
+ // On the cards.
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ const nearby=await readFile(new URL('../src/Nearby.jsx',import.meta.url),'utf8');
+ assert.match(party,/<CardLinks item=\{item\} from=\{start==='me'&&coords\?coords:result\.from\}\/>/);
+ assert.match(party,/:item\.bookAhead&&<a className="button" href=\{bookingSearchLink\(title,place\)\}/);
+ assert.match(nearby,/\{item\.draft\.ticketUrl&&<a className="button" href=\{item\.draft\.ticketUrl\}/);
+ assert.match(nearby,/website:item\.draft\.ticketUrl\|\|item\.draft\.website\|\|'',/,'added to today, the booking page comes too');
+});
+
+test('the pages opened now and then load when opened, and every chunk is still in the offline shell',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // Thirty pages and sheets leave the shell: the games, sumo, the planning board, the ledger and
+ // the rest that are not on screen at a station. What Home, Today and the itinerary need stays.
+ const lazy=[...main.matchAll(/^const ([A-Za-z]+)=lazy\(\(\)=>import\('\.\/([A-Za-z]+)\.jsx'\)\);$/gm)].map(m=>m[1]);
+ for(const name of ['Games','Sumo','Planning','Spending','Ledger','Settings','VoiceNotes','MediaGallery','ParkGuide','MemoryMap'])assert.ok(lazy.includes(name),`${name} is lazy`);
+ for(const name of lazy)assert.doesNotMatch(main,new RegExp(`^import ${name} from`,'m'),`${name} is not also imported statically`);
+ for(const name of ['DayTimeline','RouteCard','FunFacts','Phrasebook','TodoList','Packing'])assert.match(main,new RegExp(`^import ${name}[,\\s]`,'m'),`${name} stays in the shell: it is on Home or Today`);
+ assert.match(main,/^import \{BottomNav,MorePage\} from '\.\/Navigation\.jsx';/m,'and so does the bar');
+ // One fallback around the pages and one inside the sheet, so a first open in a tunnel says something.
+ assert.match(main,/<main>\s*\{\/\*[^*]*\*\/\}\s*<Suspense fallback=\{<p className="page-loading">Opening…<\/p>\}>/);
+ assert.match(main,/<\/Suspense>\s*<\/main>/);
+ assert.match(main,/<div className="dialog-body"><Suspense fallback=\{<p className="page-loading">Opening…<\/p>\}>\{children\}<\/Suspense><\/div>/);
+ // The build puts every file in dist/assets into the service worker's shell, chunks included: a
+ // page never opened online is still there offline. This is the line that must not change.
+ const finalize=await readFile(new URL('../scripts/finalize-build.mjs',import.meta.url),'utf8');
+ assert.match(finalize,/readdir\(new URL\('\.\.\/dist\/assets\/',import\.meta\.url\)\)\)\.map\(n=>'\/assets\/'\+n\)/);
+ const sw=await readFile(new URL('../public/sw.js',import.meta.url),'utf8');
+ assert.match(sw,/\/\* BUILD_ASSETS \*\//);
+});
+
+test('nothing tappable is under 40px, past days still read, and a press shows',async()=>{
+ const css=await readFile(new URL('../src/guide-theme.css',import.meta.url),'utf8');
+ const sweep=css.slice(css.indexOf('/* Accessibility sweep'));
+ assert.ok(sweep.length>200,'the sweep is the last word in the last sheet, so it wins');
+ // The size is raised where the row can grow.
+ for(const sel of ['.status-pill','.step-stepper .icon','.dictate','.hear-it','.rider','.read-aloud','.toast button','summary'])assert.ok(new RegExp(`(^|,|\\n)${sel.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(,|\\{)`).test(sweep.split('{min-height:40px}')[0]+'{'),`${sel} is 40px`);
+ assert.match(sweep,/\.avatar,\.topbar \.avatar\{width:40px;height:40px;min-height:40px\}/);
+ assert.match(sweep,/\.timeline \.timeline-tick input,\.timeline-tick input\{width:40px;height:40px;min-height:40px\}/);
+ // Where it cannot, the hit area is widened around the same drawing.
+ assert.match(sweep,/\.timeline button\[aria-label\^="Move "\]::after,\.to-options::after,\.remove-stop::after,\.drag-handle::after\{content:'';position:absolute;inset:-8px -10px/);
+ assert.match(sweep,/\.timeline-insert::after\{content:'';position:absolute;inset:-12px 0/);
+ assert.match(sweep,/\.callout button::after\{content:'';position:absolute;inset:-10px -4px\}/,'a button inside a sentence keeps its line but gains a finger’s worth of room');
+ assert.match(sweep,/\.nav-grip::after\{content:'';position:absolute;inset:-14px -8px/);
+ // Past days on the strip are dimmed, not faded out.
+ assert.match(sweep,/\.date-strip \.behind:not\(\.selected\)\{opacity:\.72\}/);
+ // A press shows, and does not move for anyone who asked for less motion.
+ assert.match(sweep,/button:not\(:disabled\):active,\.button:active,\.chip:active,summary:active\{filter:brightness\(\.9\)\}/);
+ assert.match(sweep,/@media \(prefers-reduced-motion:reduce\)\{button:active,\.button:active,\.chip:active\{transform:none/);
+ assert.match(sweep,/\.primary:not\(:disabled\):active\{background:var\(--green\)/,'a dark button darkens the other way rather than washing out');
 });

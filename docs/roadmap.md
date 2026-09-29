@@ -2,6 +2,25 @@
 
 Compared against TripIt Pro, Wanderlog, Google Maps/Travel, Polarsteps, the Japan Official Travel App (JNTO), NAVITIME Japan Travel, Japan Transit Planner, Safety tips, Splitwise, Trail Wallet and TravelSpend. Written on 27 September 2026, day 7 of 16, so the order puts what helps during the rest of the trip first.
 
+
+## UX review against hotel and event apps — logged 30 September 2026
+
+Benchmarked against Marriott Bonvoy, Hilton Honors, World of Hyatt, IHG One Rewards, Accor ALL, Whova, Cvent Attendee Hub, Sched, Swapcard and Apple Developer / WWDC, on the app running at iPhone size in light and dark.
+
+| # | Finding | Status |
+|---|---|---|
+| 01 | Launch blocked by the phrase and fact pop-ups | Done (#244): rows on the day in brief, marked New |
+| 02 | Seven buttons along the bottom | Done (#259): Home · Plan · Wallet · Yen · More (boys: Missions, Food) |
+| 03 | No stay card; tickets not pass-first | Done (#255, #256): Tonight's stay; Tickets becomes the Wallet, next passes first |
+| 04 | Text down to 8px | Done (#245): 12px floor, boards aside, held by a test |
+| 05 | No dark mode; status bar mismatched | Done (#250, #254, #258): Appearance choice, hand-set tokens, one-offs filled at build time |
+| 06 | Delete and lock on the step card's top edge | Done (#238): into the ⋯ sheet |
+| 07 | Explanation before the tool | Done (#253): Yen, Food, Tickets lead with the tool; switched-off features left off |
+| 08 | No push reminders | Done separately (#214) |
+| 09 | Meeting card overflow; weather from 21 Sept | Done (#235, #238) |
+| — | Apple Wallet passes for stays and tickets | Not built: needs an Apple Developer pass-type certificate and a server-side `.pkpass` signer. What it is for, what it needs and why not this trip: [commercialisation.md](commercialisation.md#apple-wallet-and-google-wallet-passes) |
+| — | First-run onboarding for a new family | Not built: the app is set up for one family. Logged for the commercial version in commercialisation.md terms |
+
 ## Before, during and after — logged 29 September 2026
 
 The trip has a before, a during and an after, and each should give the family a reason to open the app. Built in this order, one pull request each: the trip is under way, so the in-trip items come first, then the recap, then the before-the-trip items that pay off on the next trip.
@@ -41,6 +60,16 @@ The original 72-page guide was designed once, from the plan as it stood before w
 Status: Done. Whole trip, from today on, or one day; toggles for original artwork, sketch maps and the front/back pages. Checked in headless Chromium: 20 sheets, 38 A4 pages for the whole trip.
 
 Not yet done, for a later pass: per-day banner crops that avoid the original's baked-in titles; editorial pages (food, matcha, shopping, etiquette) generated from the hunts, food list and shortlist; page numbers in a running footer (browser print support for these is uneven, Safari especially); a server-side PDF so the file can be sent without a browser print dialog.
+## Outstanding after the 29 September session — logged 30 September 2026
+
+Nineteen PRs merged on 29 September (#211–#261, this session's share). Four things could not be finished from the cloud session and are yours to do; none is code.
+
+- [ ] **Vercel.** Every deploy since #181 fails with "BUILD_FAILED · Resource provisioning failed". It is on the account or project side (Storage or integration settings), not in the build: `npm run build` passes on every branch. Until a deploy lands, nothing merged since #181 has reached a phone. Once one does, open the app on each phone so the six-month link renewal takes effect.
+- [ ] **Neon link expiry.** The SQL to extend links already in the database to six months is parked. Only needed if a phone has been logged out before a deploy lands; the sliding renewal handles the rest.
+- [ ] **Branch clean-up.** `git push --delete` is refused by the session's egress proxy (HTTP 403, organisation policy). The script `delete-merged-branches.sh` handed over in the session lists 125 remote branches whose tips are the head commits of merged PRs; run it from a clone with push rights. It keeps `claude/party-likes-recommendations`, `claude/list-save-card-condense-ohew3p` and five stale branches that conflict with main.
+- [x] **Stray commit.** "What's on: dated events near where we stay" from `claude/party-likes-recommendations` was cherry-picked onto main on 30 September (its five conflicts resolved in main's favour, the events flag and route kept). The branch itself can go with the others.
+- [ ] **On a real phone, once deployed:** Back and the edge swipe (#222), Appearance → Dark in Settings (#254), a first open of Games with no signal (#257, the offline shell must hold every chunk), and the Just say it box on the To-do list with dictation (#211).
+
 ## To come back to — logged 30 September 2026
 
 **Passports & visas (#230)** is merged but switched off until the key is set, and has not been tried on a real phone.

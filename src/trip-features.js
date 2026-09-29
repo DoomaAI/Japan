@@ -458,7 +458,7 @@ export function seededChallenges(state){
 }
 export function ensureFeatures(input){
  const state=timesSeeded(notesSeeded(splitSeeded({...input,...expressSeeded(input)})));
- return {...state,allergies:state.allergies||{},bin:state.bin||[],settlements:state.settlements||[],icCards:state.icCards||{},askThread:state.askThread||[],mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},bingo:state.bingo??{},shopLog:state.shopLog??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},noticed:state.noticed??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},predictions:state.predictions??{},bookingWindows:state.bookingWindows??[],mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:normaliseThankYou(state.thankYou)};
+ return {...state,allergies:state.allergies||{},bin:state.bin||[],settlements:state.settlements||[],icCards:state.icCards||{},askThread:state.askThread||[],mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},bingo:state.bingo??{},shopLog:state.shopLog??{},stays:state.stays??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},noticed:state.noticed??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},predictions:state.predictions??{},bookingWindows:state.bookingWindows??[],mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:normaliseThankYou(state.thankYou)};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -1065,6 +1065,17 @@ export const stepPin=s=>s&&typeof s==='object'&&validPin(s.pin??null)&&s.pin?s.p
 export const pinText=p=>`${p.lat.toFixed(PIN_PLACES)}, ${p.lng.toFixed(PIN_PLACES)}`;
 // Walking directions from where you are actually standing, when the phone knows; a plain search
 // for the place otherwise. Built here from pieces the app checked, never from a model's link.
+// Directions from wherever the day starts — the phone's position, or a place by name — by the
+// way the card says to get there. With no starting point Maps asks for one, which is still one tap.
+const MAPS_MODE={walk:'walking',train:'transit',taxi:'driving'};
+export function directionsLink(name,area,from,mode='walk'){
+ const destination=encodeURIComponent([name,area].filter(Boolean).join(' '));
+ const origin=from&&typeof from==='object'?(validCoords(from.lat,from.lng)?`${from.lat},${from.lng}`:''):String(from||'').trim();
+ return `https://www.google.com/maps/dir/?api=1${origin?`&origin=${encodeURIComponent(origin)}`:''}&destination=${destination}&travelmode=${MAPS_MODE[mode]||'walking'}`;
+}
+// When no booking page came back checked, a search the app builds itself — never an address the
+// model made up — so "book ahead" is still one tap from somewhere to book.
+export const bookingSearchLink=(name,area)=>`https://www.google.com/search?q=${encodeURIComponent([name,area,'official tickets booking'].filter(Boolean).join(' '))}`;
 export function walkingLink(name,area,from){
  const destination=encodeURIComponent([name,area].filter(Boolean).join(' '));
  return from&&validCoords(from.lat,from.lng)
@@ -1090,6 +1101,16 @@ export const SUGGEST_KINDS=[
  ['food','Food'],['drink','Drink'],['outdoors','Outdoors & views'],['kids','With the boys'],
  ['shopping','Shopping & markets'],['evening','After dark']
 ];
+// The kinds of dated event worth changing a plan for.
+export const EVENT_KINDS=[['sport','Sport'],['music','Music & concerts'],['festival','Festivals & matsuri'],['culture','Theatre & traditional arts'],
+ ['exhibition','Exhibitions'],['seasonal','Seasonal & illuminations'],['family','For the boys'],['other','Anything else big']];
+// The base a trip day is in, as places an event can be near. The day labels say what the day is
+// ("DisneySea / Tokyo", "Nara / Kyoto"); the resort is in Tokyo's reach, so it counts as Tokyo.
+export const dayAreas=day=>[...new Set(String(day?.city||'').split('/').map(c=>c.trim()).filter(Boolean).map(c=>/disney/i.test(c)?'Tokyo':c))];
+export const tripAreas=state=>[...new Set((state.days||[]).flatMap(dayAreas))];
+// The trip days an event could be gone to: on while it is on, near where we are, and not gone by.
+export const eventDays=(state,{start,end,near,from=''})=>(state.days||[])
+ .filter(d=>d.date>=start&&d.date<=end&&d.date>=from&&dayAreas(d).some(a=>near.includes(a))).map(d=>d.date).sort();
 export const EMPTY_PARTY={people:{},pace:'steady',budget:null,notes:''};
 export const party=state=>({...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}});
 export const personProfile=(state,name)=>({age:null,interests:[],likes:[],loves:'',avoid:'',dietary:'',notes:'',...(party(state).people[name]||{})});

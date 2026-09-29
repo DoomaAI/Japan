@@ -6,8 +6,8 @@
 // It runs at build time, so the stylesheets stay written in plain colours and anything added
 // later is dark-ready without anybody remembering to be.
 //
-// The phone chooses: dark when the phone is in dark mode, unless the page is told otherwise by
-// data-theme on <html>, which is how a person's own choice in Settings wins either way.
+// Night is a choice in Settings (theme.js puts it on <html> as data-theme): dark, or match the
+// phone. Light is the default, so a phone in dark mode is not switched without being asked.
 const HEX=/#([0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})\b/gi;
 const RGB=/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/gi;
 const NAMED=/(?<![-\w.#])(white|black)(?![-\w])/gi;
@@ -49,18 +49,26 @@ export function darkOf(text){
  return hex([...fromHsl(h,eased,flipped),a]);
 }
 const key=text=>{const [r,g,b,a]=parseColour(text);return 'c'+hex([r,g,b,a]).slice(1);};
+// What is left exactly as written. The stylesheets' own night colours — anything under a
+// data-theme selector — are already dark and must not be turned over a second time. The named
+// tokens (--ink, --paper…) get their night values there too, so their definitions are left alone.
+// And a game board is the same at night: its squares, tiles and cards keep their real colours.
+export const BOARDS=/data-theme|gate-code|merge-|snake-|shogi-|picross-|stable-|bingo-cell|kingyo-|fuda|hanafuda|karuta-card|goban|daruma-(scene|doll)|kendama-stage|bei-ring|fuku-board|spot-|origami-card/;
 // Colours in declaration values only: selectors, comments and names are left alone.
 export function themeCss(css){
  const seen=new Map();
  const swap=m=>{const k=key(m);if(!seen.has(k))seen.set(k,m);return `var(--${k})`;};
- const out=css.replace(/\/\*[\s\S]*?\*\/|([\w-]+)(\s*:\s*)([^;{}]+)/g,(all,prop,colon,value)=>{
-  if(!prop)return all;
+ const declarations=body=>body.replace(/\/\*[\s\S]*?\*\/|([\w-]+)(\s*:\s*)([^;{}]+)/g,(all,prop,colon,value)=>{
+  if(!prop||prop.startsWith('--'))return all;
   return prop+colon+value.replace(HEX,swap).replace(RGB,swap).replace(NAMED,swap);
  });
+ // Rule by rule, innermost first, so the selector that owns each declaration can be read.
+ const out=css.replace(/([^{}]*)\{([^{}]*)\}/g,(all,selector,body)=>BOARDS.test(selector)?all:`${selector}{${declarations(body)}}`);
  if(!seen.size)return css;
  const light=[...seen].map(([k,v])=>`--${k}:${hex(parseColour(v))}`).join(';');
  const dark=[...seen].map(([k,v])=>`--${k}:${darkOf(v)}`).join(';');
- return `:root{${light}}@media screen and (prefers-color-scheme:dark){:root:not([data-theme=light]){${dark};color-scheme:dark}}@media screen{:root[data-theme=dark]{${dark};color-scheme:dark}}\n`+out;
+ // Night is a choice (see theme.js): chosen outright, or "match the phone" on a phone that is dark.
+ return `:root{${light}}@media screen and (prefers-color-scheme:dark){:root[data-theme=auto]{${dark};color-scheme:dark}}@media screen{:root[data-theme=dark]{${dark};color-scheme:dark}}\n`+out;
 }
 // The same pair for a colour written in a script — a chart's axis, an SVG's fill — so drawings
 // can ask for either.

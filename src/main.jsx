@@ -21,77 +21,52 @@ import Phrasebook,{PhraseOfDay} from './Phrasebook.jsx';
 import {phraseForDay} from './phrasebook-data.js';
 import {phraseSeenBy,phraseQueue} from './trip-features.js';
 import {deepLinkAction,withoutDeepLink} from './deep-links.js';
+import {readTheme,applyTheme} from './theme.js';
 import FunFacts,{FactOfDay,CardFacts,factAloudFor} from './FunFacts.jsx';
 import {factForDay,factsForStep} from './fact-data.js';
 import {factSeenBy,factsSeenBy,factQueue} from './trip-features.js';
 import {PHRASES} from './phrases.js';
-import Settings from './Settings.jsx';
 import {readSettings,writeSetting,settingOn} from './settings.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
 import {primaryNav,moreIds,PAGES,cleanNav,emptyNav,setAvailable,isAvailable} from './nav-data.js';
-import Personalise from './Personalise.jsx';
 import {homeShown,homeRuns,emptyHome,cleanHome} from './home-widgets.js';
 import {linkOrder,emptyLinks,cleanLinks} from './card-links.js';
 import StopButtons from './StopButtons.jsx';
 import {pageRule} from './spoken-rules.js';
-import Bingo from './Bingo.jsx';
-import ParkGuide from './ParkGuide.jsx';
 import FoodList,{FoodCard} from './FoodList.jsx';
 import {parkForDay} from './park-data.js';
 import {THANK_YOU_FROM,THANK_YOU_FOR,BOYS as NOTE_BOYS} from './trip-features.js';
 import {MeetingCard,QuickCapture,GlobalSearch,Diary} from './PracticalPages.jsx';
-import MediaGallery from './MediaGallery.jsx';
 import Briefing from './Briefing.jsx';
 import Tonight from './Tonight.jsx';
 import OnThisDay from './OnThisDay.jsx';
 import RunUp from './RunUp.jsx';
 import DailyJapan from './DailyJapan.jsx';
-import Stamps from './Stamps.jsx';
-import Leaderboard from './Leaderboard.jsx';
-import RecapStory from './RecapStory.jsx';
-import Photobook from './Photobook.jsx';
 import TravelGuide from './TravelGuide.jsx';
-import Predictions from './Predictions.jsx';
-import Arrival from './Arrival.jsx';
-import TripShop from './TripShop.jsx';
-import Apps from './Apps.jsx';
-import Vault from './Vault.jsx';
 import DayMap from './DayMap.jsx';
 import BookingWindows,{BookingWindowsCard} from './BookingWindows.jsx';
 import FollowAlong from './FollowAlong.jsx';
 import Safety,{LostCards} from './Safety.jsx';
-import AllergyCard from './AllergyCard.jsx';
-import RecentlyDeleted from './RecentlyDeleted.jsx';
 import MorningChecklist from './Morning.jsx';
-import Ledger from './Ledger.jsx';
+import StayCard from './StayCard.jsx';
+import NextPasses from './Wallet.jsx';
+import GateCode,{CodeReader,LiveCodeToggle} from './GateCode.jsx';
+import {codesFor} from './wallet-codes.js';
 import Running from './Running.jsx';
-import WhichCard from './WhichCard.jsx';
-import Hunts from './Hunts.jsx';
-import Noticed from './Noticed.jsx';
-import Planning from './Planning.jsx';
 import Nearby,{MapsNearby} from './Nearby.jsx';
-import AskTrip from './AskTrip.jsx';
 import {hasAskHistory} from './ask-thread.js';
 import TodoList,{DayTodos} from './TodoList.jsx';
 import Packing,{PackingNudge} from './Packing.jsx';
-import Trackers from './Trackers.jsx';
-import Spending from './Spending.jsx';
-import Sumo from './Sumo.jsx';
 import StepReview from './StepReview.jsx';
-import WeatherPage from './WeatherPage.jsx';
 import {useForecastCheck} from './Weather.jsx';
 import DayTimeline from './DayTimeline.jsx';
 import EntryIcon from './EntryIcon.jsx';
 import {ENTRY_TYPES,guessEntryType} from './entry-types.js';
 import {BOOKING_PLATFORMS,bookedVia} from './booked-via.js';
 import RemoveStop from './RemoveStop.jsx';
-import VoiceNotes from './VoiceNotes.jsx';
-import Games from './Games.jsx';
 import Weather,{StepWeather} from './Weather.jsx';
 import DocumentReader from './DocumentReader.jsx';
-import EmailInbox from './EmailInbox.jsx';
 import PhotoDay from './PhotoDay.jsx';
-import MascotMaker from './MascotMaker.jsx';
 import {MascotBadge} from './Mascot.jsx';
 import React,{useEffect,useMemo,useRef,useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
@@ -110,6 +85,36 @@ import './guide-theme.css';
 import './travel-guide.css';
 // The map library is only fetched when the map is opened, so every other screen stays as quick.
 const MemoryMap=lazy(()=>import('./MemoryMap.jsx'));
+const WeatherPage=lazy(()=>import('./WeatherPage.jsx'));
+const AllergyCard=lazy(()=>import('./AllergyCard.jsx'));
+const Bingo=lazy(()=>import('./Bingo.jsx'));
+const RecentlyDeleted=lazy(()=>import('./RecentlyDeleted.jsx'));
+const ParkGuide=lazy(()=>import('./ParkGuide.jsx'));
+const Stamps=lazy(()=>import('./Stamps.jsx'));
+const Leaderboard=lazy(()=>import('./Leaderboard.jsx'));
+const TripShop=lazy(()=>import('./TripShop.jsx'));
+const Apps=lazy(()=>import('./Apps.jsx'));
+const Arrival=lazy(()=>import('./Arrival.jsx'));
+const AskTrip=lazy(()=>import('./AskTrip.jsx'));
+const Ledger=lazy(()=>import('./Ledger.jsx'));
+const MediaGallery=lazy(()=>import('./MediaGallery.jsx'));
+const Personalise=lazy(()=>import('./Personalise.jsx'));
+const Settings=lazy(()=>import('./Settings.jsx'));
+const Predictions=lazy(()=>import('./Predictions.jsx'));
+const Photobook=lazy(()=>import('./Photobook.jsx'));
+const RecapStory=lazy(()=>import('./RecapStory.jsx'));
+const WhichCard=lazy(()=>import('./WhichCard.jsx'));
+const Trackers=lazy(()=>import('./Trackers.jsx'));
+const Noticed=lazy(()=>import('./Noticed.jsx'));
+const EmailInbox=lazy(()=>import('./EmailInbox.jsx'));
+const MascotMaker=lazy(()=>import('./MascotMaker.jsx'));
+const Vault=lazy(()=>import('./Vault.jsx'));
+const VoiceNotes=lazy(()=>import('./VoiceNotes.jsx'));
+const Hunts=lazy(()=>import('./Hunts.jsx'));
+const Spending=lazy(()=>import('./Spending.jsx'));
+const Planning=lazy(()=>import('./Planning.jsx'));
+const Sumo=lazy(()=>import('./Sumo.jsx'));
+const Games=lazy(()=>import('./Games.jsx'));
 
 const API='/api/';
 const APPS={maps:['Google Maps','https://maps.google.com/'],translate:['Google Translate','https://translate.google.com/?sl=en&tl=ja&op=translate'],qantas:['Qantas','https://www.qantas.com/au/en/qantas-app.html'],disney:['Tokyo Disney Resort','https://www.tokyodisneyresort.jp/en/tdr/app.html'],usj:['Universal Studios Japan','https://www.usj.co.jp/web/en/us/service-guide/theme-park-services/official-app'],japan:['Visit Japan Web','https://www.vjw.digital.go.jp/']};
@@ -142,7 +147,7 @@ function Button({icon:Icon,children,...props}){return <button {...props}>{Icon&&
 // Typing is noticed as it happens rather than read back from the fields, because a field the
 // screen controls reports its starting value as whatever it holds now. Ticks and search boxes
 // do not count: a tick saves itself, and a filter is not something anybody minds losing.
-function Dialog({title,children,onClose,wide=false}){const ref=useRef(),typed=useRef(false);useEffect(()=>{const d=ref.current;d.showModal();const on=e=>{if(!['checkbox','radio','search','range','file'].includes(e.target.type))typed.current=true;};d.addEventListener('input',on);return()=>{d.removeEventListener('input',on);d.close();};},[]);const ask=()=>!typed.current||confirm('Close without keeping what you typed?');return <dialog ref={ref} onCancel={e=>{if(ask())onClose();else e.preventDefault();}} onClick={e=>{if(e.target===ref.current&&ask())onClose();}} className={wide?'wide':''}><header><h2>{title}</h2><button className="icon" aria-label="Close" onClick={onClose}><X/></button></header><div className="dialog-body">{children}</div></dialog>;}
+function Dialog({title,children,onClose,wide=false}){const ref=useRef(),typed=useRef(false);useEffect(()=>{const d=ref.current;d.showModal();const on=e=>{if(!['checkbox','radio','search','range','file'].includes(e.target.type))typed.current=true;};d.addEventListener('input',on);return()=>{d.removeEventListener('input',on);d.close();};},[]);const ask=()=>!typed.current||confirm('Close without keeping what you typed?');return <dialog ref={ref} onCancel={e=>{if(ask())onClose();else e.preventDefault();}} onClick={e=>{if(e.target===ref.current&&ask())onClose();}} className={wide?'wide':''}><header><h2>{title}</h2><button className="icon" aria-label="Close" onClick={onClose}><X/></button></header><div className="dialog-body"><Suspense fallback={<p className="page-loading">Opening…</p>}>{children}</Suspense></div></dialog>;}
 async function copyOrShare(url,title,share=false){if(share&&navigator.share){await navigator.share({title,url});return;}await navigator.clipboard.writeText(url);}
 const TABS=[...Object.keys(PAGES),'more'];
 // What a phone can do with no signal and hand over later. Everything here either records
@@ -433,6 +438,9 @@ function App(){
  function go(id,d,item){setFocus(item||null);if(d&&state.days.some(x=>x.date===d)){setDay(d);setSelected(null);}setTab(id);setQuery('');navigate('/?'+new URLSearchParams({tab:id,day:d||day,...(item?{item}:{})}));}
  // Today on the bar or in the menu means today: on a trip day it lands on today's date rather than
  // whichever day was last being looked at. Before and after the trip it keeps the day in hand.
+ // Today and the whole trip are one tab, Plan, with a switch at the top of each: a hotel app's
+ // stay and its bookings, an event app's My agenda and the full programme.
+ const planSwitch=<div className="segmented plan-switch" role="tablist" aria-label="Plan"><button role="tab" aria-selected={tab==='glance'} className={tab==='glance'?'selected':''} onClick={()=>navGo('glance')}>Today</button><button role="tab" aria-selected={tab==='days'} className={tab==='days'?'selected':''} onClick={()=>go('days')}>All days</button></div>;
  function navGo(id){go(id,id==='glance'&&japanDate()!==day&&state?.days.some(x=>x.date===japanDate())?japanDate():undefined);}
  function selectDay(d){setDay(d);setSelected(null);setTab('today');updateUrl(d);}
  function selectStep(s){if(s.day===null){setTab('options');setQuery(s.title);navigate('/?'+new URLSearchParams({tab:'options',day}));return;}setDay(s.day);setSelected(s.id);setTab('today');updateUrl(s.day,s.id);}
@@ -625,7 +633,8 @@ function App(){
    </article>:<div className="empty"><h2>A little room for discovery.</h2><p>Add your first stop for this day.</p></div>}
    </section>
   </>,
-  links:<div className="quick-links">{nextFixed&&<button onClick={()=>selectStep(nextFixed)}><LockKeyhole size={18}/><span>Next fixed time<strong>{nextFixed.time} · {nextFixed.title}</strong></span><ChevronRight size={18}/></button>}<Link href={directions(today?.hotel)}><House size={18}/><span>Tonight’s hotel<strong>{today?.hotel}</strong></span><ExternalLink size={15}/></Link></div>,
+  links:nextFixed?<div className="quick-links"><button onClick={()=>selectStep(nextFixed)}><LockKeyhole size={18}/><span>Next fixed time<strong>{nextFixed.time} · {nextFixed.title}</strong></span><ChevronRight size={18}/></button></div>:null,
+  stay:<StayCard state={visibleState} day={day} parent={parent} busy={busy} mutate={mutate} notice={notice} directions={directions} onShow={place=>setModal({type:'show',step:{...place,title:place.place}})} onTickets={hotel=>setModal({type:'tickets',initialSearch:hotel})}/>,
   glance:<Button icon={ListOrdered} onClick={()=>go('glance')}>The day at a glance</Button>,
   adjust:parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>,
   tired:<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button>,
@@ -654,6 +663,10 @@ function App(){
   {user.expiresAt&&new Date(user.expiresAt)-now<14*86400000&&<div className="expiry-note"><AlertCircle size={14}/><span>Your link to the family plan ends {fmtDay(japanDate(new Date(user.expiresAt)))}. {parent?'Make a fresh link in Family settings before then.':'Ask a parent for a fresh link before then.'}</span></div>}
   {conflict&&<div className="conflict"><strong>The family changed the plan while you were offline.</strong><p>Your {queue.length} progress update(s) are still saved. Review them against the latest itinerary.</p><div className="row"><Button onClick={()=>setModal({type:'pending'})}>Review updates</Button><Button onClick={()=>{if(confirm(`Throw away ${queue.length} unsynced update${queue.length===1?'':'s'}? They cannot be brought back.`)){saveQueue([]);setConflict(false);}}}>Discard my pending updates</Button></div></div>}
   <main>
+  {/* The pages opened now and then load when they are opened, so the shell that has to be
+      on screen at a station stays small; every chunk is still put in the offline shell by
+      the build, so a page opened for the first time in a tunnel still opens. */}
+  <Suspense fallback={<p className="page-loading">Opening…</p>}>
   {tab==='today'&&<div className="home">
    {dayHeading}
    {dayStrip(selectDay)}
@@ -662,6 +675,7 @@ function App(){
    <div className="home-customise"><Button icon={SlidersHorizontal} onClick={()=>go('personalise')}>Customise Home</Button></div>
   </div>}
   {tab==='glance'&&<>
+   {planSwitch}
    {dayHeading}
    {dayStrip(d=>go('glance',d))}
    {/* The day's own buttons sit here, over the stops they change, rather than on Home. */}
@@ -715,9 +729,9 @@ function App(){
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}
   {tab==='personalise'&&<Personalise user={user} prefs={navPrefs} setPrefs={saveNav} home={homePrefs} setHome={saveHome}/>}
   {tab==='more'&&<MorePage user={user} tab={tab} go={navGo} prefs={navPrefs} home={homePrefs}><div className="row wrap"><Button icon={ImageIcon} onClick={()=>setModal({type:'media'})}>Family gallery</Button><Button icon={Mic} onClick={()=>setModal({type:'voice'})}>Voice notes</Button><Button icon={Download} onClick={()=>setModal({type:'offline'})}>Offline readiness</Button>{parent&&<Button icon={Plus} onClick={()=>setModal({type:'capture'})}>Quick capture</Button>}</div></MorePage>}
-  {tab==='tickets'&&<><p className="eyebrow">ALL THE DETAILS, TOGETHER</p><h1>Tickets & reservations</h1>{parent&&isAvailable('inbox')&&inboxWaiting(state)>0&&<p className="inbox-badge"><Inbox size={16}/>{inboxWaiting(state)} forwarded email{inboxWaiting(state)===1?'':'s'} waiting to be filed.<button onClick={()=>go('inbox')}>Open them</button></p>}{parent&&<DocumentReader config={config} busy={busy} setBusy={setBusy} request={request} notice={notice} mutate={mutate}/>}<Tickets state={state} user={user} config={config} busy={busy} setBusy={setBusy} accept={accept} mutate={mutate} notice={notice} saved={saved} saveOffline={saveOffline} selectStep={selectStep}/></>}
+  {tab==='tickets'&&<><p className="eyebrow">STAYS, TICKETS AND BOOKINGS</p><h1>Wallet</h1><CodeReader state={state} parent={parent} online={online} mutate={mutate}/><NextPasses state={state} date={state.days.some(d=>d.date===japanDate(now))?japanDate(now):day} selectStep={selectStep}/><StayCard state={visibleState} day={state.days.some(d=>d.date===japanDate(now))?japanDate(now):day} parent={parent} busy={busy} mutate={mutate} notice={notice} directions={directions} onShow={place=>setModal({type:'show',step:{...place,title:place.place}})} onTickets={hotel=>setModal({type:'tickets',initialSearch:hotel})}/>{parent&&isAvailable('inbox')&&inboxWaiting(state)>0&&<p className="inbox-badge"><Inbox size={16}/>{inboxWaiting(state)} forwarded email{inboxWaiting(state)===1?'':'s'} waiting to be filed.<button onClick={()=>go('inbox')}>Open them</button></p>}{parent&&<DocumentReader config={config} busy={busy} setBusy={setBusy} request={request} notice={notice} mutate={mutate}/>}<Tickets state={state} user={user} config={config} busy={busy} setBusy={setBusy} accept={accept} mutate={mutate} notice={notice} saved={saved} saveOffline={saveOffline} selectStep={selectStep}/></>}
   {tab==='options'&&<><p className="eyebrow">NO DATE NEEDED</p><h1>Options & ideas</h1><p>Notes, places to try and anything we missed. Add an idea to a day when it fits.</p><div className="row wrap"><Button icon={ThumbsUp} onClick={()=>go('planning')}>Planning board · vote on ideas</Button></div>{parent&&<Button className="primary" icon={Plus} onClick={()=>setModal({type:'edit',step:null,backlog:true})}>Add an idea or note</Button>}<label className="search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search our ideas"/></label><div className="place-grid">{state.steps.filter(s=>s.day===null&&`${s.title} ${s.place} ${s.notes}`.toLowerCase().includes(query.toLowerCase())).map(s=><div className="option-card" key={s.id}><h2>{s.title}</h2>{s.backlogFrom?.day&&<small>Saved from {fmtDay(s.backlogFrom.day)}</small>}<p>{s.place}</p><p>{s.notes}</p>{phoneLinks(s.phone)&&<ContactRow phone={phoneLinks(s.phone)} title={s.title}/>}<div className="row wrap">{s.website&&<Link className="button" href={s.website}>Website</Link>}<BookedVia step={s} button/>{s.place&&<Link className="button" href={maps(s.place)}>Maps</Link>}<Button icon={Ticket} onClick={()=>setModal({type:'tickets',step:s})}>Files</Button>{parent&&<><Button onClick={()=>setModal({type:'edit',step:s})}>Edit</Button><Button className="primary" onClick={()=>setModal({type:'schedule',step:s})}>Add to a day</Button><Button className="danger" icon={Trash2} onClick={()=>setModal({type:'remove',step:s})}>Remove</Button></>}</div></div>)}</div>{!state.steps.some(s=>s.day===null)&&<div className="empty"><Inbox/><h2>A place for possibilities</h2><p>Add a café, a note or a saved stop here. No time or day required.</p></div>}</>}
-  {tab==='days'&&<>{/* The same strip of dates as Home, so the week reads the same way on both; a date here
+  {tab==='days'&&<>{planSwitch}{/* The same strip of dates as Home, so the week reads the same way on both; a date here
     opens that day at a glance, as its tile further down does. */}
    {dayStrip(d=>go('glance',d))}<p className="eyebrow">21 SEPTEMBER — 6 OCTOBER</p><h1>Our itinerary</h1><Button icon={ImageIcon} onClick={()=>setModal({type:'media'})}>Family photo & video gallery</Button>{/* The cover is the first page of the book rather than a picture of it: swipe and the guide
         turns here, and the day that page belongs to lights up in the list below, so the page and
@@ -731,6 +745,7 @@ function App(){
   {tab==='places'&&<><p className="eyebrow">FAVOURITES & FINDING OUR WAY</p><h1>Places to go</h1><div className="map-frame"><iframe src={state.mapEmbed} title="Our Japan Google My Map" loading="lazy" referrerPolicy="no-referrer" allowFullScreen/><p>Your saved Google map · internet and map access required. If the map does not load here, use Open our map below. Embedding requires public map sharing.</p></div><div className="row wrap"><Link className="button primary" href={state.mapUrl}><ExternalLink size={18}/>Open our map</Link><Button icon={Plus} disabled={!parent} onClick={()=>setModal({type:'edit',step:null})}>Add a stop</Button></div><LocationDirectory key={focus||'locations'} initialId={focus} state={state} user={user} speak={speak} parent={parent} mutate={mutate} busy={busy} day={day} selectStep={selectStep} openPage={openPage} notice={notice}/></>}
   {tab==='guide'&&<><p className="eyebrow">THE ORIGINAL 72-PAGE GUIDE</p><h1>Our travel guide</h1><div className="row wrap"><label>Jump to a day<select aria-label="Jump to guide pages for a day" value={state.days.find(d=>d.pages?.includes(guidePage))?.date||''} onChange={e=>{const d=state.days.find(d=>d.date===e.target.value);if(d?.pages?.length){setDay(d.date);setGuidePage(d.pages[0]);updateUrl(d.date,null,d.pages[0]);}}}><option value="" disabled>Choose a day</option>{state.days.filter(d=>d.pages?.length).map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)} · {d.title}</option>)}</select></label><Button icon={CalendarDays} onClick={()=>selectDay(state.days.find(d=>d.pages?.includes(guidePage))?.date||day)}>Back to day</Button></div><div className="guide-controls"><Button icon={ArrowLeft} aria-label="Previous page" disabled={guidePage<=1} onClick={()=>flipPage(-1)}/><label>Page <select value={guidePage} onChange={e=>{setGuidePage(+e.target.value);updateUrl(day,null,+e.target.value);}}>{Array.from({length:72},(_,i)=><option key={i+1}>{i+1}</option>)}</select> of 72</label><Button icon={ArrowRight} aria-label="Next page" disabled={guidePage>=72} onClick={()=>flipPage(1)}/><Button icon={Download} onClick={()=>saveOffline(`/api/guide?page=${guidePage}`,`page-${guidePage}`)}>{saved.includes(`page-${guidePage}`)?'Saved':'Save page'}</Button><Button icon={Maximize2} aria-label="Read full screen" onClick={()=>setReading(true)}/><Button icon={Share2} onClick={()=>copyOrShare(`${location.origin}/?page=${guidePage}`,'Japan guide',true).catch(()=>{})}/></div><div className="guide-view"><GuideBook page={guidePage} turn={turnPage} flipRef={reading?null:guideFlip} onTap={()=>setReading(true)} onMissing={()=>notice('This page is not downloaded. Connect to view and save it.')}/><p className="guide-hint"><small>Swipe to turn · tap the page to read it full screen · {guidePage} of 72</small></p></div>{reading&&<GuideReader page={guidePage} label={(d=>d?`${fmtDay(d.date)} · ${d.title}`:'')(state.days.find(d=>d.pages?.includes(guidePage)))} turn={turnPage} jump={n=>{setGuidePage(n);updateUrl(day,null,n);}} flipRef={guideFlip} close={()=>setReading(false)} onMissing={()=>notice('This page is not downloaded. Connect to view and save it.')}/>}<GuideLocations state={state} page={guidePage} go={go}/><details className="guide-search" onToggle={async e=>{if(e.currentTarget.open&&!guideIndex.length){try{const i=await request('guide-index');setGuideIndex(i);}catch{notice('Search needs an internet connection.');}}}}><summary>Search guide text</summary><input placeholder="Search food, shopping, places…" value={query} onChange={e=>setQuery(e.target.value)}/>{query&&guideIndex.filter(p=>p.text.toLowerCase().includes(query.toLowerCase())).map(p=><button key={p.number} onClick={()=>{setGuidePage(p.number);updateUrl(day,null,p.number);}}>Page {p.number} <ChevronRight size={14}/></button>)}</details></>}
   {tab==='help'&&<><p className="eyebrow">A LITTLE HELP, ALWAYS HANDY</p><h1>Find our way</h1><div className="help-grid"><Link className="help-card dark" href={directions(today?.hotel)}><House/><h2>Take me to our hotel</h2><p>{today?.hotel}</p><span>Open directions <ArrowRight size={18}/></span></Link><button className="help-card" onClick={()=>setModal({type:'show',step:current||{title:today?.hotel,place:today?.hotel,japanese:''}})}><Languages/><h2>Show someone</h2><p>Large destination name and Japanese help.</p></button><Link className="help-card" href={APPS.translate[1]}><Languages/><h2>Google Translate</h2><p>Translate text; use the official app for camera and conversation.</p></Link><button className="help-card" onClick={()=>setModal({type:'tickets'})}><Ticket/><h2>Tickets & documents</h2><p>All family bookings in one place.</p></button><button className="help-card" onClick={()=>setModal({type:'nearby'})}><Compass/><h2>Food & amenities near here</h2><p>Toilets, a convenience store, cash or somewhere to eat, from where we are standing.</p></button></div><h2>Straight to Maps</h2><MapsNearby/><h2>Useful apps</h2><AppLinks/><button type="button" className="button" onClick={()=>go('apps')}>Every app we suggest, and what to set up <ArrowRight size={16}/></button><h2>Before we rely on the plan</h2>{state.notices.map(n=><p className="callout" key={n.id}><AlertCircle size={18}/>{n.text}</p>)}<details><summary>Offline access and iPhone setup</summary><p>In Safari, tap Share → Add to Home Screen → Open as Web App. Each family member opens their own invite link first.</p><p>Your loaded itinerary is saved on this phone. Use Save page and Save file offline before going offline. Maps, live translations and external apps need their own offline preparation.</p><p>Offline progress queues on this phone. Reconnect to sync. Conflicting changes are shown for review.</p><p>Private downloads remain on a phone until cleared, even if its invite is later revoked.</p><Button icon={Download} onClick={async()=>{setBusy(true);try{for(const p of today.pages){const r=await fetch(`/api/guide?page=${p}`);if(!r.ok)throw new Error();const c=await caches.open('japan-private-v1');await c.put(`/api/guide?page=${p}`,r);}const next=[...new Set([...saved,...today.pages.map(p=>`page-${p}`)])];setSaved(next);localStorage.setItem('japan.saved',JSON.stringify(next));notice('All guide pages for this day are downloaded.');}catch{notice('Some pages could not download. Please retry.');}finally{setBusy(false);}}} disabled={busy}>Download this day’s guide pages</Button></details></>}
+  </Suspense>
   </main>
   <BottomNav tab={tab} user={user} go={navGo} prefs={navPrefs} setPrefs={saveNav} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
@@ -856,7 +871,7 @@ function StepAllocation({steps,value,onChange}){
  </div>;
 }
 function Tickets({state,user,step,initialSearch='',initialArchived=false,config,busy,setBusy,accept,mutate,notice,saved,saveOffline,selectStep}){
- const [files,setFiles]=useState([]),[progress,setProgress]=useState(0),[view,setView]=useState(null),[all,setAll]=useState(!step),[uploading,setUploading]=useState(''),[savedId,setSavedId]=useState(null),[search,setSearch]=useState(initialSearch),[categoryFilter,setCategoryFilter]=useState(''),[personFilter,setPersonFilter]=useState(''),[editing,setEditing]=useState(null),[reset,setReset]=useState(0),[showArchived,setShowArchived]=useState(initialArchived);
+ const [files,setFiles]=useState([]),[progress,setProgress]=useState(0),[view,setView]=useState(null),[all,setAll]=useState(!step),[uploading,setUploading]=useState(''),[savedId,setSavedId]=useState(null),[search,setSearch]=useState(initialSearch),[categoryFilter,setCategoryFilter]=useState(''),[personFilter,setPersonFilter]=useState(''),[editing,setEditing]=useState(null),[reset,setReset]=useState(0),[showArchived,setShowArchived]=useState(initialArchived),[gate,setGate]=useState(null);
  const [allocated,setAllocated]=useState(step?[step.id]:[]);
  // A booking is rarely one page. A hotel confirmation is three screenshots, a rail booking is
  // one per leg and a park ticket is one per person, and they are one document to the family
@@ -898,8 +913,12 @@ function Tickets({state,user,step,initialSearch='',initialArchived=false,config,
    clearForm();notice(done>1?`${done} pages saved as one document.`:'Document added to the family trip.');
   }catch(e){notice(`${e.message||'Upload failed.'} ${done?'The pages already saved are kept; try again for the rest.':'Nothing was saved. Try again.'}`);}
   finally{setBusy(false);setUploading('');}}
- return <><div className="document-filters"><label>Search<input type="search" value={search} placeholder="Name, reference, note or tag" onChange={e=>setSearch(e.target.value)}/></label><div className="form-row"><label>Type<select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="">All types</option><option value="reservation">Reservations</option><option value="ticket">Tickets / QR</option><option value="luggage">Luggage</option><option value="other">Other</option></select></label><label>For<select value={personFilter} onChange={e=>setPersonFilter(e.target.value)}><option value="">Everyone</option><option>Family</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label></div></div>{step&&<label className="checkline"><input type="checkbox" checked={all} onChange={e=>setAll(e.target.checked)}/>Show all family documents</label>}{(showArchived||usedCount>0)&&<label className="checkline"><input type="checkbox" checked={showArchived} onChange={e=>{setShowArchived(e.target.checked);setView(null);}}/>Show used tickets ({usedCount})</label>}{showArchived&&<p className="callout"><Archive size={18}/>Tickets marked as used. They stay out of the list, the swipe-through strip and the offline download until they are put back.</p>}{!docs.length&&(showArchived?<div className="empty"><Archive size={30}/><h3>Nothing has been marked used yet</h3><p>Archive a ticket once it has been scanned, the bag collected or the meal eaten. It stays here in full.</p></div>:<div className="empty"><Ticket size={30}/><h3>Keep the little details here</h3><p>Add tickets, reservations, luggage tags, forwarding receipts or collection numbers as you go.</p></div>)}
- {docs.map(d=><div className={`document-row${isArchived(d)?' archived':''}`} key={d.id}><DocumentThumb doc={d} attachments={attachmentsOf(state,d)} onView={setView}/><details className="document-details"><summary><ChevronRight size={16} className="document-chevron"/><span><strong>{d.title}</strong><small>{d.person} · {{ticket:'Ticket',reservation:'Reservation',luggage:'Luggage / tag',other:'Other'}[d.category||'ticket']} · {d.type==='note'?'Saved details':d.type==='link'?'Link':d.type==='application/pdf'?'PDF':'Photo / QR'}{saved.includes(`doc-${d.id}`)?' · Saved offline':''}{isArchived(d)?` · Used · ${d.archivedWith&&state.steps.find(s=>s.id===d.archivedWith)?`ticked off with ‘${state.steps.find(s=>s.id===d.archivedWith).title}’`:'archived'} ${fmtDay(japanDate(new Date(d.archivedAt)))}${d.archivedBy?` by ${d.archivedBy}`:''}`:''}</small></span></summary>{documentStepList(state,d).length>1&&<p className="document-note"><strong>Covers:</strong> {documentStepList(state,d).map(s=>s.title).join(' · ')}</p>}{d.reference&&<p className="document-note"><strong>Reference:</strong> {d.reference}</p>}{d.notes&&<p className="document-note">{d.notes}</p>}<div className="row wrap">{(d.tags||[]).map(t=><button className="tag" key={t} onClick={()=>setSearch(t)}>{t}</button>)}</div><div className="row wrap">{d.type==='note'?null:d.type==='link'?<Link href={d.url}>Open link <ExternalLink size={13}/></Link>:<><button onClick={()=>setView(d)}>Open full-screen</button><button onClick={()=>saveOffline(`/api/document?id=${d.id}`,`doc-${d.id}`)}>Save file offline</button></>}{parent&&<button onClick={()=>startEdit(d)}>Edit details / tags</button>}{documentStepList(state,d).filter(s=>s.day).map(s=><button key={s.id} onClick={()=>selectStep(s)}>View {s.title}</button>)}{parent&&<button disabled={busy} onClick={async()=>{const used=!isArchived(d);if(await mutate({type:'archiveDocument',id:d.id,archived:used}))notice(used?'Marked used. Find it under ‘Show used tickets’.':'Back on the ticket list.');}}>{isArchived(d)?<><ArchiveRestore size={15}/>Put back on the list</>:<><Archive size={15}/>Used · archive</>}</button>}{parent&&<button className="danger" onClick={()=>{if(confirm('Remove this ticket and all its attached files from the trip? Saved copies on phones remain.'))mutate({type:'removeDocument',id:d.id});}}>Remove</button>}</div><FileTranslate doc={d} user={user} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} notice={notice}/><TicketAttachments ticket={d} attachments={attachmentsOf(state,d)} members={state.members} user={user} config={config} enabled={config?.uploads} busy={busy} setBusy={setBusy} request={request} accept={accept} notice={notice} onView={setView} onEdit={startEdit} saveOffline={saveOffline} onRemove={a=>{if(confirm('Remove this file from the ticket?'))mutate({type:'removeDocument',id:a.id});}}/><TicketTranslate ticket={d} user={user} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} notice={notice}/></details></div>)}
+ // On the Wallet the search folds away under the passes, open whenever something is being
+ // looked for; on a stop's own tickets it stays out, as there are only a few.
+ const filterBox=<div className="document-filters"><label>Search<input type="search" value={search} placeholder="Name, reference, note or tag" onChange={e=>setSearch(e.target.value)}/></label><div className="form-row"><label>Type<select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="">All types</option><option value="reservation">Reservations</option><option value="ticket">Tickets / QR</option><option value="luggage">Luggage</option><option value="other">Other</option></select></label><label>For<select value={personFilter} onChange={e=>setPersonFilter(e.target.value)}><option value="">Everyone</option><option>Family</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label></div></div>;
+ return <>{step?filterBox:ticketList(state,{archived:false}).length>0&&<details className="wallet-search" open={!!(search||categoryFilter||personFilter)||undefined}><summary>Search and filter all {ticketList(state,{archived:false}).length} bookings</summary>{filterBox}</details>}{step&&<label className="checkline"><input type="checkbox" checked={all} onChange={e=>setAll(e.target.checked)}/>Show all family documents</label>}{(showArchived||usedCount>0)&&<label className="checkline"><input type="checkbox" checked={showArchived} onChange={e=>{setShowArchived(e.target.checked);setView(null);}}/>Show used tickets ({usedCount})</label>}{showArchived&&<p className="callout"><Archive size={18}/>Tickets marked as used. They stay out of the list, the swipe-through strip and the offline download until they are put back.</p>}{!docs.length&&(showArchived?<div className="empty"><Archive size={30}/><h3>Nothing has been marked used yet</h3><p>Archive a ticket once it has been scanned, the bag collected or the meal eaten. It stays here in full.</p></div>:<div className="empty"><Ticket size={30}/><h3>Keep the little details here</h3><p>Add tickets, reservations, luggage tags, forwarding receipts or collection numbers as you go.</p></div>)}
+ {docs.map(d=><div className={`document-row${isArchived(d)?' archived':''}`} key={d.id}><DocumentThumb doc={d} attachments={attachmentsOf(state,d)} onView={setView}/><details className="document-details"><summary><ChevronRight size={16} className="document-chevron"/><span><strong>{d.title}</strong><small>{d.person} · {{ticket:'Ticket',reservation:'Reservation',luggage:'Luggage / tag',other:'Other'}[d.category||'ticket']} · {d.type==='note'?'Saved details':d.type==='link'?'Link':d.type==='application/pdf'?'PDF':'Photo / QR'}{saved.includes(`doc-${d.id}`)?' · Saved offline':''}{isArchived(d)?` · Used · ${d.archivedWith&&state.steps.find(s=>s.id===d.archivedWith)?`ticked off with ‘${state.steps.find(s=>s.id===d.archivedWith).title}’`:'archived'} ${fmtDay(japanDate(new Date(d.archivedAt)))}${d.archivedBy?` by ${d.archivedBy}`:''}`:''}</small></span></summary>{documentStepList(state,d).length>1&&<p className="document-note"><strong>Covers:</strong> {documentStepList(state,d).map(s=>s.title).join(' · ')}</p>}{d.reference&&<p className="document-note"><strong>Reference:</strong> {d.reference}</p>}{d.notes&&<p className="document-note">{d.notes}</p>}<div className="row wrap">{(d.tags||[]).map(t=><button className="tag" key={t} onClick={()=>setSearch(t)}>{t}</button>)}</div><div className="row wrap">{d.codeLive&&<p className="pass-live">Show this one in {d.codeApp||'the operator’s app'}: its code changes each time.</p>}{codesFor(state,d).length>0&&<button className="primary" onClick={()=>setGate(d)}><Maximize2 size={15}/>Show code{codesFor(state,d).length>1?`s (${codesFor(state,d).length})`:''}</button>}{d.type==='note'?null:d.type==='link'?<Link href={d.url}>Open link <ExternalLink size={13}/></Link>:<><button onClick={()=>setView(d)}>Open full-screen</button><button onClick={()=>saveOffline(`/api/document?id=${d.id}`,`doc-${d.id}`)}>Save file offline</button></>}{parent&&<button onClick={()=>startEdit(d)}>Edit details / tags</button>}{documentStepList(state,d).filter(s=>s.day).map(s=><button key={s.id} onClick={()=>selectStep(s)}>View {s.title}</button>)}{parent&&<button disabled={busy} onClick={async()=>{const used=!isArchived(d);if(await mutate({type:'archiveDocument',id:d.id,archived:used}))notice(used?'Marked used. Find it under ‘Show used tickets’.':'Back on the ticket list.');}}>{isArchived(d)?<><ArchiveRestore size={15}/>Put back on the list</>:<><Archive size={15}/>Used · archive</>}</button>}{parent&&(d.codeLive||codesFor(state,{...d,codeLive:false}).length>0)&&<LiveCodeToggle doc={d} busy={busy} mutate={mutate}/>}{parent&&<button className="danger" onClick={()=>{if(confirm('Remove this ticket and all its attached files from the trip? Saved copies on phones remain.'))mutate({type:'removeDocument',id:d.id});}}>Remove</button>}</div><FileTranslate doc={d} user={user} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} notice={notice}/><TicketAttachments ticket={d} attachments={attachmentsOf(state,d)} members={state.members} user={user} config={config} enabled={config?.uploads} busy={busy} setBusy={setBusy} request={request} accept={accept} notice={notice} onView={setView} onEdit={startEdit} saveOffline={saveOffline} onRemove={a=>{if(confirm('Remove this file from the ticket?'))mutate({type:'removeDocument',id:a.id});}}/><TicketTranslate ticket={d} user={user} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} notice={notice}/></details></div>)}
+ {gate&&<GateCode state={state} doc={gate} onClose={()=>setGate(null)} onPhoto={file=>{setGate(null);if(file)setView(file);}}/>}
  {view&&<TicketViewer documents={state.documents} tickets={docs} view={view} setView={setView}/>}
  {parent&&<details key={editing?.id||`new-${reset}`} open={!!editing||!state.documents.length}><summary>{editing?'Edit details and tags':'Add a ticket, reservation or luggage tag'}</summary>{!config?.uploads&&<p className="callout">File uploads will work after private Blob storage is connected. Links and written details can be added now.</p>}<form onSubmit={submit}><label>Type<select name="category" defaultValue={editing?.category||'ticket'}><option value="ticket">Ticket / QR code</option><option value="reservation">Reservation</option><option value="luggage">Luggage tag / forwarding receipt</option><option value="other">Other</option></select></label><label>Title<input name="title" defaultValue={editing?.title||''} required placeholder="Blue suitcase tag / dinner reservation" maxLength={250}/></label><label>For<select name="person" defaultValue={editing?.person||'Family'}><option>Family</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label><StepAllocation steps={state.steps} value={allocated} onChange={setAllocated}/><label>Reference / tag / collection number<input name="reference" defaultValue={editing?.reference||''} maxLength={250} placeholder="Bag tag or booking number"/></label><label>Notes<textarea name="notes" defaultValue={editing?.notes||''} maxLength={4000} placeholder="Which bag, collection place, delivery hotel or reservation details"/></label><label>Tags (comma-separated)<input name="tags" defaultValue={(editing?.tags||[]).join(', ')} placeholder="Tokyo, dinner, flight, blue bag"/></label>{!editing&&<><label>Pages, PDFs or photos (up to 25 MB each)<input type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!config?.uploads||busy} onChange={e=>{choose(e.target.files);e.target.value='';}}/></label><label>Photograph a page<input type="file" accept="image/jpeg,image/png" capture="environment" disabled={!config?.uploads||busy} onChange={e=>{choose(e.target.files);e.target.value='';}}/></label>{!!files.length&&<div className="pending-pages"><strong>{files.length} page{files.length===1?'':'s'}, in this order</strong>{files.map((f,i)=><div className="list-row" key={f.id}><span>{i+1}. {f.file.name}{f.blob?' · uploaded':''}</span><button type="button" disabled={busy} onClick={()=>setFiles(old=>old.filter(x=>x.id!==f.id))}>Remove</button></div>)}<small>The first page is the document itself; the rest are attached to it, so the set opens and swipes as one booking. Photograph a page again to add the next one.</small></div>}{savedId&&<p className="callout"><AlertCircle size={18}/>The document is saved with the pages that made it up. Retry to add the ones still waiting.</p>}<label>Or paste a booking link<input name="url" type="url" placeholder="https://…"/></label></>}<Button className="primary" disabled={busy}>{busy?`Uploading ${uploading} · ${Math.round(progress)}%…`:savedId?`Retry the remaining ${files.length} page${files.length===1?'':'s'}`:editing?'Save changes':files.length>1?`Save ${files.length} pages as one document`:'Save to family trip'}</Button>{editing&&<Button type="button" onClick={clearForm}>Cancel edit</Button>}<p>Choose every page of a booking at once, or photograph them one after another. Afterwards, ‘Add photos / files to this ticket’ adds more and labels each page with the person it belongs to. For rotating QR codes, add the official ticket link or app. Downloaded screenshots may not be valid.</p></form></details>}</>;
 }
@@ -919,6 +938,8 @@ class Boundary extends React.Component{
 // A follower's link opens the read-only page and nothing else: no session is asked for, and
 // none of the app behind it is started.
 const followKey=new URLSearchParams(location.search).get('follow');
+// The phone's choice of light or dark is put on the page before anything is drawn.
+applyTheme(readTheme());
 createRoot(document.getElementById('root')).render(<Boundary>{followKey?<FollowAlong followKey={followKey}/>:<App/>}</Boundary>);
 
 function ShowLocation({state,step,notice,maps}){

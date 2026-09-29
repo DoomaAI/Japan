@@ -249,6 +249,40 @@ Each essential links to the shop or the official page and to the screen in the a
 
 The commercial version will ship as App Store and Google Play apps published by I'm In Ventures Pty Ltd (organisation accounts, cloud builds). What that takes is logged in [native-apps.md](native-apps.md).
 
+## Apple Wallet and Google Wallet passes
+
+Logged 30 September 2026, from the UX review against hotel and event apps. Not built.
+
+### What it is for
+
+A pass in the phone's own wallet, outside our app: tonight's hotel (dates, confirmation number, address) and each ticket or booking with its QR code. What it adds over the in-app Wallet:
+
+- It appears on the lock screen at the right time and place (the hotel's address on arrival, a park ticket on the morning of the visit) without anybody opening the app.
+- It opens with a double-press of the side button, with no signal and no app loading, at a hotel desk or a gate.
+- The pass can be updated after it is added (a changed time or gate) and the change shows on the phone.
+- Airlines, hotel chains and event platforms all do this, so travellers expect it.
+
+### Why not for this trip
+
+- Most of the family's scannable tickets are issued by other apps (Tokyo Disney Resort, USJ, smartEX, Qantas), and the QR has to come from them. A pass we made could only hold a copy of a screenshot, which the gate may not accept.
+- The in-app Wallet (#256) already puts the next pass first and opens it full screen offline.
+- It needs an Apple developer certificate we do not have (below).
+
+### What it needs
+
+| Need | Detail |
+|---|---|
+| Apple Developer Program membership | US$99 a year. The organisation account planned for the store apps ([native-apps.md](native-apps.md)) covers it |
+| A Pass Type ID and its signing certificate | Created in the developer account; the certificate and its private key are kept as server secrets, never in the repository |
+| A signer on the server | Builds `pass.json` and the images, and signs the bundle into a `.pkpass` file. An existing library can do this, or it can be written directly with Node's crypto |
+| A download route | Serves the `.pkpass` with the `application/vnd.apple.pkpass` type; on an iPhone, Safari offers **Add to Apple Wallet** |
+| Updates (optional) | An Apple push certificate and a small web service, so a changed time or reference reaches passes already added |
+| Google Wallet (Android) | A Google Wallet issuer account and a service account; passes are created through Google's API and added with a signed "Save to Google Wallet" link |
+
+### Where it would sit
+
+An **Add to Apple Wallet** button on the stay card and on each booking we issue ourselves: the stay, a restaurant reservation, a meeting point. A ticket that belongs to another app links to that app instead. About a day's build once the certificate exists, plus testing on each iPhone.
+
 ## Monetisation
 
 Added 29 September 2026. How a commercial version would make money, what one trip costs to run, and white-label options. Figures are planning estimates, not quotes; check them before any pricing decision. Currency is converted at A$1 = US$0.66.

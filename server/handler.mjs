@@ -14,6 +14,7 @@ import {translatePhrase,translatorReady,translateTicketText,TICKET_FIELDS,TICKET
 import {researchPlace,researchReady} from './research.mjs';
 import {researchPayMethod} from './pay-research.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
+import {findEvents,eventsReady} from './events.mjs';
 import {askTrip,askReady} from './ask.mjs';
 import {parseCapture,captureReady} from './capture.mjs';
 import {nearbyPlaces,nearbyReady} from './nearby.mjs';
@@ -97,7 +98,7 @@ export default async function handler(req,res){
    if(!pushReady())return json(res,{ok:true,ready:false,sent:[]});
    return json(res,{ok:true,ready:true,sent:await tick((await readTrip()).state)});
   }
-  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
+  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -290,6 +291,12 @@ export default async function handler(req,res){
   if(route==='suggest'&&post){
    parent(user);const {state}=await readTrip();
    return json(res,await suggestIdeas(b,state));
+  }
+  // What is on while we are there — a match, a festival, a concert — near where we are staying.
+  // Like suggestions, nothing is added here: each event is put up on the board by a person.
+  if(route==='events'&&post){
+   parent(user);const {state}=await readTrip();
+   return json(res,await findEvents(b,state));
   }
   // A question about their own trip, asked in ordinary words — is this better today or tomorrow,
   // what does the rain do to Thursday, when should we go and see that. Anyone asks: the boys
