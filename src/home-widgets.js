@@ -15,7 +15,8 @@ export const HOME_WIDGETS={
  runup:{label:'The run-up',note:'Before we fly: days to go, and a family task unlocked at 100, 50, 30, 14 and 7 days'},
  dailyjapan:{label:'A little Japan each day',note:'Before we fly: one phrase to say and one fact to read, every day of the run-up'},
  bookingwindows:{label:'Booking windows',note:'Bookings opening in the next fortnight, and any open but not yet booked',page:'windows'},
- briefing:{label:'The day in brief',note:'Which day it is, the stops, fixed times, weather, a hotel move and the day’s phrase'},
+ briefing:{label:'The day in brief',note:'Which day it is, the stops, fixed times, weather, a hotel move and any app to set up'},
+ todaysjapan:{label:'Phrase and fun fact of the day',note:'On the trip: the day’s phrase to say and fact to read, folded to one line or open'},
  step:{label:'The step we are on',note:'The current stop, swipe for the rest of the day'},
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},
  needs:{label:'Before we head out',note:'A tick for each thing to carry out the door, fresh each morning, with a streak'},
@@ -51,14 +52,16 @@ export const HOME_DEFAULT=Object.keys(HOME_WIDGETS);
 export const emptyHome=()=>({order:null,hidden:[],shown:[]});
 // Whatever comes back out of localStorage was written by some version of this app, possibly an
 // older one with widgets that no longer exist or without ones that do. So it is cleaned on the
-// way in: unknown ids go, duplicates go, and anything new is added at the end rather than lost.
+// way in: unknown ids go, duplicates go, and anything new lands just after the widget it follows
+// by default, wherever that has been moved to, rather than being lost at the foot of Home.
 export function cleanHome(prefs){
  const known=id=>Object.hasOwn(HOME_WIDGETS,id);
  const shown=[...new Set((Array.isArray(prefs?.shown)?prefs.shown:[]).filter(id=>known(id)&&HOME_WIDGETS[id].off))];
  const hidden=[...new Set([...(Array.isArray(prefs?.hidden)?prefs.hidden:[]).filter(known),...HOME_OFF])].filter(id=>!shown.includes(id));
  if(!Array.isArray(prefs?.order))return {order:null,hidden,shown};
  const order=[...new Set(prefs.order.flatMap(id=>LEGACY[id]||[id]).filter(known))];
- return {order:[...order,...HOME_DEFAULT.filter(id=>!order.includes(id))],hidden,shown};
+ HOME_DEFAULT.forEach((id,i)=>{if(!order.includes(id))order.splice(i?order.indexOf(HOME_DEFAULT[i-1])+1:0,0,id);});
+ return {order,hidden,shown};
 }
 // Every widget in the order this person has put them, shown or not.
 export const homeOrder=prefs=>cleanHome(prefs).order||HOME_DEFAULT;
