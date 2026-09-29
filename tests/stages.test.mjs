@@ -243,3 +243,17 @@ test('ready to go weighs each of the five the same, and an empty list is not rea
  state.packing={items:[{id:'a',title:'Hats',packedAt:'x'},{id:'b',title:'Socks',packedAt:null}],dismissed:{}};
  assert.equal(readiness(state).parts.find(p=>p.id==='packing').share,.5);
 });
+test('hunt picks: each of us picks the hunts to do, the boys their own, and everyone sees who picked what',async()=>{
+ const {applyOperation}=await import('../server/model.mjs');
+ const {huntPickers,pickedBy}=await import('../src/hunt-data.js');
+ let state=upgraded(seed);
+ state=applyOperation(state,{type:'huntPick',person:'Nate',hunt:'gachapon',picked:true},{name:'Nate',role:'child'});
+ state=applyOperation(state,{type:'huntPick',person:'Boston',hunt:'gachapon',picked:true},{name:'Damien',role:'parent'});
+ state=applyOperation(state,{type:'huntPick',person:'Nate',hunt:'ramen',picked:true},{name:'Nate',role:'child'});
+ assert.deepEqual(huntPickers(state,'gachapon'),['Boston','Nate']);
+ assert.deepEqual(pickedBy(state,'Nate').map(h=>h.id),['gachapon','ramen']);
+ state=applyOperation(state,{type:'huntPick',person:'Nate',hunt:'ramen',picked:false},{name:'Nate',role:'child'});
+ assert.deepEqual(pickedBy(state,'Nate').map(h=>h.id),['gachapon']);
+ assert.throws(()=>applyOperation(state,{type:'huntPick',person:'Boston',hunt:'ramen',picked:true},{name:'Nate',role:'child'}),/own/);
+ assert.throws(()=>applyOperation(state,{type:'huntPick',person:'Nate',hunt:'nope',picked:true},{name:'Nate',role:'child'}),/Choose a hunt/);
+});

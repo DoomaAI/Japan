@@ -16,6 +16,10 @@ export const HUNTS=[
 export const MAX_CUSTOM_HUNTS=20,MAX_HUNT_ENTRIES=1000;
 export const EMPTY_HUNTS={custom:[],entries:[],rankings:{}};
 export const huntState=state=>({...EMPTY_HUNTS,...(state.hunts||{})});
+// Picks: the hunts each of us wants to do, chosen before we fly, so the boys land with a list
+// of their own to go looking for rather than one handed to them.
+export const huntPickers=(state,huntId)=>Object.entries(huntState(state).picks||{}).filter(([,picks])=>picks?.[huntId]).map(([name])=>name).sort();
+export const pickedBy=(state,person)=>allHunts(state).filter(h=>huntState(state).picks?.[person]?.[h.id]);
 export const allHunts=state=>[...HUNTS,...huntState(state).custom];
 export const findHunt=(state,id)=>allHunts(state).find(h=>h.id===id)||null;
 // A find is either something we want to try, or something we have. Only what we have tried is
