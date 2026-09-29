@@ -3,7 +3,7 @@
 export const PAGES={
  today:{label:'Home',note:'Your own widgets for the day: what’s next, weather, to-dos and more'},
  days:{label:'Itinerary',note:'All sixteen days of the trip'},
- glance:{label:'Today',note:'Today\u2019s stops in order, ticked off as they happen, with adjust the day and we\u2019re tired'},
+ glance:{label:'Plan',note:'Today\u2019s stops in order, ticked off as they happen, and every day of the trip one switch away'},
  tickets:{label:'Wallet',note:'Tonight’s stay, the next pass to scan, and every booking, tag and QR code'},
  inbox:{label:'Forwarded email',note:'Booking emails you sent in, waiting to be filed'},
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
@@ -55,13 +55,13 @@ export const PAGES={
  personalise:{label:'Customise',note:'Your bar, your Home widgets, and what you see'},
  settings:{label:'Settings',note:'The order of the shortcuts along the bottom, and the daily phrase or fun fact'}
 };
-// The ones that earn a place in the bottom bar, by who is holding the phone. Home, Today and the
-// Itinerary are everybody's: Home is the dashboard, Today is the day's stops in order, and the
-// Itinerary is the whole trip. After that, parents reach for tickets and prices and the boys
-// reach for their missions. Everything else lives in More.
+// Four and More, as the leading hotel and event apps have it. Home is the dashboard and Plan is
+// the day's stops with the whole trip one switch away. After that, parents reach for the wallet
+// and the yen at a till or a gate; the boys reach for their missions and the food. Everything
+// else lives in More, and anybody can put any screen back on their own bar.
 export const PRIMARY={
- parent:['today','glance','days','tickets','food','money'],
- child:['today','glance','days','challenges','food','diary']
+ parent:['today','glance','tickets','money'],
+ child:['today','glance','challenges','food']
 };
 // Ordered by whose hands the screen is for, top to bottom. The practical half of the trip is
 // what Lauren and I open a menu for — the weather on the way out, the ticket at the gate, what
@@ -75,7 +75,7 @@ export const PRIMARY={
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','food','allergy','hunts','phrases','meeting','safety','help','apps']],
  ['Money',['money','paying','ledger','shopping','shortlist','shop']],
- ['The plan',['glance','todo','packing','trackers','windows','arrival','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
+ ['The plan',['glance','days','todo','packing','trackers','windows','arrival','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
  ['Looking back',['noticed','photos','memorymap','diary','recap','book']],
  ['Housekeeping',['updates','bin','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
@@ -198,4 +198,10 @@ export const addableNav=(user,prefs)=>{
  return menuOrder(user).filter(id=>!on.has(id)&&!away.has(id));
 };
 // The bottom bar's More button stands in for every page it holds, so you never lose your place.
-export const navActive=(tab,id,user,prefs)=>id==='more'?!primaryNav(user,prefs).includes(tab):tab===id;
+// Plan covers the whole trip as well as today, unless the Itinerary has a button of its own.
+const covered=(tab,bar)=>bar.includes(tab)||(tab==='days'&&bar.includes('glance'));
+export const navActive=(tab,id,user,prefs)=>{
+ const bar=primaryNav(user,prefs);
+ if(id==='more')return !covered(tab,bar);
+ return tab===id||(id==='glance'&&tab==='days'&&!bar.includes('days'));
+};
