@@ -373,3 +373,20 @@ test('arrival paperwork: the declaration reminder shows in the 72 hours before t
  assert.equal(dayBriefing(state,'2026-10-06').declaration,true);assert.equal(dayBriefing(state,'2026-09-29').declaration,false);
  assert.equal(VJW_STEPS.length,5);assert.match(VISIT_JAPAN_WEB,/^https:\/\/www\.vjw\.digital\.go\.jp\//);assert.match(TRAVEL_DECLARATION,/^https:\/\/www\.abf\.gov\.au\//);
 });
+test('the day map is drawn from positions the trip holds, needs no network, and keeps true distances',async()=>{
+ const {dayMap,project,scaleBar}=await import('../src/day-map-data.js');
+ const state=upgraded(seed),m=dayMap(state,'2026-09-24');
+ assert.ok(m.marks.length>=2);assert.equal(m.legs.length,m.path.length-1);
+ const order=m.path.flatMap(i=>m.marks[i].stops.map(s=>s.n));
+ assert.ok(m.path.every((x,i)=>i===0||x!==m.path[i-1]),'no leg from a place to itself');
+ assert.equal(new Set(order).size,m.marks.flatMap(x=>x.stops).length,'every stop is on the route');
+ const back=dayMap(state,'2026-09-22');
+ assert.ok(back.path.length>back.marks.length,'a place visited twice is gone back to');
+ assert.ok(m.legs.some(l=>l.km>300),'Tokyo to Kyoto is the long leg');
+ const p=project([{lat:35,lng:139},{lat:35,lng:139.01},{lat:35.01,lng:139}],300,300,0);
+ const east=p.points[1].x-p.points[0].x,north=p.points[0].y-p.points[2].y;
+ assert.ok(Math.abs(east/north-Math.cos(35*Math.PI/180))<.01,'a degree east is shorter than a degree north');
+ assert.equal(scaleBar(.01,360).label,'500 m');assert.equal(scaleBar(1,360).label,'50 km');
+ const src=await readFile(new URL('../src/DayMap.jsx',import.meta.url),'utf8');
+ assert.doesNotMatch(src,/fetch\(|tile\.openstreetmap|https?:\/\//,'nothing in the map comes from the network');
+});
