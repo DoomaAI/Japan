@@ -215,7 +215,7 @@ function App(){
  }
  const directions=(place,mode='transit')=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(target)+'&travelmode='+mode;};
  const maps=place=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(target);};
- const envRef=useRef(envelope),queueRef=useRef(queue),working=useRef(false),touch=useRef(null),guideFlip=useRef(null),noteShown=useRef(''),phraseSeen=useRef(''),factShown=useRef(''),stepFactShown=useRef(new Set()),landed=useRef(false);
+ const envRef=useRef(envelope),queueRef=useRef(queue),working=useRef(false),touch=useRef(null),guideFlip=useRef(null),noteShown=useRef(''),stepFactShown=useRef(new Set()),landed=useRef(false);
  envRef.current=envelope;queueRef.current=queue;
  function notice(s){setToast(s);}
  // Every envelope accepted here came over the network a moment ago, so accepting one is also the
@@ -500,14 +500,9 @@ function App(){
  // Turned off under Settings counts as done with it: the pop-up never opens, and the fun
  // fact behind it stops waiting on a phrase that is never coming.
  const phraseDone=!settingOn(settings,'dailyPhrase')||!todaysPhrase||!!phraseSeenBy(state,dayOnTrip)[user?.name]||localStorage.getItem(`japan.phrase.${dayOnTrip}`)==='seen';
- useEffect(()=>{
-  // It waits for a clear screen, so it lands after her note is closed rather than on top of it.
-  if(!todaysPhrase||phraseDone||modal||phraseSeen.current===dayOnTrip)return;
-  if(noteForMe&&!noteRead)return;
-  // Once a day: it counts as seen the moment it opens, so closing it any way, or reopening
-  // the app, does not bring it back until tomorrow.
-  phraseSeen.current=dayOnTrip;localStorage.setItem(`japan.phrase.${dayOnTrip}`,'seen');setModal({type:'phrase',phrase:todaysPhrase,day:dayOnTrip});
- },[todaysPhrase?.id,phraseDone,noteForMe?.day,noteRead,modal]);
+ // It no longer opens by itself. Hotel and event apps open on the stay or the session, never
+ // on a pop-up, so the phrase waits as a row on the day in brief, marked new until it is opened.
+ const openPhrase=()=>todaysPhrase?setModal({type:'phrase',phrase:todaysPhrase,day:dayOnTrip}):go('phrases');
  async function seePhrase(day,phraseIds=[]){
   localStorage.setItem(`japan.phrase.${day}`,'seen');
   await mutate({type:'phraseSeen',day,person:user.name,phraseIds});
@@ -518,12 +513,8 @@ function App(){
  // never opens onto three pop-ups at once.
  const todaysFact=dayOnTrip?factForDay(state.days,dayOnTrip):null;
  const factDone=!settingOn(settings,'dailyFact')||!todaysFact||!!factSeenBy(state,dayOnTrip)[user?.name]||localStorage.getItem(`japan.fact.${dayOnTrip}`)==='seen';
- useEffect(()=>{
-  if(!todaysFact||factDone||modal||factShown.current===dayOnTrip)return;
-  if(noteForMe&&!noteRead)return;
-  if(todaysPhrase&&!phraseDone)return;
-  factShown.current=dayOnTrip;localStorage.setItem(`japan.fact.${dayOnTrip}`,'seen');setModal({type:'fact',day:dayOnTrip});
- },[todaysFact?.id,factDone,todaysPhrase?.id,phraseDone,noteForMe?.day,noteRead,modal]);
+ // The same for the fact: a row on the day in brief, opened when somebody wants it.
+ const openFact=()=>todaysFact?setModal({type:'fact',day:dayOnTrip}):go('facts');
  async function seeFact(day,factIds=[]){
   localStorage.setItem(`japan.fact.${day}`,'seen');
   await mutate({type:'factSeen',day,person:user.name,factIds});
@@ -540,12 +531,10 @@ function App(){
  useEffect(()=>{
   if(!startedWithFact||modal)return;
   if(noteForMe&&!noteRead)return;
-  if(todaysPhrase&&!phraseDone)return;
-  if(todaysFact&&!factDone)return;
   stepFactShown.current.add(startedWithFact.id);localStorage.setItem(`japan.stepfact.${startedWithFact.id}`,'seen');
   const facts=stepFactFor(startedWithFact);for(const f of facts)localStorage.setItem(`japan.stepfact.fact.${f.id}`,'seen');
   setModal({type:'stepfact',step:startedWithFact,facts});
- },[startedWithFact?.id,modal,noteRead,phraseDone,factDone]);
+ },[startedWithFact?.id,modal,noteRead]);
  async function readNote(note){
   localStorage.setItem(noteKey(note.day),'read');
   if(navigator.onLine&&!state.thankYou.seen?.[note.day])await mutate({type:'thankYouSeen',day:note.day});
@@ -569,7 +558,7 @@ function App(){
   bookingwindows:<BookingWindowsCard state={visibleState} now={now} go={go}/>,
   runup:<RunUp state={visibleState} today={japanDate(now)} go={go}/>,
   onthisday:<OnThisDay state={visibleState} today={japanDate(now)} dayLabel={fmtDay} go={go}/>,
-  briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go}/>,
+  briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go} phrase={day===dayOnTrip&&settingOn(settings,'dailyPhrase')?{item:phraseQueue(visibleState,user.name,dayOnTrip)[0],open:openPhrase,fresh:!phraseDone}:null} fact={day===dayOnTrip&&todaysFact&&settingOn(settings,'dailyFact')?{...(factQueue(visibleState,user.name,dayOnTrip)[0]||todaysFact),open:openFact,fresh:!factDone}:null}/>,
   needs:<MorningChecklist key={day} state={visibleState} day={day} today={japanDate(now)}/>,
   step:<>
    {groups.length>0&&<div className="option-bar">{groups.map(g=><div key={g} className="option-group"><label>Choose a plan<select disabled={!parent||busy} value={state.choices[g]||''} onChange={e=>mutate({type:'choose',group:g,option:e.target.value})}>{[...new Set(state.steps.filter(s=>s.group===g).map(s=>s.option))].map(o=><option key={o}>{o}</option>)}</select></label>{/* The same options, all at once by different people, rather than one of them for everybody. */}{parent&&new Set(state.steps.filter(s=>s.group===g).map(s=>s.option)).size>1&&<button type="button" className="split-toggle" disabled={busy} onClick={()=>mutate({type:'groupMode',group:g,mode:'split'})}>We split up and do both</button>}</div>)}</div>}
