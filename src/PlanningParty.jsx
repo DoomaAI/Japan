@@ -3,6 +3,7 @@ import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,Chevro
 import {dayLabel} from './AdventurePages.jsx';
 import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf} from './trip-features.js';
 import {photoUrl} from './PhotoDay.jsx';
+import {SuggestDeck} from './SuggestDeck.jsx';
 const kindLabel=id=>(PROPOSAL_KINDS.find(([key])=>key===id)||PROPOSAL_KINDS.at(-1))[1];
 const flavourLabel=id=>(SUGGEST_KINDS.find(([key])=>key===id)||SUGGEST_KINDS[1])[1];
 // Who is going, and what each of them would actually want out of a day. The boys fill in their
@@ -102,26 +103,45 @@ export function TravelParty({state,user,mutate,busy}){
 // Ideas already on the board, picked out for one of us or for all four, from what each person
 // ticked, tagged and voted — worked out on the phone, so it needs no signal and no API key.
 // Everyone gets it, the boys included: "what is on the board that I would like?" is theirs too.
-export function PickedFor({state,user,onOpen}){
+export function PickedFor({state,user,mutate,busy,onOpen}){
  const [who,setWho]=useState(user.role==='parent'?'':user.name);
+ // Swiping through them is a vote, and always the voter's own: right is "yes", left is
+ // "not for me". The pile is dealt once from the ideas this person has not voted on yet, so a
+ // vote landing does not reshuffle the cards still to come.
+ const [deck,setDeck]=useState(null);
  const picks=recommendIdeas(state,who);
  const filled=state.members.filter(n=>profileFilled(state,n));
+ const myVote=p=>(p.votes||{})[user.name];
+ const unvoted=recommendIdeas(state,who,{limit:20}).filter(r=>myVote(r.proposal)===undefined);
+ const vote=(r,v)=>mutate({type:'proposalVote',id:r.proposal.id,person:user.name,vote:v});
+ const live=r=>proposals(state).find(p=>p.id===r.proposal.id)||r.proposal;
+ const card=(r,actions)=>{const p=live(r),votes=Object.values(p.votes||{}).filter(v=>v===1).length;
+  return <article className="feature-card suggest-card picked-card" key={p.id}>
+   <div className="section-heading"><h4>{p.title}</h4>{!who&&<span className="tag"><Users size={12}/>{r.fans.length} of {state.members.length}</span>}</div>
+   {p.place&&<p><small>{p.place}</small></p>}
+   <ul className="picked-why">{Object.entries(r.reasons).map(([name,why])=><li key={name}><Heart size={13}/><span>{who?'':<strong>{name}: </strong>}{why.join(', ')}</span></li>)}
+    {Object.entries(r.avoid).map(([name,terms])=><li key={`x${name}`} className="picked-avoid"><AlertCircle size={13}/><span>{name} would rather avoid {terms.join(', ')}</span></li>)}</ul>
+   <div className="row wrap">{!!votes&&<span className="tag"><ThumbsUp size={12}/>{votes}</span>}{actions}</div>
+  </article>;};
  return <details className="party-panel picked-panel">
   <summary><Heart size={17}/>Picked for {who===user.name?'you':who||'all of us'}</summary>
-  <div className="segmented" role="group" aria-label="Picked for">{[['','Everyone'],...state.members.map(n=>[n,n===user.name?`${n} (you)`:n])].map(([key,label])=>
-   <button key={key||'all'} className={who===key?'selected':''} onClick={()=>setWho(key)}>{label}</button>)}</div>
+  <div className="segmented" role="group" aria-label="Picked for">{[['',"Everyone"],...state.members.map(n=>[n,n===user.name?`${n} (you)`:n])].map(([key,label])=>
+   <button key={key||'all'} className={who===key?'selected':''} onClick={()=>{setWho(key);setDeck(null);}}>{label}</button>)}</div>
   <p>{who?`Ideas up for a vote that match what ${who===user.name?'you':who} ticked, tagged or backed.`:'Ideas up for a vote that please the most of us at once, and who each one is for.'}</p>
   {!picks.length&&<p className="callout"><AlertCircle size={18}/>{!filled.length||(who&&!profileFilled(state,who))
    ?`Nothing to go on yet — fill in ${who&&who!==user.name?`${who}’s`:who?'your':'a'} profile under “Who we are, and what we like” with a few interests and likes.`
    :'Nothing up for a vote matches yet. Add an idea, or ask for suggestions.'}</p>}
-  {picks.map(r=>{const p=r.proposal,votes=Object.values(p.votes||{}).filter(v=>v===1).length;
-   return <article className="feature-card suggest-card picked-card" key={p.id}>
-    <div className="section-heading"><h4>{p.title}</h4>{!who&&<span className="tag"><Users size={12}/>{r.fans.length} of {state.members.length}</span>}</div>
-    {p.place&&<p><small>{p.place}</small></p>}
-    <ul className="picked-why">{Object.entries(r.reasons).map(([name,why])=><li key={name}><Heart size={13}/><span>{who?'':<strong>{name}: </strong>}{why.join(', ')}</span></li>)}
-     {Object.entries(r.avoid).map(([name,terms])=><li key={`x${name}`} className="picked-avoid"><AlertCircle size={13}/><span>{name} would rather avoid {terms.join(', ')}</span></li>)}</ul>
-    <div className="row wrap">{!!votes&&<span className="tag"><ThumbsUp size={12}/>{votes}</span>}<button onClick={()=>onOpen?.(p)}><ChevronRight size={16}/>See it on the board</button></div>
-   </article>;})}
+  {deck?<>
+   <SuggestDeck key={deck.round} items={deck.items} keyOf={r=>r.proposal.id} titleOf={r=>r.proposal.title} busy={busy}
+    kept={deck.items.filter(r=>myVote(live(r))===1).map(r=>r.proposal.id)}
+    onKeep={r=>vote(r,1)} onPass={r=>vote(r,-1)} onUnpass={r=>vote(r,0)}
+    keepLabel="Yes, I’m in" keepStamp="Yes" passLabel="Not for me" passStamp="Nope" keptWord="backed by you"
+    render={r=>card(r,null)}/>
+   <button onClick={()=>setDeck(null)}><X size={16}/>Back to the list</button>
+  </>:<>
+   {!!unvoted.length&&<button className="primary" onClick={()=>setDeck({items:unvoted,round:Date.now()})}><ThumbsUp size={16}/>Swipe to vote · {unvoted.length} you have not voted on</button>}
+   {picks.map(r=>card(r,<button onClick={()=>onOpen?.(r.proposal)}><ChevronRight size={16}/>See it on the board</button>))}
+  </>}
  </details>;
 }
 // Ideas for a place, in the flavours asked for — the famous ones, the ones nobody finds on their
@@ -137,7 +157,7 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
  const staying=stop?stop.participants.filter(n=>!sitting.includes(n)):[];
  const boysAlone=sitting.length>0&&sitting.every(n=>BOYS.includes(n));
  const [splitDone,setSplitDone]=useState([]);
- const [working,setWorking]=useState(false),[result,setResult]=useState(null),[error,setError]=useState(''),[added,setAdded]=useState([]);
+ const [working,setWorking]=useState(false),[round,setRound]=useState(0),[result,setResult]=useState(null),[error,setError]=useState(''),[added,setAdded]=useState([]);
  const cities=[...new Set(state.days.map(d=>d.city))];
  const filled=state.members.filter(n=>profileFilled(state,n));
  const toggle=id=>setKinds(k=>k.includes(id)?k.filter(x=>x!==id):[...k,id]);
@@ -145,7 +165,7 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
   e.preventDefault();
   if(mode==='instead'&&(!stop||!sitting.length)){setError('Choose the stop, and who would rather not go.');return;}
   if(mode==='ideas'&&!kinds.length){setError('Choose at least one kind of idea.');return;}
-  setWorking(true);setError('');setResult(null);setAdded([]);setSplitDone([]);
+  setWorking(true);setError('');setResult(null);setAdded([]);setSplitDone([]);setRound(r=>r+1);
   try{
    if(mode==='instead'){setResult(await request('suggest',{instead:{stepId:stop.id,who:sitting},count:Number(count)}));return;}
    const body={kinds,count:Number(count)};
@@ -174,6 +194,9 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
   if(await mutate({type:'proposalInstead',id:created.id,stepId:result.instead.stepId,who:result.instead.who}))setSplitDone(d=>[...d,item.draft.title]);
  }
  const insteadGone=result?.instead&&(splitDone.length||state.steps.find(s=>s.id===result.instead.stepId)?.group);
+ // Right on the deck is the main thing the panel was asked for: onto the board, or, when some of
+ // us are sitting a stop out and the rest carry on, straight onto the day as a split.
+ const splitting=!!(result?.instead?.staying.length&&!insteadGone);
  return <details className="party-panel suggest-panel">
   <summary><Sparkles size={17}/>Suggest some ideas</summary>
   <p>Built from who is going and what each of us said we are into{filled.length?` — ${filled.join(', ')} so far`:''}. {filled.length<state.members.length&&<strong>Fill in the rest above and these get sharper.</strong>}</p>
@@ -211,9 +234,11 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
   {result&&<div className="suggest-results">
    <h3>{result.instead?`${result.suggestions.length} things ${result.instead.who.join(' and ')} could do instead of ${result.instead.title}`:`${result.suggestions.length} ideas for ${result.forWhom?`${result.forWhom} in `:''}${result.where}`}</h3>
    {result.note&&<p className="callout"><AlertCircle size={18}/>{result.note}</p>}
-   {result.suggestions.map(item=>{
-    const done=added.includes(item.draft.title);
-    return <article className={`feature-card suggest-card ${done?'finished':''}`} key={item.draft.title}>
+   <SuggestDeck key={round} items={result.suggestions} keyOf={item=>item.draft.title} kept={added} busy={busy}
+    onKeep={splitting?splitOff:item=>add(item,false)}
+    keepLabel={splitting?`Split the day: ${result.instead.who.join(' and ')} do this`:'Put it on the board'} keepStamp={splitting?'Split':'On the board'}
+    passLabel="Pass" keptWord={splitting?'split off':'on the board'}
+    render={item=><article className="feature-card suggest-card">
      <div className="section-heading"><div><span className="eyebrow">{flavourLabel(item.flavour)}</span><h4>{item.draft.title}</h4></div></div>
      {item.draft.place&&<p><small>{item.draft.place}{item.draft.japanese&&<span lang="ja"> · {item.draft.japanese}</span>}</small></p>}
      <p className="suggest-why">{item.why}</p>
@@ -226,14 +251,11 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
       <span>{item.draft.suitableFor.length?`Suits ${item.draft.suitableFor.join(', ')}`:'Suits everyone'}</span>
      </div>
      <div className="row wrap">
-      {result.instead&&(splitDone.includes(item.draft.title)?<span className="tag"><Split size={13}/>On the day, split with {result.instead.title}</span>
-       :result.instead.staying.length&&!insteadGone?<button className="primary" disabled={busy} onClick={()=>splitOff(item)}><Split size={16}/>Split the day: {result.instead.who.join(' and ')} do this</button>:null)}
-      {done?<span className="tag"><Check size={13}/>On the board</span>:<>
-       <button className={result.instead?.staying.length?'':'primary'} disabled={busy} onClick={()=>add(item,false)}><Plus size={16}/>Put it on the board</button>
-       <button disabled={busy} onClick={()=>add(item,true)}><Search size={16}/>Add and look it up</button>
-      </>}
+      {splitting&&<button disabled={busy} onClick={()=>add(item,false)}><Plus size={16}/>Just put it on the board</button>}
+      <button disabled={busy} onClick={()=>add(item,true)}><Search size={16}/>Add and look it up</button>
      </div>
-    </article>;})}
+    </article>}/>
+   {result.instead&&!!splitDone.length&&<p className="tag"><Split size={13}/>On the day, split with {result.instead.title}: {splitDone.join(', ')}</p>}
    <small>{result.usage.searches} web {result.usage.searches===1?'search':'searches'}. These are ideas, not checked facts — costs and times are rough, and anything you plan around needs looking up first.</small>
    <button onClick={()=>setResult(null)}><X size={16}/>Clear these</button>
   </div>}

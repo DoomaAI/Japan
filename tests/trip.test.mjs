@@ -10208,7 +10208,105 @@ test('Back and the swipe from the edge walk back through screens, and close a sh
  assert.equal((main.match(/history\.replaceState\(/g)||[]).length,3,'no screen change slips through as a replace');
  for(const fn of ['go','selectStep','selectPhotoDay','choosePhotoPerson'])assert.doesNotMatch(main,new RegExp(`function ${fn}\\([^\\n]*history\\.replaceState`),`${fn} goes through navigate`);
 });
+test('choosing together: each of us weights weather, cost, likes and votes, and the ideas are ranked for a day',async()=>{
+ const {groupPriorities,personPriorities,decide,ideaSetting,weatherFit,groupCost,betterDay}=await import('../src/decide-data.js');
+ const day=seed.days[1].date,city=seed.days[1].city,other=seed.days.find(d=>d.city===city&&d.date!==day)?.date;
+ let state=applyOperation(seed,{type:'proposalAdd',title:'Shinjuku Gyoen garden walk',category:'place',cost:500,costNote:'each'},parent);
+ state=applyOperation(state,{type:'proposalAdd',title:'teamLab Planets',category:'activity',cost:12000,setting:'indoor'},parent);
+ state=applyOperation(state,{type:'proposalAdd',title:'Somewhere hoped for another day',day:seed.days[3].date},parent);
+ const [garden,teamlab]=state.proposals.slice(-3);
+ // Indoors or out: said on the card wins, otherwise read from its words.
+ assert.deepEqual(ideaSetting(garden),{setting:'outdoor',said:false});
+ assert.deepEqual(ideaSetting(teamlab),{setting:'indoor',said:true});
+ // A price "each" is for everyone it suits; anything else is the group's price.
+ assert.deepEqual(groupCost(state,garden),{yen:2000,each:true,heads:4});
+ assert.equal(groupCost(state,teamlab).yen,12000);
+ // Only ideas for this day or no day are weighed, unless every idea is asked for.
+ assert.equal(decide(state,day).length,2);
+ assert.equal(decide(state,day,{all:true}).length,3);
+ // Everyone counts as "matters" until they say otherwise; a boy sets his own, not his brother's.
+ assert.deepEqual(groupPriorities(state),{weather:2,cost:2,likes:2,votes:2});
+ state=applyOperation(state,{type:'partyPriorities',name:'Nate',weights:{cost:0,weather:3}},child);
+ assert.deepEqual(personPriorities(state,'Nate'),{weather:3,cost:0,likes:2,votes:2});
+ assert.equal(groupPriorities(state).cost,1.5);
+ assert.throws(()=>applyOperation(state,{type:'partyPriorities',name:'Boston',weights:{cost:1}},child),e=>e.status===403);
+ for(const bad of [{name:'Grandma',weights:{cost:1}},{name:'Nate',weights:{cost:7}},{name:'Nate',weights:{mood:1}},{name:'Nate'}])
+  assert.throws(()=>applyOperation(state,{type:'partyPriorities',...bad},parent),`${JSON.stringify(bad)} should be refused`);
+ assert.equal(personPriorities(applyOperation(state,{type:'partyPriorities',name:'Nate',weights:null},parent),'Nate').cost,2);
+ // The weather decides between them once there is a forecast: rain sends us indoors.
+ assert.equal(weatherFit(null,'outdoor').score,null);
+ const wet={code:63,max:22,min:17,rain:90},fine={code:0,max:23,min:15,rain:0};
+ assert.ok(weatherFit(wet,'indoor').score>weatherFit(wet,'outdoor').score);
+ assert.ok(weatherFit(fine,'outdoor').score>weatherFit(fine,'indoor').score);
+ const rainy={...state,weather:{...state.weather,days:{[day]:wet,...(other?{[other]:fine}:{})}}};
+ assert.equal(decide(rainy,day,{weights:{weather:3,cost:0,likes:0,votes:0}})[0].proposal.id,teamlab.id);
+ const sunny={...state,weather:{...state.weather,days:{[day]:fine}}};
+ assert.equal(decide(sunny,day,{weights:{weather:3,cost:1,likes:0,votes:0}})[0].proposal.id,garden.id);
+ if(other)assert.equal(betterDay(rainy,garden,day)?.date,other,'a garden on a wet day points at a fine one in the same city');
+ // Votes count: a must-do lifts an idea when votes are what matter.
+ state=applyOperation(state,{type:'proposalMust',id:garden.id,person:'Nate',must:true},child);
+ const top=decide(state,day,{weights:{weather:0,cost:0,likes:0,votes:3}})[0];
+ assert.equal(top.proposal.id,garden.id);assert.deepEqual(top.musts,['Nate']);
+ // Something with nothing to weigh is left unscored rather than counted as a zero.
+ assert.equal(decide(state,day,{weights:{weather:3,cost:0,likes:0,votes:0}})[0].match,null);
+});
 
+test('suggested ideas come one card at a time: swipe right to put one on the board, left to pass',async()=>{
+ const {flingDirection,cardTilt,stampStrength,FLING}=await import('../src/swipe.js');
+ const deck=await readFile(new URL('../src/SuggestDeck.jsx',import.meta.url),'utf8');
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // Far enough over decides it, whichever the phone's width; short of that it goes back.
+ assert.equal(flingDirection(FLING.least+1,0,200),1);
+ assert.equal(flingDirection(-(FLING.least+1),0,200),-1);
+ assert.equal(flingDirection(100,0,400),0,'a third of the way on a wide card is not yet a decision');
+ assert.equal(flingDirection(121,0,400),1);
+ // A quick flick counts even when short, but only the way the card is already leaning.
+ assert.equal(flingDirection(40,0,400,FLING.speed+.1),1);
+ assert.equal(flingDirection(40,0,400,-(FLING.speed+.1)),0,'pulled back towards the middle is a change of mind');
+ assert.equal(flingDirection(10,0,400,5),0,'a twitch is not a flick');
+ // Dragging mostly downwards is scrolling the page.
+ assert.equal(flingDirection(200,260,400),0);
+ assert.equal(flingDirection(NaN,0,400),0);
+ // The lean and the stamp follow the finger and stop.
+ assert.equal(cardTilt(0,300),0);
+ assert.equal(cardTilt(10000,300),15);assert.equal(cardTilt(-10000,300),-15);
+ assert.equal(stampStrength(0,300),0);assert.equal(stampStrength(10000,300),1);
+ // Every swipe has a button and a key that does the same, and a pass can be taken back.
+ assert.match(deck,/e\.key==='ArrowRight'\)\{e\.preventDefault\(\);decide\(1\)/);
+ assert.match(deck,/e\.key==='ArrowLeft'\)\{e\.preventDefault\(\);decide\(-1\)/);
+ assert.match(deck,/className="deck-pass"[^>]*onClick=\{\(\)=>decide\(-1\)\}/);
+ assert.match(deck,/className="deck-keep"[^>]*onClick=\{\(\)=>decide\(1\)\}/);
+ assert.match(deck,/className="deck-undo"[^>]*onClick=\{undo\}/);
+ assert.match(deck,/Go through the \{passed\.length\} passed again/);
+ // A drag that starts on a button presses the button instead.
+ assert.match(deck,/e\.target\.closest\?\.\(PRESSABLE\)\)return/);
+ // The panel keeps what it did before: right is the board, or the split when some of us sit out.
+ assert.match(party,/onKeep=\{splitting\?splitOff:item=>add\(item,false\)\}/);
+ assert.match(party,/<SuggestDeck key=\{round\}/,'a new ask starts a fresh pile');
+ assert.match(party,/onClick=\{\(\)=>add\(item,true\)\}><Search size=\{16\}\/>Add and look it up/);
+ // Up and down still scroll the page with a finger on the card.
+ assert.match(css,/\.deck-card\.top\{touch-action:pan-y/);
+});
+
+test('picked-for ideas can be swiped through as a vote: right is yes, left is not for me',async()=>{
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ const deck=await readFile(new URL('../src/SuggestDeck.jsx',import.meta.url),'utf8');
+ const planning=await readFile(new URL('../src/Planning.jsx',import.meta.url),'utf8');
+ // The vote is always the voter's own, and taking back a pass takes back the vote.
+ assert.match(party,/const vote=\(r,v\)=>mutate\(\{type:'proposalVote',id:r\.proposal\.id,person:user\.name,vote:v\}\)/);
+ assert.match(party,/onKeep=\{r=>vote\(r,1\)\} onPass=\{r=>vote\(r,-1\)\} onUnpass=\{r=>vote\(r,0\)\}/);
+ // Dealt once from what this person has not voted on, so a vote landing does not reshuffle it.
+ assert.match(party,/filter\(r=>myVote\(r\.proposal\)===undefined\)/);
+ assert.match(party,/setDeck\(\{items:unvoted,round:Date\.now\(\)\}\)/);
+ assert.match(planning,/<PickedFor state=\{state\} user=\{user\} mutate=\{mutate\} busy=\{busy\}/);
+ // A pass or an undo that did not save leaves the card where it was.
+ assert.match(deck,/if\(!onPass\|\|await onPass\(top\)!==false\)setPassed/);
+ assert.match(deck,/onUnpass&&item&&await onUnpass\(item\)===false\)\)return;/);
+ // The boys vote too, including with no signal.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/'proposalAdd','proposalVote'/);
+});
 test('one word for each idea on the screen: a stop is a stop, and the screen that arranges the phone is Customise',async()=>{
  const {PAGES}=await import('../src/nav-data.js');
  const {PAGE_RULES}=await import('../src/spoken-rules.js');

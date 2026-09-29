@@ -1177,7 +1177,8 @@ export function proposalDraft(op){
   suitableFor:[...new Set(Array.isArray(op.suitableFor)?op.suitableFor:[])],
   tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))],
   day:op.day||null,availability:String(op.availability??'').trim(),timing:op.timing??'flex',
-  time:op.time||null,duration:number(op.duration,60),source:op.source==='suggested'?'suggested':'typed'};
+  time:op.time||null,duration:number(op.duration,60),source:op.source==='suggested'?'suggested':'typed',
+  setting:['indoor','outdoor','mixed'].includes(op.setting)?op.setting:''};
 }
 // What a scheduled step carries over from the board: the opening hours and the price the family
 // agreed on are exactly what someone standing outside the place will want to read.

@@ -48,3 +48,20 @@ export const stepIndex=(index,delta,length)=>{
  const next=Math.min(Math.max(0,length-1),Math.max(0,index+delta));
  return next===index?index:next;
 };
+// A card flung off the suggestion deck, as on a dating app: right to keep, left to pass. It
+// goes when it is dragged a good way over, or flicked fast the way it is already leaning — a
+// card dragged right and then pulled back towards the middle is a change of mind, and stays. A mostly-downward drag
+// is a scroll of the page and never decides anything. 1 keep, -1 pass, 0 back to the middle.
+export const FLING={share:.3,least:90,speed:.6,nudge:30};
+export function flingDirection(dx,dy,width,vx=0,limits=FLING){
+ if(!Number.isFinite(dx))return 0;
+ if(Number.isFinite(dy)&&Math.abs(dy)>Math.abs(dx))return 0;
+ const far=Math.max(limits.least,(width||0)*limits.share);
+ if(Math.abs(dx)>=far)return dx>0?1:-1;
+ if(Number.isFinite(vx)&&Math.abs(vx)>=limits.speed&&Math.abs(dx)>=limits.nudge&&Math.sign(vx)===Math.sign(dx))return vx>0?1:-1;
+ return 0;
+}
+// How much the card leans while it is held, and how sure the stamp on it is: both follow the
+// finger, and both stop at the point where letting go would decide.
+export const cardTilt=(dx,width)=>Math.max(-15,Math.min(15,dx/Math.max(width||0,1)*20));
+export const stampStrength=(dx,width,limits=FLING)=>Math.min(1,Math.abs(dx)/Math.max(limits.least,(width||0)*limits.share));
