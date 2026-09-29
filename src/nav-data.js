@@ -17,6 +17,7 @@ export const PAGES={
  memorymap:{label:'Memory map',note:'Photos, voice notes and stars where they happened, and where the family last was'},
  noticed:{label:'Things we noticed',note:'The little moments, said out loud and tagged to where they happened or what they were about'},
  diary:{label:'Diary',note:'Completed activities, discoveries and photos'},
+ recap:{label:'Our trip story',note:'The trip in swipeable cards: the numbers, the places, our best bits and everyone’s favourite'},
  highlights:{label:'Trip highlights',note:'The highlights video, coming after the trip, and what it will be made from'},
  places:{label:'Places & our map',note:'Directions and our Google My Map'},
  meeting:{label:'Meeting card',note:'If we get separated'},
@@ -63,7 +64,7 @@ export const PRIMARY={
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','money','paying','ledger','food','allergy','hunts','phrases','meeting','safety','help']],
  ['The plan',['glance','todo','packing','trackers','planning','options','parks','shopping','shortlist','tickets','inbox']],
- ['Looking back',['noticed','photos','memorymap','diary','highlights','updates','bin','search','guide']],
+ ['Looking back',['noticed','photos','memorymap','diary','recap','highlights','updates','bin','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
  ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot']]
 ];
