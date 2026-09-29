@@ -37,7 +37,7 @@ export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,
   <p className="callout"><AlertCircle size={18}/>The Japanese is how a dish is usually written on a menu, as a helper for reading and pointing. Menus vary and shops write things their own way. <strong>Anything allergy-related must be confirmed with the restaurant, not with this list.</strong></p>
   {config?.menuReader
    ?user.role==='parent'&&<MenuReader state={state} user={user} request={request} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={show}/>
-   :<details className="menu-reader"><summary>Read a menu from a photo</summary><p>Photographing a menu and having it suggest what we would like is built and ready, but switched off. It needs an Anthropic API key set as <code>ANTHROPIC_API_KEY</code> on the deployment, server-side. Everything else on this page works without it.</p></details>}
+   :<details className="menu-reader"><summary>Read a menu from a photo</summary><p>Reading a menu from a photo is not switched on for this trip yet. Everything else on this page works without it.</p></details>}
   <div className="quest-progress"><strong>{tallies} / {items.length} tried</strong><progress max={items.length} value={tallies}/><span>Rate what you eat. Four stars or more and it lands in Our favourites.</span></div>
   <div className="document-filters">
    <label>Search<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Dish, Japanese or note"/></label>

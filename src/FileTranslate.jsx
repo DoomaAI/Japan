@@ -13,12 +13,14 @@ export default function FileTranslate({doc,user,config,busy,setBusy,request,acce
  const held=doc.fileTranslation;
  if(!doc.pathname||!READABLE.includes(doc.type))return null;
  if(!held&&!parent)return null;
+ const [failed,setFailed]=useState('');
  async function run(){
-  setBusy(true);setWorking(true);
+  setBusy(true);setWorking(true);setFailed('');
   try{accept(await request('file-translate',{id:doc.id}));}
-  catch(e){notice(e.message||'The translation did not come back. The file itself is still here.');}
+  catch(e){setFailed(e.message||'The translation did not come back. The file itself is still here.');}
   finally{setBusy(false);setWorking(false);}
  }
+ const retry=failed&&!working?<small className="file-translate-off"><AlertCircle size={14}/> {failed} <button type="button" className="try-again" disabled={busy} onClick={run}>Try again</button></small>:null;
  async function drop(){
   setBusy(true);
   try{accept(await request('file-translate',{id:doc.id,remove:true}));}
@@ -26,9 +28,9 @@ export default function FileTranslate({doc,user,config,busy,setBusy,request,acce
   finally{setBusy(false);}
  }
  if(!held){
-  if(!config?.documentReader)return <small className="file-translate-off">Translating a file needs an Anthropic API key on the deployment.</small>;
+  if(!config?.documentReader)return <small className="file-translate-off">Translating a file is not switched on for this trip yet.</small>;
   if(!fileTranslatable(doc))return <small className="file-translate-off">This file is too large to translate. A photo of the page that matters will work.</small>;
-  return <div className="file-translate"><button type="button" disabled={busy} onClick={run}><Languages size={15}/>{working?'Translating… a page takes a few seconds':'Translate into English'}</button></div>;
+  return <div className="file-translate"><button type="button" disabled={busy} onClick={run}><Languages size={15}/>{working?'Translating… a page takes a few seconds':'Translate into English'}</button>{retry}</div>;
  }
  return <div className="file-translate ticket-translation en">
   <details open>
@@ -42,8 +44,9 @@ export default function FileTranslate({doc,user,config,busy,setBusy,request,acce
    <small>Translated by {held.by}{held.at?` · ${held.at.slice(0,10)}`:''}. A translation can be wrong; check anything that costs money or has a deadline against the file itself.</small>
    {parent&&<div className="row wrap">
     <button type="button" disabled={busy} onClick={run}>{working?'Translating…':'Translate again'}</button>
-    <button type="button" className="danger" disabled={busy} onClick={drop}><Trash2 size={15}/>Remove translation</button>
+    <button type="button" className="danger" disabled={busy} onClick={()=>{if(confirm('Remove this translation? Translating it again takes a moment and costs a little.'))drop();}}><Trash2 size={15}/>Remove translation</button>
    </div>}
+   {retry}
   </details>
  </div>;
 }

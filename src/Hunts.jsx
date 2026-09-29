@@ -87,7 +87,11 @@ function ListEditor({hunt,mutate,busy,done}){
   <div className="row wrap"><button className="primary" disabled={busy}>Save</button><button type="button" onClick={done}>Cancel</button></div>
  </form>;
 }
-function HuntPage({state,user,hunt,mutate,busy,back}){
+// What a removed find comes back as when Undo is tapped: what was typed about it, tagged where it
+// was, rated by whoever removed it if they had. Other people's ratings and its place in the
+// rankings are not carried, which is why the toast says only that it is back on the list.
+const restoreEntry=(e,user)=>({type:'huntAdd',hunt:e.hunt,title:e.title,place:e.place||'',note:e.note||'',day:e.day??null,yen:e.yen??null,stepId:e.stepId||undefined,locationId:e.locationId||undefined,pin:e.pin??null,status:e.status,rating:e.ratings?.[user.name]});
+function HuntPage({state,user,hunt,mutate,busy,back,remove}){
  const parent=user.role==='parent',[form,setForm]=useState(null),[view,setView]=useState('stars'),[city,setCity]=useState(''),[editing,setEditing]=useState(false);
  // Each find sits folded to its name, where and average so the whole list stays in view after
  // adding one; open it for the note, everybody's stars and the buttons.
@@ -113,7 +117,7 @@ function HuntPage({state,user,hunt,mutate,busy,back}){
    <ul>{wants.map(e=><li key={e.id}><div><strong>{e.title}</strong><Where state={state} entry={e}/>{e.note&&<small>{e.note}</small>}</div>
     <div className="row">{!e.pending&&<button className="primary" disabled={busy} onClick={()=>mutate({type:'huntTried',id:e.id,done:true,by:user.name})}><Check size={15}/> Tried it</button>}
      {!e.pending&&(parent||e.by===user.name)&&<><button aria-label={`Change ${e.title}`} onClick={()=>setForm(e)}><Pencil size={15}/></button>
-      <button aria-label={`Remove ${e.title}`} disabled={busy} onClick={()=>{if(confirm(`Take ${e.title} off the list?`))mutate({type:'huntRemove',id:e.id});}}><Trash2 size={15}/></button></>}</div></li>)}</ul>
+      <button aria-label={`Remove ${e.title}`} disabled={busy} onClick={()=>remove({type:'huntRemove',id:e.id},restoreEntry(e,user),`${e.title} taken off the list.`)}><Trash2 size={15}/></button></>}</div></li>)}</ul>
   </section>}
   {board.count>0&&<h2>Tried ({board.count})</h2>}
   {board.count>0&&<div className="hunt-views">
@@ -141,14 +145,14 @@ function HuntPage({state,user,hunt,mutate,busy,back}){
      onPick={v=>mutate({type:'huntRate',id:e.id,person:n,rating:v,by:user.name})}/></div>)}</div>
    {!e.pending&&(parent||mine)&&<div className="row"><button aria-label={`Change ${e.title}`} onClick={()=>setForm(e)}><Pencil size={15}/></button>
     <button aria-label={`Put ${e.title} back to still to find`} disabled={busy} onClick={()=>{if(confirm(`Put ${e.title} back on the list to find? It leaves everybody’s order.`))mutate({type:'huntTried',id:e.id,done:false,by:user.name});}}><Search size={15}/></button>
-    <button aria-label={`Remove ${e.title}`} disabled={busy} onClick={()=>{if(confirm(`Take ${e.title} off the list?`))mutate({type:'huntRemove',id:e.id});}}><Trash2 size={15}/></button></div>}</>}
+    <button aria-label={`Remove ${e.title}`} disabled={busy} onClick={()=>remove({type:'huntRemove',id:e.id},restoreEntry(e,user),`${e.title} taken off the list.`)}><Trash2 size={15}/></button></div>}</>}
   </li>;})}</ol>}
  </>;
 }
-export default function Hunts({state,user,mutate,busy}){
+export default function Hunts({state,user,mutate,busy,remove}){
  const [open,setOpen]=useState(null),[adding,setAdding]=useState(false),[title,setTitle]=useState(''),[icon,setIcon]=useState(''),[hint,setHint]=useState('');
  const hunt=open&&findHunt(state,open);
- if(hunt)return <HuntPage state={state} user={user} hunt={hunt} mutate={mutate} busy={busy} back={()=>setOpen(null)}/>;
+ if(hunt)return <HuntPage state={state} user={user} hunt={hunt} mutate={mutate} busy={busy} back={()=>setOpen(null)} remove={remove}/>;
  async function create(e){e.preventDefault();if(await mutate({type:'huntNew',title,icon,hint}))(setAdding(false),setTitle(''),setIcon(''),setHint(''));}
  return <>
   <p className="eyebrow">WHICH ONE WAS BEST?</p>

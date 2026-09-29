@@ -34,7 +34,7 @@ function ExpenseForm({state,user,day,editing,mutate,busy,done}){
   <div className="row wrap"><button className="primary" disabled={busy}>{editing?'Save':'Add payment'}</button><button type="button" onClick={done}>Cancel</button></div>
  </form>;
 }
-export default function Ledger({state,user,mutate,busy}){
+export default function Ledger({state,user,mutate,busy,remove}){
  const today=japanDate(),onTrip=state.days.some(d=>d.date===today);
  const [day,setDay]=useState(onTrip?today:''),[form,setForm]=useState(null);
  const all=expenseSummary(state),one=day?expenseSummary(state,{day}):null;
@@ -64,7 +64,7 @@ export default function Ledger({state,user,mutate,busy}){
    <div><strong>{e.title}</strong><small>{e.day?dayLabel(e.day):'Not on a trip day'} · {expenseCategoryLabel(e.category)} · {payMethodLabel(e.method)} · {e.paidBy}{e.pending?' · Waiting to sync':''}</small>{e.notes&&<small>{e.notes}</small>}</div>
    <div className="ledger-amount"><strong>{yen(e.yen)}</strong><small>{aud(yenToAud(e.yen,all.rate))}</small></div>
    {!e.pending&&<div className="row"><button aria-label={`Change ${e.title}`} onClick={()=>setForm(e)}><Pencil size={15}/></button>
-    <button aria-label={`Remove ${e.title}`} disabled={busy} onClick={()=>{if(confirm(`Remove ${e.title}?`))mutate({type:'expenseRemove',id:e.id});}}><Trash2 size={15}/></button></div>}
+    <button aria-label={`Remove ${e.title}`} disabled={busy} onClick={()=>remove({type:'expenseRemove',id:e.id},{type:'expenseAdd',title:e.title,yen:e.yen,category:e.category,method:e.method,paidBy:e.paidBy,day:e.day,notes:e.notes,at:e.createdAt},`${e.title} removed.`)}><Trash2 size={15}/></button></div>}
   </li>)}</ul>
  </>;
 }

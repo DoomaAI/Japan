@@ -48,7 +48,7 @@ function CardForm({editing,config,request,mutate,busy,notice,done}){
   <div className="row wrap"><button className="primary" disabled={busy}>{editing?'Save':'Add card'}</button><button type="button" onClick={done}>Cancel</button></div>
  </form>;
 }
-export default function WhichCard({state,user,config,request,mutate,busy,notice}){
+export default function WhichCard({state,user,config,request,mutate,busy,notice,remove}){
  const [amount,setAmount]=useState('5000'),[situation,setSituation]=useState('shop'),[operator,setOperator]=useState('0'),[form,setForm]=useState(null);
  const cards=payMethods(state);
  const yenAmount=Number(String(amount).replace(/[^\d]/g,''))||0,op=Number(String(operator).replace(/[^\d]/g,''))||0;
@@ -85,7 +85,7 @@ export default function WhichCard({state,user,config,request,mutate,busy,notice}
     {m.researched&&<small>Looked up {new Date(m.researched.at).toLocaleDateString('en-AU',{day:'numeric',month:'short'})}{m.researched.sources?.[0]&&<> · <a href={m.researched.sources[0].url} target="_blank" rel="noopener noreferrer">source</a></>}</small>}
     {m.notes&&<small>{m.notes}</small>}</div>
    <div className="row"><button aria-label={`Change ${m.name}`} onClick={()=>setForm(m)}><Pencil size={15}/></button>
-    <button aria-label={`Remove ${m.name}`} disabled={busy} onClick={()=>{if(confirm(`Remove ${m.name}?`))mutate({type:'payMethodRemove',id:m.id});}}><Trash2 size={15}/></button></div>
+    <button aria-label={`Remove ${m.name}`} disabled={busy} onClick={()=>remove({type:'payMethodRemove',id:m.id},{...m,type:'payMethodAdd',id:undefined,researched:undefined},`${m.name} removed.`)}><Trash2 size={15}/></button></div>
   </li>)}</ul>
  </>;
 }

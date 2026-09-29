@@ -257,7 +257,13 @@ function App(){
   };
   window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);
  });
- useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),6000);return()=>clearTimeout(t);},[toast]);
+ useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),toast?.undo?9000:6000);return()=>clearTimeout(t);},[toast]);
+ // Taking something off a list happens on the tap and is undone from the toast, rather than
+ // being asked about first: a question before every removal is answered by reflex, and the undo
+ // is there for the one time in twenty the reflex was wrong. What comes back is a fresh copy of
+ // what was typed; a tick or a rating it carried is gone, so the toast says "back on the list"
+ // rather than promising more.
+ async function removeThen(op,restore,text){if(await mutate(op))setToast({text,undo:async()=>{if(await mutate(restore))notice('Back on the list.');}});}
  async function flush(force=false){
   if(working.current||!queueRef.current.length||!navigator.onLine)return;
   working.current=true;
@@ -308,7 +314,7 @@ function App(){
   }finally{working.current=false;setBusy(false);}
  }
  const visibleState=state?pendingProgress(state,queue):null;
- const toastBar=<div className="toast" role="status">{toast}<button aria-label="Dismiss" onClick={()=>setToast('')}><X size={16}/></button></div>;
+ const toastBar=<div className="toast" role="status">{typeof toast==='string'?toast:toast?.text}{toast?.undo&&<button type="button" className="toast-undo" onClick={()=>{const u=toast.undo;setToast('');u();}}>Undo</button>}<button aria-label="Dismiss" onClick={()=>setToast('')}><X size={16}/></button></div>;
  const [photoPerson,setPhotoPerson]=useState(()=>new URLSearchParams(location.search).get('who')||'');
  // What this person has asked not to be shown, kept on their own phone and read under their
  // own name, because two people sharing a phone do not share an opinion about a pop-up.
@@ -593,7 +599,7 @@ function App(){
    <DayTimeline steps={steps} allSteps={allSteps} splits={splits} lens={lens} setLens={follow} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/>
   </>}
   {tab==='challenges'&&<Challenges key={day+(focus||'')} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy}/>}
-  {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy} go={go}/>}
+  {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy} go={go} remove={removeThen}/>}
   {tab==='shortlist'&&<Shortlist key={focus||'shortlist'} initialId={focus} state={visibleState} user={user} day={day} config={config} busy={busy} setBusy={setBusy} mutate={mutate} request={request} accept={accept} notice={notice} go={go} selectStep={selectStep}/>}
   {tab==='meeting'&&<><MeetingCard key={day} state={state} user={user} day={day} mutate={mutate} busy={busy}/><LostCards state={visibleState} user={user} day={day}/></>}
   {tab==='updates'&&<Updates state={state} user={user} mutate={mutate} busy={busy}/>}
@@ -609,18 +615,18 @@ function App(){
   {tab==='settings'&&<Settings user={user} settings={settings} change={changeSetting} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
   {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
-  {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go} day={day}/>}
-  {tab==='packing'&&<Packing state={visibleState} user={user} mutate={mutate} busy={busy}/>}
-  {tab==='trackers'&&<Trackers state={visibleState} user={user} mutate={mutate} busy={busy}/>}
+  {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go} day={day} remove={removeThen}/>}
+  {tab==='packing'&&<Packing state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
+  {tab==='trackers'&&<Trackers state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
   {tab==='memorymap'&&<Suspense fallback={<p>Opening the map…</p>}><MemoryMap state={visibleState} user={user} request={request} accept={accept} notice={notice} busy={busy}/></Suspense>}
   {tab==='spending'&&<Spending state={visibleState} user={user} mutate={mutate} busy={busy} go={go} notice={notice} today={japanDate(now)}/>}
   {tab==='inbox'&&parent&&isAvailable('inbox')&&<EmailInbox state={state} config={config} busy={busy} mutate={mutate} request={request} accept={accept} notice={notice} go={go}/>}
   {tab==='ask'&&<AskTrip state={visibleState} user={user} day={day} config={config} online={online} request={request} go={go} selectDay={selectDay} notice={notice}/>}
   {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
-  {tab==='hunts'&&<Hunts state={visibleState} user={user} mutate={mutate} busy={busy}/>}
+  {tab==='hunts'&&<Hunts state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
   {tab==='noticed'&&<Noticed state={visibleState} user={user} mutate={mutate} busy={busy} show={setModal}/>}
-  {tab==='paying'&&parent&&<WhichCard state={visibleState} user={user} config={config} request={request} mutate={mutate} busy={busy} notice={notice}/>}
-  {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy}/>}
+  {tab==='paying'&&parent&&<WhichCard state={visibleState} user={user} config={config} request={request} mutate={mutate} busy={busy} notice={notice} remove={removeThen}/>}
+  {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
   {tab==='safety'&&<Safety state={visibleState} user={user} day={day} go={go}/>}
   {tab==='highlights'&&<Highlights state={visibleState} dayLabel={fmtDay}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}

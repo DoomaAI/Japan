@@ -42,7 +42,7 @@ function ShareLink({tracker,parent,mutate,busy}){
   </div>}
  </div>;
 }
-function TrackerCard({tracker,state,user,mutate,busy,onEdit}){
+function TrackerCard({tracker,state,user,mutate,busy,onEdit,remove}){
  const parent=user.role==='parent',[lost,setLost]=useState(false);
  return <section className="feature-card tracker-card">
   <div className="section-heading">
@@ -50,7 +50,7 @@ function TrackerCard({tracker,state,user,mutate,busy,onEdit}){
    {parent&&<div className="todo-actions">
     <button className="icon" aria-label={`Edit ${tracker.label}`} onClick={()=>onEdit(tracker)}><Pencil size={16}/></button>
     <button className="icon danger" aria-label={`Remove ${tracker.label}`} disabled={busy}
-     onClick={()=>{if(confirm(`Take “${tracker.label}” off the tracker list? The tag itself stays in Find My.`))mutate({type:'trackerRemove',id:tracker.id});}}><Trash2 size={16}/></button>
+     onClick={()=>remove({type:'trackerRemove',id:tracker.id},{type:'trackerAdd',label:tracker.label,kind:tracker.kind,person:tracker.person,owner:tracker.owner||undefined,forwarded:!!tracker.forwarded,notes:tracker.notes},`“${tracker.label}” taken off the list. The tag itself stays in Find My.`)}><Trash2 size={16}/></button>
    </div>}
   </div>
   <small>{tracker.person==='Family'?'All of ours':`${tracker.person}’s`}{tracker.owner&&` · on ${tracker.owner}’s Apple Account`}</small>
@@ -66,7 +66,7 @@ function TrackerCard({tracker,state,user,mutate,busy,onEdit}){
   {lost&&<LostBagCard tracker={tracker} state={state}/>}
  </section>;
 }
-export default function Trackers({state,user,mutate,busy}){
+export default function Trackers({state,user,mutate,busy,remove}){
  const [edit,setEdit]=useState(null),parent=user.role==='parent',list=trackers(state);
  async function save(e){
   e.preventDefault();const f=new FormData(e.currentTarget);
@@ -88,7 +88,7 @@ export default function Trackers({state,user,mutate,busy}){
   <label>How to recognise it<textarea name="notes" maxLength={1000} defaultValue={edit.notes||''} placeholder="Navy hard case, orange strap, name tag on the handle"/></label>
   <div className="row wrap"><button className="primary" disabled={busy}>{edit.id?'Save':'Add it'}</button><button type="button" onClick={()=>setEdit(null)}>Cancel</button></div>
  </form>}
- {list.map(t=><TrackerCard key={t.id} tracker={t} state={state} user={user} mutate={mutate} busy={busy} onEdit={setEdit}/>)}
+ {list.map(t=><TrackerCard key={t.id} tracker={t} state={state} user={user} mutate={mutate} busy={busy} onEdit={setEdit} remove={remove}/>)}
  {!list.length&&<div className="empty"><Inbox/><h2>No trackers written down.</h2><p>{parent?'Add each AirTag and the bag it is in. It takes a minute, and it is the minute you will not have at a baggage counter.':'Mum or Dad can add the trackers in our bags.'}</p></div>}
  <details className="feature-card"><summary><Radar size={16}/> Getting a tag ready for the trip</summary>
   <ol>

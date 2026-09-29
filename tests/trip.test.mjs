@@ -5451,7 +5451,7 @@ test('the games are offered easiest first, and can be narrowed to the Japanese o
   assert.equal(easeOf(id),3,`${id} is one of the hard ones`);
  assert.equal(easeOf('beigoma'),1,'one flick and then watching');
  assert.equal(easeOf('kendama'),2,'the pull and the catch both have to be right');
- assert.match(games,/const \[game,setGame\]=useState\('match'\)/,'and it opens on an easy one');
+ assert.match(games,/const \[game,setGame\]=useStored\('japan.game','match'\)/,'and it opens on an easy one, and remembers the one that was open');
  // Easiest first, and the bands still name what each difficulty means.
  assert.match(games,/\.sort\(\(a,b\)=>a\.ease-b\.ease\)/);
  assert.match(games,/const BANDS=\[\n \[1,/);

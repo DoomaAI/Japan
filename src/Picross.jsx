@@ -1,4 +1,5 @@
 import React,{useState,useMemo,useEffect,useRef} from 'react';
+import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Check,X} from 'lucide-react';
 import {PICTURES,SIZES,picturesOf,pictureById,puzzleFor,picrossScore} from './picross.js';
 import {bestScore} from './trip-features.js';
@@ -9,12 +10,15 @@ import {WinBurst} from './Win.jsx';
 // given away half of what you were meant to work out.
 const BLANK=0,FILL=1,CROSS=2;
 export default function Picross({user,state,mutate,busy}){
- const [size,setSize]=useState(5);
+ // The puzzle, the cells filled so far and the clock's start live on the phone, so a half-done
+ // picture is still half done after another game or a reload. The clock keeps counting from
+ // when it began, time away included: a puzzle is not paused by putting the phone down.
+ const [size,setSize]=useStored('game.picross.size',5);
  const list=useMemo(()=>picturesOf(size),[size]);
- const [id,setId]=useState(()=>picturesOf(5)[0].id);
- const [mode,setMode]=useState(FILL);
- const [cells,setCells]=useState(()=>Array(25).fill(BLANK));
- const [wrong,setWrong]=useState(0),[began,setBegan]=useState(null),[seconds,setSeconds]=useState(0);
+ const [id,setId]=useStored('game.picross.id',()=>picturesOf(5)[0].id);
+ const [mode,setMode]=useStored('game.picross.mode',FILL);
+ const [cells,setCells]=useStored('game.picross.cells',()=>Array(25).fill(BLANK));
+ const [wrong,setWrong]=useStored('game.picross.wrong',0),[began,setBegan]=useStored('game.picross.began',null),[seconds,setSeconds]=useState(0);
  const saved=useRef(null);
  const picture=pictureById(id);
  const puzzle=useMemo(()=>puzzleFor(picture),[id]);

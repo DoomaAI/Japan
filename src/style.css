@@ -636,3 +636,5 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .syncbar .sync-now{margin-left:auto;min-height:30px;padding:0 .7rem;font-size:.75rem;border-radius:999px;background:#fff;border:1px solid var(--border);color:inherit;white-space:nowrap}.syncbar .sync-now small{margin-left:.35rem;opacity:.7;font-size:inherit}
 .expiry-note{display:flex;align-items:center;gap:.5rem;margin:.5rem 1.2rem 0;padding:.5rem .8rem;border-radius:10px;background:#fff6e0;color:#6b4d12;font-size:.85rem}
 .crash{padding:2rem 1.2rem;max-width:520px;margin:0 auto;font-family:system-ui,sans-serif}.crash-detail{font-size:.8rem;color:#666;overflow-wrap:anywhere}
+.toast .toast-undo{font-weight:700;text-decoration:underline;min-height:44px;padding:0 .5rem}
+.callout .try-again{min-height:36px;padding:0 .7rem;margin-left:.5rem;border:1px solid currentColor;border-radius:999px;background:transparent;color:inherit;font-weight:600}

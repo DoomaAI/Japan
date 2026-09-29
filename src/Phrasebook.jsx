@@ -77,7 +77,7 @@ function OurPhrases({state,user,mutate,busy,request,notice,config,q}){
       <Languages size={16}/> {asking?'Asking…':'Put it into Japanese'}</button>
      <button type="button" disabled={busy||!english.trim()} onClick={()=>setDraft({en:english.trim(),ja:'',romaji:'',say:'',note:'',literal:'',source:'typed'})}>Type it myself</button>
     </div>
-    {!config?.translator&&<p className="callout">Translation needs an Anthropic API key on the deployment. You can still type a phrase in yourself.</p>}
+    {!config?.translator&&<p className="callout">Translation is not switched on for this trip yet. You can still type a phrase in yourself.</p>}
     {form&&<form key={form.id||form.en} onSubmit={save} className="phrase-draft">
      {form.literal&&<p className="callout">This says, literally: <strong>{form.literal}</strong></p>}
      <label>English<input name="en" defaultValue={form.en} required maxLength={200}/></label>

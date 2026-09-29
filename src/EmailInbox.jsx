@@ -12,7 +12,7 @@ const arrived=item=>{
 function Reading({item,enabled}){
  const reading=item.reading;
  if(item.readError)return <p className="callout"><AlertCircle size={18}/> {item.readError}</p>;
- if(!reading)return <p className="inbox-waiting"><Languages size={16}/> {enabled?'Reading it into English…':'Add an Anthropic API key to have this read into English.'}</p>;
+ if(!reading)return <p className="inbox-waiting"><Languages size={16}/> {enabled?'Reading it into English…':'Reading email into English is not switched on for this trip yet.'}</p>;
  if(!reading.readable)return <p className="callout"><AlertCircle size={18}/> There was nothing readable in this email. Open the attachment yourself.</p>;
  return <div className="inbox-reading">
   <p className="eyebrow">{reading.kind}{reading.language&&reading.language!=='English'?` · written in ${reading.language}`:''}</p>
@@ -103,18 +103,22 @@ export default function EmailInbox({state,config,busy,mutate,request,accept,noti
  // when a parent opens this screen, rather than when it lands. A mail provider will not wait for
  // a careful translation, and an email nobody opens is not worth paying to translate.
  const outstanding=items.filter(i=>!i.reading&&!i.readError).map(i=>i.id).join(',');
+ // A reading that did not come back is said on the screen, with the one tap that asks again;
+ // the toast it used to be was gone before anyone looked up from the email.
+ const [readFail,setReadFail]=useState(''),[attempt,setAttempt]=useState(0);
  useEffect(()=>{
   const next=outstanding.split(',').filter(Boolean)[0];
   if(!next||asked.current===next||!config?.documentReader||!navigator.onLine)return;
-  asked.current=next;
-  request('inbox-read',{id:next}).then(accept).catch(e=>notice(e.message));
- },[outstanding,config?.documentReader]);
+  asked.current=next;setReadFail('');
+  request('inbox-read',{id:next}).then(accept).catch(e=>setReadFail(e.message));
+ },[outstanding,config?.documentReader,attempt]);
  async function file(operation){if(await mutate(operation))notice('Filed in Tickets & reservations.');}
  async function discard(item){if(await mutate({type:'inboxDiscard',id:item.id}))notice('Thrown away.');}
  return <>
   <p className="eyebrow">SENT IN FROM YOUR EMAIL</p>
   <h1>Forwarded email</h1>
   {!config?.emailInbox&&<p className="callout"><AlertCircle size={18}/> Email forwarding is not switched on yet. Set <code>EMAIL_INBOX_SECRET</code> and <code>EMAIL_INBOX_SENDERS</code> in the deployment and point your mail provider at <code>/api/email-in</code>.</p>}
+  {readFail&&<p className="callout"><AlertCircle size={18}/> {readFail}<button type="button" className="try-again" onClick={()=>{asked.current=null;setAttempt(a=>a+1);}}>Try again</button></p>}
   {config?.emailInbox&&config?.emailInboxOpen&&<p className="inbox-waiting"><Mail size={15}/> Anything sent to the trip address is accepted, whoever it says it is from. Spam is still turned away, and nothing reaches the trip until you file it.</p>}
   {!items.length
    ?<div className="empty"><Mail size={26}/><h3>Nothing waiting</h3><p>Forward a booking confirmation to the trip address and it appears here, read into English, for you to file.</p></div>

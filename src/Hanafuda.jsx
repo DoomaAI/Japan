@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react';
+import {useStored} from './stored.js';
 import {Trophy,RotateCcw} from 'lucide-react';
 import {YAKU,HIKARI,TANE,TAN,KASU,deal,step,stop,koikoi,hisMove,heStops,scoreOf,payout,monthOf} from './hanafuda.js';
 import HanafudaCard from './HanafudaCard.jsx';
@@ -12,7 +13,8 @@ const Pile=({cards,who})=><div className="fuda-pile">{KINDS.map(([kind,en])=>{
  return <span key={kind}><small>{en}</small><b>{got.length}</b></span>;
 })}{!cards.length&&<em>nothing yet</em>}</div>;
 export default function Hanafuda({user,state,mutate,busy}){
- const [game,setGame]=useState(null);
+ // The hand in play stays on the phone across a switch to another game or a reload.
+ const [game,setGame]=useStored('game.hanafuda',null);
  const rand=useRef(rng(Date.now()%100000)),saved=useRef(null);
  const start=()=>{rand.current=rng(Date.now()%100000);saved.current=null;setGame(deal(rand.current));};
  // His turn, played out a beat at a time so it can be watched rather than just happening.
