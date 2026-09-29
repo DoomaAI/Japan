@@ -39,12 +39,12 @@ export default function DocumentReader({config,busy,setBusy,request,notice,mutat
    notes:body,tags:['translated']}))setSaved(true);
  }
  const copy=async()=>{try{await navigator.clipboard.writeText(result.translation||'');setCopied(true);}catch{notice('This phone would not let the app copy. Select the text and copy it by hand.');}};
+ // A reader that is not switched on for this trip is left off the page rather than explained.
+ if(!config?.documentReader)return null;
  return <section className="menu-reader document-reader">
   <h2><FileText size={18}/> Read a document</h2>
   <p>A letter from the hotel, a form, a notice, a receipt. Photograph it, pick a photo you already took, or choose a PDF — it comes back in English, with anything you have to do pulled out.</p>
-  {!config?.documentReader
-   ?<p className="callout">Reading a document is not switched on for this trip yet. Everything else on this page works without it.</p>
-   :<>
+  {<>
     <label>Anything particular you want to know? (optional)
      <input value={note} maxLength={500} onChange={e=>setNote(e.target.value)} placeholder="Is there a deadline? What do we owe?"/></label>
     <div className="row wrap">
