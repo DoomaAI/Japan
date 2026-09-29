@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket,Baby,ChevronDown} from 'lucide-react';
-import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked} from './route-data.js';
+import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket,Baby,ChevronDown,ArrowLeft,ArrowRight} from 'lucide-react';
+import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked,legToDo,legStrip} from './route-data.js';
+import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
 // Follows the phone along the route while it is open and tracking is on. GPS fades underground,
 // so the last good fix is kept and its age shown rather than guessing.
@@ -56,6 +57,25 @@ function LegTick({step,k,label,canTick,busy,onTick}){
  const done=legDone(step,k);
  return <label className={`route-leg-tick${done?' is-done':''}`}><input type="checkbox" checked={done} disabled={busy||!canTick} aria-label={`${done?'Done':'Mark done'}: leg ${k+1}, ${label}`} onChange={e=>onTick(k,e.target.checked)}/><span className="route-leg-dot" aria-hidden="true">{done&&<Check size={10} strokeWidth={3}/>}</span><span>{done?'Done':'Done?'}</span></label>;
 }
+// The strip along the top of a route of several legs: one segment per leg, coloured by its
+// standing (done, now, to come) and marked under the leg on show. Tapping a segment turns to
+// that leg, so a parent can look ahead at the change without swiping through the walk first.
+const STATUS_WORD={done:'Done',now:'Now','to come':'To come'};
+function LegStrip({legs,strip,go}){
+ const n=strip.length,on=strip.find(l=>l.showing),done=strip.filter(l=>l.done).length;
+ return <div className="route-legs">
+  <div className="route-leg-strip" role="tablist" aria-label="Legs of this route">
+   {strip.map(l=>{
+    const leg=legs[l.k],Icon=l.mode==='walk'?Footprints:KIND_ICON[LINES[leg.line].kind]||TrainFront;
+    return <button type="button" role="tab" key={l.k} id={`route-leg-tab-${l.k}`} aria-selected={l.showing} aria-controls="route-leg-page" aria-label={`Leg ${l.k+1} of ${n}: ${l.label}, ${STATUS_WORD[l.status].toLowerCase()}`}
+     className={`route-leg-pip is-${l.status.replace(' ','-')}${l.showing?' is-showing':''}`} style={l.colour?{'--line':l.colour}:undefined} onClick={()=>go(l.k)}>
+     <span className="route-leg-bar" aria-hidden="true"/><span className="route-leg-mark" aria-hidden="true">{l.done?<Check size={12} strokeWidth={3}/>:<Icon size={13}/>}</span>
+    </button>;
+   })}
+  </div>
+  <p className="route-leg-caption" aria-live="polite"><b>Leg {on.k+1} of {n} · {on.label}</b><span className={`route-leg-status is-${on.status.replace(' ','-')}`}>{STATUS_WORD[on.status]}</span><small>{done} of {n} done</small></p>
+ </div>;
+}
 export default function RouteCard({legs,step,canTick,busy,onTick,lookOpen=false}){
  const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
  const fares=routeFares(legs),priced=legs.some(l=>l.yen||l.options),rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
@@ -64,13 +84,16 @@ export default function RouteCard({legs,step,canTick,busy,onTick,lookOpen=false}
  // Tapping a line's name opens or closes what to look for to find it. Settings chooses how each
  // one starts; the lines tapped since are kept as the ones flipped from that.
  const [flipped,setFlipped]=useState(()=>new Set()),looking=k=>lookOpen!==flipped.has(k),toggleLook=k=>setFlipped(s=>{const n=new Set(s);n.has(k)?n.delete(k):n.add(k);return n;});
- const ticks=step&&onTick?legCount(step):0,tick=(k,label)=>ticks?<LegTick step={step} k={k} label={label} canTick={canTick} busy={busy} onTick={onTick}/>:null,doneClass=k=>ticks>0&&legDone(step,k)?' leg-done':'';
- return <section className="route-card" aria-label="Route">
-  <p className="eyebrow">ROUTE</p>
-  {ticks>0&&<p className="route-progress"><CheckCircle2 size={15}/><span><b>{legsTicked(step)} of {ticks} legs done.</b> {step.status==='done'?'This stop is complete.':'Tick each leg as you finish it; the last one ticks off the whole stop.'}</span></p>}
-  {fares&&<p className="route-fares"><Ticket size={15}/><span><b>Fare: adult {yen(fares.adult)} · child {yen(fares.child)} each,</b> as {fares.rides.length} separate tickets, one per company: {fares.rides.map(r=>`${r.operator} ${yen(r.yen[0])} / ${yen(r.yen[1])}`).join(' + ')}. An IC card covers them all: tap out at one company's gates and in again at the next, and each part is charged.{legs.some(l=>l.options)?' Seat tickets on the options below are extra.':''}</span></p>}
-  {priced&&<p className="route-fares"><Baby size={15}/><span><b>Under 6 (not yet at school): free.</b> Up to two ride free with each paying adult or child, no ticket; walk through the wide gate with a parent. Only a child aged 6 or over pays the child fare.</span></p>}
-  {legs.map((leg,k)=>{
+ const ticks=step&&onTick?legCount(step):0;
+ // A route of several legs turns like a page, one leg at a time: a swipe, the arrows, a tap on
+ // the strip, or an arrow key while the card has focus. It opens on the leg the family is up
+ // to, ticking a leg off turns to the next, and a tracked ride pulls the card to where the
+ // phone is. A drag that began on a button or the tick is a press, not a turn.
+ const paged=legs.length>1,[index,setIndex]=useState(()=>legToDo(step,legs.length)),touch=useRef(null);
+ const go=k=>setIndex(i=>stepIndex(i,k-i,legs.length)),move=d=>setIndex(i=>stepIndex(i,d,legs.length));
+ useEffect(()=>{if(where&&where.i>=0){const k=legs.findIndex((l,j)=>l.mode==='ride'&&rideAt[j]===where.i);if(k>=0)setIndex(k);}},[where&&where.i]);
+ const tick=(k,label)=>ticks?<LegTick step={step} k={k} label={label} canTick={canTick} busy={busy} onTick={(leg,done)=>{onTick(leg,done);if(done&&leg===index)move(1);}}/>:null,doneClass=k=>ticks>0&&legDone(step,k)?' leg-done':'';
+ const renderLeg=(leg,k)=>{
    if(leg.mode==='walk')return <p className={`route-walk${doneClass(k)}`} key={k}><Footprints size={15}/><span>{leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span>{tick(k,'walk')}</p>;
    const r=rideAt[k],line=LINES[leg.line],stops=rides[r],on=where&&where.i===r,here=on?where.index:-1,next=on&&!where.arrived?where.next:-1;
    const Icon=KIND_ICON[line.kind]||TrainFront,fast=line.fast||[],symbols=lineSymbols(stops);
@@ -94,6 +117,30 @@ export default function RouteCard({legs,step,canTick,busy,onTick,lookOpen=false}
     <div className="route-links"><a href={liveTimes(leg)} target="_blank" rel="noreferrer"><Radio size={14}/>Live times</a><a href={line.status} target="_blank" rel="noreferrer"><ExternalLink size={14}/>{line.operator} service status</a></div>
     {leg.exit&&<p className="route-exit"><b>Exit:</b> {leg.exit}</p>}
    </div>;
-  })}
+ };
+ return <section className="route-card" aria-label="Route">
+  <p className="eyebrow">ROUTE</p>
+  {ticks>0&&<p className="route-progress"><CheckCircle2 size={15}/><span>{step.status==='done'?<><b>Every leg is done.</b> This stop is complete.</>:<><b>{legsTicked(step)} of {ticks} legs done.</b> Tick each leg as you finish it; the last one ticks off the whole stop.</>}</span></p>}
+  {fares&&<p className="route-fares"><Ticket size={15}/><span><b>Fare: adult {yen(fares.adult)} · child {yen(fares.child)} each,</b> as {fares.rides.length} separate tickets, one per company: {fares.rides.map(r=>`${r.operator} ${yen(r.yen[0])} / ${yen(r.yen[1])}`).join(' + ')}. An IC card covers them all: tap out at one company's gates and in again at the next, and each part is charged.{legs.some(l=>l.options)?' Seat tickets on the options below are extra.':''}</span></p>}
+  {priced&&<p className="route-fares"><Baby size={15}/><span><b>Under 6 (not yet at school): free.</b> Up to two ride free with each paying adult or child, no ticket; walk through the wide gate with a parent. Only a child aged 6 or over pays the child fare.</span></p>}
+  {!paged&&legs.map(renderLeg)}
+  {paged&&<>
+   <LegStrip legs={legs} strip={legStrip(legs,step,index)} go={go}/>
+   <div className="route-pager" id="route-leg-page" role="tabpanel" aria-labelledby={`route-leg-tab-${index}`} tabIndex={-1}
+    onKeyDown={e=>{if(typesText(e.target))return;if(e.key==='ArrowLeft'){move(-1);e.preventDefault();}else if(e.key==='ArrowRight'){move(1);e.preventDefault();}}}
+    onTouchStart={e=>{touch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
+    onTouchEnd={e=>{
+     const start=touch.current;touch.current=null;
+     if(!start||isControl(e.target.tagName)||e.target.closest?.('a,button,label,summary'))return;
+     move(swipeDelta(start,{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY}));
+    }}>
+    <div className="route-leg-page" key={index}>{renderLeg(legs[index],index)}</div>
+   </div>
+   <div className="swipe-controls route-leg-controls">
+    <button type="button" disabled={index<=0} onClick={()=>move(-1)}><ArrowLeft size={16}/> Back</button>
+    <span>Swipe for the {index>=legs.length-1?'legs before':'next leg'}</span>
+    <button type="button" disabled={index>=legs.length-1} onClick={()=>move(1)}>Next leg <ArrowRight size={16}/></button>
+   </div>
+  </>}
  </section>;
 }
