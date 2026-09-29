@@ -10517,3 +10517,25 @@ test('More is leaner: money on one shelf, memories on their own, housekeeping ap
  const parentTitles=moreSections({name:'Lauren',role:'parent'}).map(([t])=>t),boyTitles=moreSections({name:'Nate',role:'child'}).map(([t])=>t);
  assert.ok(parentTitles.includes('Money'));assert.equal(boyTitles.at(-1),'For the boys');
 });
+
+test('one line under each title, and the rest of the why behind How this works',async()=>{
+ const read=async f=>readFile(new URL(`../src/${f}`,import.meta.url),'utf8');
+ const how=await read('HowThisWorks.jsx');
+ assert.match(how,/<details className="how-this-works"><summary>/,'a native disclosure: closed by default, no state to keep, works with no script');
+ const folded=['AdventurePages','Apps','AskTrip','BookingWindows','Hunts','MascotMaker','Noticed','Planning','RecentlyDeleted','Settings','Shortlist','Spending','TodoList','Trackers','TripShop','Vault','WhichCard'];
+ // Weather folds its own explanation under its button (tests/ux.test.mjs), the same idea in its own place.
+ for(const f of folded){
+  const s=await read(`${f}.jsx`);
+  assert.match(s,/import HowThisWorks from '\.\/HowThisWorks\.jsx';/,f);
+  assert.match(s,/<HowThisWorks>/,f);
+  // The line that stays under the title is one sentence, short enough to be one line on a phone.
+  const lead=s.match(/<h1>[^\n]*?<\/h1>\s*<p(?: className="[^"]*")?>((?:(?!<\/p>).)*?)<\/p>\s*<HowThisWorks>/s);
+  assert.ok(lead,`${f}: the lead line sits between the title and the fold`);
+  assert.ok(lead[1].replace(/\{[^}]*\}/g,'').length<=160,`${f}: lead is ${lead[1].length} characters`);
+ }
+ // A status line is not prose: the count on Apps stays on the page, not in the fold.
+ assert.match(await read('Apps.jsx'),/<\/HowThisWorks>\s*<p>\{count\} of \{live\.length\} on this phone<\/p>/);
+ const css=await read('style.css');
+ assert.ok(css.includes('.how-this-works summary{'));
+ assert.match(css,/\.how-this-works summary\{[^}]*min-height:40px/,'the fold is a proper tap target');
+});

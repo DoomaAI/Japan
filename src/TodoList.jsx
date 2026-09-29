@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {ListChecks,ShoppingBag,Plus,Trash2,CalendarDays,ChevronRight,Inbox,PiggyBank,Sparkles} from 'lucide-react';
 import Dictate from './Dictate.jsx';
 import {parseCaptureLocally,CAPTURE_MAX} from './capture-data.js';
@@ -108,7 +109,8 @@ export default function TodoList({state,user,mutate,busy,go,day=null,remove,requ
    day:f.get('day')||null,person:f.get('person'),notes:f.get('notes'),by:user.name}))setEdit(null);
  }
  return <><p className="eyebrow">THE LITTLE THINGS, WRITTEN DOWN</p><h1>To-do list</h1>
- <p>Things we want to do or buy. Put a day on one and it shows up on that day’s screen, where you will actually be standing when it matters. Anyone can add one and anyone can tick it off, with no signal needed.</p>
+ <p>Things we want to do or buy.</p>
+ <HowThisWorks><p>Put a day on one and it shows up on that day’s screen, where you will actually be standing when it matters. Anyone can add one and anyone can tick it off, with no signal needed.</p></HowThisWorks>
  <button className="primary" onClick={()=>setEdit({kind:'do',day:'',person:'Family',title:'',notes:''})}><Plus size={18}/>Add something</button>
  {!edit&&<CaptureBox state={state} day={day} request={request} online={online} first={sayFirst} clearFirst={clearSayFirst} onParsed={p=>setEdit({kind:p.kind,day:p.day||'',person:p.person,title:p.title,notes:p.notes||'',said:p.said,via:p.via})}/>}
  <div className="document-filters">

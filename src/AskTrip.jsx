@@ -1,4 +1,5 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {AlertCircle,CalendarDays,Check,ExternalLink,MessageCircleQuestion,Search,Trash2,WifiOff} from 'lucide-react';
 import {ASK_LIMIT,askDayLabel,askHistory,askItem,askStarters,readThread,sharesThread,stepStarters,threadFor,writeThread} from './ask-thread.js';
 import Dictate from './Dictate.jsx';
@@ -41,7 +42,8 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
   {step?<p>Ask anything about {step.title} — how long it takes, what to eat, what the boys will like. It reads this stop and the rest of the day, and searches for what the plan cannot say.</p>:<>
   <p className="eyebrow">ASK ABOUT OUR TRIP</p>
   <h1>Better today or tomorrow?</h1>
-  <p>Ask anything about the trip in your own words. It reads our plan — every day, what is booked, the forecast we last checked and what is still on the board — and answers out of that, searching only for what the plan cannot say.</p></>}
+  <p>Ask anything about the trip in your own words.</p>
+ <HowThisWorks><p>It reads our plan — every day, what is booked, the forecast we last checked and what is still on the board — and answers out of that, searching only for what the plan cannot say.</p></HowThisWorks></>}
   {!ready&&<p className="callout"><AlertCircle size={18}/>Asking is not switched on for this deployment. Anything already answered is still below.</p>}
   {!online&&<p className="callout"><WifiOff size={18}/>No signal. Old answers are saved on this phone; a new question has to wait.</p>}
   {ready&&<>

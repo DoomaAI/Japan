@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {Plus,Pencil,Trash2,Search,CreditCard,Banknote,Lightbulb} from 'lucide-react';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,PAY_TIPS,payMethods,payKindLabel,advise,withdrawalSizes} from './pay-advice.js';
 import {yen,aud,rateText} from './Currency.jsx';
@@ -57,7 +58,8 @@ export default function WhichCard({state,user,config,request,mutate,busy,notice,
  return <>
   <p className="eyebrow">WHICH CARD, WHICH CASH</p>
   <h1>Which card should we use?</h1>
-  <p>Put in what we carry and what each one charges. This works out which is cheapest for a payment in a shop or for taking cash out, at the family’s shared rate of {rateText(rate)}{rateIsSet(state)?'':' (an estimate until someone sets the rate on the Yen page)'}.</p>
+  <p>Put in what we carry and what each one charges.</p>
+ <HowThisWorks><p>This works out which is cheapest for a payment in a shop or for taking cash out, at the family’s shared rate of {rateText(rate)}{rateIsSet(state)?'':' (an estimate until someone sets the rate on the Yen page)'}.</p></HowThisWorks>
   <section className="pay-advice">
    <div className="row wrap">
     <button className={situation==='shop'?'primary':''} onClick={()=>setSituation('shop')}><CreditCard size={16}/> Paying in a shop</button>

@@ -1,4 +1,5 @@
 import React from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {ExternalLink,CircleCheck,Circle} from 'lucide-react';
 import {APP_GROUPS,suggestedApps} from './apps-data.js';
 import {useStored} from './stored.js';
@@ -26,8 +27,9 @@ export default function Apps({state,today,dayLabel}){
  const card=a=><AppCard key={a.id} app={a} today={today} dayLabel={dayLabel} installed={installed} toggle={toggle}/>;
  return <>
   <p className="eyebrow">ON THE PHONE BEFORE WE NEED IT</p><h1>Apps to download</h1>
-  <p>The local apps that make Japan easier, and what to set up in each while there is still Wi-Fi. Visit Japan Web is a website, not an app: it is on the Arrival paperwork page. With notifications on, parents get a reminder a week before we fly, and the evening before the Shinkansen and each park.</p>
-  <p className="app-count">{count} of {live.length} on this phone</p>
+  <p>The local apps that make Japan easier, and what to set up in each while there is still Wi-Fi.</p>
+ <HowThisWorks><p>Visit Japan Web is a website, not an app: it is on the Arrival paperwork page. With notifications on, parents get a reminder a week before we fly, and the evening before the Shinkansen and each park.</p></HowThisWorks>
+ <p>{count} of {live.length} on this phone</p>
   {APP_GROUPS.map(([id,title])=>{const list=live.filter(a=>a.group===id);return list.length>0&&<section className="app-group" key={id}><h2>{title}</h2>{list.map(card)}</section>;})}
   {done.length>0&&<details className="app-group"><summary>Already behind us ({done.length})</summary>{done.map(card)}</details>}
  </>;

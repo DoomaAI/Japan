@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {ExternalLink,ArrowRight,Check,ThumbsUp,ThumbsDown} from 'lucide-react';
 import {ESSENTIALS,KEEPSAKES,essentialDue,daysUntil,keepsakeMaterial,keepsakeReady,shopLink,partnered,shopEntry,shopLogged,SHOP_NOTE_MAX} from './shop-data.js';
 // The trip shop: the essentials pack to sort before the flight, and keepsakes made from the trip,
@@ -41,7 +42,8 @@ export default function TripShop({state,user,today,go,mutate,busy}){
  const before=KEEPSAKES.filter(k=>k.when==='before'),after=KEEPSAKES.filter(k=>k.when==='after');
  return <>
   <p className="eyebrow">BEFORE WE GO, AND ONCE WE ARE HOME</p><h1>Trip shop</h1>
-  <p>The essentials to sort before the flight, and keepsakes made out of our own trip. The app sells nothing: each link goes straight to the shop or the official page.</p>
+  <p>The essentials to sort before the flight, and keepsakes made out of our own trip.</p>
+ <HowThisWorks><p>The app sells nothing: each link goes straight to the shop or the official page.</p></HowThisWorks>
   {anyPartner&&<p className="callout">Some links here carry a referral tag, and the app may earn a small commission from them. The price is the same for us.</p>}
   <section className="arrival-part"><h2>The essentials pack</h2>
    <p>{started?'For the next trip: what had to be sorted before this one, in the order to do it.':toGo!=null?`${toGo} day${toGo===1?'':'s'} to go. In the order to do them.`:'In the order to do them.'}</p>

@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {Mic,Square,Pencil,Trash2,MapPin,LocateFixed,X,Tag,Check} from 'lucide-react';
 import {useDictation} from './Dictate.jsx';
 import {joinSpoken} from './dictation.js';
@@ -99,7 +100,8 @@ export default function Noticed({state,user,mutate,busy,show}){
  const recordings=(state.voiceNotes||[]).length;
  return <>
   <p className="eyebrow">THE LITTLE THINGS</p><h1>Things we noticed</h1>
-  <p>The moments that are not a stop or a photo. Tap the microphone and say it; tag it to where it was, or to something on our lists. Every voice note recorded in the app is here too.</p>
+  <p>The moments that are not a stop or a photo.</p>
+ <HowThisWorks><p>Tap the microphone and say it; tag it to where it was, or to something on our lists. Every voice note recorded in the app is here too.</p></HowThisWorks>
   <NoticedForm key={fresh} state={state} user={user} mutate={mutate} busy={busy} done={()=>setFresh(f=>f+1)}/>
   {show&&<button type="button" className="noticed-record" onClick={()=>show({type:'voice',day:day||(state.days.some(d=>d.date===japanDate())?japanDate():undefined)})}><Mic size={16}/>Record a voice note instead</button>}
   <div className="form-row">

@@ -32,6 +32,7 @@ The production frontend builds and the automated model/API checks pass. No GitHu
 - **Swipe to vote.** **Picked for…** has **Swipe to vote**: the ideas matched to you (or to whoever is picked) that you have not voted on yet, dealt as a pile. Right is *Yes, I’m in*, left is *Not for me* — both are your own vote on the board, and anyone can do it, the boys included, with no signal. Undo takes the last *not for me* back off the board, and a vote that did not save leaves the card where it was.
 - **One word for each idea.** The thing on a day’s list is a stop everywhere now, where its own sheet said activity and its share button said step. The screen that arranges the bar and the Home widgets is Customise, in the menu and on the button that leads to it. Home stays the dashboard and Today the day’s stops.
 - **A leaner More.** Money has a shelf of its own (Yen, Which card, Family spending, Shopping list, Purchase shortlist, Trip shop), Looking back holds only the memories, and the app’s housekeeping (updates, the bin, search, the original guide) sits apart from the photos. The Trip highlights placeholder is gone; the sumo card already only shows on its day.
+- **One line under each title.** Eighteen pages opened with a paragraph or two of why before anything you could touch. Each keeps one sentence under its title now, with the rest behind a “How this works” fold for the first visit and the odd question.
 
 ## Included
 
