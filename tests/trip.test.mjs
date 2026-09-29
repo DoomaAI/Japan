@@ -3254,6 +3254,88 @@ test('an idea can go on a day as a split, for the ones who would rather not do a
  assert.throws(()=>applyOperation(state,{type:'proposalInstead',id:state.proposals.at(-1).id,stepId:planned.id,who:['Nate']},parent),/already one of a set/);
  assert.throws(()=>applyOperation(state,{type:'proposalInstead',id:idea.id,stepId:meet.id,who:['Nate']},parent),/already on the itinerary/);
 });
+test('what is on while we are there: dated events, near where we stay, with only sources a search returned',async()=>{
+ const {createServer}=await import('node:http');
+ const {ensureFeatures,dayAreas,tripAreas,eventDays}=await import('../src/trip-features.js');
+ let state=ensureFeatures(structuredClone(seed));
+ // The day labels are what the day is; the places an event can be near are the bases.
+ assert.deepEqual(dayAreas({city:'DisneySea / Tokyo'}),['Tokyo']);
+ assert.deepEqual(dayAreas({city:'Nara / Kyoto'}),['Nara','Kyoto']);
+ assert.deepEqual(tripAreas(state).sort(),['Kyoto','Nara','Osaka','Tokyo']);
+ assert.deepEqual(eventDays(state,{start:'2026-09-20',end:'2026-09-25',near:['Kyoto']}),['2026-09-24']);
+ assert.deepEqual(eventDays(state,{start:'2026-10-01',end:'2026-10-10',near:['Tokyo'],from:'2026-10-05'}),['2026-10-05','2026-10-06'],'not a day that has gone by');
+ let seen=null;
+ const found='https://example.jp/sumo-tokyo-tournament';
+ const answer={note:'Checked the league and festival calendars.',events:[
+  {title:'Baseball: Giants v Tigers',japanese:'',kind:'sport',venue:'Tokyo Dome, Tokyo',startDate:'2026-10-03',endDate:'2026-10-03',startTime:'18:00',
+   reachableFrom:['Tokyo'],travelMinutes:25,duration:210,cost:3500,tickets:'on sale',suitableFor:['Damien','Boston'],
+   notes:'A night game.',why:'Boston ticked sport.',source:found},
+  {title:'Kyoto autumn illumination',japanese:'',kind:'seasonal',venue:'Kyoto',startDate:'2026-10-20',endDate:'2026-11-30',startTime:'',
+   reachableFrom:['Kyoto'],travelMinutes:10,duration:60,cost:null,tickets:'unknown',suitableFor:[],notes:'',why:'',source:found},
+  {title:'Osaka festival',japanese:'',kind:'festival',venue:'Osaka',startDate:'2026-09-25',endDate:'2026-10-04',startTime:'nonsense',
+   reachableFrom:['Osaka','Atlantis'],travelMinutes:20,duration:90,cost:0,tickets:'free',suitableFor:['Grandma'],
+   notes:'Stalls and dancing.',why:'Everyone likes food.',source:'https://made-up.example/festival'},
+  {title:'No dates',kind:'music',startDate:'soon',endDate:'',reachableFrom:['Tokyo'],source:found}]};
+ const upstream=createServer((req,res)=>{
+  let body='';req.on('data',c=>body+=c);
+  req.on('end',()=>{
+   seen=JSON.parse(body);
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({id:'m1',type:'message',role:'assistant',model:'claude-opus-5',stop_reason:'tool_use',
+    usage:{input_tokens:9000,output_tokens:1200,server_tool_use:{web_search_requests:4}},
+    content:[{type:'server_tool_use',id:'s1',name:'web_search',input:{query:'Tokyo events October 2026'}},
+     {type:'web_search_tool_result',tool_use_id:'s1',content:[{type:'web_search_result',url:found,title:'Tournament',encrypted_content:'x',page_age:null}]},
+     {type:'tool_use',id:'c1',name:'record_events',input:answer}]}));
+  });
+ });
+ await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
+ const previousKey=process.env.ANTHROPIC_API_KEY,previousUrl=process.env.ANTHROPIC_BASE_URL;
+ process.env.ANTHROPIC_API_KEY='test-key';
+ process.env.ANTHROPIC_BASE_URL=`http://127.0.0.1:${upstream.address().port}`;
+ try{
+  const {findEvents,eventWindow}=await import('../server/events.mjs');
+  // The window is the rest of the trip from today, one base, or one day.
+  assert.deepEqual(eventWindow(state,{},'2026-09-29').from,'2026-09-29');
+  assert.equal(eventWindow(state,{},'2026-09-01').from,'2026-09-21','before we go, the whole trip');
+  assert.deepEqual(eventWindow(state,{area:'Kyoto'},'2026-09-01'),{from:'2026-09-24',to:'2026-09-27',areas:['Kyoto']});
+  assert.throws(()=>eventWindow(state,{area:'Kyoto'},'2026-09-29'),/finished with Kyoto/);
+  assert.throws(()=>eventWindow(state,{area:'Paris'},'2026-09-29'),/places we are staying/);
+  assert.throws(()=>eventWindow(state,{day:'2027-01-01'},'2026-09-29'),/trip day/);
+  const result=await findEvents({kinds:['sport','festival','seasonal'],count:6},state,{today:'2026-09-29'});
+  const ask=seen.messages[0].content;
+  assert.match(ask,/between 2026-09-29 and 2026-10-06/);
+  assert.match(ask,/Tokyo: 2026-09-29, 2026-09-30, 2026-10-01/);
+  assert.match(ask,/Sport, Festivals & matsuri, Seasonal & illuminations/);
+  assert.match(seen.system,/Never invent an event, a date or an address/);
+  assert.deepEqual(seen.tools.find(t=>t.name==='record_events').input_schema.properties.events.items.properties.reachableFrom.items.enum.sort(),['Kyoto','Nara','Osaka','Tokyo']);
+  // Outside the window and undated are dropped; the rest are board-ready on a day we can go.
+  assert.deepEqual(result.events.map(e=>e.draft.title),['Baseball: Giants v Tigers','Osaka festival']);
+  const [game,festival]=result.events;
+  assert.equal(game.draft.category,'event');
+  assert.equal(game.draft.day,'2026-10-03');assert.equal(game.draft.time,'18:00');assert.equal(game.draft.timing,'fixed');
+  assert.equal(game.draft.website,found,'a source the search returned is kept');
+  assert.ok(game.verified);
+  assert.ok(game.draft.tags.includes('book ahead'));
+  assert.equal(game.draft.availability,'2026-10-03 · from 18:00');
+  assert.equal(festival.draft.website,'','a source the search never returned is dropped');
+  assert.equal(festival.verified,false);
+  assert.deepEqual(festival.near,['Osaka']);
+  assert.deepEqual(festival.days,[],'we have left Osaka by the time the window starts');
+  assert.equal(festival.draft.day,null);assert.equal(festival.draft.time,null);
+  assert.deepEqual(festival.draft.suitableFor,[]);
+  assert.equal(festival.draft.availability,'2026-09-25 to 2026-10-04');
+  // It goes on the board as an ordinary idea, on the day it fits.
+  state=applyOperation(state,{type:'proposalAdd',person:'Damien',...game.draft},parent);
+  assert.equal(state.proposals.at(-1).day,'2026-10-03');
+  await assert.rejects(()=>findEvents({kinds:[]},state,{today:'2026-09-29'}),/at least one kind/);
+ }finally{
+  upstream.close();
+  if(previousKey===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=previousKey;
+  if(previousUrl===undefined)delete process.env.ANTHROPIC_BASE_URL;else process.env.ANTHROPIC_BASE_URL=previousUrl;
+ }
+ const handlerSource=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handlerSource,/route==='events'&&post\)\{\s*parent\(user\)/,'finding events is a parent\'s, like suggestions');
+});
 test('suggestions are built from who is going, and land on the board as ordinary ideas',async()=>{
  const {createServer}=await import('node:http');
  const {ensureFeatures,proposalPlacement}=await import('../src/trip-features.js');
