@@ -64,15 +64,24 @@ function TripCalendar({request,notice}){
 // Family at home can follow the trip: a link with no login that shows the days so far, the
 // photos, the stars and the diary, and none of the tickets, places, hotels or money. A parent
 // makes it, copies it to whoever should have it, and can stop it at any time.
+export const followMessage=url=>`We're in Japan! Follow along with our trip: the photos, what we did each day and the diary, updated as we go. No login needed.\n\n${url}\n\nIt's a private link, so please don't pass it on.`;
 function FollowLink({request,notice}){
  const [busy,setBusy]=useState(false),[link,setLink]=useState('');
  const make=async()=>{setBusy(true);try{const r=await request('follow-link',{});setLink(r.url);await navigator.clipboard?.writeText(r.url).catch(()=>{});notice('Follow-along link copied. Send it to family at home.');}catch(e){notice(e.message);}finally{setBusy(false);}};
+ // Sending it is the point, so the phone's own share sheet opens with the message written:
+ // Messages, WhatsApp or email, whichever the person at home actually reads. A phone with no
+ // share sheet gets the message copied instead.
+ const share=async()=>{setBusy(true);try{const url=link||(await request('follow-link',{})).url;setLink(url);const text=followMessage(url);
+  if(navigator.share){try{await navigator.share({title:'Follow our Japan trip',text});}catch(e){if(e?.name!=='AbortError')throw e;}}
+  else{await navigator.clipboard.writeText(text);notice('Message and link copied. Paste it into a text or an email.');}}
+  catch(e){notice(e.message||'The link could not be shared.');}finally{setBusy(false);}};
  const stop=async()=>{if(!confirm('Stop the follow-along link? Anyone who has it will no longer be able to open it.'))return;setBusy(true);try{await request('follow-link',{stop:true});setLink('');notice('The follow-along link has been stopped. Making a new one gives a different link.');}catch(e){notice(e.message);}finally{setBusy(false);}};
  return <section className="settings-section">
   <h2>Follow along from home</h2>
   <p>A link for grandparents and friends: the days so far, the photos, the stops we did with our stars and what we said, and the diary. No tickets, bookings, hotels, places, positions or money, and nothing about the days still to come.</p>
   <div className="row wrap">
-   <button type="button" className="primary" disabled={busy} onClick={make}><Copy size={16}/> Copy the follow-along link</button>
+   <button type="button" className="primary" disabled={busy} onClick={share}><Share2 size={16}/> Send to family at home</button>
+   <button type="button" disabled={busy} onClick={make}><Copy size={16}/> Copy the link</button>
    <button type="button" className="danger" disabled={busy} onClick={stop}>Stop the link</button>
   </div>
   {link&&<textarea readOnly value={link} rows={2}/>}
