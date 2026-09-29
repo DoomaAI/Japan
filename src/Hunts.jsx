@@ -5,7 +5,7 @@ import {AnchorSelect,anchorValue,readAnchor} from './Shortlist.jsx';
 import {askPhoneWhereItIs} from './geo.js';
 import {PIN_PLACES,pinText,starText} from './trip-features.js';
 import {underFinger,follow,settle} from './lift.js';
-import {allHunts,findHunt,huntBoard,huntAverage,huntWhere,huntCities,personalOrder,hasRanked,familyRanking,huntWants} from './hunt-data.js';
+import {allHunts,findHunt,huntBoard,huntAverage,huntWhere,huntCities,personalOrder,hasRanked,familyRanking,huntWants,huntState,huntPickers} from './hunt-data.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {japanDate} from './timing.js';
 // The hunts: pick one, add what you tried, and everybody rates it. The best rises to the top.
@@ -151,17 +151,22 @@ function HuntPage({state,user,hunt,mutate,busy,back,remove}){
 }
 export default function Hunts({state,user,mutate,busy,remove}){
  const [open,setOpen]=useState(null),[adding,setAdding]=useState(false),[title,setTitle]=useState(''),[icon,setIcon]=useState(''),[hint,setHint]=useState('');
- const hunt=open&&findHunt(state,open);
+ const hunt=open&&findHunt(state,open),tripAhead=!!state.days?.length&&japanDate()<state.days[0].date;
  if(hunt)return <HuntPage state={state} user={user} hunt={hunt} mutate={mutate} busy={busy} back={()=>setOpen(null)} remove={remove}/>;
  async function create(e){e.preventDefault();if(await mutate({type:'huntNew',title,icon,hint}))(setAdding(false),setTitle(''),setIcon(''),setHint(''));}
  return <>
   <p className="eyebrow">WHICH ONE WAS BEST?</p>
   <h1>Hunts & lists</h1>
   <p>Every matcha, every gachapon, every bowl of ramen, and any list of our own. Add each one we try, tag where it was, give it stars, and drag your own list into order.</p>
-  <div className="hunt-grid">{allHunts(state).map(h=>{const b=huntBoard(state,h.id);return <button key={h.id} className="hunt-card" onClick={()=>setOpen(h.id)}>
+  {state.members.includes(user?.name)&&<section className="hunt-picks" aria-label="Your picks">
+   <h2>{user.name}’s picks</h2><p>{tripAhead?'Before we fly, pick the hunts you want to do. Everyone can see who picked what.':'The hunts you picked. Change them whenever you like.'}</p>
+   <div className="chips">{allHunts(state).map(h=>{const on=!!huntState(state).picks?.[user.name]?.[h.id];return <button type="button" key={h.id} className={`chip${on?' on':''}`} aria-pressed={on} disabled={busy} onClick={()=>mutate({type:'huntPick',person:user.name,hunt:h.id,picked:!on})}><span aria-hidden="true">{h.icon}</span> {h.title}</button>;})}</div>
+  </section>}
+  <div className="hunt-grid">{allHunts(state).map(h=>{const b=huntBoard(state,h.id),who=huntPickers(state,h.id);return <button key={h.id} className="hunt-card" onClick={()=>setOpen(h.id)}>
    <span className="hunt-icon" aria-hidden="true">{h.icon}</span><strong>{h.title}</strong>
    <small>{b.count||b.wants?[b.count&&`${b.count} tried`,b.wants&&`${b.wants} to find`].filter(Boolean).join(' · '):'None yet'}{h.by?` · ${h.by}’s list`:''}</small>
    {b.best&&<small className="hunt-best"><Crown size={12}/> {b.best.title}</small>}
+   {who.length>0&&<small className="hunt-pickers">Picked by {who.join(', ')}</small>}
   </button>;})}</div>
   {!adding&&<button onClick={()=>setAdding(true)}><Plus size={16}/> Make our own list</button>}
   {adding&&<form className="feature-card" onSubmit={create}>

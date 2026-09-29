@@ -644,6 +644,16 @@ export function extraOperation(state,op,user,fail,now){
    if(!validPin(o.pin??null))fail('That position could not be read.');
    if(o.status!=null&&!['want','tried'].includes(o.status))fail('Choose tried or want to try.');
   };
+  if(op.type==='huntPick'){
+   if(!state.members.includes(op.person))fail('Choose a family member.');
+   if(!parent&&op.person!==user.name)fail('Pick your own hunts.',403);
+   if(!known(op.hunt))fail('Choose a hunt.');
+   if(typeof op.picked!=='boolean')fail('Invalid pick.');
+   const picks={...(hunts.picks||{})},mine={...(picks[op.person]||{})};
+   if(op.picked)mine[op.hunt]=mine[op.hunt]||stamp();else delete mine[op.hunt];
+   hunts.picks={...picks,[op.person]:mine};
+   return {summary:null,important:false,title:findHuntTitle(op.hunt)};
+  }
   if(op.type==='huntNew'){
    if(!string(op.title,60)||!op.title.trim())fail('Name the hunt, such as “Melon pan”.');
    if(!string(op.icon||'',16))fail('Invalid icon.');

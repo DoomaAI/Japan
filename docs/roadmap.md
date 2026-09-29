@@ -8,21 +8,21 @@ The trip has a before, a during and an after, and each should give the family a 
 
 | # | Item | Stage | What it is |
 |---|---|---|---|
-| 0 | Opening countdown | All | Days to go, or which day of the trip it is, on the screen shown while the trip loads |
-| 1 | Morning briefing | During | A Home card: which day of the trip, how many stops, the fixed booking, the weather and the day's phrase |
-| 2 | Tonight wrap-up | During | An evening Home card: rate today's stops, vote for the photo of the day, leave a voice note |
-| 3 | Stamp book | During | Stamps for cities, temples and shrines, trains, foods and rides, earned from what the family has already ticked |
-| 4 | Family leaderboard | During | Who has tried the most foods, taken the most photos, found the most hunts and finished the most missions |
-| 5 | Trip recap story | After | Full-screen swipeable cards: the totals, each day's winning photo, everyone's top moment |
-| 6 | Replay the trip | After | The memory map played day by day, the route drawn as it goes |
-| 7 | Photobook | After | One printable page per day: the winning photo, the stars and the diary |
-| 8 | One year ago today | After | On each day's anniversary, Home shows that day's photo and what we did |
-| 9 | Follow-along link | After | A view-only link for family at home: diary and photos, no tickets, places or money |
-| 10 | Countdown milestones | Before | At 100, 50, 30, 14 and 7 days, a family task unlocks on the countdown |
-| 11 | A little Japan each day | Before | One fact and one phrase a day in the run-up to the trip |
-| 12 | Sealed predictions | Before | Everyone predicts the trip; the answers stay sealed until the recap reveals them |
-| 13 | Ready to go | Before | One progress bar for tickets, packing, profiles, votes and phrases |
-| 14 | Hunt picks | Before | The boys choose the hunts they want to do before they land |
+| 0 | Opening countdown — Done (#191) | All | Days to go, or which day of the trip it is, on the screen shown while the trip loads |
+| 1 | Morning briefing — Done (#194) | During | A Home card: which day of the trip, how many stops, the fixed booking, the weather and the day's phrase |
+| 2 | Tonight wrap-up — Done (#196) | During | An evening Home card: rate today's stops, vote for the photo of the day, leave a voice note |
+| 3 | Stamp book — Done (#198) | During | Stamps for cities, temples and shrines, trains, foods and rides, earned from what the family has already ticked |
+| 4 | Family leaderboard — Done (#199) | During | Who has tried the most foods, taken the most photos, found the most hunts and finished the most missions |
+| 5 | Trip recap story — Done (#200) | After | Full-screen swipeable cards: the totals, each day's winning photo, everyone's top moment |
+| 6 | Replay the trip — Done (#201) | After | The memory map played day by day, the route drawn as it goes |
+| 7 | Photobook — Done (#202) | After | One printable page per day: the winning photo, the stars and the diary |
+| 8 | One year ago today — Done (#203) | After | On each day's anniversary, Home shows that day's photo and what we did |
+| 9 | Follow-along link — Done (#204) | After | A view-only link for family at home: diary and photos, no tickets, places or money |
+| 10 | Countdown milestones — Done (#205) | Before | At 100, 50, 30, 14 and 7 days, a family task unlocks on the countdown |
+| 11 | A little Japan each day — Done (#206) | Before | One fact and one phrase a day in the run-up to the trip |
+| 12 | Sealed predictions — Done (#207) | Before | Everyone predicts the trip; the answers stay sealed until the recap reveals them |
+| 13 | Ready to go — Done (#208) | Before | One progress bar for tickets, packing, profiles, votes and phrases |
+| 14 | Hunt picks — Done | Before | The boys choose the hunts they want to do before they land |
 
 ## Backlog — logged 27 September 2026, to pick up later
 
@@ -33,8 +33,8 @@ The trip has a before, a during and an after, and each should give the family a 
 | 7b. Tax-free flag per shopping item | Optional | A field on shopping and shortlist items, and a filter |
 | 8. Visit Japan Web card | Before a future trip | Nothing; content only |
 | 9. Trip highlights video | After the trip | Decide how the video is put together: on the phone, or a paid service. Then the Claude selection call. Placeholder page already live |
-| 10. Trip recap and photobook | After the trip | Nothing; builds on the diary and ratings |
-| 11. Follow-along link for family at home | Any time | A new view-only invite role, with tickets, locations and money removed from the trip data it receives |
+| 10. Trip recap and photobook | Done (#200, #202) | Our trip story and the Photobook |
+| 11. Follow-along link for family at home | Done (#204) | Built as a keyed read-only link rather than an invite role; see the plan above |
 
 **Built but not yet checked on a real phone or with the live API:** the card fee lookup (needs `ANTHROPIC_API_KEY`), and every screen added in #149–#152, which has only been tried in a desktop browser at phone width.
 
