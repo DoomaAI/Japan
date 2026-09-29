@@ -123,3 +123,19 @@ test('the photobook has a page for every day, led by the photo of the day',async
  assert.equal(p.hero.item.id,'a');assert.equal(p.winner,true);assert.deepEqual(p.more.map(m=>m.item.id),['b']);
  assert.equal(p.best[0].title,meiji.title);assert.equal(p.quote.text,'So many trees');assert.equal(p.note,'Rain in the morning, sun by lunch.');
 });
+test('on this day brings a trip day back a month, and a year, on',async()=>{
+ const {anniversary}=await import('../src/anniversary-data.js');
+ const state=upgraded(seed);
+ assert.equal(anniversary(state,'2026-09-29'),null,'not during the trip');
+ assert.equal(anniversary(state,'2026-10-07'),null,'not the day after');
+ assert.equal(anniversary(state,'2026-10-21').label,'One month ago today');
+ assert.equal(anniversary(state,'2026-10-21').day,'2026-09-21');
+ assert.equal(anniversary(state,'2027-01-23').label,'Four months ago today');
+ assert.equal(anniversary(state,'2027-01-23').day,'2026-09-23');
+ state.journal={'2026-09-23':'Sumo!'};
+ const a=anniversary(state,'2027-09-23');
+ assert.equal(a.label,'One year ago today');assert.equal(a.note,'Sumo!');
+ assert.equal(anniversary(state,'2028-10-06').label,'Two years ago today');
+ assert.equal(anniversary(state,'2027-10-15'),null,'a day that was not a trip day');
+ assert.equal(anniversary(state,'2028-02-22'),null,'seventeen months is not an anniversary');
+});
