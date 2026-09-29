@@ -1462,9 +1462,9 @@ test('food is ticked and rated per person, and four stars makes it a favourite',
  assert.throws(()=>applyOperation(state,{type:'foodRating',itemId:'tonkatsu',person:'Boston',rating:5},nate),e=>e.status===403);
  assert.ok(applyOperation(state,{type:'foodRating',itemId:'tonkatsu',person:'Boston',rating:5},parent));
  assert.throws(()=>applyOperation(state,{type:'foodTried',itemId:'sausage-roll',person:'Nate',done:true},nate),e=>e.status===404);
- for(const bad of [6,-1,2.3,0.25,5.5,'five'])assert.throws(()=>applyOperation(state,{type:'foodRating',itemId:'ramen',person:'Nate',rating:bad},nate),/½ to 5/,String(bad));
- // Half stars are a rating: better than a three, not quite a four.
- assert.equal(applyOperation(state,{type:'foodRating',itemId:'ramen',person:'Nate',rating:3.5},nate).food.ramen.ratings.Nate,3.5);
+ for(const bad of [6,-1,0.05,2.35,5.1,'five'])assert.throws(()=>applyOperation(state,{type:'foodRating',itemId:'ramen',person:'Nate',rating:bad},nate),/0\.1 to 5/,String(bad));
+ // Tenths are a rating: a bit under four is 3.8.
+ for(const good of [0.1,3.5,3.8,5])assert.equal(applyOperation(state,{type:'foodRating',itemId:'ramen',person:'Nate',rating:good},nate).food.ramen.ratings.Nate,good);
  // A tick made with no signal shows on the phone straight away.
  const pending=pendingProgress(state,[{operation:{type:'foodRating',itemId:'ramen',person:'Nate',rating:3}},{operation:{type:'foodTried',itemId:'udon',person:'Nate',done:true,at}}]);
  assert.equal(foodRatings(pending,'ramen').Nate,3);
@@ -4547,7 +4547,7 @@ test('we rate an activity and say what we thought, each of us for ourselves',asy
  assert.deepEqual(stepThoughts(applyOperation(state,{type:'stepThought',id:step.id,person:'Nate',thought:'  '},child),step.id),{});
  // It is our own opinion, not each other's — and only for real activities.
  assert.throws(()=>applyOperation(state,{type:'stepRating',id:step.id,person:'Boston',rating:5},child),e=>e.status===403);
- for(const bad of [{type:'stepRating',id:step.id,person:'Nate',rating:6},{type:'stepRating',id:step.id,person:'Nate',rating:2.3},{type:'stepRating',id:step.id,person:'Nate',rating:5.5},
+ for(const bad of [{type:'stepRating',id:step.id,person:'Nate',rating:6},{type:'stepRating',id:step.id,person:'Nate',rating:2.35},{type:'stepRating',id:step.id,person:'Nate',rating:5.1},
   {type:'stepRating',id:'nope',person:'Nate',rating:3},{type:'stepRating',id:step.id,person:'Grandma',rating:3},
   {type:'stepThought',id:step.id,person:'Nate',thought:'x'.repeat(2001)}])
   assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,46)} should be refused`);
@@ -9148,11 +9148,11 @@ test('the hunts: every matcha and gachapon added, rated by each of us, best firs
  state=applyOperation(state,{type:'huntRate',id:maruni.id,person:'Boston',rating:5},boston);
  assert.throws(()=>applyOperation(state,{type:'huntRate',id:maruni.id,person:'Nate',rating:1},boston),AppError);
  state=applyOperation(state,{type:'huntRate',id:uji.id,person:'Lauren',rating:3},parent);
- for(const bad of [{hunt:'nope'},{title:''},{yen:-1},{day:'2030-01-01'},{rating:6},{rating:3.3}])
+ for(const bad of [{hunt:'nope'},{title:''},{yen:-1},{day:'2030-01-01'},{rating:6},{rating:3.33}])
   assert.throws(()=>applyOperation(state,{type:'huntAdd',hunt:'matcha',title:'x',...bad},parent),AppError,JSON.stringify(bad));
- // Half stars count, and average like any other.
- const halved=applyOperation(state,{type:'huntRate',id:uji.id,person:'Lauren',rating:3.5},parent);
- assert.equal(huntAverage(halved.hunts.entries.find(e=>e.id===uji.id)),4.3);
+ // Tenths count, and average like any other.
+ const tenths=applyOperation(state,{type:'huntRate',id:uji.id,person:'Lauren',rating:3.7},parent);
+ assert.equal(huntAverage(tenths.hunts.entries.find(e=>e.id===uji.id)),4.4);
  // The leaderboard: best average first, and each person's own favourite.
  const board=huntBoard(state,'matcha');
  assert.equal(board.count,2);
