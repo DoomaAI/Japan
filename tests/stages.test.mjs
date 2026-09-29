@@ -232,3 +232,14 @@ test('sealed predictions are written before we fly, hidden from the others, and 
  assert.deepEqual(p.asked.find(q=>q.id==='fuji').answers.map(a=>a.person),['Nate','Boston']);
  assert.ok(!recapStory(state,{today:'2026-09-29'}).some(c=>c.kind==='predictions'),'not before we are home');
 });
+test('ready to go weighs each of the five the same, and an empty list is not ready',async()=>{
+ const {readiness}=await import('../src/prep-data.js');
+ const state=upgraded(seed);
+ let r=readiness(state);
+ assert.equal(r.parts.length,5);assert.equal(r.parts.find(p=>p.id==='packing').share,0,'no packing list is not started');
+ const before=r.percent;
+ state.party={people:Object.fromEntries(state.members.map(n=>[n,{age:30}])),pace:'steady',budget:null,notes:''};
+ r=readiness(state);assert.equal(r.percent,before+20,'four profiles are a fifth of ready, however few they are');
+ state.packing={items:[{id:'a',title:'Hats',packedAt:'x'},{id:'b',title:'Socks',packedAt:null}],dismissed:{}};
+ assert.equal(readiness(state).parts.find(p=>p.id==='packing').share,.5);
+});
