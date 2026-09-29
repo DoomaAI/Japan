@@ -9,7 +9,7 @@ function Stamp({s,dayLabel}){
   {s.on&&<small>{dayLabel(s.on,{day:'numeric',month:'short'})}</small>}
  </li>;
 }
-export default function Stamps({state,user,today,dayLabel}){
+export default function Stamps({state,user,today,dayLabel,go}){
  const [person,setPerson]=useState(user?.name||state.members[0]);
  const family=familyStamps(state,today),mine=personalStamps(state,person);
  const got=family.reduce((n,c)=>n+c.earned,0),of=family.reduce((n,c)=>n+c.stamps.length,0),personal=mine.reduce((n,c)=>n+c.stamps.length,0);
@@ -26,5 +26,6 @@ export default function Stamps({state,user,today,dayLabel}){
     {c.stamps.length>0&&<ul className="stamp-grid small">{c.stamps.map(s=><Stamp key={s.id} s={s} dayLabel={dayLabel}/>)}</ul>}
    </div>)}
   </section>
+  {go&&<button type="button" className="button" onClick={()=>go('leaderboard')}>See the family leaderboard</button>}
  </>;
 }
