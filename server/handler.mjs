@@ -23,6 +23,7 @@ import {coachPhoto,coachReady} from './photo-coach.mjs';
 import {shareCheckin,listCheckins} from './checkins.mjs';
 import {parseKml,matchPlacemarks,myMapKmlUrl,roundedPosition,validPosition,PHOTO_PLACES} from '../src/memory-map.js';
 import {calendarFeed,japanDate} from '../src/timing.js';
+import {RECEIPT_TYPES} from '../src/ledger-data.js';
 import {followView,followPhoto} from '../src/follow-data.js';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
 // A photo's own position, if the phone read one out of it, kept to about ten metres. Anything
@@ -451,7 +452,9 @@ export default async function handler(req,res){
     const voice=pathname.startsWith(`voice/${user.id}/`),photo=pathname.startsWith(`photos/${user.id}/`)||pathname.startsWith(`art/${user.id}/`)||pathname.startsWith(`shortlist/${user.id}/`);
     // A recorded phrase is the family's reference pronunciation, so a parent makes it.
     const said=pathname.startsWith(`phrases/${user.id}/`);
-    if(pathname.includes('..')||!(voice||photo||said||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
+    const receipt=pathname.startsWith(`receipts/${user.id}/`);
+    if(pathname.includes('..')||!(voice||photo||said||receipt||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
+    if(receipt){parent(user);return {allowedContentTypes:RECEIPT_TYPES,maximumSizeInBytes:25*1024*1024,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};}
     if(said){parent(user);return {allowedContentTypes:AUDIO_TYPES,maximumSizeInBytes:VOICE_MAX_BYTES,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};}
     if(photo)return {allowedContentTypes:['image/jpeg','image/png','image/webp'],maximumSizeInBytes:25*1024*1024,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
     if(voice)return {allowedContentTypes:AUDIO_TYPES,maximumSizeInBytes:VOICE_MAX_BYTES,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
@@ -512,6 +515,15 @@ export default async function handler(req,res){
    // on the list and in the offline download on its own.
    current.state.documents.push({id:randomUUID(),title:b.title,...details,...association,...(root?{parentDocumentId:root.id,archivedAt:root.archivedAt??null,archivedBy:root.archivedBy??null}:{}),size:blob.size,pathname:b.pathname,type:blob.contentType,person:b.person||'Family',...(details.category==='memory'&&photoGps(b.gps)?{gps:photoGps(b.gps)}:{}),createdAt:new Date().toISOString()});
    return json(res,visibleEnvelope(await writeTrip(current.state,current.revision),user));
+  }
+  // A receipt photo on a payment: the parents' money, so a parent's eyes only.
+  if(route==='receipt'&&req.method==='GET'){
+   parent(user);
+   const {state}=await readTrip();const e=state.expenses?.find(x=>x.id===url.searchParams.get('id')&&x.receipt?.pathname);
+   if(!e)throw new AppError('Receipt not found.',404);
+   const result=await get(e.receipt.pathname,{access:'private',useCache:false});if(!result||!result.stream)throw new AppError('Receipt unavailable.',404);
+   res.setHeader('Content-Type',e.receipt.type);res.setHeader('Content-Disposition','inline');res.setHeader('Cache-Control','private, max-age=3600');
+   const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
   }
   if(route==='document'&&req.method==='GET'){
    const {state}=await readTrip();const doc=state.documents.find(d=>d.id===url.searchParams.get('id')&&d.pathname);if(!doc)throw new AppError('Ticket not found.',404);

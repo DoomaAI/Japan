@@ -680,7 +680,7 @@ function App(){
   {tab==='hunts'&&<Hunts state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
   {tab==='noticed'&&<Noticed state={visibleState} user={user} mutate={mutate} busy={busy} show={setModal}/>}
   {tab==='paying'&&parent&&<WhichCard state={visibleState} user={user} config={config} request={request} mutate={mutate} busy={busy} notice={notice} remove={removeThen}/>}
-  {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
+  {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen} config={config} online={online} notice={notice}/>}
   {tab==='safety'&&<Safety state={visibleState} user={user} day={day} go={go}/>}
   {tab==='highlights'&&<Highlights state={visibleState} dayLabel={fmtDay}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}
