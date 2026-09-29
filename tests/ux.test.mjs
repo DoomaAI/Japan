@@ -49,3 +49,27 @@ test('no text is set below 12px, outside game boards and the drawn day map',asyn
   }
  }
 });
+test('dark mode: every colour in a stylesheet becomes a variable with a turned-over dark value',async()=>{
+ const {themeCss,darkOf,parseColour}=await import('../scripts/dark-theme.mjs');
+ const out=themeCss(':root{--ink:#16383b}.card{background:#fff;color:#16383b;box-shadow:0 4px 16px #24231b08;white-space:nowrap}.x:hover{border-color:rgba(0,0,0,.25)}/* white paper */');
+ assert.match(out,/^:root\{--c16383b:#16383b;--cffffff:#ffffff;/,'the light values are exactly what was written');
+ assert.match(out,/@media screen and \(prefers-color-scheme:dark\)\{:root:not\(\[data-theme=light\]\)\{[^}]*color-scheme:dark\}\}/);
+ assert.match(out,/@media screen\{:root\[data-theme=dark\]\{/,"printing stays on paper colours");
+ assert.match(out,/--ink:var\(--c16383b\)/,'the app\'s own tokens follow too');
+ assert.match(out,/background:var\(--cffffff\);color:var\(--c16383b\)/);
+ assert.match(out,/white-space:nowrap/,'a property name is not a colour');
+ assert.match(out,/\/\* white paper \*\//,'nor is a comment');
+ const L=c=>{const [r,g,b]=parseColour(c);return (Math.max(r,g,b)+Math.min(r,g,b))/510;};
+ assert.ok(L(darkOf('#fff'))<.15,'white paper turns dark');
+ assert.ok(L(darkOf('#16383b'))>.7,'dark ink turns pale');
+ assert.ok(L(darkOf('#24231b08'))<.1,'a shadow stays a shadow');
+ assert.ok(L(darkOf('#da684f'))>=.55,'the accent keeps its strength');
+ assert.equal(themeCss('.a{display:block}'),'.a{display:block}','a sheet with no colour is left as it was');
+});
+test('dark mode is built into every stylesheet, and the status bar follows the phone',async()=>{
+ const vite=await readFile(new URL('../vite.config.js',import.meta.url),'utf8');
+ const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(vite,/name:'dark-theme',enforce:'pre',transform\(code,id\)\{if\(\/\\\/src\\\/\[\^\/\]\+\\\.css\$\//);
+ assert.match(html,/<meta name="theme-color" media="\(prefers-color-scheme: dark\)" content="#262523"\/>/);
+ assert.doesNotMatch(html,/#102e32/);
+});
