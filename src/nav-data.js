@@ -45,6 +45,7 @@ export const PAGES={
  parks:{label:'Theme park rides',note:'Checklists, height limits and park maps'},
  shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need'},
  shortlist:{label:'Purchase shortlist',note:'Things we have seen in a shop, photographed, priced and still to decide on'},
+ printguide:{label:'Print our guide',note:'The travel guide rebuilt from the plan as it stands, to print or save as a PDF'},
  guide:{label:'Original travel guide',note:'All 72 pages, linked and searchable'},
  bin:{label:'Recently deleted',note:'Anything taken off a list in the last thirty days, ready to put back'},
  updates:{label:'Family updates',note:'What changed and who has seen it'},
@@ -74,7 +75,7 @@ export const PRIMARY={
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','food','allergy','hunts','phrases','meeting','safety','help','apps']],
  ['Money',['money','paying','ledger','shopping','shortlist','shop']],
- ['The plan',['glance','todo','packing','trackers','windows','arrival','vault','planning','predictions','options','parks','tickets','inbox']],
+ ['The plan',['glance','todo','packing','trackers','windows','arrival','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
  ['Looking back',['noticed','photos','memorymap','diary','recap','book']],
  ['Housekeeping',['updates','bin','search','guide']],
  ['Just for you',['personalise','settings','thanks']],

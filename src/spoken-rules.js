@@ -58,6 +58,7 @@ export const PAGE_RULES={
  predictions:'Sealed predictions. Before we go, guess things about the trip, like the best food or if we will see Mount Fuji. Nobody can see your guesses until we get home. Then we open them all together and see who was right.',
  facts:'Fun facts. A new fact every day about somewhere we are going or something we are about to see. Press the speaker to hear it. All the ones you have already had are kept in here too.',
  recap:'Our trip story. Our whole trip in pictures and numbers, one card at a time. Tap the right side or swipe to see the next card. There is one card for each of us, with our favourite thing.',
+ printguide:'Print our guide. This is our big travel book, made again from the plan we have now. Every day gets its own pages, with the times, the places and a little map. Mum and Dad can print it or keep it on the phone.',
  book:'Photobook. A page for every day of our trip, with the best photo, the things we liked most, and what we wrote. Mum and Dad can print it into a real book.',
  safety:'Safety. What to do if something goes wrong. There are phone numbers for help, and your own card to show a grown up if you get lost. It has your name and our phone numbers on it, written in Japanese.',
  paying:'Which card. This is for Mum and Dad. It helps them choose the card that costs the least to use in Japan, and when to use cash.',
