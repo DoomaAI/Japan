@@ -657,6 +657,9 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 @media(min-width:600px){.right-now{grid-template-columns:repeat(6,1fr)}}
 /* The two numbers that dial, at the top of Safety. */
 .call-row{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin:.2rem 0 1rem}.call-chip{display:flex;align-items:center;gap:.6rem;min-height:64px;padding:.6rem .9rem;border-radius:14px;text-decoration:none;color:#fff;background:#b3442a;font-weight:600}.call-chip strong{font-size:1.6rem;line-height:1}.call-chip span{font-size:.85rem;opacity:.95}.call-chip.call-police{background:#16383b}
+
+/* The days-to-go count on the opening screen, drawn large so it is the first thing seen. */
+.opening-countdown{display:flex;flex-direction:column;align-items:center;gap:.2rem;margin:1.2rem auto 1.4rem}.opening-countdown strong{font-size:4.2rem;line-height:1;font-variant-numeric:tabular-nums;color:var(--accent)}.opening-countdown span{font-size:1.1rem;font-weight:600;letter-spacing:.02em}.opening-countdown.after span{color:var(--green)}
 /* Recently deleted: one row per thing, the way back on the right. */
 .bin-list{list-style:none;padding:0;margin:0}.bin-row{display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.8rem 1rem;margin-bottom:.5rem;background:#fff;border:1px solid var(--border);border-radius:12px}.bin-row>div:first-child{display:flex;flex-direction:column;gap:.15rem;min-width:0}.bin-row small{color:var(--muted)}
 /* Before we head out: a tick per thing, fresh each morning, a streak for finishing. */
@@ -669,3 +672,5 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .likes-input .row{gap:.5rem;margin:.5rem 0}.likes-input .row input{flex:1;min-width:0}.likes-input small{display:block;margin:.4rem 0 .3rem;color:var(--muted)}.likes-input .chips{margin:.3rem 0}.likes-input button.chip{min-height:36px}.tag.like{background:#fbeaea;border-color:#ecc3c3}
 .picked-panel>summary{color:#a33d4a}.picked-panel .segmented{margin-bottom:.6rem;overflow-x:auto}.picked-card h4{font-size:1.05rem}.picked-why{list-style:none;padding:0;margin:.4rem 0}.picked-why li{display:flex;align-items:flex-start;gap:.4rem;margin-bottom:.25rem;font-size:.88rem;line-height:1.4}.picked-why svg{flex:none;margin-top:.2rem;color:#a33d4a}.picked-avoid{color:var(--muted)}.picked-avoid svg{color:var(--muted)}
 .event-dates,.event-fit{display:flex;align-items:center;flex-wrap:wrap;gap:.35rem;font-size:.9rem}.event-dates{font-weight:650}.event-fit{color:#2f6b45}.event-fit.none{color:var(--muted)}.event-card .plan-facts a{display:inline-flex;align-items:center;gap:.3rem}
+/* The shopping list in groups: a shop or a day as a heading, today's group marked. */
+.shop-group{margin:0 0 1rem}.shop-group-head{display:flex;align-items:center;gap:.5rem;font-size:1rem;margin:0 0 .5rem;padding-bottom:.3rem;border-bottom:1px solid var(--border)}.shop-group-head small{margin-left:auto;color:var(--muted);font-weight:400}.shop-group.today .shop-group-head{border-bottom-color:var(--green)}

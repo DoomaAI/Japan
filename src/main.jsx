@@ -41,6 +41,8 @@ import {THANK_YOU_FROM,THANK_YOU_TO} from './trip-features.js';
 import {MeetingCard,QuickCapture,GlobalSearch,Diary} from './PracticalPages.jsx';
 import MediaGallery from './MediaGallery.jsx';
 import Highlights from './Highlights.jsx';
+import Briefing from './Briefing.jsx';
+import Tonight from './Tonight.jsx';
 import Safety,{LostCards} from './Safety.jsx';
 import AllergyCard from './AllergyCard.jsx';
 import RecentlyDeleted from './RecentlyDeleted.jsx';
@@ -86,6 +88,7 @@ import {typesText} from './swipe.js';
 import {daySplits,stepsFor} from './split.js';
 import SplitDay,{WhoseDay} from './SplitDay.jsx';
 import './style.css';
+import './stages.css';
 import './guide-theme.css';
 // The map library is only fetched when the map is opened, so every other screen stays as quick.
 const MemoryMap=lazy(()=>import('./MemoryMap.jsx'));
@@ -99,6 +102,11 @@ const maps=place=>isMapLink(place)?place:'https://www.google.com/maps/search/?ap
 // The Days screen's book opens on the cover the offline shell keeps, so it is there with no signal.
 const coverSource=n=>n===1?'/cover.jpg':`/api/guide?page=${n}`;
 const stored=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
+// The opening screen says how long until we fly while the trip is still on its way from the server.
+// The dates come from the copy kept on this phone at the last sync, so a first open has none and
+// shows nothing, and it is the same count the Home countdown gives once the trip is in.
+function OpeningCountdown(){const c=tripCountdown(stored('japan.snapshot',null)?.state?.days);if(!c)return null;
+ return <p className={`opening-countdown ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span>{c.days===1?'day to go':'days to go'}</span></>:c.phase==='during'?<><strong>{c.day}</strong><span>{`of ${c.total} days in Japan`}</span></>:<span>{c.text}</span>}</p>;}
 // Nothing waits forever on a train: a read gets twenty seconds and a save or an answer fifty,
 // which is inside the minute the server allows itself. A request that runs out of time, or one
 // that never connects, comes back as a plain sentence with no status, which is what the callers
@@ -487,7 +495,7 @@ function App(){
   if(navigator.onLine&&!state.thankYou.seen?.[note.day])await mutate({type:'thankYouSeen',day:note.day});
   setModal(null);
  }
- if(loading)return <main className="entry"><div className="brand-mark">日</div><h1>Japan 2026</h1><p>Opening your family trip…</p></main>;
+ if(loading)return <main className="entry"><div className="brand-mark">日</div><h1>Japan 2026</h1><OpeningCountdown/><p>Opening your family trip…</p></main>;
  if(!state)return <main className="entry"><img className="entry-photo" src="/cover.jpg" alt="Pasfield family Japan Travel Guide 2026 cover"/><div className="brand-mark">日</div><p className="eyebrow">THE PASFIELD FAMILY</p><h1>Japan, together.</h1><p>Open your private family link to join the trip. No email or password needed.</p>{error&&<p className="callout">{error}</p>}<p>The private parent link is prepared when the app is deployed. No setup key is required.</p></main>;
  // A screen about one day opens the same way wherever you are: which day it is, and the strip
  // of dates to move along. Written once here rather than on each screen, because the strip has
@@ -500,6 +508,8 @@ function App(){
  // one list on the phone rather than in the shape of this screen.
  const homeWidgets=tab==='today'&&{
   countdown:(c=>c&&<section className={`countdown-card ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span><b>{c.days===1?'day to go':'days to go'}</b><small>{c.days===1?'Tomorrow we fly to Japan!':`Until Day 1 · ${fmtDay(state.days[0].date)}`}</small></span></>:c.phase==='during'?<><strong>{c.day}</strong><span><b>{c.text}</b><small>{c.sub}</small></span></>:<><Check size={28}/><span><b>{c.text}</b><small>All {c.total} days of Japan behind us</small></span></>}</section>)(tripCountdown(state.days,todayJapan)),
+  tonight:<Tonight state={visibleState} user={user} day={day} today={japanDate(now)} clock={japanClock(now)} mutate={mutate} busy={busy} openVoice={()=>setModal({type:'voice',day})} go={go}/>,
+  briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go}/>,
   needs:<MorningChecklist key={day} state={visibleState} day={day} today={japanDate(now)}/>,
   step:<>
    {groups.length>0&&<div className="option-bar">{groups.map(g=><div key={g} className="option-group"><label>Choose a plan<select disabled={!parent||busy} value={state.choices[g]||''} onChange={e=>mutate({type:'choose',group:g,option:e.target.value})}>{[...new Set(state.steps.filter(s=>s.group===g).map(s=>s.option))].map(o=><option key={o}>{o}</option>)}</select></label>{/* The same options, all at once by different people, rather than one of them for everybody. */}{parent&&new Set(state.steps.filter(s=>s.group===g).map(s=>s.option)).size>1&&<button type="button" className="split-toggle" disabled={busy} onClick={()=>mutate({type:'groupMode',group:g,mode:'split'})}>We split up and do both</button>}</div>)}</div>}
