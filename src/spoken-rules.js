@@ -56,6 +56,7 @@ export const PAGE_RULES={
  noticed:'Things we noticed. When you see something funny or strange or lovely, press the big microphone and say it. Then say where it was, or what it was about. It all goes in the diary and on the memory map.',
  diary:'Diary. Everything we have already done, with the photos and the notes from those days. This is the trip so far.',
  places:'Places and our map. Every place we are going, and a button that opens the map and takes you there.',
+ allergy:'Allergy card. What each of us cannot eat, written in Japanese big enough to show the waiter. Hand the phone over and let them read it.',
  meeting:'Meeting card. If you ever get lost, show this to a grown up who works there. It has our hotel and Mum and Dad on it, in Japanese.',
  phrases:'Phrases. Japanese to say out loud. Each one shows you how to say it, and there is a button to hear it. Try one on somebody today.',
  help:'Help and useful apps. Other apps and phone numbers for when something goes wrong. This one is for Mum and Dad.',

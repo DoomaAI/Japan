@@ -1,10 +1,10 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,Clapperboard,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid} from 'lucide-react';
+import {Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,Clapperboard,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid} from 'lucide-react';
 import {PAGES,primaryNav,moreSections,navActive,hiddenNav} from './nav-data.js';
 import {useWobble} from './wobble.js';
 import {homePages} from './home-widgets.js';
 import {swipeVertical} from './swipe.js';
-const ICONS={today:House,days:CalendarDays,glance:CalendarCheck,tickets:Ticket,food:UtensilsCrossed,money:Coins,ledger:Receipt,paying:CreditCard,hunts:Medal,noticed:Eye,challenges:Trophy,games:Dices,photos:Camera,
+const ICONS={today:House,allergy:Wheat,days:CalendarDays,glance:CalendarCheck,tickets:Ticket,food:UtensilsCrossed,money:Coins,ledger:Receipt,paying:CreditCard,hunts:Medal,noticed:Eye,challenges:Trophy,games:Dices,photos:Camera,
  diary:NotebookPen,highlights:Clapperboard,places:MapPin,meeting:Users,safety:ShieldAlert,help:LifeBuoy,options:Inbox,parks:FerrisWheel,weather:CloudSun,todo:ListChecks,packing:Luggage,trackers:Radar,memorymap:MapIcon,
  planning:ClipboardList,inbox:Mail,ask:MessageCircleQuestion,
  shopping:ShoppingBag,shortlist:CameraIcon,spending:PiggyBank,phrases:MessageSquare,facts:Lightbulb,guide:BookOpen,updates:Bell,search:Search,thanks:Heart,mascot:Sparkles,

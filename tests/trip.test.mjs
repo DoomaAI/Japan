@@ -9662,3 +9662,26 @@ test('the practical things go straight to Maps, in Japanese, whether or not the 
  assert.match(main,/available=\{!!config\?\.nearby\}/);
  assert.match(nearby,/if\(!available\)return <div className="nearby">\{maps\}/,'without the key the screen is the Maps row and a plain sentence');
 });
+
+test('the allergy card says what somebody cannot eat in the words on a Japanese allergen chart',async()=>{
+ const {ALLERGENS,allergyCard,allergyPeople}=await import('../src/allergy-data.js');
+ assert.ok(ALLERGENS.length>=28,'the eight declared and the twenty recommended');
+ for(const [id,en,ja] of ALLERGENS)assert.ok(id&&en&&/[぀-ヿ一-鿿・]/.test(ja),`${id} has its Japanese word`);
+ const state=upgraded({...seed,allergies:{Nate:{allergens:['peanut','treenuts'],severe:true,note:'Carries an EpiPen'}}});
+ const card=allergyCard(state,'Nate');
+ assert.deepEqual(allergyPeople(state),['Nate']);
+ assert.equal(card.kana,'ネイト');assert.ok(card.severe);
+ assert.equal(card.ja[0],'ネイトは落花生・ナッツ類のアレルギーがあります。');
+ assert.match(card.ja[1],/重いアレルギー/);assert.match(card.ja[2],/これらは入っていますか/);
+ assert.equal(card.en[0],'Nate is allergic to peanut, all tree nuts.');
+ assert.equal(allergyCard(state,'Boston').ja.length,0,'an empty card says nothing rather than something wrong');
+ const veg=allergyCard(upgraded({...seed,allergies:{Lauren:{allergens:['vegetarian'],severe:false,note:''}}}),'Lauren');
+ assert.equal(veg.ja[0],'ローレンは肉・魚を食べません。');assert.ok(!veg.severe);
+ // A parent writes the card; a child cannot; only allergens with a Japanese word are accepted.
+ const next=applyOperation(seed,{type:'allergySet',person:'Nate',allergens:['egg','egg','milk'],severe:false,note:' cooked egg is fine '},parent);
+ assert.deepEqual(next.allergies.Nate,{allergens:['egg','milk'],severe:false,note:'cooked egg is fine'});
+ assert.throws(()=>applyOperation(seed,{type:'allergySet',person:'Nate',allergens:['egg'],severe:false},child),/parent/);
+ assert.throws(()=>applyOperation(seed,{type:'allergySet',person:'Nate',allergens:['gold'],severe:false},parent),/list/);
+ assert.throws(()=>applyOperation(seed,{type:'allergySet',person:'Nobody',allergens:[],severe:false},parent),/family member/);
+ assert.equal(upgraded(seed).allergies&&typeof upgraded(seed).allergies,'object','an older plan gets an empty set of cards');
+});

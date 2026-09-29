@@ -42,6 +42,7 @@ import {MeetingCard,QuickCapture,GlobalSearch,Diary} from './PracticalPages.jsx'
 import MediaGallery from './MediaGallery.jsx';
 import Highlights from './Highlights.jsx';
 import Safety,{LostCards} from './Safety.jsx';
+import AllergyCard from './AllergyCard.jsx';
 import Ledger from './Ledger.jsx';
 import Running from './Running.jsx';
 import WhichCard from './WhichCard.jsx';
@@ -602,6 +603,7 @@ function App(){
   {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy} go={go} remove={removeThen}/>}
   {tab==='shortlist'&&<Shortlist key={focus||'shortlist'} initialId={focus} state={visibleState} user={user} day={day} config={config} busy={busy} setBusy={setBusy} mutate={mutate} request={request} accept={accept} notice={notice} go={go} selectStep={selectStep}/>}
   {tab==='meeting'&&<><MeetingCard key={day} state={state} user={user} day={day} mutate={mutate} busy={busy}/><LostCards state={visibleState} user={user} day={day}/></>}
+  {tab==='allergy'&&<AllergyCard state={visibleState} user={user} mutate={mutate} busy={busy} speak={speak}/>}
   {tab==='updates'&&<Updates state={state} user={user} mutate={mutate} busy={busy}/>}
   {tab==='photos'&&<><p className="eyebrow">THROUGH THEIR EYES</p><h1>Photos</h1>{!photoPerson&&<div className="form-row"><label>Day<select value={day} onChange={e=>selectPhotoDay(e.target.value)}>{state.days.map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)} · {d.title}</option>)}</select></label></div>}<PhotoDay state={visibleState} user={user} day={day} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay} person={photoPerson} setPerson={choosePhotoPerson}/></>}
   {tab==='mascot'&&<MascotMaker state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice} go={go}/>}
@@ -609,7 +611,7 @@ function App(){
   {tab==='facts'&&<><p className="eyebrow">SOMETHING WORTH KNOWING EVERY DAY</p><h1>Fun facts</h1><p>A fact a day about what is actually coming up, taken out of the guide. Swipe for more whenever you want another.</p><FunFacts state={visibleState} user={user} day={japanDate(now)} mutate={mutate} busy={busy} openPage={openPage}/></>}
   {tab==='phrases'&&<><p className="eyebrow">A LITTLE JAPANESE GOES A LONG WAY</p><h1>Phrases</h1><Phrasebook state={visibleState} user={user} day={japanDate(now)} mutate={mutate} busy={busy} request={request} notice={notice} config={config}/></>}
   {tab==='money'&&<><p className="eyebrow">WHAT DOES THAT COST?</p><h1>Yen converter</h1><Currency state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice}/></>}
-  {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><button className="hunt-link" onClick={()=>go('hunts')}>🍵 🎰 🍜 Hunts & lists: rate and rank every one we try</button><FoodList state={visibleState} user={user} speak={speak} openPage={openPage} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
+  {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><button className="hunt-link" onClick={()=>go('hunts')}>🍵 🎰 🍜 Hunts & lists: rate and rank every one we try</button><button className="hunt-link" onClick={()=>go('allergy')}>🥜 Allergy card: what each of us cannot eat, in Japanese, to show the waiter</button><FoodList state={visibleState} user={user} speak={speak} openPage={openPage} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal}/></>}
   {tab==='thanks'&&user.name===THANK_YOU_FROM&&<ThankYouEditor state={state} mutate={mutate} busy={busy}/>}
   {tab==='settings'&&<Settings user={user} settings={settings} change={changeSetting} request={request} notice={notice} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
