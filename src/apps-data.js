@@ -57,3 +57,19 @@ export function suggestedApps(state,today){
   return {...app,days,next,done:days.length>0&&!next,soon:!!(app.match||app.ends)&&gap!==null&&gap<=2};
  });
 }
+// Reminders: the evening before an app tied to part of the trip is first needed, and a week before
+// we fly for everything needed from the first day. The server cannot see which phone has what, so
+// these go to both parents; the briefing card, which can, hides an app once this phone has it.
+export const APP_REMIND_AT='19:00',APP_REMIND_WEEK=7;
+const shift=(d,n)=>new Date(Date.parse(`${d}T00:00:00Z`)+n*86400000).toISOString().slice(0,10);
+export function appReminders(state){
+ const days=(state?.days||[]).map(d=>d.date);
+ if(!days.length)return [];
+ const tied=SUGGESTED_APPS.filter(a=>a.match).map(app=>({app,first:appDays(state,app)[0]})).filter(x=>x.first>days[0]);
+ const early=SUGGESTED_APPS.filter(a=>!tied.some(x=>x.app.id===a.id));
+ return [{id:'before',day:shift(days[0],-APP_REMIND_WEEK),apps:early},...tied.map(({app,first})=>({id:app.id,day:shift(first,-1),first,apps:[app]}))];
+}
+// The apps tied to part of the trip whose first day is this day or the next, for the briefing.
+export function appsDue(state,day){
+ return appReminders(state).filter(r=>r.first&&(r.first===day||r.day===day)).map(r=>({id:r.apps[0].id,name:r.apps[0].name,today:r.first===day}));
+}

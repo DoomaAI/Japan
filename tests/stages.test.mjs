@@ -407,3 +407,19 @@ test('apps to download: each app finds its days in the plan, and ones behind us 
  for(const a of SUGGESTED_APPS){assert.match(a.url,/^https:\/\/apps\.apple\.com\/au\/app\/[a-z-]+\/id\d+$/,a.id);assert.ok(APP_GROUPS.some(([g])=>g===a.group),a.id);assert.ok(a.why&&a.setup&&a.who,a.id);}
  assert.ok(PAGES.apps?.label&&PAGE_RULES.apps);assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('apps'));
 });
+test('apps to download: reminders a week before we fly, the evening before each park and train, and on the briefing',async()=>{
+ const {appReminders,appsDue}=await import('../src/apps-data.js');
+ const {pushMoments,PUSH_KIND_IDS}=await import('../src/push-data.js');
+ const {dayBriefing}=await import('../src/briefing-data.js');
+ const state=upgraded(seed);
+ assert.deepEqual(appReminders(state).map(r=>[r.id,r.day]),[['before','2026-09-14'],['smartex','2026-09-23'],['usj','2026-09-24'],['disney','2026-09-28']]);
+ assert.ok(appReminders(state)[0].apps.some(a=>a.id==='qantas'),'the flight home is covered by the week-before list');
+ assert.ok(PUSH_KIND_IDS.includes('apps'));
+ const pushes=pushMoments(state).filter(m=>m.kind==='apps');
+ assert.equal(pushes.length,4);assert.equal(new Date(pushes.find(m=>m.key==='apps|disney|2026-09-28').at).toISOString(),'2026-09-28T10:00:00.000Z','7pm in Japan');
+ assert.equal(pushes.find(m=>m.key.startsWith('apps|disney')).title,'Tomorrow: Tokyo Disney Resort App');
+ for(const m of pushes){assert.equal(m.url,'/?tab=apps');assert.ok(m.to.every(n=>['Damien','Lauren'].includes(n)),'parents only');}
+ assert.deepEqual(appsDue(state,'2026-09-28'),[{id:'disney',name:'Tokyo Disney Resort App',today:false}]);
+ assert.deepEqual(dayBriefing(state,'2026-09-25').apps.map(a=>[a.id,a.today]),[['usj',true]]);
+ assert.deepEqual(dayBriefing(state,'2026-09-22').apps,[]);
+});
