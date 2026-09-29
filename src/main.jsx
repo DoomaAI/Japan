@@ -87,6 +87,7 @@ import {typesText} from './swipe.js';
 import {daySplits,stepsFor} from './split.js';
 import SplitDay,{WhoseDay} from './SplitDay.jsx';
 import './style.css';
+import './stages.css';
 import './guide-theme.css';
 // The map library is only fetched when the map is opened, so every other screen stays as quick.
 const MemoryMap=lazy(()=>import('./MemoryMap.jsx'));
