@@ -4,7 +4,7 @@ import {database,hash,token} from '../server/store.mjs';
 const origin=process.env.APP_ORIGIN;
 if(!origin||!origin.startsWith('https://'))throw new Error('Set the production HTTPS APP_ORIGIN first.');
 const db=await database(),raw=token();
-const [owner]=await db`INSERT INTO japan_grants(id,token_hash,name,role) VALUES ('owner',${hash(raw)},'Damien','parent') ON CONFLICT(id) DO NOTHING RETURNING id`;
+const [owner]=await db`INSERT INTO japan_grants(id,token_hash,name,role,expires_at) VALUES ('owner',${hash(raw)},'Damien','parent',now()+interval '6 months') ON CONFLICT(id) DO NOTHING RETURNING id`;
 if(!owner)throw new Error('An owner link already exists. This command does not replace existing access.');
 await mkdir(new URL('../.private/',import.meta.url),{recursive:true,mode:0o700});
 await writeFile(new URL('../.private/owner-link.txt',import.meta.url),`${origin}/#join=${raw}\n`,{mode:0o600});
