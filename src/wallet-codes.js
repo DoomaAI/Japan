@@ -26,7 +26,10 @@ export function codesFor(state,doc){
  if(!doc||live(doc))return [];
  return [doc,...attachmentsOf(state,doc)].flatMap(d=>{
   const list=listOf(d.code),who=d.person||doc.person;
-  return list.map((text,i)=>({id:d.id,text,person:list.length>1?`${who} · ${i+1} of ${list.length}`:who,title:d.id===doc.id?doc.title:d.title}));
+  return list.map((text,i)=>{
+   const key=codeKey(d.id,i),owner=doc.codeOwners?.[key];
+   return {id:d.id,key,text,owner:owner||null,who:owner||who,person:owner||(list.length>1?`${who} · ${i+1} of ${list.length}`:who),title:d.id===doc.id?doc.title:d.title,sent:(doc.codeSends||[]).filter(s=>s.key===key)};
+  });
  });
 }
 // The files still to be looked at: readable, not yet read, on a ticket still in use.
@@ -82,4 +85,24 @@ export function answerCodes(state,id,add,now){
   f.code=add?f.codeFound:null;f.codeAt=now;moved+=add?listOf(f.codeFound).length:0;delete f.codeFound;
  }
  return moved;
+}
+// Each code has a key of its own, the file it was read from and its place in that file, so a
+// name or a send is kept against exactly one code even when a PDF carries four.
+export const codeKey=(fileId,i)=>`${fileId}:${i}`;
+// The code a person's phone opens on: their own, when a parent has said whose each one is.
+export const startAt=(codes,name)=>Math.max(0,codes.findIndex(c=>c.owner===name));
+// Whose a code is, a parent's to say: a member of the family, or nobody in particular.
+export function setOwner(state,doc,key,person){
+ if(person&&!(state.members||[]).includes(person))return {error:'Choose one of the family.'};
+ if(!codesFor(state,{...doc,codeLive:false}).some(c=>c.key===key))return {error:'That code is not on this ticket.'};
+ const owners={...(doc.codeOwners||{})};if(person)owners[key]=person;else delete owners[key];
+ return {value:owners};
+}
+// A code sent out of the app is a ticket handed over: whoever holds it can use it, and the first
+// scan usually wins. So each send is kept on the ticket — which code, who sent it and when — for
+// everyone to see before anybody tries the same code at a gate.
+export const SENDS_MAX=50;
+export function recordSend(state,doc,key,by,at){
+ if(!codesFor(state,{...doc,codeLive:false}).some(c=>c.key===key))return {error:'That code is not on this ticket.'};
+ return {value:[...(doc.codeSends||[]),{key,by,at}].slice(-SENDS_MAX)};
 }

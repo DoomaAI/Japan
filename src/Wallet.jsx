@@ -10,7 +10,7 @@ const fmt=d=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',mont
 const KIND={ticket:'Ticket',reservation:'Reservation',luggage:'Luggage tag',other:'Booking'};
 // The next passes, the first one large: what it is for, when, the reference, and a button that
 // opens it full screen for the gate, with a reminder to turn the brightness up for the scanner.
-export default function NextPasses({state,date,selectStep}){
+export default function NextPasses({state,date,selectStep,user,busy,mutate,notice}){
  const [view,setView]=useState(null),[gate,setGate]=useState(null);
  const passes=nextPasses(state,date);
  if(!passes.length)return null;
@@ -34,7 +34,7 @@ export default function NextPasses({state,date,selectStep}){
        :i===0&&picture&&<><button type="button" className="primary pass-open" onClick={()=>setView(picture)}><Maximize2 size={17}/>Show at the gate</button><small className="pass-hint"><SunMedium size={14}/>Turn the brightness up so the scanner can read it.</small></>}
     </div>
    </article>;})}
-  {gate&&<GateCode state={state} doc={gate} onClose={()=>setGate(null)} onPhoto={file=>{setGate(null);if(file)setView(file);}}/>}
+  {gate&&<GateCode state={state} doc={gate} onClose={()=>setGate(null)} onPhoto={file=>{setGate(null);if(file)setView(file);}} user={user} busy={busy} mutate={mutate} notice={notice}/>}
   {view&&<TicketViewer documents={state.documents} tickets={passes.map(p=>p.doc)} view={view} setView={setView}/>}
  </section>;
 }
