@@ -25,6 +25,7 @@ The production frontend builds and the automated model/API checks pass. No GitHu
 - **Family spending squares up.** A balance card says who owes whom, splitting every shared payment down the middle; a payment can be marked as the payer’s own and left out; one tap records a square-up. IC card balances for all four are typed in from the gate or the machine, with under ¥1,000 flagged to top up. A receipt photo or PDF can be attached to a payment, kept in private storage and shown to parents only.
 - **Ask answers are shared between the parents.** A question one parent asks, and its answer, is kept in the trip as well as on the phone, so the other parent reads it too, with “Asked by” on theirs. The boys’ questions stay on their own phones. Clearing takes them out of the trip; the phone keeps its own copy for when there is no signal.
 - **Back works.** Every move between pages, days and stops is an entry on the browser’s back stack, and a sheet is one more entry over its page: Back, or the swipe from the edge, closes the sheet first and then walks back through the screens. Turning the guide’s pages replaces the entry rather than stacking seventy-two of them.
+- **One word for each idea.** The thing on a day’s list is a stop everywhere now, where its own sheet said activity and its share button said step. The screen that arranges the bar and the Home widgets is Customise, in the menu and on the button that leads to it. Home stays the dashboard and Today the day’s stops.
 
 ## Included
 

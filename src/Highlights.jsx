@@ -11,7 +11,7 @@ export default function Highlights({state,dayLabel}){
   <h1>Trip highlights</h1>
   <div className="callout"><strong>Coming after the trip.</strong> The highlights video is not built yet. This page shows what it will be made from, and it fills up as we go.</div>
   <h2>What the video will be</h2>
-  <p>About three minutes, day by day: each day's photo of the day, the activities we rated highest, short clips from our videos, and a line or two of what each of us said, with our own voice notes over the top.</p>
+  <p>About three minutes, day by day: each day's photo of the day, the stops we rated highest, short clips from our videos, and a line or two of what each of us said, with our own voice notes over the top.</p>
   <p>Claude picks the moments and writes the captions. The phone puts the pictures together into a video you can save and send. Nothing is invented: every picture in it is one of ours.</p>
   <h2>Kept so far</h2>
   <ul>

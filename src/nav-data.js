@@ -16,7 +16,7 @@ export const PAGES={
  photos:{label:'Photos',note:'Everyone\u2019s photos, whose is whose, and the daily vote'},
  memorymap:{label:'Memory map',note:'Photos, voice notes and stars where they happened, and where the family last was'},
  noticed:{label:'Things we noticed',note:'The little moments, said out loud and tagged to where they happened or what they were about'},
- diary:{label:'Diary',note:'Completed activities, discoveries and photos'},
+ diary:{label:'Diary',note:'Completed stops, discoveries and photos'},
  recap:{label:'Our trip story',note:'The trip in swipeable cards: the numbers, the places, our best bits and everyone’s favourite'},
  book:{label:'Photobook',note:'A page for each day, with the photo of the day, the stops we loved and the diary, to print'},
  highlights:{label:'Trip highlights',note:'The highlights video, coming after the trip, and what it will be made from'},
@@ -29,7 +29,7 @@ export const PAGES={
  leaderboard:{label:'Leaderboard',note:'Who has tried the most foods, ridden the most rides and taken the most photos'},
  facts:{label:'Fun facts',note:'A fact a day about what is coming up, and the whole collection'},
  help:{label:'Help & useful apps',note:'Translation, hotel directions, reminders'},
- options:{label:'Options & ideas',note:'Places and activities saved for later'},
+ options:{label:'Options & ideas',note:'Places and stops saved for later'},
  apps:{label:'Apps to download',note:'The local apps worth having for trains, taxis, the parks and alerts, and what to set up in each'},
  vault:{label:'Passports & visas',note:'Passport details, photos of each page, visas and insurance, encrypted, for Mum and Dad only'},
  arrival:{label:'Arrival paperwork',note:'Visit Japan Web for landing in Japan, and the Australia Travel Declaration for home'},
@@ -52,7 +52,7 @@ export const PAGES={
  search:{label:'Search everything',note:'Find a booking, note, shop or guide page'},
  mascot:{label:'Our characters',note:'Design your own Japanese character and use it in the app'},
  thanks:{label:'Daily notes',note:'Write and schedule the daily pop-up notes for Lauren, Nate and Boston'},
- personalise:{label:'My menu',note:'Choose what you see, and the order it comes in'},
+ personalise:{label:'Customise',note:'Your bar, your Home widgets, and what you see'},
  settings:{label:'Settings',note:'The order of the shortcuts along the bottom, and the daily phrase or fun fact'}
 };
 // The ones that earn a place in the bottom bar, by who is holding the phone. Home, Today and the
