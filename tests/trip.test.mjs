@@ -9405,6 +9405,40 @@ test('a stop reached by several legs is ticked leg by leg, and the last leg tick
  const shown=pendingProgress(seed,queue).steps.find(x=>x.id===s.id);
  assert.equal(shown.status,'done');assert.equal(shown.completedAt,at(3));
 });
+test('a route of several legs turns one leg at a time, opening on the leg the family is up to',async()=>{
+ const {ROUTES,legToDo,legStrip}=await import('../src/route-data.js');
+ const legs=ROUTES['2026-09-26-01'];
+ // Nothing ticked opens on the first leg; each tick moves the opening leg on; every leg done
+ // stays on the last, so a finished stop still reads as arrived rather than starting over.
+ assert.equal(legToDo({},3),0);
+ assert.equal(legToDo({legsDone:{0:'t'}},3),1);
+ assert.equal(legToDo({legsDone:{1:'t'}},3),0,'the first leg still to do, not the first after the last tick');
+ assert.equal(legToDo({legsDone:{0:'t',1:'t',2:'t'}},3),2);
+ assert.equal(legToDo({status:'done'},3),2);
+ assert.equal(legToDo({},1),0);
+ // The strip along the top: one segment a leg, named for its line, in the line's colour, and
+ // standing done, now (the first still to do) or to come, with the one on show marked.
+ const strip=legStrip(legs,{legsDone:{0:'t'}},2);
+ assert.deepEqual(strip.map(l=>[l.label,l.status,l.showing]),[['Walk','done',false],['Karasuma Line','now',false],['JR Sagano Line','to come',true]]);
+ assert.deepEqual(strip.map(l=>l.colour),[null,'#1E9B4B','#8B4F9E']);
+ assert.deepEqual(legStrip(legs,{status:'done'},0).map(l=>l.status),['done','done','done']);
+ // And the card is wired up: the strip is a tab list over one leg page, a swipe or the arrows
+ // turn it, a single-leg route is shown whole, and a tracked ride pulls the card to its leg.
+ const card=await readFile(new URL('../src/RouteCard.jsx',import.meta.url),'utf8');
+ assert.match(card,/const paged=legs\.length>1,\[index,setIndex\]=useState\(\(\)=>legToDo\(step,legs\.length\)\)/);
+ assert.match(card,/\{!paged&&legs\.map\(renderLeg\)\}/);
+ assert.match(card,/<LegStrip legs=\{legs\} strip=\{legStrip\(legs,step,index\)\} go=\{go\}\/>/);
+ assert.match(card,/role="tablist"[^>]*aria-label="Legs of this route"/);
+ assert.match(card,/role="tabpanel" aria-labelledby=\{`route-leg-tab-\$\{index\}`\}/);
+ assert.match(card,/move\(swipeDelta\(start,\{x:e\.changedTouches\[0\]\.clientX,y:e\.changedTouches\[0\]\.clientY\}\)\)/);
+ assert.match(card,/if\(!start\|\|isControl\(e\.target\.tagName\)\|\|e\.target\.closest\?\.\('a,button,label,summary'\)\)return;/,'a drag that began on a button or the tick is a press, not a turn');
+ assert.match(card,/if\(done&&leg===index\)move\(1\);/,'ticking the leg on show turns to the next');
+ assert.match(card,/if\(where&&where\.i>=0\)\{const k=legs\.findIndex\(\(l,j\)=>l\.mode==='ride'&&rideAt\[j\]===where\.i\);if\(k>=0\)setIndex\(k\);\}/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/\.route-pager\{touch-action:pan-y/,'a finger dragged up the leg still scrolls the page');
+ assert.match(css,/\.route-leg-pip\.is-done \.route-leg-bar\{background:var\(--green\)\}/);
+ assert.match(css,/\.route-leg-pip\.is-now \.route-leg-bar\{background:var\(--line,#8a5a00\)\}/);
+});
 test('leg ticks are checked like stop ticks',()=>{
  const multi=seed.steps.find(s=>s.id==='2026-09-26-01'),single=seed.steps.find(s=>s.id==='2026-09-29-06');
  for(const leg of [-1,3,1.5,'0'])assert.throws(()=>applyOperation(seed,{type:'legStatus',id:multi.id,leg,done:true},parent),/Invalid progress change/);
