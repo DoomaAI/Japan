@@ -10708,3 +10708,24 @@ test('the pages opened now and then load when opened, and every chunk is still i
  const sw=await readFile(new URL('../public/sw.js',import.meta.url),'utf8');
  assert.match(sw,/\/\* BUILD_ASSETS \*\//);
 });
+
+test('nothing tappable is under 40px, past days still read, and a press shows',async()=>{
+ const css=await readFile(new URL('../src/guide-theme.css',import.meta.url),'utf8');
+ const sweep=css.slice(css.indexOf('/* Accessibility sweep'));
+ assert.ok(sweep.length>200,'the sweep is the last word in the last sheet, so it wins');
+ // The size is raised where the row can grow.
+ for(const sel of ['.status-pill','.step-stepper .icon','.dictate','.hear-it','.rider','.read-aloud','.toast button','summary'])assert.ok(new RegExp(`(^|,|\\n)${sel.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(,|\\{)`).test(sweep.split('{min-height:40px}')[0]+'{'),`${sel} is 40px`);
+ assert.match(sweep,/\.avatar,\.topbar \.avatar\{width:40px;height:40px;min-height:40px\}/);
+ assert.match(sweep,/\.timeline \.timeline-tick input,\.timeline-tick input\{width:40px;height:40px;min-height:40px\}/);
+ // Where it cannot, the hit area is widened around the same drawing.
+ assert.match(sweep,/\.timeline button\[aria-label\^="Move "\]::after,\.to-options::after,\.remove-stop::after,\.drag-handle::after\{content:'';position:absolute;inset:-8px -10px/);
+ assert.match(sweep,/\.timeline-insert::after\{content:'';position:absolute;inset:-12px 0/);
+ assert.match(sweep,/\.callout button::after\{content:'';position:absolute;inset:-10px -4px\}/,'a button inside a sentence keeps its line but gains a finger’s worth of room');
+ assert.match(sweep,/\.nav-grip::after\{content:'';position:absolute;inset:-14px -8px/);
+ // Past days on the strip are dimmed, not faded out.
+ assert.match(sweep,/\.date-strip \.behind:not\(\.selected\)\{opacity:\.72\}/);
+ // A press shows, and does not move for anyone who asked for less motion.
+ assert.match(sweep,/button:not\(:disabled\):active,\.button:active,\.chip:active,summary:active\{filter:brightness\(\.9\)\}/);
+ assert.match(sweep,/@media \(prefers-reduced-motion:reduce\)\{button:active,\.button:active,\.chip:active\{transform:none/);
+ assert.match(sweep,/\.primary:not\(:disabled\):active\{background:var\(--green\)/,'a dark button darkens the other way rather than washing out');
+});
