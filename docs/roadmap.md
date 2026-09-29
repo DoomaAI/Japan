@@ -41,6 +41,18 @@ The original 72-page guide was designed once, from the plan as it stood before w
 Status: Done. Whole trip, from today on, or one day; toggles for original artwork, sketch maps and the front/back pages. Checked in headless Chromium: 20 sheets, 38 A4 pages for the whole trip.
 
 Not yet done, for a later pass: per-day banner crops that avoid the original's baked-in titles; editorial pages (food, matcha, shopping, etiquette) generated from the hunts, food list and shortlist; page numbers in a running footer (browser print support for these is uneven, Safari especially); a server-side PDF so the file can be sent without a browser print dialog.
+## To come back to — logged 30 September 2026
+
+**Passports & visas (#230)** is merged but switched off until the key is set, and has not been tried on a real phone.
+
+- [ ] Run `openssl rand -hex 32`, add the result in Vercel as `VAULT_KEY` (Production), and redeploy.
+- [ ] Keep a copy of `VAULT_KEY` somewhere safe, away from the app (a password manager). Lose it or change it and nothing stored can be opened.
+- [ ] On Damien's phone: add a passport, photograph the photo page, check the number is masked until the eye is pressed, and that it hides again on leaving the app.
+- [ ] On Lauren's phone: open the same passport and its photo.
+- [ ] On Nate's or Boston's link: check Passports & visas is not in More, and that opening `?tab=vault` shows nothing.
+- [ ] Add every passport (all four), and any visa and the travel insurance policy.
+- [ ] Decide per phone whether to keep an offline copy (only on a phone with a passcode only that parent uses), then check it opens in airplane mode.
+- [ ] After the trip: consider whether to keep the documents for the next trip or delete them.
 
 ## Backlog — logged 27 September 2026, to pick up later
 
