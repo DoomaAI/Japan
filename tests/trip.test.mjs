@@ -8210,7 +8210,7 @@ test('a question about the trip is answered out of the plan, and cannot change a
  const screen=await readFile(new URL('../src/AskTrip.jsx',import.meta.url),'utf8');
  // The one line that has to be on the screen rather than only in the prompt: a box that answers
  // questions looks like a box that does things, and nobody should find that out by asking it to.
- assert.match(screen,/It cannot move an activity, change a booking or tell anybody anything/);
+ assert.match(screen,/It cannot move a stop, change a booking or tell anybody anything/);
 });
 
 test('the questions offered first are built out of the day in front of them',async()=>{
@@ -10207,6 +10207,27 @@ test('Back and the swipe from the edge walk back through screens, and close a sh
  for(const fn of ['go','selectStep','selectPhotoDay','choosePhotoPerson'])assert.doesNotMatch(main,new RegExp(`function ${fn}\\([^\\n]*history\\.replaceState`),`${fn} goes through navigate`);
 });
 
+test('one word for each idea on the screen: a stop is a stop, and the screen that arranges the phone is Customise',async()=>{
+ const {PAGES}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const read=async f=>readFile(new URL(`../src/${f}`,import.meta.url),'utf8');
+ const main=await read('main.jsx');
+ // The thing on the day's list was a stop in the timeline, an activity in its own sheet and a
+ // step on its share button. It is a stop everywhere the family reads it.
+ for(const gone of ["'Edit activity'",'Save activity<','Allocate to activities','Add another activity','every activity listed','>Restore step','Share this step','Steps in the same option'])assert.ok(!main.includes(gone),`${gone} still on screen`);
+ assert.match(main,/'Edit stop':'Add a stop'/);
+ for(const [file,gone] of [['EmailInbox.jsx','One activity'],['EmailInbox.jsx','Which activity'],['Planning.jsx','Open the activity'],['Planning.jsx','already an activity'],['AskTrip.jsx','move an activity'],['Games.jsx','a few activities'],['HomeFeatures.jsx','and activities already']])
+  assert.ok(!(await read(file)).includes(gone),`${file}: ${gone}`);
+ assert.equal(PAGES.diary.note,'Completed stops, discoveries and photos');
+ // The screen was My menu in the list and Customise Home on the button that led to it.
+ assert.equal(PAGES.personalise.label,'Customise');
+ assert.match(PAGE_RULES.personalise,/^Customise\./);
+ assert.match(await read('Personalise.jsx'),/<h1>Customise<\/h1>/);
+ assert.ok(!main.includes('from My menu'),'Home points at Customise by its name');
+ // Home is the dashboard and Today is the day's stops, and those two stay as they are.
+ assert.equal(PAGES.today.label,'Home');assert.equal(PAGES.glance.label,'Today');
+});
+
 test('a stop booked through someone else keeps the place’s website apart from the booking',async()=>{
  const {bookedVia,platformFor,guessPlatform}=await import('../src/booked-via.js');
  // A known name brings its own link; a saved link to the booking wins over it.
@@ -10291,4 +10312,31 @@ test('Japan bingo: a mixed card each, lines, sets like every coin, and the old w
  // Ticks and deals made with no signal show straight away.
  const pending=pendingProgress(state,[{operation:{type:'bingoTick',person:'Nate',square:'ramen',done:true,at:'2026-09-25T02:00:00.000Z'}},{operation:{type:'bingoCard',person:'Nate',round:2,card:fresh}}]);
  assert.ok(squareDone(pending,'Nate','ramen'));assert.deepEqual(cardFor(pending,'Nate').filter(id=>id!==FREE),fresh);
+});
+
+test('More is leaner: money on one shelf, memories on their own, housekeeping apart, and no placeholder page',async()=>{
+ const {PAGES,MORE_SECTIONS,moreSections}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const titles=MORE_SECTIONS.map(([t])=>t);
+ assert.deepEqual(titles,['Out and about','Money','The plan','Looking back','Housekeeping','Just for you','For the boys']);
+ const section=t=>MORE_SECTIONS.find(([title])=>title===t)[1];
+ // Every screen about yen, side by side; the boys' own purse stays with their things.
+ assert.deepEqual(section('Money'),['money','paying','ledger','shopping','shortlist','shop']);
+ assert.ok(section('For the boys').includes('spending'));
+ // Looking back is memories only; the app's own housekeeping is not among the photos.
+ assert.deepEqual(section('Looking back'),['noticed','photos','memorymap','diary','recap','book']);
+ assert.deepEqual(section('Housekeeping'),['updates','bin','search','guide']);
+ // Nothing is listed twice, and every page not on the bar is somewhere.
+ const all=MORE_SECTIONS.flatMap(([,ids])=>ids);
+ assert.equal(new Set(all).size,all.length);
+ for(const id of Object.keys(PAGES))if(!['today','days'].includes(id))assert.ok(all.includes(id),`${id} has no shelf`);
+ // The highlights placeholder is gone from the registry, the menu, the spoken guide and the app.
+ assert.equal(PAGES.highlights,undefined);assert.equal(PAGE_RULES.highlights,undefined);
+ assert.ok(!all.includes('highlights'));
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.doesNotMatch(main,/Highlights/);
+ await assert.rejects(()=>readFile(new URL('../src/Highlights.jsx',import.meta.url)),'the page file is deleted, not left behind');
+ // A parent sees Money; a boy does not get the parents' screens but still gets his own shelf last.
+ const parentTitles=moreSections({name:'Lauren',role:'parent'}).map(([t])=>t),boyTitles=moreSections({name:'Nate',role:'child'}).map(([t])=>t);
+ assert.ok(parentTitles.includes('Money'));assert.equal(boyTitles.at(-1),'For the boys');
 });

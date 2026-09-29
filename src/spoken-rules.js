@@ -59,7 +59,6 @@ export const PAGE_RULES={
  facts:'Fun facts. A new fact every day about somewhere we are going or something we are about to see. Press the speaker to hear it. All the ones you have already had are kept in here too.',
  recap:'Our trip story. Our whole trip in pictures and numbers, one card at a time. Tap the right side or swipe to see the next card. There is one card for each of us, with our favourite thing.',
  book:'Photobook. A page for every day of our trip, with the best photo, the things we liked most, and what we wrote. Mum and Dad can print it into a real book.',
- highlights:'Trip highlights. After the trip we will make a short film of our best bits, from our own photos and videos and voice notes. This page counts up everything we have saved for it so far.',
  safety:'Safety. What to do if something goes wrong. There are phone numbers for help, and your own card to show a grown up if you get lost. It has your name and our phone numbers on it, written in Japanese.',
  paying:'Which card. This is for Mum and Dad. It helps them choose the card that costs the least to use in Japan, and when to use cash.',
  hunts:'The hunts. Every time we try a matcha, or get a gachapon, or eat a bowl of ramen, put it in here. Then everybody gives it stars, and the best one goes to the top. You can make your own list too, and drag your list into order with your favourite at the top.',
@@ -90,7 +89,7 @@ export const PAGE_RULES={
  mascot:'Our characters. Make your own Japanese character. Pick what it is, then its colours, its eyes, its mouth and what it holds, and give it a name.',
  thanks:'Daily notes. This is where Dad writes his notes, so he can keep yours a surprise. Yours pops up by itself each day.',
  settings:'Settings. Every morning the phone shows you a new Japanese phrase, and a fun fact about where we are going. If you would rather it did not, tap the big button beside one and it will stop. Tap it again and it comes back. All the phrases and all the facts are still there whenever you want them.',
- personalise:'My menu. This is where you choose the buttons along the bottom of the screen. You can move them up and down so your favourite one is first, take off the ones you never press, and put away any whole page you do not want to see. If it all goes wrong, press start again, and everything comes back.'
+ personalise:'Customise. This is where you choose the buttons along the bottom of the screen. You can move them up and down so your favourite one is first, take off the ones you never press, and put away any whole page you do not want to see. If it all goes wrong, press start again, and everything comes back.'
 };
 export const gameRule=id=>GAME_RULES[id]||'';
 export const pageRule=id=>PAGE_RULES[id]||'';
