@@ -30,6 +30,7 @@ export const GAME_RULES={
  sumo:'Sumo. First there are three things to do before the fight. Stamp your feet on the beat. Throw the salt so it lands on the band. Then crouch, wait, and charge the moment he shouts, but not before. Then the fight. Pushing uses up your legs, so do not just tap and tap. When he leans in, press brace. And when he leaves himself open, look at what he is doing and pick the right move for it.',
  origami:'Origami. Get a square piece of paper. The picture shows you one fold at a time, with a dotted line where the fold goes and an arrow showing which way the paper moves. Do that fold, then press next. Take your time.',
  draw:'Draw it. Pick something to draw. The phone shows you one line at a time, and the line draws itself so you can see which way it goes. Copy that line, then press next. You can draw on real paper and take a photo of it when you are done, or draw on the phone underneath the steps.',
+ bingo:'Japan bingo. Your card has twenty five squares. Some you spot, some you taste, some you buy, some you hear, some you say, and some you collect. Tap a square to see what it is, and tap done when you have done it. Five in a row, across, down or corner to corner, is bingo. The middle one is free.',
  spot:'Spot the difference. There are two pictures of the same photo, and one of them has been changed in a few places. When you see something different, tap it, in either picture. Tapping a thing you already found does not cost you anything, so do not worry.',
  janken:'Janken. This is rock, paper, scissors, and you need somebody else holding their phone. Pick who you are playing, then tap rock, paper or scissors. Nobody sees your hand until you have both picked. Rock beats scissors, scissors beats paper, and paper beats rock.'
 };
@@ -49,13 +50,15 @@ export const PAGE_RULES={
  photos:'Photos. All the photos everyone has taken. You can add yours, and at the end of the day everybody votes for the best one.',
  stamps:'Stamp book. In Japan, stations and temples have a stamp you can press into a book. These are our stamps. Every time we finish a place, a sight, a ride or a train, it gets a red stamp. Your own stamps come when you try five foods, or ten, or twenty five.',
  leaderboard:'Leaderboard. Who has tried the most foods, been on the most rides and taken the most photos. The one at the top of each list gets a crown. If two people have the same number, they share the place.',
+ shop:'Trip shop. These are the things Mum and Dad buy before a trip, like plugs and money. There are also things we can make from our trip. We could have shirts with our own characters on them, and a real photobook.',
+ apps:'Apps to download. The apps Mum and Dad put on their phones for Japan: for trains, for taxis, for reading signs and menus, and for the theme parks. There is even one that warns us about earthquakes.',
+ vault:'Passports and visas. Where Mum and Dad keep the details of everyone’s passport, locked up safe. Only their phones can open it.',
  arrival:'Arrival paperwork. The forms Mum and Dad fill in so we can get into Japan, and back into Australia. Each of us gets a special square code on the phone to show at the airport.',
  windows:'Booking windows. Some things in Japan sell out in minutes, like special cafes and Disney restaurants. This page says exactly when each booking opens, so Mum and Dad are ready at the right minute.',
  predictions:'Sealed predictions. Before we go, guess things about the trip, like the best food or if we will see Mount Fuji. Nobody can see your guesses until we get home. Then we open them all together and see who was right.',
  facts:'Fun facts. A new fact every day about somewhere we are going or something we are about to see. Press the speaker to hear it. All the ones you have already had are kept in here too.',
  recap:'Our trip story. Our whole trip in pictures and numbers, one card at a time. Tap the right side or swipe to see the next card. There is one card for each of us, with our favourite thing.',
  book:'Photobook. A page for every day of our trip, with the best photo, the things we liked most, and what we wrote. Mum and Dad can print it into a real book.',
- highlights:'Trip highlights. After the trip we will make a short film of our best bits, from our own photos and videos and voice notes. This page counts up everything we have saved for it so far.',
  safety:'Safety. What to do if something goes wrong. There are phone numbers for help, and your own card to show a grown up if you get lost. It has your name and our phone numbers on it, written in Japanese.',
  paying:'Which card. This is for Mum and Dad. It helps them choose the card that costs the least to use in Japan, and when to use cash.',
  hunts:'The hunts. Every time we try a matcha, or get a gachapon, or eat a bowl of ramen, put it in here. Then everybody gives it stars, and the best one goes to the top. You can make your own list too, and drag your list into order with your favourite at the top.',
@@ -84,9 +87,9 @@ export const PAGE_RULES={
  updates:'Family updates. Anything that has changed about the plan, and who has seen it.',
  search:'Search everything. Type anything at all and it looks through the whole app for it.',
  mascot:'Our characters. Make your own Japanese character. Pick what it is, then its colours, its eyes, its mouth and what it holds, and give it a name.',
- thanks:'Notes for Lauren. This one is Dad writing notes for Mum, so there is nothing in here for you.',
+ thanks:'Daily notes. This is where Dad writes his notes, so he can keep yours a surprise. Yours pops up by itself each day.',
  settings:'Settings. Every morning the phone shows you a new Japanese phrase, and a fun fact about where we are going. If you would rather it did not, tap the big button beside one and it will stop. Tap it again and it comes back. All the phrases and all the facts are still there whenever you want them.',
- personalise:'My menu. This is where you choose the buttons along the bottom of the screen. You can move them up and down so your favourite one is first, take off the ones you never press, and put away any whole page you do not want to see. If it all goes wrong, press start again, and everything comes back.'
+ personalise:'Customise. This is where you choose the buttons along the bottom of the screen. You can move them up and down so your favourite one is first, take off the ones you never press, and put away any whole page you do not want to see. If it all goes wrong, press start again, and everything comes back.'
 };
 export const gameRule=id=>GAME_RULES[id]||'';
 export const pageRule=id=>PAGE_RULES[id]||'';

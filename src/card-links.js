@@ -13,7 +13,7 @@
 export const CARD_LINKS={
  park:{label:'Rides & park map',note:'On a theme park day'},
  sumo:{label:'Sumo card',note:'On sumo day'},
- eyespy:{label:'Window I spy',note:'On a train'},
+ eyespy:{label:'Japan bingo',note:'On a train'},
  tickets:{label:'Tickets',note:'Bookings and documents for the stop'},
  guide:{label:'Guide page',note:'The stop’s page in the original guide'},
  website:{label:'Website',note:'The place’s own website'},
