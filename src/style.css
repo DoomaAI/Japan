@@ -668,3 +668,5 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .morning-streak{display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .6rem;border-radius:999px;background:#fff3e0;color:#8a4b12;font-size:.8rem;font-weight:600;white-space:nowrap}
 .morning-chips .chip{min-height:40px;font-size:.9rem}.morning-chips .chip.on{background:var(--green);border-color:var(--green);color:#fff}
 .morning-why{margin:.6rem 0 0;color:var(--muted);font-size:.85rem}
+/* The shopping list in groups: a shop or a day as a heading, today's group marked. */
+.shop-group{margin:0 0 1rem}.shop-group-head{display:flex;align-items:center;gap:.5rem;font-size:1rem;margin:0 0 .5rem;padding-bottom:.3rem;border-bottom:1px solid var(--border)}.shop-group-head small{margin-left:auto;color:var(--muted);font-weight:400}.shop-group.today .shop-group-head{border-bottom-color:var(--green)}
