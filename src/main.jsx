@@ -42,6 +42,7 @@ import {MeetingCard,QuickCapture,GlobalSearch,Diary} from './PracticalPages.jsx'
 import MediaGallery from './MediaGallery.jsx';
 import Highlights from './Highlights.jsx';
 import Briefing from './Briefing.jsx';
+import Tonight from './Tonight.jsx';
 import Safety,{LostCards} from './Safety.jsx';
 import AllergyCard from './AllergyCard.jsx';
 import RecentlyDeleted from './RecentlyDeleted.jsx';
@@ -507,6 +508,7 @@ function App(){
  // one list on the phone rather than in the shape of this screen.
  const homeWidgets=tab==='today'&&{
   countdown:(c=>c&&<section className={`countdown-card ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span><b>{c.days===1?'day to go':'days to go'}</b><small>{c.days===1?'Tomorrow we fly to Japan!':`Until Day 1 · ${fmtDay(state.days[0].date)}`}</small></span></>:c.phase==='during'?<><strong>{c.day}</strong><span><b>{c.text}</b><small>{c.sub}</small></span></>:<><Check size={28}/><span><b>{c.text}</b><small>All {c.total} days of Japan behind us</small></span></>}</section>)(tripCountdown(state.days,todayJapan)),
+  tonight:<Tonight state={visibleState} user={user} day={day} today={japanDate(now)} clock={japanClock(now)} mutate={mutate} busy={busy} openVoice={()=>setModal({type:'voice',day})} go={go}/>,
   briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go}/>,
   needs:<MorningChecklist key={day} state={visibleState} day={day} today={japanDate(now)}/>,
   step:<>
