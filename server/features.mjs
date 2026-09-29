@@ -5,6 +5,7 @@ import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
+import {PRIORITIES,validPriorities} from '../src/decide-data.js';
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_FOR,normaliseThankYou,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {IC_MAX,RECEIPT_TYPES} from '../src/ledger-data.js';
 import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
@@ -254,6 +255,20 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:`${who.join(' and ')}: ${p.title} instead of ${step.title}`,important:true,title:p.title};
   }
   fail('Unknown planning action.');
+ }else if(op.type==='partyPriorities'){
+  // How much the weather, the cost, what we like and the votes matter to one person when we
+  // choose between ideas. Everyone sets their own; a parent can set a boy's with him.
+  if(!state.members.includes(op.name))fail('Choose a family member.');
+  if(!parent&&op.name!==user.name)fail('You can set your own.',403);
+  const current=party(state),priorities={...(current.priorities||{})};
+  if(op.weights===null)delete priorities[op.name];
+  else{
+   const weights={...Object.fromEntries(PRIORITIES.map(([id])=>[id,2])),...(current.priorities?.[op.name]?.weights||{}),...(op.weights||{})};
+   if(!validPriorities(op.weights)||!validPriorities(weights))fail('Say how much each one matters, from not fussed to matters most.');
+   priorities[op.name]={weights,by:user.name,at:now};
+  }
+  state.party={...current,priorities};
+  return {summary:null,important:false,title:`What matters to ${op.name}`};
  }else if(op.type==='partyPerson'||op.type==='partyTrip'){
   // Who is going and what they are each after. Everyone keeps their own; a parent keeps the
   // ones the five-year-old will not be filling in himself, and the trip-wide pace and budget.

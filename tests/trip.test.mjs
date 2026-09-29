@@ -180,10 +180,15 @@ test('the bin on a stop asks before anything happens, and only a parent is offer
  assert.match(main,/const removeStop=s=>setModal\(\{type:'remove',step:s\}\)/);
  assert.match(main,/removeStep=\{removeStop\} optionStep=\{optionStop\}/);
  assert.doesNotMatch(main,/optionStep=\{async/,'the timeline uses that handler rather than a copy of it');
- // The card offers the same pair on the stop you are standing in front of, to a parent only.
- assert.match(main,/className="icon to-options" aria-label=\{`Save \$\{current\.title\} to Options`\} onClick=\{\(\)=>optionStop\(current\)\}/);
- assert.match(main,/className="icon remove-stop" aria-label=\{`Remove \$\{current\.title\} from this day`\} onClick=\{\(\)=>removeStop\(current\)\}/);
- assert.match(css,/\.to-options,\.remove-stop\{color:#8b7a76\}/,'and reads the same in both places');
+ // The card keeps its top edge quiet: the same pair, and the lock, sit at the top of the sheet
+ // its ⋯ opens, to a parent only, through the same handlers the timeline uses.
+ assert.doesNotMatch(main,/className="icon to-options"/);
+ assert.doesNotMatch(main,/className="icon remove-stop"/);
+ assert.match(main,/aria-label="Edit, lock, move or remove this stop"/);
+ assert.match(main,/onOption=\{s=>\{setModal\(null\);optionStop\(s\);\}\}/);
+ assert.match(main,/className="row wrap step-quick"/);
+ assert.match(main,/onSave\(\{type:'lock',id:step\.id,locked:!step\.locked\}\)/);
+ assert.match(css,/\.to-options,\.remove-stop\{color:#8b7a76\}/);
  // Both ways in — the bin on the timeline and the button in the edit form — open the same
  // question, and the form no longer asks in the browser's own box.
  assert.match(main,/onRemove=\{s=>setModal\(\{type:'remove',step:s\}\)\}/);
@@ -8872,6 +8877,83 @@ test('memory map: a JPEG gives up its GPS position and nothing else',async()=>{
  assert.equal(await photoPosition({type:'image/png'}),null);
  assert.equal(await photoPosition({type:'image/jpeg',slice:()=>{throw new Error('no');}}),null);
 });
+test('bulk photos: a JPEG and a HEIC say when they were taken, with the offset when the phone kept it',async()=>{
+ const {exifFromJpeg,exifFromHeic,photoDetails,validTakenAt}=await import('../src/exif-gps.js');
+ // IFD0 pointing at an Exif IFD holding DateTimeOriginal and, optionally, OffsetTimeOriginal.
+ const tiff=(stamp,offset)=>{
+  const t=new DataView(new ArrayBuffer(160));let o=0;
+  const u16=v=>{t.setUint16(o,v,true);o+=2;},u32=v=>{t.setUint32(o,v,true);o+=4;};
+  const text=(at,s)=>{for(let i=0;i<s.length;i++)t.setUint8(at+i,s.charCodeAt(i));};
+  u16(0x4949);u16(42);u32(8);
+  u16(1);u16(0x8769);u16(4);u32(1);u32(26);u32(0);            // IFD0 → Exif IFD at 26
+  u16(offset?2:1);
+  u16(0x9003);u16(2);u32(20);u32(80);
+  if(offset){u16(0x9011);u16(2);u32(7);u32(110);}
+  u32(0);
+  text(80,stamp);if(offset)text(110,offset);
+  return new Uint8Array(t.buffer);
+ };
+ const jpeg=body=>{const out=new Uint8Array(12+body.length+2);out.set([0xFF,0xD8,0xFF,0xE1,(body.length+8)>>8,(body.length+8)&255,0x45,0x78,0x69,0x66,0,0]);out.set(body,12);out.set([0xFF,0xD9],12+body.length);return out.buffer;};
+ assert.deepEqual(exifFromJpeg(jpeg(tiff('2026:09:28 14:05:12','+09:00'))),{gps:null,takenAt:'2026-09-28T14:05:12+09:00'});
+ assert.equal(exifFromJpeg(jpeg(tiff('2026:09:28 14:05:12'))).takenAt,'2026-09-28T14:05:12','no offset: the phone clock as it was');
+ assert.equal(exifFromJpeg(jpeg(tiff('0000:00:00 00:00:00'))).takenAt,null,'a camera with no clock set says nothing');
+ // A HEIC is found by the Exif block's own signature somewhere in the file.
+ const heic=new Uint8Array(400);heic.set([0,0,0,24,0x66,0x74,0x79,0x70,0x68,0x65,0x69,0x63]);heic.set([0x45,0x78,0x69,0x66,0,0],100);heic.set(tiff('2026:09:22 09:30:00','+09:00'),106);
+ assert.equal(exifFromHeic(heic.buffer).takenAt,'2026-09-22T09:30:00+09:00');
+ assert.equal(exifFromHeic(new Uint8Array(64).buffer),null);
+ assert.deepEqual(await photoDetails({type:'image/png'}),{gps:null,takenAt:null});
+ assert.deepEqual(await photoDetails({type:'image/heic',slice:()=>{throw new Error('no');}}),{gps:null,takenAt:null});
+ assert.ok(validTakenAt('2026-09-28T14:05:12')&&validTakenAt('2026-09-28T05:05:12-07:00'));
+ for(const bad of ['2026-09-28','2026-13-40T99:99:99','<script>',42,null])assert.equal(validTakenAt(bad),false,String(bad));
+});
+test('bulk photos: each photo goes to the stop it was taken at, by place first and then by the plan’s clock',async()=>{
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {sortPhoto,sortReason,sortedTarget,stepAtTime,japanMoment}=await import('../src/photo-sort.js');
+ const day='2026-09-28';
+ let state=ensureFeatures(structuredClone(seed));
+ const hozenji={lat:34.6683,lng:135.5019},glico={lat:34.6687,lng:135.5013},rikuro={lat:34.6655,lng:135.5010};
+ state.steps=state.steps.map(s=>s.id==='2026-09-28-07'?{...s,pin:hozenji}:s.id==='2026-09-28-06-2'?{...s,pin:glico}:s.id==='2026-09-28-13'?{...s,pin:rikuro}:s);
+ // The clock alone: the stop underway, a few minutes early is its queue, and late at night is nobody's.
+ assert.deepEqual(japanMoment('2026-09-28T05:10:00Z'),{date:day,minute:14*60+10},'a UTC stamp is read in Japan');
+ assert.equal(stepAtTime(state,day,10*60+50).id,'2026-09-28-04');
+ assert.equal(stepAtTime(state,day,9*60+45).id,'2026-09-28-02-2','still on the train, not yet at the matcha');
+ assert.equal(stepAtTime(state,day,12*60+45).id,'2026-09-28-06','between stops, a few minutes early is the queue for the next');
+ assert.equal(stepAtTime(state,day,7*60),null,'before the day starts');
+ assert.equal(stepAtTime(state,day,23*60+30),null,'long after the train home');
+ const byTime=sortPhoto(state,{takenAt:'2026-09-28T10:50:00+09:00'});
+ assert.deepEqual([byTime.how,byTime.stepId,byTime.day,byTime.city],['time','2026-09-28-04',day,'Osaka']);
+ assert.match(sortReason(state,byTime,'2026-09-28T10:50:00+09:00'),/10:50 am · on the plan for Shinsaibashi shopping/);
+ // Place wins over the clock: beside Hozenji at 11 in the morning is Hozenji, not Amerikamura,
+ // and not the Glico sign eighty metres off either, since neither was on at 11.
+ const early=sortPhoto(state,{gps:{lat:34.66835,lng:135.5020},takenAt:'2026-09-28T11:00:00'});
+ assert.deepEqual([early.how,early.stepId],['place','2026-09-28-07']);
+ assert.ok(early.metres<50);
+ // Two stops a hundred metres apart: the clock picks between them.
+ assert.equal(sortPhoto(state,{gps:{lat:34.6685,lng:135.5016},takenAt:'2026-09-28T13:25:00+09:00'}).stepId,'2026-09-28-06-2');
+ assert.equal(sortPhoto(state,{gps:{lat:34.6685,lng:135.5016},takenAt:'2026-09-28T13:50:00+09:00'}).stepId,'2026-09-28-07');
+ // A place and no time: the nearest stop across the whole trip, and its day.
+ const noTime=sortPhoto(state,{gps:{lat:34.6656,lng:135.5011}});
+ assert.deepEqual([noTime.how,noTime.stepId,noTime.day],['place','2026-09-28-13',day]);
+ // Far from the stop the plan had us at: the plan was wrong, so the day album.
+ const away=sortPhoto(state,{gps:{lat:35.0,lng:135.77},takenAt:'2026-09-28T13:47:00+09:00'});
+ assert.deepEqual([away.how,away.stepId,away.day,away.away],['day',null,day,true]);
+ assert.equal(sortedTarget(away),`day:${day}`);
+ // A skipped stop is not where anyone was.
+ const skipped={...state,steps:state.steps.map(s=>s.id==='2026-09-28-04'?{...s,status:'skipped'}:s)};
+ assert.equal(sortPhoto(skipped,{takenAt:'2026-09-28T10:50:00+09:00'}).stepId,'2026-09-28-03');
+ // Outside the trip, or saying nothing: left for the parent.
+ const before=sortPhoto(state,{takenAt:'2026-08-01T10:00:00+10:00'});
+ assert.deepEqual([before.how,sortedTarget(before)],['none','']);
+ assert.match(sortReason(state,before,'2026-08-01T10:00:00+10:00'),/outside the trip/);
+ assert.match(sortReason(state,sortPhoto(state,{}),null),/choose where it goes/);
+});
+test('bulk photos: the time a photo was taken is kept with it, and nothing that is not a time',async()=>{
+ const src=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(src,/details\.category==='memory'&&validTakenAt\(b\.takenAt\)\?\{takenAt:b\.takenAt\}/);
+ const gallery=await readFile(new URL('../src/MediaGallery.jsx',import.meta.url),'utf8');
+ assert.match(gallery,/value="auto">Sort each photo by where and when it was taken/);
+ assert.match(gallery,/filter\(entry=>!entry\.done\)/,'a retry does not send a saved photo again');
+});
 test('memory map: check-ins are rounded, shared only by tapping, and the boys see only Mum and Dad',async()=>{
  const {canSeeCheckin,checkinFresh,ageText}=await import('../src/memory-map.js');
  const {checkPosition,resetDemoCheckins}=await import('../server/checkins.mjs');
@@ -10201,7 +10283,105 @@ test('Back and the swipe from the edge walk back through screens, and close a sh
  assert.equal((main.match(/history\.replaceState\(/g)||[]).length,3,'no screen change slips through as a replace');
  for(const fn of ['go','selectStep','selectPhotoDay','choosePhotoPerson'])assert.doesNotMatch(main,new RegExp(`function ${fn}\\([^\\n]*history\\.replaceState`),`${fn} goes through navigate`);
 });
+test('choosing together: each of us weights weather, cost, likes and votes, and the ideas are ranked for a day',async()=>{
+ const {groupPriorities,personPriorities,decide,ideaSetting,weatherFit,groupCost,betterDay}=await import('../src/decide-data.js');
+ const day=seed.days[1].date,city=seed.days[1].city,other=seed.days.find(d=>d.city===city&&d.date!==day)?.date;
+ let state=applyOperation(seed,{type:'proposalAdd',title:'Shinjuku Gyoen garden walk',category:'place',cost:500,costNote:'each'},parent);
+ state=applyOperation(state,{type:'proposalAdd',title:'teamLab Planets',category:'activity',cost:12000,setting:'indoor'},parent);
+ state=applyOperation(state,{type:'proposalAdd',title:'Somewhere hoped for another day',day:seed.days[3].date},parent);
+ const [garden,teamlab]=state.proposals.slice(-3);
+ // Indoors or out: said on the card wins, otherwise read from its words.
+ assert.deepEqual(ideaSetting(garden),{setting:'outdoor',said:false});
+ assert.deepEqual(ideaSetting(teamlab),{setting:'indoor',said:true});
+ // A price "each" is for everyone it suits; anything else is the group's price.
+ assert.deepEqual(groupCost(state,garden),{yen:2000,each:true,heads:4});
+ assert.equal(groupCost(state,teamlab).yen,12000);
+ // Only ideas for this day or no day are weighed, unless every idea is asked for.
+ assert.equal(decide(state,day).length,2);
+ assert.equal(decide(state,day,{all:true}).length,3);
+ // Everyone counts as "matters" until they say otherwise; a boy sets his own, not his brother's.
+ assert.deepEqual(groupPriorities(state),{weather:2,cost:2,likes:2,votes:2});
+ state=applyOperation(state,{type:'partyPriorities',name:'Nate',weights:{cost:0,weather:3}},child);
+ assert.deepEqual(personPriorities(state,'Nate'),{weather:3,cost:0,likes:2,votes:2});
+ assert.equal(groupPriorities(state).cost,1.5);
+ assert.throws(()=>applyOperation(state,{type:'partyPriorities',name:'Boston',weights:{cost:1}},child),e=>e.status===403);
+ for(const bad of [{name:'Grandma',weights:{cost:1}},{name:'Nate',weights:{cost:7}},{name:'Nate',weights:{mood:1}},{name:'Nate'}])
+  assert.throws(()=>applyOperation(state,{type:'partyPriorities',...bad},parent),`${JSON.stringify(bad)} should be refused`);
+ assert.equal(personPriorities(applyOperation(state,{type:'partyPriorities',name:'Nate',weights:null},parent),'Nate').cost,2);
+ // The weather decides between them once there is a forecast: rain sends us indoors.
+ assert.equal(weatherFit(null,'outdoor').score,null);
+ const wet={code:63,max:22,min:17,rain:90},fine={code:0,max:23,min:15,rain:0};
+ assert.ok(weatherFit(wet,'indoor').score>weatherFit(wet,'outdoor').score);
+ assert.ok(weatherFit(fine,'outdoor').score>weatherFit(fine,'indoor').score);
+ const rainy={...state,weather:{...state.weather,days:{[day]:wet,...(other?{[other]:fine}:{})}}};
+ assert.equal(decide(rainy,day,{weights:{weather:3,cost:0,likes:0,votes:0}})[0].proposal.id,teamlab.id);
+ const sunny={...state,weather:{...state.weather,days:{[day]:fine}}};
+ assert.equal(decide(sunny,day,{weights:{weather:3,cost:1,likes:0,votes:0}})[0].proposal.id,garden.id);
+ if(other)assert.equal(betterDay(rainy,garden,day)?.date,other,'a garden on a wet day points at a fine one in the same city');
+ // Votes count: a must-do lifts an idea when votes are what matter.
+ state=applyOperation(state,{type:'proposalMust',id:garden.id,person:'Nate',must:true},child);
+ const top=decide(state,day,{weights:{weather:0,cost:0,likes:0,votes:3}})[0];
+ assert.equal(top.proposal.id,garden.id);assert.deepEqual(top.musts,['Nate']);
+ // Something with nothing to weigh is left unscored rather than counted as a zero.
+ assert.equal(decide(state,day,{weights:{weather:3,cost:0,likes:0,votes:0}})[0].match,null);
+});
 
+test('suggested ideas come one card at a time: swipe right to put one on the board, left to pass',async()=>{
+ const {flingDirection,cardTilt,stampStrength,FLING}=await import('../src/swipe.js');
+ const deck=await readFile(new URL('../src/SuggestDeck.jsx',import.meta.url),'utf8');
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // Far enough over decides it, whichever the phone's width; short of that it goes back.
+ assert.equal(flingDirection(FLING.least+1,0,200),1);
+ assert.equal(flingDirection(-(FLING.least+1),0,200),-1);
+ assert.equal(flingDirection(100,0,400),0,'a third of the way on a wide card is not yet a decision');
+ assert.equal(flingDirection(121,0,400),1);
+ // A quick flick counts even when short, but only the way the card is already leaning.
+ assert.equal(flingDirection(40,0,400,FLING.speed+.1),1);
+ assert.equal(flingDirection(40,0,400,-(FLING.speed+.1)),0,'pulled back towards the middle is a change of mind');
+ assert.equal(flingDirection(10,0,400,5),0,'a twitch is not a flick');
+ // Dragging mostly downwards is scrolling the page.
+ assert.equal(flingDirection(200,260,400),0);
+ assert.equal(flingDirection(NaN,0,400),0);
+ // The lean and the stamp follow the finger and stop.
+ assert.equal(cardTilt(0,300),0);
+ assert.equal(cardTilt(10000,300),15);assert.equal(cardTilt(-10000,300),-15);
+ assert.equal(stampStrength(0,300),0);assert.equal(stampStrength(10000,300),1);
+ // Every swipe has a button and a key that does the same, and a pass can be taken back.
+ assert.match(deck,/e\.key==='ArrowRight'\)\{e\.preventDefault\(\);decide\(1\)/);
+ assert.match(deck,/e\.key==='ArrowLeft'\)\{e\.preventDefault\(\);decide\(-1\)/);
+ assert.match(deck,/className="deck-pass"[^>]*onClick=\{\(\)=>decide\(-1\)\}/);
+ assert.match(deck,/className="deck-keep"[^>]*onClick=\{\(\)=>decide\(1\)\}/);
+ assert.match(deck,/className="deck-undo"[^>]*onClick=\{undo\}/);
+ assert.match(deck,/Go through the \{passed\.length\} passed again/);
+ // A drag that starts on a button presses the button instead.
+ assert.match(deck,/e\.target\.closest\?\.\(PRESSABLE\)\)return/);
+ // The panel keeps what it did before: right is the board, or the split when some of us sit out.
+ assert.match(party,/onKeep=\{splitting\?splitOff:item=>add\(item,false\)\}/);
+ assert.match(party,/<SuggestDeck key=\{round\}/,'a new ask starts a fresh pile');
+ assert.match(party,/onClick=\{\(\)=>add\(item,true\)\}><Search size=\{16\}\/>Add and look it up/);
+ // Up and down still scroll the page with a finger on the card.
+ assert.match(css,/\.deck-card\.top\{touch-action:pan-y/);
+});
+
+test('picked-for ideas can be swiped through as a vote: right is yes, left is not for me',async()=>{
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ const deck=await readFile(new URL('../src/SuggestDeck.jsx',import.meta.url),'utf8');
+ const planning=await readFile(new URL('../src/Planning.jsx',import.meta.url),'utf8');
+ // The vote is always the voter's own, and taking back a pass takes back the vote.
+ assert.match(party,/const vote=\(r,v\)=>mutate\(\{type:'proposalVote',id:r\.proposal\.id,person:user\.name,vote:v\}\)/);
+ assert.match(party,/onKeep=\{r=>vote\(r,1\)\} onPass=\{r=>vote\(r,-1\)\} onUnpass=\{r=>vote\(r,0\)\}/);
+ // Dealt once from what this person has not voted on, so a vote landing does not reshuffle it.
+ assert.match(party,/filter\(r=>myVote\(r\.proposal\)===undefined\)/);
+ assert.match(party,/setDeck\(\{items:unvoted,round:Date\.now\(\)\}\)/);
+ assert.match(planning,/<PickedFor state=\{state\} user=\{user\} mutate=\{mutate\} busy=\{busy\}/);
+ // A pass or an undo that did not save leaves the card where it was.
+ assert.match(deck,/if\(!onPass\|\|await onPass\(top\)!==false\)setPassed/);
+ assert.match(deck,/onUnpass&&item&&await onUnpass\(item\)===false\)\)return;/);
+ // The boys vote too, including with no signal.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/'proposalAdd','proposalVote'/);
+});
 test('one word for each idea on the screen: a stop is a stop, and the screen that arranges the phone is Customise',async()=>{
  const {PAGES}=await import('../src/nav-data.js');
  const {PAGE_RULES}=await import('../src/spoken-rules.js');
