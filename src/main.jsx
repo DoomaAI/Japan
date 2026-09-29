@@ -41,6 +41,7 @@ import {THANK_YOU_FROM,THANK_YOU_TO} from './trip-features.js';
 import {MeetingCard,QuickCapture,GlobalSearch,Diary} from './PracticalPages.jsx';
 import MediaGallery from './MediaGallery.jsx';
 import Highlights from './Highlights.jsx';
+import Briefing from './Briefing.jsx';
 import Safety,{LostCards} from './Safety.jsx';
 import AllergyCard from './AllergyCard.jsx';
 import RecentlyDeleted from './RecentlyDeleted.jsx';
@@ -500,6 +501,7 @@ function App(){
  // one list on the phone rather than in the shape of this screen.
  const homeWidgets=tab==='today'&&{
   countdown:(c=>c&&<section className={`countdown-card ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span><b>{c.days===1?'day to go':'days to go'}</b><small>{c.days===1?'Tomorrow we fly to Japan!':`Until Day 1 · ${fmtDay(state.days[0].date)}`}</small></span></>:c.phase==='during'?<><strong>{c.day}</strong><span><b>{c.text}</b><small>{c.sub}</small></span></>:<><Check size={28}/><span><b>{c.text}</b><small>All {c.total} days of Japan behind us</small></span></>}</section>)(tripCountdown(state.days,todayJapan)),
+  briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go}/>,
   needs:<MorningChecklist key={day} state={visibleState} day={day} today={japanDate(now)}/>,
   step:<>
    {groups.length>0&&<div className="option-bar">{groups.map(g=><div key={g} className="option-group"><label>Choose a plan<select disabled={!parent||busy} value={state.choices[g]||''} onChange={e=>mutate({type:'choose',group:g,option:e.target.value})}>{[...new Set(state.steps.filter(s=>s.group===g).map(s=>s.option))].map(o=><option key={o}>{o}</option>)}</select></label>{/* The same options, all at once by different people, rather than one of them for everybody. */}{parent&&new Set(state.steps.filter(s=>s.group===g).map(s=>s.option)).size>1&&<button type="button" className="split-toggle" disabled={busy} onClick={()=>mutate({type:'groupMode',group:g,mode:'split'})}>We split up and do both</button>}</div>)}</div>}
