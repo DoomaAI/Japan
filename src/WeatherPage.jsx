@@ -35,14 +35,10 @@ export default function WeatherPage({state,day,now,check,checking,busy,online}){
   [day,today,...state.days.map(d=>d.date)].find(date=>date&&state.days.some(d=>d.date===date)&&has(date))
   ||(state.days.some(d=>d.date===day)?day:state.days[0]?.date));
  const age=forecastAge(state);
- return <><p className="eyebrow">WHAT THE SKY IS DOING</p><h1>Weather</h1>
- <p>Every day of the trip, and every hour of each day. It is kept in the trip, so one person checking it puts it on everybody’s phone and it is still here with no signal.</p>
- <div className="row wrap">
-  <button className="primary" disabled={busy||checking||!online} onClick={check}>
-   <RefreshCw size={16}/>{checking?'Checking…':online?'Check the forecast':'Offline — showing what we have'}</button>
- </div>
- <p><small>{ageLabel(age)}{state.weather?.by?` · by ${state.weather.by}`:''}. A forecast more than a few days out is a guess, and the hours further out are a guess about a guess.</small></p>
- <div className="weather-list">{state.days.map(d=>{
+ // Days already behind us fold away above the list, so the list starts at today. Before the
+ // trip nothing is behind us; once we are home everything is, and the whole trip is shown open.
+ const behind=state.days.filter(d=>d.date<today),ahead=behind.length===state.days.length?state.days:state.days.filter(d=>d.date>=today),earlier=ahead===state.days?[]:behind;
+ const row=d=>{
    const entry=forecastFor(state,d.date),hours=hoursFor(state,d.date),isOpen=open===d.date;
    return <section className={`weather-row ${isOpen?'open':''}`} key={d.date}>
     <button className="weather-row-head" aria-expanded={isOpen} onClick={()=>setOpen(isOpen?null:d.date)}>
@@ -54,10 +50,19 @@ export default function WeatherPage({state,day,now,check,checking,busy,online}){
     </button>
     {isOpen&&<div className="weather-row-body">
      <DayWeather state={state} day={d.date} nowHour={d.date===today?nowHour:null}/>
-     {!hours&&!entry&&<p><small>Nothing saved for this day.</small></p>}
     </div>}
-   </section>;})}
+   </section>;
+ };
+ return <><p className="eyebrow">WHAT THE SKY IS DOING</p><h1>Weather</h1>
+ <div className="row wrap">
+  <button className="primary" disabled={busy||checking||!online} onClick={check}>
+   <RefreshCw size={16}/>{checking?'Checking…':online?'Check the forecast':'Offline — showing what we have'}</button>
  </div>
+ <p className="weather-age"><small>{ageLabel(age)}{state.weather?.by?` · by ${state.weather.by}`:''}.</small></p>
+ <details className="page-help"><summary>How this works</summary>Every day of the trip, and every hour of each day. It is kept in the trip, so one person checking it puts it on everybody’s phone and it is still here with no signal. A forecast more than a few days out is a guess, and the hours further out are a guess about a guess.</details>
+ {!state.days.some(d=>has(d.date))&&<p className="callout">No forecast saved yet. {online?'Tap Check the forecast and the next fortnight fills in for every phone.':'It fills in the next time somebody checks with signal.'}</p>}
+ {earlier.length>0&&<details className="weather-earlier" open={earlier.some(d=>d.date===open)||undefined}><summary>Earlier days ({earlier.length})</summary><div className="weather-list">{earlier.map(row)}</div></details>}
+ <div className="weather-list">{ahead.map(row)}</div>
  <p className="callout"><CloudSun size={18}/>From <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">Open-Meteo</a>, which is free and needs no account. Asked once per place the trip visits, not once per day.</p>
  </>;
 }

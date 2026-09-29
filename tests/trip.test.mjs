@@ -180,10 +180,15 @@ test('the bin on a stop asks before anything happens, and only a parent is offer
  assert.match(main,/const removeStop=s=>setModal\(\{type:'remove',step:s\}\)/);
  assert.match(main,/removeStep=\{removeStop\} optionStep=\{optionStop\}/);
  assert.doesNotMatch(main,/optionStep=\{async/,'the timeline uses that handler rather than a copy of it');
- // The card offers the same pair on the stop you are standing in front of, to a parent only.
- assert.match(main,/className="icon to-options" aria-label=\{`Save \$\{current\.title\} to Options`\} onClick=\{\(\)=>optionStop\(current\)\}/);
- assert.match(main,/className="icon remove-stop" aria-label=\{`Remove \$\{current\.title\} from this day`\} onClick=\{\(\)=>removeStop\(current\)\}/);
- assert.match(css,/\.to-options,\.remove-stop\{color:#8b7a76\}/,'and reads the same in both places');
+ // The card keeps its top edge quiet: the same pair, and the lock, sit at the top of the sheet
+ // its ⋯ opens, to a parent only, through the same handlers the timeline uses.
+ assert.doesNotMatch(main,/className="icon to-options"/);
+ assert.doesNotMatch(main,/className="icon remove-stop"/);
+ assert.match(main,/aria-label="Edit, lock, move or remove this stop"/);
+ assert.match(main,/onOption=\{s=>\{setModal\(null\);optionStop\(s\);\}\}/);
+ assert.match(main,/className="row wrap step-quick"/);
+ assert.match(main,/onSave\(\{type:'lock',id:step\.id,locked:!step\.locked\}\)/);
+ assert.match(css,/\.to-options,\.remove-stop\{color:#8b7a76\}/);
  // Both ways in — the bin on the timeline and the button in the edit form — open the same
  // question, and the form no longer asks in the browser's own box.
  assert.match(main,/onRemove=\{s=>setModal\(\{type:'remove',step:s\}\)\}/);
