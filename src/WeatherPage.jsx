@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {CloudSun,RefreshCw,ChevronRight,ChevronDown} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
@@ -36,7 +37,8 @@ export default function WeatherPage({state,day,now,check,checking,busy,online}){
   ||(state.days.some(d=>d.date===day)?day:state.days[0]?.date));
  const age=forecastAge(state);
  return <><p className="eyebrow">WHAT THE SKY IS DOING</p><h1>Weather</h1>
- <p>Every day of the trip, and every hour of each day. It is kept in the trip, so one person checking it puts it on everybody’s phone and it is still here with no signal.</p>
+ <p>Every day of the trip, and every hour of each day.</p>
+ <HowThisWorks><p>It is kept in the trip, so one person checking it puts it on everybody’s phone and it is still here with no signal.</p></HowThisWorks>
  <div className="row wrap">
   <button className="primary" disabled={busy||checking||!online} onClick={check}>
    <RefreshCw size={16}/>{checking?'Checking…':online?'Check the forecast':'Offline — showing what we have'}</button>

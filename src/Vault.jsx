@@ -1,4 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {Plus,Pencil,Trash2,Eye,EyeOff,Copy,Camera,FileText,ShieldCheck,Lock,AlertCircle,Download,X} from 'lucide-react';
 import {shrinkPhoto} from './MenuReader.jsx';
 import {VAULT_KINDS,VAULT_KIND_LABELS,VAULT_NUMBER_LABELS,VAULT_FIELDS,VAULT_FILE_MAX,VAULT_FILES_PER_DOC,maskNumber,expiryStatus,vaultByPerson,missingPassports,vaultFileUrl} from './vault-data.js';
@@ -139,7 +140,8 @@ export default function Vault({state,user,request,notice,online}){
  const records=data?.records||[],missing=data?missingPassports(records,state.members):[];
  return <>
   <p className="eyebrow">FOR MUM AND DAD ONLY</p><h1>Passports & visas</h1>
-  <p className="vault-intro"><ShieldCheck size={18}/> Details and photos are encrypted before they are stored, and only a parent’s phone can open them. They are never part of the trip the boys’ phones are sent, and never read by Ask.</p>
+  <p className="vault-intro"><ShieldCheck size={18}/> Details and photos are encrypted before they are stored, and only a parent’s phone can open them.</p>
+ <HowThisWorks><p>They are never part of the trip the boys’ phones are sent, and never read by Ask.</p></HowThisWorks>
   {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
   {data&&!data.ready&&<p className="callout"><AlertCircle size={18}/>The vault is not switched on yet. Add a <code>VAULT_KEY</code> to the server’s environment (64 hex characters) and redeploy.</p>}
   {fromPhone&&<p className="callout"><Download size={18}/>No signal: this is the copy saved on this phone. Changes need signal.</p>}

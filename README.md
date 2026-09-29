@@ -27,6 +27,7 @@ The production frontend builds and the automated model/API checks pass. No GitHu
 - **Back works.** Every move between pages, days and stops is an entry on the browser’s back stack, and a sheet is one more entry over its page: Back, or the swipe from the edge, closes the sheet first and then walks back through the screens. Turning the guide’s pages replaces the entry rather than stacking seventy-two of them.
 - **One word for each idea.** The thing on a day’s list is a stop everywhere now, where its own sheet said activity and its share button said step. The screen that arranges the bar and the Home widgets is Customise, in the menu and on the button that leads to it. Home stays the dashboard and Today the day’s stops.
 - **A leaner More.** Money has a shelf of its own (Yen, Which card, Family spending, Shopping list, Purchase shortlist, Trip shop), Looking back holds only the memories, and the app’s housekeeping (updates, the bin, search, the original guide) sits apart from the photos. The Trip highlights placeholder is gone; the sumo card already only shows on its day.
+- **One line under each title.** Eighteen pages opened with a paragraph or two of why before anything you could touch. Each keeps one sentence under its title now, with the rest behind a “How this works” fold for the first visit and the odd question.
 
 ## Included
 

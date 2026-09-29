@@ -1,4 +1,5 @@
 import React from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {RotateCcw,Trash2,History} from 'lucide-react';
 import {BIN_KINDS,binVisible,canRestore,binDaysLeft,BIN_DAYS} from './bin-data.js';
 import {japanClock} from './timing.js';
@@ -9,7 +10,8 @@ export default function RecentlyDeleted({state,user,mutate,busy}){
  return <>
   <p className="eyebrow">NOTHING IS GONE FOR THIRTY DAYS</p>
   <h1>Recently deleted</h1>
-  <p>Anything taken off a list, and any stop removed from the plan, waits here for {BIN_DAYS} days and comes back exactly as it was, ticks and ratings included. Voice notes are the one thing that cannot wait here, because their recording goes with them.</p>
+  <p>Anything taken off a list, and any stop removed from the plan, waits here for {BIN_DAYS} days and comes back exactly as it was, ticks and ratings included.</p>
+ <HowThisWorks><p>Voice notes are the one thing that cannot wait here, because their recording goes with them.</p></HowThisWorks>
   {!entries.length&&<div className="empty"><History size={26}/><h3>Nothing waiting</h3><p>Whatever is removed from now on appears here, newest first.</p></div>}
   <ul className="bin-list">{entries.map(e=>{const k=BIN_KINDS[e.op],mine=canRestore(e,user),days=binDaysLeft(e);
    return <li key={e.id} className="bin-row">

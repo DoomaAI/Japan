@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {AlarmClock,Check,ExternalLink,Plus,Trash2,CalendarDays,ChevronRight} from 'lucide-react';
 import {windows,suggestedWindows,windowState,upcomingWindows,inZone,untilWords,HOME_ZONE,HOME_LABEL} from './booking-window-data.js';
 const JAPAN='Asia/Tokyo';
@@ -30,7 +31,8 @@ export default function BookingWindows({state,user,now,mutate,busy,go}){
  const add=w=>mutate({type:'bookingWindowAdd',title:w.title,opensAt:w.opensAt,url:w.url,notes:w.notes,stepId:w.stepId,day:w.day,key:w.key,ruleId:w.ruleId});
  return <>
   <p className="eyebrow">DON’T MISS THE MINUTE IT OPENS</p><h1>Booking windows</h1>
-  <p>When the bookings that sell out in minutes open, in Japan time and {HOME_LABEL} time. Every window here goes into the trip calendar with an alert the day before, 15 minutes before and on the minute.</p>
+  <p>When the bookings that sell out in minutes open, in Japan time and {HOME_LABEL} time.</p>
+ <HowThisWorks><p>Every window here goes into the trip calendar with an alert the day before, 15 minutes before and on the minute.</p></HowThisWorks>
   {parent&&<button type="button" onClick={()=>go('settings')}><CalendarDays size={16}/> Subscribe to the trip calendar for the alerts</button>}
   <section className="bw-list">{list.length?list.map(w=><article key={w.id} className={`bw-item ${windowState(w,now).kind}`}>
    <div className="bw-top"><strong>{w.title}</strong><Status w={w} now={now}/></div>

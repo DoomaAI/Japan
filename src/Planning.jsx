@@ -1,4 +1,5 @@
 import React,{useRef,useState} from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {ThumbsUp,ThumbsDown,Star,MapPin,ExternalLink,CalendarDays,LockKeyhole,LockKeyholeOpen,Clock,Coins,Plus,Inbox,Trash2,ChevronRight,Users,Ticket,Search,AlertCircle} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import {TravelParty,PickedFor,Suggestions} from './PlanningParty.jsx';
@@ -79,7 +80,8 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
   if(await mutate({type:'patch',id:step.id,patch:{day:f.get('day'),time:f.get('time')||null}}))setMoving(null);
  }
  return <><p className="eyebrow">BEFORE IT IS A PLAN</p><h1>Planning board</h1>
- <p>Anywhere any of us wants to go, eat or see. Put it up, and the rest of the family can back it, pass on it or star it as a must-do. A parent puts the ones we agree on onto a day — locked to a booked time, or left flexible.</p>
+ <p>Anywhere any of us wants to go, eat or see.</p>
+ <HowThisWorks><p>Put it up, and the rest of the family can back it, pass on it or star it as a must-do. A parent puts the ones we agree on onto a day — locked to a booked time, or left flexible.</p></HowThisWorks>
  <button className="primary" onClick={()=>open({...blank,day:date||'',suitableFor:[]})}><Plus size={18}/>Add an idea</button>
  <TravelParty state={state} user={user} mutate={mutate} busy={busy}/>
  <PickedFor state={state} user={user} onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('open');}}/>

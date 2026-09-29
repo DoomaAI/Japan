@@ -1,4 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {Plus,Pencil,Trash2,ChevronLeft,Crown,MapPin,LocateFixed,X,GripVertical,ChevronUp,ChevronDown,Check,Search} from 'lucide-react';
 import {Stars} from './StepReview.jsx';
 import {AnchorSelect,anchorValue,readAnchor} from './Shortlist.jsx';
@@ -157,7 +158,8 @@ export default function Hunts({state,user,mutate,busy,remove}){
  return <>
   <p className="eyebrow">WHICH ONE WAS BEST?</p>
   <h1>Hunts & lists</h1>
-  <p>Every matcha, every gachapon, every bowl of ramen, and any list of our own. Add each one we try, tag where it was, give it stars, and drag your own list into order.</p>
+  <p>Every matcha, every gachapon, every bowl of ramen, and any list of our own.</p>
+ <HowThisWorks><p>Add each one we try, tag where it was, give it stars, and drag your own list into order.</p></HowThisWorks>
   {state.members.includes(user?.name)&&<section className="hunt-picks" aria-label="Your picks">
    <h2>{user.name}’s picks</h2><p>{tripAhead?'Before we fly, pick the hunts you want to do. Everyone can see who picked what.':'The hunts you picked. Change them whenever you like.'}</p>
    <div className="chips">{allHunts(state).map(h=>{const on=!!huntState(state).picks?.[user.name]?.[h.id];return <button type="button" key={h.id} className={`chip${on?' on':''}`} aria-pressed={on} disabled={busy} onClick={()=>mutate({type:'huntPick',person:user.name,hunt:h.id,picked:!on})}><span aria-hidden="true">{h.icon}</span> {h.title}</button>;})}</div>
