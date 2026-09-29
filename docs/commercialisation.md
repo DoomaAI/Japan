@@ -115,13 +115,154 @@ Poll settings:
 ## Open questions
 
 - Scope: Japan only at first, or any destination?
-- Revenue: subscription, affiliate commission on bookings, or both? Affiliate terms decide which fare feed to use.
+- Revenue: answered in part under [Monetisation](#monetisation) below — a paid trip pass first, affiliate links second, no advertising. Affiliate terms still decide which fare feed to use.
 - Licensing: can each feed be stored, re-displayed and used to trigger alerts commercially? Run the external-source licence check on each before committing.
 - Australian consumer law and privacy: price alerts must not mislead (ACL s 18, s 29 on price representations); alert and party data falls under the Privacy Act 1988 and the APPs.
 - Polling cost: how often each watch is checked, and the cost per watch per month.
 - Pricing for groups: charge the organiser, each member, or a fee per trip?
 - Group size: design for a family of four to a group of about 20, or also for larger events such as weddings or company trips?
 
+## Monetisation
+
+Added 29 September 2026. How a commercial version would make money, what one trip costs to run, and white-label options. Figures are planning estimates, not quotes; check them before any pricing decision. Currency is converted at A$1 = US$0.66.
+
+### What one trip costs to run
+
+A trip here means one family of four using the app from about three months before departure to a month after they get home.
+
+**AI calls** are most of the cost. They are priced at September 2026 API rates:
+- Opus 5: US$5 input / US$25 output per million tokens. This is the model the server uses today.
+- Opus 5.5: US$4 / US$20.
+- Sonnet 5.5: US$2 / US$10.
+- Web search: US$10 per 1,000 searches.
+
+Per-call figures are estimated from each call's `max_tokens` and search limits in `server/*.mjs`. The app does not yet keep a record of its usage.
+
+| Feature | US$ per call (Opus 5) | Calls per trip (typical) | US$ per trip (Opus 5) | US$ per trip (Sonnet 5.5) |
+|---|---|---|---|---|
+| Ask, with web search | 0.29 | 40 | 11.70 | 5.40 |
+| Nearby, with web search | 0.26 | 30 | 7.65 | 3.60 |
+| Research a place, with web search | 0.38 | 25 | 9.38 | 4.50 |
+| Suggestions | 0.28 | 10 | 2.75 | 1.10 |
+| Read a booking PDF or forwarded email | 0.16 | 40 | 6.40 | 2.56 |
+| Menu photo | 0.10 | 20 | 1.90 | 0.76 |
+| Translate a ticket or sign | 0.04 | 60 | 2.70 | 1.08 |
+| Photo coach | 0.04 | 60 | 2.40 | 0.96 |
+| Quick capture and dictation (Opus 5.5) | 0.02 | 80 | 1.76 | 0.88 |
+| Pay research, with web search | 0.35 | 5 | 1.75 | 0.85 |
+| Sumo card | 0.17 | 10 | 1.75 | 0.70 |
+| **Total** | | | **≈ 50 (A$76)** | **≈ 22 (A$34)** |
+
+- **Range:** a light trip costs about a third of the typical figure and a heavy one about three times it. Usage per trip has to be capped, or a few heavy users will wipe out the margin.
+- **Reducing it:**
+  - Send lookups, translation and the photo coach to Sonnet 5.5, and keep document reading and suggestions on Opus 5.5.
+  - Cache the trip context and system prompts that each call resends.
+  - Together, these bring a typical trip to about **US$18–25 (A$27–38)**.
+- **Planning-only watches** (fares, weather, events) add polling cost for each watch on top of this; that cost is still an open question below.
+
+**Other running costs, per trip at scale**
+
+| Item | Estimate | Notes |
+|---|---|---|
+| File storage and transfer (photos, tickets, voice notes, receipts) | US$1–3 | Assumes about 5 GB kept for 12 months on Vercel Blob |
+| Database (Neon) | US$0.20–0.50 | |
+| Map tiles | US$0.50–2 | Commercial use of the OpenStreetMap public tiles is not allowed, so a paid provider is needed (MapTiler, Stadia, Mapbox) |
+| Inbound email, push notifications | < US$0.20 | Web push is free |
+| Payment processing | 1.7% + A$0.30 (Stripe, domestic cards) | Or the app-store fee instead, below |
+| **Total excluding AI** | **≈ US$3–6 (A$5–9)** | |
+
+**Fixed monthly costs**, whatever the number of trips:
+- Vercel Pro and Neon: about US$40–60.
+- Commercial Open-Meteo plan: about €29+.
+- Map tile plan: about US$25+.
+- Email provider, monitoring and domain: about US$30.
+- Apple Developer (US$99 a year) and Google Play (US$25 once).
+- Legal work: privacy policy and terms.
+- Total: roughly **A$250–450 a month before anyone's time.**
+
+**All-in:** about **A$35–50 a trip** once model routing is in place, or A$80+ on today's all-Opus 5 setup. Any price for a trip has to clear this after store fees and GST.
+
+### Ways to charge the traveller
+
+| Model | How it would work | For | Against |
+|---|---|---|---|
+| Paid download | One price up front | Simple | Hard to sell an app nobody has tried; a one-off payment does not cover AI costs that grow with use |
+| Subscription | Monthly or yearly | Recurring revenue | People travel once or twice a year, so they cancel between trips and resent paying the rest of the time |
+| **Trip pass (in-app purchase)** | Free to plan one trip lightly; then **A$49–79 per trip**, covering the family, 12 months' storage and a set amount of AI use | Matches how travel happens; pays for the AI on each trip | Needs a meter for AI use and a clear message when the allowance runs low |
+| Top-ups | Extra AI allowance, e.g. A$9.99 | Heavy users pay for what they use | Nickel-and-diming if the base allowance is too small |
+| Keepsake extras | Printed trip book, video recap, photo-book export (#191 Trip Replay, the trip story) | High margin, bought after the trip when people are happiest | Printing needs a fulfilment partner |
+
+**App-store fees.**
+- Apple and Google take 15% under their small-business programmes (first US$1M a year) and 30% above that.
+- Apple collects and remits Australian GST on app-store sales.
+- A web app (PWA) sold through Stripe avoids the store fee. It loses store discovery, and some iPhone features are weaker.
+- Selling direct, the business registers for GST once turnover reaches A$75,000.
+- The trip pass is a digital service used in the app, so on iOS it must be sold through Apple's in-app purchase.
+- Hotels, tours and other travel booked through links is a service consumed outside the app, which Apple exempts from in-app purchase (guideline 3.1.3(e)). Affiliate links are therefore allowed.
+
+### Advertising, affiliate links, discounts and cashback
+
+| Option | Likely revenue per family trip | Assessment |
+|---|---|---|
+| Display advertising | About A$1–3 (a short active period, a small audience, low rates for a utility app) | **Not recommended.** It clutters a calm, offline-first app, needs tracking consent, and for a family app with children as users it creates Privacy Act and app-store children's-category problems. Earns almost nothing |
+| Sponsored placements (a tourism board or venue pays to be featured) | Negotiated; zero until there is scale | Later only, and clearly labelled. It conflicts with ratings and suggestions the family trusts |
+| **Affiliate links** | See the breakdown below: **A$50–150** if a fair share of bookings goes through the app | **Recommended as the second income stream.** Links sit where the app already sends people: stop websites, booking windows (#210), the eSIM and arrival checklists, rail passes |
+| Discount codes (partner codes for Klook, eSIMs, luggage forwarding) | Small | Worth doing for the traveller's benefit; better to negotiate them through the affiliate programmes than chase them separately |
+| Cashback (passing part of the commission back) | Cuts affiliate income by 30–70% | **Not at first.** Commissions are confirmed 30–90 days after the stay and clawed back on cancellation, so a payout system, reconciliation and fraud controls are needed. ShopBack and Cashrewards already own this in Australia. Revisit once there is volume |
+
+**Affiliate income for a family Japan trip** (a family of four spending about A$20,000). Rates are from published 2026 affiliate rate cards and vary by programme and volume.
+
+| Spend | Typical spend | Affiliate rate | Commission if all booked through the app |
+|---|---|---|---|
+| Hotels (Booking.com, Agoda, Expedia) | A$6,000 | About 3–5% of booking value: a 25–40% share of the site's own 10–15% commission | A$180–300 |
+| Tours, activities, tickets (GetYourGuide ~8%, Viator ~8%, Klook 2–5%) | A$2,000 | 2–8% | A$40–160 |
+| Rail passes, eSIM, transfers | A$1,000 | 5–10% | A$50–100 |
+| Flights | A$8,000 | Close to nil; paid per click, or a markup through a booking API such as Duffel | A$0–40 |
+| **Total** | | | **A$270–600 at 100%; A$50–150 at a realistic 20–30%** |
+
+**Catches**
+- **Timing:** most booking happens months before departure. Affiliate income only comes if the app is in use at the planning stage, which is where the watches and group planning above come in.
+- **Cookie windows** are 24 hours to 31 days. If a booking isn't completed in that window, the commission is lost.
+- **Honest recommendations:** ratings, suggestions and "Nearby" must never be ranked by commission. Say so in the app, and disclose affiliate links under ACL s 18 and s 29 and in line with the ACCC's guidance on disclosing paid relationships.
+- **Travel insurance** is a financial product. Earning referral fees for it needs an AFSL, authorised-representative status or a referral exemption under the Corporations Act, and also brings in design and distribution obligations. Leave it out until advice is taken.
+
+### White-label and business-to-business
+
+The app's strongest parts are the day-by-day itinerary, reading forwarded confirmations into it, offline tickets, the family roles, and the follow-along link. These are what a travel business would otherwise have to build for its own clients.
+
+| Buyer | What they get | Pricing model | Fit |
+|---|---|---|---|
+| **Japan-specialist travel agents and tour operators** | Their branding; the agent loads or forwards the itinerary; the client gets the app for the trip | A$25–60 per client trip, or A$300–1,500 a month per agency | **Best first market.** The agency finds and keeps the customers, the app replaces PDF itineraries, and one agency brings many trips |
+| School, sports and group tours | The group coordination above, parent follow-along, roles, safety check-ins | Per traveller per tour, e.g. A$10–20 | Strong fit with existing features; child-safety and privacy duties are heavier |
+| Wedding, events and corporate travel planners | Group polls, RSVPs, costs and deposits | Per event | Needs the payment-holding design flagged above (Stripe Connect) |
+| Credit-card, bank and insurer travel perks | Bundled as a cardholder benefit | Yearly licence or per activated user | Large volumes, long sales cycles, heavy security reviews |
+| Tourism boards and destination bodies | A destination edition with official content | Sponsorship or licence | Brings content and marketing, but makes the app less neutral |
+| Licensing the engine (API) | Itinerary reading, day planning, translation | Per call with a markup on AI cost | Later; competes with the buyers above |
+
+**Work needed before any white label or public release.** The app is built for one family today.
+- **One family is written in.** The four family members are hard-coded (`MEMBERS` in `server/model.mjs`, and names in about 40 source files). The trip comes from `data/seed.json`. Multi-tenant accounts, trips, roles and data isolation are the largest single piece of work.
+- **Guidebook rights.** The 72 guide pages are a scanned third-party guide. They cannot go into a commercial product without a licence; run the external-source licence check. Other data feeds (weather, sumo, maps) need the same check.
+- **Branding and settings per client:** themes, logo, domain, and which features are switched on (the feature flags in `server/features.mjs` are a start).
+- **AI limits:** a budget and meter for each client and each trip, and a record of usage (none is kept today).
+- **Privacy and contracts:**
+  - A privacy policy under APP 1.
+  - Disclosure of cross-border transfers to US processors (Anthropic, Vercel) under APP 8.
+  - A data processing agreement for business clients.
+  - Retention and deletion rules.
+- **An admin console** where agents can load and edit their clients' trips.
+
+### Recommendation
+
+1. **Sell a trip pass, not ads.** A free planning tier, then A$49–79 per family trip with an AI allowance. Route models to keep AI at about A$30 a trip or less.
+2. **Add affiliate links where the app already points people.** Disclose them, and keep them out of ratings and suggestions. Expect about A$50–150 a trip once planning features bring people in months before they fly.
+3. **Test white label with two or three Japan-specialist agencies** before building a consumer launch. This tests willingness to pay without consumer marketing costs, and forces the multi-tenant work that both routes need anyway.
+4. **Defer** advertising, cashback, insurance referrals and the API licence.
+
+Sources consulted for the rates above:
+- [Web search tool pricing](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool)
+- [Tours and activities affiliate programs, 2026 (Track360)](https://track360.io/blog/tours-activities-experiences-affiliate-programs-operator-guide-2026)
+- [Travel affiliate rate-card benchmark, 2026 (Track360)](https://track360.io/blog/best-travel-affiliate-programs-2026-operator-rate-card-benchmark)
+
 ## Next step when picked up
 
-A short design note (like `docs/design/maps-memories-tags.md`) covering the watch data model, the rating formula, the polling job, and the group and poll model. Then build a prototype with one fare feed, Open-Meteo, the sumo calendar, and open polls built on the existing planning board votes.
+A short design note (like `docs/design/maps-memories-tags.md`) covering the watch data model, the rating formula, the polling job, and the group and poll model. Then build a prototype with one fare feed, Open-Meteo, the sumo calendar, and open polls built on the existing planning board votes. Before either, add a record of AI usage per call (tokens and searches) so the cost-per-trip figures above can be replaced with measured ones.
