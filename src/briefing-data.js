@@ -5,6 +5,7 @@
 import {activeSteps} from './timing.js';
 import {forecastFor,describe} from './weather-data.js';
 import {phraseForDay} from './phrasebook-data.js';
+import {declarationDue} from './arrival-data.js';
 export function dayBriefing(state,day){
  const days=state.days||[],i=days.findIndex(d=>d.date===day);
  if(i<0)return null;
@@ -18,7 +19,7 @@ export function dayBriefing(state,day){
   fixed:timed.filter(s=>s.locked).map(s=>({id:s.id,time:s.time,title:s.title})),
   weather:f?{sky,icon,max:f.max,min:f.min,rain:f.rain}:null,
   hotel:today.hotel||'',moving:!!moving,last:i===days.length-1,
-  phrase:phraseForDay(days,day)
+  phrase:phraseForDay(days,day),declaration:declarationDue(state,day)
  };
 }
 // Good morning until eleven on the day itself; any other day, or later on, it is just the day.

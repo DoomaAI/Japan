@@ -52,6 +52,7 @@ import Leaderboard from './Leaderboard.jsx';
 import RecapStory from './RecapStory.jsx';
 import Photobook from './Photobook.jsx';
 import Predictions from './Predictions.jsx';
+import Arrival from './Arrival.jsx';
 import BookingWindows,{BookingWindowsCard} from './BookingWindows.jsx';
 import FollowAlong from './FollowAlong.jsx';
 import Safety,{LostCards} from './Safety.jsx';
@@ -655,6 +656,7 @@ function App(){
   {tab==='mascot'&&<MascotMaker state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice} go={go}/>}
   {tab==='games'&&<Games state={visibleState} user={user} day={day} mutate={mutate} busy={busy} setBusy={setBusy} online={online} refresh={refresh} dayLabel={fmtDay} config={config} request={request} accept={accept} notice={notice}/>}
   {tab==='windows'&&<BookingWindows state={visibleState} user={user} now={now} mutate={mutate} busy={busy} go={go}/>}
+  {tab==='arrival'&&<Arrival homeFirst={japanDate(now)>=(state.days[0]?.date||'')}/>}
   {tab==='predictions'&&<Predictions state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy}/>}
   {tab==='book'&&<Photobook state={visibleState} dayLabel={fmtDay}/>}
   {tab==='recap'&&<RecapStory key={day} state={visibleState} user={user} today={japanDate(now)} dayLabel={fmtDay} go={go}/>}

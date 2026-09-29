@@ -1,5 +1,5 @@
 import React from 'react';
-import {ChevronRight,LockKeyhole,BedDouble} from 'lucide-react';
+import {ChevronRight,LockKeyhole,BedDouble,PlaneTakeoff} from 'lucide-react';
 import {dayBriefing,briefingGreeting} from './briefing-data.js';
 // The morning briefing widget: the day read in one card, with a tap through to its stops.
 export default function Briefing({state,day,today,clock,go}){
@@ -14,6 +14,7 @@ export default function Briefing({state,day,today,clock,go}){
   </button>
   {b.fixed.length>0&&<ul className="briefing-fixed">{b.fixed.map(f=><li key={f.id}><LockKeyhole size={14}/><b>{f.time}</b> {f.title}</li>)}</ul>}
   {(b.moving||b.last)&&<p className="briefing-note"><BedDouble size={15}/>{b.last?'Last day: everything comes home with us.':`Hotel move today, to ${b.hotel}.`}</p>}
+  {b.declaration&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('arrival')}><PlaneTakeoff size={15}/>Australia Travel Declaration: fill it in for each of us, within 72 hours of the flight home.</button>}
   {b.phrase&&<button type="button" className="briefing-phrase" onClick={()=>go('phrases')}><span aria-hidden="true">{b.phrase.icon}</span><span><b>{b.phrase.en} · <span lang="ja">{b.phrase.ja}</span></b><small>Today’s phrase · say “{b.phrase.say}”</small></span><ChevronRight size={16}/></button>}
  </section>;
 }

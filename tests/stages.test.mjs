@@ -365,3 +365,11 @@ test('tax-free: a flag on shopping and shortlist items, carried across, and a pe
  state=applyOperation(state,{type:'shortlistShop',id:find.id},parent);
  assert.equal(state.shopping.at(-1).taxFree,true,'the flag comes across with it');
 });
+test('arrival paperwork: the declaration reminder shows in the 72 hours before the flight home',async()=>{
+ const {declarationDue,VJW_STEPS,VISIT_JAPAN_WEB,TRAVEL_DECLARATION}=await import('../src/arrival-data.js');
+ const {dayBriefing}=await import('../src/briefing-data.js');
+ const state=upgraded(seed);
+ assert.deepEqual(state.days.map(d=>declarationDue(state,d.date)).map((v,i)=>v?i+1:0).filter(Boolean),[14,15,16],'the last three days');
+ assert.equal(dayBriefing(state,'2026-10-06').declaration,true);assert.equal(dayBriefing(state,'2026-09-29').declaration,false);
+ assert.equal(VJW_STEPS.length,5);assert.match(VISIT_JAPAN_WEB,/^https:\/\/www\.vjw\.digital\.go\.jp\//);assert.match(TRAVEL_DECLARATION,/^https:\/\/www\.abf\.gov\.au\//);
+});
