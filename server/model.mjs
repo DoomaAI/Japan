@@ -1,5 +1,6 @@
 import {ensureFeatures,inboxNotes,documentSteps,documentServesStep,documentSpent,validPin} from '../src/trip-features.js';
 import {extraOperation} from './features.mjs';
+import {cleanCode} from '../src/wallet-codes.js';
 import {expressOperation} from './express.mjs';
 import { randomUUID } from 'node:crypto';
 import {activeSteps} from '../src/timing.js';
@@ -268,6 +269,14 @@ export function applyOperation(input,op,user){
   state.inbox=state.inbox.filter(i=>i.id!==op.id);
  }else if(op.type==='removeDocument'){
   state.documents=state.documents.filter(d=>d.id!==op.id&&d.parentDocumentId!==op.id);
+ }else if(op.type==='documentCode'){
+  // The text inside a ticket's QR code, read on a parent's phone and kept for everyone, or null
+  // for a picture that has none. On the ticket itself, whether its code changes each time and
+  // which app it has to be shown in.
+  const doc=state.documents.find(d=>d.id===op.id);if(!doc)throw new AppError('Document not found.',404);
+  const {value,error}=cleanCode(op);if(error)throw new AppError(error);
+  if(value.code!==undefined){doc.code=value.code;doc.codeAt=now;}
+  if(value.live!==undefined){if(doc.parentDocumentId)throw new AppError('Mark the ticket itself.');doc.codeLive=value.live;doc.codeApp=value.live?value.app:'';}
  }else if(op.type==='archiveDocument'){
   // A used ticket is not wrong, it is finished. Deleting it is the only thing worse than
   // leaving it in the way: the gate can still be argued about a week later. So it is archived
