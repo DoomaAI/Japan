@@ -9060,9 +9060,11 @@ test('a fun fact about an activity pops up once, when that activity starts',asyn
  const hachiko=seed.steps.find(s=>factsForStep(s).some(f=>f.id==='hachiko'));
  assert.ok(hachiko,'an activity carries the Hachikō fact');
  // Only once it is started, only for the people on it, under the same switch as the fact of
- // the day, and never ahead of the day's own pop-ups.
+ // the day, and never ahead of her note.
  assert.match(main,/settingOn\(settings,'dailyFact'\)\?stepsFor\(visibleState,dayOnTrip,user\.name\)\.find\(s=>s\.status==='started'&&s\.participants\?\.includes\(user\.name\)/);
- assert.match(main,/if\(todaysFact&&!factDone\)return;\n  stepFactShown/);
+ // The day's phrase and fact no longer pop up by themselves, so there is nothing to wait behind
+ // except her note.
+ assert.match(main,/if\(noteForMe&&!noteRead\)return;\n  stepFactShown/);
  // Once per activity and once per fact on this phone, so two stops that share a fact do not
  // both pop it up.
  assert.match(main,/japan\.stepfact\.\$\{startedWithFact\.id\}/);
