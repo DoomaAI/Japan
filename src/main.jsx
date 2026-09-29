@@ -38,7 +38,7 @@ import EyeSpy from './EyeSpy.jsx';
 import ParkGuide from './ParkGuide.jsx';
 import FoodList,{FoodCard} from './FoodList.jsx';
 import {parkForDay} from './park-data.js';
-import {THANK_YOU_FROM,THANK_YOU_TO} from './trip-features.js';
+import {THANK_YOU_FROM,THANK_YOU_FOR,BOYS as NOTE_BOYS} from './trip-features.js';
 import {MeetingCard,QuickCapture,GlobalSearch,Diary} from './PracticalPages.jsx';
 import MediaGallery from './MediaGallery.jsx';
 import Highlights from './Highlights.jsx';
@@ -469,10 +469,11 @@ function App(){
   Promise.resolve(ctx.registerTool({name:'read_trip_day',description:'Read the selected Japan itinerary day. No changes.',inputSchema:{type:'object',properties:{date:{type:'string'}},required:['date'],additionalProperties:false},annotations:{readOnlyHint:true},execute({date}){const s=envRef.current.state;if(!s.days.some(d=>d.date===date))throw new Error('Unknown trip day');return activeSteps(s,date).map(({id,title,time,status})=>({id,title,time,status}));}},{signal:lifecycle.signal})).catch(()=>{});
   return()=>lifecycle.abort();
  },[!!state]);
- // Lauren’s private daily note. The server only ever sends her the note for the current
- // Japan day; Damien keeps the list, and nobody else receives any of it.
- const noteForMe=user?.name===THANK_YOU_TO?state?.thankYou?.today||null:null;
- const noteRead=!!noteForMe&&(!!state.thankYou.seen?.[noteForMe.day]||localStorage.getItem(`japan.note.${noteForMe.day}`)==='read');
+ // The private daily note from Damien. The server only ever sends each person their own note
+ // for the current Japan day; Damien keeps the lists, and nobody receives anyone else's.
+ const noteForMe=THANK_YOU_FOR.includes(user?.name)?state?.thankYou?.today||null:null;
+ const noteKey=day=>`japan.note.${user?.name}.${day}`;
+ const noteRead=!!noteForMe&&(!!state.thankYou.seen?.[noteForMe.day]||localStorage.getItem(noteKey(noteForMe.day))==='read'||(user.name==='Lauren'&&localStorage.getItem(`japan.note.${noteForMe.day}`)==='read'));
  useEffect(()=>{
   if(!noteForMe||noteRead||noteShown.current===noteForMe.day)return;
   noteShown.current=noteForMe.day;setModal({type:'thankyou',note:noteForMe});
@@ -543,7 +544,7 @@ function App(){
   setModal({type:'stepfact',step:startedWithFact,facts});
  },[startedWithFact?.id,modal,noteRead,phraseDone,factDone]);
  async function readNote(note){
-  localStorage.setItem(`japan.note.${note.day}`,'read');
+  localStorage.setItem(noteKey(note.day),'read');
   if(navigator.onLine&&!state.thankYou.seen?.[note.day])await mutate({type:'thankYouSeen',day:note.day});
   setModal(null);
  }
@@ -652,7 +653,7 @@ function App(){
       own, for the five-year-old holding the phone. It says what the screen is for in words he
       can follow rather than reading the heading at him, and being in the same place on every
       page is what lets him find it without reading anything to find it. */}
-  <header className="topbar"><a className="brand" href="/" onClick={e=>{e.preventDefault();setTab('today');}}><span className="brand-mark" aria-hidden="true">✿</span><span>Japan <b>2026</b><small>THE PASFIELD FAMILY</small></span></a><div className="top-actions">{noteForMe&&<button className="icon thank-you-button" aria-label={`A note from ${THANK_YOU_FROM}`} onClick={()=>setModal({type:'thankyou',note:noteForMe})}><Heart size={20}/>{!noteRead&&<i/>}</button>}<button className="icon" aria-label="Search everything" onClick={()=>go('search')}><Search size={20}/></button><button className="icon notification-button" aria-label="Family updates" onClick={()=>go('updates')}><Bell size={20}/>{state.alerts.some(a=>!a.seenBy?.[user.name])&&<i/>}</button><SpeakRules id={`page-${tab}`} text={pageRule(tab)} label="What is this page?" compact/>{leave?<button type="button" className={`local-clock leave-chip${leave.minutes<=0?' now':''}`} aria-label={`${leave.minutes>0?`Leave in ${spanWords(leave.minutes)}`:'Leave now'} for ${leave.fixed.title} at ${leave.fixed.time}. Open it.`} onClick={()=>selectStep(leave.fixed)}><Clock size={14}/>{leave.minutes>0?spanWords(leave.minutes):'Now'}<small>LEAVE {japanClock(leave.departure)}</small></button>:<span className="local-clock"><Clock size={14}/>{japanClock(now)}<small>JAPAN</small></span>}<button className="avatar" aria-label="Family settings" onClick={()=>setModal({type:'family'})}><MascotBadge state={state} person={user.name} size={38}/></button></div></header>
+  <header className="topbar"><a className="brand" href="/" onClick={e=>{e.preventDefault();setTab('today');}}><span className="brand-mark" aria-hidden="true">✿</span><span>Japan <b>2026</b><small>THE PASFIELD FAMILY</small></span></a><div className="top-actions">{noteForMe&&<button className="icon thank-you-button" aria-label={`A note from ${NOTE_BOYS.includes(user.name)?'Dad':THANK_YOU_FROM}`} onClick={()=>setModal({type:'thankyou',note:noteForMe})}><Heart size={20}/>{!noteRead&&<i/>}</button>}<button className="icon" aria-label="Search everything" onClick={()=>go('search')}><Search size={20}/></button><button className="icon notification-button" aria-label="Family updates" onClick={()=>go('updates')}><Bell size={20}/>{state.alerts.some(a=>!a.seenBy?.[user.name])&&<i/>}</button><SpeakRules id={`page-${tab}`} text={pageRule(tab)} label="What is this page?" compact/>{leave?<button type="button" className={`local-clock leave-chip${leave.minutes<=0?' now':''}`} aria-label={`${leave.minutes>0?`Leave in ${spanWords(leave.minutes)}`:'Leave now'} for ${leave.fixed.title} at ${leave.fixed.time}. Open it.`} onClick={()=>selectStep(leave.fixed)}><Clock size={14}/>{leave.minutes>0?spanWords(leave.minutes):'Now'}<small>LEAVE {japanClock(leave.departure)}</small></button>:<span className="local-clock"><Clock size={14}/>{japanClock(now)}<small>JAPAN</small></span>}<button className="avatar" aria-label="Family settings" onClick={()=>setModal({type:'family'})}><MascotBadge state={state} person={user.name} size={38}/></button></div></header>
   {/* On Home, the line that only says all is well gives its room to the step card; offline, a
       queue or a local preview still say so there as everywhere else. */}
   <div className={`syncbar${tab==='today'&&online&&!user.demo&&!queue.length?' quiet':''}`}>{!online?<><WifiOff size={14}/> Offline · saved on this phone</>:user.demo?<><AlertCircle size={14}/> Local preview · family sharing needs setup</>:queue.length?<><Clock size={14}/>{queue.length} update{queue.length!==1?'s':''} waiting to sync</>:<><Cloud size={14}/> Shared family plan <span>Signed in as {user.name}</span></>}{!user.demo&&<button type="button" className="sync-now" disabled={syncing} onClick={syncNow}>{syncing?'Syncing…':'Sync now'}{syncedAt&&!syncing&&<small>{japanClock(new Date(syncedAt))}</small>}</button>}</div>
@@ -737,7 +738,7 @@ function App(){
   <BottomNav tab={tab} user={user} go={navGo} prefs={navPrefs} setPrefs={saveNav} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
   {toast&&!modal&&toastBar}
-  {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Window I spy',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo','ask'].includes(modal.type)}>
+  {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Window I spy',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo','ask'].includes(modal.type)}>
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} mode={modal.mode} wishlist={modal.wishlist} need={modal.need} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)} available={!!config?.nearby}/>}
    {modal.type==='ask'&&<AskTrip state={visibleState} user={user} day={modal.step?.day||day} step={modal.step} config={config} online={online} request={request} mutate={mutate} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
@@ -748,7 +749,7 @@ function App(){
    {modal.type==='fact'&&<FactOfDay queue={factQueue(visibleState,user.name,modal.day)} dateLabel={fmtDay(modal.day)} busy={busy} young={user.name==='Nate'} dismiss={ids=>seeFact(modal.day,ids)} openPage={async(page,ids)=>{await seeFact(modal.day,ids);openPage(page);}}/>}
    {modal.type==='stepfact'&&<FactOfDay queue={modal.facts} heading={`FUN FACT · ${modal.step.title.toUpperCase()}`} busy={busy} young={user.name==='Nate'} dismiss={()=>setModal(null)} openPage={page=>openPage(page)}/>}
    {modal.type==='eyespy'&&<EyeSpy state={visibleState} user={user} step={modal.step} mutate={mutate} busy={busy}/>}
-   {modal.type==='thankyou'&&<ThankYouNote note={modal.note} seenAt={state.thankYou.seen?.[modal.note.day]} busy={busy} dismiss={()=>readNote(modal.note)}/>}
+   {modal.type==='thankyou'&&<ThankYouNote note={modal.note} to={user.name} seenAt={state.thankYou.seen?.[modal.note.day]} busy={busy} dismiss={()=>readNote(modal.note)}/>}
    {modal.type==='late'&&<RunningLate state={state} day={day} mutate={mutate} busy={busy} close={()=>setModal(null)}/>}
    {modal.type==='offline'&&<OfflineReadiness state={state} day={day} notice={notice} refresh={refresh}/>}
    {modal.type==='capture'&&<QuickCapture state={state} day={day} user={user} mutate={mutate} busy={busy} setBusy={setBusy} request={request} accept={accept} config={config} notice={notice} close={()=>setModal(null)}/>}

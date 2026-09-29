@@ -48,7 +48,7 @@ export const PAGES={
  updates:{label:'Family updates',note:'What changed and who has seen it'},
  search:{label:'Search everything',note:'Find a booking, note, shop or guide page'},
  mascot:{label:'Our characters',note:'Design your own Japanese character and use it in the app'},
- thanks:{label:'Notes for Lauren',note:'Write and schedule her daily pop-up notes'},
+ thanks:{label:'Daily notes',note:'Write and schedule the daily pop-up notes for Lauren, Nate and Boston'},
  personalise:{label:'My menu',note:'Choose what you see, and the order it comes in'},
  settings:{label:'Settings',note:'The order of the shortcuts along the bottom, and the daily phrase or fun fact'}
 };
