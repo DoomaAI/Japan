@@ -10308,3 +10308,30 @@ test('Japan bingo: a mixed card each, lines, sets like every coin, and the old w
  const pending=pendingProgress(state,[{operation:{type:'bingoTick',person:'Nate',square:'ramen',done:true,at:'2026-09-25T02:00:00.000Z'}},{operation:{type:'bingoCard',person:'Nate',round:2,card:fresh}}]);
  assert.ok(squareDone(pending,'Nate','ramen'));assert.deepEqual(cardFor(pending,'Nate').filter(id=>id!==FREE),fresh);
 });
+
+test('More is leaner: money on one shelf, memories on their own, housekeeping apart, and no placeholder page',async()=>{
+ const {PAGES,MORE_SECTIONS,moreSections}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const titles=MORE_SECTIONS.map(([t])=>t);
+ assert.deepEqual(titles,['Out and about','Money','The plan','Looking back','Housekeeping','Just for you','For the boys']);
+ const section=t=>MORE_SECTIONS.find(([title])=>title===t)[1];
+ // Every screen about yen, side by side; the boys' own purse stays with their things.
+ assert.deepEqual(section('Money'),['money','paying','ledger','shopping','shortlist','shop']);
+ assert.ok(section('For the boys').includes('spending'));
+ // Looking back is memories only; the app's own housekeeping is not among the photos.
+ assert.deepEqual(section('Looking back'),['noticed','photos','memorymap','diary','recap','book']);
+ assert.deepEqual(section('Housekeeping'),['updates','bin','search','guide']);
+ // Nothing is listed twice, and every page not on the bar is somewhere.
+ const all=MORE_SECTIONS.flatMap(([,ids])=>ids);
+ assert.equal(new Set(all).size,all.length);
+ for(const id of Object.keys(PAGES))if(!['today','days'].includes(id))assert.ok(all.includes(id),`${id} has no shelf`);
+ // The highlights placeholder is gone from the registry, the menu, the spoken guide and the app.
+ assert.equal(PAGES.highlights,undefined);assert.equal(PAGE_RULES.highlights,undefined);
+ assert.ok(!all.includes('highlights'));
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.doesNotMatch(main,/Highlights/);
+ await assert.rejects(()=>readFile(new URL('../src/Highlights.jsx',import.meta.url)),'the page file is deleted, not left behind');
+ // A parent sees Money; a boy does not get the parents' screens but still gets his own shelf last.
+ const parentTitles=moreSections({name:'Lauren',role:'parent'}).map(([t])=>t),boyTitles=moreSections({name:'Nate',role:'child'}).map(([t])=>t);
+ assert.ok(parentTitles.includes('Money'));assert.equal(boyTitles.at(-1),'For the boys');
+});

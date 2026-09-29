@@ -41,7 +41,6 @@ import {parkForDay} from './park-data.js';
 import {THANK_YOU_FROM,THANK_YOU_FOR,BOYS as NOTE_BOYS} from './trip-features.js';
 import {MeetingCard,QuickCapture,GlobalSearch,Diary} from './PracticalPages.jsx';
 import MediaGallery from './MediaGallery.jsx';
-import Highlights from './Highlights.jsx';
 import Briefing from './Briefing.jsx';
 import Tonight from './Tonight.jsx';
 import OnThisDay from './OnThisDay.jsx';
@@ -721,7 +720,6 @@ function App(){
   {tab==='paying'&&parent&&<WhichCard state={visibleState} user={user} config={config} request={request} mutate={mutate} busy={busy} notice={notice} remove={removeThen}/>}
   {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen} config={config} online={online} notice={notice}/>}
   {tab==='safety'&&<Safety state={visibleState} user={user} day={day} go={go}/>}
-  {tab==='highlights'&&<Highlights state={visibleState} dayLabel={fmtDay}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}
   {tab==='personalise'&&<Personalise user={user} prefs={navPrefs} setPrefs={saveNav} home={homePrefs} setHome={saveHome}/>}
   {tab==='more'&&<MorePage user={user} tab={tab} go={navGo} prefs={navPrefs} home={homePrefs}><div className="row wrap"><Button icon={ImageIcon} onClick={()=>setModal({type:'media'})}>Family gallery</Button><Button icon={Mic} onClick={()=>setModal({type:'voice'})}>Voice notes</Button><Button icon={Download} onClick={()=>setModal({type:'offline'})}>Offline readiness</Button>{parent&&<Button icon={Plus} onClick={()=>setModal({type:'capture'})}>Quick capture</Button>}</div></MorePage>}

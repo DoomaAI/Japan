@@ -19,7 +19,6 @@ export const PAGES={
  diary:{label:'Diary',note:'Completed stops, discoveries and photos'},
  recap:{label:'Our trip story',note:'The trip in swipeable cards: the numbers, the places, our best bits and everyone’s favourite'},
  book:{label:'Photobook',note:'A page for each day, with the photo of the day, the stops we loved and the diary, to print'},
- highlights:{label:'Trip highlights',note:'The highlights video, coming after the trip, and what it will be made from'},
  places:{label:'Places & our map',note:'Directions and our Google My Map'},
  meeting:{label:'Meeting card',note:'If we get separated'},
  allergy:{label:'Allergy card',note:'What each of us cannot eat, in Japanese, to show the waiter'},
@@ -68,10 +67,16 @@ export const PRIMARY={
 // is still to buy — so it sits at the top where a thumb lands first. The boys' half is last,
 // as one block they can scroll to and recognise, rather than their missions being stranded
 // between the bookings and the paperwork.
+// Money is a section of its own: six screens about yen were scattered between what to see and
+// what to pack, and a parent at a till wants them side by side. Looking back holds only the
+// memories now; the app's own housekeeping (updates, the bin, search, the original guide) has
+// a shelf of its own rather than sitting among the photos.
 export const MORE_SECTIONS=[
- ['Out and about',['weather','ask','places','money','paying','ledger','food','allergy','hunts','phrases','meeting','safety','help']],
- ['The plan',['glance','todo','packing','shop','trackers','windows','arrival','vault','apps','planning','predictions','options','parks','shopping','shortlist','tickets','inbox']],
- ['Looking back',['noticed','photos','memorymap','diary','recap','book','highlights','updates','bin','search','guide']],
+ ['Out and about',['weather','ask','places','food','allergy','hunts','phrases','meeting','safety','help','apps']],
+ ['Money',['money','paying','ledger','shopping','shortlist','shop']],
+ ['The plan',['glance','todo','packing','trackers','windows','arrival','vault','planning','predictions','options','parks','tickets','inbox']],
+ ['Looking back',['noticed','photos','memorymap','diary','recap','book']],
+ ['Housekeeping',['updates','bin','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
  ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot']]
 ];
