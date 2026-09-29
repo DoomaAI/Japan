@@ -1916,7 +1916,7 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  for(const id of Object.keys(PAGES))assert.ok(icons.has(id),`${id} has no icon, so its row cannot render`);
  // And a page added tomorrow without one falls back rather than blanking the menu.
  assert.match(nav,/export const iconFor=id=>ICONS\[id\]\|\|Circle;/);
- assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,2,'the bar and the More list both go through the fallback');
+ assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,3,'the bar, the Right now row and the More list all go through the fallback');
  assert.ok(!/const Icon=ICONS\[id\]/.test(nav),'nothing indexes ICONS directly any more');
  // The tabs share the bar while they fit, never shrink below their own label, and scroll
  // like the days along the top once there are more of them than fit.
@@ -9684,4 +9684,16 @@ test('the allergy card says what somebody cannot eat in the words on a Japanese 
  assert.throws(()=>applyOperation(seed,{type:'allergySet',person:'Nate',allergens:['gold'],severe:false},parent),/list/);
  assert.throws(()=>applyOperation(seed,{type:'allergySet',person:'Nobody',allergens:[],severe:false},parent),/family member/);
  assert.equal(upgraded(seed).allergies&&typeof upgraded(seed).allergies,'object','an older plan gets an empty set of cards');
+});
+
+test('More opens on a Right now row, and Safety on the two numbers that dial',async()=>{
+ const {RIGHT_NOW,rightNow,PAGES}=await import('../src/nav-data.js');
+ for(const id of RIGHT_NOW)assert.ok(PAGES[id],`${id} is a page`);
+ assert.deepEqual(rightNow({name:'Nate',role:'child'}),RIGHT_NOW.filter(id=>id!=='help'||true),'a child gets the same row');
+ assert.ok(rightNow({name:'Damien',role:'parent'}).includes('safety')&&rightNow({name:'Damien',role:'parent'}).includes('allergy'));
+ const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8'),safety=await readFile(new URL('../src/Safety.jsx',import.meta.url),'utf8');
+ assert.match(nav,/<nav className="right-now" aria-label="Right now">\{rightNow\(user\)\.map/,'the row is rendered from the registry, not a second list');
+ assert.ok(nav.indexOf('className="right-now"')<nav.indexOf('className={`more-where'),'and it comes before everything else on More');
+ assert.match(safety,/className="call-row"/);assert.ok(safety.indexOf('call-row')<safety.indexOf('Everything on this page works'),'the numbers come before the first sentence');
+ assert.match(safety,/\['police','ambulance'\]\.includes\(e\.id\)/,'110 and 119, from the same list the page already keeps');
 });

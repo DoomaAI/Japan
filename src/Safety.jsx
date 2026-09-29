@@ -35,6 +35,9 @@ export default function Safety({state,user,day,go}){
  return <>
   <p className="eyebrow">IF SOMETHING GOES WRONG</p>
   <h1>Safety and emergencies</h1>
+  {/* The two numbers first, as buttons that dial, before a word of explanation: the moment this
+      page is opened in earnest is not a moment for scrolling. */}
+  <div className="call-row">{EMERGENCY.filter(e=>['police','ambulance'].includes(e.id)).map(e=><a key={e.id} className={`call-chip call-${e.id}`} href={tel(e.number)}><Phone size={20}/><strong>{e.number}</strong><span>{e.id==='police'?'Police':'Ambulance · Fire'}</span></a>)}</div>
   <p>Everything on this page works with no signal.</p>
   <h2>Emergency numbers</h2>
   <div className="help-grid">{EMERGENCY.map(e=><a key={e.id} className="help-card" href={tel(e.number)}><Phone/><h2>{e.number}</h2><p><strong>{e.title}.</strong> {e.note}</p></a>)}</div>
