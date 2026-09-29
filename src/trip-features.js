@@ -1151,6 +1151,14 @@ export function rankedProposals(state,{query='',category='',suits='',by='',place
   cost:(a,b)=>(a.cost??Infinity)-(b.cost??Infinity)||proposalScore(b)-proposalScore(a)};
  return [...list].sort(order[sort]||order.top);
 }
+// Stops somebody can sit out while the rest carry on: on the day's live plan, not finished, not
+// already one of a set of alternatives, and shared — a stop with one person on it is theirs to skip.
+export const sitOutStops=(state,day)=>activeSteps(state,day).filter(s=>!s.group&&!['done','skipped'].includes(s.status)&&(s.participants||[]).length>1);
+// Where the ones who sat it out would rejoin: the first later stop that everybody on it is going to.
+export function rejoinAt(state,step){
+ const steps=activeSteps(state,step.day),i=steps.findIndex(s=>s.id===step.id);
+ return steps.slice(i+1).find(s=>!s.group&&(step.participants||[]).every(m=>(s.participants||[]).includes(m)))||null;
+}
 // Words that give an idea away as belonging to one of the fixed interests. Matched at the start
 // of a word, so "temple" finds "temples" and "onsen" does not fire on "sensible".
 export const INTEREST_WORDS={

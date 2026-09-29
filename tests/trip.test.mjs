@@ -3180,6 +3180,41 @@ test('each person tags their own likes, and board ideas are picked for one of us
  assert.ok(!recommendIdeas(state,'Boston').some(r=>r.proposal.id===rail.id));
  assert.deepEqual(recommendIdeas(state,'Grandma'),[]);
 });
+test('an idea can go on a day as a split, for the ones who would rather not do a planned stop',async()=>{
+ const {ensureFeatures,sitOutStops,rejoinAt}=await import('../src/trip-features.js');
+ const {daySplits,stepsFor}=await import('../src/split.js');
+ let state=ensureFeatures(structuredClone(seed));
+ const day=state.days.find(d=>sitOutStops(state,d.date).some(s=>rejoinAt(state,s)&&s.time&&s.participants.length===4)).date;
+ const planned=sitOutStops(state,day).find(s=>rejoinAt(state,s)&&s.time&&s.participants.length===4);
+ const meet=rejoinAt(state,planned);
+ state=applyOperation(state,{type:'proposalAdd',person:'Damien',title:'Pokémon Center',suitableFor:['Boston','Damien']},parent);
+ const idea=state.proposals.at(-1);
+ // Only a parent reshapes the day, and only with somebody left on the planned stop.
+ assert.throws(()=>applyOperation(state,{type:'proposalInstead',id:idea.id,stepId:planned.id,who:['Boston']},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'proposalInstead',id:idea.id,stepId:planned.id,who:[...planned.participants]},parent),/swap the stop/);
+ assert.throws(()=>applyOperation(state,{type:'proposalInstead',id:idea.id,stepId:planned.id,who:['Grandma']},parent),/who would rather not go/);
+ assert.throws(()=>applyOperation(state,{type:'proposalInstead',id:idea.id,stepId:planned.id,who:[]},parent),/who would rather not go/);
+ state=applyOperation(state,{type:'proposalInstead',id:idea.id,stepId:planned.id,who:['Boston','Damien']},parent);
+ const kept=state.steps.find(s=>s.id===planned.id),added=state.steps.find(s=>s.fromProposalId===idea.id);
+ assert.deepEqual(kept.participants.sort(),['Lauren','Nate']);
+ assert.deepEqual(added.participants,['Boston','Damien']);
+ assert.equal(added.day,planned.day);assert.equal(added.time,planned.time,'at the same time as the stop it replaces');
+ assert.equal(added.group,kept.group);assert.notEqual(added.option,kept.option);
+ assert.equal(state.groupModes[kept.group],'split');
+ // It is a real split: two lanes, meeting back up at the next stop everyone is on.
+ const split=daySplits(state,day).find(x=>x.group===kept.group);
+ assert.equal(split.lanes.length,2);
+ assert.equal(split.meet.id,meet.id);
+ assert.ok(stepsFor(state,day,'Boston').some(s=>s.id===added.id)&&!stepsFor(state,day,'Boston').some(s=>s.id===kept.id));
+ assert.ok(stepsFor(state,day,'Nate').some(s=>s.id===kept.id)&&!stepsFor(state,day,'Nate').some(s=>s.id===added.id));
+ assert.equal(state.proposals.find(p=>p.id===idea.id).stepId,added.id,'the board keeps the record of why');
+ assert.match(state.alerts[0].summary,/Boston and Damien: Pokémon Center instead of/);
+ // A stop already split cannot be split again from here, and the idea is now on the day.
+ assert.ok(!sitOutStops(state,day).some(s=>s.id===planned.id));
+ state=applyOperation(state,{type:'proposalAdd',person:'Damien',title:'Arcade'},parent);
+ assert.throws(()=>applyOperation(state,{type:'proposalInstead',id:state.proposals.at(-1).id,stepId:planned.id,who:['Nate']},parent),/already one of a set/);
+ assert.throws(()=>applyOperation(state,{type:'proposalInstead',id:idea.id,stepId:meet.id,who:['Nate']},parent),/already on the itinerary/);
+});
 test('suggestions are built from who is going, and land on the board as ordinary ideas',async()=>{
  const {createServer}=await import('node:http');
  const {ensureFeatures,proposalPlacement}=await import('../src/trip-features.js');
@@ -3243,6 +3278,26 @@ test('suggestions are built from who is going, and land on the board as ordinary
   await suggestIdeas({city:'Tokyo',kinds:['unique'],count:4,forWhom:'Boston'},state);
   assert.match(seen.messages[0].content,/These are for Boston in particular/);
   await assert.rejects(()=>suggestIdeas({city:'Tokyo',kinds:['unique'],forWhom:'Grandma'},state),/Choose a family member/);
+  // Something else instead: a planned stop, and the ones who would rather not do it.
+  const {sitOutStops,rejoinAt}=await import('../src/trip-features.js');
+  const day=state.days.find(d=>sitOutStops(state,d.date).some(s=>rejoinAt(state,s)&&s.place&&s.time)).date;
+  const planned=sitOutStops(state,day).find(s=>rejoinAt(state,s)&&s.place&&s.time);
+  const alt=await suggestIdeas({instead:{stepId:planned.id,who:['Boston','Lauren']},count:4},state);
+  const altAsk=seen.messages[0].content;
+  assert.match(altAsk,new RegExp(`Boston and Lauren would rather not do "${planned.title.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}"`));
+  assert.match(altAsk,/rejoin everyone at/);
+  assert.match(altAsk,/The famous ones/,'every flavour is fair game for an alternative');
+  assert.doesNotMatch(altAsk,/cannot go off alone/,'a grown-up is going with Boston');
+  assert.deepEqual(alt.instead.who,['Boston','Lauren']);
+  for(const item of alt.suggestions){
+   assert.deepEqual(item.draft.suitableFor,['Boston','Lauren'],'an alternative is for the ones sitting it out');
+   assert.equal(item.draft.day,planned.day);
+   assert.ok(item.draft.tags.some(t=>t.startsWith('instead of ')));
+  }
+  await suggestIdeas({instead:{stepId:planned.id,who:['Boston','Nate']},count:4},state);
+  assert.match(seen.messages[0].content,/a grown-up has to go with them/);
+  await assert.rejects(()=>suggestIdeas({instead:{stepId:planned.id,who:[]}},state),/who would rather not go/);
+  await assert.rejects(()=>suggestIdeas({instead:{stepId:'nope',who:['Nate']}},state),/Choose a stop on the plan/);
 
   // What comes back is board-ready, and the junk one is cut to size rather than dropped whole.
   assert.equal(result.where,'Tokyo');
