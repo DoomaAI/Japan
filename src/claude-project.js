@@ -1,4 +1,4 @@
-import {party,personProfile,interestLabel,paceLabel,partyInterests,partyLikes} from './trip-features.js';
+import {BOYS,party,personProfile,interestLabel,paceLabel,partyInterests,partyLikes} from './trip-features.js';
 import {allergyOf,allergenById} from './allergy-data.js';
 import {PRIORITIES,PRIORITY_LEVELS} from './decide-data.js';
 // A trip as a Claude Project: a set of knowledge files, taken from the trip as it stands, and the
@@ -6,6 +6,8 @@ import {PRIORITIES,PRIORITY_LEVELS} from './decide-data.js';
 // trip itself — its name, days, people and places — so a second trip makes its own project.
 // What stays out: the inbox, expenses, documents and the vault, contacts, trackers and the Ask
 // thread. A project is shared with whoever it is shared with; none of that belongs in it.
+// A pack is for the whole party, or for one person: then it is their project, their profile
+// leads, their steps are marked, and every recommendation is for them first.
 export const PROJECT_FILES=['00-project-instructions.md','01-trip-overview.md','02-itinerary.md','03-traveller-profiles.md','04-places.md','05-ideas-and-feedback.md'];
 const line=value=>String(value??'').replace(/\s+/g,' ').trim();
 const list=values=>values.filter(Boolean).join(', ');
@@ -23,14 +25,14 @@ function ratingsBy(state,name){
  }
  return out.sort((a,b)=>(b.rating??0)-(a.rating??0)||a.day.localeCompare(b.day));
 }
-function instructions(state){
+function instructions(state,person){
  const name=line(state.tripName)||'this trip',days=state.days||[];
  const span=days.length?`${dayLabel(days[0].date)} to ${dayLabel(days.at(-1).date)}`:'dates not set';
- return `# Project instructions: ${name}
+ return `# Project instructions: ${name}${person?` — ${person}`:''}
 
 Paste this into the Project's custom instructions. Upload the other files as project knowledge.
 
-You are the planning companion for ${name} (${span}; ${list(cities(state))||'destinations not set'}). The travellers are ${list(state.members||[])||'not listed yet'}.
+You are ${person?`${person}’s own`:'the'} planning companion for ${name} (${span}; ${list(cities(state))||'destinations not set'}). The travellers are ${list(state.members||[])||'not listed yet'}.${person?focus(state,person):''}
 
 ## Sources, in order
 1. **The project knowledge files are the primary source.** The itinerary, bookings, places and traveller profiles in them are the family's own plan and override anything general you know or find.
@@ -47,6 +49,20 @@ You are the planning companion for ${name} (${span}; ${list(cities(state))||'des
 - Prefer places already in the places file and near that day's hotel and steps; give the local-language name and address where the file has one.
 - Keep suggestions realistic for the day's existing plan and the party's pace.
 `;
+}
+// Who the project belongs to, said up front: their age sets the register, their profile sets
+// the recommendations, and the rest of the party is context for the days they share.
+function focus(state,person){
+ // A profile's age decides it; until one is given, the trip's own list of children does.
+ const me=personProfile(state,person),child=me.age!=null&&me.age!==''?Number(me.age)<13:BOYS.includes(person);
+ return `
+
+## Whose project this is
+- This project belongs to **${person}**${me.age!=null?`, aged ${me.age}`:''}. Speak to ${person} directly${child?', in short, plain sentences a young child can read, with no scary or grown-up detail':''}.
+- Recommend for ${person} first: their profile in the traveller profiles file (listed first, marked “you”) and what they rated highly.
+- Steps flagged **not you** in the itinerary are ones ${person} is not on; do not plan around ${person} being there.
+- On days shared with the others, a suggestion must still work for the whole party; say who else it suits.
+${child?`- Anything involving money, bookings or going somewhere alone: suggest asking a parent.`:''}`.trimEnd();
 }
 function overview(state,at){
  const p=party(state),days=state.days||[];
@@ -71,8 +87,8 @@ ${hotels.map(h=>`| ${dayLabel(h.from)} | ${dayLabel(h.to)} | ${line(h.hotel)||'n
 ${shared.length?shared.map(i=>`- ${i.label}: ${i.who.join(', ')}`).join('\n'):'- None shared by more than one person yet.'}
 `;
 }
-function itinerary(state){
- const out=[`# Itinerary: ${line(state.tripName)}`,'','Each step: time · title · place. Flags: **locked** (fixed, do not move), **booked**, **done**, **skipped**.'];
+function itinerary(state,person){
+ const out=[`# Itinerary: ${line(state.tripName)}`,'',`Each step: time · title · place. Flags: **locked** (fixed, do not move), **booked**, **done**, **skipped**${person?`, **not you** (${person} is not on it)`:''}.`];
  for(const d of state.days||[]){
   out.push('',`## ${dayLabel(d.date)} — ${line(d.title)}`,`${line(d.city)} · stay: ${line(d.hotel)||'not set'}`,'');
   const steps=stepsFor(state,d.date);
@@ -80,17 +96,19 @@ function itinerary(state){
   for(const s of steps){
    const flags=[s.locked&&'locked',s.bookingTime&&`booked ${s.bookingTime}`,s.status==='done'&&'done',s.status==='skipped'&&'skipped',s.option&&`option: ${line(s.option)}`].filter(Boolean);
    const who=(s.participants||[]).length&&(s.participants||[]).length<(state.members||[]).length?` — ${s.participants.join(', ')}`:'';
+   if(person&&(s.participants||[]).length&&!s.participants.includes(person))flags.push('not you');
    out.push(`- ${s.time||'any time'} · ${line(s.title)}${s.place?` · ${line(s.place)}`:''}${s.japanese?` (${line(s.japanese)})`:''}${flags.length?` **[${flags.join(', ')}]**`:''}${who}`);
    if(s.notes)out.push(`  - ${line(s.notes)}`);
   }
  }
  return out.join('\n')+'\n';
 }
-function profiles(state){
+function profiles(state,person){
  const p=party(state),out=[`# Traveller profiles: ${line(state.tripName)}`,'','Written by each traveller in the app. A blank means nothing said yet, not no preference.'];
- for(const name of state.members||[]){
+ const order=person?[person,...(state.members||[]).filter(n=>n!==person)]:state.members||[];
+ for(const name of order){
   const me=personProfile(state,name),allergy=allergyOf(state,name),rated=ratingsBy(state,name),weights=p.priorities?.[name]?.weights;
-  out.push('',`## ${name}${me.age?` (${me.age})`:''}`,'');
+  out.push('',`## ${name}${me.age?` (${me.age})`:''}${name===person?' — you':''}`,'');
   out.push(`- **Interests:** ${me.interests.map(interestLabel).join(', ')||'—'}`);
   out.push(`- **Own likes:** ${me.likes.join(', ')||'—'}`);
   out.push(`- **Loves:** ${line(me.loves)||'—'}`);
@@ -139,15 +157,26 @@ function ideas(state){
  }
  return out.join('\n')+'\n';
 }
-export function projectPack(state,now=new Date()){
+// Whose pack a signed-in person may take: their own, always; anyone else's, or the whole party's
+// (asked as "party"), only as a parent. Returns the person, or null for the party.
+export function packPerson(user,asked,members){
+ const who=asked||user.name;
+ if(who!==user.name&&user.role!=='parent')return {error:'A parent can do this.',status:403};
+ if(who==='party')return {person:null};
+ if(!members.includes(who))return {error:'Choose a family member.',status:404};
+ return {person:who};
+}
+export function projectPack(state,now=new Date(),person=null){
+ if(person&&!(state.members||[]).includes(person))throw new Error(`${person} is not on this trip.`);
  const at=now.toISOString().slice(0,16).replace('T',' ')+' UTC',stamp=`> Snapshot of ${line(state.tripName)} taken ${at}. The app is the live source; this file is as of then.\n\n`;
  const files={
-  '00-project-instructions.md':instructions(state),
+  '00-project-instructions.md':instructions(state,person),
   '01-trip-overview.md':overview(state,at),
-  '02-itinerary.md':stamp+itinerary(state),
-  '03-traveller-profiles.md':stamp+profiles(state),
+  '02-itinerary.md':stamp+itinerary(state,person),
+  '03-traveller-profiles.md':stamp+profiles(state,person),
   '04-places.md':stamp+places(state),
   '05-ideas-and-feedback.md':stamp+ideas(state)
  };
- return {slug:projectSlug(state),name:line(state.tripName)||'Trip',at,files};
+ const trip=line(state.tripName)||'Trip';
+ return {slug:person?`${projectSlug(state)}-${projectSlug({tripName:person})}`:projectSlug(state),name:person?`${trip} — ${person}`:trip,person,at,files};
 }
