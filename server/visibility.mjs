@@ -1,5 +1,6 @@
 import {thankYouForDay,THANK_YOU_FROM,THANK_YOU_TO} from '../src/trip-features.js';
 import {japanDate} from '../src/timing.js';
+import {visiblePredictions} from '../src/prediction-data.js';
 // The thank-you notes are private between Damien and Lauren. Damien sees the whole list;
 // Lauren only ever receives the note scheduled for the current Japan day; nobody else
 // receives any of it. Redaction happens here, at the response boundary, so the note text
@@ -31,6 +32,9 @@ export function visibleTrip(state,user,now=new Date()){
  // The follow-along key is the same kind of thing, and a parent is handed it the same way.
  const {calendarKey,followKey,...rest}=state;
  state=hideExpenses(hideTrackerLinks(hideInbox(hideUnthrownHands(rest,user),user),user),user);
+ // Sealed predictions are sealed at the boundary too: the others' answers are not sent until
+ // the trip is over, only that they have answered.
+ if(state.predictions)state={...state,predictions:visiblePredictions(state,user?.name,japanDate(now))};
  if(user?.name===THANK_YOU_FROM)return state;
  if(user?.name!==THANK_YOU_TO)return {...state,thankYou:{seen:{},today:null}};
  const day=japanDate(now),note=thankYouForDay(state,day);

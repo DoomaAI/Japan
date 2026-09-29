@@ -49,6 +49,7 @@ export const PAGE_RULES={
  photos:'Photos. All the photos everyone has taken. You can add yours, and at the end of the day everybody votes for the best one.',
  stamps:'Stamp book. In Japan, stations and temples have a stamp you can press into a book. These are our stamps. Every time we finish a place, a sight, a ride or a train, it gets a red stamp. Your own stamps come when you try five foods, or ten, or twenty five.',
  leaderboard:'Leaderboard. Who has tried the most foods, been on the most rides and taken the most photos. The one at the top of each list gets a crown. If two people have the same number, they share the place.',
+ predictions:'Sealed predictions. Before we go, guess things about the trip, like the best food or if we will see Mount Fuji. Nobody can see your guesses until we get home. Then we open them all together and see who was right.',
  facts:'Fun facts. A new fact every day about somewhere we are going or something we are about to see. Press the speaker to hear it. All the ones you have already had are kept in here too.',
  recap:'Our trip story. Our whole trip in pictures and numbers, one card at a time. Tap the right side or swipe to see the next card. There is one card for each of us, with our favourite thing.',
  book:'Photobook. A page for every day of our trip, with the best photo, the things we liked most, and what we wrote. Mum and Dad can print it into a real book.',
