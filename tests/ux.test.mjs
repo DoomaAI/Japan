@@ -17,15 +17,17 @@ test('the weather list starts at today, with the days behind us folded above it'
  assert.match(page,/<details className="page-help"><summary>How this works<\/summary>/,'the explanation folds under the button');
  assert.match(page,/No forecast saved yet\./);
 });
-test('the phrase and fun fact of the day wait on the day in brief instead of opening over Home',async()=>{
- const main=await source('main.jsx'),brief=await source('Briefing.jsx');
+test('the phrase and fun fact of the day wait in a folding widget of their own instead of opening over Home',async()=>{
+ const main=await source('main.jsx'),brief=await source('TodaysJapan.jsx');
  assert.doesNotMatch(main,/setModal\(\{type:'phrase',phrase:todaysPhrase,day:dayOnTrip\}\);\n \},/,'no effect opens the phrase');
  assert.doesNotMatch(main,/localStorage\.setItem\(`japan\.fact\.\$\{dayOnTrip\}`,'seen'\);setModal/,'no effect opens the fact');
  assert.match(main,/const openPhrase=\(\)=>todaysPhrase\?setModal\(\{type:'phrase'/);
  assert.match(main,/const openFact=\(\)=>todaysFact\?setModal\(\{type:'fact',day:dayOnTrip\}\)/);
  assert.match(main,/phrase=\{day===dayOnTrip&&settingOn\(settings,'dailyPhrase'\)\?\{item:phraseQueue\(visibleState,user\.name,dayOnTrip\)\[0\],open:openPhrase,fresh:!phraseDone\}:null\}/,'the row names the phrase its sheet opens on');
- assert.match(brief,/className="briefing-phrase briefing-fact" onClick=\{fact\.open\}/);
+ assert.match(brief,/className="todays-japan-row" onClick=\{fact\.open\}/);
  assert.match(brief,/\{phrase\?\.fresh&&<em className="briefing-new">New<\/em>\}/);
+ assert.match(brief,/<details className="todays-japan" open=\{open\} onToggle=/,'it folds, and the phone keeps the fold');
+ assert.doesNotMatch(await source('Briefing.jsx'),/Today’s phrase/,'the day in brief no longer carries it');
 });
 test('no text is set below 12px, outside game boards and the drawn day map',async()=>{
  const exempt=['snake-cell','shogi-square','picross-cols','picross-rows','merge-tile','stable-cell','bingo-cell','.dm-','line-symbol','game-tile-stars'];

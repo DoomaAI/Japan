@@ -42,6 +42,7 @@ import Tonight from './Tonight.jsx';
 import OnThisDay from './OnThisDay.jsx';
 import RunUp from './RunUp.jsx';
 import DailyJapan from './DailyJapan.jsx';
+import TodaysJapan from './TodaysJapan.jsx';
 import TravelGuide from './TravelGuide.jsx';
 import DayMap from './DayMap.jsx';
 import BookingWindows,{BookingWindowsCard} from './BookingWindows.jsx';
@@ -569,7 +570,8 @@ function App(){
   bookingwindows:<BookingWindowsCard state={visibleState} now={now} go={go}/>,
   runup:<RunUp state={visibleState} today={japanDate(now)} go={go}/>,
   onthisday:<OnThisDay state={visibleState} today={japanDate(now)} dayLabel={fmtDay} go={go}/>,
-  briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go} phrase={day===dayOnTrip&&settingOn(settings,'dailyPhrase')?{item:phraseQueue(visibleState,user.name,dayOnTrip)[0],open:openPhrase,fresh:!phraseDone}:null} fact={day===dayOnTrip&&todaysFact&&settingOn(settings,'dailyFact')?{...(factQueue(visibleState,user.name,dayOnTrip)[0]||todaysFact),open:openFact,fresh:!factDone}:null}/>,
+  briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go}/>,
+  todaysjapan:<TodaysJapan state={visibleState} day={day} phrase={day===dayOnTrip&&settingOn(settings,'dailyPhrase')?{item:phraseQueue(visibleState,user.name,dayOnTrip)[0],open:openPhrase,fresh:!phraseDone}:null} fact={day===dayOnTrip&&todaysFact&&settingOn(settings,'dailyFact')?{...(factQueue(visibleState,user.name,dayOnTrip)[0]||todaysFact),open:openFact,fresh:!factDone}:null} go={go}/>,
   needs:<MorningChecklist key={day} state={visibleState} day={day} today={japanDate(now)}/>,
   step:<>
    {groups.length>0&&<div className="option-bar">{groups.map(g=><div key={g} className="option-group"><label>Choose a plan<select disabled={!parent||busy} value={state.choices[g]||''} onChange={e=>mutate({type:'choose',group:g,option:e.target.value})}>{[...new Set(state.steps.filter(s=>s.group===g).map(s=>s.option))].map(o=><option key={o}>{o}</option>)}</select></label>{/* The same options, all at once by different people, rather than one of them for everybody. */}{parent&&new Set(state.steps.filter(s=>s.group===g).map(s=>s.option)).size>1&&<button type="button" className="split-toggle" disabled={busy} onClick={()=>mutate({type:'groupMode',group:g,mode:'split'})}>We split up and do both</button>}</div>)}</div>}

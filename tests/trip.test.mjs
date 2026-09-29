@@ -1892,7 +1892,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  const ON=HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id));
  assert.deepEqual(HOME_OFF,['countdown','glance','adjust','tired','apps']);
  assert.deepEqual(homeShown(emptyHome()),ON);
- assert.equal(ON[0],'onthisday','an anniversary leads Home, on the days there is one');assert.equal(ON[1],'runup','then the run-up, before we fly');assert.equal(ON[2],'dailyjapan','then a little Japan each day');assert.equal(ON[3],'bookingwindows','then the booking windows about to open');assert.equal(ON[4],'briefing','then the day in brief');assert.equal(ON[5],'step','then the step card');
+ assert.equal(ON[0],'onthisday','an anniversary leads Home, on the days there is one');assert.equal(ON[1],'runup','then the run-up, before we fly');assert.equal(ON[2],'dailyjapan','then a little Japan each day');assert.equal(ON[3],'bookingwindows','then the booking windows about to open');assert.equal(ON[4],'briefing','then the day in brief');assert.equal(ON[5],'todaysjapan','then its phrase and fun fact');assert.equal(ON[6],'step','then the step card');
  for(const id of HOME_DEFAULT)assert.ok(HOME_WIDGETS[id].label&&HOME_WIDGETS[id].note,id);
  // Moved and put away, and nothing lost: a widget put away is still in the order to come back.
  let prefs=moveWidget(emptyHome(),'weather',-100);
@@ -1903,9 +1903,13 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.ok(!homeShown(prefs).includes('guide'));
  assert.ok(homeOrder(prefs).includes('guide'));
  assert.ok(homeShown(toggleWidget(prefs,'guide')).includes('guide'),'and it comes back');
- // Whatever localStorage hands back is cleaned: unknown and repeated ids go, new widgets arrive.
+ // Whatever localStorage hands back is cleaned: unknown and repeated ids go, new widgets arrive
+ // just after the one they follow by default, wherever that has been moved to.
  assert.deepEqual(cleanHome({order:['finds','nothing','finds'],hidden:['nothing','step']}),
-  {order:['finds',...HOME_DEFAULT.filter(id=>id!=='finds')],hidden:['step',...HOME_OFF],shown:[]});
+  {order:HOME_DEFAULT,hidden:['step',...HOME_OFF],shown:[]});
+ const arranged=homeOrder({order:['weather','briefing',...HOME_DEFAULT.filter(id=>!['weather','briefing','todaysjapan'].includes(id))]});
+ assert.deepEqual(arranged.slice(0,3),['weather','briefing','todaysjapan'],'a new widget lands beside its neighbour, not at the foot');
+ assert.equal(arranged.length,HOME_DEFAULT.length);
  for(const rubbish of [null,undefined,'x',{order:'x'},{hidden:'step'}])
   assert.deepEqual(homeShown(rubbish),ON,JSON.stringify(rubbish));
  // The day's buttons can be brought onto Home one by one, moved, and put away again.
@@ -1915,7 +1919,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.equal(homeShown(cleanHome(JSON.parse(JSON.stringify(prefs))))[0],'tired','kept through storage');
  assert.ok(!homeShown(toggleWidget(prefs,'tired')).includes('tired'));
  // An older phone's single 'actions' widget becomes the four, in its place.
- assert.deepEqual(homeOrder({order:['actions','step'],hidden:['actions']}).slice(0,5),['glance','adjust','tired','apps','step']);
+ const legacy=homeOrder({order:['actions','step'],hidden:['actions']});assert.deepEqual(legacy.slice(legacy.indexOf('glance'),legacy.indexOf('glance')+4),['glance','adjust','tired','apps']);assert.ok(legacy.indexOf('apps')<legacy.indexOf('step'));
  // Side by side they share one grid; apart, each is its own.
  assert.deepEqual(homeRuns(['step','tired','apps','weather','glance']),['step',['tired','apps'],'weather',['glance']]);
  // Home draws them by id, the day heading and strip stay put, and the phone keeps the choice.
