@@ -132,3 +132,19 @@ test('on the day we fly home the stay is the morning we check out, not another n
  const last=stayFor(ensureFeatures(seed),'2026-10-06');
  assert.ok(last.checkingOut);assert.equal(last.to,'2026-10-06');assert.equal(last.total,5);
 });
+test('the wallet leads with the next passes to scan, in the order we reach them',async()=>{
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {nextPasses}=await import('../src/wallet-data.js');
+ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url)));
+ const base=ensureFeatures(seed),day='2026-09-30',steps=base.steps.filter(s=>s.day===day&&s.time).sort((a,b)=>a.time.localeCompare(b.time));
+ const doc=(id,step,extra={})=>({id,title:id,person:'Family',category:'ticket',stepIds:[step.id],...extra});
+ const state={...base,documents:[doc('later',steps[4]),doc('first',steps[1]),doc('used',steps[0],{archivedAt:'2026-09-30T00:00:00Z'}),doc('page',steps[0],{parentDocumentId:'first'}),doc('yesterday',base.steps.find(s=>s.day==='2026-09-29'))]};
+ assert.deepEqual(nextPasses(state,day).map(p=>p.doc.id),['first','later'],'in time order; used, attached pages and yesterday’s left out');
+ const done={...state,steps:state.steps.map(s=>s.id===steps[1].id?{...s,status:'done'}:s)};
+ assert.deepEqual(nextPasses(done,day).map(p=>p.doc.id),['later'],'a stop ticked off has used its pass');
+ assert.equal(nextPasses(state,day,1).length,1);
+ const main=await source('main.jsx'),nav=await source('nav-data.js');
+ assert.match(main,/<h1>Wallet<\/h1><NextPasses /,'the passes come first');
+ assert.match(main,/<summary>Search and filter all \{ticketList\(state,\{archived:false\}\)\.length\} bookings<\/summary>/);
+ assert.match(nav,/tickets:\{label:'Wallet'/);
+});
