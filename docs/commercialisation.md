@@ -122,6 +122,10 @@ Poll settings:
 - Pricing for groups: charge the organiser, each member, or a fee per trip?
 - Group size: design for a family of four to a group of about 20, or also for larger events such as weddings or company trips?
 
+## Store apps
+
+What an App Store and Google Play version would take is logged in [native-apps.md](native-apps.md).
+
 ## Next step when picked up
 
 A short design note (like `docs/design/maps-memories-tags.md`) covering the watch data model, the rating formula, the polling job, and the group and poll model. Then build a prototype with one fare feed, Open-Meteo, the sumo calendar, and open polls built on the existing planning board votes.
