@@ -423,3 +423,13 @@ test('apps to download: reminders a week before we fly, the evening before each 
  assert.deepEqual(dayBriefing(state,'2026-09-25').apps.map(a=>[a.id,a.today]),[['usj',true]]);
  assert.deepEqual(dayBriefing(state,'2026-09-22').apps,[]);
 });
+test('apps to download: an app a stop was booked through is suggested for that stop’s day, and not before',async()=>{
+ const {suggestedApps,appReminders}=await import('../src/apps-data.js');
+ const state=upgraded(seed);
+ assert.ok(!suggestedApps(state,'2026-09-01').some(a=>a.id==='klook'),'nothing booked through Klook, no Klook');
+ const tea=state.steps.find(s=>s.day==='2026-09-26');
+ const booked={...state,steps:state.steps.map(s=>s.id===tea.id?{...s,bookedVia:'klook'}:s)};
+ assert.deepEqual(suggestedApps(booked,'2026-09-01').find(a=>a.id==='klook').days,['2026-09-26']);
+ assert.deepEqual(appReminders(booked).find(r=>r.id==='klook').day,'2026-09-25','the evening before');
+ assert.ok(!appReminders(booked)[0].apps.some(a=>a.id==='klook'),'and not in the week-before list');
+});
