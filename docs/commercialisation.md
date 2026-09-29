@@ -106,6 +106,61 @@ Poll settings:
 - **Splitting costs:** shared costs split evenly, by room or by person, with a running balance (like Splitwise). The family spending ledger (#151) is a starting point.
 - **Roles:** organiser, member, view-only (as in roadmap item 11).
 
+### Sign-ups with limited places
+
+Added 29 September 2026. The organiser offers options that each member selects for themselves, sets how many places each option has, and chooses how places are given out. Examples: a cooking class for 8, two dinner sittings, a day tour with 12 seats, rooms of different sizes, a golf tee time for 4.
+
+#### What the organiser sets
+
+| Setting | Examples | Notes |
+|---|---|---|
+| Options | Tour A or tour B; 18:00 or 20:30 sitting; twin or triple room | Each option has a title, time, cost per place and notes |
+| Places per option | 8 places; unlimited; a minimum to run (e.g. 4) | An option below its minimum at the deadline is cancelled or merged, as the organiser chooses |
+| Choice type | Pick one; pick any; pick up to N; rank in order of preference | Ranking lets places be given out by preference when options fill |
+| Allocation method | First come, first served; organiser selects; ballot | Fixed before sign-ups open and shown to everyone |
+| Opening and closing | Opens 19:00 Friday; closes 48 hours before the activity | A set opening time gives everyone a fair start |
+| Who counts | Adults, children, guests of a member | A child's place can require an adult on the same option |
+| Reserved places | Places held for the organiser or a guide | Shown as held, not as free |
+| Waitlist | On or off; how long an offered place is held (e.g. 12 hours) | Applies to all methods |
+
+#### Allocation methods
+
+| Method | How it works | Suits |
+|---|---|---|
+| **First come, first served** | Places are confirmed in the order the server receives them. When an option is full, later sign-ups join its waitlist in order. | Casual activities; groups where speed is fair |
+| **Organiser selects** | Members register interest, optionally ranked, with a short note. The organiser picks who gets each place before a set date; everyone else is waitlisted or told they were not selected. | Scarce or costly places; balancing across the group; skill or age limits |
+| **Ballot** (optional third) | Registrations close, then places are drawn at random, honouring rankings where given. | High demand where neither speed nor judgement is fair |
+
+For **organiser selects**, the selection screen shows each member's other allocations and how many first choices they have had, so places can be spread fairly. Selection notes stay with the organiser.
+
+#### Member status
+
+Each member's status on each option is one of: **interested**, **confirmed**, **waitlisted** (with position), **offered** (a freed place, held until a set time), **declined**, **not selected**, or **cancelled**. The option shows places taken, places left and the waitlist length; names are shown or hidden as the organiser chooses.
+
+#### Rules the system enforces
+
+- **No overselling:** places are counted on the server in one transaction (a row lock in Postgres), never on the phone. A sign-up made offline is queued as a request, not a place, until the server confirms it; the phone says so. The app's pending-change queue already works this way for edits.
+- **Clashes:** a member cannot hold two options at the same time; picking the second asks which to keep.
+- **Waitlist promotion:** when a place frees up, the next person is offered it by push (#214) and email, with the hold time. An offer not taken in time passes down the list. Under organiser selects, the organiser can promote by hand instead.
+- **Payment holds:** where a deposit is required, a place is confirmed only once paid; an unpaid place is released after a set time and offered to the waitlist.
+- **Changes after opening:** the allocation method and place numbers cannot be reduced after sign-ups open without notice to everyone affected. Increasing places promotes from the waitlist automatically.
+- **Audit trail:** every sign-up, offer, selection and cancellation is timestamped, so any dispute over order or fairness can be answered.
+
+#### What exists in this app to build on
+
+- **Per-person choices and slots:** the Universal Express Pass panel already has one pick per person per ☆ choice, time windows, and a parent adding slots.
+- **Individual picks:** hunt picks (#209) and the planning board's votes and must-do stars.
+- **Split lanes:** Split the day (#197) already puts part of the party on one activity and the rest on another, meeting back up; an allocated option could land on each member's day the same way.
+- **Notifications:** push (#214) for offers, reminders before closing and changes to an option.
+- **Offline queue and roles:** the pending-change queue and the parent/child split in what each phone receives.
+
+#### Considerations
+
+- **Fairness and transparency:** the method, opening time and any reserved places must be visible before sign-ups open. First come, first served favours whoever has signal at the opening time; a ballot window (e.g. the first hour counts as simultaneous) is a middle path.
+- **Paid places and refunds:** if a member pays and is not selected, or an option is cancelled for falling below its minimum, the refund terms must be stated up front (ACL consumer guarantees and unfair contract terms rules apply to standard-form terms).
+- **Privacy:** selection notes, members' ranked preferences and waitlist positions of others are personal information under the APPs; show members only their own.
+- **Supplier limits:** places often mirror a supplier's booking (a class of 8, a table of 10). The organiser's place count should match what is actually held with the supplier, and the hold's expiry should close sign-ups first (as for poll holds above).
+
 ### Group-specific considerations
 
 - **Holding money for others:** collecting deposits and paying suppliers for the group may need an Australian financial services licence or an exemption. Use a payment platform that holds the funds (e.g. Stripe Connect) rather than the app holding them.
@@ -167,7 +222,9 @@ Each essential links to the shop or the official page and to the screen in the a
 - Polling cost: how often each watch is checked, and the cost per watch per month.
 - Pricing for groups: charge the organiser, each member, or a fee per trip?
 - Group size: design for a family of four to a group of about 20, or also for larger events such as weddings or company trips?
+- Sign-ups: which allocation method is the default, and can an organiser switch method after sign-ups open if demand is far higher than expected?
+- Sign-ups: are places transferable between members, or must a released place go back through the waitlist?
 
 ## Next step when picked up
 
-A short design note (like `docs/design/maps-memories-tags.md`) covering the watch data model, the rating formula, the polling job, and the group and poll model. Then build a prototype with one fare feed, Open-Meteo, the sumo calendar, and open polls built on the existing planning board votes.
+A short design note (like `docs/design/maps-memories-tags.md`) covering the watch data model, the rating formula, the polling job, the group and poll model, and the sign-up model (options, places, allocation method, statuses and waitlist). Then build a prototype with one fare feed, Open-Meteo, the sumo calendar, and open polls built on the existing planning board votes.
