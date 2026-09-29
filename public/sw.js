@@ -27,3 +27,19 @@ self.addEventListener('fetch',event=>{
   try{return await net;}catch{return new Response('Open the app once while online to save it.',{status:503});}
  })());
 });
+// A push from the family server: shown as a notification even with the app closed. Tapping it
+// opens the app on the thing it was about, in the window already open if there is one.
+self.addEventListener('push',event=>{
+ let d={};try{d=event.data?event.data.json():{};}catch{d={title:'Japan 2026',body:event.data?.text()||''};}
+ event.waitUntil(self.registration.showNotification(d.title||'Japan 2026',{body:d.body||'',tag:d.tag||undefined,icon:'/icon-192.png',badge:'/favicon-32.png',data:{url:d.url||'/'}}));
+});
+self.addEventListener('notificationclick',event=>{
+ event.notification.close();
+ const url=new URL(event.notification.data?.url||'/',self.location.origin);
+ event.waitUntil((async()=>{
+  const wins=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+  const same=wins.find(w=>new URL(w.url).origin===url.origin);
+  if(same&&url.origin===self.location.origin){await same.focus();return same.navigate(url.href).catch(()=>{});}
+  return self.clients.openWindow(url.href);
+ })());
+});
