@@ -30,6 +30,8 @@ export const PAGES={
  facts:{label:'Fun facts',note:'A fact a day about what is coming up, and the whole collection'},
  help:{label:'Help & useful apps',note:'Translation, hotel directions, reminders'},
  options:{label:'Options & ideas',note:'Places and activities saved for later'},
+ apps:{label:'Apps to download',note:'The local apps worth having for trains, taxis, the parks and alerts, and what to set up in each'},
+ vault:{label:'Passports & visas',note:'Passport details, photos of each page, visas and insurance, encrypted, for Mum and Dad only'},
  arrival:{label:'Arrival paperwork',note:'Visit Japan Web for landing in Japan, and the Australia Travel Declaration for home'},
  windows:{label:'Booking windows',note:'When the bookings that sell out open, in Japan and home time, with calendar alerts'},
  predictions:{label:'Sealed predictions',note:'Guess how the trip will go; the answers stay sealed until we are home'},
@@ -49,7 +51,7 @@ export const PAGES={
  updates:{label:'Family updates',note:'What changed and who has seen it'},
  search:{label:'Search everything',note:'Find a booking, note, shop or guide page'},
  mascot:{label:'Our characters',note:'Design your own Japanese character and use it in the app'},
- thanks:{label:'Notes for Lauren',note:'Write and schedule her daily pop-up notes'},
+ thanks:{label:'Daily notes',note:'Write and schedule the daily pop-up notes for Lauren, Nate and Boston'},
  personalise:{label:'My menu',note:'Choose what you see, and the order it comes in'},
  settings:{label:'Settings',note:'The order of the shortcuts along the bottom, and the daily phrase or fun fact'}
 };
@@ -68,7 +70,7 @@ export const PRIMARY={
 // between the bookings and the paperwork.
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','money','paying','ledger','food','allergy','hunts','phrases','meeting','safety','help']],
- ['The plan',['glance','todo','packing','shop','trackers','windows','arrival','planning','predictions','options','parks','shopping','shortlist','tickets','inbox']],
+ ['The plan',['glance','todo','packing','shop','trackers','windows','arrival','vault','apps','planning','predictions','options','parks','shopping','shortlist','tickets','inbox']],
  ['Looking back',['noticed','photos','memorymap','diary','recap','book','highlights','updates','bin','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
  ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot']]
@@ -85,13 +87,31 @@ export const MORE_SECTIONS=[
 let available={inbox:false,ask:false};
 export const setAvailable=next=>{available={...available,...next};};
 export const isAvailable=id=>!(id in available)||available[id];
-const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(!['inbox','ledger','paying'].includes(id)||user?.role==='parent')&&isAvailable(id);
+// The parents' screens: forwarded email, their money, and the family's passports.
+export const PARENT_PAGES=['inbox','ledger','paying','vault'];
+const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(!PARENT_PAGES.includes(id)||user?.role==='parent')&&isAvailable(id);
 export const pagesFor=user=>Object.keys(PAGES).filter(id=>allowed(id,user));
 // The handful of pages wanted in a hurry, in one row at the top of More, above the long list:
 // the ones reached for with a child crying, a waiter waiting or the sky darkening. Nothing
 // here is taken out of its section below; this row is a second way in, not a move.
 export const RIGHT_NOW=['safety','meeting','allergy','phrases','weather','help'];
 export const rightNow=user=>{const ok=new Set(pagesFor(user));return RIGHT_NOW.filter(id=>ok.has(id));};
+// Favourites: the row at the top of More, made each person's own. Starring a card in any section
+// puts it in the row; unstarring takes it out. It starts as the Right now six, so an untouched
+// phone sees what it always has. Kept on the phone like the bar, and cleaned the same way on the
+// way out of storage: unknown or no-longer-allowed screens are dropped, repeats collapse, and the
+// row stops at a dozen so it stays a row of shortcuts rather than a second menu. An empty list is
+// a real choice — somebody who unstars everything gets no row, not the defaults back.
+export const FAV_MAX=12;
+export const favourites=(user,saved)=>{
+ if(!Array.isArray(saved))return rightNow(user);
+ const ok=new Set(pagesFor(user));
+ return [...new Set(saved.filter(id=>typeof id==='string'&&ok.has(id)))].slice(0,FAV_MAX);
+};
+export const toggleFavourite=(user,saved,id)=>{
+ const now=favourites(user,saved);
+ return now.includes(id)?now.filter(x=>x!==id):now.length<FAV_MAX?[...now,id]:now;
+};
 // The menu, as this person has arranged it. Four of us carry the same app and want different
 // things out of it: Lauren lives on tickets and the plan, Boston on his missions and his money,
 // and Nate opens three screens in the whole trip. So the bar is theirs to set — which screens
