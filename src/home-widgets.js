@@ -13,6 +13,7 @@ export const HOME_WIDGETS={
  countdown:{label:'Trip countdown',note:'Days to go before we fly, then which day of the trip it is',off:true},
  onthisday:{label:'On this day',note:'After the trip: a day of it brought back a month, a year, on from when it happened'},
  runup:{label:'The run-up',note:'Before we fly: days to go, and a family task unlocked at 100, 50, 30, 14 and 7 days'},
+ dailyjapan:{label:'A little Japan each day',note:'Before we fly: one phrase to say and one fact to read, every day of the run-up'},
  briefing:{label:'The day in brief',note:'Which day it is, the stops, fixed times, weather, a hotel move and the day’s phrase'},
  step:{label:'The step we are on',note:'The current stop, swipe for the rest of the day'},
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},

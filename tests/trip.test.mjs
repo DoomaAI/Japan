@@ -1855,10 +1855,10 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  const ON=HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id));
  assert.deepEqual(HOME_OFF,['countdown','glance','adjust','tired','apps']);
  assert.deepEqual(homeShown(emptyHome()),ON);
- assert.equal(ON[0],'onthisday','an anniversary leads Home, on the days there is one');assert.equal(ON[1],'runup','then the run-up, before we fly');assert.equal(ON[2],'briefing','then the day in brief');assert.equal(ON[3],'step','then the step card');
+ assert.equal(ON[0],'onthisday','an anniversary leads Home, on the days there is one');assert.equal(ON[1],'runup','then the run-up, before we fly');assert.equal(ON[2],'dailyjapan','then a little Japan each day');assert.equal(ON[3],'briefing','then the day in brief');assert.equal(ON[4],'step','then the step card');
  for(const id of HOME_DEFAULT)assert.ok(HOME_WIDGETS[id].label&&HOME_WIDGETS[id].note,id);
  // Moved and put away, and nothing lost: a widget put away is still in the order to come back.
- let prefs=moveWidget(emptyHome(),'weather',-10);
+ let prefs=moveWidget(emptyHome(),'weather',-100);
  assert.deepEqual(homeOrder(prefs),HOME_DEFAULT,'a move off the end does nothing');
  prefs=moveWidget(emptyHome(),'weather',-1);
  assert.equal(homeOrder(prefs).indexOf('weather'),HOME_DEFAULT.indexOf('weather')-1);
