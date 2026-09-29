@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
-import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split,MapPin,LocateFixed,Tag} from 'lucide-react';
+import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split,MapPin,LocateFixed,Tag,Star} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf,rankByParty,travelText,COORD_PLACES} from './trip-features.js';
+import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf,rankByParty,travelText,COORD_PLACES,ratingText,UNRATED_STARS} from './trip-features.js';
 import {activeSteps} from './timing.js';
 import {askPhoneWhereItIs} from './geo.js';
 import {photoUrl} from './PhotoDay.jsx';
@@ -214,7 +214,9 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
  // us are sitting a stop out and the rest carry on, straight onto the day as a split.
  const splitting=!!(result?.instead?.staying.length&&!insteadGone);
  // Dealt with the ones that please the most of us on top; the model's own order breaks a tie.
- const ranked=result?rankByParty(result.suggestions,state,i=>i.draft):[];
+ // After the party, the better-rated of two equal fits. Something with no rating counts as an
+ // ordinary place, as on Near here, rather than as the worst one.
+ const ranked=result?rankByParty(result.suggestions,state,i=>i.draft,(a,b)=>(b.rating??UNRATED_STARS)-(a.rating??UNRATED_STARS)):[];
  return <details className="party-panel suggest-panel">
   <summary><Sparkles size={17}/>Suggest some ideas</summary>
   <p>Built from who is going and what each of us said we are into{filled.length?` — ${filled.join(', ')} so far`:''}. {filled.length<state.members.length&&<strong>Fill in the rest above and these get sharper.</strong>}</p>
@@ -275,6 +277,7 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
      <div className="plan-facts">
       {item.travelMinutes!=null&&<span className="suggest-travel"><MapPin size={14}/>{travelText(item.travelMinutes,item.travelMode,result.from)}</span>}
       <span><Tag size={14}/>{kindLabel(item.draft.category)}</span>
+      {item.rating!=null&&<span className="suggest-rating"><Star size={14}/>{ratingText(item.rating,item.ratingCount)} on Google</span>}
       {!!item.draft.duration&&<span><Clock size={14}/>About {item.draft.duration} min</span>}
       {item.draft.cost!==null&&<span><Coins size={14}/>Around ¥{item.draft.cost.toLocaleString()}{item.draft.costNote?` · ${item.draft.costNote}`:''}</span>}
       {item.bookAhead&&<span>Usually booked ahead</span>}

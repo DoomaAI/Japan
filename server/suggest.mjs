@@ -1,6 +1,6 @@
 import {AppError,MEMBERS} from './model.mjs';
 import {activeSteps} from '../src/timing.js';
-import {PROPOSAL_KINDS,PROPOSAL_TIMING,SUGGEST_KINDS,TRAVEL_MODES,proposalDraft,partyBrief,proposals,rejoinAt,BOYS} from '../src/trip-features.js';
+import {PROPOSAL_KINDS,PROPOSAL_TIMING,SUGGEST_KINDS,TRAVEL_MODES,MIN_RATING_VOTES,validRating,ratingText,proposalDraft,partyBrief,proposals,rejoinAt,BOYS} from '../src/trip-features.js';
 export const suggestReady=()=>!!process.env.ANTHROPIC_API_KEY;
 export const MAX_SUGGESTIONS=8;
 // Enough searching to check what is actually on in that city while they are there, and to drop
@@ -9,7 +9,7 @@ export const MAX_SUGGESTIONS=8;
 const SEARCH={type:'web_search_20260209',name:'web_search',max_uses:5,user_location:{type:'approximate',country:'JP',timezone:'Asia/Tokyo'}};
 const suggestion={
  type:'object',additionalProperties:false,
- required:['title','place','japanese','flavour','category','timing','duration','cost','costNote','suitableFor','tags','notes','why','bookAhead','travelMinutes','travelMode'],
+ required:['title','place','japanese','flavour','category','timing','duration','cost','costNote','suitableFor','tags','notes','why','bookAhead','travelMinutes','travelMode','rating','ratingCount'],
  properties:{
   title:{type:'string',description:'What it is, in English, as the family would name it.'},
   place:{type:'string',description:'The area or district it is in, and the city.'},
@@ -26,7 +26,9 @@ const suggestion={
   why:{type:'string',description:'One sentence on why THIS family, naming the person or the interest it answers.'},
   bookAhead:{type:'boolean',description:'True if it normally has to be booked before the day.'},
   travelMinutes:{anyOf:[{type:'integer'},{type:'null'}],description:'Rough minutes to get there from the starting point they gave, door to door. Null if they gave no starting point.'},
-  travelMode:{type:'string',enum:TRAVEL_MODES.map(([id])=>id),description:'How they would most sensibly get there from the starting point: walk if it is under about fifteen minutes on foot.'}}
+  travelMode:{type:'string',enum:TRAVEL_MODES.map(([id])=>id),description:'How they would most sensibly get there from the starting point: walk if it is under about fifteen minutes on foot.'},
+  rating:{anyOf:[{type:'number'},{type:'null'}],description:'Its Google Maps star rating, 1 to 5, as it stands today. Null if you have not actually seen it — never a guess, never another branch, and null for something with no single place, such as a walk or a festival.'},
+  ratingCount:{anyOf:[{type:'integer'},{type:'null'}],description:'How many Google ratings that average is made of. Null if you do not know.'}}
 };
 const RECORD={
  name:'record_suggestions',
@@ -48,6 +50,7 @@ How to choose:
 - Nate is five. Anything with a long queue, a late finish, a height limit or a fright is for the others, and suitableFor should say so. Leave suitableFor empty only when it genuinely suits all four.
 - Do not suggest anything already on their plan or their board — both lists are given to you.
 - Search to check what is actually on in that city while they are there — a festival, a match, an exhibition with dates — and to drop anything that has closed since. A dated event beats a generic suggestion.
+- Where it is one place — a museum, a shrine, a café, a park — search for its Google rating and the number of ratings behind it. A rating you have not seen is null; a made-up 4.6 is worse than none.
 - Write "notes" as what it actually is and what to know before going. Two or three sentences, no brochure language.
 
 What this is not: you are not checking opening hours, prices or whether tickets are available. The family looks a place up separately for that, and the app tells them so. Give a rough cost and a rough duration and be plain that they are rough. Never invent a web address — you are not asked for one and there is nowhere to put it.
@@ -60,10 +63,15 @@ const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 export function normaliseSuggestion(item,state){
  const members=state.members||MEMBERS;
  const cost=Number.isInteger(item.cost)&&item.cost>=0&&item.cost<=10000000?item.cost:null;
+ // Google's number or nothing, as on Near here: out of range is dropped, and an average of a
+ // handful of votes is not one worth choosing a morning on.
+ const votes=Number.isInteger(item.ratingCount)&&item.ratingCount>=0?item.ratingCount:null;
+ const rating=votes!==null&&votes<MIN_RATING_VOTES?null:validRating(Number(item.rating));
+ const ratingCount=rating===null?null:votes;
  const duration=Number.isInteger(item.duration)&&item.duration>0&&item.duration<=1440?item.duration:60;
  const draft=proposalDraft({
   title:clamp(item.title,250),place:clamp(item.place,250),japanese:clamp(item.japanese,250),
-  notes:clamp(item.notes,4000),cost,costNote:clamp(item.costNote,250),duration,
+  notes:[clamp(item.notes,3900),rating===null?'':`Google ${ratingText(rating,ratingCount)}`].filter(Boolean).join('\n'),cost,costNote:clamp(item.costNote,250),duration,
   category:PROPOSAL_KINDS.some(([id])=>id===item.category)?item.category:'place',
   timing:PROPOSAL_TIMING.some(([id])=>id===item.timing)?item.timing:'flex',
   suitableFor:(Array.isArray(item.suitableFor)?item.suitableFor:[]).filter(n=>members.includes(n)),
@@ -76,7 +84,8 @@ export function normaliseSuggestion(item,state){
   flavour:SUGGEST_KINDS.some(([id])=>id===item.flavour)?item.flavour:'unique',
   why:clamp(item.why,500),bookAhead:item.bookAhead===true,
   travelMinutes:Number.isInteger(item.travelMinutes)&&item.travelMinutes>=0&&item.travelMinutes<=240?item.travelMinutes:null,
-  travelMode:TRAVEL_MODES.some(([id])=>id===item.travelMode)?item.travelMode:'walk'};
+  travelMode:TRAVEL_MODES.some(([id])=>id===item.travelMode)?item.travelMode:'walk',
+  rating,ratingCount};
 }
 // Everything they already have, itinerary and board alike, so the same shrine does not come
 // back a third time. The whole plan rather than the matching city: an area typed by hand — "Gion

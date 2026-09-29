@@ -10571,7 +10571,7 @@ test('suggestions and places near here are dealt with what pleases the most of u
  const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
  const nearby=await readFile(new URL('../src/Nearby.jsx',import.meta.url),'utf8');
  const server=await readFile(new URL('../server/suggest.mjs',import.meta.url),'utf8');
- assert.match(party,/const ranked=result\?rankByParty\(result\.suggestions,state,i=>i\.draft\):\[\]/);
+ assert.match(party,/const ranked=result\?rankByParty\(result\.suggestions,state,i=>i\.draft,/);
  assert.match(party,/<PartyMatch fit=\{item\.fit\}/);
  assert.match(party,/travelText\(item\.travelMinutes,item\.travelMode,result\.from\)/);
  assert.match(party,/Nothing is planned for \{dayLabel\(scopeDay\.date\)\} yet/);
@@ -10580,4 +10580,27 @@ test('suggestions and places near here are dealt with what pleases the most of u
  assert.match(nearby,/<SuggestDeck key=\{round\} items=\{ranked\}/);
  assert.match(nearby,/\(b\.dish\?1:0\)-\(a\.dish\?1:0\)\|\|\(b\.fit\?\.fans\.length\|\|0\)-\(a\.fit\?\.fans\.length\|\|0\)/);
  assert.match(nearby,/fit:isRatedKind\(o\.kind\)\?partyFit\(state,o\.draft\):null/,'a toilet is the nearest one, whoever likes what');
+});
+
+test('activity suggestions carry the Google rating where there is one, and it settles a tie in the party',async()=>{
+ const {normaliseSuggestion}=await import('../server/suggest.mjs');
+ const {rankByParty,UNRATED_STARS}=await import('../src/trip-features.js');
+ const state=upgraded(structuredClone(seed));
+ const s=normaliseSuggestion({title:'Tokyo National Museum',notes:'Samurai armour.',rating:4.56,ratingCount:21000},state);
+ assert.equal(s.rating,4.6);assert.equal(s.ratingCount,21000);
+ assert.match(s.draft.notes,/Google 4\.6 · 21,000 ratings/,'it goes onto the board with the idea');
+ // Never a rating it did not earn: out of range, a handful of votes, or not given.
+ for(const bad of [{rating:6,ratingCount:100},{rating:4.9,ratingCount:3},{rating:null,ratingCount:null},{}]){
+  const r=normaliseSuggestion({title:'X',...bad},state);
+  assert.equal(r.rating,null,JSON.stringify(bad));assert.equal(r.ratingCount,null);assert.doesNotMatch(r.draft.notes,/Google/);
+ }
+ // With nobody's likes to choose between them, the better rated goes first, and an unrated one
+ // sits as an ordinary place rather than the worst.
+ const card=(title,rating)=>({draft:{title,place:'',notes:'',tags:[],category:'place',suitableFor:[]},rating});
+ const order=rankByParty([card('Low',3.2),card('None',null),card('High',4.7)],state,i=>i.draft,(a,b)=>(b.rating??UNRATED_STARS)-(a.rating??UNRATED_STARS)).map(i=>i.draft.title);
+ assert.deepEqual(order,['High','None','Low']);
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ assert.match(party,/\{item\.rating!=null&&<span className="suggest-rating"><Star size=\{14\}\/>\{ratingText\(item\.rating,item\.ratingCount\)\} on Google<\/span>\}/);
+ const server=await readFile(new URL('../server/suggest.mjs',import.meta.url),'utf8');
+ assert.match(server,/'travelMinutes','travelMode','rating','ratingCount'\]/);
 });
