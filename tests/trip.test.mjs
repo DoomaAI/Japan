@@ -9476,3 +9476,32 @@ test('every stop in the plan reads as a sort of stop, and a parent can set it by
  assert.throws(()=>applyOperation(seed,{type:'patch',id:s.id,patch:{category:'spa'}},parent),/sort of stop/);
  assert.ok(ENTRY_TYPE_IDS.includes('food'));
 });
+
+test('the buttons under each stop come in each person’s own order, rearranged by holding and dragging',async()=>{
+ const {CARD_LINKS,LINKS_DEFAULT,emptyLinks,cleanLinks,linkOrder,dropLink,stepLink}=await import('../src/card-links.js');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const row=await readFile(new URL('../src/StopButtons.jsx',import.meta.url),'utf8');
+ // Untouched, the day's own buttons lead and Share ends the row.
+ assert.deepEqual(linkOrder(emptyLinks()),LINKS_DEFAULT);
+ assert.deepEqual(LINKS_DEFAULT.slice(0,3),['park','sumo','eyespy']);
+ assert.equal(LINKS_DEFAULT.at(-1),'share');
+ for(const id of LINKS_DEFAULT)assert.ok(CARD_LINKS[id].label&&CARD_LINKS[id].note,id);
+ // Dragged onto another, a button takes its place and the rest shuffle along, either way.
+ assert.deepEqual(dropLink(['a','b','c','d'],'a','c'),['b','c','a','d']);
+ assert.deepEqual(dropLink(['a','b','c','d'],'d','b'),['a','d','b','c']);
+ assert.deepEqual(dropLink(['a','b'],'a','nothing'),['a','b']);
+ // A step along skips buttons this stop does not show, and does nothing off the end.
+ assert.deepEqual(stepLink(['a','b','c'],'a',1,['a','c']),['b','c','a']);
+ assert.deepEqual(stepLink(['a','b','c'],'a',-1),['a','b','c']);
+ // Whatever localStorage hands back is cleaned: unknown and repeated ids go, new buttons arrive.
+ assert.deepEqual(cleanLinks({order:['share','nothing','share','nearby']}).order,
+  ['share','nearby',...LINKS_DEFAULT.filter(id=>id!=='share'&&id!=='nearby')]);
+ for(const rubbish of [null,undefined,'x',{order:'x'}])assert.deepEqual(linkOrder(rubbish),LINKS_DEFAULT,JSON.stringify(rubbish));
+ // The stop card hands every button to the row by name and keeps the order on this phone.
+ for(const id of LINKS_DEFAULT)assert.match(main,new RegExp(`\\n\\s+${id}:`),id);
+ assert.match(main,/<StopButtons label="For this stop" order=\{linkOrder\(linkPrefs\)\}/);
+ assert.match(main,/japan\.links\.\$\{user\.name\}/);
+ // Holding wobbles the row, and while it wobbles a tap does not open anything.
+ assert.match(row,/className=\{`card-links\$\{editing\?' editing':''\}`\}/);
+ assert.match(row,/onClickCapture=\{e=>\{if\(editing\|\|eat\.current\)/);
+});

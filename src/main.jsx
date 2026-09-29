@@ -30,6 +30,8 @@ import {BottomNav,MorePage} from './Navigation.jsx';
 import {primaryNav,moreIds,PAGES,cleanNav,emptyNav,setAvailable,isAvailable} from './nav-data.js';
 import Personalise from './Personalise.jsx';
 import {homeShown,homeRuns,emptyHome,cleanHome} from './home-widgets.js';
+import {linkOrder,emptyLinks,cleanLinks} from './card-links.js';
+import StopButtons from './StopButtons.jsx';
 import {pageRule} from './spoken-rules.js';
 import EyeSpy from './EyeSpy.jsx';
 import ParkGuide from './ParkGuide.jsx';
@@ -146,6 +148,14 @@ function App(){
   const clean=cleanHome(next);
   setHomePrefs(clean);
   try{localStorage.setItem(`japan.home.${user.name}`,JSON.stringify(clean));}catch{}
+ }
+ // And so are the buttons under each stop: the order they come in is this person's, on this phone.
+ const [linkPrefs,setLinkPrefs]=useState(emptyLinks());
+ useEffect(()=>{if(user?.name)setLinkPrefs(cleanLinks(stored(`japan.links.${user.name}`,emptyLinks())));},[user?.name]);
+ function saveLinks(next){
+  const clean=cleanLinks(next);
+  setLinkPrefs(clean);
+  try{localStorage.setItem(`japan.links.${user.name}`,JSON.stringify(clean));}catch{}
  }
  const directions=(place,mode='transit')=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(target)+'&travelmode='+mode;};
  const maps=place=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(target);};
@@ -435,22 +445,23 @@ function App(){
      setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);}}}>Done</Button></>}{parent&&<button className="icon completion-more" aria-label="Edit or skip activity" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal size={18}/></button>}</div>
     {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg}/>}
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore step</button></p>}
-    {/* One row that scrolls sideways rather than three that stack: what only this day has (the
-        park, the sumo, the train window) comes first, then everything every stop has. */}
-    <div className="card-links" aria-label="For this stop">
-     {parkForDay(day)&&<button className="card-link-special" onClick={()=>setModal({type:'park',park:parkForDay(day)})}><span aria-hidden="true">🎢</span>Rides &amp; park map</button>}
-     {day===SUMO_DAY&&<button className="card-link-special" onClick={()=>setModal({type:'sumo'})}><span aria-hidden="true">🥋</span>Sumo card{sumoState(state).bouts.length?` · ${sumoState(state).bouts.length} bouts`:''}</button>}
-     {isTrainLeg(current)&&<button className="card-link-special" onClick={()=>setModal({type:'eyespy',step:current})}><span aria-hidden="true">🗻</span>Window I spy</button>}
-     <Link className="button" href={current.website||`https://www.google.com/search?q=${encodeURIComponent((current.place||current.title)+' official website Japan')}`}><ExternalLink size={15}/>{current.website?'Website':'Find website'}</Link>
-     <button onClick={()=>setModal({type:'tickets',step:current})}><Ticket size={15}/>Tickets{state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length?` (${state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length})`:''}</button>
-     <button onClick={()=>setModal({type:'media',step:current})}><ImageIcon size={15}/>Photos</button>
-     <button onClick={()=>setModal({type:'voice',step:current})}><Mic size={15}/>Voice note</button>
-     {config?.ask&&<button onClick={()=>setModal({type:'ask',step:current})}><MessageCircleQuestion size={15}/>Ask a question</button>}
-     <button onClick={()=>openPage(current.page)}><BookOpen size={15}/>Guide p.{current.page}</button>
-     <button onClick={()=>setModal({type:'alarm',step:current})}><Bell size={15}/>Remind me</button>
-     {config?.nearby&&<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={15}/>Nearby</button>}
-     <button aria-label="Share this step" onClick={()=>shareStep(current)}><Share2 size={15}/>Share</button>
-    </div>
+    {/* One row rather than three that stack. Untouched, what only this day has (the park, the
+        sumo, the train window) comes first, then everything every stop has; press and hold any
+        of them to wobble the row and drag them into your own order. */}
+    <StopButtons label="For this stop" order={linkOrder(linkPrefs)} setOrder={order=>saveLinks({order})} buttons={{
+     park:parkForDay(day)&&<button className="card-link-special" onClick={()=>setModal({type:'park',park:parkForDay(day)})}><span aria-hidden="true">🎢</span>Rides &amp; park map</button>,
+     sumo:day===SUMO_DAY&&<button className="card-link-special" onClick={()=>setModal({type:'sumo'})}><span aria-hidden="true">🥋</span>Sumo card{sumoState(state).bouts.length?` · ${sumoState(state).bouts.length} bouts`:''}</button>,
+     eyespy:isTrainLeg(current)&&<button className="card-link-special" onClick={()=>setModal({type:'eyespy',step:current})}><span aria-hidden="true">🗻</span>Window I spy</button>,
+     website:<Link className="button" href={current.website||`https://www.google.com/search?q=${encodeURIComponent((current.place||current.title)+' official website Japan')}`}><ExternalLink size={15}/>{current.website?'Website':'Find website'}</Link>,
+     tickets:<button onClick={()=>setModal({type:'tickets',step:current})}><Ticket size={15}/>Tickets{state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length?` (${state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length})`:''}</button>,
+     photos:<button onClick={()=>setModal({type:'media',step:current})}><ImageIcon size={15}/>Photos</button>,
+     voice:<button onClick={()=>setModal({type:'voice',step:current})}><Mic size={15}/>Voice note</button>,
+     ask:config?.ask&&<button onClick={()=>setModal({type:'ask',step:current})}><MessageCircleQuestion size={15}/>Ask a question</button>,
+     guide:<button onClick={()=>openPage(current.page)}><BookOpen size={15}/>Guide p.{current.page}</button>,
+     remind:<button onClick={()=>setModal({type:'alarm',step:current})}><Bell size={15}/>Remind me</button>,
+     nearby:config?.nearby&&<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={15}/>Nearby</button>,
+     share:<button aria-label="Share this step" onClick={()=>shareStep(current)}><Share2 size={15}/>Share</button>
+    }}/>
     {current.status==='done'&&<StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>}
     <details className="step-more" key={current.id}>
      <summary><span className="step-more-label">More about this stop</span><span className="step-more-lead">{current.notes||resolveLocation(state,current)?.address||current.participants.join(', ')}</span><ChevronDown size={17}/></summary>
@@ -521,7 +532,7 @@ function App(){
   {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><button className="hunt-link" onClick={()=>go('hunts')}>🍵 🎰 🍜 Hunts & lists: rate and rank every one we try</button><FoodList state={visibleState} user={user} speak={speak} openPage={openPage} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal}/></>}
   {tab==='thanks'&&user.name===THANK_YOU_FROM&&<ThankYouEditor state={state} mutate={mutate} busy={busy}/>}
-  {tab==='settings'&&<Settings user={user} settings={settings} change={changeSetting} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
+  {tab==='settings'&&<Settings user={user} settings={settings} change={changeSetting} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
   {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go}/>}

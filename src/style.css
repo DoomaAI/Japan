@@ -595,3 +595,23 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .timeline-row.done .entry-type{filter:grayscale(1)}
 .next-title .entry-type{vertical-align:-3px}
 .step-card h2 .entry-type{width:1.05em;height:1.05em;border-radius:.28em;vertical-align:-.1em;margin-right:.3em}
+
+/* The buttons under a stop, in each person's order. Press and hold one and the row wobbles like
+   the icons on an iPhone's home screen; while it does, a button follows the finger and the rest
+   shuffle out of its way. Nothing selects or pops up a menu under a held finger, and a wobbling
+   row does not scroll the page when a button is dragged. Without motion the row is outlined
+   instead, so it is still plain that it is waiting to be rearranged. */
+.card-links{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.card-link-slot{position:relative;display:inline-flex}
+.card-links.editing .card-link-slot{touch-action:none;cursor:grab;border-radius:10px}
+.card-link-slot.held{z-index:3;cursor:grabbing;box-shadow:0 6px 18px #0003}
+.card-links-editing{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:-.2rem 0 .7rem}
+.card-links-editing small{color:var(--muted);font-size:.72rem}
+.card-links-done{background:var(--ink);color:#fff;border-radius:20px;padding:.35rem .95rem;font-weight:600}
+@media(prefers-reduced-motion:no-preference){
+.card-links.editing .card-link-slot:not(.held){animation:card-wobble .26s ease-in-out infinite alternate}
+.card-links.editing .card-link-slot:nth-child(2n):not(.held){animation-delay:-.13s;animation-duration:.3s}
+.card-links.editing .card-link-slot:nth-child(3n):not(.held){animation-delay:-.07s}
+@keyframes card-wobble{from{transform:rotate(-2deg)}to{transform:rotate(2deg)}}
+}
+@media(prefers-reduced-motion:reduce){.card-links.editing .card-link-slot{outline:1px dashed var(--border)}}
