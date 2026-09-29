@@ -40,3 +40,23 @@ test('tonight asks for stars, a photo vote and a memory, and counts what is left
  state.stepReviews={...state.stepReviews,...Object.fromEntries(ids.slice(1,3).map(id=>[id,{ratings:{Nate:5}}]))};
  t=tonightFor(state,day,'Nate');assert.equal(t.complete,true);assert.equal(t.finished,3);
 });
+test('the stamp book is earned from what is ticked off, with milestones per person',async()=>{
+ const {familyStamps,personalStamps,cityNames,MILESTONES}=await import('../src/stamp-data.js');
+ const state=upgraded(seed);
+ assert.deepEqual(cityNames(state).slice(0,4),['Tokyo','Kyoto','Osaka','Nara'],'Nara / Kyoto is two places');
+ let f=familyStamps(state,'2026-09-20');
+ assert.ok(f.every(c=>c.earned===0),'nothing before we land');
+ const meiji=state.steps.find(s=>s.title==='Meiji Jingu forest and shrine');
+ state.steps=state.steps.map(s=>s.id===meiji.id?{...s,status:'done',completedAt:'2026-09-22T01:00:00Z'}:s);
+ f=familyStamps(state,'2026-09-20');
+ const sight=f.find(c=>c.id==='sights').stamps.find(s=>s.id===meiji.id);
+ assert.equal(sight.earned,true);assert.equal(sight.icon,'⛩️');assert.equal(sight.on,'2026-09-22');
+ assert.equal(f.find(c=>c.id==='cities').stamps.find(s=>s.label==='Tokyo').earned,true,'a stop done in a city earns the city');
+ assert.ok(f.find(c=>c.id==='trains').stamps.some(s=>s.label==='Nozomi 33 to Kyoto'&&s.icon==='🚅'));
+ assert.ok(!f.find(c=>c.id==='rides').stamps.some(s=>/^Meet/.test(s.label)),'meeting a guide is not a ride');
+ state.food={a:{tried:{Nate:'x'}},b:{tried:{Nate:'x',Boston:'x'}},c:{tried:{Nate:'x'}},d:{tried:{Nate:'x'}},e:{tried:{Nate:'x'}},f:{tried:{Boston:'x'}}};
+ const food=personalStamps(state,'Nate').find(c=>c.id==='food');
+ assert.equal(food.count,5);assert.deepEqual(food.stamps.map(s=>s.milestone),[1,5]);assert.equal(food.next,10);
+ assert.equal(personalStamps(state,'Boston').find(c=>c.id==='food').count,2);
+ assert.deepEqual(MILESTONES,[1,5,10,25,50]);
+});

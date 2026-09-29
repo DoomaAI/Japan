@@ -23,6 +23,7 @@ export const PAGES={
  allergy:{label:'Allergy card',note:'What each of us cannot eat, in Japanese, to show the waiter'},
  safety:{label:'Safety & emergencies',note:'Emergency numbers, the boys\u2019 lost cards, the embassy, earthquakes and typhoons'},
  phrases:{label:'Phrases',note:'Greetings and travel Japanese, with how to say it'},
+ stamps:{label:'Stamp book',note:'Stamps for the places, sights, rides and trains we have done, and everyone’s milestones'},
  facts:{label:'Fun facts',note:'A fact a day about what is coming up, and the whole collection'},
  help:{label:'Help & useful apps',note:'Translation, hotel directions, reminders'},
  options:{label:'Options & ideas',note:'Places and activities saved for later'},
@@ -63,7 +64,7 @@ export const MORE_SECTIONS=[
  ['The plan',['glance','todo','packing','trackers','planning','options','parks','shopping','shortlist','tickets','inbox']],
  ['Looking back',['noticed','photos','memorymap','diary','highlights','updates','bin','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
- ['For the boys',['challenges','games','spending','facts','mascot']]
+ ['For the boys',['challenges','stamps','games','spending','facts','mascot']]
 ];
 // Some screens only exist where the deployment can do the thing they are about. Forwarded email
 // needs a mail provider connected to it; until there is one the screen would be a page about a
