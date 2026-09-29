@@ -4952,7 +4952,7 @@ test('a spot-the-difference score is one the server will actually take',async()=
 test('every game in the picker says what it needs, and spot the difference is one of them',async()=>{
  const source=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
  const entries=[...source.matchAll(/\{id:'([a-z]+)',title:'([^']+)',[^\n]*?needs:(OFFLINE|'[^']+'),Component:(\w+)/g)];
- assert.equal(entries.length,24);
+ assert.equal(entries.length,25);
  for(const [,id,title,needs,component]of entries){
   assert.ok(needs.trim(),`${id} must say what it needs`);
   assert.ok(new RegExp(`function ${component}\\b`).test(source)||new RegExp(`import ${component} from`).test(source),
@@ -10144,4 +10144,63 @@ test('Back and the swipe from the edge walk back through screens, and close a sh
  // Only the start-up rewrites still replace: the join token, the deep link, and the overnight move to today.
  assert.equal((main.match(/history\.replaceState\(/g)||[]).length,3,'no screen change slips through as a replace');
  for(const fn of ['go','selectStep','selectPhotoDay','choosePhotoPerson'])assert.doesNotMatch(main,new RegExp(`function ${fn}\\([^\\n]*history\\.replaceState`),`${fn} goes through navigate`);
+});
+
+test('Japan bingo: a mixed card each, lines, sets like every coin, and the old window spots count',async()=>{
+ const {ensureFeatures,pendingProgress}=await import('../src/trip-features.js');
+ const {BINGO_KINDS,BINGO_SQUARES,FREE,PER_KIND,dealCard,cardFor,cardScore,squareDone,nextCard,bingoCount,findSquare,LINES}=await import('../src/bingo-data.js');
+ const state=ensureFeatures(structuredClone(seed));
+ const nate={name:'Nate',role:'child'};
+ assert.equal(new Set(BINGO_SQUARES.map(s=>s.id)).size,BINGO_SQUARES.length);
+ for(const k of BINGO_KINDS)assert.ok(BINGO_SQUARES.filter(s=>s.kind===k.id).length>=PER_KIND*2,`${k.id} has enough for a second card`);
+ for(const s of BINGO_SQUARES.filter(s=>s.kind==='say'))assert.ok(s.ja&&s.romaji,s.id);
+ assert.deepEqual(findSquare('coins').parts.map(p=>p.id),['1','5','10','50','100','500']);
+ // Four of each kind, free in the middle, the same on every phone, and different for each person.
+ const card=dealCard('Nate',1);
+ assert.equal(card.length,25);assert.equal(card[12],FREE);
+ for(const k of BINGO_KINDS)assert.equal(card.filter(id=>findSquare(id)?.kind===k.id).length,PER_KIND,k.id);
+ assert.deepEqual(dealCard('Nate',1),card);assert.notDeepEqual(dealCard('Boston',1),card);
+ assert.deepEqual(cardFor(state,'Nate'),card);
+ assert.equal(LINES.length,12);
+ // A row of four plus the free square is bingo.
+ let s=state;const row=[10,11,13,14].map(i=>card[i]);
+ for(const id of row){const sq=findSquare(id);
+  if(sq.parts)for(const p of sq.parts)s=applyOperation(s,{type:'bingoTick',person:'Nate',square:id,part:p.id,done:true},nate);
+  else s=applyOperation(s,{type:'bingoTick',person:'Nate',square:id,done:true},nate);}
+ const score=cardScore(s,'Nate');
+ assert.equal(score.lines.length,1);assert.equal(score.count,4);assert.ok(!score.full);
+ // A set counts only once every part is in.
+ let c=applyOperation(state,{type:'bingoTick',person:'Nate',square:'coins',part:'1',done:true},nate);
+ assert.ok(!squareDone(c,'Nate','coins'));
+ for(const p of ['5','10','50','100','500'])c=applyOperation(c,{type:'bingoTick',person:'Nate',square:'coins',part:p,done:true},nate);
+ assert.ok(squareDone(c,'Nate','coins'));
+ assert.throws(()=>applyOperation(state,{type:'bingoTick',person:'Nate',square:'coins',part:'2000',done:true},nate),/Unknown part/);
+ assert.throws(()=>applyOperation(state,{type:'bingoTick',person:'Nate',square:'ramen',part:'1',done:true},nate),/Unknown part/);
+ assert.throws(()=>applyOperation(state,{type:'bingoTick',person:'Nate',square:'dragon',done:true},nate),/Unknown bingo/);
+ // Your own card only, unless you are a parent; parents play too.
+ assert.throws(()=>applyOperation(state,{type:'bingoTick',person:'Boston',square:'ramen',done:true},nate),e=>e.status===403);
+ assert.ok(squareDone(applyOperation(state,{type:'bingoTick',person:'Boston',square:'ramen',done:true},parent),'Boston','ramen'));
+ assert.ok(squareDone(applyOperation(state,{type:'bingoTick',person:'Damien',square:'ramen',done:true},parent),'Damien','ramen'));
+ // Unticking takes it off.
+ const off=applyOperation(applyOperation(state,{type:'bingoTick',person:'Nate',square:'ramen',done:true},nate),{type:'bingoTick',person:'Nate',square:'ramen',done:false},nate);
+ assert.ok(!squareDone(off,'Nate','ramen'));
+ // Spotted on the old window I spy counts on the card.
+ const leg=state.steps.find(x=>x.title==='Nozomi 33 to Kyoto').id;
+ const spied=applyOperation(state,{type:'eyeSpy',stepId:leg,item:'fuji',person:'Nate',done:true},nate);
+ assert.ok(squareDone(spied,'Nate','fuji'));assert.ok(!squareDone(spied,'Boston','fuji'));
+ assert.equal(bingoCount(spied,'Nate'),1);
+ // A new card is dealt from what is not done yet, and only moves forward.
+ const {round,card:fresh}=nextCard(s,'Nate');
+ assert.equal(round,2);assert.equal(fresh.length,24);
+ for(const id of row)assert.ok(!fresh.includes(id),`${id} is done, so it is not dealt again`);
+ const dealt=applyOperation(s,{type:'bingoCard',person:'Nate',round,card:fresh},nate);
+ assert.deepEqual(cardFor(dealt,'Nate').filter(id=>id!==FREE),fresh);
+ assert.equal(cardScore(dealt,'Nate').lines.length,0);
+ assert.ok(squareDone(dealt,'Nate',row[0]),'what was done stays done');
+ assert.deepEqual(applyOperation(dealt,{type:'bingoCard',person:'Nate',round:2,card:dealCard('Nate',7).filter(id=>id!==FREE)},nate).bingo.Nate.card,fresh,'a stale deal does not replace the card');
+ assert.throws(()=>applyOperation(s,{type:'bingoCard',person:'Nate',round:2,card:fresh.slice(1)},nate),/not a bingo card/);
+ assert.throws(()=>applyOperation(s,{type:'bingoCard',person:'Boston',round:2,card:fresh},nate),e=>e.status===403);
+ // Ticks and deals made with no signal show straight away.
+ const pending=pendingProgress(state,[{operation:{type:'bingoTick',person:'Nate',square:'ramen',done:true,at:'2026-09-25T02:00:00.000Z'}},{operation:{type:'bingoCard',person:'Nate',round:2,card:fresh}}]);
+ assert.ok(squareDone(pending,'Nate','ramen'));assert.deepEqual(cardFor(pending,'Nate').filter(id=>id!==FREE),fresh);
 });
