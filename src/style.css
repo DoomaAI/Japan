@@ -628,3 +628,4 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .more-where.on{background:var(--ink);border-color:var(--ink);color:#fff}
 .more-tags{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.4rem}
 .more-row.more-elsewhere{opacity:.6}
+.route-line-toggle{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;min-height:36px;padding:0;margin:0;background:none;border:0;border-radius:6px;color:inherit;font:inherit;font-weight:700;text-align:left;justify-content:flex-start}.route-line-toggle span{font-weight:500;color:var(--muted)}.route-line-toggle:focus-visible{outline:2px solid var(--green);outline-offset:2px}.route-line-chevron{flex:none;color:var(--muted);transition:transform .15s}.route-line-toggle[aria-expanded="true"] .route-line-chevron{transform:rotate(180deg)}
