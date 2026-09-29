@@ -8463,6 +8463,10 @@ test('anyone packs and ticks; changing it is whoever added it, and starting agai
  state=applyOperation(state,{type:'packStatus',id:plugs.id,packed:true},boston);
  assert.equal(state.packing.items[1].packedBy,'Boston');
  assert.deepEqual(packingProgress(state),{packed:1,total:2,left:1});
+ // The joint list is what we share and each person's own list is theirs; the count follows the list shown.
+ assert.deepEqual(packingProgress(state,'joint'),{packed:1,total:1,left:0});
+ assert.deepEqual(packingProgress(state,'own','Nate'),{packed:0,total:1,left:1});
+ assert.deepEqual(packingProgress(state,'own','Boston'),{packed:0,total:0,left:0});
  // Nate changes his own, not the family's; a parent changes either.
  assert.equal(applyOperation(state,{type:'packEdit',id:cards.id,title:'Pokémon cards and binder',category:'kids',person:'Nate',qty:2},child).packing.items[0].qty,2);
  assert.throws(()=>applyOperation(state,{type:'packEdit',id:plugs.id,title:'x',category:'tech',person:'Family'},child),e=>e.status===403);

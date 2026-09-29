@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
 import {Radar,Luggage,Plus,X,Pencil,Trash2,RotateCcw,Inbox,MapPin,CloudSun,Compass,User,CalendarDays,Sparkles} from 'lucide-react';
 import {packing} from './trip-features.js';
-import {PACK_CATEGORIES,PACK_PRIORITY,PACK_SOURCES,packCategoryLabel,packingSuggestions,dismissedSuggestions,nextPackUp,packingProgress,daysAhead,packingWeather} from './packing-data.js';
+import {PACK_CATEGORIES,PACK_PRIORITY,PACK_SOURCES,PACK_SCOPES,inPackScope,packCategoryLabel,packingSuggestions,dismissedSuggestions,nextPackUp,packingProgress,daysAhead,packingWeather} from './packing-data.js';
 import {forwardedTrackers,linkState} from './trackers.js';
 import {japanDate,japanClock} from './timing.js';
 import GoingHome from './GoingHome.jsx';
@@ -75,10 +75,15 @@ export default function Packing({state,user,mutate,busy,remove}){
  const today=japanDate(),parent=user.role==='parent';
  const {items}=packing(state),suggestions=packingSuggestions(state,today),dismissed=dismissedSuggestions(state,today);
  const [view,setView]=useState(items.length?'list':'suggest');
- const [person,setPerson]=useState(''),[show,setShow]=useState('open'),[source,setSource]=useState(''),[edit,setEdit]=useState(null),[showDismissed,setShowDismissed]=useState(false);
- const {packed,total}=packingProgress(state),next=nextPackUp(state,today);
+ // A child opens on their own list and a parent on everything; either can switch to the joint
+ // list, or to anyone's own.
+ const me=state.members.includes(user.name)?user.name:state.members[0]||'';
+ const [scope,setScope]=useState(parent?'all':'own'),[who,setWho]=useState(me),[show,setShow]=useState('open'),[source,setSource]=useState(''),[edit,setEdit]=useState(null),[showDismissed,setShowDismissed]=useState(false);
+ const {packed,total}=packingProgress(state,scope,who),next=nextPackUp(state,today);
  const w=packingWeather(state,daysAhead(state,today));
- const forPerson=x=>!person||x.person===person;
+ const forPerson=x=>inPackScope(x,scope,who);
+ const scopeCount=id=>items.filter(i=>inPackScope(i,id,who)).length;
+ const scopeName=scope==='joint'?'the joint list':scope==='own'?(who===user.name?'your own list':`${who}’s own list`):'';
  const listed=items.filter(i=>forPerson(i)&&(show==='all'||(show==='packed'?!!i.packedAt:!i.packedAt)));
  const byCategory=PACK_CATEGORIES.map(([id,label])=>({id,label,list:listed.filter(i=>(PACK_CATEGORIES.some(([c])=>c===i.category)?i.category:'other')===id)})).filter(g=>g.list.length);
  const offered=suggestions.filter(s=>forPerson(s)&&(!source||s.sources.includes(source)));
@@ -92,26 +97,29 @@ export default function Packing({state,user,mutate,busy,remove}){
  <p>Our own list, ticked off as it goes in — and suggestions worked out from where we are going, the weather, what is on the days ahead and who is coming. Add what suits us, turn down what does not, and write in anything it missed. Anyone can add and tick, with no signal needed.</p>
  {next&&<p className="callout"><Luggage size={18}/><span><strong>Next pack-up: {fmt(next.date)}</strong> · {next.from} → {next.home?'home':next.to}.
   {parent&&!!packed&&<> <button disabled={busy} onClick={()=>{if(confirm('Untick everything, ready to pack again for the next move?'))mutate({type:'packReset'});}}><RotateCcw size={14}/>Start this pack-up again</button></>}</span></p>}
- <div className="quest-progress"><strong>{packed} of {total} packed</strong><progress max={Math.max(total,1)} value={packed}/>
+ <div className="segmented pack-scope" role="group" aria-label="Whose list">
+  {PACK_SCOPES.map(([id,label])=><button key={id} className={scope===id?'selected':''} aria-pressed={scope===id} onClick={()=>setScope(id)}>{label} · {scopeCount(id)}</button>)}
+ </div>
+ <div className="quest-progress"><strong>{packed} of {total} packed{scopeName&&` on ${scopeName}`}</strong><progress max={Math.max(total,1)} value={packed}/>
   <span>{w.forecast?`Using the saved forecast for ${w.forecast} of the ${w.each.length} days ahead${w.usual?' and the usual weather for the rest':''}.`:'No forecast saved yet, so the weather suggestions use what these cities are usually like. Check the forecast on the Weather screen to sharpen them.'}</span></div>
  <div className="segmented pack-tabs">
-  <button className={view==='list'?'selected':''} onClick={()=>setView('list')}>Our list · {total}</button>
-  <button className={view==='suggest'?'selected':''} onClick={()=>setView('suggest')}>Suggested · {suggestions.length}</button>
+  <button className={view==='list'?'selected':''} onClick={()=>setView('list')}>{scope==='own'?(who===user.name?'My list':`${who}’s list`):scope==='joint'?'Joint list':'Our list'} · {total}</button>
+  <button className={view==='suggest'?'selected':''} onClick={()=>setView('suggest')}>Suggested · {suggestions.filter(forPerson).length}</button>
  </div>
  <div className="document-filters"><div className="form-row">
-  <label>For<select value={person} onChange={e=>setPerson(e.target.value)}><option value="">Anyone</option><option value="Family">All of us</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label>
+  {scope==='own'&&<label>Whose<select value={who} onChange={e=>setWho(e.target.value)}>{state.members.map(n=><option key={n} value={n}>{n===user.name?`${n} (me)`:n}</option>)}</select></label>}
   {view==='list'
    ?<label>Show<select value={show} onChange={e=>setShow(e.target.value)}><option value="open">Still to pack</option><option value="packed">Packed</option><option value="all">Everything</option></select></label>
    :<label>Because of<select value={source} onChange={e=>setSource(e.target.value)}><option value="">Everything</option>{Object.entries(PACK_SOURCES).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>}
  </div></div>
  {view==='list'&&<>
-  <button className="primary" onClick={()=>setEdit({title:'',category:'other',person:user.role==='parent'?'Family':user.name,qty:1,notes:''})}><Plus size={18}/>Add something of our own</button>
+  <button className="primary" onClick={()=>setEdit({title:'',category:'other',person:scope==='own'?who:scope==='joint'||parent?'Family':me,qty:1,notes:''})}><Plus size={18}/>{scope==='own'?(who===user.name?'Add something of my own':`Add something for ${who}`):scope==='joint'?'Add something we share':'Add something of our own'}</button>
   {byCategory.map(g=><section className="todo-group" key={g.id}>
    <h2>{g.label}</h2>
    {g.list.map(item=><PackRow key={item.id} item={item} user={user} mutate={mutate} busy={busy} onEdit={setEdit} remove={remove}/>)}
   </section>)}
   {!byCategory.length&&<div className="empty"><Inbox/><h2>{items.length?(show==='open'?'Everything here is packed.':'Nothing matches those filters.'):'Nothing on the list yet.'}</h2>
-   <p>{items.length?'Try Everything, or somebody else.':<>Start from the <button onClick={()=>setView('suggest')}>suggestions</button>, or add something of our own.</>}</p></div>}
+   <p>{items.length?'Try Everything, or another list.':<>Start from the <button onClick={()=>setView('suggest')}>suggestions</button>, or add something of our own.</>}</p></div>}
  </>}
  {view==='suggest'&&<>
   {essentials.length>1&&<button className="primary" disabled={busy}
@@ -121,7 +129,7 @@ export default function Packing({state,user,mutate,busy,remove}){
    {list.map(s=><Suggestion key={s.id} s={s} mutate={mutate} busy={busy} user={user}/>)}
   </section>;})}
   {!offered.length&&<div className="empty"><Sparkles/><h2>{suggestions.length?'Nothing suggested for that.':'Nothing more to suggest.'}</h2>
-   <p>{suggestions.length?'Try Everything, or somebody else.':'Every suggestion is on the list or turned down. New ones appear as the plan and the forecast change.'}</p></div>}
+   <p>{suggestions.length?'Try Everything, or another list.':'Every suggestion is on the list or turned down. New ones appear as the plan and the forecast change.'}</p></div>}
   {!!dismissed.length&&<section className="todo-group">
    <button className="weather-more" aria-expanded={showDismissed} onClick={()=>setShowDismissed(v=>!v)}>Turned down · {dismissed.length}</button>
    {showDismissed&&dismissed.map(s=><div className="todo-row" key={s.id}>
@@ -135,7 +143,7 @@ export default function Packing({state,user,mutate,busy,remove}){
   <label>What to pack<input name="title" required maxLength={200} autoFocus defaultValue={edit.title} placeholder="Nate’s swimmers · the good camera · spare glasses"/></label>
   <div className="form-row">
    <label>Category<select name="category" defaultValue={edit.category}>{PACK_CATEGORIES.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
-   <label>For<select name="person" defaultValue={edit.person}><option value="Family">All of us</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label>
+   <label>For<select name="person" defaultValue={edit.person}><option value="Family">Joint · all of us</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label>
    <label>How many<input name="qty" type="number" min={1} max={99} defaultValue={edit.qty||1}/></label>
   </div>
   <label>Notes<textarea name="notes" maxLength={1000} defaultValue={edit.notes||''} placeholder="Which bag it goes in, or where it is now"/></label>
