@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import {activeSteps} from '../src/timing.js';
 import {legCount,tickLeg} from '../src/route-data.js';
 import {ENTRY_TYPE_IDS} from '../src/entry-types.js';
+import {BIN_KINDS,binEntries,binTitle} from '../src/bin-data.js';
 export const MEMBERS = ['Damien','Lauren','Nate','Boston'];
 // Where a forwarded email can be filed. A ticket is the default; the rest put it where the
 // family would have put it themselves had they typed it in.
@@ -96,17 +97,36 @@ function ticketsUsed(state,step,at,user){
 function ticketsBack(state,step){
  for(const doc of state.documents.filter(d=>d.archivedWith&&documentServesStep(d,step.id)))Object.assign(doc,{archivedAt:null,archivedBy:null,archivedWith:null});
 }
+const binSnapshot=(state,op)=>{const k=BIN_KINDS[op.type];if(!k||!op.id)return null;const item=k.list(state).find(x=>x.id===op.id);return item?{op:op.type,item:structuredClone(item)}:null;};
+// Putting something back, or letting it go for good. Whoever removed it, or a parent, may do
+// either; a thing that is already back in its list is not put back twice.
+function binOperation(state,op,user){
+ if(op.type!=='binRestore'&&op.type!=='binDrop')return null;
+ const entry=(state.bin||[]).find(e=>e.id===op.id);if(!entry)throw new AppError('That is no longer in Recently deleted.',404);
+ if(user.role!=='parent'&&entry.by!==user.name)throw new AppError('Only whoever removed it, or a parent, can bring it back.',403);
+ if(op.type==='binRestore'){
+  const k=BIN_KINDS[entry.op];if(!k)throw new AppError('This cannot be put back.');
+  if(k.list(state).some(x=>x.id===entry.item.id))throw new AppError('It is already back.');
+  k.put(state,structuredClone(entry.item));
+ }
+ state.bin=state.bin.filter(e=>e.id!==entry.id);
+ return {title:entry.title,important:false};
+}
 export function applyOperation(input,op,user){
  if(!op||typeof op!=='object')throw new AppError('Invalid action.');
  if(op.operationId!==undefined&&(!text(op.operationId,80)||!op.operationId.length))throw new AppError('Invalid operation identifier.');
  const state=ensureFeatures(structuredClone(input)),now=new Date().toISOString();
  const parent=user.role==='parent';
  const step=state.steps.find(s=>s.id===op.id);
- if(!parent && !['status','legStatus','challengeStatus','challengeSkip','challengeNew','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore','weatherUpdate','jankenThrow','jankenNewRound','voiceNoteRemove','voiceNoteLabel','voiceNoteWords','shoppingAdd','shoppingStatus','shortlistAdd','shortlistEdit','shortlistStatus','shortlistRating','shortlistShop','shortlistRemove','todoAdd','todoStatus','packAdd','packAddAll','packEdit','packStatus','packRemove','packDismiss','noticedAdd','noticedEdit','noticedRemove','huntNew','huntAdd','huntEdit','huntRate','huntRemove','huntRank','huntTried','huntListEdit','huntListRemove','spendAdd','spendEdit','spendBought','spendRemove','spendRequest','spendRequestCancel','sumoResult','sumoPredict','stepRating','stepThought','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust','partyPerson','photoVote','photoRemove','photoAssign','drawingRemove','mascotSave','mascotRemove','expressPick','expressUsed'].includes(op.type))throw new AppError('A parent can make this change.',403);
+ if(!parent && !['status','legStatus','challengeStatus','challengeSkip','challengeNew','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore','weatherUpdate','jankenThrow','jankenNewRound','binRestore','binDrop','voiceNoteRemove','voiceNoteLabel','voiceNoteWords','shoppingAdd','shoppingStatus','shortlistAdd','shortlistEdit','shortlistStatus','shortlistRating','shortlistShop','shortlistRemove','todoAdd','todoStatus','packAdd','packAddAll','packEdit','packStatus','packRemove','packDismiss','noticedAdd','noticedEdit','noticedRemove','huntNew','huntAdd','huntEdit','huntRate','huntRemove','huntRank','huntTried','huntListEdit','huntListRemove','spendAdd','spendEdit','spendBought','spendRemove','spendRequest','spendRequestCancel','sumoResult','sumoPredict','stepRating','stepThought','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust','partyPerson','photoVote','photoRemove','photoAssign','drawingRemove','mascotSave','mascotRemove','expressPick','expressUsed'].includes(op.type))throw new AppError('A parent can make this change.',403);
  if(['status','legStatus','patch','lock','remove','backlog','schedule'].includes(op.type)&&!step)throw new AppError('Activity not found.',404);
  const before=step?structuredClone(step):null;
  const fail=(message,status=400)=>{throw new AppError(message,status);};
- let extra=expressOperation(state,op,user,fail,now,(st,p)=>addStep(st,validatePatch(p,st)))||extraOperation(state,op,user,fail,now);
+ // A copy of whatever a removal is about to take, made before the removal runs, so it can wait
+ // in Recently deleted and come back exactly as it was. The removal itself is left to decide
+ // whether this person may do it at all.
+ const binned=binSnapshot(state,op);
+ let extra=binOperation(state,op,user)||expressOperation(state,op,user,fail,now,(st,p)=>addStep(st,validatePatch(p,st)))||extraOperation(state,op,user,fail,now);
  if(extra){
  }else if(op.type==='status'){
   if(!parent&&!step.participants.includes(user.name))throw new AppError('This activity is assigned to other family members.',403);
@@ -265,6 +285,10 @@ export function applyOperation(input,op,user){
  const diffs=op.type==='patch'&&before?fields.filter(k=>JSON.stringify(before[k]??null)!==JSON.stringify(step[k]??null)).map(k=>`${{time:'Target time',day:'Day',bookingTime:'Booking time',place:'Place',title:'Activity',locked:'Time lock'}[k]}: ${before[k]??'none'} → ${step[k]??'none'}`):[];
  const important=!extra?.private&&(extra?.important||diffs.length>0||['reschedule','choose','groupMode','backlog','schedule','remove'].includes(op.type));
  if(important){const summary=extra?.summary||(diffs.length?`${step.title}: ${diffs.join('; ')}`:`${step?.title||op.option||op.group||'Day plan'} · ${{reschedule:'times adjusted',choose:'alternative selected',groupMode:op.mode==='split'?'we split up here':'back to choosing one plan',backlog:'saved to Options',schedule:'added to a day',remove:'removed from itinerary'}[op.type]||'updated'}`);state.alerts=[{id:randomUUID(),summary,by:user.name,at:now,stepId:step?.id||null,seenBy:{[user.name]:now}},...state.alerts].slice(0,200);}
+ // The removal went through, so the copy goes into Recently deleted; and whatever has waited
+ // there longer than its thirty days is let go on the way past.
+ state.bin=binEntries(state,Date.parse(now));
+ if(binned)state.bin=[{id:randomUUID(),op:binned.op,kind:BIN_KINDS[binned.op].kind,title:binTitle(binned.item),item:binned.item,at:now,by:user.name},...state.bin].slice(0,200);
  if(op.operationId)state.appliedOperationIds=[...(state.appliedOperationIds||[]),op.operationId].slice(-500);
  // Private notes stay out of the shared alert feed and family history.
  if(!extra?.private)state.history=[{id:randomUUID(),at:now,by:user.name,type:op.type,title:extra?.title||step?.title||op.step?.title||op.title||op.option||'Trip update'},...(state.history||[])].slice(0,200);

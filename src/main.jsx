@@ -43,6 +43,7 @@ import MediaGallery from './MediaGallery.jsx';
 import Highlights from './Highlights.jsx';
 import Safety,{LostCards} from './Safety.jsx';
 import AllergyCard from './AllergyCard.jsx';
+import RecentlyDeleted from './RecentlyDeleted.jsx';
 import Ledger from './Ledger.jsx';
 import Running from './Running.jsx';
 import WhichCard from './WhichCard.jsx';
@@ -264,7 +265,13 @@ function App(){
  // is there for the one time in twenty the reflex was wrong. What comes back is a fresh copy of
  // what was typed; a tick or a rating it carried is gone, so the toast says "back on the list"
  // rather than promising more.
- async function removeThen(op,restore,text){if(await mutate(op))setToast({text,undo:async()=>{if(await mutate(restore))notice('Back on the list.');}});}
+ // Undo puts back the copy Recently deleted kept, ticks and ratings and all; the re-add the
+ // screen offered is only the fallback for a plan that has not been through the new server yet.
+ async function removeThen(op,restore,text){
+  const result=await mutate(op);if(!result)return;
+  const kept=result.state?.bin?.find(e=>e.item?.id===op.id);
+  setToast({text,undo:async()=>{if(await mutate(kept?{type:'binRestore',id:kept.id}:restore))notice(kept?'Back exactly as it was.':'Back on the list.');}});
+ }
  async function flush(force=false){
   if(working.current||!queueRef.current.length||!navigator.onLine)return;
   working.current=true;
@@ -605,6 +612,7 @@ function App(){
   {tab==='meeting'&&<><MeetingCard key={day} state={state} user={user} day={day} mutate={mutate} busy={busy}/><LostCards state={visibleState} user={user} day={day}/></>}
   {tab==='allergy'&&<AllergyCard state={visibleState} user={user} mutate={mutate} busy={busy} speak={speak}/>}
   {tab==='updates'&&<Updates state={state} user={user} mutate={mutate} busy={busy}/>}
+  {tab==='bin'&&<RecentlyDeleted state={visibleState} user={user} mutate={mutate} busy={busy}/>}
   {tab==='photos'&&<><p className="eyebrow">THROUGH THEIR EYES</p><h1>Photos</h1>{!photoPerson&&<div className="form-row"><label>Day<select value={day} onChange={e=>selectPhotoDay(e.target.value)}>{state.days.map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)} · {d.title}</option>)}</select></label></div>}<PhotoDay state={visibleState} user={user} day={day} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay} person={photoPerson} setPerson={choosePhotoPerson}/></>}
   {tab==='mascot'&&<MascotMaker state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice} go={go}/>}
   {tab==='games'&&<Games state={visibleState} user={user} day={day} mutate={mutate} busy={busy} setBusy={setBusy} online={online} refresh={refresh} dayLabel={fmtDay} config={config} request={request} accept={accept} notice={notice}/>}
