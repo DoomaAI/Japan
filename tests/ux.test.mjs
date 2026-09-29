@@ -190,3 +190,24 @@ test('ticket codes are read once, kept for everyone by a parent, and drawn fresh
  assert.match(gate,/navigator\.wakeLock\?\.request\('screen'\)/);
  assert.match(dark,/BOARDS=\/data-theme\|gate-code\|/,'the gate stays black on white at night');
 });
+test('PDF tickets are read too, and a file with several codes keeps them all in page order',async()=>{
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {applyOperation}=await import('../server/model.mjs');
+ const {codesFor,toRead,cleanCode}=await import('../src/wallet-codes.js');
+ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url)));
+ let state={...ensureFeatures(seed),documents:[{id:'usj',title:'USJ e-ticket',person:'Family',type:'application/pdf',pathname:'tickets/usj.pdf',category:'ticket'},{id:'link',title:'Site',type:'link',url:'https://x.jp',person:'Family'}]};
+ assert.deepEqual(toRead(state).map(d=>d.id),['usj'],'a PDF is read; a link has nothing to read');
+ const lauren={name:'Lauren',role:'parent'};
+ state=applyOperation(state,{type:'documentCode',id:'usj',code:['USJ-D','USJ-L','USJ-B','USJ-N']},lauren);
+ const usj=state.documents.find(d=>d.id==='usj');
+ assert.deepEqual(codesFor(state,usj).map(c=>[c.text,c.person]),[['USJ-D','Family · 1 of 4'],['USJ-L','Family · 2 of 4'],['USJ-B','Family · 3 of 4'],['USJ-N','Family · 4 of 4']]);
+ assert.deepEqual(toRead(state),[]);
+ assert.equal(cleanCode({code:['one']}).value.code,'one','a list of one is kept as the code');
+ assert.equal(cleanCode({code:[]}).value.code,null,'an empty list is none');
+ assert.match(cleanCode({code:['ok','']}).error,/not one the app can keep/);
+ assert.match(cleanCode({code:Array(41).fill('x')}).error,/more codes/);
+ const reader=await source('qr-reader.js');
+ assert.match(reader,/await import\('pdfjs-dist\/legacy\/build\/pdf\.mjs'\)/,'the PDF reader is fetched only when a PDF is read');
+ assert.match(reader,/for\(const n of \[2,3,4,5\]\)/,'the page is read again in sections, so several codes on one page are all found');
+ assert.match(reader,/return qr\.createDataURL\(8,32\);/,'four modules of white round the drawn code, in pixels');
+});
