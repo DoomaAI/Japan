@@ -390,3 +390,109 @@ test('the day map is drawn from positions the trip holds, needs no network, and 
  const src=await readFile(new URL('../src/DayMap.jsx',import.meta.url),'utf8');
  assert.doesNotMatch(src,/fetch\(|tile\.openstreetmap|https?:\/\//,'nothing in the map comes from the network');
 });
+test('the trip shop orders the essentials by lead time, and every link leaves through one seam',async()=>{
+ const shop=await import('../src/shop-data.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ assert.ok(PAGES.shop?.label&&PAGE_RULES.shop,'a screen with something to say');
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('shop'));
+ const leads=shop.ESSENTIALS.map(e=>e.lead);
+ assert.deepEqual(leads,[...leads].sort((a,b)=>b-a),'in the order to do them');
+ for(const id of ['power','cash','esim','ic'])assert.ok(shop.ESSENTIALS.some(e=>e.id===id),`${id} is in the pack`);
+ for(const item of [...shop.ESSENTIALS,...shop.KEEPSAKES]){
+  assert.ok(item.buy.length,`${item.id} has somewhere to go`);
+  for(const [,url] of item.buy)assert.match(url,/^https:\/\//,`${item.id} links over https`);
+  if(item.page)assert.ok(PAGES[item.page],`${item.id} points at a real screen`);
+ }
+ const cash=shop.ESSENTIALS.find(e=>e.id==='cash');
+ assert.equal(shop.essentialDue(cash,25),'soon');assert.equal(shop.essentialDue(cash,14),'now');
+ assert.equal(shop.essentialDue(cash,90),'later');assert.equal(shop.essentialDue(cash,-3),'past');
+ assert.equal(shop.essentialDue(shop.ESSENTIALS.find(e=>e.id==='luggage'),-3),'now','forwarding is done on the trip');
+ assert.equal(shop.daysUntil({days:[{date:'2026-09-21'}]},'2026-09-01'),20);
+ assert.equal(shop.daysUntil({days:[]},'2026-09-01'),null);
+ // No partner yet: links go out untouched and nothing claims a commission.
+ const url='https://www.airalo.com/japan-esim';
+ assert.equal(shop.shopLink(url),url);assert.equal(shop.partnered(url),false);
+ shop.PARTNERS['airalo.com']=u=>`${u}?ref=trip`;
+ try{assert.equal(shop.shopLink(url),`${url}?ref=trip`);assert.equal(shop.partnered(url),true);}
+ finally{delete shop.PARTNERS['airalo.com'];}
+ assert.equal(shop.shopLink('not a url'),'not a url');
+});
+test('keepsakes say whether the trip has given them enough to be made from',async()=>{
+ const {KEEPSAKES,keepsakeMaterial,keepsakeReady}=await import('../src/shop-data.js');
+ const state={members:['Nate','Boston'],mascots:{Nate:{name:'Kitsu'},Boston:{name:' '}},
+  photoVotes:{'2026-09-21':{Nate:'p1'},'2026-09-22':{}},steps:[{day:'2026-09-21',status:'done'},{day:'2026-09-22',status:'done'},{day:'2026-09-22',status:'todo'}]};
+ const m=keepsakeMaterial(state);
+ assert.deepEqual(m,{characters:1,photos:1,days:2,stamps:2});
+ assert.equal(keepsakeReady(KEEPSAKES.find(k=>k.id==='shirts'),m).ready,true);
+ assert.deepEqual(keepsakeReady(KEEPSAKES.find(k=>k.id==='book'),m),{have:1,need:6,ready:false});
+ for(const k of KEEPSAKES){assert.ok(['before','after'].includes(k.when));assert.ok(k.from in m,`${k.id} is made from something counted`);assert.equal(k.provider,null,'no print provider chosen yet');}
+ assert.deepEqual(keepsakeMaterial({}),{characters:0,photos:0,days:0,stamps:0});
+});
+test('the trip shop log keeps what was sorted and whether it was worth it, for the next trip',async()=>{
+ const {applyOperation}=await import('../server/model.mjs');
+ const {shopEntry,shopLogged}=await import('../src/shop-data.js');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ const lauren={name:'Lauren',role:'parent'};
+ let state=upgraded(seed);
+ assert.deepEqual(state.shopLog,{});
+ state=applyOperation(state,{type:'shopLog',id:'esim',sorted:true},lauren);
+ state=applyOperation(state,{type:'shopLog',id:'esim',verdict:'no',note:'  Dropped out in Hakone.  '},lauren);
+ const e=shopEntry(state,'esim');
+ assert.ok(e.sortedAt,'the tick survives a later note');assert.equal(e.verdict,'no');assert.equal(e.note,'Dropped out in Hakone.');assert.equal(e.by,'Lauren');
+ state=applyOperation(state,{type:'shopLog',id:'esim',verdict:''},lauren);
+ assert.equal(shopEntry(state,'esim').verdict,null);assert.equal(shopEntry(state,'esim').note,'Dropped out in Hakone.');
+ state=applyOperation(state,{type:'shopLog',id:'book',sorted:true},lauren);
+ assert.deepEqual(shopLogged(state),{sorted:1,total:8,notes:1},'a keepsake ordered is not an essential sorted');
+ assert.throws(()=>applyOperation(state,{type:'shopLog',id:'esim',sorted:true},{name:'Nate',role:'child'}),/parent/);
+ assert.throws(()=>applyOperation(state,{type:'shopLog',id:'nope',sorted:true},lauren),/Unknown trip shop item/);
+ assert.throws(()=>applyOperation(state,{type:'shopLog',id:'esim',verdict:'maybe'},lauren),/worth it/);
+ assert.throws(()=>applyOperation(state,{type:'shopLog',id:'esim',note:'x'.repeat(281)},lauren),/Invalid note/);
+ assert.throws(()=>applyOperation(state,{type:'shopLog',id:'esim',sorted:'yes'},lauren),/Invalid tick/);
+ assert.ok(visibleTrip(state,{name:'Nate',role:'child'}).shopLog.esim,'the boys can read what was learned');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/'bookingWindowBooked','shopLog'\]/,'a tick made with no signal is queued');
+});
+test('apps to download: each app finds its days in the plan, and ones behind us are done',async()=>{
+ const {SUGGESTED_APPS,APP_GROUPS,appDays,suggestedApps}=await import('../src/apps-data.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const state=upgraded(seed),byId=id=>SUGGESTED_APPS.find(a=>a.id===id);
+ assert.deepEqual(appDays(state,byId('usj')),['2026-09-25']);
+ assert.deepEqual(appDays(state,byId('smartex')),['2026-09-24','2026-09-29'],'both Nozomi days');
+ assert.deepEqual(appDays(state,byId('disney')),['2026-09-29','2026-09-30','2026-10-01']);
+ assert.deepEqual(appDays(state,byId('qantas')),['2026-09-21','2026-10-06'],'the two flight days');
+ assert.equal(appDays(state,byId('maps')).length,16,'the rest are for the whole trip');
+ const mid=Object.fromEntries(suggestedApps(state,'2026-09-28').map(a=>[a.id,a]));
+ assert.equal(mid.usj.done,true);assert.equal(mid.disney.soon,true);assert.equal(mid.disney.next,'2026-09-29');
+ assert.equal(mid.maps.soon,false,'whole-trip apps are never flagged');assert.equal(mid.qantas.soon,false);
+ assert.equal(suggestedApps(state,'2026-09-01').filter(a=>a.done).length,0,'nothing is done before the trip');
+ for(const a of SUGGESTED_APPS){assert.match(a.url,/^https:\/\/apps\.apple\.com\/au\/app\/[a-z-]+\/id\d+$/,a.id);assert.ok(APP_GROUPS.some(([g])=>g===a.group),a.id);assert.ok(a.why&&a.setup&&a.who,a.id);}
+ assert.ok(PAGES.apps?.label&&PAGE_RULES.apps);assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('apps'));
+});
+test('apps to download: reminders a week before we fly, the evening before each park and train, and on the briefing',async()=>{
+ const {appReminders,appsDue}=await import('../src/apps-data.js');
+ const {pushMoments,PUSH_KIND_IDS}=await import('../src/push-data.js');
+ const {dayBriefing}=await import('../src/briefing-data.js');
+ const state=upgraded(seed);
+ assert.deepEqual(appReminders(state).map(r=>[r.id,r.day]),[['before','2026-09-14'],['smartex','2026-09-23'],['usj','2026-09-24'],['disney','2026-09-28']]);
+ assert.ok(appReminders(state)[0].apps.some(a=>a.id==='qantas'),'the flight home is covered by the week-before list');
+ assert.ok(PUSH_KIND_IDS.includes('apps'));
+ const pushes=pushMoments(state).filter(m=>m.kind==='apps');
+ assert.equal(pushes.length,4);assert.equal(new Date(pushes.find(m=>m.key==='apps|disney|2026-09-28').at).toISOString(),'2026-09-28T10:00:00.000Z','7pm in Japan');
+ assert.equal(pushes.find(m=>m.key.startsWith('apps|disney')).title,'Tomorrow: Tokyo Disney Resort App');
+ for(const m of pushes){assert.equal(m.url,'/?tab=apps');assert.ok(m.to.every(n=>['Damien','Lauren'].includes(n)),'parents only');}
+ assert.deepEqual(appsDue(state,'2026-09-28'),[{id:'disney',name:'Tokyo Disney Resort App',today:false}]);
+ assert.deepEqual(dayBriefing(state,'2026-09-25').apps.map(a=>[a.id,a.today]),[['usj',true]]);
+ assert.deepEqual(dayBriefing(state,'2026-09-22').apps,[]);
+});
+test('apps to download: an app a stop was booked through is suggested for that stop’s day, and not before',async()=>{
+ const {suggestedApps,appReminders}=await import('../src/apps-data.js');
+ const state=upgraded(seed);
+ assert.ok(!suggestedApps(state,'2026-09-01').some(a=>a.id==='klook'),'nothing booked through Klook, no Klook');
+ const tea=state.steps.find(s=>s.day==='2026-09-26');
+ const booked={...state,steps:state.steps.map(s=>s.id===tea.id?{...s,bookedVia:'klook'}:s)};
+ assert.deepEqual(suggestedApps(booked,'2026-09-01').find(a=>a.id==='klook').days,['2026-09-26']);
+ assert.deepEqual(appReminders(booked).find(r=>r.id==='klook').day,'2026-09-25','the evening before');
+ assert.ok(!appReminders(booked)[0].apps.some(a=>a.id==='klook'),'and not in the week-before list');
+});
