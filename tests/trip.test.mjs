@@ -8173,7 +8173,7 @@ test('a question about the trip is answered out of the plan, and cannot change a
  const screen=await readFile(new URL('../src/AskTrip.jsx',import.meta.url),'utf8');
  // The one line that has to be on the screen rather than only in the prompt: a box that answers
  // questions looks like a box that does things, and nobody should find that out by asking it to.
- assert.match(screen,/It cannot move an activity, change a booking or tell anybody anything/);
+ assert.match(screen,/It cannot move a stop, change a booking or tell anybody anything/);
 });
 
 test('the questions offered first are built out of the day in front of them',async()=>{
@@ -10144,4 +10144,25 @@ test('Back and the swipe from the edge walk back through screens, and close a sh
  // Only the start-up rewrites still replace: the join token, the deep link, and the overnight move to today.
  assert.equal((main.match(/history\.replaceState\(/g)||[]).length,3,'no screen change slips through as a replace');
  for(const fn of ['go','selectStep','selectPhotoDay','choosePhotoPerson'])assert.doesNotMatch(main,new RegExp(`function ${fn}\\([^\\n]*history\\.replaceState`),`${fn} goes through navigate`);
+});
+
+test('one word for each idea on the screen: a stop is a stop, and the screen that arranges the phone is Customise',async()=>{
+ const {PAGES}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const read=async f=>readFile(new URL(`../src/${f}`,import.meta.url),'utf8');
+ const main=await read('main.jsx');
+ // The thing on the day's list was a stop in the timeline, an activity in its own sheet and a
+ // step on its share button. It is a stop everywhere the family reads it.
+ for(const gone of ["'Edit activity'",'Save activity<','Allocate to activities','Add another activity','every activity listed','>Restore step','Share this step','Steps in the same option'])assert.ok(!main.includes(gone),`${gone} still on screen`);
+ assert.match(main,/'Edit stop':'Add a stop'/);
+ for(const [file,gone] of [['EmailInbox.jsx','One activity'],['EmailInbox.jsx','Which activity'],['Planning.jsx','Open the activity'],['Planning.jsx','already an activity'],['AskTrip.jsx','move an activity'],['Games.jsx','a few activities'],['HomeFeatures.jsx','and activities already']])
+  assert.ok(!(await read(file)).includes(gone),`${file}: ${gone}`);
+ assert.equal(PAGES.diary.note,'Completed stops, discoveries and photos');
+ // The screen was My menu in the list and Customise Home on the button that led to it.
+ assert.equal(PAGES.personalise.label,'Customise');
+ assert.match(PAGE_RULES.personalise,/^Customise\./);
+ assert.match(await read('Personalise.jsx'),/<h1>Customise<\/h1>/);
+ assert.ok(!main.includes('from My menu'),'Home points at Customise by its name');
+ // Home is the dashboard and Today is the day's stops, and those two stay as they are.
+ assert.equal(PAGES.today.label,'Home');assert.equal(PAGES.glance.label,'Today');
 });

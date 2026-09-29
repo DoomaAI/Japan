@@ -257,7 +257,7 @@ function Remember({user,state,mutate,busy,dayLabel}){
   setTimeout(()=>{if(hit)setDone(d=>[...d,next[0].pair]);setPicked([]);},hit?350:800);
  }
  if(pairs<2)return <><p>This one is built out of the trip itself — match the thing we did to the day we did it.</p>
-  <p className="callout">Once we have finished a few activities, they show up here. {doneSteps.length?`Only ${doneSteps.length} so far.`:'None ticked off yet.'}</p></>;
+  <p className="callout">Once we have finished a few stops, they show up here. {doneSteps.length?`Only ${doneSteps.length} so far.`:'None ticked off yet.'}</p></>;
  return <>
   <p>Match the thing we did to the day we did it. It grows as the trip does.</p>
   <div className="remember-grid">{cards.map(c=>{
