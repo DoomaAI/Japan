@@ -17,6 +17,7 @@ export const HOME_WIDGETS={
  bookingwindows:{label:'Booking windows',note:'Bookings opening in the next fortnight, and any open but not yet booked',page:'windows'},
  briefing:{label:'The day in brief',note:'Which day it is, the stops, fixed times, weather, a hotel move and the day’s phrase'},
  step:{label:'The step we are on',note:'The current stop, swipe for the rest of the day'},
+ codes:{label:'Codes found',note:'Parents: a ticket’s QR code has been read; add it to the Wallet, or leave it out'},
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},
  needs:{label:'Before we head out',note:'A tick for each thing to carry out the door, fresh each morning, with a streak'},
  links:{label:'Next fixed time',note:'The next time that cannot move, one tap from its stop'},
