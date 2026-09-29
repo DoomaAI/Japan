@@ -681,5 +681,6 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .receipt-row{display:flex;align-items:center;flex-wrap:wrap;gap:.6rem;margin:.4rem 0 .6rem;font-size:.88rem}.receipt-row a{display:inline-flex;align-items:center;gap:.3rem}.receipt-row .file-button{display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .8rem;border:1px solid var(--border);border-radius:20px;background:#fff;cursor:pointer}.receipt-row .file-button input{display:none}.receipt-row small{color:var(--muted)}
 .ledger-list a{display:inline-flex;align-items:center;gap:.2rem}
 .ask-by{margin:-.3rem 0 .4rem;color:var(--muted)}
+.booked-via{display:inline-flex;align-items:center;gap:.3rem;font-weight:600;color:var(--ink);text-decoration:none;border:1px solid var(--border);border-radius:999px;padding:.15rem .6rem;background:#fff}a.booked-via{text-decoration:underline;text-underline-offset:2px}.booked-via.button{border-radius:8px;padding:.5rem .8rem;text-decoration:none}
 .food-rate{margin:.2rem 0 .8rem;padding:.7rem .9rem}
 .food-rate .food-people{margin:.7rem 0 0}
