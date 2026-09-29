@@ -2,6 +2,28 @@
 
 Compared against TripIt Pro, Wanderlog, Google Maps/Travel, Polarsteps, the Japan Official Travel App (JNTO), NAVITIME Japan Travel, Japan Transit Planner, Safety tips, Splitwise, Trail Wallet and TravelSpend. Written on 27 September 2026, day 7 of 16, so the order puts what helps during the rest of the trip first.
 
+## Before, during and after — logged 29 September 2026
+
+The trip has a before, a during and an after, and each should give the family a reason to open the app. Built in this order, one pull request each: the trip is under way, so the in-trip items come first, then the recap, then the before-the-trip items that pay off on the next trip.
+
+| # | Item | Stage | What it is |
+|---|---|---|---|
+| 0 | Opening countdown | All | Days to go, or which day of the trip it is, on the screen shown while the trip loads |
+| 1 | Morning briefing | During | A Home card: which day of the trip, how many stops, the fixed booking, the weather and the day's phrase |
+| 2 | Tonight wrap-up | During | An evening Home card: rate today's stops, vote for the photo of the day, leave a voice note |
+| 3 | Stamp book | During | Stamps for cities, temples and shrines, trains, foods and rides, earned from what the family has already ticked |
+| 4 | Family leaderboard | During | Who has tried the most foods, taken the most photos, found the most hunts and finished the most missions |
+| 5 | Trip recap story | After | Full-screen swipeable cards: the totals, each day's winning photo, everyone's top moment |
+| 6 | Replay the trip | After | The memory map played day by day, the route drawn as it goes |
+| 7 | Photobook | After | One printable page per day: the winning photo, the stars and the diary |
+| 8 | One year ago today | After | On each day's anniversary, Home shows that day's photo and what we did |
+| 9 | Follow-along link | After | A view-only link for family at home: diary and photos, no tickets, places or money |
+| 10 | Countdown milestones | Before | At 100, 50, 30, 14 and 7 days, a family task unlocks on the countdown |
+| 11 | A little Japan each day | Before | One fact and one phrase a day in the run-up to the trip |
+| 12 | Sealed predictions | Before | Everyone predicts the trip; the answers stay sealed until the recap reveals them |
+| 13 | Ready to go | Before | One progress bar for tickets, packing, profiles, votes and phrases |
+| 14 | Hunt picks | Before | The boys choose the hunts they want to do before they land |
+
 ## Backlog — logged 27 September 2026, to pick up later
 
 | Item | When | What it needs first |

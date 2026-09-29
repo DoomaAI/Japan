@@ -242,7 +242,11 @@ export function nextPackUp(state,today=japanDate()){
  const last=days.at(-1);
  return last&&last.date>=today?{date:last.date,from:last.hotel,to:'Home',home:true}:null;
 }
-export function packingProgress(state){
- const {items}=packing(state),packed=items.filter(i=>i.packedAt).length;
+// Whose list is on the screen: everything, the joint list of what the family shares, or one
+// person's own list. Suggestions and the count follow the same choice as the list itself.
+export const PACK_SCOPES=[['all','Everything'],['joint','Joint'],['own','Individual']];
+export const inPackScope=(item,scope='all',who='')=>scope==='joint'?item.person==='Family':scope==='own'?item.person===who:true;
+export function packingProgress(state,scope='all',who=''){
+ const items=packing(state).items.filter(i=>inPackScope(i,scope,who)),packed=items.filter(i=>i.packedAt).length;
  return {packed,total:items.length,left:items.length-packed};
 }
