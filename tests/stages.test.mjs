@@ -108,3 +108,18 @@ test('replaying the trip draws what we did, or the plan before anything is ticke
  assert.equal(replayFrames(state).frames[0].exact,true,'a pin is exact');
  assert.ok(Math.abs(kmBetween({lat:35.6812,lng:139.7671},{lat:34.9858,lng:135.7588})-364)<10,'Tokyo to Kyoto Station is about 364 km');
 });
+test('the photobook has a page for every day, led by the photo of the day',async()=>{
+ const {photobookPages}=await import('../src/photobook-data.js');
+ const state=upgraded(seed);
+ let pages=photobookPages(state);
+ assert.equal(pages.length,16);assert.equal(pages[0].hero,null,'a day with nothing kept still gets its page');
+ const day='2026-09-22',meiji=state.steps.find(s=>s.title==='Meiji Jingu forest and shrine');
+ state.photos=[{id:'a',day,by:'Nate',at:'2026-09-22T01:00:00Z'},{id:'b',day,by:'Boston',at:'2026-09-22T02:00:00Z'}];
+ state.photoVotes={[day]:{Nate:'a',Lauren:'a'}};
+ state.steps=state.steps.map(s=>s.id===meiji.id?{...s,status:'done'}:s);
+ state.stepReviews={[meiji.id]:{ratings:{Nate:5},thoughts:{Nate:{text:'So many trees',at:'x'}}}};
+ state.journal={[day]:'Rain in the morning, sun by lunch.'};
+ const p=photobookPages(state).find(x=>x.date===day);
+ assert.equal(p.hero.item.id,'a');assert.equal(p.winner,true);assert.deepEqual(p.more.map(m=>m.item.id),['b']);
+ assert.equal(p.best[0].title,meiji.title);assert.equal(p.quote.text,'So many trees');assert.equal(p.note,'Rain in the morning, sun by lunch.');
+});
