@@ -53,6 +53,7 @@ import RecapStory from './RecapStory.jsx';
 import Photobook from './Photobook.jsx';
 import Predictions from './Predictions.jsx';
 import Arrival from './Arrival.jsx';
+import DayMap from './DayMap.jsx';
 import BookingWindows,{BookingWindowsCard} from './BookingWindows.jsx';
 import FollowAlong from './FollowAlong.jsx';
 import Safety,{LostCards} from './Safety.jsx';
@@ -644,6 +645,7 @@ function App(){
    {/* The day's own buttons sit here, over the stops they change, rather than on Home. */}
    <div className="home-actions day-actions">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
    <DayTimeline steps={steps} allSteps={allSteps} splits={splits} lens={lens} setLens={follow} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/>
+   <DayMap key={day} state={visibleState} day={day} selectStep={selectStep}/>
   </>}
   {tab==='challenges'&&<Challenges key={day+(focus||'')} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy} go={go} remove={removeThen}/>}
