@@ -2,6 +2,7 @@ import React,{useState} from 'react';
 import {MapPin,Navigation,Search,Plus,Check,AlertCircle,Clock,Coins,ExternalLink,Inbox,Users,LocateFixed,UtensilsCrossed,Star} from 'lucide-react';
 import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MAX_DISH_HUNT,MINUTES_PER_STAR,isRatedKind,nearbyKindLabel,priceBandLabel,ratingText,walkingLink,COORD_PLACES,MAPS_NEARBY,mapsNearbyLink,partyFit,rankNearby} from './trip-features.js';
 import {SuggestDeck,PartyMatch} from './SuggestDeck.jsx';
+import {Globe,Ticket} from 'lucide-react';
 import {askPhoneWhereItIs} from './geo.js';
 import {activeSteps} from './timing.js';
 // Asked standing in the street, so it opens on what it can answer fastest: where the phone says
@@ -72,7 +73,7 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
  async function addToDay(item){
   const order=current?current.order+0.5:undefined;
   const saved=await mutate({type:'add',step:{title:item.draft.title,day,time:null,
-   duration:item.draft.duration,place:item.draft.place||item.area,japanese:item.draft.japanese,
+   duration:item.draft.duration,place:item.draft.place||item.area,japanese:item.draft.japanese,website:item.draft.ticketUrl||item.draft.website||'',
    notes:[item.what,item.dish?`On our food list: ${item.dish}`:'',
     item.rating===null?'':`Google ${ratingText(item.rating,item.ratingCount)}`,item.why,item.openNote].filter(Boolean).join('\n'),kind:'flexible',
    page:today?.pages?.[0]||1,participants:[...state.members],...(order?{order}:{})}});
@@ -152,6 +153,8 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
      </div>
      <div className="row wrap">
       <a className="button primary" href={link} target="_blank" rel="noopener noreferrer"><Navigation size={16}/>Walk me there <ExternalLink size={13}/></a>
+      {item.draft.website&&<a className="button" href={item.draft.website} target="_blank" rel="noopener noreferrer"><Globe size={16}/>Website <ExternalLink size={13}/></a>}
+      {item.draft.ticketUrl&&<a className="button" href={item.draft.ticketUrl} target="_blank" rel="noopener noreferrer"><Ticket size={16}/>Book a table <ExternalLink size={13}/></a>}
       {parent&&<button disabled={busy} onClick={()=>saveIdea(item)}><Inbox size={16}/>Save to the board</button>}
      </div>
     </article>;}}/>

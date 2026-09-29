@@ -1065,6 +1065,17 @@ export const stepPin=s=>s&&typeof s==='object'&&validPin(s.pin??null)&&s.pin?s.p
 export const pinText=p=>`${p.lat.toFixed(PIN_PLACES)}, ${p.lng.toFixed(PIN_PLACES)}`;
 // Walking directions from where you are actually standing, when the phone knows; a plain search
 // for the place otherwise. Built here from pieces the app checked, never from a model's link.
+// Directions from wherever the day starts — the phone's position, or a place by name — by the
+// way the card says to get there. With no starting point Maps asks for one, which is still one tap.
+const MAPS_MODE={walk:'walking',train:'transit',taxi:'driving'};
+export function directionsLink(name,area,from,mode='walk'){
+ const destination=encodeURIComponent([name,area].filter(Boolean).join(' '));
+ const origin=from&&typeof from==='object'?(validCoords(from.lat,from.lng)?`${from.lat},${from.lng}`:''):String(from||'').trim();
+ return `https://www.google.com/maps/dir/?api=1${origin?`&origin=${encodeURIComponent(origin)}`:''}&destination=${destination}&travelmode=${MAPS_MODE[mode]||'walking'}`;
+}
+// When no booking page came back checked, a search the app builds itself — never an address the
+// model made up — so "book ahead" is still one tap from somewhere to book.
+export const bookingSearchLink=(name,area)=>`https://www.google.com/search?q=${encodeURIComponent([name,area,'official tickets booking'].filter(Boolean).join(' '))}`;
 export function walkingLink(name,area,from){
  const destination=encodeURIComponent([name,area].filter(Boolean).join(' '));
  return from&&validCoords(from.lat,from.lng)

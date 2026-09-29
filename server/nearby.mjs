@@ -1,6 +1,7 @@
 import {AppError,MEMBERS} from './model.mjs';
 import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MEAL_KINDS,PRICE_BANDS,PROPOSAL_KINDS,proposalDraft,roundCoord,validCoords,partyBrief,matchDish,MAX_DISH_HUNT,
  MIN_RATING_VOTES,MINUTES_PER_STAR,isRatedKind,placeScore,rankNearby,ratingText,validRating} from '../src/trip-features.js';
+import {seenHosts,checkedLink} from './links.mjs';
 export const nearbyReady=()=>!!process.env.ANTHROPIC_API_KEY;
 export const MAX_NEARBY=8;
 // This is the one asked standing in the street with two tired children, so it is tuned for speed:
@@ -8,7 +9,7 @@ export const MAX_NEARBY=8;
 const SEARCH={type:'web_search_20260209',name:'web_search',max_uses:4,user_location:{type:'approximate',country:'JP',timezone:'Asia/Tokyo'}};
 const option={
  type:'object',additionalProperties:false,
- required:['title','japanese','kind','what','area','walkMinutes','rating','ratingCount','priceBand','openNote','kidFriendly','why','dish'],
+ required:['title','japanese','kind','what','area','walkMinutes','rating','ratingCount','priceBand','openNote','kidFriendly','why','dish','website','bookingUrl'],
  properties:{
   title:{type:'string',description:'The name as a sign outside would read it, in English or romaji.'},
   japanese:{type:'string',description:'The name in Japanese, for pointing at. Empty rather than guessed.'},
@@ -22,7 +23,9 @@ const option={
   openNote:{type:'string',description:'What you know about when it is open, said as the guess it is. Empty if you do not know.'},
   kidFriendly:{type:'boolean',description:'True if a five-year-old is welcome and will manage it.'},
   why:{type:'string',description:'One short line on why this one, for this family, right now.'},
-  dish:{type:'string',description:'If a list of dishes they still want to try came with the question and this place does one of them, that dish, copied exactly as the list writes it. Empty otherwise.'}}
+  dish:{type:'string',description:'If a list of dishes they still want to try came with the question and this place does one of them, that dish, copied exactly as the list writes it. Empty otherwise.'},
+  website:{type:'string',description:'Its own website, exactly as a search result showed it. Empty if you did not see one.'},
+  bookingUrl:{type:'string',description:'Where a table is booked, exactly as a search result showed it (its own page, TableCheck, Tabelog, OMAKASE and the like). Empty if you did not see one or it does not take bookings.'}}
 };
 const RECORD={
  name:'record_nearby',
@@ -52,14 +55,14 @@ How to answer:
 - Convenience stores in Japan have toilets, cash machines and hot food, so they answer several of these at once. Say so where it is the practical answer.
 - Sometimes they are hunting a dish rather than a meal, and the dishes they still want to try come with the question. Then the job is somewhere near them that actually does one of those, named in "dish" exactly as the list writes it. Do not stretch it: a ramen shop is not takoyaki, and a place that does none of them is still worth naming with "dish" left empty. Put the ones that do a listed dish first.
 - "openNote" is a guess unless you have checked, and must read like one.
-- Never invent a web address or a phone number. You are not asked for either.
+- Give "website" and "bookingUrl" only as a search result actually showed them; any address whose site did not come up in your searches is thrown away. Never invent a phone number.
 - If you genuinely do not know the area well enough, say so in "anchor" and give fewer, more general answers rather than inventing named shops.
 
 You cannot see a map, you do not know what has closed this year, and you are not confirming anything is open. The app says so on the screen. Search if it helps, then call record_nearby exactly once.`;
 const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 // Everything comes back through the same gate as the rest of the app: clamped, checked against
-// the lists the screen knows how to draw, and carrying no links of its own.
-export function normaliseNearby(item,state,wishlist=[]){
+// the lists the screen knows how to draw, and carrying no link whose site the search did not see.
+export function normaliseNearby(item,state,wishlist=[],hosts=new Set()){
  const kind=NEARBY_KINDS.some(([id])=>id===item.kind)?item.kind:'food';
  const walkMinutes=Number.isInteger(item.walkMinutes)&&item.walkMinutes>=0&&item.walkMinutes<=180?item.walkMinutes:null;
  const dish=matchDish(item.dish,wishlist);
@@ -77,7 +80,8 @@ export function normaliseNearby(item,state,wishlist=[]){
   category:FOOD_NEARBY_KINDS.includes(kind)?'food':'other',
   timing:'flex',duration:MEAL_KINDS.includes(kind)?60:20,cost:null,costNote:'',
   suitableFor:item.kidFriendly===false?(state.members||MEMBERS).filter(n=>n!=='Nate'):[],
-  tags:[clamp(item.area,50)].filter(Boolean),source:'suggested'
+  tags:[clamp(item.area,50)].filter(Boolean),source:'suggested',
+  website:checkedLink(item.website,hosts),ticketUrl:checkedLink(item.bookingUrl,hosts)
  });
  return {draft,kind,walkMinutes,dish,rating,ratingCount,score:placeScore({rating,walkMinutes}),
   priceBand:PRICE_BANDS.some(([id])=>id===item.priceBand)?item.priceBand:'',
@@ -132,7 +136,8 @@ ${partyBrief(state)}`;
  const call=message.content.find(b=>b.type==='tool_use'&&b.name==='record_nearby');
  const result=call?.input;
  if(!result||!Array.isArray(result.options))throw new AppError('Nothing came back. Try again, or open Maps.',502);
- const options=result.options.map(item=>normaliseNearby(item,state,hunting)).filter(o=>o.draft.title)
+ const hosts=seenHosts([...messages.map(m=>m.content),message.content]);
+ const options=result.options.map(item=>normaliseNearby(item,state,hunting,hosts)).filter(o=>o.draft.title)
   // Not nearest first: best first, where best is the rating once the walk is taken off it at a
   // tenth of a star a minute. A dish we are hunting still goes above all of it, which is the whole
   // point of asking from the food page.
