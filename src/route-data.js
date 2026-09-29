@@ -160,6 +160,11 @@ export function routeFares(legs){
  if(rides.length<2)return null;
  return {rides,adult:rides.reduce((t,r)=>t+r.yen[0],0),child:rides.reduce((t,r)=>t+r.yen[1],0)};
 }
+// The line symbols a ride passes, as the platform signs show them: the letter of its station
+// codes in the line's colour. A ride across two lines (Kintetsu Kyoto into Nara) shows both.
+export const lineSymbols=stops=>[...new Set(stops.map(s=>s.code?.replace(/^JR-/,'').replace(/\d+$/,'')).filter(Boolean))];
+// Dark text on a light line colour (the yellow Chuo-Sobu), white on the rest.
+export const inkOn=hex=>{const [r,g,b]=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));return r*.299+g*.587+b*.114>170?'#1f1f1f':'#fff';};
 export const yen=n=>`¥${n.toLocaleString('en')}`;
 export const stationLabel=s=>s.code?`${s.name} (${s.code})`:s.name;
 // Metres between two points; plenty accurate over a city.

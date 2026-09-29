@@ -8894,6 +8894,16 @@ test('a route across companies adds up the separate fares the stop notes quote',
  // One company, one ticket: no total to add up.
  assert.equal(routeFares(ROUTES['2026-09-27-03']),null);
 });
+test('each ride shows the line symbol its signs carry',async()=>{
+ const {legStops,lineSymbols,inkOn}=await import('../src/route-data.js');
+ assert.deepEqual(lineSymbols(legStops({line:'midosuji',from:'Umeda',to:'Shinsaibashi'})),['M']);
+ assert.deepEqual(lineSymbols(legStops({line:'jrKyoto',from:'Kyoto',to:'Osaka'})),['A']);
+ // Kintetsu runs from its Kyoto Line (B) onto its Nara Line (A).
+ assert.deepEqual(lineSymbols(legStops({line:'kintetsu',from:'Kyoto',to:'Kintetsu-Nara'})),['B','A']);
+ assert.deepEqual(lineSymbols(legStops({line:'naraBus',from:'Kintetsu-Nara Station (stop 1)',to:'Todaiji Daibutsuden / Kasugataisha-mae'})),[]);
+ assert.equal(inkOn('#FFD400'),'#1f1f1f');
+ assert.equal(inkOn('#E5171F'),'#fff');
+});
 test('tracking at a change follows the ride still to come',async()=>{
  const {legStops,whereOnRoute}=await import('../src/route-data.js');
  const rides=[legStops({line:'karasuma',from:'Gojo',to:'Kyoto'}),legStops({line:'sagano',from:'Kyoto',to:'Saga-Arashiyama'})];
