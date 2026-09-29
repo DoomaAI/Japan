@@ -14,9 +14,10 @@ export const iconFor=id=>ICONS[id]||Circle;
 const SLACK=8;
 export function BottomNav({tab,user,go,unread,prefs}){
  const strip=useRef(null);
- // The tabs swipe sideways when the phone is too narrow for them. More does not travel
- // with them: it is pinned to the end of the bar, because it is the way to every other screen
- // and a way out that can be swiped off the edge is no way out at all.
+ // The shortcuts swipe sideways, like the days along the top. Home and More do not travel
+ // with them: Home is pinned to the start of the bar and More to the end, because they are the
+ // way back and the way to every other screen, and a way out that can be swiped off the edge
+ // is no way out at all.
  useEffect(()=>{
   const box=strip.current,on=box?.querySelector('.active');
   if(!box||!on||!box.scrollTo)return;
@@ -80,6 +81,13 @@ export function BottomNav({tab,user,go,unread,prefs}){
  const drag=useRef(null);
  const bar=primaryNav(user,prefs);
  const moreOn=navActive(tab,'more',user,prefs);
+ const pinned=bar[0],shortcuts=bar.slice(1);
+ const tab_=(id,extra)=>{
+  const Icon=iconFor(id),active=navActive(tab,id,user,prefs);
+  return <button key={id} className={[extra,active&&'active'].filter(Boolean).join(' ')||undefined} aria-current={active?'page':undefined} onClick={()=>go(id)}>
+   <Icon size={22}/><span>{PAGES[id].label}</span>
+  </button>;
+ };
  return <nav className="bottom-nav" aria-label="Main navigation" ref={nav}
   style={drop?{transform:`translate(-50%,${drop}px)`}:undefined}
   onTouchStart={e=>{drag.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
@@ -94,13 +102,9 @@ export function BottomNav({tab,user,go,unread,prefs}){
       there. It is drawn rather than written because it is under the thumb at all times. */}
   <button type="button" className="nav-grip" aria-label={moreOn?'Close the menu':'Open the whole menu'}
    onClick={()=>go(moreOn?bar[0]:'more')}><ChevronUp size={14}/></button>
+  {tab_(pinned,'nav-home')}
   <div className="nav-tabs" data-swipe={swipe||undefined} ref={strip}>
-   {bar.map(id=>{
-    const Icon=iconFor(id),active=navActive(tab,id,user,prefs);
-    return <button key={id} className={active?'active':''} aria-current={active?'page':undefined} onClick={()=>go(id)}>
-     <Icon size={22}/><span>{PAGES[id].label}</span>
-    </button>;
-   })}
+   {shortcuts.map(id=>tab_(id))}
   </div>
   <button className={`nav-more${moreOn?' active':''}`} aria-current={moreOn?'page':undefined} onClick={()=>go('more')}>
    <MoreHorizontal size={22}/><span>More</span>

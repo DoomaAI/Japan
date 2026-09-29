@@ -41,7 +41,7 @@ export const PAGES={
  mascot:{label:'Our characters',note:'Design your own Japanese character and use it in the app'},
  thanks:{label:'Notes for Lauren',note:'Write and schedule her daily pop-up notes'},
  personalise:{label:'My menu',note:'Choose what you see, and the order it comes in'},
- settings:{label:'Settings',note:'Turn the daily phrase or the daily fun fact off'}
+ settings:{label:'Settings',note:'The order of the shortcuts along the bottom, and the daily phrase or fun fact'}
 };
 // The ones that earn a place in the bottom bar, by who is holding the phone. Home, Today and the
 // Itinerary are everybody's: Home is the dashboard, Today is the day's stops in order, and the
@@ -95,9 +95,13 @@ export const pagesFor=user=>Object.keys(PAGES).filter(id=>allowed(id,user));
 //    other is the way to undo whatever was just done here.
 // 2. A bar that came out too short is not a bar. Anything under three is thrown away and the
 //    one for your role is used instead, so nobody can leave themselves with a blank bottom.
-// 3. Home is on the bar wherever they put it. It can be moved anywhere along it, but not off:
-//    a swipe down the bar lands on whatever is first, and that has to be somewhere to land.
-export const BAR_MIN=3,BAR_MAX=8;
+// 3. Home is always first on the bar. It is pinned to the left edge, outside the strip that
+//    scrolls, the way More is pinned to the right — the way back is never swiped out of reach —
+//    and a swipe down the bar lands on whatever is first, which has to be somewhere to land.
+//
+// The strip between Home and More scrolls sideways like the days along the top, so the bar can
+// hold more shortcuts than fit across a phone.
+export const BAR_MIN=3,BAR_MAX=12;
 export const FIXED=['today','personalise'];
 export const emptyNav=()=>({bar:null,hidden:[]});
 export function cleanNav(prefs,user){
@@ -106,7 +110,7 @@ export function cleanNav(prefs,user){
  let wanted=Array.isArray(prefs?.bar)
   ?[...new Set(prefs.bar.filter(id=>ok(id)&&!hidden.includes(id)))]
   :null;
- if(wanted&&!wanted.includes('today'))wanted=['today',...wanted];
+ if(wanted)wanted=['today',...wanted.filter(id=>id!=='today')];
  if(wanted)wanted=wanted.slice(0,BAR_MAX);
  return {bar:wanted&&wanted.length>=BAR_MIN?wanted:null,hidden};
 }

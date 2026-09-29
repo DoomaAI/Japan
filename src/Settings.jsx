@@ -1,6 +1,7 @@
 import React from 'react';
 import {MessageSquare,Lightbulb,Mic} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
+import {BarShortcuts} from './Personalise.jsx';
 const ICONS={dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
@@ -18,7 +19,7 @@ function SettingRow({s,settings,change}){
   </button>
  </div>;
 }
-export default function Settings({user,settings,change}){
+export default function Settings({user,settings,change,navPrefs,setNavPrefs}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR CHOICE</p>
   <h1>Settings</h1>
@@ -31,6 +32,7 @@ export default function Settings({user,settings,change}){
    <h2>Voice notes</h2>
    {SETTINGS.filter(s=>s.group==='voice').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
+  {setNavPrefs&&<section className="settings-section"><BarShortcuts user={user} prefs={navPrefs} setPrefs={setNavPrefs}/></section>}
   <p><small>Remembered on this phone under your own name, so it takes effect with no signal and changes nothing for anybody else. Turning one back on brings it straight back, starting with today’s if you have not already marked it; nothing you have already seen is ever offered twice.</small></p>
  </>;
 }
