@@ -51,6 +51,7 @@ export const PAGE_RULES={
  leaderboard:'Leaderboard. Who has tried the most foods, been on the most rides and taken the most photos. The one at the top of each list gets a crown. If two people have the same number, they share the place.',
  facts:'Fun facts. A new fact every day about somewhere we are going or something we are about to see. Press the speaker to hear it. All the ones you have already had are kept in here too.',
  recap:'Our trip story. Our whole trip in pictures and numbers, one card at a time. Tap the right side or swipe to see the next card. There is one card for each of us, with our favourite thing.',
+ book:'Photobook. A page for every day of our trip, with the best photo, the things we liked most, and what we wrote. Mum and Dad can print it into a real book.',
  highlights:'Trip highlights. After the trip we will make a short film of our best bits, from our own photos and videos and voice notes. This page counts up everything we have saved for it so far.',
  safety:'Safety. What to do if something goes wrong. There are phone numbers for help, and your own card to show a grown up if you get lost. It has your name and our phone numbers on it, written in Japanese.',
  paying:'Which card. This is for Mum and Dad. It helps them choose the card that costs the least to use in Japan, and when to use cash.',
