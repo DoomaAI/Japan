@@ -1,6 +1,7 @@
 import React,{useState} from 'react';
 import {MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
+import Notifications from './Notifications.jsx';
 import {BarShortcuts} from './Personalise.jsx';
 import {CARD_LINKS,linkOrder,stepLink} from './card-links.js';
 import {DEEP_LINKS,deepLinkUrl} from './deep-links.js';
@@ -106,7 +107,7 @@ function DeepLinks({notice}){
   <p><small>The address only opens on a phone already signed in to the trip; on any other phone it shows the front door.</small></p>
  </section>;
 }
-export default function Settings({user,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice}){
+export default function Settings({user,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice,config}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR CHOICE</p>
   <h1>Settings</h1>
@@ -123,6 +124,7 @@ export default function Settings({user,settings,change,navPrefs,setNavPrefs,link
    <h2>Route cards</h2>
    {SETTINGS.filter(s=>s.group==='route').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
+  {request&&<Notifications config={config} request={request} notice={notice} user={user}/>}
   {user?.role==='parent'&&request&&<TripCalendar request={request} notice={notice}/>}
   {user?.role==='parent'&&request&&<FollowLink request={request} notice={notice}/>}
   <DeepLinks notice={notice}/>
