@@ -18,6 +18,7 @@ import {MAX_NOTICED,NOTICED_TEXT,noticedFields} from '../src/noticed-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {findRule} from '../src/booking-window-data.js';
 import {findShopItem,SHOP_VERDICTS,SHOP_NOTE_MAX} from '../src/shop-data.js';
+import {cleanStay} from '../src/stay-data.js';
 import {PREDICTION_MAX,findPrediction,predictionPhase} from '../src/prediction-data.js';
 import {japanDate} from '../src/timing.js';
 import {findSquare,validCard} from '../src/bingo-data.js';
@@ -1313,6 +1314,14 @@ export function extraOperation(state,op,user,fail,now){
   next.by=user.name;next.at=now;
   state.shopLog={...(state.shopLog||{}),[op.id]:next};
   return {summary:null,important:false,title:item.title};
+ }else if(op.type==='stayEdit'){
+  // What a hotel's own app would know and the plan cannot: the confirmation number, the front
+  // desk's phone, agreed check-in and check-out times, a note. A parent's, kept per hotel.
+  if(!parent)fail('A parent can make this change.',403);
+  if(!state.days.some(d=>d.hotel===op.hotel))fail('Unknown hotel.',404);
+  const {value,error}=cleanStay(op.patch);if(error)fail(error);
+  state.stays={...(state.stays||{}),[op.hotel]:{...(state.stays?.[op.hotel]||{}),...value,by:user.name,at:now}};
+  return {summary:null,important:false,title:op.hotel};
  }else if(op.type==='predictionSet'){
   // A sealed prediction: your own, or a parent's for anyone, and only until we land.
   if(!state.members.includes(op.person))fail('Choose a family member.');
