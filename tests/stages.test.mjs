@@ -291,3 +291,10 @@ test('booking windows: when a booking opens, suggested from the plan, kept by a 
  assert.throws(()=>applyOperation(state,{type:'bookingWindowAdd',title:'X',opensAt:'soon'},{name:'Damien',role:'parent'}),/when the booking opens/);
  assert.throws(()=>applyOperation(state,{type:'bookingWindowAdd',title:'X',opensAt:'2026-08-01T00:00:00Z',url:'http://insecure'},{name:'Damien',role:'parent'}),/https/);
 });
+test('the follow-along link is sent with a message written for family at home',async()=>{
+ const src=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
+ assert.match(src,/navigator\.share\(\{title:'Follow our Japan trip',text\}\)/,'the phone’s own share sheet');
+ assert.match(src,/Send to family at home/);
+ const m=src.match(/export const followMessage=url=>`([^`]+)`/)[1];
+ assert.match(m,/\$\{url\}/);assert.match(m,/No login needed/);assert.match(m,/don't pass it on/);
+});
