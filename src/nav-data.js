@@ -78,6 +78,11 @@ export const setAvailable=next=>{available={...available,...next};};
 export const isAvailable=id=>!(id in available)||available[id];
 const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(!['inbox','ledger','paying'].includes(id)||user?.role==='parent')&&isAvailable(id);
 export const pagesFor=user=>Object.keys(PAGES).filter(id=>allowed(id,user));
+// The handful of pages wanted in a hurry, in one row at the top of More, above the long list:
+// the ones reached for with a child crying, a waiter waiting or the sky darkening. Nothing
+// here is taken out of its section below; this row is a second way in, not a move.
+export const RIGHT_NOW=['safety','meeting','allergy','phrases','weather','help'];
+export const rightNow=user=>{const ok=new Set(pagesFor(user));return RIGHT_NOW.filter(id=>ok.has(id));};
 // The menu, as this person has arranged it. Four of us carry the same app and want different
 // things out of it: Lauren lives on tickets and the plan, Boston on his missions and his money,
 // and Nate opens three screens in the whole trip. So the bar is theirs to set — which screens

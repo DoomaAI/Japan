@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,Clapperboard,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid} from 'lucide-react';
-import {PAGES,primaryNav,moreSections,navActive,hiddenNav} from './nav-data.js';
+import {PAGES,primaryNav,moreSections,navActive,hiddenNav,rightNow} from './nav-data.js';
 import {useWobble} from './wobble.js';
 import {homePages} from './home-widgets.js';
 import {swipeVertical} from './swipe.js';
@@ -132,6 +132,8 @@ export function MorePage({user,tab,go,children,prefs,home}){
  return <>
   <p className="eyebrow">EVERYTHING FOR OUR TRIP</p>
   <h1>More</h1>
+  {/* Right now: six tiles for the moments that do not wait, before the twelve-screen list. */}
+  <nav className="right-now" aria-label="Right now">{rightNow(user).map(id=>{const Icon=iconFor(id);return <button type="button" className={`right-now-tile${tab===id?' current':''}`} key={id} onClick={()=>go(id)}><Icon size={22}/><span>{PAGES[id].label}</span></button>;})}</nav>
   <button type="button" className={`more-where${where?' on':''}`} aria-pressed={where} onClick={()=>setWhere(!where)}>
    <LayoutGrid size={16}/>{where?'Hide what is on my bar and Home':'Show what is on my bar and Home'}
   </button>
