@@ -1,12 +1,13 @@
 import React,{useEffect,useMemo,useRef,useState,useCallback} from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import {Map as MapIcon,Users,LocateFixed,EyeOff,RefreshCw,Star,Camera,Mic,MapPinOff,Download} from 'lucide-react';
+import {Clapperboard,Map as MapIcon,Users,LocateFixed,EyeOff,RefreshCw,Star,Camera,Mic,MapPinOff,Download} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import {MascotBadge} from './Mascot.jsx';
 import {memoryPoints,dayRoute,placeCoords,checkinAge,ageText,CHECKIN_HOURS,CHECKIN_PLACES} from './memory-map.js';
 import {askPhoneWhereItIs} from './geo.js';
 import {japanDate} from './timing.js';
+import TripReplay from './TripReplay.jsx';
 const docUrl=d=>`/api/document?id=${encodeURIComponent(d.id)}`;
 const photoUrl=p=>`/api/photo?id=${encodeURIComponent(p.id)}`;
 const findUrl=f=>`/api/shortlist?id=${encodeURIComponent(f.id)}`;
@@ -77,7 +78,7 @@ function Family({user,checkins,setCheckins,request,notice}){
 export default function MemoryMap({state,user,request,accept,notice,busy}){
  const today=japanDate(),tripDay=state.days.some(d=>d.date===today);
  const [day,setDay]=useState(tripDay?today:''),[person,setPerson]=useState(''),[showFamily,setShowFamily]=useState(true);
- const [selected,setSelected]=useState(null),[checkins,setCheckins]=useState([]),[loading,setLoading]=useState(false);
+ const [replay,setReplay]=useState(false),[selected,setSelected]=useState(null),[checkins,setCheckins]=useState([]),[loading,setLoading]=useState(false);
  const box=useRef(null),map=useRef(null),layers=useRef(null),fitted=useRef('');
  const {points,unplaced}=useMemo(()=>memoryPoints(state,{day:day||null,person:person||null}),[state,day,person]);
  const route=useMemo(()=>day?dayRoute(state,day):[],[state,day]);
@@ -122,6 +123,8 @@ export default function MemoryMap({state,user,request,accept,notice,busy}){
  const chosen=points.find(p=>p.id===selected);
  return <><p className="eyebrow">WHERE IT HAPPENED</p><h1>Memory map</h1>
  <p>Our photos, voice notes, stars and what we thought, on the map where they happened, and the family where they last said they were. Tap a marker to see what we kept from it.</p>
+ <button type="button" className="primary replay-start" onClick={()=>setReplay(true)}><Clapperboard size={18}/>Replay the trip</button>
+ {replay&&<TripReplay state={state} close={()=>setReplay(false)}/>}
  <div className="document-filters"><div className="form-row">
   <label>Day<select value={day} onChange={e=>setDay(e.target.value)}><option value="">The whole trip</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select></label>
   <label>Whose<select value={person} onChange={e=>setPerson(e.target.value)}><option value="">Everyone’s</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label>

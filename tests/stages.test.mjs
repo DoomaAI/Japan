@@ -93,3 +93,18 @@ test('the trip story is counted out of what we kept, and leaves out a card with 
  assert.equal(cards.find(c=>c.kind==='money').total,9800);
  assert.ok(!recapStory(state,{today:'2026-10-07'}).some(c=>c.kind==='money'),'spending is for parents');
 });
+test('replaying the trip draws what we did, or the plan before anything is ticked, and always has a place',async()=>{
+ const {replayFrames,kmBetween}=await import('../src/memory-map.js');
+ const state=upgraded(seed);
+ let r=replayFrames(state);
+ assert.equal(r.plan,true);assert.ok(r.frames.length>40);
+ assert.ok(r.frames.every(f=>Number.isFinite(f.lat)&&Number.isFinite(f.lng)),'every frame has somewhere to be, even with no map coordinates');
+ assert.equal(r.frames[0].dayNumber,1);assert.equal(r.frames.at(-1).dayNumber,16);
+ const meiji=state.steps.find(s=>s.title==='Meiji Jingu forest and shrine'),nozomi=state.steps.find(s=>s.title==='Nozomi 33 to Kyoto');
+ state.steps=state.steps.map(s=>[meiji.id,nozomi.id].includes(s.id)?{...s,status:'done'}:s);
+ r=replayFrames(state);
+ assert.equal(r.plan,false);assert.deepEqual(r.frames.map(f=>f.titles.at(-1)),[meiji.title,nozomi.title]);
+ state.placeCoords={places:{},at:null,by:null};state.steps=state.steps.map(s=>s.id===meiji.id?{...s,pin:{lat:35.6764,lng:139.6993}}:s);
+ assert.equal(replayFrames(state).frames[0].exact,true,'a pin is exact');
+ assert.ok(Math.abs(kmBetween({lat:35.6812,lng:139.7671},{lat:34.9858,lng:135.7588})-364)<10,'Tokyo to Kyoto Station is about 364 km');
+});
