@@ -443,7 +443,7 @@ function App(){
      // now stands as well: ticking off is the one moment we know both what was planned and what
      // actually happened, and twelve minutes in hand is worth hearing before the next step.
      setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);}}}>Done</Button></>}{parent&&<button className="icon completion-more" aria-label="Edit or skip activity" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal size={18}/></button>}</div>
-    {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg}/>}
+    {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg} lookOpen={settingOn(settings,'routeLookOpen')}/>}
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore step</button></p>}
     {/* One row rather than three that stack. Untouched, what only this day has (the park, the
         sumo, the train window) comes first, then everything every stop has; press and hold any

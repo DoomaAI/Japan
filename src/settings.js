@@ -23,7 +23,11 @@ export const SETTINGS=[
  // which on some phones means the words go through Apple's or Google's servers.
  {id:'transcribeVoice',label:'Write down my voice notes',group:'voice',default:false,
   on:'While you record a voice note, the phone writes down what is said. You read it and fix it before saving, and the words can be found in Search everything.',
-  off:'Voice notes are kept as sound only. Words can still be added to any of your notes afterwards, by typing or saying them.'}
+  off:'Voice notes are kept as sound only. Words can still be added to any of your notes afterwards, by typing or saying them.'},
+ // Closed until asked for, so a route card stays short; tapping a line's name opens it either way.
+ {id:'routeLookOpen',label:'Show what to look for',group:'route',default:false,
+  on:'Each train, subway and bus on a route card opens with what to look for to find it. Tap the line’s name to close it.',
+  off:'Each line on a route card starts closed. Tap the line’s name to see what to look for.'}
 ];
 // On unless somebody has said otherwise, so a phone that has never opened this page behaves
 // exactly as it always did — apart from a setting that says it starts off.

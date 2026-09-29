@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket,Baby} from 'lucide-react';
+import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket,Baby,ChevronDown} from 'lucide-react';
 import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked} from './route-data.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
 // Follows the phone along the route while it is open and tracking is on. GPS fades underground,
@@ -56,11 +56,14 @@ function LegTick({step,k,label,canTick,busy,onTick}){
  const done=legDone(step,k);
  return <label className={`route-leg-tick${done?' is-done':''}`}><input type="checkbox" checked={done} disabled={busy||!canTick} aria-label={`${done?'Done':'Mark done'}: leg ${k+1}, ${label}`} onChange={e=>onTick(k,e.target.checked)}/><span className="route-leg-dot" aria-hidden="true">{done&&<Check size={10} strokeWidth={3}/>}</span><span>{done?'Done':'Done?'}</span></label>;
 }
-export default function RouteCard({legs,step,canTick,busy,onTick}){
+export default function RouteCard({legs,step,canTick,busy,onTick,lookOpen=false}){
  const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
  const fares=routeFares(legs),priced=legs.some(l=>l.yen||l.options),rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
  // Every ride offers the one tracker; its status sits with the ride it is following (the one pressed until it knows).
  const [pressed,setPressed]=useState(0),trackAt=where?where.i:pressed;
+ // Tapping a line's name opens or closes what to look for to find it. Settings chooses how each
+ // one starts; the lines tapped since are kept as the ones flipped from that.
+ const [flipped,setFlipped]=useState(()=>new Set()),looking=k=>lookOpen!==flipped.has(k),toggleLook=k=>setFlipped(s=>{const n=new Set(s);n.has(k)?n.delete(k):n.add(k);return n;});
  const ticks=step&&onTick?legCount(step):0,tick=(k,label)=>ticks?<LegTick step={step} k={k} label={label} canTick={canTick} busy={busy} onTick={onTick}/>:null,doneClass=k=>ticks>0&&legDone(step,k)?' leg-done':'';
  return <section className="route-card" aria-label="Route">
   <p className="eyebrow">ROUTE</p>
@@ -72,7 +75,8 @@ export default function RouteCard({legs,step,canTick,busy,onTick}){
    const r=rideAt[k],line=LINES[leg.line],stops=rides[r],on=where&&where.i===r,here=on?where.index:-1,next=on&&!where.arrived?where.next:-1;
    const Icon=KIND_ICON[line.kind]||TrainFront,fast=line.fast||[],symbols=lineSymbols(stops);
    return <div className={`route-ride${doneClass(k)}`} key={k} style={{'--line':line.colour}}>
-    <div className="route-head"><strong className="route-line"><Icon size={16}/>{symbols.map(c=><LineSymbol key={c} code={c} line={line}/>)}{line.name} <span lang="ja">{line.ja}</span></strong>{tick(k,line.name)}</div>
+    <div className="route-head"><strong className="route-line"><button type="button" className="route-line-toggle" aria-expanded={looking(k)} aria-controls={`route-look-${k}`} onClick={()=>toggleLook(k)}><Icon size={16}/>{symbols.map(c=><LineSymbol key={c} code={c} line={line}/>)}{line.name} <span lang="ja">{line.ja}</span><ChevronDown size={15} className="route-line-chevron" aria-hidden="true"/></button></strong>{tick(k,line.name)}</div>
+    {looking(k)&&<p className="route-look" id={`route-look-${k}`}><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>}
     <p className="route-kind">{symbols.length===0&&<i aria-hidden="true"/>}{line.kind} · {line.operator}</p>
     <p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>
     <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes&&!leg.options?` · about ${leg.minutes} min`:''}</p>
@@ -80,7 +84,6 @@ export default function RouteCard({legs,step,canTick,busy,onTick}){
     {leg.sameTicket&&<p className="route-fare"><b>Fare:</b> nothing more; the ticket or IC tap from the ride before covers this one. Stay inside the gates to change.</p>}
     {leg.booked&&<p className="route-fare"><b>Tickets:</b> {leg.booked}</p>}
     {leg.options&&<div className="route-options"><b>Options</b>{leg.options.map(o=><div key={o.name}><strong>{o.name} {o.ja&&<span lang="ja">{o.ja}</span>}<small>about {o.minutes} min</small></strong><span>{o.fare}</span><p>{o.how}</p></div>)}</div>}
-    <p className="route-look"><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>
     <div className="route-follow">
      <details open={here>=0||undefined}><summary>{line.kind==='Bus'?'Stops':'Stations'}</summary>
       {fast.length>0&&<p className="route-fast">{line.allStop} trains stop at all of these. {fast.map(f=><span key={f.tag}><mark>{f.tag}</mark> marks where {/^[AEIOU]/.test(f.name)?'an':'a'} {f.name} stops{f.some?'; “some” means only some of them':''}. </span>)}</p>}
