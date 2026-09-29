@@ -1,8 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {X,ArrowLeft,ArrowRight,SunMedium,ScanLine,Image as ImageIcon} from 'lucide-react';
-import {codesFor,toRead} from './wallet-codes.js';
-import {isDrawable} from './trip-features.js';
-import {readCode,drawCode} from './qr-reader.js';
+import {codesFor,toRead,readable} from './wallet-codes.js';
+import {readCodes,drawCode} from './qr-reader.js';
 // A ticket's codes at the gate: each one drawn fresh, as large as the screen allows, black on
 // white whatever the theme, with the screen kept awake while it is up. Four park tickets swipe
 // through as four people. The photo it was read from is one tap away for anyone who asks to see it.
@@ -24,7 +23,7 @@ export default function GateCode({state,doc,onClose,onPhoto}){
   <p className="gate-code-hint"><SunMedium size={16}/>Turn the brightness right up and hold the phone flat to the scanner.</p>
   <div className="gate-code-nav">
    {codes.length>1&&<button type="button" disabled={at===0} onClick={()=>setAt(i=>i-1)}><ArrowLeft size={18}/>Previous</button>}
-   {onPhoto&&isDrawable(state.documents.find(d=>d.id===here.id))&&<button type="button" onClick={()=>onPhoto(state.documents.find(d=>d.id===here.id))}><ImageIcon size={17}/>The original</button>}
+   {onPhoto&&readable(state.documents.find(d=>d.id===here.id))&&<button type="button" onClick={()=>onPhoto(state.documents.find(d=>d.id===here.id))}><ImageIcon size={17}/>The original</button>}
    {codes.length>1&&<button type="button" disabled={at===codes.length-1} onClick={()=>setAt(i=>i+1)}>Next<ArrowRight size={18}/></button>}
   </div>
  </div>;
@@ -41,13 +40,13 @@ export function CodeReader({state,parent,online,mutate}){
   (async()=>{
    for(const doc of waiting){
     tried.current.add(doc.id);setLeft(waiting.length-[...waiting].indexOf(doc));
-    let code;try{code=await readCode(doc.id);}catch{continue;}
+    let code;try{code=await readCodes(doc.id,doc.type);}catch{continue;}
     if(!await mutate({type:'documentCode',id:doc.id,code}))break;
    }
    setLeft(0);running.current=false;
   })();
  },[waiting.map(d=>d.id).join()]);
- return left?<p className="code-reading"><ScanLine size={15}/>Reading the codes on {left} ticket picture{left===1?'':'s'}…</p>:null;
+ return left?<p className="code-reading"><ScanLine size={15}/>Reading the codes on {left} ticket file{left===1?'':'s'}…</p>:null;
 }
 // A parent's mark for a ticket whose code cannot be copied: it changes every few seconds, or only
 // shows once signed in. The ticket then says which app to open instead of drawing a copy.
