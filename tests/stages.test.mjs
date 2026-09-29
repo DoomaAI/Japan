@@ -257,3 +257,37 @@ test('hunt picks: each of us picks the hunts to do, the boys their own, and ever
  assert.throws(()=>applyOperation(state,{type:'huntPick',person:'Boston',hunt:'ramen',picked:true},{name:'Nate',role:'child'}),/own/);
  assert.throws(()=>applyOperation(state,{type:'huntPick',person:'Nate',hunt:'nope',picked:true},{name:'Nate',role:'child'}),/Choose a hunt/);
 });
+test('booking windows: when a booking opens, suggested from the plan, kept by a parent, and alerted in the calendar',async()=>{
+ const {opensFor,suggestedWindows,windowState,upcomingWindows,findRule}=await import('../src/booking-window-data.js');
+ const {applyOperation}=await import('../server/model.mjs');
+ const {calendarFeed}=await import('../src/timing.js');
+ // Japan time, turned into the instant it is everywhere else.
+ assert.equal(opensFor(findRule('pokemon-cafe'),'2026-10-04'),'2026-09-03T09:00:00.000Z','31 days before, 18:00 in Japan');
+ assert.equal(opensFor(findRule('ghibli'),'2026-03-05'),'2026-02-10T01:00:00.000Z','the 10th of the month before');
+ assert.equal(opensFor(findRule('disney-dining'),'2026-03-31'),'2026-03-01T01:00:00.000Z','a month before a date February lacks is the 1st of March');
+ assert.equal(opensFor(findRule('disney-dining'),'2026-09-30'),'2026-08-30T01:00:00.000Z');
+ assert.equal(opensFor(findRule('disney-hotel'),'2026-10-31'),'2026-07-01T02:00:00.000Z','four months before at 11:00, as the official example says');
+ let state=upgraded(seed);
+ const s=suggestedWindows(state),titles=s.map(w=>w.title);
+ assert.ok(titles.some(t=>/Chef Mickey dinner/.test(t)));assert.ok(titles.some(t=>/Nozomi 33/.test(t)));
+ assert.ok(!titles.some(t=>/Buy breakfast|Hilton|Leave for/.test(t)),'only the meals that are bookable');
+ assert.equal(s.filter(w=>w.ruleId==='disney-tickets').length,2,'one for each park day');
+ const pick=s.find(w=>/Chef Mickey/.test(w.title));
+ assert.throws(()=>applyOperation(state,{type:'bookingWindowAdd',...pick},{name:'Nate',role:'child'}),/parent/);
+ state=applyOperation(state,{type:'bookingWindowAdd',...pick},{name:'Damien',role:'parent'});
+ assert.ok(!suggestedWindows(state).some(w=>w.key===pick.key),'added, so no longer suggested');
+ assert.throws(()=>applyOperation(state,{type:'bookingWindowAdd',...pick},{name:'Damien',role:'parent'}),/already/);
+ const w=state.bookingWindows[0];
+ assert.equal(windowState(w,new Date('2026-08-28T00:00:00Z')).kind,'soon');
+ assert.equal(windowState(w,new Date('2026-08-29T01:00:00Z')).kind,'open');
+ assert.equal(upcomingWindows(state,new Date('2026-08-20T00:00:00Z')).length,1,'inside the fortnight');
+ assert.equal(upcomingWindows(state,new Date('2026-08-01T00:00:00Z')).length,0,'not a month out');
+ assert.equal(upcomingWindows(state,new Date('2026-10-02T00:00:00Z')).length,0,'not once its day has gone');
+ let ics=calendarFeed(state,'https://x');
+ assert.match(ics,/SUMMARY:Booking opens: Tokyo Disney restaurant/);assert.match(ics,/DTSTART:20260829T010000Z/);assert.match(ics,/TRIGGER:-P1D/);
+ state=applyOperation(state,{type:'bookingWindowBooked',id:w.id,booked:true},{name:'Lauren',role:'parent'});
+ assert.equal(windowState(state.bookingWindows[0]).kind,'booked');
+ assert.doesNotMatch(calendarFeed(state,'https://x'),/Booking opens/,'a booked one leaves the calendar');
+ assert.throws(()=>applyOperation(state,{type:'bookingWindowAdd',title:'X',opensAt:'soon'},{name:'Damien',role:'parent'}),/when the booking opens/);
+ assert.throws(()=>applyOperation(state,{type:'bookingWindowAdd',title:'X',opensAt:'2026-08-01T00:00:00Z',url:'http://insecure'},{name:'Damien',role:'parent'}),/https/);
+});

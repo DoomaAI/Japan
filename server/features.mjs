@@ -13,6 +13,7 @@ import {HUNTS,MAX_CUSTOM_HUNTS,MAX_HUNT_ENTRIES,huntEntryFields} from '../src/hu
 import {allergenById} from '../src/allergy-data.js';
 import {MAX_NOTICED,NOTICED_TEXT,noticedFields} from '../src/noticed-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
+import {findRule} from '../src/booking-window-data.js';
 import {PREDICTION_MAX,findPrediction,predictionPhase} from '../src/prediction-data.js';
 import {japanDate} from '../src/timing.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
@@ -1183,6 +1184,33 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:t.label};
   }
   fail('Unknown tracker action.');
+ }else if(typeof op.type==='string'&&op.type.startsWith('bookingWindow')){
+  // Booking windows: when a booking opens, kept for the parents to act on. A parent's list.
+  if(!parent)fail('A parent keeps the booking windows.',403);
+  const list=state.bookingWindows=state.bookingWindows||[];
+  const found=()=>{const w=list.find(w=>w.id===op.id);if(!w)fail('That booking window is no longer on the list.',404);return w;};
+  if(op.type==='bookingWindowAdd'||op.type==='bookingWindowEdit'){
+   const title=String(op.title||'').trim();if(!title)fail('Say what the booking is for.');requireText(title,200,'title');
+   if(!Number.isFinite(Date.parse(op.opensAt)))fail('Choose when the booking opens.');
+   const url=String(op.url||'').trim();if(url&&!https(url))fail('The booking link must start with https://.');
+   requireText(op.notes||'',2000,'notes');
+   if(op.stepId&&!state.steps.some(s=>s.id===op.stepId))fail('Activity not found.',404);
+   dayCheck(op.day??null);
+   if(op.ruleId!=null&&!findRule(op.ruleId))fail('Unknown booking rule.');
+   if(op.key!=null&&!string(op.key,160))fail('Invalid booking window.');
+   const values={title,opensAt:new Date(op.opensAt).toISOString(),url,notes:String(op.notes||'').trim(),stepId:op.stepId||null,day:op.day??null};
+   if(op.type==='bookingWindowEdit'){Object.assign(found(),values);return {summary:null,important:false,title};}
+   if(list.length>=200)fail('The booking windows list is full. Remove some that are done.');
+   if(op.key&&list.some(w=>w.key===op.key))fail('That booking window is already on the list.');
+   list.push({id:randomUUID(),...values,key:op.key||null,ruleId:op.ruleId||null,bookedAt:null,by:user.name,createdAt:now});
+   return {summary:null,important:false,title};
+  }
+  if(op.type==='bookingWindowBooked'){
+   if(typeof op.booked!=='boolean')fail('Invalid booking.');
+   const w=found();w.bookedAt=op.booked?now:null;return {summary:null,important:false,title:w.title};
+  }
+  if(op.type==='bookingWindowRemove'){const w=found();state.bookingWindows=list.filter(x=>x.id!==w.id);return {summary:null,important:false,title:w.title};}
+  fail('Unknown booking window change.');
  }else if(op.type==='predictionSet'){
   // A sealed prediction: your own, or a parent's for anyone, and only until we land.
   if(!state.members.includes(op.person))fail('Choose a family member.');
