@@ -395,7 +395,8 @@ test('the trip shop orders the essentials by lead time, and every link leaves th
  const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
  const {PAGE_RULES}=await import('../src/spoken-rules.js');
  assert.ok(PAGES.shop?.label&&PAGE_RULES.shop,'a screen with something to say');
- assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('shop'));
+ // The shop moved to the Money shelf when More was regrouped: it is about what we buy.
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Money')[1].includes('shop'));
  const leads=shop.ESSENTIALS.map(e=>e.lead);
  assert.deepEqual(leads,[...leads].sort((a,b)=>b-a),'in the order to do them');
  for(const id of ['power','cash','esim','ic'])assert.ok(shop.ESSENTIALS.some(e=>e.id===id),`${id} is in the pack`);
@@ -468,7 +469,8 @@ test('apps to download: each app finds its days in the plan, and ones behind us 
  assert.equal(mid.maps.soon,false,'whole-trip apps are never flagged');assert.equal(mid.qantas.soon,false);
  assert.equal(suggestedApps(state,'2026-09-01').filter(a=>a.done).length,0,'nothing is done before the trip');
  for(const a of SUGGESTED_APPS){assert.match(a.url,/^https:\/\/apps\.apple\.com\/au\/app\/[a-z-]+\/id\d+$/,a.id);assert.ok(APP_GROUPS.some(([g])=>g===a.group),a.id);assert.ok(a.why&&a.setup&&a.who,a.id);}
- assert.ok(PAGES.apps?.label&&PAGE_RULES.apps);assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('apps'));
+ assert.ok(PAGES.apps?.label&&PAGE_RULES.apps);// Apps sit with Out and about since the regrouping: they are for the street, not the planning.
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Out and about')[1].includes('apps'));
 });
 test('apps to download: reminders a week before we fly, the evening before each park and train, and on the briefing',async()=>{
  const {appReminders,appsDue}=await import('../src/apps-data.js');
