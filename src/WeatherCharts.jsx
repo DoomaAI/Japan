@@ -4,7 +4,8 @@ import {describe,hourLabel,daySummary} from './weather-data.js';
 // two scales: degrees and per-cent have nothing to do with each other, and a second axis is the
 // quickest way to make a graph that reads well and says something untrue.
 // One series each, so neither needs a legend — the heading over each says what it is.
-const TEMP='#da684f',RAIN='#1f7da6',SURFACE='#ffffff';
+// The ring round a marked hour is the card behind it, so it follows the page into dark mode.
+const TEMP='#da684f',RAIN='#1f7da6',SURFACE={stroke:'var(--paper)'};
 const W=680,PAD_L=26,PAD_R=14,TEMP_H=104,RAIN_H=62,GAP=26,AXIS=18;
 const H=TEMP_H+GAP+RAIN_H+AXIS;
 const band=hours=>(W-PAD_L-PAD_R)/Math.max(hours.length,1);
@@ -39,7 +40,7 @@ export default function HourlyChart({hours,nowHour=null,onPick,picked}){
    {hours.map((x,i)=>x===warmest||x===coldest?label(x,i):null)}
    {[warmest,coldest].map(x=>{
     const i=hours.indexOf(x);
-    return <circle key={`m${x.h}`} cx={xOf(hours,i)} cy={yOf(x.temp)} r="4.5" fill={TEMP} stroke={SURFACE} strokeWidth="2"/>;
+    return <circle key={`m${x.h}`} cx={xOf(hours,i)} cy={yOf(x.temp)} r="4.5" fill={TEMP} style={SURFACE} strokeWidth="2"/>;
    })}
    {/* Rain, on its own baseline underneath, with the bar caps rounded and the baseline square. */}
    <line className="chart-grid" x1={PAD_L} x2={W-PAD_R} y1={rainTop+RAIN_H} y2={rainTop+RAIN_H}/>
