@@ -2,29 +2,31 @@ import React,{useRef,useState} from 'react';
 import {ThumbsUp,ThumbsDown,Star,MapPin,ExternalLink,CalendarDays,LockKeyhole,LockKeyholeOpen,Clock,Coins,Plus,Inbox,Trash2,ChevronRight,Users,Ticket,Search,AlertCircle} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import {TravelParty,PickedFor,Suggestions} from './PlanningParty.jsx';
+import ChooseTogether from './ChooseTogether.jsx';
+import {SETTINGS} from './decide-data.js';
 import {PROPOSAL_KINDS,PROPOSAL_TIMING,PROPOSAL_SORTS,PLACEMENT_LABEL,rankedProposals,proposalPlacement,proposalScore,proposalVoters,proposalMusts,yenPerAud,yenToAud} from './trip-features.js';
 const labelFor=(list,id,fallback)=>(list.find(([key])=>key===id)||fallback)[1];
 const kindLabel=id=>labelFor(PROPOSAL_KINDS,id,PROPOSAL_KINDS.at(-1));
 const timingLabel=id=>labelFor(PROPOSAL_TIMING,id,PROPOSAL_TIMING[0]);
 const mapsLink=p=>p.mapUrl||(p.place?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.place+' Japan')}`:'');
-const blank={source:'typed',title:'',place:'',japanese:'',website:'',ticketUrl:'',mapUrl:'',notes:'',cost:'',costNote:'',category:'place',suitableFor:[],tags:[],day:'',availability:'',timing:'flex',time:'',duration:60};
+const blank={source:'typed',title:'',place:'',japanese:'',website:'',ticketUrl:'',mapUrl:'',notes:'',cost:'',costNote:'',category:'place',suitableFor:[],tags:[],day:'',availability:'',timing:'flex',time:'',duration:60,setting:''};
 const toForm=p=>({...blank,...p,cost:p.cost??'',day:p.day||'',time:p.time||''});
 const readForm=el=>{const f=new FormData(el);return {...blank,
  source:f.get('source')||'typed',title:f.get('title'),place:f.get('place'),japanese:f.get('japanese'),website:f.get('website'),ticketUrl:f.get('ticketUrl'),
  mapUrl:f.get('mapUrl'),notes:f.get('notes'),cost:f.get('cost'),costNote:f.get('costNote'),category:f.get('category'),
- timing:f.get('timing'),availability:f.get('availability'),day:f.get('day'),time:f.get('time'),duration:Number(f.get('duration')),
+ timing:f.get('timing'),setting:f.get('setting')||'',availability:f.get('availability'),day:f.get('day'),time:f.get('time'),duration:Number(f.get('duration')),
  suitableFor:f.getAll('suitableFor'),tags:String(f.get('tags')||'').split(',').map(t=>t.trim()).filter(Boolean)};};
 const fromForm=v=>({source:v.source,title:v.title,place:v.place,japanese:v.japanese,website:v.website,ticketUrl:v.ticketUrl,mapUrl:v.mapUrl,
  notes:v.notes,cost:v.cost,costNote:v.costNote,category:v.category,suitableFor:v.suitableFor,tags:v.tags,
- day:v.day||null,availability:v.availability,timing:v.timing,time:v.time||null,duration:Number(v.duration)});
+ day:v.day||null,availability:v.availability,timing:v.timing,setting:v.setting,time:v.time||null,duration:Number(v.duration)});
 const FIELD_LABEL={title:'Name',place:'Where',japanese:'Japanese',website:'Website',ticketUrl:'Tickets',mapUrl:'Map',
  availability:'Available times',cost:'Cost',costNote:'Cost note',duration:'How long',category:'Kind',timing:'Timing',
- notes:'Notes',tags:'Tags',suitableFor:'Suits',day:'Day',time:'Time'};
+ notes:'Notes',tags:'Tags',suitableFor:'Suits',day:'Day',time:'Time',setting:'Indoors or out'};
 // The form opens on defaults nobody chose — sixty minutes, a place, any time — so a lookup is
 // free to replace those. Anything a person actually typed is offered back rather than overwritten.
 const UNCHOSEN={duration:60,category:'place',timing:'flex'};
 const unset=(key,v)=>v===''||v===null||v===undefined||(Array.isArray(v)&&!v.length)||UNCHOSEN[key]===v;
-const shown=(key,v)=>Array.isArray(v)?v.join(', '):key==='cost'?`¥${Number(v).toLocaleString()}`:key==='category'?kindLabel(v):key==='timing'?timingLabel(v):String(v);
+const shown=(key,v)=>Array.isArray(v)?v.join(', '):key==='cost'?`¥${Number(v).toLocaleString()}`:key==='category'?kindLabel(v):key==='timing'?timingLabel(v):key==='setting'?(SETTINGS.find(([id])=>id===v)||SETTINGS[0])[1]:String(v);
 function merge(held,draft){
  const next={...held},extra=[];
  for(const [key,value] of Object.entries(draft)){
@@ -83,6 +85,8 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
  <button className="primary" onClick={()=>open({...blank,day:date||'',suitableFor:[]})}><Plus size={18}/>Add an idea</button>
  <TravelParty state={state} user={user} mutate={mutate} busy={busy}/>
  <PickedFor state={state} user={user} onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('open');}}/>
+ <ChooseTogether state={state} user={user} day={date||day} mutate={mutate} busy={busy}
+  onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('open');}}/>
  {canLook&&<Suggestions state={state} user={user} day={date||day} request={request} mutate={mutate} busy={busy}
   onAdded={()=>{if(placement==='scheduled')setPlacement('open');}}
   onLookUp={p=>{open(toForm(p));lookup(toForm(p));}}/>}
@@ -185,6 +189,7 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
    <label>Kind<select name="category" defaultValue={edit.category}>{PROPOSAL_KINDS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
    <label>Timing<select name="timing" defaultValue={edit.timing}>{PROPOSAL_TIMING.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
   </div>
+  <label>Indoors or out<select name="setting" defaultValue={edit.setting||''}>{SETTINGS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
   <label>Where<input name="place" maxLength={250} defaultValue={edit.place} placeholder="Place name, address or area"/></label>
   <label>Japanese name or address (if we know it)<input name="japanese" maxLength={250} defaultValue={edit.japanese}/></label>
   <div className="form-row">
