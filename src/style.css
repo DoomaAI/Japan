@@ -660,3 +660,11 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 
 /* The days-to-go count on the opening screen, drawn large so it is the first thing seen. */
 .opening-countdown{display:flex;flex-direction:column;align-items:center;gap:.2rem;margin:1.2rem auto 1.4rem}.opening-countdown strong{font-size:4.2rem;line-height:1;font-variant-numeric:tabular-nums;color:var(--accent)}.opening-countdown span{font-size:1.1rem;font-weight:600;letter-spacing:.02em}.opening-countdown.after span{color:var(--green)}
+/* Recently deleted: one row per thing, the way back on the right. */
+.bin-list{list-style:none;padding:0;margin:0}.bin-row{display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.8rem 1rem;margin-bottom:.5rem;background:#fff;border:1px solid var(--border);border-radius:12px}.bin-row>div:first-child{display:flex;flex-direction:column;gap:.15rem;min-width:0}.bin-row small{color:var(--muted)}
+/* Before we head out: a tick per thing, fresh each morning, a streak for finishing. */
+.morning{background:#fff;border:1px solid var(--border);border-radius:14px;padding:.9rem 1rem;margin:.8rem 0}.morning.complete{background:#eef5ec;border-color:#a9c4a2}
+.morning-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;margin-bottom:.6rem}.morning-head .eyebrow{margin:0 0 .15rem}.morning-head strong{font-size:1.05rem}
+.morning-streak{display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .6rem;border-radius:999px;background:#fff3e0;color:#8a4b12;font-size:.8rem;font-weight:600;white-space:nowrap}
+.morning-chips .chip{min-height:40px;font-size:.9rem}.morning-chips .chip.on{background:var(--green);border-color:var(--green);color:#fff}
+.morning-why{margin:.6rem 0 0;color:var(--muted);font-size:.85rem}
