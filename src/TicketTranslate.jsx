@@ -54,9 +54,7 @@ export default function TicketTranslate({ticket,user,config,busy,setBusy,request
   })}
   {parent&&!!fields.length&&config?.translator&&<details open={open} onToggle={e=>setOpen(e.currentTarget.open)}>
    <summary><Languages size={15}/> Translate what this booking says</summary>
-   {!config?.translator
-    ?<p className="callout">Translating a booking is not switched on for this trip yet. Everything else on this ticket works without it.</p>
-    :<><p>Only what is written on this booking is sent. The answer is kept here, so it still reads with no signal.</p>
+   {<><p>Only what is written on this booking is sent. The answer is kept here, so it still reads with no signal.</p>
      {fields.map(f=><div className="translate-row" key={f.key}>
       <strong>{f.label}</strong>
       <div className="row wrap">

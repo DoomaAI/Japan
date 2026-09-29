@@ -1,6 +1,7 @@
 import React,{useState} from 'react';
 import {MapPin,Navigation,Search,Plus,Check,AlertCircle,Clock,Coins,ExternalLink,Inbox,Users,LocateFixed,UtensilsCrossed,Star} from 'lucide-react';
-import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MAX_DISH_HUNT,MINUTES_PER_STAR,isRatedKind,nearbyKindLabel,priceBandLabel,ratingText,walkingLink,COORD_PLACES,MAPS_NEARBY,mapsNearbyLink} from './trip-features.js';
+import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MAX_DISH_HUNT,MINUTES_PER_STAR,isRatedKind,nearbyKindLabel,priceBandLabel,ratingText,walkingLink,COORD_PLACES,MAPS_NEARBY,mapsNearbyLink,partyFit,rankNearby} from './trip-features.js';
+import {SuggestDeck,PartyMatch} from './SuggestDeck.jsx';
 import {askPhoneWhereItIs} from './geo.js';
 import {activeSteps} from './timing.js';
 // Asked standing in the street, so it opens on what it can answer fastest: where the phone says
@@ -38,7 +39,7 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
  // A deep link ("nearest toilet") arrives with the one kind it is about already ticked.
  const [kinds,setKinds]=useState(hunt?['food','quick']:need?[need]:['food']),[note,setNote]=useState('');
  const [dishes,setDishes]=useState(offered);
- const [working,setWorking]=useState(false),[result,setResult]=useState(null),[error,setError]=useState(''),[added,setAdded]=useState([]);
+ const [working,setWorking]=useState(false),[round,setRound]=useState(0),[result,setResult]=useState(null),[error,setError]=useState(''),[added,setAdded]=useState([]);
  const parent=user.role==='parent';
  const chosen=anchor.startsWith('s:')?state.steps.find(s=>s.id===anchor.slice(2)):null;
  const toggle=id=>setKinds(k=>k.includes(id)?k.filter(x=>x!==id):[...k,id]);
@@ -61,7 +62,7 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
   }else if(anchor==='hotel')body.place=today?.hotel;
   else if(chosen)body.place=chosen.place||chosen.title;
   if(!body.lat&&!body.place){setError('Say where you are first.');return;}
-  setWorking(true);setError('');setResult(null);setAdded([]);
+  setWorking(true);setError('');setResult(null);setAdded([]);setRound(r=>r+1);
   try{setResult(await request('nearby',body));}
   catch(e){setError(e.message||'That did not work. Try Maps — a convenience store is rarely far.');}
   finally{setWorking(false);}
@@ -84,6 +85,11 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
    notes:[item.draft.notes,item.why].filter(Boolean).join('\n\n').slice(0,4000)});
   if(saved){setAdded(a=>[...a,item.draft.title]);notice?.('Saved to the planning board.');}
  }
+ // Dealt as a pile. A dish we are hunting still leads; then, for somewhere to eat or drink, the
+ // ones that answer the most of us; then the rating against the walk, or the nearest for the
+ // practical things, which nobody picks on anybody's likes.
+ const fitted=(result?.options||[]).map(o=>({...o,fit:isRatedKind(o.kind)?partyFit(state,o.draft):null}));
+ const ranked=fitted.sort((a,b)=>(b.dish?1:0)-(a.dish?1:0)||(b.fit?.fans.length||0)-(a.fit?.fans.length||0)||(b.fit?.score||0)-(a.fit?.score||0)||rankNearby(a,b));
  // The Maps row comes first whatever else the screen can do, because a toilet is wanted now,
  // not after the app has thought about it; and it is the whole screen when asking the app is not
  // switched on, rather than a form that always answers no.
@@ -119,11 +125,13 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
   {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
   {result&&<div className="nearby-results">
    <h3>Near {result.anchor||today?.city}</h3>
-   <p className="nearby-hint">Somewhere to eat or drink comes best first rather than nearest first: the Google rating with the walk taken off it, a tenth of a star for every minute — so we will walk {MINUTES_PER_STAR} minutes more for a whole extra star. Somewhere with no rating is ranked as an ordinary place and says so on its card. Toilets, cash, lockers and convenience stores are the nearest one, which is the only thing that matters about them.</p>
+   <p className="nearby-hint">One card at a time: swipe right to {parent?'add it to today':'save it to the board'}, left to pass. Somewhere to eat or drink that answers more of us — a like somebody typed, an interest somebody ticked — comes first, and says whose. After that it is best first rather than nearest first: the Google rating with the walk taken off it, a tenth of a star for every minute — so we will walk {MINUTES_PER_STAR} minutes more for a whole extra star. Somewhere with no rating is ranked as an ordinary place and says so on its card. Toilets, cash, lockers and convenience stores are the nearest one, which is the only thing that matters about them.</p>
    {result.note&&<p className="callout"><AlertCircle size={18}/>{result.note}</p>}
-   {result.options.map(item=>{
-    const done=added.includes(item.draft.title),link=walkingLink(item.draft.title,item.area,result.from);
-    return <article className={`feature-card nearby-card ${done?'finished':''}`} key={item.draft.title+item.area}>
+   <SuggestDeck key={round} items={ranked} keyOf={item=>item.draft.title+item.area} titleOf={item=>item.draft.title} kept={added} busy={busy}
+    onKeep={parent?addToDay:saveIdea} keepLabel={parent?'Add to today':'Save to the board'} keepStamp={parent?'Today':'Saved'}
+    passLabel="Pass" keptWord={parent?'added to today':'saved'}
+    render={item=>{const link=walkingLink(item.draft.title,item.area,result.from);
+    return <article className="feature-card nearby-card">
      <div className="section-heading"><div><span className="eyebrow">{nearbyKindLabel(item.kind)}</span><h4>{item.draft.title}</h4></div>
       <div className="nearby-marks">
        {isRatedKind(item.kind)&&<span className={`nearby-rating${item.rating===null?' unrated':''}`}><Star size={14}/>{item.rating===null?'—':item.rating.toFixed(1)}<small>{item.rating===null?'no rating':'Google'}</small></span>}
@@ -133,21 +141,20 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
      {item.dish&&<p className="nearby-dish"><UtensilsCrossed size={15}/>Does <strong>{item.dish}</strong>, which is still on our list</p>}
      <p>{item.what}</p>
      {item.why&&<p className="suggest-why">{item.why}</p>}
+     {item.fit&&<PartyMatch fit={item.fit} members={state.members} top={item===ranked[0]}/>}
      <div className="plan-facts">
       {item.area&&<span><MapPin size={14}/>{item.area}</span>}
       {isRatedKind(item.kind)&&<span><Star size={14}/>{item.rating===null?'No Google rating we could find':`${ratingText(item.rating,item.ratingCount)} on Google`}</span>}
       {item.priceBand&&<span><Coins size={14}/>{priceBandLabel(item.priceBand)}</span>}
       {item.openNote&&<span><Clock size={14}/>{item.openNote}</span>}
+      <span><Clock size={14}/>Allow about {item.draft.duration} min</span>
       <span><Users size={14}/>{item.kidFriendly?'Fine with Nate':'Not one for Nate'}</span>
      </div>
      <div className="row wrap">
       <a className="button primary" href={link} target="_blank" rel="noopener noreferrer"><Navigation size={16}/>Walk me there <ExternalLink size={13}/></a>
-      {done?<span className="tag"><Check size={13}/>Added</span>:<>
-       {parent&&<button disabled={busy} onClick={()=>addToDay(item)}><Plus size={16}/>Add to today</button>}
-       <button disabled={busy} onClick={()=>saveIdea(item)}><Inbox size={16}/>Save to the board</button>
-      </>}
+      {parent&&<button disabled={busy} onClick={()=>saveIdea(item)}><Inbox size={16}/>Save to the board</button>}
      </div>
-    </article>;})}
+    </article>;}}/>
    <p className="callout"><AlertCircle size={18}/>These are suggestions from a model that cannot see a map and does not know what closed this year. Walking times are estimates and nothing here is confirmed open — check the door before you count on it.</p>
    <small>{result.usage.searches} web {result.usage.searches===1?'search':'searches'}.</small>
   </div>}
