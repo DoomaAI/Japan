@@ -53,7 +53,7 @@ const key=text=>{const [r,g,b,a]=parseColour(text);return 'c'+hex([r,g,b,a]).sli
 // data-theme selector — are already dark and must not be turned over a second time. The named
 // tokens (--ink, --paper…) get their night values there too, so their definitions are left alone.
 // And a game board is the same at night: its squares, tiles and cards keep their real colours.
-export const BOARDS=/data-theme|merge-|snake-|shogi-|picross-|stable-|bingo-cell|kingyo-|fuda|hanafuda|karuta-card|goban|daruma-(scene|doll)|kendama-stage|bei-ring|fuku-board|spot-|origami-card/;
+export const BOARDS=/data-theme|gate-code|merge-|snake-|shogi-|picross-|stable-|bingo-cell|kingyo-|fuda|hanafuda|karuta-card|goban|daruma-(scene|doll)|kendama-stage|bei-ring|fuku-board|spot-|origami-card/;
 // Colours in declaration values only: selectors, comments and names are left alone.
 export function themeCss(css){
  const seen=new Map();
