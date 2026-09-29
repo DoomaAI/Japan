@@ -84,7 +84,7 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
  <p>Anywhere any of us wants to go, eat or see. Put it up, and the rest of the family can back it, pass on it or star it as a must-do. A parent puts the ones we agree on onto a day — locked to a booked time, or left flexible.</p>
  <button className="primary" onClick={()=>open({...blank,day:date||'',suitableFor:[]})}><Plus size={18}/>Add an idea</button>
  <TravelParty state={state} user={user} mutate={mutate} busy={busy}/>
- <PickedFor state={state} user={user} onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('open');}}/>
+ <PickedFor state={state} user={user} mutate={mutate} busy={busy} onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('open');}}/>
  <ChooseTogether state={state} user={user} day={date||day} mutate={mutate} busy={busy}
   onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('open');}}/>
  {canLook&&<Suggestions state={state} user={user} day={date||day} request={request} mutate={mutate} busy={busy}
