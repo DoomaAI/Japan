@@ -265,7 +265,7 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  assert.ok(PAGES.glance?.label&&PAGES.glance?.note,'the day at a glance has its own entry');
  assert.ok(PAGE_RULES.glance,'and something to say when the speaker is pressed');
  assert.match(nav,/glance:CalendarCheck/,'with an icon of its own, not the to-do list one');
- assert.equal(PAGES.glance.label,'Today','and it is the Today tab');
+ assert.equal(PAGES.glance.label,'Plan','and it is the Plan tab, today first');
  assert.ok(MORE_SECTIONS.find(([title])=>title==='The plan')[1].includes('glance'),'it is the day\u2019s plan');
  // It is on everybody's bar as Today, so it is not repeated under More.
  for(const user of [{name:'Damien',role:'parent'},{name:'Nate',role:'child'}]){
@@ -275,7 +275,7 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  // Home no longer splits into two columns, so the step card has the screen to itself and the
  // timeline is not rendered twice.
  assert.equal((main.match(/<DayTimeline /g)||[]).length,1,'the timeline is rendered once, on its own screen');
- assert.match(main,/\{tab==='glance'&&<>\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayTimeline /,'it opens with the day it is about, then the day\u2019s buttons');
+ assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayTimeline /,'it opens with the day it is about, then the day\u2019s buttons');
  assert.doesNotMatch(main,/today-layout/,'Home is one column now');
  assert.doesNotMatch(css,/today-layout/,'and the grid that made two of them is gone with it');
  // Choosing a day on the day at a glance stays on the day at a glance. selectDay goes Home, so
@@ -1705,8 +1705,8 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   assert.equal(new Set(all).size,all.length,`${user.name} lists a page twice`);
   const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(!['inbox','ledger','paying','vault'].includes(id)||user.role==='parent'));
   assert.deepEqual([...all].sort(),[...expected].sort(),`${user.name} cannot reach every page`);
-  // The bar holds six, plus More: Home, Today and the Itinerary, and three for whoever it is.
-  assert.equal(bar.length,6,user.name);
+  // The bar holds four, plus More: Home and Plan, and two for whoever it is.
+  assert.equal(bar.length,4,user.name);
   for(const id of all)assert.ok(PAGES[id]?.label&&PAGES[id]?.note,`${id} is missing a label or note`);
   // Sections are non-empty and the pages already in the bar are not repeated below.
   for(const [title,ids] of moreSections(user)){assert.ok(title&&ids.length);for(const id of ids)assert.ok(!bar.includes(id),`${id} is in both`);}
@@ -1731,9 +1731,9 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   const expected=Object.keys(PAGES).filter(id=>!['inbox','ask'].includes(id)&&(id!=='thanks'||'Damien'==='Damien'));
   assert.deepEqual([...primaryNav(damien),...moreIds(damien)].sort(),expected.sort());
  }finally{setAvailable({inbox:true,ask:true});}
- // Parents reach for tickets and prices; the boys reach for their missions.
- assert.deepEqual(PRIMARY.parent,['today','glance','days','tickets','food','money']);
- assert.deepEqual(PRIMARY.child,['today','glance','days','challenges','food','diary']);
+ // Four and More: parents reach for the wallet and prices; the boys reach for their missions.
+ assert.deepEqual(PRIMARY.parent,['today','glance','tickets','money']);
+ assert.deepEqual(PRIMARY.child,['today','glance','challenges','food']);
  // And the menu is ordered by whose screen it is. The practical half — the weather on the way
  // out, the ticket at the gate, what is still to buy — is at the top, where the thumb of
  // whoever is navigating lands first. The boys' own screens are the last block, all together,
@@ -1747,7 +1747,7 @@ test('every screen is reachable exactly once, from the bar or from More',async()
  for(const user of [damien,lauren,nate])
   assert.equal(moreSections(user).at(-1)[0],'For the boys',`${user.name} is shown the boys' block last`);
  // The bug this replaces: on a sub-page nothing used to be highlighted, so you lost your place.
- for(const [tab,expected] of [['food','food'],['today','today'],['parks','more'],['guide','more'],['thanks','more'],['search','more']]){
+ for(const [tab,expected] of [['money','money'],['today','today'],['days','glance'],['food','more'],['parks','more'],['guide','more'],['thanks','more'],['search','more']]){
   const lit=[...primaryNav(damien),'more'].filter(id=>navActive(tab,id,damien));
   assert.deepEqual(lit,[expected],`on ${tab}`);
  }
@@ -1929,16 +1929,18 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.match(screen,/setHome\(emptyHome\(\)\)/);
 });
 
-test('Days is the Itinerary, and Today is its own tab',async()=>{
+test('Days is the Itinerary, and Plan holds today with the whole trip one switch away',async()=>{
  const {PAGES,PRIMARY}=await import('../src/nav-data.js');
  const {PAGE_RULES}=await import('../src/spoken-rules.js');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.equal(PAGES.days.label,'Itinerary');
  assert.match(PAGE_RULES.days,/^Itinerary\./);
  assert.match(main,/<h1>Our itinerary<\/h1>/);
- assert.equal(PAGES.glance.label,'Today');
- assert.match(PAGE_RULES.glance,/^Today\./);
- for(const bar of Object.values(PRIMARY))assert.deepEqual(bar.slice(0,3),['today','glance','days']);
+ assert.equal(PAGES.glance.label,'Plan');
+ assert.match(PAGE_RULES.glance,/^Plan\./);
+ for(const bar of Object.values(PRIMARY))assert.deepEqual(bar.slice(0,2),['today','glance']);
+ assert.match(main,/const planSwitch=<div className="segmented plan-switch"/);
+ assert.match(main,/\{tab==='days'&&<>\{planSwitch\}/);
  assert.match(main,/function navGo\(id\)\{go\(id,id==='glance'&&[^}]*japanDate\(\)/,'Today lands on today');
 });
 
@@ -10402,7 +10404,7 @@ test('one word for each idea on the screen: a stop is a stop, and the screen tha
  assert.match(await read('Personalise.jsx'),/<h1>Customise<\/h1>/);
  assert.ok(!main.includes('from My menu'),'Home points at Customise by its name');
  // Home is the dashboard and Today is the day's stops, and those two stay as they are.
- assert.equal(PAGES.today.label,'Home');assert.equal(PAGES.glance.label,'Today');
+ assert.equal(PAGES.today.label,'Home');assert.equal(PAGES.glance.label,'Plan');
 });
 
 test('a stop booked through someone else keeps the place’s website apart from the booking',async()=>{
