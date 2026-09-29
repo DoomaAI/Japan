@@ -10695,7 +10695,8 @@ test('the pages opened now and then load when opened, and every chunk is still i
  const lazy=[...main.matchAll(/^const ([A-Za-z]+)=lazy\(\(\)=>import\('\.\/([A-Za-z]+)\.jsx'\)\);$/gm)].map(m=>m[1]);
  for(const name of ['Games','Sumo','Planning','Spending','Ledger','Settings','VoiceNotes','MediaGallery','ParkGuide','MemoryMap'])assert.ok(lazy.includes(name),`${name} is lazy`);
  for(const name of lazy)assert.doesNotMatch(main,new RegExp(`^import ${name} from`,'m'),`${name} is not also imported statically`);
- for(const name of ['DayTimeline','RouteCard','Navigation','FunFacts','Phrasebook','TodoList','Packing'])assert.match(main,new RegExp(`^import ${name}[,\\s]`,'m'),`${name} stays in the shell: it is on Home or Today`);
+ for(const name of ['DayTimeline','RouteCard','FunFacts','Phrasebook','TodoList','Packing'])assert.match(main,new RegExp(`^import ${name}[,\\s]`,'m'),`${name} stays in the shell: it is on Home or Today`);
+ assert.match(main,/^import \{BottomNav,MorePage\} from '\.\/Navigation\.jsx';/m,'and so does the bar');
  // One fallback around the pages and one inside the sheet, so a first open in a tunnel says something.
  assert.match(main,/<main>\s*\{\/\*[^*]*\*\/\}\s*<Suspense fallback=\{<p className="page-loading">Opening…<\/p>\}>/);
  assert.match(main,/<\/Suspense>\s*<\/main>/);
