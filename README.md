@@ -42,6 +42,7 @@ The production frontend builds and the automated model/API checks pass. No GitHu
 - **One word for each idea.** The thing on a day’s list is a stop everywhere now, where its own sheet said activity and its share button said step. The screen that arranges the bar and the Home widgets is Customise, in the menu and on the button that leads to it. Home stays the dashboard and Today the day’s stops.
 - **A leaner More.** Money has a shelf of its own (Yen, Which card, Family spending, Shopping list, Purchase shortlist, Trip shop), Looking back holds only the memories, and the app’s housekeeping (updates, the bin, search, the original guide) sits apart from the photos. The Trip highlights placeholder is gone; the sumo card already only shows on its day.
 - **One line under each title.** Eighteen pages opened with a paragraph or two of why before anything you could touch. Each keeps one sentence under its title now, with the rest behind a “How this works” fold for the first visit and the odd question.
+- **Tokens, real fonts, dark.** The palette is named once (`--paper`, `--page`, `--tint`, `--sand`, `--blush`, `--danger` and friends) across the three stylesheets, with some seven hundred hard-coded colours mapped onto those names. The two families the guide theme names, Roboto Condensed and Playfair Display, are now variable woff2 files with every weight, so bold is drawn rather than thickened. Settings has Appearance: Light, Dark, or Match the phone; photos, the scanned guide and the game boards stay as they are.
 
 ## Included
 
