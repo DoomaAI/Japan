@@ -10169,3 +10169,30 @@ test('Back and the swipe from the edge walk back through screens, and close a sh
  assert.equal((main.match(/history\.replaceState\(/g)||[]).length,3,'no screen change slips through as a replace');
  for(const fn of ['go','selectStep','selectPhotoDay','choosePhotoPerson'])assert.doesNotMatch(main,new RegExp(`function ${fn}\\([^\\n]*history\\.replaceState`),`${fn} goes through navigate`);
 });
+
+test('a stop booked through someone else keeps the place’s website apart from the booking',async()=>{
+ const {bookedVia,platformFor,guessPlatform}=await import('../src/booked-via.js');
+ // A known name brings its own link; a saved link to the booking wins over it.
+ assert.deepEqual(bookedVia({bookedVia:'booking com'}),{label:'Booking.com',href:'https://secure.booking.com/mytrips.html',known:true});
+ assert.equal(bookedVia({bookedVia:'Klook',bookedViaUrl:'https://www.klook.com/order/123'}).href,'https://www.klook.com/order/123');
+ // A link on its own is named for the platform it is on, or its address; a name on its own is shown as typed.
+ assert.equal(bookedVia({bookedViaUrl:'https://www.agoda.com/booking/9'}).label,'Agoda');
+ assert.equal(bookedVia({bookedViaUrl:'https://notagoda.com/x'}).label,'notagoda.com');
+ assert.deepEqual(bookedVia({bookedVia:'Hotel concierge'}),{label:'Hotel concierge',href:'',known:false});
+ assert.equal(bookedVia({bookedVia:' ',bookedViaUrl:'javascript:alert(1)'}),null);
+ assert.equal(platformFor('SMARTEX').label,'SmartEX');
+ // Forwarded mail: the first agent named, never the park a hotel is merely near.
+ assert.equal(guessPlatform('Your reservation','Thanks for booking with Agoda. Also on Booking.com'),'Agoda');
+ assert.equal(guessPlatform('Hotel near Tokyo Disney Resort','Booking completed'),'');
+
+ const stop=seed.steps[0];
+ const next=applyOperation(seed,{type:'patch',id:stop.id,patch:{website:'https://www.hotel.example/',bookedVia:'Booking.com',bookedViaUrl:'https://secure.booking.com/mytrips.html'}},parent).steps.find(s=>s.id===stop.id);
+ assert.equal(next.website,'https://www.hotel.example/');assert.equal(next.bookedVia,'Booking.com');
+ assert.throws(()=>applyOperation(seed,{type:'patch',id:stop.id,patch:{bookedViaUrl:'http://booking.com'}},parent),/HTTPS link to the booking/);
+ assert.throws(()=>applyOperation(seed,{type:'patch',id:stop.id,patch:{bookedVia:'x'.repeat(81)}},parent),/too long/);
+ assert.throws(()=>applyOperation(seed,{type:'patch',id:stop.id,patch:{bookedVia:'Klook'}},child),e=>e.status===403);
+
+ const item={id:'mail-bv',from:'lauren@example.com',subject:'Fwd: Booking.com confirmation',receivedAt:'2026-09-25T02:00:00.000Z',text:'Your stay at Hotel Kanra Kyoto is confirmed.',attachments:[]};
+ const filed=applyOperation({...structuredClone(seed),inbox:[item]},{type:'inboxFile',id:'mail-bv',title:'Hotel Kanra',destination:'activity',day:seed.days[2].date},parent);
+ assert.equal(filed.steps.at(-1).bookedVia,'Booking.com');
+});

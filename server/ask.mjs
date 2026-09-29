@@ -72,6 +72,7 @@ function stepLine(step,detail){
  if(step.place)bits.push(step.place);
  if(step.duration)bits.push(`${step.duration} min`);
  if(step.locked)bits.push(`booked${step.bookingTime?` for ${step.bookingTime}`:''}`);
+ if(step.bookedVia)bits.push(`booked through ${clamp(step.bookedVia,80)}`);
  if(step.status&&step.status!=='todo')bits.push(step.status);
  const note=detail?clamp(step.notes,200):'';
  return `  ${bits.join(' · ')}${note?`\n    note: ${note}`:''}`;

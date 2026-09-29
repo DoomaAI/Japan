@@ -1237,7 +1237,7 @@ export function recommendIdeas(state,who='',{limit=6}={}){
 export function searchTrip(state,query,guide=[]){
  const q=query.trim().toLowerCase();if(!q)return [];
  const hits=[],match=(...parts)=>parts.flat().filter(Boolean).join(' ').toLowerCase().includes(q);
- for(const s of state.steps)if(match(s.title,s.place,s.japanese,s.notes,s.bookingReference,s.website))hits.push({type:s.day?'Activity':'Option',id:s.id,title:s.title,detail:s.notes,day:s.day,step:s});
+ for(const s of state.steps)if(match(s.title,s.place,s.japanese,s.notes,s.bookingReference,s.bookedVia,s.website))hits.push({type:s.day?'Activity':'Option',id:s.id,title:s.title,detail:s.notes,day:s.day,step:s});
  for(const p of proposals(state))if(match(p.title,p.place,p.japanese,p.notes,p.availability,p.costNote,p.addedBy,p.tags))hits.push({type:'Planning',id:p.id,title:p.title,detail:p.notes||p.place,day:proposalPlacement(state,p).day||p.day});
  // An archived ticket is hidden from the list, not from the trip: search still finds it, says so,
  // and opens the used pile on it rather than a page that looks empty.
