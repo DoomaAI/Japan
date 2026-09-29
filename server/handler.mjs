@@ -21,6 +21,7 @@ import {readDocument,readerReady,translateStoredFile} from './document-reader.mj
 import {coachPhoto,coachReady} from './photo-coach.mjs';
 import {shareCheckin,listCheckins} from './checkins.mjs';
 import {parseKml,matchPlacemarks,myMapKmlUrl,roundedPosition,validPosition,PHOTO_PLACES} from '../src/memory-map.js';
+import {calendarFeed} from '../src/timing.js';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
 // A photo's own position, if the phone read one out of it, kept to about ten metres. Anything
 // that is not a plain pair of coordinates is dropped rather than refused: the photo matters more.
@@ -60,6 +61,14 @@ export default async function handler(req,res){
    return json(res,{ok:true,filed:true,id:received.item.id});
   }
   if(post)checkOrigin(req);
+  // The trip as a calendar, fetched by the phone's Calendar app with no cookie to show, so it is
+  // let in on a key of its own that only a parent is ever handed. A wrong key learns nothing.
+  if(route==='calendar'&&req.method==='GET'){
+   const key=url.searchParams.get('key')||'',trip=await readTrip();
+   if(!trip.state.calendarKey||!/^[a-f0-9]{64}$/.test(key)||hash(key)!==hash(trip.state.calendarKey))throw new AppError('This calendar link is not valid.',403);
+   res.statusCode=200;res.setHeader('Content-Type','text/calendar; charset=utf-8');res.setHeader('Cache-Control','private, max-age=300');
+   res.end(calendarFeed(trip.state,process.env.APP_ORIGIN||`http://${req.headers.host}`));return;
+  }
   if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
@@ -77,6 +86,16 @@ export default async function handler(req,res){
   // Keep everyone signed in: every link and session runs from now for six months. The phones
   // that are not this one pick up their fresh cookie the next time they open the app.
   if(route==='renew-links'&&post){parent(user);const until=await renewAllLinks();if(!user.demo)setCookie(res,cookieOf(req));return json(res,{until});}
+  // The link a phone subscribes to. One key for the family, made the first time a parent asks
+  // and kept in the trip, so every phone subscribes to the same calendar and a parent can
+  // hand the link to the other parent's phone without making a second one.
+  if(route==='calendar-link'&&post){
+   parent(user);let key;
+   await updateTrip(state=>{if(state.calendarKey)return null;key=token();return {...state,calendarKey:key};});
+   key??=(await readTrip()).state.calendarKey;
+   const host=process.env.APP_ORIGIN?new URL(process.env.APP_ORIGIN).host:req.headers.host,scheme=process.env.APP_ORIGIN?.startsWith('https:')?'webcal':'http';
+   return json(res,{url:`${scheme}://${host}/api/calendar?key=${key}`});
+  }
   if(route==='logout'&&post){if(!localDemo()){const c=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('japan_session='))?.slice(14);if(c){const db=await database();await db`DELETE FROM japan_sessions WHERE token_hash=${hash(c)}`;}}setCookie(res,'');return json(res,{ok:true});}
   if(route==='state'&&req.method==='GET')return json(res,visibleEnvelope(await readTrip(),user));
   // Where we each last said we were. Shared by tapping, never by the app on its own; read by the

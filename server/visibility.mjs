@@ -26,7 +26,10 @@ const hideInbox=(state,user)=>user?.role==='parent'?state:{...state,inbox:[]};
 // The family ledger is the parents' money, and like the inbox it is removed at the boundary.
 const hideExpenses=(state,user)=>user?.role==='parent'?state:{...state,expenses:[],payMethods:[]};
 export function visibleTrip(state,user,now=new Date()){
- state=hideExpenses(hideTrackerLinks(hideInbox(hideUnthrownHands(state,user),user),user),user);
+ // The calendar key opens the trip's calendar to anyone holding it, so no phone is sent it as
+ // part of the plan; a parent gets it from the one route that hands out the subscription link.
+ const {calendarKey,...rest}=state;
+ state=hideExpenses(hideTrackerLinks(hideInbox(hideUnthrownHands(rest,user),user),user),user);
  if(user?.name===THANK_YOU_FROM)return state;
  if(user?.name!==THANK_YOU_TO)return {...state,thankYou:{seen:{},today:null}};
  const day=japanDate(now),note=thankYouForDay(state,day);
