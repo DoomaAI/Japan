@@ -64,6 +64,7 @@ import Safety,{LostCards} from './Safety.jsx';
 import AllergyCard from './AllergyCard.jsx';
 import RecentlyDeleted from './RecentlyDeleted.jsx';
 import MorningChecklist from './Morning.jsx';
+import StayCard from './StayCard.jsx';
 import Ledger from './Ledger.jsx';
 import Running from './Running.jsx';
 import WhichCard from './WhichCard.jsx';
@@ -626,7 +627,8 @@ function App(){
    </article>:<div className="empty"><h2>A little room for discovery.</h2><p>Add your first stop for this day.</p></div>}
    </section>
   </>,
-  links:<div className="quick-links">{nextFixed&&<button onClick={()=>selectStep(nextFixed)}><LockKeyhole size={18}/><span>Next fixed time<strong>{nextFixed.time} · {nextFixed.title}</strong></span><ChevronRight size={18}/></button>}<Link href={directions(today?.hotel)}><House size={18}/><span>Tonight’s hotel<strong>{today?.hotel}</strong></span><ExternalLink size={15}/></Link></div>,
+  links:nextFixed?<div className="quick-links"><button onClick={()=>selectStep(nextFixed)}><LockKeyhole size={18}/><span>Next fixed time<strong>{nextFixed.time} · {nextFixed.title}</strong></span><ChevronRight size={18}/></button></div>:null,
+  stay:<StayCard state={visibleState} day={day} parent={parent} busy={busy} mutate={mutate} notice={notice} directions={directions} onShow={place=>setModal({type:'show',step:{...place,title:place.place}})} onTickets={hotel=>setModal({type:'tickets',initialSearch:hotel})}/>,
   glance:<Button icon={ListOrdered} onClick={()=>go('glance')}>The day at a glance</Button>,
   adjust:parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>,
   tired:<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button>,
