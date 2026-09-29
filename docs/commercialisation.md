@@ -124,7 +124,7 @@ Poll settings:
 
 ## Store apps
 
-What an App Store and Google Play version would take is logged in [native-apps.md](native-apps.md).
+The commercial version will ship as App Store and Google Play apps published by I'm In Ventures Pty Ltd (organisation accounts, cloud builds). What that takes is logged in [native-apps.md](native-apps.md).
 
 ## Next step when picked up
 

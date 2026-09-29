@@ -1,6 +1,14 @@
 # Native apps log: iPhone App Store and Google Play
 
-Logged 29 September 2026, day 9 of 16. What it would take to ship the app to the App Store and Google Play, not a plan to do it during the trip. Today the app is a Home Screen web app on Vercel with no store review; that stays the family's version until a store build is needed, most likely for the [commercial version](commercialisation.md).
+Logged 29 September 2026, day 9 of 16. What it would take to ship the app to the App Store and Google Play, not a plan to do it during the trip. Today the app is a Home Screen web app on Vercel with no store review; that stays the family's version. The store apps are for the [commercial version](commercialisation.md), published by I'm In Ventures Pty Ltd.
+
+## Decisions — logged 29 September 2026
+
+| Question | Decision | What follows |
+|---|---|---|
+| Family or commercial? | **Commercial.** The family keeps the web app; the store apps are the commercial product | Public listings and full review on both stores; the app must hold many trips for many groups (see "Commercial product work" below) |
+| Which developer accounts? | **Organisation: I'm In Ventures Pty Ltd** | The company is the seller shown on both stores. Needs a D-U-N-S number matching the ASIC record; Google's 12-tester closed test does not apply |
+| How are iPhone builds made? | **Cloud build, no Mac** | Capawesome Cloud (Ionic's recommended successor to Appflow, which takes no new customers and closes on 31 Dec 2027) for builds, signing, store upload and live updates; Codemagic as the fallback |
 
 ## Recommendation
 
@@ -15,20 +23,23 @@ Wrap the existing React/Vite build with **Capacitor**, not a rewrite in React Na
 | Route | Who can install | Review | Fit |
 |---|---|---|---|
 | Keep the web app (today) | Anyone with a family link | None | Enough for the family |
-| iOS TestFlight | Up to 100 internal testers (App Store Connect users) with no review; up to 10,000 external by link, first build reviewed; each build lasts 90 days | Light | Best private iPhone route |
+| iOS TestFlight | Up to 100 internal testers (App Store Connect users) with no review; up to 10,000 external by link, first build reviewed; each build lasts 90 days | Light | Beta before launch |
 | iOS Unlisted App | Anyone with the direct link; hidden from search | Full App Store review | Private but permanent |
-| iOS public App Store | Everyone | Full review | Commercial version |
-| Play internal testing | Up to 100 testers by email | None | Best private Android route |
-| Play closed testing, then production | Everyone | Full review | Commercial version |
+| iOS public App Store | Everyone | Full review | **Chosen: commercial launch** |
+| Play internal testing | Up to 100 testers by email | None | Team builds during development |
+| Play closed testing, then production | Everyone | Full review | **Chosen: beta, then commercial launch** |
 | Android APK sideload | Anyone sent the file | None | Quickest for one Android phone |
 
 ## Accounts and fixed costs
 
 | Item | Cost | Notes |
 |---|---|---|
-| Apple Developer Program | US$99 a year | Enrol as an organisation (needs a D-U-N-S number) if the app will be sold under a company; personal otherwise |
-| Google Play Console | US$25 once | A **personal** account created after 13 Nov 2023 must run a closed test with at least 12 testers opted in for 14 consecutive days before production access. An **organisation** account is exempt |
-| A Mac with Xcode | Existing or hosted | Needed to build and sign iOS; or a cloud build service (Codemagic, Ionic Appflow, GitHub Actions macOS runners) |
+| D-U-N-S number for I'm In Ventures Pty Ltd | Free | From Dun & Bradstreet (Apple has a lookup/request form). Legal name and address must match ASIC exactly; allow up to 2 weeks |
+| Apple Developer Program (organisation) | US$99 a year | Enrolled by someone with authority to bind the company; needs the D-U-N-S number, a company website on its own domain and a company email address. Apple phones to verify |
+| Google Play Console (organisation) | US$25 once | Needs the D-U-N-S number; the Google payments profile name and address must match Dun & Bradstreet. No 12-tester closed test for organisation accounts |
+| Cloud build (Capawesome Cloud or Codemagic) | Free tier to start, then a monthly plan | Builds and signs iOS on hosted Macs; no Mac needed. Signing certificates and the Android upload key are stored in the service |
+| Paid-apps agreements and tax | Nil | Apple Paid Apps Agreement and Google payments profile: ABN, bank account, US tax form (W-8BEN-E). Both stores collect and remit Australian GST on sales to Australians |
+| EU trader status (if sold in the EU) | Nil | The Digital Services Act requires the company's address, phone and email to be shown on the listing |
 | Developer time | Estimate below | |
 
 ## What has to change in the code
@@ -79,44 +90,68 @@ Wrap the existing React/Vite build with **Capacitor**, not a rewrite in React Na
 ## Store review points
 
 - **Apple 4.2 Minimum functionality:** a bare website wrapper is a common rejection. This app passes on substance if it shows native push, offline use, location, camera and deep links working.
-- **Sign-in for reviewers:** the app is private behind family links. Both stores need a working demo login in the review notes; the existing local demo mode (`LOCAL_DEMO`) is the starting point for a reviewer account with sample data, not the family's.
-- **Account deletion (Apple 5.1.1(v); Google Play data deletion policy):** if people can get an account in the app, they must be able to delete it in the app, and Google also needs a web link to request deletion. Today grants are made by a parent; a "delete me and my data" action in Settings would satisfy both.
-- **Privacy:** a public privacy policy URL; Apple's privacy "nutrition label" and privacy manifest; Google's Data safety form. Declare location, photos, audio, family names and ages, allergy details (health-adjacent) and receipts. For a commercial version, the Privacy Act 1988 and the APPs apply.
+- **Sign-in for reviewers:** both stores need a working demo login in the review notes, on a sample trip, not the family's. The existing local demo mode (`LOCAL_DEMO`) is the starting point.
+- **Account deletion (Apple 5.1.1(v); Google Play data deletion policy):** people who sign up in the app must be able to delete their account in the app, and Google also needs a web link to request deletion.
+- **Privacy:** a public privacy policy URL; Apple's privacy "nutrition label" and privacy manifest; Google's Data safety form. Declare location, photos, audio, names and ages, allergy details (health information) and receipts.
 - **AI features:** the app sends photos, menus, documents and questions to Claude through the server. Disclose third-party AI processing in the privacy policy and the review notes.
-- **Children:** family members under 13 use the app. For the family build this is private; a public version must not be listed in the Kids category unless it meets those rules, and any child data collection needs care under both stores' policies.
-- **Payments:** none today. If the commercial version sells subscriptions, digital features must use Apple/Google in-app purchase (outside the US storefront rules); booking travel and paying deposits for real-world services is exempt.
+- **Children:** covered under "Commercial product work" below.
+- **Payments:** covered under "Commercial product work" below.
+
+## Commercial product work
+
+Wrapping the app is the smaller part. Today the app holds **one trip for one family**: a single `japan_trip` row, the itinerary seeded from `data/seed.json`, Japan-specific guides and data in `data/`, grants and check-ins keyed by name, and "Pasfield" in the title and manifest. A product sold to the public needs:
+
+- **Many trips, many groups:** every table keyed by trip; each person can belong to several trips; roles per trip (organiser, member, view-only), as in the group model in [commercialisation.md](commercialisation.md).
+- **Sign-up and sign-in:** email magic link or passcode, plus **Sign in with Apple** if Google or other third-party sign-in is offered (Apple 4.8). Family links stay as trip invitations.
+- **Creating a trip:** onboarding that builds an itinerary from nothing, from forwarded booking emails (the email inbox already reads them) or from a template, instead of a hand-made seed file.
+- **Content per destination:** Japan first (the guides, phrasebook, stamps and games already fit); decide whether other destinations are in scope.
+- **Branding:** a product name, icon and listing for I'm In Ventures, with the family's names and photos out of the build.
+- **Children:** the app is built for families with children; decide whether under-13s get their own sign-in (parent-approved, minimal data) or appear only as members of a parent's trip. Stay out of the Kids category unless its rules are met.
+- **Paying:** subscriptions for digital features go through Apple and Google in-app purchase (RevenueCat or similar keeps one server-side view of entitlements); affiliate booking links and real-world deposits sit outside in-app purchase.
+- **Cost control:** Claude, Blob storage and push are paid per use; limits per trip or per plan, and abuse protection on the upload and AI routes.
+- **Legal:** terms of use and a privacy policy for I'm In Ventures Pty Ltd; Privacy Act 1988 and the APPs (allergy details are health information, which is sensitive information); Australian Consumer Law for subscriptions and auto-renewal; a check of each data feed's commercial licence.
 
 ## Work plan and estimate
 
 | # | Step | Effort |
 |---|---|---|
-| 1 | Accounts: Apple (organisation or personal), Google Play (organisation avoids the 12-tester test) | 1–3 weeks elapsed for D-U-N-S/verification; little effort |
-| 2 | Add Capacitor, API base address, CORS, build scripts | 1–2 days |
-| 3 | Bearer-token sessions, secure storage, universal/app links for family links | 2–3 days |
-| 4 | Native push (APNs + FCM) alongside Web Push | 2–3 days |
-| 5 | Native plugins: geolocation, camera, speech recognition, haptics, share; permission strings | 2–3 days |
-| 6 | Offline check without the service worker; tickets and documents | 1–2 days |
-| 7 | Icons, splash screens, safe areas, back gesture on Android (the back stack from #222 helps) | 1–2 days |
-| 8 | Reviewer demo account, in-app delete, privacy policy, store listings and screenshots | 2–3 days |
-| 9 | TestFlight and Play internal testing on the family's phones | 1 week elapsed |
-| 10 | Store submission and fixes after review | 1–2 weeks elapsed |
+| 1 | D-U-N-S number, then Apple and Google organisation accounts for I'm In Ventures Pty Ltd; company domain, email and website | 2–4 weeks elapsed; little effort. Start now |
+| 2 | Cloud build account (Capawesome Cloud); upload signing certificates, APNs key and Android upload key | 1 day |
+| 3 | Add Capacitor, API base address, CORS, build pipeline to TestFlight and Play internal testing | 2–3 days |
+| 4 | Bearer-token sessions, secure storage, universal/app links for invitations | 2–3 days |
+| 5 | Native push (APNs + FCM) alongside Web Push | 2–3 days |
+| 6 | Native plugins: geolocation, camera, speech recognition, haptics, share; permission strings | 2–3 days |
+| 7 | Offline check without the service worker; tickets and documents | 1–2 days |
+| 8 | Icons, splash screens, safe areas, Android back gesture (the back stack from #222 helps) | 1–2 days |
+| 9 | Many trips and groups: data model, migration of the family's trip, roles | 2–3 weeks |
+| 10 | Sign-up, Sign in with Apple, in-app account and data deletion | 1 week |
+| 11 | Trip creation and onboarding | 2–3 weeks |
+| 12 | Subscriptions through in-app purchase, plan limits, cost controls | 1–2 weeks |
+| 13 | Rebrand, reviewer demo account, terms, privacy policy, privacy labels, Data safety form, listings and screenshots | 1 week |
+| 14 | Beta through TestFlight external testing and Play closed testing | 2–4 weeks elapsed |
+| 15 | Store submission and fixes after review | 1–2 weeks elapsed |
 
-Roughly **3–4 weeks of development** plus account and review lead time. The private route (steps 1–7 and 9) is about two weeks and needs no public listing.
+- **Store wrapper (steps 2–8):** about 2–3 weeks.
+- **Commercial product (steps 9–13):** about 7–10 weeks.
+- **In all:** roughly 3 months of development, with accounts (step 1) and beta and review (steps 14–15) running alongside or after.
 
 ## Ongoing
 
-- Two more releases to keep: each change ships to the web at once, but store builds need a new version and review. Capacitor live-update services (Capgo, Appflow) can push web-layer changes without review within the stores' rules; native code changes still need review.
-- Yearly Apple fee; TestFlight builds expire after 90 days; yearly Android target-level bumps; APNs key and Firebase project to maintain.
+- Store builds need a new version and review; each web change still ships to the family's web app at once. Capawesome Cloud live updates can push web-layer changes to installed apps without review within the stores' rules; native code changes still need review.
+- Yearly Apple fee; yearly Android target-level bumps (API 36 from 31 August 2026); APNs key, Firebase project and signing keys to keep safe; cloud build plan.
 
 ## Open questions
 
-- Is a store build needed for the family at all, or only for the commercial version?
-- Personal or organisation developer accounts (and which entity owns the apps)?
-- Mac available for iOS builds, or a cloud build service?
-- Keep one codebase for the family and commercial versions, or fork at the point of commercialisation?
+- Product name, and whether the domain and trade mark are free.
+- Japan only at launch, or any destination?
+- Revenue: subscription, per-trip purchase, affiliate commission, or a mix?
+- One codebase serving both the family's web app and the commercial apps, or fork once the family's trip is over? A single multi-trip codebase with the family's trip migrated in is the cleaner end state.
+- Who in I'm In Ventures holds the Apple Account Holder role (the only role that can accept agreements)?
 
 ## Next step when picked up
 
-A spike on a branch: add Capacitor, bundle `dist/`, switch sessions to bearer tokens behind a flag, and get the app running on one iPhone through TestFlight and one Android phone through Play internal testing. That proves the auth, offline and push changes before any store listing work.
+1. Now: request the D-U-N-S number for I'm In Ventures Pty Ltd and set up the company domain and email, since the store accounts wait on them.
+2. A spike on a branch: add Capacitor, bundle `dist/`, bearer-token sessions behind a flag, a Capawesome Cloud pipeline, and the current app running on one iPhone through TestFlight and one Android phone through Play internal testing.
+3. A design note (like `docs/design/maps-memories-tags.md`) for the many-trips data model and sign-up, shared with the commercialisation design.
 
-Sources: [Google Play target API levels](https://support.google.com/googleplay/android-developer/answer/11926878), [Play testing for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465), [App Store Review Guidelines](https://developer.apple.com/app-store/review/guidelines/), [Capacitor](https://capacitorjs.com/docs).
+Sources: [Google Play target API levels](https://support.google.com/googleplay/android-developer/answer/11926878), [Play testing for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465), [Play organisation accounts and D-U-N-S](https://support.google.com/googleplay/android-developer/answer/13628312), [App Store Review Guidelines](https://developer.apple.com/app-store/review/guidelines/), [Apple organisation enrolment](https://developer.apple.com/programs/enroll/), [Appflow shutdown and alternatives](https://capawesome.io/alternatives/ionic-appflow/), [Capacitor](https://capacitorjs.com/docs).
