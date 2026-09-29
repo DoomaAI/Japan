@@ -1,5 +1,7 @@
 # Native apps log: iPhone App Store and Google Play
 
+**Status: parked 29 September 2026, to come back to after the trip.** Decisions are made (below); nothing is built. Pick up at "Next step when picked up".
+
 Logged 29 September 2026, day 9 of 16. What it would take to ship the app to the App Store and Google Play, not a plan to do it during the trip. Today the app is a Home Screen web app on Vercel with no store review; that stays the family's version. The store apps are for the [commercial version](commercialisation.md), published by I'm In Ventures Pty Ltd.
 
 ## Decisions — logged 29 September 2026

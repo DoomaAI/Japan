@@ -35,6 +35,7 @@ The trip has a before, a during and an after, and each should give the family a 
 | 9. Trip highlights video | After the trip | Decide how the video is put together: on the phone, or a paid service. Then the Claude selection call. Placeholder page already live |
 | 10. Trip recap and photobook | Done (#200, #202) | Our trip story and the Photobook |
 | 11. Follow-along link for family at home | Done (#204) | Built as a keyed read-only link rather than an invite role; see the plan above |
+| 12. App Store and Google Play apps (commercial) | Parked 29 September 2026; after the trip | Decided: commercial, published by I'm In Ventures Pty Ltd on organisation accounts, cloud builds. First action: D-U-N-S number, company domain and email. Full log in [native-apps.md](native-apps.md) |
 
 **Built but not yet checked on a real phone or with the live API:** the card fee lookup (needs `ANTHROPIC_API_KEY`), and every screen added in #149–#152, which has only been tried in a desktop browser at phone width.
 
