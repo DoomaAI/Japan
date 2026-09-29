@@ -8708,6 +8708,8 @@ const splitTrip=()=>{
  }
  return {trip:applyOperation(trip,{type:'groupMode',group:'tokyo-reset',mode:'split'},parent),day};
 };
+});
+
 test('a split keeps every lane on the day, each person sees their own, and everyone meets back up',async()=>{
  const {daySplits,stepsFor,laneOf,splitWarnings}=await import('../src/split.js');
  const {trip,day}=splitTrip();
@@ -10584,4 +10586,104 @@ test('the palette is named once, the fonts carry their own weights, and night is
  assert.match(await read('Settings.jsx'),/<Appearance\/>/);
  assert.match(await read('main.jsx'),/applyTheme\(readTheme\(\)\);\ncreateRoot/);
  assert.ok(stages.includes('var(--paper)'),'the third sheet uses the names too');
+test('suggestions and places near here are dealt with what pleases the most of us first, and say how far',async()=>{
+ const {partyFit,rankByParty,travelText}=await import('../src/trip-features.js');
+ const {normaliseSuggestion}=await import('../server/suggest.mjs');
+ let state=upgraded(structuredClone(seed));
+ state=applyOperation(state,{type:'partyPerson',name:'Boston',age:8,interests:['trains'],likes:['ramen']},parent);
+ state=applyOperation(state,{type:'partyPerson',name:'Nate',age:5,interests:['kids'],likes:['ramen']},parent);
+ state=applyOperation(state,{type:'partyPerson',name:'Damien',age:41,interests:[],likes:['coffee'],avoid:'queues'},parent);
+ const card=(title,extra={})=>({draft:{title,place:'',notes:'',tags:[],category:'place',suitableFor:[],...extra}});
+ const items=[card('Blue Bottle coffee'),card('Ichiran ramen'),card('A quiet garden'),card('Ramen with a long queue',{notes:'Famous for its queues.'})];
+ // Two of us like ramen: that card leads and says whose; the one Damien would avoid drops below it.
+ const ranked=rankByParty(items,state,i=>i.draft);
+ assert.equal(ranked[0].draft.title,'Ichiran ramen');
+ assert.deepEqual(ranked[0].fit.fans.sort(),['Boston','Nate']);
+ assert.deepEqual(ranked[0].fit.reasons.Boston,['ramen']);
+ assert.deepEqual(ranked[1].draft.title,'Ramen with a long queue');
+ assert.deepEqual(ranked[1].fit.avoid.Damien,['queues']);
+ assert.equal(ranked.at(-1).draft.title,'A quiet garden','nobody’s likes point at it, so it goes last');
+ // Marked for somebody else, it is not a match for anyone left out.
+ assert.deepEqual(partyFit(state,card('Kids ramen',{suitableFor:['Nate']}).draft).fans,['Nate']);
+ // Distance reads the way a family says it, and is left off rather than guessed.
+ assert.equal(travelText(12,'walk','the hotel'),'About 12 min walk from the hotel');
+ assert.equal(travelText(25,'train'),'About 25 min by train');
+ assert.equal(travelText(null,'walk'),'');
+ const s=normaliseSuggestion({title:'Tokyo Tower',travelMinutes:18,travelMode:'train'},state);
+ assert.equal(s.travelMinutes,18);assert.equal(s.travelMode,'train');
+ const bad=normaliseSuggestion({title:'X',travelMinutes:-4,travelMode:'rocket'},state);
+ assert.equal(bad.travelMinutes,null);assert.equal(bad.travelMode,'walk');
+ // Both panels deal their cards this way and show it on the card.
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ const nearby=await readFile(new URL('../src/Nearby.jsx',import.meta.url),'utf8');
+ const server=await readFile(new URL('../server/suggest.mjs',import.meta.url),'utf8');
+ assert.match(party,/const ranked=result\?rankByParty\(result\.suggestions,state,i=>i\.draft,/);
+ assert.match(party,/<PartyMatch fit=\{item\.fit\}/);
+ assert.match(party,/travelText\(item\.travelMinutes,item\.travelMode,result\.from\)/);
+ assert.match(party,/Nothing is planned for \{dayLabel\(scopeDay\.date\)\} yet/);
+ assert.match(party,/if\(near\)body\.near=near;/);
+ assert.match(server,/Starting from: \$\{from\}/);
+ assert.match(nearby,/<SuggestDeck key=\{round\} items=\{ranked\}/);
+ assert.match(nearby,/\(b\.dish\?1:0\)-\(a\.dish\?1:0\)\|\|\(b\.fit\?\.fans\.length\|\|0\)-\(a\.fit\?\.fans\.length\|\|0\)/);
+ assert.match(nearby,/fit:isRatedKind\(o\.kind\)\?partyFit\(state,o\.draft\):null/,'a toilet is the nearest one, whoever likes what');
+});
+
+test('activity suggestions carry the Google rating where there is one, and it settles a tie in the party',async()=>{
+ const {normaliseSuggestion}=await import('../server/suggest.mjs');
+ const {rankByParty,UNRATED_STARS}=await import('../src/trip-features.js');
+ const state=upgraded(structuredClone(seed));
+ const s=normaliseSuggestion({title:'Tokyo National Museum',notes:'Samurai armour.',rating:4.56,ratingCount:21000},state);
+ assert.equal(s.rating,4.6);assert.equal(s.ratingCount,21000);
+ assert.match(s.draft.notes,/Google 4\.6 · 21,000 ratings/,'it goes onto the board with the idea');
+ // Never a rating it did not earn: out of range, a handful of votes, or not given.
+ for(const bad of [{rating:6,ratingCount:100},{rating:4.9,ratingCount:3},{rating:null,ratingCount:null},{}]){
+  const r=normaliseSuggestion({title:'X',...bad},state);
+  assert.equal(r.rating,null,JSON.stringify(bad));assert.equal(r.ratingCount,null);assert.doesNotMatch(r.draft.notes,/Google/);
+ }
+ // With nobody's likes to choose between them, the better rated goes first, and an unrated one
+ // sits as an ordinary place rather than the worst.
+ const card=(title,rating)=>({draft:{title,place:'',notes:'',tags:[],category:'place',suitableFor:[]},rating});
+ const order=rankByParty([card('Low',3.2),card('None',null),card('High',4.7)],state,i=>i.draft,(a,b)=>(b.rating??UNRATED_STARS)-(a.rating??UNRATED_STARS)).map(i=>i.draft.title);
+ assert.deepEqual(order,['High','None','Low']);
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ assert.match(party,/\{item\.rating!=null&&<span className="suggest-rating"><Star size=\{14\}\/>\{ratingText\(item\.rating,item\.ratingCount\)\} on Google<\/span>\}/);
+ const server=await readFile(new URL('../server/suggest.mjs',import.meta.url),'utf8');
+ assert.match(server,/'travelMinutes','travelMode','rating','ratingCount'/);
+});
+
+test('every card has directions, and a website or booking link only when the search actually turned it up',async()=>{
+ const {seenHosts,checkedLink}=await import('../server/links.mjs');
+ const {normaliseSuggestion}=await import('../server/suggest.mjs');
+ const {normaliseNearby}=await import('../server/nearby.mjs');
+ const {directionsLink,bookingSearchLink}=await import('../src/trip-features.js');
+ const state=upgraded(structuredClone(seed));
+ // What the searches in the answer returned, from results and from citations alike.
+ const hosts=seenHosts([[{type:'web_search_tool_result',content:[{type:'web_search_result',url:'https://www.teamlab.art/e/planets/'},{url:'http://insecure.example/'}]},
+  {type:'text',text:'x',citations:[{url:'https://ticket.teamlab.art/'},{url:'https://www.tablecheck.com/en/shops/sushi'}]}]]);
+ assert.deepEqual([...hosts].sort(),['teamlab.art','ticket.teamlab.art','tablecheck.com'].sort());
+ assert.equal(checkedLink('https://planets.teamlab.art/tokyo/',hosts),'https://planets.teamlab.art/tokyo/','a page on a site that came up');
+ assert.equal(checkedLink('https://teamlab-tickets.com/buy',hosts),'','a site the search never returned is dropped');
+ assert.equal(checkedLink('http://www.teamlab.art/',hosts),'','not HTTPS');
+ assert.equal(checkedLink('https://user:pw@teamlab.art/',hosts),'');
+ assert.equal(checkedLink('javascript:alert(1)',hosts),'');
+ assert.equal(checkedLink('https://teamlab.art/',new Set()),'','with no search, no link');
+ assert.equal(checkedLink('https://evilteamlab.art/',hosts),'','a look-alike is not a subdomain');
+ // Suggestions and near-here places keep what was seen and drop what was not.
+ const s=normaliseSuggestion({title:'teamLab Planets',website:'https://www.teamlab.art/e/planets/',bookingUrl:'https://made-up-tickets.jp/teamlab'},state,hosts);
+ assert.equal(s.draft.website,'https://www.teamlab.art/e/planets/');assert.equal(s.draft.ticketUrl,'');
+ const n=normaliseNearby({title:'Sushi Saito',kind:'sushi',website:'',bookingUrl:'https://www.tablecheck.com/en/shops/sushi'},state,[],hosts);
+ assert.equal(n.draft.ticketUrl,'https://www.tablecheck.com/en/shops/sushi');
+ assert.equal(normaliseSuggestion({title:'X',website:'https://www.teamlab.art/'},state).draft.website,'','no searches seen, no links');
+ // Directions go from where the day starts, the way the card says to travel.
+ assert.equal(directionsLink('Tokyo Tower','Minato','Hotel Gracery','train'),'https://www.google.com/maps/dir/?api=1&origin=Hotel%20Gracery&destination=Tokyo%20Tower%20Minato&travelmode=transit');
+ assert.match(directionsLink('Tokyo Tower','',{lat:35.66,lng:139.75}),/origin=35\.66%2C139\.75&destination=Tokyo%20Tower&travelmode=walking$/);
+ assert.doesNotMatch(directionsLink('Tokyo Tower','',null),/origin=/,'no start, Maps asks');
+ assert.match(bookingSearchLink('Ghibli Museum','Mitaka'),/^https:\/\/www\.google\.com\/search\?q=Ghibli%20Museum%20Mitaka%20official%20tickets%20booking$/);
+ // On the cards.
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ const nearby=await readFile(new URL('../src/Nearby.jsx',import.meta.url),'utf8');
+ assert.match(party,/<CardLinks item=\{item\} from=\{start==='me'&&coords\?coords:result\.from\}\/>/);
+ assert.match(party,/:item\.bookAhead&&<a className="button" href=\{bookingSearchLink\(title,place\)\}/);
+ assert.match(nearby,/\{item\.draft\.ticketUrl&&<a className="button" href=\{item\.draft\.ticketUrl\}/);
+ assert.match(nearby,/website:item\.draft\.ticketUrl\|\|item\.draft\.website\|\|'',/,'added to today, the booking page comes too');
 });

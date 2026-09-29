@@ -1065,6 +1065,17 @@ export const stepPin=s=>s&&typeof s==='object'&&validPin(s.pin??null)&&s.pin?s.p
 export const pinText=p=>`${p.lat.toFixed(PIN_PLACES)}, ${p.lng.toFixed(PIN_PLACES)}`;
 // Walking directions from where you are actually standing, when the phone knows; a plain search
 // for the place otherwise. Built here from pieces the app checked, never from a model's link.
+// Directions from wherever the day starts — the phone's position, or a place by name — by the
+// way the card says to get there. With no starting point Maps asks for one, which is still one tap.
+const MAPS_MODE={walk:'walking',train:'transit',taxi:'driving'};
+export function directionsLink(name,area,from,mode='walk'){
+ const destination=encodeURIComponent([name,area].filter(Boolean).join(' '));
+ const origin=from&&typeof from==='object'?(validCoords(from.lat,from.lng)?`${from.lat},${from.lng}`:''):String(from||'').trim();
+ return `https://www.google.com/maps/dir/?api=1${origin?`&origin=${encodeURIComponent(origin)}`:''}&destination=${destination}&travelmode=${MAPS_MODE[mode]||'walking'}`;
+}
+// When no booking page came back checked, a search the app builds itself — never an address the
+// model made up — so "book ahead" is still one tap from somewhere to book.
+export const bookingSearchLink=(name,area)=>`https://www.google.com/search?q=${encodeURIComponent([name,area,'official tickets booking'].filter(Boolean).join(' '))}`;
 export function walkingLink(name,area,from){
  const destination=encodeURIComponent([name,area].filter(Boolean).join(' '));
  return from&&validCoords(from.lat,from.lng)
@@ -1288,6 +1299,28 @@ export function recommendIdeas(state,who='',{limit=6}={}){
   .sort((a,b)=>b.fans.length-a.fans.length||b.score-a.score||proposalScore(b.proposal)-proposalScore(a.proposal)||a.proposal.title.localeCompare(b.proposal.title))
   .slice(0,limit);
 }
+// How a new suggestion — not yet an idea on the board — lands with the whole party: who it
+// answers, why, and who would rather avoid it. The same reading as the board's own picks, so a
+// suggestion and the idea it becomes are scored alike.
+export function partyFit(state,draft){
+ const fits=(state.members||[]).map(name=>[name,ideaFit(state,draft,name)]).filter(([,f])=>f.score!==null);
+ return {fans:fits.filter(([,f])=>f.score>0).map(([name])=>name),
+  score:fits.reduce((t,[,f])=>t+f.score,0),
+  reasons:Object.fromEntries(fits.filter(([,f])=>f.score>0&&f.reasons.length).map(([name,f])=>[name,f.reasons])),
+  avoid:Object.fromEntries(fits.filter(([,f])=>f.avoid.length).map(([name,f])=>[name,f.avoid]))};
+}
+// The order a pile of suggestions is dealt in: the ones that please the most of us first, then
+// the strongest fit, and after that whatever order the caller already had — nearer, better rated
+// or the model's own. Stable, so two equal cards keep the order they came in.
+export function rankByParty(items,state,draftOf,then=()=>0){
+ return items.map((item,i)=>({item,i,fit:partyFit(state,draftOf(item))}))
+  .sort((a,b)=>b.fit.fans.length-a.fit.fans.length||b.fit.score-a.fit.score||then(a.item,b.item)||a.i-b.i)
+  .map(({item,fit})=>({...item,fit}));
+}
+// How far a suggestion is from where we would start, said the way a family reads it.
+export const TRAVEL_MODES=[['walk','walk'],['train','by train'],['taxi','by taxi']];
+export const travelText=(minutes,mode,from)=>Number.isFinite(minutes)&&minutes>=0
+ ?`About ${minutes} min ${(TRAVEL_MODES.find(([id])=>id===mode)||TRAVEL_MODES[0])[1]}${from?` from ${from}`:''}`:'';
 export function searchTrip(state,query,guide=[]){
  const q=query.trim().toLowerCase();if(!q)return [];
  const hits=[],match=(...parts)=>parts.flat().filter(Boolean).join(' ').toLowerCase().includes(q);

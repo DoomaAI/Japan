@@ -25,6 +25,35 @@ The trip has a before, a during and an after, and each should give the family a 
 | 14 | Hunt picks — Done | Before | The boys choose the hunts they want to do before they land |
 | 15 | Trip shop — Done | Before and after | The essentials pack (adapters, cash, eSIMs, IC cards) by lead time, and keepsakes made from the trip; commercial seams logged in [commercialisation.md](commercialisation.md) |
 
+## Printable travel guide — logged 29 September 2026
+
+The original 72-page guide was designed once, from the plan as it stood before we flew. The plan has moved on since. This rebuilds the guide from the plan as it stands, in the original's structure and design, so an edited day prints as it now is.
+
+| Original pages | Rebuilt as | From |
+|---|---|---|
+| 1 Cover | The original cover, with an edition line (days, nights, dates, printed on) | Cover image, trip dates |
+| 13 Where we're staying | Our journey strip; a card per hotel with nights, dates, English and Japanese names and addresses, and its photograph cut from page 13 | Days' hotels, map locations |
+| 14–17 Trip summary | The trip at a glance: every day, where, the day's title, what is booked to a time, the hotel | Days and fixed steps |
+| 2–3 Before you go, phrases | Check before relying on it (plan notices and review steps); if you only remember six phrases | Notices, phrasebook |
+| 19–72 Day chapters | Banner cut from the day's first original page; the day at a glance (up to five times, bookings always kept); numbered steps with times, places in Japanese, Booked / If time / Check flags and short notes; a sketch map numbered as the steps; a tip from our notes; the day's bookings; tonight's hotel; our photos from the day, or thumbnails of the original pages | Active steps (choices applied, skipped left out), documents, day map, photos |
+| — | Keep this page: emergency and consular numbers, every hotel in Japanese to show a driver | Safety data, map locations |
+
+Status: Done. Whole trip, from today on, or one day; toggles for original artwork, sketch maps and the front/back pages. Checked in headless Chromium: 20 sheets, 38 A4 pages for the whole trip.
+
+Not yet done, for a later pass: per-day banner crops that avoid the original's baked-in titles; editorial pages (food, matcha, shopping, etiquette) generated from the hunts, food list and shortlist; page numbers in a running footer (browser print support for these is uneven, Safari especially); a server-side PDF so the file can be sent without a browser print dialog.
+## To come back to — logged 30 September 2026
+
+**Passports & visas (#230)** is merged but switched off until the key is set, and has not been tried on a real phone.
+
+- [ ] Run `openssl rand -hex 32`, add the result in Vercel as `VAULT_KEY` (Production), and redeploy.
+- [ ] Keep a copy of `VAULT_KEY` somewhere safe, away from the app (a password manager). Lose it or change it and nothing stored can be opened.
+- [ ] On Damien's phone: add a passport, photograph the photo page, check the number is masked until the eye is pressed, and that it hides again on leaving the app.
+- [ ] On Lauren's phone: open the same passport and its photo.
+- [ ] On Nate's or Boston's link: check Passports & visas is not in More, and that opening `?tab=vault` shows nothing.
+- [ ] Add every passport (all four), and any visa and the travel insurance policy.
+- [ ] Decide per phone whether to keep an offline copy (only on a phone with a passcode only that parent uses), then check it opens in airplane mode.
+- [ ] After the trip: consider whether to keep the documents for the next trip or delete them.
+
 ## Backlog — logged 27 September 2026, to pick up later
 
 | Item | When | What it needs first |
@@ -36,6 +65,7 @@ The trip has a before, a during and an after, and each should give the family a 
 | 9. Trip highlights video | After the trip | Decide how the video is put together: on the phone, or a paid service. Then the Claude selection call. Placeholder page already live |
 | 10. Trip recap and photobook | Done (#200, #202) | Our trip story and the Photobook |
 | 11. Follow-along link for family at home | Done (#204) | Built as a keyed read-only link rather than an invite role; see the plan above |
+| 12. App Store and Google Play apps (commercial) | Parked 29 September 2026; after the trip | Decided: commercial, published by I'm In Ventures Pty Ltd on organisation accounts, cloud builds. First action: D-U-N-S number, company domain and email. Full log in [native-apps.md](native-apps.md) |
 
 **Built but not yet checked on a real phone or with the live API:** the card fee lookup (needs `ANTHROPIC_API_KEY`), and every screen added in #149–#152, which has only been tried in a desktop browser at phone width.
 

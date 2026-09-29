@@ -28,7 +28,7 @@ export default function FileTranslate({doc,user,config,busy,setBusy,request,acce
   finally{setBusy(false);}
  }
  if(!held){
-  if(!config?.documentReader)return <small className="file-translate-off">Translating a file is not switched on for this trip yet.</small>;
+  if(!config?.documentReader)return null;
   if(!fileTranslatable(doc))return <small className="file-translate-off">This file is too large to translate. A photo of the page that matters will work.</small>;
   return <div className="file-translate"><button type="button" disabled={busy} onClick={run}><Languages size={15}/>{working?'Translating… a page takes a few seconds':'Translate into English'}</button>{retry}</div>;
  }

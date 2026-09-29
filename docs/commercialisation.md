@@ -245,6 +245,10 @@ Each essential links to the shop or the official page and to the screen in the a
 - Pricing for groups: charge the organiser, each member, or a fee per trip?
 - Group size: design for a family of four to a group of about 20, or also for larger events such as weddings or company trips?
 
+## Store apps
+
+The commercial version will ship as App Store and Google Play apps published by I'm In Ventures Pty Ltd (organisation accounts, cloud builds). What that takes is logged in [native-apps.md](native-apps.md).
+
 ## Monetisation
 
 Added 29 September 2026. How a commercial version would make money, what one trip costs to run, and white-label options. Figures are planning estimates, not quotes; check them before any pricing decision. Currency is converted at A$1 = US$0.66.
@@ -385,6 +389,76 @@ Sources consulted for the rates above:
 - [Web search tool pricing](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool)
 - [Tours and activities affiliate programs, 2026 (Track360)](https://track360.io/blog/tours-activities-experiences-affiliate-programs-operator-guide-2026)
 - [Travel affiliate rate-card benchmark, 2026 (Track360)](https://track360.io/blog/best-travel-affiliate-programs-2026-operator-rate-card-benchmark)
+
+## Any group, any trip, any language: modular build order
+
+Added 29 September 2026. What it would take to make the app work for any group, any trip (several places or countries) and any language, and the order to build it in so each part is modular and reusable. It expands the "Work needed before any white label or public release" list under [White-label and business-to-business](#white-label-and-business-to-business).
+
+### What is written in today
+
+| Assumption | Where |
+|---|---|
+| One family | `MEMBERS` in `server/model.mjs`; `BOYS` and the thank-you names in `src/trip-features.js`; the owner link is made as Damien (`scripts/create-owner-link.mjs`); about 360 name references in 69 files |
+| One trip | A single row, `japan_trip` with id `family`, seeded from `data/seed.json` and the 209 hand-curated places in `data/map-locations.json` |
+| One country | "Japan" in about 150 files; `Asia/Tokyo` in 21; yen in 38; the `japanese` field on steps and places; `81` as the default dialling code |
+| One home country | Australia and AUD in about 50 files: consulates, the Australia Travel Declaration, Qantas, card fees, `en-AU` dates |
+| One language | English UI with no string layer; all 16 AI server modules name Japan in their prompts |
+| Japan-only content | Sumo, hanafuda, karuta, shogi, kana, Express Pass, IC cards, Visit Japan Web, tax-free, the phrasebook |
+| Hand-wired features | Each feature is wired into `server/features.mjs`, `src/trip-features.js` and `src/main.jsx` by hand |
+
+### Language is three settings, not one
+
+| Setting | Belongs to | Drives |
+|---|---|---|
+| App language | Each member | UI strings, date and number formats |
+| Destination language | Each leg of the trip | Phrasebook, speech, "show the driver" cards, ticket and menu translation |
+| AI answer language | Each member | The language Ask, Nearby, research and the readers answer in |
+
+### Principles
+
+- **Seams before features.** Nothing is built for the commercial version until what it depends on can be swapped.
+- **A second-trip test.** Keep a fixture trip that is not this family and not Japan (e.g. six adults in Italy). Every step must pass with both.
+- **This family is tenant one.** The family trip stays on the same code throughout, so it keeps testing each change.
+- **Only generalise what exists.** Build the module contract from the features already here, not imagined ones.
+
+### Build order
+
+| # | Layer | What it is | Why here |
+|---|---|---|---|
+| 0 | Guardrails | The second-trip fixture; AI usage recorded per call; no new family-only features | Cheap; shows what breaks at every later step and replaces the cost estimates with measured ones |
+| 1 | Trip context | One object for members, roles, time zone, currency, country, languages and home country; every hard-coded value reads from it | Mechanical and low-risk; everything later depends on it |
+| 2 | Tenancy | Accounts, trips and memberships; `trip_id` on everything; roles by type (organiser, adult, minor, viewer); `server/visibility.mjs` filters by role, never by name | Needed by every commercial route. Each trip can keep its JSON state for now |
+| 3 | Module contract | Each feature declares its id, the state it owns, its server operations and checks, what each role sees, its screens, Home widgets, menu entry, and what it needs (AI, push, a destination pack). A registry replaces the hand wiring | Only now can features be switched on per client, priced or reused |
+| 4 | AI gateway | One path for every AI call: prompts built from the trip context, model routing, prompt caching, a meter and a budget per trip | Can run alongside 2 and 3; needed before any price per trip can be relied on |
+| 5 | Destination packs | Japan content extracted as the first pack (phrases, safety, arrival, transport, tax, facts); modules declare the pack content they need; a generic fallback pack | Needs 1 and 3 |
+| 6 | Per-client configuration | Theme tokens, logo, domain, feature toggles, plan tier | White label rests on 2 and 3 |
+| 7 | Admin console | Agents create, load and edit client trips and reissue links | What an agency buys |
+| 8 | Several countries per trip | Legs, each with its own time zone, currency and languages; home currency and home country per member | When the market needs it |
+| 9 | App translation | UI strings extracted, locale formatting, right-to-left layouts, fonts per script | Last; least value while the first buyers are English-speaking agencies |
+
+### Feature tiers for the module contract
+
+| Tier | Examples | Reuse |
+|---|---|---|
+| Core, always on | Itinerary, steps and choices, documents and tickets, sync and the offline queue, roles, inbox reading | Every client |
+| Standard modules | Ledger, packing, weather, photos and diary, recap, follow-along, voting, safety | Toggled per client |
+| Destination-bound | Sumo, Express Pass, IC cards, tax-free, Visit Japan Web | Only with their pack |
+| Family and fun | Games, stamps, bingo, mascots, leaderboard | A family bundle, possibly a paid extra |
+| Private to this family | Thank-you notes; Passports & visas as currently set up | Stay private; not sold |
+
+### Commercial milestones
+
+| Milestone | Layers | Not needed yet |
+|---|---|---|
+| M1: pilot with two or three Japan-specialist agencies | 0–4, 6, a basic 7 | Other countries, other UI languages |
+| M2: consumer trip pass | Adds 5 with a second destination, and a trip-setup wizard | Several countries per trip |
+| M3: any destination, any language | Adds 8 and 9 | |
+
+### Risks to settle early
+
+- **One JSON document per trip** is fine for tenancy. Sign-ups, polls and deposits need real tables with row locks, as set out under [Sign-ups with limited places](#sign-ups-with-limited-places); move them when they are built.
+- **The scanned guide** stays out of every module except this family's trip until it is licensed.
+- **Safety content drafted by AI** (emergency numbers, visa rules) for a new pack is reviewed by a person before it is shown.
 
 ## Next step when picked up
 
