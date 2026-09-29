@@ -119,3 +119,27 @@ body:before{content:'';position:fixed;top:0;left:0;right:0;z-index:40;height:env
 :root[data-theme=dark]{--ink:#ece9df;--ink-deep:#f6f4ec;--dark:#0b0c0a;--muted:#b3afa2;--stone:#8e8a7c;--border:#3a3b35;--accent:#e07a63;--green:#3d8f74;--green-deep:#9fd4bd;--mint:#3d4f45;--paper:#1b1c19;--page:#121311;--tint:#232420;--tint-deep:#2b2d28;--tint-border:#3f4139;--cream:#1f1e18;--sand:#2b2618;--sand-border:#4d4328;--sand-ink:#dcc48e;--gold:#b8963f;--gold-ink:#e0c37a;--amber:#b8863a;--blush:#3a2320;--blush-border:#6a3d33;--danger:#e07a63;--danger-bright:#e8907c;--shadow:0 4px 16px #0006;color-scheme:dark}
 @media (prefers-color-scheme:dark){:root[data-theme=auto]{--ink:#ece9df;--ink-deep:#f6f4ec;--dark:#0b0c0a;--muted:#b3afa2;--stone:#8e8a7c;--border:#3a3b35;--accent:#e07a63;--green:#3d8f74;--green-deep:#9fd4bd;--mint:#3d4f45;--paper:#1b1c19;--page:#121311;--tint:#232420;--tint-deep:#2b2d28;--tint-border:#3f4139;--cream:#1f1e18;--sand:#2b2618;--sand-border:#4d4328;--sand-ink:#dcc48e;--gold:#b8963f;--gold-ink:#e0c37a;--amber:#b8863a;--blush:#3a2320;--blush-border:#6a3d33;--danger:#e07a63;--danger-bright:#e8907c;--shadow:0 4px 16px #0006;color-scheme:dark}}
 :root[data-theme=dark] .primary,:root[data-theme=auto] .primary{color:var(--paper)}
+
+/* Accessibility sweep, last in the last sheet so it wins. Nothing tappable is under 40px: the
+   size is raised where the row can grow, and where it cannot (the four small controls beside
+   each stop, the thin add-a-stop line, the grip on the menu, a button inside a sentence) the
+   hit area is widened invisibly around the same drawing. Days already behind us on the strip
+   are lifted from half to nearly full, so the dates still read at arm's length. And a press
+   shows: every button dips and darkens for the moment the finger is on it. */
+.status-pill,.step-stepper .icon,.home .step-stepper .icon,.dictate,.hear-it,.rider,.food-card .rider,.read-aloud,.variant button,.weather-head button,.menu-buttons button,.deep-links li>button,.stars button,.todo-actions .icon,.reorder-tools button,.more-edit,.more-where,.place-card button,.place-card a,.sumo-winner button,.sumo-pick-row button,.ordering .phrase button,.card-link-slot>*,.home .card-link-slot>*,.home .card-links .card-link-special,.toast button,.food-card button,.dish-actions button,.card-facts button,.read-aloud,.fact-page,.departure-links a,.departure-links button,.next-up-fold,summary,.how-this-works summary,details>summary,.home .step-more>summary,.step-more>summary,.page-help>summary{min-height:40px}
+.menu-buttons button,.deep-links li>button,.step-stepper .icon,.home .step-stepper .icon,.next-up-fold{min-width:40px}
+.avatar,.topbar .avatar{width:40px;height:40px;min-height:40px}
+.timeline .timeline-tick input,.timeline-tick input{width:40px;height:40px;min-height:40px}
+.timeline .timeline-tick,.timeline-tick{left:calc(42px + 1rem - 13px);top:calc(.4rem - 11px)}
+.timeline button[aria-label^="Move "],.to-options,.remove-stop,.drag-handle,.timeline-insert,.nav-grip,.callout button{position:relative}
+.timeline button[aria-label^="Move "]::after,.to-options::after,.remove-stop::after,.drag-handle::after{content:'';position:absolute;inset:-8px -10px;border-radius:8px}
+.timeline-insert::after{content:'';position:absolute;inset:-12px 0;border-radius:8px}
+.nav-grip::after{content:'';position:absolute;inset:-14px -8px;border-radius:12px}
+.callout button::after{content:'';position:absolute;inset:-10px -4px}
+.date-strip .behind:not(.selected){opacity:.72}
+button:not(:disabled):active,.button:active,.chip:active,summary:active{filter:brightness(.9)}
+button:not(:disabled):not(.nav-grip):not(.drag-handle):active,.button:active,.chip:active{transform:scale(.97);transition:transform .08s}
+.primary:not(:disabled):active{background:var(--green);border-color:var(--green)}
+.card-facts button,.card-facts .read-aloud,.read-aloud{height:auto;min-height:40px}
+.timeline .timeline-help>summary{min-height:40px}
+@media (prefers-reduced-motion:reduce){button:active,.button:active,.chip:active{transform:none;transition:none}}
