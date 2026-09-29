@@ -6,11 +6,12 @@
 //
 // The day's heading and its strip of dates are not widgets. They say which day Home is about,
 // and a Home that could be told to forget which day it was on would be no Home at all.
-// The step we are on comes first and fills the screen on its own; what's next and what to carry
+// The day in brief comes first, a few lines read over breakfast; then the step we are on; what's next and what to carry
 // sit straight under it, and the things read once a day — the guide, the tally, shop finds —
 // come after.
 export const HOME_WIDGETS={
  countdown:{label:'Trip countdown',note:'Days to go before we fly, then which day of the trip it is',off:true},
+ briefing:{label:'The day in brief',note:'Which day it is, the stops, fixed times, weather, a hotel move and the day’s phrase'},
  step:{label:'The step we are on',note:'The current stop, swipe for the rest of the day'},
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},
  needs:{label:'Before we head out',note:'A tick for each thing to carry out the door, fresh each morning, with a streak'},
