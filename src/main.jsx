@@ -53,6 +53,7 @@ import RecapStory from './RecapStory.jsx';
 import Photobook from './Photobook.jsx';
 import Predictions from './Predictions.jsx';
 import Arrival from './Arrival.jsx';
+import TripShop from './TripShop.jsx';
 import Apps from './Apps.jsx';
 import Vault from './Vault.jsx';
 import DayMap from './DayMap.jsx';
@@ -150,7 +151,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
 const OFFLINE_OPS=['status','legStatus','challengeStatus','challengeSkip','eyeSpy','bingoTick','bingoCard','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove','voiceNoteWords',
- 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntPick','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','bookingWindowBooked'];
+ 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntPick','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','bookingWindowBooked','shopLog'];
 // Where the app opens. The address wins, then the place this phone was last looking — unless
 // that day is behind us, in which case the phone was put down overnight and Home should open on
 // today, not on last night's hotel. A stop restored this way is checked once the plan arrives:
@@ -689,6 +690,7 @@ function App(){
   {tab==='mascot'&&<MascotMaker state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice} go={go}/>}
   {tab==='games'&&<Games state={visibleState} user={user} day={day} mutate={mutate} busy={busy} setBusy={setBusy} online={online} refresh={refresh} dayLabel={fmtDay} config={config} request={request} accept={accept} notice={notice}/>}
   {tab==='windows'&&<BookingWindows state={visibleState} user={user} now={now} mutate={mutate} busy={busy} go={go}/>}
+  {tab==='shop'&&<TripShop state={visibleState} user={user} today={japanDate(now)} go={go} mutate={mutate} busy={busy}/>}
   {tab==='apps'&&<Apps state={visibleState} today={japanDate(now)} dayLabel={fmtDay}/>}
   {tab==='vault'&&<Vault state={visibleState} user={user} request={request} notice={notice} online={online}/>}
   {tab==='arrival'&&<Arrival homeFirst={japanDate(now)>=(state.days[0]?.date||'')}/>}

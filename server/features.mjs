@@ -16,6 +16,7 @@ import {allergenById} from '../src/allergy-data.js';
 import {MAX_NOTICED,NOTICED_TEXT,noticedFields} from '../src/noticed-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {findRule} from '../src/booking-window-data.js';
+import {findShopItem,SHOP_VERDICTS,SHOP_NOTE_MAX} from '../src/shop-data.js';
 import {PREDICTION_MAX,findPrediction,predictionPhase} from '../src/prediction-data.js';
 import {japanDate} from '../src/timing.js';
 import {findSquare,validCard} from '../src/bingo-data.js';
@@ -1285,6 +1286,18 @@ export function extraOperation(state,op,user,fail,now){
   }
   if(op.type==='bookingWindowRemove'){const w=found();state.bookingWindows=list.filter(x=>x.id!==w.id);return {summary:null,important:false,title:w.title};}
   fail('Unknown booking window change.');
+ }else if(op.type==='shopLog'){
+  // The trip shop log: sorted, worth it or not, and a line for next time. A parent's, like the
+  // spending it is about. Each field is changed only when it is sent, so a tick keeps the note.
+  if(!parent)fail('A parent can make this change.',403);
+  const item=findShopItem(op.id);if(!item)fail('Unknown trip shop item.',404);
+  const next={...(state.shopLog?.[op.id]||{})};
+  if(op.sorted!==undefined){if(typeof op.sorted!=='boolean')fail('Invalid tick.');next.sortedAt=op.sorted?now:null;}
+  if(op.verdict!==undefined){if(!SHOP_VERDICTS.includes(op.verdict))fail('Choose worth it or not.');next.verdict=op.verdict||null;}
+  if(op.note!==undefined){const note=String(op.note??'').trim();requireText(note,SHOP_NOTE_MAX,'note');next.note=note;}
+  next.by=user.name;next.at=now;
+  state.shopLog={...(state.shopLog||{}),[op.id]:next};
+  return {summary:null,important:false,title:item.title};
  }else if(op.type==='predictionSet'){
   // A sealed prediction: your own, or a parent's for anyone, and only until we land.
   if(!state.members.includes(op.person))fail('Choose a family member.');
