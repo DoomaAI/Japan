@@ -150,6 +150,16 @@ export function extraOperation(state,op,user,fail,now){
    state.proposals=board.filter(x=>x.id!==p.id);
    return {summary:null,important:false,title:p.title};
   }
+  // A board idea becomes a step on a day. One shape whether it goes on a day of its own or as the
+  // other lane of a split, so the two cannot drift apart.
+  const stepFromProposal=(p,{day,time,kind,locked,participants,group,option,order})=>{
+   state.steps.push({id:randomUUID(),title:p.title,day,time,originalTime:time,duration:p.duration||30,
+    notes:proposalStepNotes(p),place:p.place,japanese:p.japanese,website:p.ticketUrl||p.website,phone:'',
+    page:state.days.find(d=>d.date===day)?.pages?.[0]||1,kind,group,option,participants,order,
+    travelMinutes:20,arrivalBuffer:15,locationId:null,locked,bookingTime:locked?time:null,status:'todo',
+    fromProposalId:p.id});
+   Object.assign(p,{stepId:state.steps.at(-1).id,scheduledBy:user.name,scheduledAt:now,parked:false});
+  };
   if(op.type==='proposalSchedule'){
    if(!parent)fail('A parent adds an idea to the itinerary.',403);
    const p=found();
@@ -161,14 +171,37 @@ export function extraOperation(state,op,user,fail,now){
    const locked=kind==='fixed'||op.locked===true;
    if(locked&&!time)fail('A locked time needs a time.');
    const participants=p.suitableFor.length?[...p.suitableFor]:[...state.members];
-   state.steps.push({id:randomUUID(),title:p.title,day:op.day,time,originalTime:time,duration:p.duration||30,
-    notes:proposalStepNotes(p),place:p.place,japanese:p.japanese,website:p.ticketUrl||p.website,phone:'',
-    page:state.days.find(d=>d.date===op.day)?.pages?.[0]||1,kind,group:'',option:'',participants,
-    order:Math.max(0,...state.steps.filter(s=>s.day===op.day).map(s=>s.order))+10,
-    travelMinutes:20,arrivalBuffer:15,locationId:null,locked,bookingTime:locked?time:null,status:'todo',
-    fromProposalId:p.id});
-   Object.assign(p,{stepId:state.steps.at(-1).id,scheduledBy:user.name,scheduledAt:now,parked:false});
+   stepFromProposal(p,{day:op.day,time,kind,locked,participants,group:'',option:'',
+    order:Math.max(0,...state.steps.filter(s=>s.day===op.day).map(s=>s.order))+10});
    return {summary:`${p.title} added to ${op.day}${time?` at ${time}`:''} from the planning board`,important:true,title:p.title};
+  }
+  if(op.type==='proposalInstead'){
+   // Somebody would rather not do a stop that is on the plan. The idea they would do instead goes
+   // on the day beside it, at the same time, and the two become a split: the ones sitting it out
+   // on the new lane, everyone else on the planned one, meeting back up at the next shared stop.
+   if(!parent)fail('A parent splits the day.',403);
+   const p=found();
+   if(proposalPlacement(state,p).step)fail('This idea is already on the itinerary. Move it instead.');
+   const step=state.steps.find(s=>s.id===op.stepId);
+   if(!step?.day)fail('Choose a stop on the plan.');
+   if(step.group)fail('That stop is already one of a set of alternatives.');
+   if(['done','skipped'].includes(step.status))fail('That stop is already finished.');
+   const who=[...new Set(Array.isArray(op.who)?op.who:[])];
+   if(!who.length||who.some(n=>!step.participants.includes(n)))fail('Choose who would rather not go.');
+   const staying=step.participants.filter(n=>!who.includes(n));
+   if(!staying.length)fail('If nobody is going, swap the stop instead of splitting the day.');
+   const taken=new Set(state.steps.map(s=>s.group).filter(Boolean));
+   let group=`${step.title} or ${p.title}`.slice(0,120);
+   for(let n=2;taken.has(group);n++)group=`${`${step.title} or ${p.title}`.slice(0,110)} (${n})`;
+   const option=step.title.slice(0,250);
+   const after=state.steps.filter(s=>s.day===step.day&&s.order>step.order).map(s=>s.order);
+   Object.assign(step,{group,option,participants:staying});
+   const locked=p.timing==='fixed'&&!!step.time;
+   stepFromProposal(p,{day:step.day,time:step.time||null,kind:locked?'fixed':'flexible',locked,participants:who,group,option:p.title.slice(0,250),
+    order:after.length?(step.order+Math.min(...after))/2:step.order+5});
+   state.choices[group]=option;
+   state.groupModes[group]='split';
+   return {summary:`${who.join(' and ')}: ${p.title} instead of ${step.title}`,important:true,title:p.title};
   }
   fail('Unknown planning action.');
  }else if(op.type==='partyPerson'||op.type==='partyTrip'){

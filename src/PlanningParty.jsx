@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
-import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp} from 'lucide-react';
+import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,yenPerAud,yenToAud,photosOf} from './trip-features.js';
+import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf} from './trip-features.js';
 import {photoUrl} from './PhotoDay.jsx';
 const kindLabel=id=>(PROPOSAL_KINDS.find(([key])=>key===id)||PROPOSAL_KINDS.at(-1))[1];
 const flavourLabel=id=>(SUGGEST_KINDS.find(([key])=>key===id)||SUGGEST_KINDS[1])[1];
@@ -131,15 +131,23 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
  const [scope,setScope]=useState(day?`d:${day}`:'');
  const [elsewhere,setElsewhere]=useState(''),[kinds,setKinds]=useState(['landmark','unique']),[count,setCount]=useState(6);
  const [forWhom,setForWhom]=useState('');
+ // "Something else instead": a stop on the plan, and who would rather not do it.
+ const [mode,setMode]=useState('ideas'),[altDay,setAltDay]=useState(day||state.days[0]?.date||''),[stopId,setStopId]=useState(''),[sitting,setSitting]=useState([]);
+ const stops=sitOutStops(state,altDay),stop=stops.find(s=>s.id===stopId)||null,rejoin=stop?rejoinAt(state,stop):null;
+ const staying=stop?stop.participants.filter(n=>!sitting.includes(n)):[];
+ const boysAlone=sitting.length>0&&sitting.every(n=>BOYS.includes(n));
+ const [splitDone,setSplitDone]=useState([]);
  const [working,setWorking]=useState(false),[result,setResult]=useState(null),[error,setError]=useState(''),[added,setAdded]=useState([]);
  const cities=[...new Set(state.days.map(d=>d.city))];
  const filled=state.members.filter(n=>profileFilled(state,n));
  const toggle=id=>setKinds(k=>k.includes(id)?k.filter(x=>x!==id):[...k,id]);
  async function ask(e){
   e.preventDefault();
-  if(!kinds.length){setError('Choose at least one kind of idea.');return;}
-  setWorking(true);setError('');setResult(null);setAdded([]);
+  if(mode==='instead'&&(!stop||!sitting.length)){setError('Choose the stop, and who would rather not go.');return;}
+  if(mode==='ideas'&&!kinds.length){setError('Choose at least one kind of idea.');return;}
+  setWorking(true);setError('');setResult(null);setAdded([]);setSplitDone([]);
   try{
+   if(mode==='instead'){setResult(await request('suggest',{instead:{stepId:stop.id,who:sitting},count:Number(count)}));return;}
    const body={kinds,count:Number(count)};
    if(forWhom)body.forWhom=forWhom;
    if(scope.startsWith('d:'))body.day=scope.slice(2);
@@ -152,15 +160,38 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
  async function add(item,look){
   const notes=[item.draft.notes,item.why].filter(Boolean).join('\n\n').slice(0,4000);
   const saved=await mutate({type:'proposalAdd',person:user.name,...item.draft,notes});
-  if(!saved)return;
+  if(!saved)return null;
   setAdded(a=>[...a,item.draft.title]);onAdded?.();
   const created=saved?.state?.proposals?.at(-1);
   if(look&&created)onLookUp?.(created);
+  return created||null;
  }
+ // Straight onto the day as a split: the idea goes up on the board as the record of why, and
+ // then sits beside the planned stop, with the ones who would rather not on it.
+ async function splitOff(item){
+  const created=added.includes(item.draft.title)?proposals(state).findLast(p=>p.title===item.draft.title&&!p.stepId):await add(item,false);
+  if(!created)return;
+  if(await mutate({type:'proposalInstead',id:created.id,stepId:result.instead.stepId,who:result.instead.who}))setSplitDone(d=>[...d,item.draft.title]);
+ }
+ const insteadGone=result?.instead&&(splitDone.length||state.steps.find(s=>s.id===result.instead.stepId)?.group);
  return <details className="party-panel suggest-panel">
   <summary><Sparkles size={17}/>Suggest some ideas</summary>
   <p>Built from who is going and what each of us said we are into{filled.length?` — ${filled.join(', ')} so far`:''}. {filled.length<state.members.length&&<strong>Fill in the rest above and these get sharper.</strong>}</p>
-  <form onSubmit={ask}>
+  <div className="segmented" role="group" aria-label="What to suggest">{[['ideas','New ideas'],['instead','Something else instead']].map(([key,label])=>
+   <button type="button" key={key} className={mode===key?'selected':''} onClick={()=>{setMode(key);setError('');}}>{label}</button>)}</div>
+  {mode==='instead'?<form onSubmit={ask}>
+   <p><small>When some of us would rather not do a stop that is planned: ideas close by, in the same time, for the ones sitting it out — and back in time for the next thing we all do.</small></p>
+   <label>Day<select value={altDay} onChange={e=>{setAltDay(e.target.value);setStopId('');setSitting([]);}}>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city} · {d.title}</option>)}</select></label>
+   <label>Instead of<select value={stopId} onChange={e=>{setStopId(e.target.value);setSitting([]);}}>
+    <option value="">{stops.length?'Choose a stop…':'Nothing on this day to sit out'}</option>
+    {stops.map(s=><option key={s.id} value={s.id}>{s.time?`${s.time} · `:''}{s.title}</option>)}
+   </select></label>
+   {stop&&<fieldset><legend>Who would rather not go</legend><div className="chips">{stop.participants.map(n=><label className={`chip ${sitting.includes(n)?'on':''}`} key={n}><input type="checkbox" checked={sitting.includes(n)} onChange={()=>setSitting(w=>w.includes(n)?w.filter(x=>x!==n):[...w,n])}/>{n}</label>)}</div></fieldset>}
+   {stop&&!!sitting.length&&<p><small>{staying.length?`${staying.join(' and ')} carry on with ${stop.title}`:'Nobody would be doing it — anything you pick goes on the board to swap in'}{staying.length&&rejoin?`; everyone meets back up at ${rejoin.title}${rejoin.time?` at ${rejoin.time}`:''}.`:staying.length?'. Nothing later brings everyone back together yet.':'.'}</small></p>}
+   {boysAlone&&<p className="callout"><AlertCircle size={18}/>Only the boys are ticked. A grown-up has to go with them — tick Damien or Lauren as well.</p>}
+   <label>How many<select value={count} onChange={e=>setCount(e.target.value)}>{[4,6,8].map(n=><option key={n}>{n}</option>)}</select></label>
+   <button className="primary" disabled={working||!stop||!sitting.length}><Split size={17}/>{working?'Thinking, and checking what is near…':'Suggest something else'}</button>
+  </form>:<form onSubmit={ask}>
    <label>Where<select value={scope} onChange={e=>setScope(e.target.value)}>
     <option value="">Somewhere else…</option>
     <optgroup label="A day on the trip">{state.days.map(d=><option key={d.date} value={`d:${d.date}`}>{dayLabel(d.date)} · {d.city} · {d.title}</option>)}</optgroup>
@@ -175,10 +206,10 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
    <label>How many<select value={count} onChange={e=>setCount(e.target.value)}>{[4,6,8].map(n=><option key={n}>{n}</option>)}</select></label>
    <button className="primary" disabled={working||(!scope&&!elsewhere.trim())}><Sparkles size={17}/>{working?'Thinking, and checking what is on…':'Suggest ideas'}</button>
    <small>Searches for what is actually on while we are there. Rough costs and times only — nothing here is checked, and <strong>Look it up</strong> on an idea is what fills in the hours, the ticket page and the map.</small>
-  </form>
+  </form>}
   {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
   {result&&<div className="suggest-results">
-   <h3>{result.suggestions.length} ideas for {result.forWhom?`${result.forWhom} in `:''}{result.where}</h3>
+   <h3>{result.instead?`${result.suggestions.length} things ${result.instead.who.join(' and ')} could do instead of ${result.instead.title}`:`${result.suggestions.length} ideas for ${result.forWhom?`${result.forWhom} in `:''}${result.where}`}</h3>
    {result.note&&<p className="callout"><AlertCircle size={18}/>{result.note}</p>}
    {result.suggestions.map(item=>{
     const done=added.includes(item.draft.title);
@@ -195,8 +226,10 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
       <span>{item.draft.suitableFor.length?`Suits ${item.draft.suitableFor.join(', ')}`:'Suits everyone'}</span>
      </div>
      <div className="row wrap">
+      {result.instead&&(splitDone.includes(item.draft.title)?<span className="tag"><Split size={13}/>On the day, split with {result.instead.title}</span>
+       :result.instead.staying.length&&!insteadGone?<button className="primary" disabled={busy} onClick={()=>splitOff(item)}><Split size={16}/>Split the day: {result.instead.who.join(' and ')} do this</button>:null)}
       {done?<span className="tag"><Check size={13}/>On the board</span>:<>
-       <button className="primary" disabled={busy} onClick={()=>add(item,false)}><Plus size={16}/>Put it on the board</button>
+       <button className={result.instead?.staying.length?'':'primary'} disabled={busy} onClick={()=>add(item,false)}><Plus size={16}/>Put it on the board</button>
        <button disabled={busy} onClick={()=>add(item,true)}><Search size={16}/>Add and look it up</button>
       </>}
      </div>
