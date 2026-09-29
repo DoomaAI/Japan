@@ -133,7 +133,7 @@ body:before{content:'';position:fixed;top:0;left:0;right:0;z-index:40;height:env
 .timeline .timeline-tick,.timeline-tick{left:calc(42px + 1rem - 13px);top:calc(.4rem - 11px)}
 .timeline button[aria-label^="Move "],.to-options,.remove-stop,.drag-handle,.timeline-insert,.nav-grip,.callout button{position:relative}
 .timeline button[aria-label^="Move "]::after,.to-options::after,.remove-stop::after,.drag-handle::after{content:'';position:absolute;inset:-8px -10px;border-radius:8px}
-.timeline-insert::after{content:'';position:absolute;inset:-12px 0;border-radius:8px}
+.timeline-insert::before{content:'';position:absolute;inset:-12px 0;border-radius:8px}
 .nav-grip::after{content:'';position:absolute;inset:-14px -8px;border-radius:12px}
 .callout button::after{content:'';position:absolute;inset:-10px -4px}
 .date-strip .behind:not(.selected){opacity:.72}
