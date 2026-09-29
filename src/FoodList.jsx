@@ -75,6 +75,7 @@ export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,
       <div><strong>{v.en}</strong><p className="japanese small" lang="ja">{v.ja}</p><small className="say-phonics"><span aria-hidden="true">say</span> {v.say}</small></div>
       <button onClick={()=>show({type:'foodcard',item:v})}><Languages size={15}/>Show</button></div>)}
     </details>}
+    <details className="food-rate"><summary>Tried it? Rate it — {Object.values(tried).filter(Boolean).length} of {state.members.length} tried</summary>
     <div className="food-people">{state.members.map(n=>
      <div className="food-person" key={n}>
       <button className={`rider${tried[n]?' on':''}`} disabled={busy||(!parent&&n!==user.name)} aria-pressed={!!tried[n]}
@@ -82,6 +83,7 @@ export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,
       <Stars size={22} value={ratings[n]||0} disabled={busy||(!parent&&n!==user.name)} label={`${n}’s rating for ${item.en}`}
        onPick={rating=>mutate({type:'foodRating',itemId:item.id,person:n,rating})}/>
      </div>)}</div>
+    </details>
     <div className="row wrap">
      {item.ja&&<button onClick={()=>show({type:'foodcard',item})}><Languages size={16}/>Show someone</button>}
      {config?.nearby&&<button onClick={()=>findNearby([item.en])}><Compass size={16}/>Find it near us</button>}

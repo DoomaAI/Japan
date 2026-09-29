@@ -49,7 +49,7 @@ export const PAGES={
  updates:{label:'Family updates',note:'What changed and who has seen it'},
  search:{label:'Search everything',note:'Find a booking, note, shop or guide page'},
  mascot:{label:'Our characters',note:'Design your own Japanese character and use it in the app'},
- thanks:{label:'Notes for Lauren',note:'Write and schedule her daily pop-up notes'},
+ thanks:{label:'Daily notes',note:'Write and schedule the daily pop-up notes for Lauren, Nate and Boston'},
  personalise:{label:'My menu',note:'Choose what you see, and the order it comes in'},
  settings:{label:'Settings',note:'The order of the shortcuts along the bottom, and the daily phrase or fun fact'}
 };
@@ -92,6 +92,22 @@ export const pagesFor=user=>Object.keys(PAGES).filter(id=>allowed(id,user));
 // here is taken out of its section below; this row is a second way in, not a move.
 export const RIGHT_NOW=['safety','meeting','allergy','phrases','weather','help'];
 export const rightNow=user=>{const ok=new Set(pagesFor(user));return RIGHT_NOW.filter(id=>ok.has(id));};
+// Favourites: the row at the top of More, made each person's own. Starring a card in any section
+// puts it in the row; unstarring takes it out. It starts as the Right now six, so an untouched
+// phone sees what it always has. Kept on the phone like the bar, and cleaned the same way on the
+// way out of storage: unknown or no-longer-allowed screens are dropped, repeats collapse, and the
+// row stops at a dozen so it stays a row of shortcuts rather than a second menu. An empty list is
+// a real choice — somebody who unstars everything gets no row, not the defaults back.
+export const FAV_MAX=12;
+export const favourites=(user,saved)=>{
+ if(!Array.isArray(saved))return rightNow(user);
+ const ok=new Set(pagesFor(user));
+ return [...new Set(saved.filter(id=>typeof id==='string'&&ok.has(id)))].slice(0,FAV_MAX);
+};
+export const toggleFavourite=(user,saved,id)=>{
+ const now=favourites(user,saved);
+ return now.includes(id)?now.filter(x=>x!==id):now.length<FAV_MAX?[...now,id]:now;
+};
 // The menu, as this person has arranged it. Four of us carry the same app and want different
 // things out of it: Lauren lives on tickets and the plan, Boston on his missions and his money,
 // and Nate opens three screens in the whole trip. So the bar is theirs to set — which screens

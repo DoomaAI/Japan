@@ -5,7 +5,7 @@ import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
-import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_FOR,normaliseThankYou,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {IC_MAX,RECEIPT_TYPES} from '../src/ledger-data.js';
 import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
@@ -1286,13 +1286,16 @@ export function extraOperation(state,op,user,fail,now){
  }else if(op.type==='journal'){
   dayCheck(op.day);if(!op.day)fail('Choose a day.');requireText(op.notes,8000,'diary notes');state.journal[op.day]=op.notes;
  }else if(typeof op.type==='string'&&op.type.startsWith('thankYou')){
-  // Private notes from Damien to Lauren. Only Damien writes them; only Lauren marks one read.
-  if(!Array.isArray(state.thankYou?.messages))state.thankYou={seen:{},...state.thankYou,messages:initialThankYou()};
-  const notes=state.thankYou.messages;
+  // Private notes from Damien, one list for each of the others. Only Damien writes them; only
+  // the person a note is for marks it read.
+  state.thankYou=normaliseThankYou(state.thankYou);
+  const to=op.type==='thankYouSeen'?user.name:(op.to??'Lauren');
+  if(op.type!=='thankYouSeen'&&!THANK_YOU_FOR.includes(to))fail('Choose who the note is for.');
+  const list=state.thankYou.lists[to],notes=list?.messages;
   if(op.type==='thankYouSeen'){
-   if(user.name!==THANK_YOU_TO)fail('These notes are for Lauren.',403);
+   if(!THANK_YOU_FOR.includes(user.name))fail(`These notes are from ${THANK_YOU_FROM}.`,403);
    if(!op.day||!state.days.some(d=>d.date===op.day))fail('Choose a trip day.');
-   state.thankYou.seen={...state.thankYou.seen,[op.day]:now};
+   list.seen={...list.seen,[op.day]:now};
   }else{
    if(user.name!==THANK_YOU_FROM)fail('Only Damien can change these notes.',403);
    if(op.type==='thankYouAdd'||op.type==='thankYouEdit'){
@@ -1306,7 +1309,7 @@ export function extraOperation(state,op,user,fail,now){
     else{const note=notes.find(m=>m.id===op.id);if(!note)fail('Note not found.',404);Object.assign(note,{text:value,day});}
    }else if(op.type==='thankYouRemove'){
     if(!notes.some(m=>m.id===op.id))fail('Note not found.',404);
-    state.thankYou.messages=notes.filter(m=>m.id!==op.id);
+    list.messages=notes.filter(m=>m.id!==op.id);
    }else if(op.type==='thankYouReorder'){
     if(!Array.isArray(op.ids)||op.ids.length!==notes.length||new Set(op.ids).size!==notes.length||op.ids.some(id=>!notes.some(m=>m.id===id)))fail('The notes changed. Reload before reordering them.');
     const slots=notes.map(m=>m.order).sort((a,b)=>a-b);op.ids.forEach((id,i)=>{notes.find(m=>m.id===id).order=slots[i];});

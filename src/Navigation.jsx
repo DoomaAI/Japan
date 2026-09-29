@@ -1,6 +1,8 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Smartphone,PlaneLanding,AlarmClock,MailQuestion,BookImage,Stamp,Crown,GalleryHorizontalEnd,History,Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,Clapperboard,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid} from 'lucide-react';
-import {PAGES,primaryNav,moreSections,navActive,hiddenNav,rightNow} from './nav-data.js';
+import {Smartphone,PlaneLanding,AlarmClock,MailQuestion,BookImage,Stamp,Crown,GalleryHorizontalEnd,History,Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,Clapperboard,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid,ChevronDown,Star,Check} from 'lucide-react';
+import {PAGES,primaryNav,moreSections,navActive,hiddenNav,favourites,toggleFavourite,FAV_MAX} from './nav-data.js';
+import {useStored} from './stored.js';
+import {isOpen,setOpen} from './fold.js';
 import {useWobble} from './wobble.js';
 import {homePages} from './home-widgets.js';
 import {swipeVertical} from './swipe.js';
@@ -123,30 +125,55 @@ export function BottomNav({tab,user,go,unread,prefs,setPrefs}){
   </div>}
  </nav>;
 }
-// More lists every screen the bar does not. A button at the top brings the bar's own screens in
-// too and marks which are a shortcut on the bar along the bottom or a widget on Home, so it is
-// plain what is already one tap away; it is off to begin with, so the list reads as it always has.
+// More lists every screen the bar does not, as cards in folding sections so the whole menu fits
+// on one screen with everything shut. Favourites sit on top: the Right now six to begin with,
+// then whatever this person stars. A button marks which cards are already a shortcut on the bar
+// or a widget on Home, so it is plain what is one tap away; it is off to begin with.
 export function MorePage({user,tab,go,children,prefs,home}){
- const [where,setWhere]=useState(false);
+ const [where,setWhere]=useState(false),[editing,setEditing]=useState(false);
+ const [saved,setSaved]=useStored('japan.more.favourites',null);
+ const favs=favourites(user,saved),starred=new Set(favs);
  const onBar=new Set(primaryNav(user,prefs)),onHome=homePages(home);
+ const sections=moreSections(user,prefs,where);
+ // Every section starts folded. The one holding the screen you came from opens on its own,
+ // so going back to More lands where you left it rather than on a wall of shut headings.
+ const [open,setOpenState]=useState(()=>Object.fromEntries(sections.map(([title,ids])=>[title,isOpen(`more.${title}`,undefined,ids.includes(tab))])));
+ const fold=title=>setOpenState(o=>({...o,[title]:setOpen(`more.${title}`,!o[title])}));
+ const star=id=>setSaved(favourites(user,toggleFavourite(user,saved,id)));
+ const card=(id,inFavs)=>{
+  const Icon=iconFor(id),bar=onBar.has(id),widget=onHome.has(id),on=starred.has(id);
+  return <div className="more-card-wrap" key={id}>
+   <button type="button" className={`right-now-tile${tab===id?' current':''}${where&&!inFavs&&!bar&&!widget?' more-elsewhere':''}`} title={PAGES[id].note} onClick={()=>go(id)}>
+    <Icon size={22}/><span>{PAGES[id].label}</span>
+    {where&&!inFavs&&(bar||widget)&&<span className="more-tags">{bar&&<span className="tag">Bar</span>}{widget&&<span className="tag">Home</span>}</span>}
+   </button>
+   {editing&&<button type="button" className={`more-star${on?' on':''}`} aria-pressed={on}
+    aria-label={on?`Take ${PAGES[id].label} out of favourites`:`Add ${PAGES[id].label} to favourites`}
+    disabled={!on&&favs.length>=FAV_MAX} onClick={()=>star(id)}><Star size={15}/></button>}
+  </div>;
+ };
  return <>
   <p className="eyebrow">EVERYTHING FOR OUR TRIP</p>
   <h1>More</h1>
-  {/* Right now: six tiles for the moments that do not wait, before the twelve-screen list. */}
-  <nav className="right-now" aria-label="Right now">{rightNow(user).map(id=>{const Icon=iconFor(id);return <button type="button" className={`right-now-tile${tab===id?' current':''}`} key={id} onClick={()=>go(id)}><Icon size={22}/><span>{PAGES[id].label}</span></button>;})}</nav>
+  <div className="more-fav-head">
+   <h2>Favourites</h2>
+   <button type="button" className={`more-edit${editing?' on':''}`} aria-pressed={editing} onClick={()=>setEditing(!editing)}>
+    {editing?<><Check size={15}/>Done</>:<><Star size={15}/>Choose favourites</>}
+   </button>
+  </div>
+  {editing&&<p className="more-hint">Tap a star to add or remove a card. Up to {FAV_MAX}.</p>}
+  {favs.length?<nav className="right-now" aria-label="Favourites">{favs.map(id=>card(id,true))}</nav>
+   :<p className="more-hint">No favourites yet. Choose favourites, then star the cards you want up here.</p>}
   <button type="button" className={`more-where${where?' on':''}`} aria-pressed={where} onClick={()=>setWhere(!where)}>
    <LayoutGrid size={16}/>{where?'Hide what is on my bar and Home':'Show what is on my bar and Home'}
   </button>
-  {moreSections(user,prefs,where).map(([title,ids])=><section className="more-section" key={title}>
-   <h2>{title}</h2>
-   {ids.map(id=>{const Icon=iconFor(id),bar=onBar.has(id),widget=onHome.has(id);
-    return <button className={`more-row${tab===id?' current':''}${where&&!bar&&!widget?' more-elsewhere':''}`} key={id} onClick={()=>go(id)}>
-    <span className="more-icon"><Icon size={20}/></span>
-    <span><strong>{PAGES[id].label}</strong><small>{PAGES[id].note}</small>
-     {where&&(bar||widget)&&<span className="more-tags">{bar&&<span className="tag">Shortcut on the bar</span>}{widget&&<span className="tag">Widget on Home</span>}</span>}</span>
-    <ChevronRight size={18}/>
-   </button>;})}
-  </section>)}
+  {sections.map(([title,ids])=>{const shut=!(open[title]??false)&&!editing;
+   return <section className={`more-section${shut?' shut':''}`} key={title}>
+    <h2><button type="button" className="more-fold" aria-expanded={!shut} onClick={()=>fold(title)}>
+     <span>{title}</span><small>{ids.length}</small><ChevronDown size={18}/>
+    </button></h2>
+    {!shut&&<div className="right-now more-grid">{ids.map(id=>card(id,false))}</div>}
+   </section>;})}
   {children}
  </>;
 }
