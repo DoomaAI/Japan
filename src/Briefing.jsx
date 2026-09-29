@@ -1,9 +1,16 @@
 import React from 'react';
-import {ChevronRight,LockKeyhole,BedDouble,PlaneTakeoff} from 'lucide-react';
+import {ChevronRight,LockKeyhole,BedDouble,PlaneTakeoff,Smartphone} from 'lucide-react';
+import {useStored} from './stored.js';
 import {dayBriefing,briefingGreeting} from './briefing-data.js';
 // The morning briefing widget: the day read in one card, with a tap through to its stops.
-export default function Briefing({state,day,today,clock,go}){
+// The phrase and the fun fact of the day live here as two rows, marked new until opened, rather
+// than as pop-ups over Home. phrase and fact are null when switched off or not a trip day.
+export default function Briefing({state,day,today,clock,go,phrase=null,fact=null}){
+ const [installed]=useStored('japan.apps.installed',{});
  const b=dayBriefing(state,day);if(!b)return null;
+ const apps=b.apps.filter(a=>!installed[a.id]);
+ // The row names what tapping it opens: the head of this person's own queue, not the day's default.
+ const said=phrase?.item||b.phrase;
  const span=b.starts&&b.ends&&b.starts!==b.ends?`${b.starts}–${b.ends}`:b.starts||'';
  return <section className="briefing" aria-label="The day in brief">
   <div className="briefing-head"><p className="eyebrow">{briefingGreeting(day,today,clock)} · Day {b.dayNumber} of {b.total}</p>
@@ -15,6 +22,8 @@ export default function Briefing({state,day,today,clock,go}){
   {b.fixed.length>0&&<ul className="briefing-fixed">{b.fixed.map(f=><li key={f.id}><LockKeyhole size={14}/><b>{f.time}</b> {f.title}</li>)}</ul>}
   {(b.moving||b.last)&&<p className="briefing-note"><BedDouble size={15}/>{b.last?'Last day: everything comes home with us.':`Hotel move today, to ${b.hotel}.`}</p>}
   {b.declaration&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('arrival')}><PlaneTakeoff size={15}/>Australia Travel Declaration: fill it in for each of us, within 72 hours of the flight home.</button>}
-  {b.phrase&&<button type="button" className="briefing-phrase" onClick={()=>go('phrases')}><span aria-hidden="true">{b.phrase.icon}</span><span><b>{b.phrase.en} · <span lang="ja">{b.phrase.ja}</span></b><small>Today’s phrase · say “{b.phrase.say}”</small></span><ChevronRight size={16}/></button>}
+  {apps.map(a=><button type="button" key={a.id} className="briefing-note briefing-link" onClick={()=>go('apps')}><Smartphone size={15}/>{a.today?'Needed today':'Tomorrow'}: {a.name}. Not on this phone yet; set it up now.</button>)}
+  {said&&<button type="button" className="briefing-phrase" onClick={phrase?phrase.open:()=>go('phrases')}><span aria-hidden="true">{said.icon}</span><span><b>{said.en} · <span lang="ja">{said.ja}</span></b><small>{phrase?.fresh&&<em className="briefing-new">New</em>}Today’s phrase · say “{said.say}”</small></span><ChevronRight size={16}/></button>}
+  {fact&&<button type="button" className="briefing-phrase briefing-fact" onClick={fact.open}><span aria-hidden="true">{fact.icon}</span><span><b>{fact.title}</b><small>{fact.fresh&&<em className="briefing-new">New</em>}Today’s fun fact · tap to read</small></span><ChevronRight size={16}/></button>}
  </section>;
 }

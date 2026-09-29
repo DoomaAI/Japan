@@ -14,11 +14,11 @@
 // storage turned off must not be the reason a family loses a pop-up it still wants.
 export const SETTINGS=[
  {id:'dailyPhrase',label:'Phrase of the day',
-  on:'One new Japanese phrase each morning, with how to say it.',
-  off:'No phrase will pop up. The whole phrasebook stays under More, and Show me another still hands over the next one.'},
+  on:'One new Japanese phrase each morning, on the day in brief on Home, with how to say it. Tap it to hear it.',
+  off:'The day in brief leaves the phrase out. The whole phrasebook stays under More, and Show me another still hands over the next one.'},
  {id:'dailyFact',label:'Fun fact of the day',
-  on:'One fact each morning about what that day actually holds, out of our own guide — and one as each activity it is about gets started.',
-  off:'No fact will pop up. Every fact stays under More, and Show me another still hands over the next one.'},
+  on:'One fact each morning about what that day actually holds, out of our own guide, on the day in brief on Home — and one as each stop it is about gets started.',
+  off:'The day in brief leaves the fact out, and none pops up at a stop. Every fact stays under More, and Show me another still hands over the next one.'},
  // Off until asked for: it listens with the phone's speech engine while a voice note records,
  // which on some phones means the words go through Apple's or Google's servers.
  {id:'transcribeVoice',label:'Write down my voice notes',group:'voice',default:false,

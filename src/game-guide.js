@@ -332,6 +332,22 @@ export const GAME_GUIDES={
   ],
   win:'You have finished when the last line is copied. If you drew it on paper you can take a photo of it, and either way you can send it to the family, which is the one part that needs signal.'
  },
+ bingo:{
+  objective:'Fill in five squares in a row on your card, by doing the things on them out in Japan.',
+  setup:[
+   'Everyone in the family has their own card. Pick your name.',
+   'The card has twenty five squares. The one in the middle is free.',
+   'There are six colours of square: spot it, taste it, buy it, hear it, say it and collect it.'
+  ],
+  rules:[
+   'Tap a square to see what it is, with a hint for where to find it.',
+   'When you have really done it, tap Done it. Nobody checks, so be honest.',
+   'A say it square shows the words spelt the way they sound, and a button that says them for you. Practise, then say them to a real person.',
+   'Some squares are a set, like every coin. Tick each coin as you get it. The square counts when the last one is in.',
+   'You tick your own card. A grown-up can tick anyone’s.'
+  ],
+  win:'Five in a row, across, down or corner to corner, is bingo! Fill every square for a full card, then deal a new one.'
+ },
  spot:{
   objective:'Two pictures of the same photo are side by side, and one of them has been quietly changed in a few places. Find every change.',
   setup:[

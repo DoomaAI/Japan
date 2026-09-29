@@ -6,6 +6,7 @@
 import {activeSteps,dayBehind} from './timing.js';
 import {entryType} from './entry-types.js';
 import {photosOf,phrasesSeenBy} from './trip-features.js';
+import {bingoCount} from './bingo-data.js';
 const CITY_ICONS={Tokyo:'🗼',Kyoto:'⛩️',Osaka:'🏯',Nara:'🦌','Disney Resort':'🏨',Disneyland:'🏰',DisneySea:'🌋'};
 export const cityNames=state=>[...new Set((state.days||[]).flatMap(d=>String(d.city||'').split('/').map(c=>c.trim()).filter(Boolean)))];
 const doneOn=s=>s.completedAt?String(s.completedAt).slice(0,10):s.day;
@@ -45,7 +46,7 @@ export function personCounts(state,person){
   photos:{label:'Photos taken',icon:'📷',count:photosOf(state,person).length},
   phrases:{label:'Phrases learnt',icon:'💬',count:Object.keys(phrasesSeenBy(state,person)).length},
   hunts:{label:'Hunt finds',icon:'🔎',count:(state.hunts?.entries||[]).filter(e=>(e.triedBy||e.by)===person).length},
-  spotted:{label:'Train window spots',icon:'🗻',count:Object.values(state.eyeSpy||{}).filter(has).length}
+  spotted:{label:'Bingo squares',icon:'🎱',count:bingoCount(state,person)}
  };
 }
 export function personalStamps(state,person){

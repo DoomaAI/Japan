@@ -23,6 +23,20 @@ The trip has a before, a during and an after, and each should give the family a 
 | 12 | Sealed predictions — Done (#207) | Before | Everyone predicts the trip; the answers stay sealed until the recap reveals them |
 | 13 | Ready to go — Done (#208) | Before | One progress bar for tickets, packing, profiles, votes and phrases |
 | 14 | Hunt picks — Done | Before | The boys choose the hunts they want to do before they land |
+| 15 | Trip shop — Done | Before and after | The essentials pack (adapters, cash, eSIMs, IC cards) by lead time, and keepsakes made from the trip; commercial seams logged in [commercialisation.md](commercialisation.md) |
+
+## To come back to — logged 30 September 2026
+
+**Passports & visas (#230)** is merged but switched off until the key is set, and has not been tried on a real phone.
+
+- [ ] Run `openssl rand -hex 32`, add the result in Vercel as `VAULT_KEY` (Production), and redeploy.
+- [ ] Keep a copy of `VAULT_KEY` somewhere safe, away from the app (a password manager). Lose it or change it and nothing stored can be opened.
+- [ ] On Damien's phone: add a passport, photograph the photo page, check the number is masked until the eye is pressed, and that it hides again on leaving the app.
+- [ ] On Lauren's phone: open the same passport and its photo.
+- [ ] On Nate's or Boston's link: check Passports & visas is not in More, and that opening `?tab=vault` shows nothing.
+- [ ] Add every passport (all four), and any visa and the travel insurance policy.
+- [ ] Decide per phone whether to keep an offline copy (only on a phone with a passcode only that parent uses), then check it opens in airplane mode.
+- [ ] After the trip: consider whether to keep the documents for the next trip or delete them.
 
 ## Backlog — logged 27 September 2026, to pick up later
 
@@ -54,7 +68,7 @@ The trip has a before, a during and an after, and each should give the family a 
 
 ## After the trip
 
-9. **Trip highlights video.** Placeholder live now under More → Looking back → **Trip highlights**. See the design below.
+9. **Trip highlights video.** The placeholder page was retired from More on 29 September; `highlightsMaterial` in `src/recap-data.js` still counts the material. See the design below.
 10. **Trip recap.** Totals for days, cities, stops, photos and top-rated moments, plus a printable photobook layout for the diary.
 11. **Follow-along link for family at home.** A view-only link to the diary and photos, with no tickets, locations or invite rights.
 

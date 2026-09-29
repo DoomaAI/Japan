@@ -27,8 +27,8 @@ function Reading({item,enabled}){
 // recommended belongs on the board for everyone to vote on, and "pay the balance by the 1st"
 // belongs on the to-do list.
 const DESTINATIONS=[
- ['ticket','Tickets & reservations','Filed with the bookings. Attach it to the whole trip, a day, or one activity.'],
- ['activity','A new activity on a day','Puts it on the itinerary. Give it a time and it is locked like any other booking.'],
+ ['ticket','Tickets & reservations','Filed with the bookings. Attach it to the whole trip, a day, or one stop.'],
+ ['activity','A new stop on a day','Puts it on the itinerary. Give it a time and it is locked like any other booking.'],
  ['options','The Options list','Somewhere to keep it until it has a day.'],
  ['idea','The planning board','Up for the family to vote on before it gets a day.'],
  ['todo','The to-do list','Something to do or buy, on the day you will do it.']];
@@ -60,11 +60,11 @@ function FileForm({item,state,busy,onFile}){
    <div className="form-row">
     <label>File as<select name="category" defaultValue="reservation">{CATEGORIES.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
     <label>Attach to<select value={where} onChange={e=>setWhere(e.target.value)}>
-     <option value="trip">The whole trip</option><option value="day">A day</option><option value="step">One activity</option></select></label>
+     <option value="trip">The whole trip</option><option value="day">A day</option><option value="step">One stop</option></select></label>
    </div>
    <label>Booking reference<input name="reference" maxLength={250} placeholder="Optional"/></label>
    {where==='day'&&dayField('Which day',false)}
-   {where==='step'&&<label>Which activity<select name="stepId" defaultValue={steps[0]?.id}>{steps.map(s=><option key={s.id} value={s.id}>{dayLabel(s.day)} {s.time||''} · {s.title}</option>)}</select></label>}
+   {where==='step'&&<label>Which stop<select name="stepId" defaultValue={steps[0]?.id}>{steps.map(s=><option key={s.id} value={s.id}>{dayLabel(s.day)} {s.time||''} · {s.title}</option>)}</select></label>}
   </>}
   {to==='activity'&&<div className="form-row">{dayField('Which day',false)}
    <label>Time<input name="time" type="time" placeholder="Optional"/></label></div>}
