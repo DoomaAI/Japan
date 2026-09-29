@@ -390,3 +390,20 @@ test('the day map is drawn from positions the trip holds, needs no network, and 
  const src=await readFile(new URL('../src/DayMap.jsx',import.meta.url),'utf8');
  assert.doesNotMatch(src,/fetch\(|tile\.openstreetmap|https?:\/\//,'nothing in the map comes from the network');
 });
+test('apps to download: each app finds its days in the plan, and ones behind us are done',async()=>{
+ const {SUGGESTED_APPS,APP_GROUPS,appDays,suggestedApps}=await import('../src/apps-data.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const state=upgraded(seed),byId=id=>SUGGESTED_APPS.find(a=>a.id===id);
+ assert.deepEqual(appDays(state,byId('usj')),['2026-09-25']);
+ assert.deepEqual(appDays(state,byId('smartex')),['2026-09-24','2026-09-29'],'both Nozomi days');
+ assert.deepEqual(appDays(state,byId('disney')),['2026-09-29','2026-09-30','2026-10-01']);
+ assert.deepEqual(appDays(state,byId('qantas')),['2026-09-21','2026-10-06'],'the two flight days');
+ assert.equal(appDays(state,byId('maps')).length,16,'the rest are for the whole trip');
+ const mid=Object.fromEntries(suggestedApps(state,'2026-09-28').map(a=>[a.id,a]));
+ assert.equal(mid.usj.done,true);assert.equal(mid.disney.soon,true);assert.equal(mid.disney.next,'2026-09-29');
+ assert.equal(mid.maps.soon,false,'whole-trip apps are never flagged');assert.equal(mid.qantas.soon,false);
+ assert.equal(suggestedApps(state,'2026-09-01').filter(a=>a.done).length,0,'nothing is done before the trip');
+ for(const a of SUGGESTED_APPS){assert.match(a.url,/^https:\/\/apps\.apple\.com\/au\/app\/[a-z-]+\/id\d+$/,a.id);assert.ok(APP_GROUPS.some(([g])=>g===a.group),a.id);assert.ok(a.why&&a.setup&&a.who,a.id);}
+ assert.ok(PAGES.apps?.label&&PAGE_RULES.apps);assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('apps'));
+});

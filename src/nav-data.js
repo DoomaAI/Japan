@@ -30,6 +30,7 @@ export const PAGES={
  facts:{label:'Fun facts',note:'A fact a day about what is coming up, and the whole collection'},
  help:{label:'Help & useful apps',note:'Translation, hotel directions, reminders'},
  options:{label:'Options & ideas',note:'Places and activities saved for later'},
+ apps:{label:'Apps to download',note:'The local apps worth having for trains, taxis, the parks and alerts, and what to set up in each'},
  arrival:{label:'Arrival paperwork',note:'Visit Japan Web for landing in Japan, and the Australia Travel Declaration for home'},
  windows:{label:'Booking windows',note:'When the bookings that sell out open, in Japan and home time, with calendar alerts'},
  predictions:{label:'Sealed predictions',note:'Guess how the trip will go; the answers stay sealed until we are home'},
@@ -67,7 +68,7 @@ export const PRIMARY={
 // between the bookings and the paperwork.
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','money','paying','ledger','food','allergy','hunts','phrases','meeting','safety','help']],
- ['The plan',['glance','todo','packing','trackers','windows','arrival','planning','predictions','options','parks','shopping','shortlist','tickets','inbox']],
+ ['The plan',['glance','todo','packing','trackers','windows','arrival','apps','planning','predictions','options','parks','shopping','shortlist','tickets','inbox']],
  ['Looking back',['noticed','photos','memorymap','diary','recap','book','highlights','updates','bin','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
  ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot']]
