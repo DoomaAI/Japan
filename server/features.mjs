@@ -6,7 +6,7 @@ import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {PRIORITIES,validPriorities} from '../src/decide-data.js';
-import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_FOR,normaliseThankYou,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {IC_MAX,RECEIPT_TYPES} from '../src/ledger-data.js';
 import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
@@ -17,8 +17,10 @@ import {allergenById} from '../src/allergy-data.js';
 import {MAX_NOTICED,NOTICED_TEXT,noticedFields} from '../src/noticed-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {findRule} from '../src/booking-window-data.js';
+import {findShopItem,SHOP_VERDICTS,SHOP_NOTE_MAX} from '../src/shop-data.js';
 import {PREDICTION_MAX,findPrediction,predictionPhase} from '../src/prediction-data.js';
 import {japanDate} from '../src/timing.js';
+import {findSquare,validCard} from '../src/bingo-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
 const MAX_PROPOSALS=300;
 // A shortlist is a list you can still read. Past a couple of hundred finds it is an archive of
@@ -541,6 +543,27 @@ export function extraOperation(state,op,user,fail,now){
   if(op.done)found[op.person]=found[op.person]||at;else delete found[op.person];
   state.eyeSpy={...state.eyeSpy,[key]:found};
   if(!Object.keys(found).length)delete state.eyeSpy[key];
+ }else if(op.type==='bingoTick'){
+  // A bingo square, or one part of a set such as one coin of the six. Anyone in the family plays;
+  // a child ticks only their own card.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Tick only your own card.',403);
+  const square=findSquare(op.square);if(!square)fail('Unknown bingo square.',404);
+  if(square.parts?!square.parts.some(p=>p.id===op.part):op.part!=null)fail('Unknown part of that square.');
+  if(typeof op.done!=='boolean')fail('Invalid tick.');
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid tick time.');at=new Date(op.at).toISOString();}
+  const mine={round:1,card:null,...(state.bingo[op.person]||{})},done={...(mine.done||{})},key=square.parts?`${square.id}:${op.part}`:square.id;
+  if(op.done)done[key]=done[key]||at;else delete done[key];
+  state.bingo={...state.bingo,[op.person]:{...mine,done}};
+ }else if(op.type==='bingoCard'){
+  // A fresh card, dealt on the phone from the squares not done yet. The round only goes up, so
+  // two phones dealing the same next card at once land on the same card.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Deal only your own card.',403);
+  if(!validCard(op.card))fail('That is not a bingo card.');
+  const mine={round:1,card:null,done:{},...(state.bingo[op.person]||{})};
+  if(!Number.isInteger(op.round)||op.round<2||op.round>999)fail('Invalid card number.');
+  if(op.round>(mine.round||1))state.bingo={...state.bingo,[op.person]:{...mine,round:op.round,card:[...op.card]}};
  }else if(op.type==='challengeRemove'){
   state.challenges=state.challenges.filter(c=>c.id!==op.id);
  }else if(op.type==='challengeStatus'){
@@ -1278,6 +1301,18 @@ export function extraOperation(state,op,user,fail,now){
   }
   if(op.type==='bookingWindowRemove'){const w=found();state.bookingWindows=list.filter(x=>x.id!==w.id);return {summary:null,important:false,title:w.title};}
   fail('Unknown booking window change.');
+ }else if(op.type==='shopLog'){
+  // The trip shop log: sorted, worth it or not, and a line for next time. A parent's, like the
+  // spending it is about. Each field is changed only when it is sent, so a tick keeps the note.
+  if(!parent)fail('A parent can make this change.',403);
+  const item=findShopItem(op.id);if(!item)fail('Unknown trip shop item.',404);
+  const next={...(state.shopLog?.[op.id]||{})};
+  if(op.sorted!==undefined){if(typeof op.sorted!=='boolean')fail('Invalid tick.');next.sortedAt=op.sorted?now:null;}
+  if(op.verdict!==undefined){if(!SHOP_VERDICTS.includes(op.verdict))fail('Choose worth it or not.');next.verdict=op.verdict||null;}
+  if(op.note!==undefined){const note=String(op.note??'').trim();requireText(note,SHOP_NOTE_MAX,'note');next.note=note;}
+  next.by=user.name;next.at=now;
+  state.shopLog={...(state.shopLog||{}),[op.id]:next};
+  return {summary:null,important:false,title:item.title};
  }else if(op.type==='predictionSet'){
   // A sealed prediction: your own, or a parent's for anyone, and only until we land.
   if(!state.members.includes(op.person))fail('Choose a family member.');
@@ -1301,13 +1336,16 @@ export function extraOperation(state,op,user,fail,now){
  }else if(op.type==='journal'){
   dayCheck(op.day);if(!op.day)fail('Choose a day.');requireText(op.notes,8000,'diary notes');state.journal[op.day]=op.notes;
  }else if(typeof op.type==='string'&&op.type.startsWith('thankYou')){
-  // Private notes from Damien to Lauren. Only Damien writes them; only Lauren marks one read.
-  if(!Array.isArray(state.thankYou?.messages))state.thankYou={seen:{},...state.thankYou,messages:initialThankYou()};
-  const notes=state.thankYou.messages;
+  // Private notes from Damien, one list for each of the others. Only Damien writes them; only
+  // the person a note is for marks it read.
+  state.thankYou=normaliseThankYou(state.thankYou);
+  const to=op.type==='thankYouSeen'?user.name:(op.to??'Lauren');
+  if(op.type!=='thankYouSeen'&&!THANK_YOU_FOR.includes(to))fail('Choose who the note is for.');
+  const list=state.thankYou.lists[to],notes=list?.messages;
   if(op.type==='thankYouSeen'){
-   if(user.name!==THANK_YOU_TO)fail('These notes are for Lauren.',403);
+   if(!THANK_YOU_FOR.includes(user.name))fail(`These notes are from ${THANK_YOU_FROM}.`,403);
    if(!op.day||!state.days.some(d=>d.date===op.day))fail('Choose a trip day.');
-   state.thankYou.seen={...state.thankYou.seen,[op.day]:now};
+   list.seen={...list.seen,[op.day]:now};
   }else{
    if(user.name!==THANK_YOU_FROM)fail('Only Damien can change these notes.',403);
    if(op.type==='thankYouAdd'||op.type==='thankYouEdit'){
@@ -1321,7 +1359,7 @@ export function extraOperation(state,op,user,fail,now){
     else{const note=notes.find(m=>m.id===op.id);if(!note)fail('Note not found.',404);Object.assign(note,{text:value,day});}
    }else if(op.type==='thankYouRemove'){
     if(!notes.some(m=>m.id===op.id))fail('Note not found.',404);
-    state.thankYou.messages=notes.filter(m=>m.id!==op.id);
+    list.messages=notes.filter(m=>m.id!==op.id);
    }else if(op.type==='thankYouReorder'){
     if(!Array.isArray(op.ids)||op.ids.length!==notes.length||new Set(op.ids).size!==notes.length||op.ids.some(id=>!notes.some(m=>m.id===id)))fail('The notes changed. Reload before reordering them.');
     const slots=notes.map(m=>m.order).sort((a,b)=>a-b);op.ids.forEach((id,i)=>{notes.find(m=>m.id===id).order=slots[i];});

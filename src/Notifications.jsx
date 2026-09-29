@@ -28,7 +28,7 @@ export default function Notifications({config,request,notice,user}){
    :!supported?<p className="callout">{ios&&!standalone?'On an iPhone, notifications only work in the app added to the Home Screen. Tap Share, then Add to Home Screen, and open it from there.':'This browser cannot receive notifications.'}</p>
    :<>
     <div className="row wrap">{sub?<button type="button" disabled={busy} onClick={off}><BellOff size={16}/> Turn off on this phone</button>:<button type="button" className="primary" disabled={busy} onClick={on}><Bell size={16}/> Turn on notifications</button>}</div>
-    {PUSH_KINDS.filter(([id])=>id!=='windows'||user?.role==='parent').map(([id,label,note])=><label className="checkline" key={id}><input type="checkbox" checked={prefs[id]!==false} disabled={busy} onChange={e=>save({...prefs,[id]:e.target.checked})}/><span>{label}<small>{note}</small></span></label>)}
+    {PUSH_KINDS.filter(([id])=>!['windows','apps'].includes(id)||user?.role==='parent').map(([id,label,note])=><label className="checkline" key={id}><input type="checkbox" checked={prefs[id]!==false} disabled={busy} onChange={e=>save({...prefs,[id]:e.target.checked})}/><span>{label}<small>{note}</small></span></label>)}
    </>}
  </section>;
 }

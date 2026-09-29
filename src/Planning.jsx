@@ -138,7 +138,7 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
     {p.ticketUrl&&<a className="button" href={p.ticketUrl} target="_blank" rel="noopener noreferrer"><Ticket size={15}/>Tickets <ExternalLink size={13}/></a>}
     {p.website&&<a className="button" href={p.website} target="_blank" rel="noopener noreferrer">Website <ExternalLink size={14}/></a>}
     {mapsLink(p)&&<a className="button" href={mapsLink(p)} target="_blank" rel="noopener noreferrer">Map <ExternalLink size={14}/></a>}
-    {where.step&&<button onClick={()=>selectStep(where.step)}>{where.day?'Open the activity':'See it in Options'} <ChevronRight size={15}/></button>}
+    {where.step&&<button onClick={()=>selectStep(where.step)}>{where.day?'Open the stop':'See it in Options'} <ChevronRight size={15}/></button>}
     {canLook&&<button disabled={looking} onClick={()=>{open(toForm(p));lookup(toForm(p));}}><Search size={16}/>{looking?'Looking it up…':'Look it up'}</button>}
     {parent&&!where.step&&<button className="primary" onClick={()=>{setScheduling(scheduling===p.id?null:p.id);setMoving(null);}}><CalendarDays size={16}/>Add to a day</button>}
     {parent&&where.state==='scheduled'&&<>
@@ -154,7 +154,7 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
     <h3>Put {p.title} on a day</h3>
     <div className="form-row"><label>Day<select name="day" required defaultValue={p.day||date||day}>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.title}</option>)}</select></label><label>Japan time<input name="time" type="time" defaultValue={p.time||''}/></label></div>
     <label>Time tag<select name="kind" defaultValue={p.timing==='fixed'?'fixed':'flexible'}><option value="flexible">Flexible · can move when the day slips</option><option value="fixed">Fixed · locked against rescheduling</option><option value="optional">Optional · drop it if we run late</option><option value="review">Needs checking before we rely on it</option></select></label>
-    <p>Opening hours and the cost go across into the activity’s notes, and the ticket page becomes its booking link. A fixed time is locked, so rescheduling and the running-late plan will work around it.</p>
+    <p>Opening hours and the cost go across into the stop’s notes, and the ticket page becomes its booking link. A fixed time is locked, so rescheduling and the running-late plan will work around it.</p>
     <div className="row wrap"><button className="primary" disabled={busy}>Add to the itinerary</button><button type="button" onClick={()=>setScheduling(null)}>Cancel</button></div>
    </form>}
    {moving===p.id&&where.step&&<form className="plan-schedule" onSubmit={e=>move(e,where.step)}>
@@ -168,7 +168,7 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
  {edit&&<form ref={form} key={`${edit.id||'new'}-${rev}`} className="feature-card plan-form" onSubmit={save}>
   <h2>{edit.id?'Edit this idea':'Add an idea'}</h2>
   <input type="hidden" name="source" value={edit.source||'typed'}/>
-  {edit.id&&proposalPlacement(state,edit).step&&<p className="callout">This idea is already an activity. Changing it here records what the family decided; it does not rewrite the activity on the day — edit that from its own card.</p>}
+  {edit.id&&proposalPlacement(state,edit).step&&<p className="callout">This idea is already a stop. Changing it here records what the family decided; it does not rewrite the activity on the day — edit that from its own card.</p>}
   <label>What is it?<input name="title" required maxLength={250} defaultValue={edit.title} placeholder="teamLab Planets, a conveyor-belt sushi place, the Ghibli clock…"/></label>
   {canLook&&<div className="plan-lookup">
    <button type="button" disabled={looking} onClick={()=>lookup({...readForm(form.current),id:edit.id})}><Search size={16}/>{looking?'Searching the web…':'Look it up and fill in the rest'}</button>
