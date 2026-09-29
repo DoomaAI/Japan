@@ -140,6 +140,17 @@ export const routeFor=step=>ROUTES[step?.id]||null;
 export const legCount=step=>{const legs=routeFor(step);return legs&&legs.length>1?legs.length:0;};
 export const legDone=(step,k)=>step?.status==='done'||!!step?.legsDone?.[k];
 export const legsTicked=step=>step?.status==='done'?legCount(step):Object.keys(step?.legsDone||{}).length;
+// The card shows a route of several legs one leg at a time, and opens on the one the family is
+// up to: the first leg not yet ticked, or the last when every leg is behind them. Each leg's
+// standing on the strip along the top is done, now (the first still to do) or to come.
+export const legToDo=(step,count)=>{for(let k=0;k<count;k++)if(!legDone(step,k))return k;return Math.max(0,count-1);};
+export function legStrip(legs,step,showing){
+ const now=legToDo(step,legs.length);
+ return legs.map((leg,k)=>{
+  const done=legDone(step,k),line=leg.mode==='ride'?LINES[leg.line]:null;
+  return {k,mode:leg.mode,label:line?line.name:'Walk',colour:line?.colour||null,done,showing:k===showing,status:done?'done':k===now?'now':'to come'};
+ });
+}
 // Applies one leg's tick to the stop, in place, and says what that did to the stop as a whole:
 // 'done' when it was the last leg, 'undone' when it took a finished stop back off the list, else
 // null. Unticking one leg of a finished stop leaves the others ticked: only that leg is undone.
