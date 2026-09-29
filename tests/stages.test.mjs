@@ -71,3 +71,25 @@ test('the leaderboard ranks everyone per board, shares a tie and gives no place 
  assert.deepEqual(rankings(state).find(b=>b.id==='photos').leaders,[],'nobody leads a board nobody has started');
  assert.deepEqual(crowns(state).slice(0,2),[{person:'Boston',crowns:2},{person:'Nate',crowns:1}]);
 });
+test('the trip story is counted out of what we kept, and leaves out a card with nothing to say',async()=>{
+ const {recapStory}=await import('../src/recap-story.js');
+ const state=upgraded(seed);
+ let cards=recapStory(state,{today:'2026-09-29'});
+ assert.deepEqual(cards.map(c=>c.kind),['title','numbers','places','end']);
+ assert.equal(cards[0].sofar,true);assert.equal(cards[0].dayNumber,9);assert.equal(cards.at(-1).over,false);
+ const meiji=state.steps.find(s=>s.title==='Meiji Jingu forest and shrine');
+ state.steps=state.steps.map(s=>s.id===meiji.id?{...s,status:'done'}:s);
+ state.stepReviews={[meiji.id]:{ratings:{Nate:5,Boston:4},thoughts:{Nate:{text:'The big gate!',at:'x'}}}};
+ state.photos=[{id:'p1',day:'2026-09-22',by:'Boston',at:'2026-09-22T02:00:00Z'}];state.photoVotes={'2026-09-22':{Nate:'p1'}};
+ state.food={tonkatsu:{tried:{Nate:'x'},ratings:{Nate:5}}};
+ state.expenses=[{id:'e',day:'2026-09-22',yen:9800,category:'food',method:'card',paidBy:'Damien',title:'Lunch'}];
+ cards=recapStory(state,{today:'2026-10-07',parent:true});
+ assert.equal(cards[0].sofar,false);assert.equal(cards.at(-1).over,true);
+ assert.equal(cards.find(c=>c.kind==='top').moments[0].average,4.5);
+ assert.equal(cards.find(c=>c.kind==='photos').winners[0].photo.id,'p1');
+ assert.equal(cards.find(c=>c.kind==='food').best[0].name,'Tonkatsu');
+ const nate=cards.find(c=>c.kind==='person'&&c.person==='Nate');
+ assert.equal(nate.favourite.title,meiji.title);assert.equal(nate.favourite.thought,'The big gate!');
+ assert.equal(cards.find(c=>c.kind==='money').total,9800);
+ assert.ok(!recapStory(state,{today:'2026-10-07'}).some(c=>c.kind==='money'),'spending is for parents');
+});

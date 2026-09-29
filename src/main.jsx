@@ -45,6 +45,7 @@ import Briefing from './Briefing.jsx';
 import Tonight from './Tonight.jsx';
 import Stamps from './Stamps.jsx';
 import Leaderboard from './Leaderboard.jsx';
+import RecapStory from './RecapStory.jsx';
 import Safety,{LostCards} from './Safety.jsx';
 import AllergyCard from './AllergyCard.jsx';
 import RecentlyDeleted from './RecentlyDeleted.jsx';
@@ -629,6 +630,7 @@ function App(){
   {tab==='photos'&&<><p className="eyebrow">THROUGH THEIR EYES</p><h1>Photos</h1>{!photoPerson&&<div className="form-row"><label>Day<select value={day} onChange={e=>selectPhotoDay(e.target.value)}>{state.days.map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)} · {d.title}</option>)}</select></label></div>}<PhotoDay state={visibleState} user={user} day={day} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay} person={photoPerson} setPerson={choosePhotoPerson}/></>}
   {tab==='mascot'&&<MascotMaker state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice} go={go}/>}
   {tab==='games'&&<Games state={visibleState} user={user} day={day} mutate={mutate} busy={busy} setBusy={setBusy} online={online} refresh={refresh} dayLabel={fmtDay} config={config} request={request} accept={accept} notice={notice}/>}
+  {tab==='recap'&&<RecapStory key={day} state={visibleState} user={user} today={japanDate(now)} dayLabel={fmtDay} go={go}/>}
   {tab==='leaderboard'&&<Leaderboard state={visibleState} user={user} go={go}/>}
   {tab==='stamps'&&<Stamps state={visibleState} user={user} today={japanDate(now)} dayLabel={fmtDay} go={go}/>}
   {tab==='facts'&&<><p className="eyebrow">SOMETHING WORTH KNOWING EVERY DAY</p><h1>Fun facts</h1><p>A fact a day about what is actually coming up, taken out of the guide. Swipe for more whenever you want another.</p><FunFacts state={visibleState} user={user} day={japanDate(now)} mutate={mutate} busy={busy} openPage={openPage}/></>}
