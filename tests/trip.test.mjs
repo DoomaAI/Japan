@@ -1948,7 +1948,7 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  for(const id of Object.keys(PAGES))assert.ok(icons.has(id),`${id} has no icon, so its row cannot render`);
  // And a page added tomorrow without one falls back rather than blanking the menu.
  assert.match(nav,/export const iconFor=id=>ICONS\[id\]\|\|Circle;/);
- assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,3,'the bar, the Right now row and the More list all go through the fallback');
+ assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,2,'the bar and every More card, favourites included, go through the fallback');
  assert.ok(!/const Icon=ICONS\[id\]/.test(nav),'nothing indexes ICONS directly any more');
  // The tabs share the bar while they fit, never shrink below their own label, and scroll
  // like the days along the top once there are more of them than fit.
@@ -9754,7 +9754,7 @@ test('the bottom bar wobbles to be rearranged, and More can mark what is already
  assert.ok(!moreIds(parent,null).includes('tickets'),'the bar’s screens are left out of More');
  const all=moreSections(parent,null,true).flatMap(([,ids])=>ids);
  for(const id of bar.slice(1).filter(id=>inMenu.has(id)))assert.ok(all.includes(id),`${id} is listed to be marked`);
- assert.match(nav,/Shortcut on the bar/);assert.match(nav,/Widget on Home/);
+ assert.match(nav,/<span className="tag">Bar<\/span>/);assert.match(nav,/<span className="tag">Home<\/span>/);
 });
 
 test('a family link, its session and its cookie all last six months, and renew inside the last month',async()=>{
@@ -9828,16 +9828,40 @@ test('the allergy card says what somebody cannot eat in the words on a Japanese 
  assert.equal(upgraded(seed).allergies&&typeof upgraded(seed).allergies,'object','an older plan gets an empty set of cards');
 });
 
-test('More opens on a Right now row, and Safety on the two numbers that dial',async()=>{
+test('More opens on a Favourites row, and Safety on the two numbers that dial',async()=>{
  const {RIGHT_NOW,rightNow,PAGES}=await import('../src/nav-data.js');
  for(const id of RIGHT_NOW)assert.ok(PAGES[id],`${id} is a page`);
- assert.deepEqual(rightNow({name:'Nate',role:'child'}),RIGHT_NOW.filter(id=>id!=='help'||true),'a child gets the same row');
+ assert.deepEqual(rightNow({name:'Nate',role:'child'}),RIGHT_NOW,'a child gets the same row');
  assert.ok(rightNow({name:'Damien',role:'parent'}).includes('safety')&&rightNow({name:'Damien',role:'parent'}).includes('allergy'));
  const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8'),safety=await readFile(new URL('../src/Safety.jsx',import.meta.url),'utf8');
- assert.match(nav,/<nav className="right-now" aria-label="Right now">\{rightNow\(user\)\.map/,'the row is rendered from the registry, not a second list');
- assert.ok(nav.indexOf('className="right-now"')<nav.indexOf('className={`more-where'),'and it comes before everything else on More');
+ assert.match(nav,/<nav className="right-now" aria-label="Favourites">\{favs\.map/,'the row is rendered from the saved favourites');
+ assert.ok(nav.indexOf('aria-label="Favourites"')<nav.indexOf('className={`more-where'),'and it comes before everything else on More');
  assert.match(safety,/className="call-row"/);assert.ok(safety.indexOf('call-row')<safety.indexOf('Everything on this page works'),'the numbers come before the first sentence');
  assert.match(safety,/\['police','ambulance'\]\.includes\(e\.id\)/,'110 and 119, from the same list the page already keeps');
+});
+
+test('favourites start as Right now, are starred in and out, and are cleaned on the way out of storage',async()=>{
+ const {favourites,toggleFavourite,rightNow,FAV_MAX,pagesFor}=await import('../src/nav-data.js');
+ const damien={name:'Damien',role:'parent'},nate={name:'Nate',role:'child'};
+ assert.deepEqual(favourites(damien,null),rightNow(damien),'an untouched phone sees the Right now six');
+ assert.deepEqual(favourites(damien,'junk'),rightNow(damien));
+ assert.deepEqual(favourites(damien,[]),[],'unstarring everything is kept, not undone');
+ assert.deepEqual(favourites(damien,['tickets','tickets','nope',7,'safety']),['tickets','safety'],'repeats, unknowns and junk are dropped');
+ assert.deepEqual(favourites(nate,['ledger','games']),['games'],'a screen this person cannot open is never a favourite');
+ assert.deepEqual(favourites(damien,['thanks']),['thanks']);assert.deepEqual(favourites(nate,['thanks']),[]);
+ const added=toggleFavourite(damien,null,'tickets');
+ assert.deepEqual(added,[...rightNow(damien),'tickets'],'starring adds to the end');
+ assert.ok(!toggleFavourite(damien,added,'safety').includes('safety'),'and starring again takes it out');
+ const full=pagesFor(damien).slice(0,FAV_MAX),spare=pagesFor(damien)[FAV_MAX];
+ assert.deepEqual(toggleFavourite(damien,full,spare),full,'the row stops at the cap');
+ assert.equal(favourites(damien,pagesFor(damien)).length,FAV_MAX);
+ const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
+ assert.match(nav,/useStored\('japan\.more\.favourites',null\)/,'kept on the phone, null until somebody chooses');
+ // Every section folds, remembers it on the phone, and opens on its own for the screen you came from.
+ assert.match(nav,/isOpen\(`more\.\$\{title\}`,undefined,ids\.includes\(tab\)\)/);
+ assert.match(nav,/setOpen\(`more\.\$\{title\}`,!o\[title\]\)/);
+ assert.match(nav,/aria-expanded=\{!shut\}/);
+ assert.match(nav,/const shut=!\(open\[title\]\?\?false\)&&!editing/,'choosing favourites opens every section so any card can be starred');
 });
 
 test('nothing taken off a list is gone for thirty days, and comes back exactly as it was',async()=>{
@@ -10176,4 +10200,31 @@ test('Back and the swipe from the edge walk back through screens, and close a sh
  // Only the start-up rewrites still replace: the join token, the deep link, and the overnight move to today.
  assert.equal((main.match(/history\.replaceState\(/g)||[]).length,3,'no screen change slips through as a replace');
  for(const fn of ['go','selectStep','selectPhotoDay','choosePhotoPerson'])assert.doesNotMatch(main,new RegExp(`function ${fn}\\([^\\n]*history\\.replaceState`),`${fn} goes through navigate`);
+});
+
+test('a stop booked through someone else keeps the place’s website apart from the booking',async()=>{
+ const {bookedVia,platformFor,guessPlatform}=await import('../src/booked-via.js');
+ // A known name brings its own link; a saved link to the booking wins over it.
+ assert.deepEqual(bookedVia({bookedVia:'booking com'}),{label:'Booking.com',href:'https://secure.booking.com/mytrips.html',known:true});
+ assert.equal(bookedVia({bookedVia:'Klook',bookedViaUrl:'https://www.klook.com/order/123'}).href,'https://www.klook.com/order/123');
+ // A link on its own is named for the platform it is on, or its address; a name on its own is shown as typed.
+ assert.equal(bookedVia({bookedViaUrl:'https://www.agoda.com/booking/9'}).label,'Agoda');
+ assert.equal(bookedVia({bookedViaUrl:'https://notagoda.com/x'}).label,'notagoda.com');
+ assert.deepEqual(bookedVia({bookedVia:'Hotel concierge'}),{label:'Hotel concierge',href:'',known:false});
+ assert.equal(bookedVia({bookedVia:' ',bookedViaUrl:'javascript:alert(1)'}),null);
+ assert.equal(platformFor('SMARTEX').label,'SmartEX');
+ // Forwarded mail: the first agent named, never the park a hotel is merely near.
+ assert.equal(guessPlatform('Your reservation','Thanks for booking with Agoda. Also on Booking.com'),'Agoda');
+ assert.equal(guessPlatform('Hotel near Tokyo Disney Resort','Booking completed'),'');
+
+ const stop=seed.steps[0];
+ const next=applyOperation(seed,{type:'patch',id:stop.id,patch:{website:'https://www.hotel.example/',bookedVia:'Booking.com',bookedViaUrl:'https://secure.booking.com/mytrips.html'}},parent).steps.find(s=>s.id===stop.id);
+ assert.equal(next.website,'https://www.hotel.example/');assert.equal(next.bookedVia,'Booking.com');
+ assert.throws(()=>applyOperation(seed,{type:'patch',id:stop.id,patch:{bookedViaUrl:'http://booking.com'}},parent),/HTTPS link to the booking/);
+ assert.throws(()=>applyOperation(seed,{type:'patch',id:stop.id,patch:{bookedVia:'x'.repeat(81)}},parent),/too long/);
+ assert.throws(()=>applyOperation(seed,{type:'patch',id:stop.id,patch:{bookedVia:'Klook'}},child),e=>e.status===403);
+
+ const item={id:'mail-bv',from:'lauren@example.com',subject:'Fwd: Booking.com confirmation',receivedAt:'2026-09-25T02:00:00.000Z',text:'Your stay at Hotel Kanra Kyoto is confirmed.',attachments:[]};
+ const filed=applyOperation({...structuredClone(seed),inbox:[item]},{type:'inboxFile',id:'mail-bv',title:'Hotel Kanra',destination:'activity',day:seed.days[2].date},parent);
+ assert.equal(filed.steps.at(-1).bookedVia,'Booking.com');
 });
