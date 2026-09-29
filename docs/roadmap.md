@@ -2,6 +2,25 @@
 
 Compared against TripIt Pro, Wanderlog, Google Maps/Travel, Polarsteps, the Japan Official Travel App (JNTO), NAVITIME Japan Travel, Japan Transit Planner, Safety tips, Splitwise, Trail Wallet and TravelSpend. Written on 27 September 2026, day 7 of 16, so the order puts what helps during the rest of the trip first.
 
+
+## UX review against hotel and event apps — logged 30 September 2026
+
+Benchmarked against Marriott Bonvoy, Hilton Honors, World of Hyatt, IHG One Rewards, Accor ALL, Whova, Cvent Attendee Hub, Sched, Swapcard and Apple Developer / WWDC, on the app running at iPhone size in light and dark.
+
+| # | Finding | Status |
+|---|---|---|
+| 01 | Launch blocked by the phrase and fact pop-ups | Done (#244): rows on the day in brief, marked New |
+| 02 | Seven buttons along the bottom | Done (#259): Home · Plan · Wallet · Yen · More (boys: Missions, Food) |
+| 03 | No stay card; tickets not pass-first | Done (#255, #256): Tonight's stay; Tickets becomes the Wallet, next passes first |
+| 04 | Text down to 8px | Done (#245): 12px floor, boards aside, held by a test |
+| 05 | No dark mode; status bar mismatched | Done (#250, #254, #258): Appearance choice, hand-set tokens, one-offs filled at build time |
+| 06 | Delete and lock on the step card's top edge | Done (#238): into the ⋯ sheet |
+| 07 | Explanation before the tool | Done (#253): Yen, Food, Tickets lead with the tool; switched-off features left off |
+| 08 | No push reminders | Done separately (#214) |
+| 09 | Meeting card overflow; weather from 21 Sept | Done (#235, #238) |
+| — | Apple Wallet passes for stays and tickets | Not built: needs an Apple Developer pass-type certificate and a server-side `.pkpass` signer. Logged for the commercial version |
+| — | First-run onboarding for a new family | Not built: the app is set up for one family. Logged for the commercial version in commercialisation.md terms |
+
 ## Before, during and after — logged 29 September 2026
 
 The trip has a before, a during and an after, and each should give the family a reason to open the app. Built in this order, one pull request each: the trip is under way, so the in-trip items come first, then the recap, then the before-the-trip items that pay off on the next trip.
