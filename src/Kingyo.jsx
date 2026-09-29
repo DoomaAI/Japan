@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react';
+import {useStored} from './stored.js';
 import {Trophy,RotateCcw} from 'lucide-react';
 import {TANK,TICK,POI_R,FISH,fishById,LEVELS,levelById,newTank,kingyoTick,bowlWorth,kingyoScore,rng} from './kingyo.js';
 import {bestScore} from './trip-features.js';
@@ -20,10 +21,11 @@ const FishChip=({kind,size=26})=><svg viewBox="-9 -7 18 14" width={size} height=
 // and is only in the water while the finger is down, which is the whole of the control scheme
 // and is also exactly what your hand does at the real thing.
 export default function Kingyo({user,state,mutate,busy}){
- const [levelId,setLevelId]=useState('yon');
- const [tank,setTank]=useState(()=>newTank('yon'));
- const [going,setGoing]=useState(false);
- const pointer=useRef({x:TANK/2,y:TANK/2,down:false}),box=useRef(null),saved=useRef(null);
+ const [levelId,setLevelId]=useStored('japan.kingyo.level','yon');
+ const [tank,setTank]=useStored('japan.kingyo.tank',()=>newTank('yon'));
+ const [going,setGoing]=useStored('japan.kingyo.going',false);
+ // A tank that was already over when the screen opened had its score saved before it was kept.
+ const pointer=useRef({x:TANK/2,y:TANK/2,down:false}),box=useRef(null),saved=useRef(tank.over?tank:null);
  const rand=useRef(rng(Date.now()%100000));
  const level=levelById(levelId);
  const game=`kingyo-${level.id}`;

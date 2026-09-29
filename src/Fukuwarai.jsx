@@ -1,4 +1,5 @@
-import React,{useState,useRef} from 'react';
+import React,{useRef} from 'react';
+import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Eye,EyeOff} from 'lucide-react';
 import {FACES,faceById,PARTS,targetFor,fukuwaraiScore,verdictOf,PERFECT} from './fukuwarai-data.js';
 import {bestScore} from './trip-features.js';
@@ -39,11 +40,11 @@ const piece={
   mouth:<><ellipse rx="6" ry="4.6" fill="#b8473a" stroke={INK} strokeWidth="1.8"/><ellipse rx="2.4" ry="1.8" fill="#6e2018"/></>}
 };
 export default function Fukuwarai({user,state,mutate,busy}){
- const [faceId,setFaceId]=useState('otafuku');
+ const [faceId,setFaceId]=useStored('japan.fukuwarai.face','otafuku');
  // Three states, and they are the three a person is actually in: looking at the board, wearing
  // the blindfold, and looking at what they have done. The middle one is the game.
- const [phase,setPhase]=useState('look');
- const [placed,setPlaced]=useState({});
+ const [phase,setPhase]=useStored('japan.fukuwarai.phase','look');
+ const [placed,setPlaced]=useStored('japan.fukuwarai.placed',{});
  const board=useRef(null);
  const face=faceById(faceId);
  const blind=phase==='blind',revealed=phase==='off';

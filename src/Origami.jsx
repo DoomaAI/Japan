@@ -1,4 +1,5 @@
 import React,{useState,useRef,useEffect,useMemo} from 'react';
+import {useStored} from './stored.js';
 import {ArrowLeft,ArrowRight,Check,RotateCcw,Trophy,Hand} from 'lucide-react';
 import {ORIGAMI,modelById,stepFrames,origamiGame,foldSpec,creaseInBox,clipToSide,reflect,boundsOf} from './origami-data.js';
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
@@ -60,14 +61,13 @@ function Diagram({step,size=260}){
 // The finished thing first, then one fold at a time, swiped. A five-year-old following a
 // diagram needs one picture and one sentence on screen, not eight of each.
 export default function Origami({state,user,mutate,busy}){
- const [id,setId]=useState('');
- const [at,setAt]=useState(0);
+ const [id,setId]=useStored('japan.origami.model','');
+ const [at,setAt]=useStored('japan.origami.step',0);
  const touch=useRef(null);
  const model=modelById(id);
  const steps=useMemo(()=>model?stepFrames(model):[],[id]);
  const step=steps[Math.min(at,Math.max(0,steps.length-1))];
  const move=delta=>setAt(i=>stepIndex(Math.min(i,steps.length-1),delta,steps.length));
- useEffect(()=>{setAt(0);},[id]);
  useEffect(()=>{
   if(!model)return;
   const onKey=e=>{
@@ -81,7 +81,7 @@ export default function Origami({state,user,mutate,busy}){
   <p>Pick one and it shows you the finished thing, then one fold at a time. Swipe the picture to go on. All you need is a square of paper.</p>
   <div className="origami-picker">{ORIGAMI.map(m=>{
    const made=scoresFor(state,origamiGame(m.id));
-   return <button key={m.id} className="origami-card" onClick={()=>setId(m.id)}>
+   return <button key={m.id} className="origami-card" onClick={()=>{setId(m.id);setAt(0);}}>
     <span className="origami-icon" aria-hidden="true">{m.icon}</span>
     <strong>{m.name}</strong>
     <small lang="ja">{m.ja} · {m.romaji}</small>

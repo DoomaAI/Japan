@@ -1,4 +1,5 @@
 import React,{useState,useMemo,useEffect,useRef} from 'react';
+import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Volume2} from 'lucide-react';
 import {KARUTA_DECKS,KARUTA_SIZES,karutaRound,karutaScore,OTETSUKI} from './karuta-data.js';
 import {bestScore,scoresFor} from './trip-features.js';
@@ -10,10 +11,14 @@ import {WinBurst} from './Win.jsx';
 // there is already a matching game two buttons to the left.
 const tenths=ms=>(Math.max(0,ms)/1000).toFixed(1);
 export default function Karuta({user,state,mutate,busy}){
- const [deckId,setDeckId]=useState('hiragana'),[size,setSize]=useState(6);
- const [seed,setSeed]=useState(()=>Date.now()%100000);
- const [taken,setTaken]=useState([]),[wrong,setWrong]=useState(0),[missed,setMissed]=useState(null);
- const [started,setStarted]=useState(null),[elapsed,setElapsed]=useState(0);
+ const [deckId,setDeckId]=useStored('japan.karuta.deck','hiragana'),[size,setSize]=useStored('japan.karuta.size',6);
+ const [seed,setSeed]=useStored('japan.karuta.seed',()=>Date.now()%100000);
+ const [taken,setTaken]=useStored('japan.karuta.taken',[]),[wrong,setWrong]=useStored('japan.karuta.wrong',0),[missed,setMissed]=useState(null);
+ // The round is kept — the cards, the mistakes, when it started and when the last card went —
+ // but not the running tenths, which come back from those two moments after a reload. That is
+ // what lets a finished round still know its time, and its score, without saving a clock.
+ const [started,setStarted]=useStored('japan.karuta.started',null),[ended,setEnded]=useStored('japan.karuta.ended',null);
+ const [elapsed,setElapsed]=useState(()=>started!==null&&ended!==null?ended-started:0);
  const round=useMemo(()=>karutaRound(deckId,size,seed),[deckId,size,seed]);
  const kotowaza=round.deck.id==='kotowaza';
  const speak=useKanaVoice(!kotowaza);
@@ -36,13 +41,13 @@ export default function Karuta({user,state,mutate,busy}){
  useEffect(()=>{if(card&&started!==null)speak(card.say,`karuta-${card.id}-${taken.length}`);},[card?.id,started]);
  function reset(next={}){
   setDeckId(next.deckId??deckId);setSize(next.size??size);
-  setSeed(Date.now()%100000);setTaken([]);setWrong(0);setMissed(null);setStarted(null);setElapsed(0);
+  setSeed(Date.now()%100000);setTaken([]);setWrong(0);setMissed(null);setStarted(null);setEnded(null);setElapsed(0);
  }
  function grab(id){
   if(started===null||finished||taken.includes(id))return;
   // The clock ticks a tenth at a time for the sake of the screen, but the last card stops it
   // exactly, because that number is the score rather than something to look at.
-  if(id===calling){setTaken(t=>{const next=[...t,id];if(next.length===round.cards.length)setElapsed(Date.now()-started);return next;});setMissed(null);return;}
+  if(id===calling){setTaken(t=>{const next=[...t,id];if(next.length===round.cards.length){const now=Date.now();setElapsed(now-started);setEnded(now);}return next;});setMissed(null);return;}
   // Otetsuki. In a real game the wrong hand costs you a card you had already won; here it
   // costs points, because a five-year-old who has cards taken back off him stops playing. The
   // card flinches so he knows it cost something without having to read a number.
