@@ -703,3 +703,5 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .right-now-tile .more-tags{display:flex;gap:.2rem;flex-wrap:wrap;justify-content:center}
 .right-now-tile .more-tags .tag{font-size:.62rem;padding:.05rem .35rem}
 .right-now-tile.more-elsewhere{opacity:.6}
+.food-rate{margin:.2rem 0 .8rem;padding:.7rem .9rem}
+.food-rate .food-people{margin:.7rem 0 0}
