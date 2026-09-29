@@ -103,26 +103,45 @@ export function TravelParty({state,user,mutate,busy}){
 // Ideas already on the board, picked out for one of us or for all four, from what each person
 // ticked, tagged and voted — worked out on the phone, so it needs no signal and no API key.
 // Everyone gets it, the boys included: "what is on the board that I would like?" is theirs too.
-export function PickedFor({state,user,onOpen}){
+export function PickedFor({state,user,mutate,busy,onOpen}){
  const [who,setWho]=useState(user.role==='parent'?'':user.name);
+ // Swiping through them is a vote, and always the voter's own: right is "yes", left is
+ // "not for me". The pile is dealt once from the ideas this person has not voted on yet, so a
+ // vote landing does not reshuffle the cards still to come.
+ const [deck,setDeck]=useState(null);
  const picks=recommendIdeas(state,who);
  const filled=state.members.filter(n=>profileFilled(state,n));
+ const myVote=p=>(p.votes||{})[user.name];
+ const unvoted=recommendIdeas(state,who,{limit:20}).filter(r=>myVote(r.proposal)===undefined);
+ const vote=(r,v)=>mutate({type:'proposalVote',id:r.proposal.id,person:user.name,vote:v});
+ const live=r=>proposals(state).find(p=>p.id===r.proposal.id)||r.proposal;
+ const card=(r,actions)=>{const p=live(r),votes=Object.values(p.votes||{}).filter(v=>v===1).length;
+  return <article className="feature-card suggest-card picked-card" key={p.id}>
+   <div className="section-heading"><h4>{p.title}</h4>{!who&&<span className="tag"><Users size={12}/>{r.fans.length} of {state.members.length}</span>}</div>
+   {p.place&&<p><small>{p.place}</small></p>}
+   <ul className="picked-why">{Object.entries(r.reasons).map(([name,why])=><li key={name}><Heart size={13}/><span>{who?'':<strong>{name}: </strong>}{why.join(', ')}</span></li>)}
+    {Object.entries(r.avoid).map(([name,terms])=><li key={`x${name}`} className="picked-avoid"><AlertCircle size={13}/><span>{name} would rather avoid {terms.join(', ')}</span></li>)}</ul>
+   <div className="row wrap">{!!votes&&<span className="tag"><ThumbsUp size={12}/>{votes}</span>}{actions}</div>
+  </article>;};
  return <details className="party-panel picked-panel">
   <summary><Heart size={17}/>Picked for {who===user.name?'you':who||'all of us'}</summary>
-  <div className="segmented" role="group" aria-label="Picked for">{[['','Everyone'],...state.members.map(n=>[n,n===user.name?`${n} (you)`:n])].map(([key,label])=>
-   <button key={key||'all'} className={who===key?'selected':''} onClick={()=>setWho(key)}>{label}</button>)}</div>
+  <div className="segmented" role="group" aria-label="Picked for">{[['',"Everyone"],...state.members.map(n=>[n,n===user.name?`${n} (you)`:n])].map(([key,label])=>
+   <button key={key||'all'} className={who===key?'selected':''} onClick={()=>{setWho(key);setDeck(null);}}>{label}</button>)}</div>
   <p>{who?`Ideas up for a vote that match what ${who===user.name?'you':who} ticked, tagged or backed.`:'Ideas up for a vote that please the most of us at once, and who each one is for.'}</p>
   {!picks.length&&<p className="callout"><AlertCircle size={18}/>{!filled.length||(who&&!profileFilled(state,who))
    ?`Nothing to go on yet — fill in ${who&&who!==user.name?`${who}’s`:who?'your':'a'} profile under “Who we are, and what we like” with a few interests and likes.`
    :'Nothing up for a vote matches yet. Add an idea, or ask for suggestions.'}</p>}
-  {picks.map(r=>{const p=r.proposal,votes=Object.values(p.votes||{}).filter(v=>v===1).length;
-   return <article className="feature-card suggest-card picked-card" key={p.id}>
-    <div className="section-heading"><h4>{p.title}</h4>{!who&&<span className="tag"><Users size={12}/>{r.fans.length} of {state.members.length}</span>}</div>
-    {p.place&&<p><small>{p.place}</small></p>}
-    <ul className="picked-why">{Object.entries(r.reasons).map(([name,why])=><li key={name}><Heart size={13}/><span>{who?'':<strong>{name}: </strong>}{why.join(', ')}</span></li>)}
-     {Object.entries(r.avoid).map(([name,terms])=><li key={`x${name}`} className="picked-avoid"><AlertCircle size={13}/><span>{name} would rather avoid {terms.join(', ')}</span></li>)}</ul>
-    <div className="row wrap">{!!votes&&<span className="tag"><ThumbsUp size={12}/>{votes}</span>}<button onClick={()=>onOpen?.(p)}><ChevronRight size={16}/>See it on the board</button></div>
-   </article>;})}
+  {deck?<>
+   <SuggestDeck key={deck.round} items={deck.items} keyOf={r=>r.proposal.id} titleOf={r=>r.proposal.title} busy={busy}
+    kept={deck.items.filter(r=>myVote(live(r))===1).map(r=>r.proposal.id)}
+    onKeep={r=>vote(r,1)} onPass={r=>vote(r,-1)} onUnpass={r=>vote(r,0)}
+    keepLabel="Yes, I’m in" keepStamp="Yes" passLabel="Not for me" passStamp="Nope" keptWord="backed by you"
+    render={r=>card(r,null)}/>
+   <button onClick={()=>setDeck(null)}><X size={16}/>Back to the list</button>
+  </>:<>
+   {!!unvoted.length&&<button className="primary" onClick={()=>setDeck({items:unvoted,round:Date.now()})}><ThumbsUp size={16}/>Swipe to vote · {unvoted.length} you have not voted on</button>}
+   {picks.map(r=>card(r,<button onClick={()=>onOpen?.(r.proposal)}><ChevronRight size={16}/>See it on the board</button>))}
+  </>}
  </details>;
 }
 // Ideas for a place, in the flavours asked for — the famous ones, the ones nobody finds on their

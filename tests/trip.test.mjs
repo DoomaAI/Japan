@@ -10172,7 +10172,7 @@ test('suggested ideas come one card at a time: swipe right to put one on the boa
  assert.match(deck,/e\.key==='ArrowLeft'\)\{e\.preventDefault\(\);decide\(-1\)/);
  assert.match(deck,/className="deck-pass"[^>]*onClick=\{\(\)=>decide\(-1\)\}/);
  assert.match(deck,/className="deck-keep"[^>]*onClick=\{\(\)=>decide\(1\)\}/);
- assert.match(deck,/onClick=\{\(\)=>setPassed\(p=>p\.slice\(0,-1\)\)\}/);
+ assert.match(deck,/className="deck-undo"[^>]*onClick=\{undo\}/);
  assert.match(deck,/Go through the \{passed\.length\} passed again/);
  // A drag that starts on a button presses the button instead.
  assert.match(deck,/e\.target\.closest\?\.\(PRESSABLE\)\)return/);
@@ -10182,4 +10182,23 @@ test('suggested ideas come one card at a time: swipe right to put one on the boa
  assert.match(party,/onClick=\{\(\)=>add\(item,true\)\}><Search size=\{16\}\/>Add and look it up/);
  // Up and down still scroll the page with a finger on the card.
  assert.match(css,/\.deck-card\.top\{touch-action:pan-y/);
+});
+
+test('picked-for ideas can be swiped through as a vote: right is yes, left is not for me',async()=>{
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ const deck=await readFile(new URL('../src/SuggestDeck.jsx',import.meta.url),'utf8');
+ const planning=await readFile(new URL('../src/Planning.jsx',import.meta.url),'utf8');
+ // The vote is always the voter's own, and taking back a pass takes back the vote.
+ assert.match(party,/const vote=\(r,v\)=>mutate\(\{type:'proposalVote',id:r\.proposal\.id,person:user\.name,vote:v\}\)/);
+ assert.match(party,/onKeep=\{r=>vote\(r,1\)\} onPass=\{r=>vote\(r,-1\)\} onUnpass=\{r=>vote\(r,0\)\}/);
+ // Dealt once from what this person has not voted on, so a vote landing does not reshuffle it.
+ assert.match(party,/filter\(r=>myVote\(r\.proposal\)===undefined\)/);
+ assert.match(party,/setDeck\(\{items:unvoted,round:Date\.now\(\)\}\)/);
+ assert.match(planning,/<PickedFor state=\{state\} user=\{user\} mutate=\{mutate\} busy=\{busy\}/);
+ // A pass or an undo that did not save leaves the card where it was.
+ assert.match(deck,/if\(!onPass\|\|await onPass\(top\)!==false\)setPassed/);
+ assert.match(deck,/onUnpass&&item&&await onUnpass\(item\)===false\)\)return;/);
+ // The boys vote too, including with no signal.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/'proposalAdd','proposalVote'/);
 });
