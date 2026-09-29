@@ -1,9 +1,11 @@
 import React,{useState} from 'react';
-import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split} from 'lucide-react';
+import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split,MapPin,LocateFixed,Tag} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf} from './trip-features.js';
+import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf,rankByParty,travelText,COORD_PLACES} from './trip-features.js';
+import {activeSteps} from './timing.js';
+import {askPhoneWhereItIs} from './geo.js';
 import {photoUrl} from './PhotoDay.jsx';
-import {SuggestDeck} from './SuggestDeck.jsx';
+import {SuggestDeck,PartyMatch} from './SuggestDeck.jsx';
 const kindLabel=id=>(PROPOSAL_KINDS.find(([key])=>key===id)||PROPOSAL_KINDS.at(-1))[1];
 const flavourLabel=id=>(SUGGEST_KINDS.find(([key])=>key===id)||SUGGEST_KINDS[1])[1];
 // Who is going, and what each of them would actually want out of a day. The boys fill in their
@@ -151,6 +153,19 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
  const [scope,setScope]=useState(day?`d:${day}`:'');
  const [elsewhere,setElsewhere]=useState(''),[kinds,setKinds]=useState(['landmark','unique']),[count,setCount]=useState(6);
  const [forWhom,setForWhom]=useState('');
+ // Where the day starts from. With one, "ideas for Tokyo" becomes "what should we do around
+ // here", and every card says how far away it is.
+ const scopeDay=scope.startsWith('d:')?state.days.find(d=>d.date===scope.slice(2)):null;
+ const dayStops=scopeDay?activeSteps(state,scopeDay.date).filter(s=>s.place||s.title):[];
+ const [start,setStart]=useState(''),[startText,setStartText]=useState(''),[coords,setCoords]=useState(null),[locating,setLocating]=useState(false);
+ const startStop=start.startsWith('s:')?state.steps.find(s=>s.id===start.slice(2)):null;
+ const near=start==='hotel'?scopeDay?.hotel:startStop?(startStop.place||startStop.title):start==='me'&&coords?`the phone's position, ${coords.lat}, ${coords.lng}${scopeDay?` in ${scopeDay.city}`:''}`:start==='text'?startText.trim():'';
+ async function locate(){
+  setLocating(true);setError('');
+  try{setCoords(await askPhoneWhereItIs(COORD_PLACES));setStart('me');}
+  catch(e){setError(`${e.message}. Choose a planned place instead.`);}
+  finally{setLocating(false);}
+ }
  // "Something else instead": a stop on the plan, and who would rather not do it.
  const [mode,setMode]=useState('ideas'),[altDay,setAltDay]=useState(day||state.days[0]?.date||''),[stopId,setStopId]=useState(''),[sitting,setSitting]=useState([]);
  const stops=sitOutStops(state,altDay),stop=stops.find(s=>s.id===stopId)||null,rejoin=stop?rejoinAt(state,stop):null;
@@ -170,6 +185,7 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
    if(mode==='instead'){setResult(await request('suggest',{instead:{stepId:stop.id,who:sitting},count:Number(count)}));return;}
    const body={kinds,count:Number(count)};
    if(forWhom)body.forWhom=forWhom;
+   if(near)body.near=near;
    if(scope.startsWith('d:'))body.day=scope.slice(2);
    else if(scope.startsWith('c:'))body.city=scope.slice(2);
    else body.city=elsewhere;
@@ -197,6 +213,8 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
  // Right on the deck is the main thing the panel was asked for: onto the board, or, when some of
  // us are sitting a stop out and the rest carry on, straight onto the day as a split.
  const splitting=!!(result?.instead?.staying.length&&!insteadGone);
+ // Dealt with the ones that please the most of us on top; the model's own order breaks a tie.
+ const ranked=result?rankByParty(result.suggestions,state,i=>i.draft):[];
  return <details className="party-panel suggest-panel">
   <summary><Sparkles size={17}/>Suggest some ideas</summary>
   <p>Built from who is going and what each of us said we are into{filled.length?` — ${filled.join(', ')} so far`:''}. {filled.length<state.members.length&&<strong>Fill in the rest above and these get sharper.</strong>}</p>
@@ -215,12 +233,22 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
    <label>How many<select value={count} onChange={e=>setCount(e.target.value)}>{[4,6,8].map(n=><option key={n}>{n}</option>)}</select></label>
    <button className="primary" disabled={working||!stop||!sitting.length}><Split size={17}/>{working?'Thinking, and checking what is near…':'Suggest something else'}</button>
   </form>:<form onSubmit={ask}>
-   <label>Where<select value={scope} onChange={e=>setScope(e.target.value)}>
+   <label>Where<select value={scope} onChange={e=>{setScope(e.target.value);if(start==='hotel'||start.startsWith('s:'))setStart('');}}>
     <option value="">Somewhere else…</option>
     <optgroup label="A day on the trip">{state.days.map(d=><option key={d.date} value={`d:${d.date}`}>{dayLabel(d.date)} · {d.city} · {d.title}</option>)}</optgroup>
     <optgroup label="Anywhere in">{cities.map(c=><option key={c} value={`c:${c}`}>{c}</option>)}</optgroup>
    </select></label>
    {!scope&&<label>Which place?<input value={elsewhere} onChange={e=>setElsewhere(e.target.value)} maxLength={120} placeholder="Nara · Gion after dark · near Tokyo Station"/></label>}
+   {scopeDay&&!dayStops.length&&<p className="callout"><Sparkles size={18}/>Nothing is planned for {dayLabel(scopeDay.date)} yet. Say where the day starts and these become what to do around there.</p>}
+   <label>Starting from<select value={start} onChange={e=>{const v=e.target.value;setStart(v);if(v==='me'&&!coords)locate();}}>
+    <option value="">Anywhere{scopeDay?` in ${scopeDay.city}`:''} — no distances</option>
+    {scopeDay?.hotel&&<option value="hotel">That night’s hotel · {scopeDay.hotel}</option>}
+    {dayStops.map(s=><option key={s.id} value={`s:${s.id}`}>{s.time?`${s.time} · `:''}{s.title}</option>)}
+    <option value="me">Where I am now</option>
+    <option value="text">Somewhere I’ll type…</option>
+   </select></label>
+   {start==='text'&&<label>Where?<input value={startText} onChange={e=>setStartText(e.target.value)} maxLength={200} placeholder="Shibuya Station · our Airbnb in Asakusa"/></label>}
+   {start==='me'&&<p><small>{locating?'Finding you…':coords?<><LocateFixed size={13}/> Using your position, rounded to about a hundred metres. <button type="button" onClick={locate}>Update</button></>:<button type="button" onClick={locate}><LocateFixed size={14}/>Use my position</button>}</small></p>}
    <fieldset><legend>What kind of thing</legend><div className="chips">{SUGGEST_KINDS.map(([id,label])=><label className={`chip ${kinds.includes(id)?'on':''}`} key={id}><input type="checkbox" checked={kinds.includes(id)} onChange={()=>toggle(id)}/>{label}</label>)}</div></fieldset>
    <label>For<select value={forWhom} onChange={e=>setForWhom(e.target.value)}>
     <option value="">All of us — what most of us like</option>
@@ -234,7 +262,7 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
   {result&&<div className="suggest-results">
    <h3>{result.instead?`${result.suggestions.length} things ${result.instead.who.join(' and ')} could do instead of ${result.instead.title}`:`${result.suggestions.length} ideas for ${result.forWhom?`${result.forWhom} in `:''}${result.where}`}</h3>
    {result.note&&<p className="callout"><AlertCircle size={18}/>{result.note}</p>}
-   <SuggestDeck key={round} items={result.suggestions} keyOf={item=>item.draft.title} kept={added} busy={busy}
+   <SuggestDeck key={round} items={ranked} keyOf={item=>item.draft.title} kept={added} busy={busy}
     onKeep={splitting?splitOff:item=>add(item,false)}
     keepLabel={splitting?`Split the day: ${result.instead.who.join(' and ')} do this`:'Put it on the board'} keepStamp={splitting?'Split':'On the board'}
     passLabel="Pass" keptWord={splitting?'split off':'on the board'}
@@ -242,9 +270,11 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
      <div className="section-heading"><div><span className="eyebrow">{flavourLabel(item.flavour)}</span><h4>{item.draft.title}</h4></div></div>
      {item.draft.place&&<p><small>{item.draft.place}{item.draft.japanese&&<span lang="ja"> · {item.draft.japanese}</span>}</small></p>}
      <p className="suggest-why">{item.why}</p>
+     <PartyMatch fit={item.fit} members={state.members} top={item===ranked[0]}/>
      <p>{item.draft.notes}</p>
      <div className="plan-facts">
-      <span>{kindLabel(item.draft.category)}</span>
+      {item.travelMinutes!=null&&<span className="suggest-travel"><MapPin size={14}/>{travelText(item.travelMinutes,item.travelMode,result.from)}</span>}
+      <span><Tag size={14}/>{kindLabel(item.draft.category)}</span>
       {!!item.draft.duration&&<span><Clock size={14}/>About {item.draft.duration} min</span>}
       {item.draft.cost!==null&&<span><Coins size={14}/>Around ¥{item.draft.cost.toLocaleString()}{item.draft.costNote?` · ${item.draft.costNote}`:''}</span>}
       {item.bookAhead&&<span>Usually booked ahead</span>}
