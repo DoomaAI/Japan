@@ -12,7 +12,7 @@ const NET_WAIT=4000;
 self.addEventListener('fetch',event=>{
  const u=new URL(event.request.url);if(event.request.method!=='GET'||u.origin!==self.location.origin)return;
  if(u.pathname.startsWith('/api/')){
-  if(!['/api/guide','/api/document'].includes(u.pathname))return;
+  if(!['/api/guide','/api/document','/api/vault','/api/vault-file'].includes(u.pathname))return;
   event.respondWith(fetch(event.request).catch(async()=>{const c=await caches.open(PRIVATE);return await c.match(event.request)||new Response('Not saved offline',{status:503});}));return;
  }
  // Network first, but not network only: if it has not answered in NET_WAIT the saved copy opens

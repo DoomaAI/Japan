@@ -8,6 +8,7 @@ The production frontend builds and the automated model/API checks pass. No GitHu
 
 ## Changed on the road, 29 September 2026
 
+- **Passports & visas, for Mum and Dad only.** Under More → The plan. Each passport, visa, driving licence or insurance policy: the number, the name as printed, dates, and photos or PDFs of the pages. Everything is encrypted with AES-256-GCM under `VAULT_KEY` before it is stored — details in Neon, photos in private Blob — and kept out of the trip itself, so it is never sent to the boys’ phones, never in the itinerary backup and never read by Ask. Numbers show only their last three characters until the eye is pressed, and everything hides again when the app is left or after two minutes. A passport running out before the flight home, or within six months of it, is flagged. A copy can be kept on a phone for no signal; **Sign out and clear this phone** removes it. Set `VAULT_KEY` (`openssl rand -hex 32`) in Vercel and keep a copy of it somewhere safe: without that key nothing stored can be opened.
 - **Home opens on today.** A phone put down on an earlier day opens on today, a stop that has since been finished is let go of, and the day moves on when the date turns while the app is in the background.
 - **Leave-by, retired and promoted.** Once a fixed booking's own time has passed its card says so and asks for a tick, instead of counting minutes overdue. From two hours before a departure until a quarter of an hour after it, the top-bar clock becomes a countdown that opens the booking.
 - **Sync that recovers.** Any answer from the server clears Offline, the fifteen-second check runs whatever the bar says and sends waiting changes first, and a **Sync now** button shows the last confirmed time. A plan that moved on while a phone was out of signal is replayed against rather than stopped at. Discarding pending updates and signing out with unsynced changes both ask first.
@@ -108,6 +109,7 @@ The shortcut icon is the guide's own cover — the title block, with Mount Fuji,
 | --- | --- |
 | `DATABASE_URL` | Neon Postgres connection; server only |
 | `BLOB_READ_WRITE_TOKEN` | Private Vercel Blob access; server only |
+| `VAULT_KEY` | 64 hex characters; encrypts Passports & visas. Keep a copy offline: lose or change it and stored documents cannot be opened |
 | `APP_ORIGIN` | Exact production HTTPS origin; no trailing slash |
 | `ANTHROPIC_API_KEY` | Optional. Switches on the features that call the Claude API — reading a menu from a photo, reading a document into English, judging the photo of the day, translating a phrase of our own, looking a planning-board idea up on the web, suggesting ideas for a place, asking what is near here, asking a general question about the trip, and reading the sumo card and its wrestlers; server only, never prefixed `VITE_` |
 | `EMAIL_INBOX_SECRET` | Optional. The secret your mail provider puts in the inbound webhook URL. Without it `/api/email-in` answers 404 to everything; server only |
