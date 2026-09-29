@@ -7,6 +7,7 @@ import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {IC_MAX,RECEIPT_TYPES} from '../src/ledger-data.js';
+import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
@@ -46,6 +47,32 @@ export function extraOperation(state,op,user,fail,now){
   if(!Number.isInteger(op.yen)||op.yen<0||op.yen>IC_MAX)fail(`Enter the balance as whole yen, up to ¥${IC_MAX.toLocaleString()}.`);
   state.icCards={...(state.icCards||{}),[op.person]:{yen:op.yen,at:now,by:user.name}};
   return {summary:null,important:false,title:`${op.person}’s IC card: ¥${op.yen.toLocaleString()}`};
+ }
+ // A parent's question and its answer, kept in the trip for the other parent. The item arrives
+ // from the phone that asked, so every field is cut to size and every day and link checked; the
+ // model's own blocks were never in it. Newest first, a couple of dozen kept.
+ if(op.type==='askKeep'){
+  if(!parent)fail('The shared questions are the parents’.',403);
+  const it=op.item;if(!it||typeof it!=='object'||!string(it.id,60)||!it.id||!string(it.question,ASK_LIMIT)||!it.question.trim())fail('Nothing to keep.');
+  const cut=(v,max)=>String(v??'').trim().slice(0,max);
+  const at=Number.isFinite(Date.parse(it.at))?new Date(it.at).toISOString():now;
+  if(it.about!==null&&it.about!==undefined)dayCheck(it.about);
+  if(it.step&&!state.steps.some(s=>s.id===it.step))fail('That stop is no longer on the plan.');
+  const https=v=>{try{const u=new URL(v);return u.protocol==='https:'?u.href:null;}catch{return null;}};
+  const item={id:it.id,at,by:user.name,question:cut(it.question,ASK_LIMIT),verdict:cut(it.verdict,240),answer:cut(it.answer,4000),
+   because:(Array.isArray(it.because)?it.because:[]).map(l=>cut(l,400)).filter(Boolean).slice(0,6),
+   days:[...new Set((Array.isArray(it.days)?it.days:[]).filter(d=>state.days.some(x=>x.date===d)))].slice(0,8),
+   checkFirst:cut(it.checkFirst,800),
+   sources:(Array.isArray(it.sources)?it.sources:[]).map(x=>({title:cut(x?.title,200),url:https(x?.url)||''})).filter(x=>x.url).slice(0,6),
+   about:it.about||null,step:it.step||null,searches:Number.isInteger(it.searches)&&it.searches>=0?it.searches:0};
+  state.askThread=[item,...(state.askThread||[]).filter(x=>x.id!==item.id)].slice(0,SHARED_KEEP);
+  return {summary:null,important:false,title:item.question};
+ }
+ if(op.type==='askForget'){
+  if(!parent)fail('The shared questions are the parents’.',403);
+  const ids=Array.isArray(op.ids)?op.ids.map(String):[];if(!ids.length)fail('Nothing to clear.');
+  state.askThread=(state.askThread||[]).filter(x=>!ids.includes(x.id));
+  return {summary:null,important:false,title:`${ids.length} question${ids.length>1?'s':''} cleared`};
  }
  if(op.type==='allergySet'){
   if(!parent)fail('A parent keeps the allergy cards.',403);
