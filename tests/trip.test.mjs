@@ -9934,3 +9934,36 @@ test('one sentence, said or typed, becomes a to-do the plain way when Claude is 
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/<TodoList [^\n]*request=\{request\} online=\{online&&!!config\?\.capture\}/);
 });
+
+test('a Shortcut, Siri or the Action button can open the app straight onto one job',async()=>{
+ const {DEEP_LINKS,deepLinkUrl,deepLinkAction,withoutDeepLink}=await import('../src/deep-links.js');
+ // Every link is a plain query on the front door, and the ones that take a value say so.
+ for(const l of DEEP_LINKS){assert.match(l.path,/^\/\?[a-z]+=/,l.id);assert.ok(l.label&&l.how,l.id);}
+ assert.equal(deepLinkUrl(DEEP_LINKS.find(l=>l.id==='todo-add'),'https://japan.example'),'https://japan.example/?tab=todo&add=');
+ assert.equal(deepLinkUrl(DEEP_LINKS.find(l=>l.id==='allergy'),'',"Nate"),'/?tab=allergy&who=Nate');
+ // A dictated line becomes a to-do request, cut to what the box takes; the rest map to their sheet.
+ assert.deepEqual(deepLinkAction('?tab=todo&add=buy%20Nate%20a%20hat'),{type:'todoAdd',text:'buy Nate a hat'});
+ assert.equal(deepLinkAction('?tab=todo&add='+'x'.repeat(400)).text.length,300);
+ assert.deepEqual(deepLinkAction('?tab=todo&say=1'),{type:'todoSay'});
+ assert.deepEqual(deepLinkAction('?open=nearby&need=toilet'),{type:'nearby',need:'toilet'});
+ assert.deepEqual(deepLinkAction('?open=nearby&need=unicorns'),{type:'nearby',need:null},'a kind Nearby does not know is dropped, not passed on');
+ assert.deepEqual(deepLinkAction('?open=hotel'),{type:'hotel'});
+ assert.deepEqual(deepLinkAction('?open=capture'),{type:'capture'});
+ assert.equal(deepLinkAction('?tab=todo&day=2026-09-30'),null,'an ordinary page is not an action');
+ // Once done, the action comes out of the address and the page stays.
+ assert.equal(withoutDeepLink('?tab=todo&add=hat&day=2026-09-30'),'/?tab=todo&day=2026-09-30');
+ assert.equal(withoutDeepLink('?open=hotel'),'/');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/land\(e\.state\);arrive\(e\.state\);/,'the action runs once the plan is here');
+ assert.match(main,/land\(s\);arrive\(s\);/,'and from the phone’s own copy when there is no signal');
+ assert.match(main,/history\.replaceState\(null,'',withoutDeepLink\(location\.search\)\)/,'and is taken out of the address so a reload does not repeat it');
+ assert.match(main,/setModal\(\{type:'nearby',need:action\.need\}\)/);
+ assert.match(main,/who=\{new URLSearchParams\(location\.search\)\.get\('who'\)\}/,'the allergy card can be opened on a named person');
+ const nearby=await readFile(new URL('../src/Nearby.jsx',import.meta.url),'utf8');
+ assert.match(nearby,/need\?\[need\]:\['food'\]/,'Nearby arrives with the asked-for kind ticked');
+ const todo=await readFile(new URL('../src/TodoList.jsx',import.meta.url),'utf8');
+ assert.match(todo,/if\(first\.text\)sortIt\(\);else if\(first\.focus\)box\.current\?\.focus\(\)/,'a dictated line is sorted out on arrival; a bare say-it puts the cursor in the box');
+ const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
+ assert.match(settings,/<DeepLinks notice=\{notice\}\/>/,'the addresses are listed in Settings with Copy, for every phone');
+ assert.match(settings,/DEEP_LINKS\.map\(link=>/);
+});

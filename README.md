@@ -19,6 +19,7 @@ The production frontend builds and the automated model/API checks pass. No GitHu
 - **Small things.** Packing shows who packed each item and when. New to-dos start on the day being viewed. Four selects no longer zoom the page on iOS. The app warns a fortnight before a family link expires.
 
 - **Just say it.** The To-do list has a box at the top that takes one line, typed or dictated: "buy Nate a rain poncho tomorrow at the konbini". With signal and a key, Claude fills in the title, the kind, who it is for, the day and the notes; without either, the phone's own parser does what it can (buy words, names, today, tomorrow, weekdays, cities, "the 3rd"). Either way the result opens in the ordinary form to be checked before it is saved.
+- **Shortcuts, Siri and the Action button.** Settings lists addresses that do one thing on opening: add a to-do from dictated words (`/?tab=todo&add=…`), open the list ready to listen, the nearest toilet, convenience store or somewhere to eat, directions to tonight’s hotel, Quick capture, the allergy card for a named person, and the safety card. Paste one into a Shortcut’s Open URLs, name it, and Siri runs it by name. The action is done once and taken out of the address.
 
 ## Included
 

@@ -1,9 +1,10 @@
 import React,{useState} from 'react';
-import {MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy} from 'lucide-react';
+import {MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
 import {BarShortcuts} from './Personalise.jsx';
 import {CARD_LINKS,linkOrder,stepLink} from './card-links.js';
+import {DEEP_LINKS,deepLinkUrl} from './deep-links.js';
 const ICONS={dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
@@ -89,6 +90,23 @@ function FollowLink({request,notice}){
   <p><small>Anyone holding the link can see the photos, so send it only to people you would show them to.</small></p>
  </section>;
 }
+// The addresses a Shortcut can open. iOS gives a web app no widget and no share-sheet entry,
+// but the Shortcuts app opens an address, Siri runs a Shortcut by name, and the Action button
+// runs one on a press; so these are the way "Hey Siri, Japan to-do" gets made.
+function DeepLinks({notice}){
+ const origin=typeof location!=='undefined'?location.origin:'';
+ const copy=async link=>{const url=deepLinkUrl(link,origin);try{await navigator.clipboard.writeText(url);notice?.(`Copied. In Shortcuts, add “Open URLs” and paste it${link.takes?`, then add ${link.takes} on the end`:''}.`);}catch{notice?.(url);}};
+ return <section className="settings-section">
+  <h2>Shortcuts, Siri and the Action button</h2>
+  <p>Each of these is an address that does one thing the moment the app opens. In the Shortcuts app make a new shortcut, add <strong>Open URLs</strong>, paste the address, and give it a name: Siri then runs it by that name, and on an iPhone 15 Pro or later it can go on the Action button too.</p>
+  <ul className="deep-links">{DEEP_LINKS.map(link=><li key={link.id}>
+   <span className="more-icon" aria-hidden="true"><Zap size={18}/></span>
+   <span><strong>{link.label}</strong><small>{link.how}</small><code>{deepLinkUrl(link,origin)}{link.takes?'…':''}</code></span>
+   <button type="button" aria-label={`Copy the address for ${link.label}`} onClick={()=>copy(link)}><Copy size={16}/></button>
+  </li>)}</ul>
+  <p><small>The address only opens on a phone already signed in to the trip; on any other phone it shows the front door.</small></p>
+ </section>;
+}
 export default function Settings({user,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice,config}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR CHOICE</p>
@@ -109,6 +127,7 @@ export default function Settings({user,settings,change,navPrefs,setNavPrefs,link
   {request&&<Notifications config={config} request={request} notice={notice} user={user}/>}
   {user?.role==='parent'&&request&&<TripCalendar request={request} notice={notice}/>}
   {user?.role==='parent'&&request&&<FollowLink request={request} notice={notice}/>}
+  <DeepLinks notice={notice}/>
   {setNavPrefs&&<section className="settings-section"><BarShortcuts user={user} prefs={navPrefs} setPrefs={setNavPrefs}/></section>}
   {setLinkPrefs&&<section className="settings-section"><StopButtonOrder prefs={linkPrefs} setPrefs={setLinkPrefs}/></section>}
   <p><small>Remembered on this phone under your own name, so it takes effect with no signal and changes nothing for anybody else. Turning one back on brings it straight back, starting with today’s if you have not already marked it; nothing you have already seen is ever offered twice.</small></p>
