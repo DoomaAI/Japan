@@ -28,8 +28,18 @@ export function locationsForPage(state,page){
 }
 
 // Use the activity's own wording first; linked catalogue names enrich existing trips.
+// Places the catalogue leaves unlinked on purpose — stations, broad areas, a shop inside a bigger
+// complex — keep their Japanese in a table of their own, looked up by the stop's place name.
+export function placeJapanese(state,place){
+ const table=state?.placeJapanese||{};
+ if(!place)return null;
+ if(Object.hasOwn(table,place))return table[place];
+ const key=locationKey(place);
+ const match=key&&Object.keys(table).find(name=>locationKey(name)===key);
+ return match?table[match]:null;
+}
 export function showLocationDetails(state,step){
- const location=resolveLocation(state,step);
+ const location=resolveLocation(state,step)||placeJapanese(state,step?.place);
  const english=step?.place||location?.name||step?.title||'';
  const japanese=step?.japanese?.trim()||location?.japanese||'';
  // The Japanese address is what a taxi driver types into the car's navigation; the English
