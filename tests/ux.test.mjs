@@ -37,4 +37,15 @@ test('no text is set below 12px, outside game boards and the drawn day map',asyn
     assert.ok((u==='rem'?Number(v)*16:Number(v))>=12,`${f}: ${sel.trim().slice(-60)} is ${v}${u}`);
   }
  }
+ // The printed guide is sized from one base: 16px on screen, 10pt on paper. Every size is a
+ // multiple of it, never compounded, so its smallest on screen is 12px and on paper 7.5pt.
+ const guide=await source('travel-guide.css');
+ assert.match(guide,/\.travel-guide\{--tg-base:16px;/);
+ for(const [,sel,body] of guide.matchAll(/([^{}]+)\{([^{}]*)\}/g)){
+  if(sel.includes('.tg-map-'))continue;
+  for(const [,size] of body.matchAll(/font-size:([^;]+)/g)){
+   const k=size.match(/var\(--tg-base\) \* (\d*\.?\d+)\)/);
+   assert.ok(k?Number(k[1])>=.75:/^(var\(--tg-base\)|10pt|\.9\d?rem)$/.test(size.trim()),`travel-guide.css: ${sel.trim().slice(-50)} is ${size}`);
+  }
+ }
 });

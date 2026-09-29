@@ -50,6 +50,7 @@ import Stamps from './Stamps.jsx';
 import Leaderboard from './Leaderboard.jsx';
 import RecapStory from './RecapStory.jsx';
 import Photobook from './Photobook.jsx';
+import TravelGuide from './TravelGuide.jsx';
 import Predictions from './Predictions.jsx';
 import Arrival from './Arrival.jsx';
 import TripShop from './TripShop.jsx';
@@ -106,6 +107,7 @@ import SplitDay,{WhoseDay} from './SplitDay.jsx';
 import './style.css';
 import './stages.css';
 import './guide-theme.css';
+import './travel-guide.css';
 // The map library is only fetched when the map is opened, so every other screen stays as quick.
 const MemoryMap=lazy(()=>import('./MemoryMap.jsx'));
 
@@ -684,6 +686,7 @@ function App(){
   {tab==='arrival'&&<Arrival homeFirst={japanDate(now)>=(state.days[0]?.date||'')}/>}
   {tab==='predictions'&&<Predictions state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy}/>}
   {tab==='book'&&<Photobook state={visibleState} dayLabel={fmtDay}/>}
+  {tab==='printguide'&&<TravelGuide state={visibleState} today={japanDate(now)} dayLabel={fmtDay}/>}
   {tab==='recap'&&<RecapStory key={day} state={visibleState} user={user} today={japanDate(now)} dayLabel={fmtDay} go={go}/>}
   {tab==='leaderboard'&&<Leaderboard state={visibleState} user={user} go={go}/>}
   {tab==='stamps'&&<Stamps state={visibleState} user={user} today={japanDate(now)} dayLabel={fmtDay} go={go}/>}

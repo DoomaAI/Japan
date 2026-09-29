@@ -390,6 +390,37 @@ test('the day map is drawn from positions the trip holds, needs no network, and 
  const src=await readFile(new URL('../src/DayMap.jsx',import.meta.url),'utf8');
  assert.doesNotMatch(src,/fetch\(|tile\.openstreetmap|https?:\/\//,'nothing in the map comes from the network');
 });
+test('the printed guide is rebuilt from the plan in the original guide’s order',async()=>{
+ const {travelGuide,stays,glance,cropFrame,guideDays,HOTEL_ART}=await import('../src/travel-guide-data.js');
+ const state=upgraded(seed);
+ // Nights, not days: the last day of the trip is the day we leave, so the Hilton is five nights.
+ assert.deepEqual(stays(state).map(s=>[s.hotel,s.nights,s.from,s.to,s.city]),[
+  ['1 Hotel Tokyo',3,'2026-09-21','2026-09-24','Tokyo'],['Hotel Kanra Kyoto',5,'2026-09-24','2026-09-29','Kyoto'],
+  ['Fantasy Springs Hotel',2,'2026-09-29','2026-10-01','Disney Resort'],['Hilton Tokyo',5,'2026-10-01','2026-10-06','Tokyo']]);
+ for(const s of stays(state))assert.ok(HOTEL_ART[s.hotel],`${s.hotel} has its picture from page 13`);
+ const g=travelGuide(state,{printedOn:'29 September 2026'});
+ assert.equal(g.chapters.length,16);assert.equal(g.nights,15);assert.equal(g.whole,true);
+ assert.deepEqual(g.legs.map(l=>l.city),['Tokyo','Kyoto','Disney Resort','Tokyo']);
+ assert.equal(g.phrases.length,6);assert.ok(g.phrases.every(p=>p.ja&&p.say&&p.en));
+ const tue=g.chapters[1];
+ assert.equal(tue.eyebrow,'TOKYO / TUESDAY 22 SEPTEMBER');
+ assert.deepEqual(tue.banner&&{page:tue.banner.page,y:tue.banner.y},{page:20,y:0},'the banner is the top of the day’s first original page');
+ assert.ok(tue.glance.length<=5&&tue.glance.some(x=>x.title==='SHIBUYA SKY'&&x.fixed),'the booked time is always at a glance');
+ assert.deepEqual(tue.items.map(i=>i.n),tue.items.map((_,k)=>k+1));
+ // The sketch map numbers its marks as the steps are numbered, so the two can be read together.
+ if(tue.map)for(const m of tue.map.marks)for(const s of m.stops)assert.equal(tue.items[s.n-1].id,s.id);
+ assert.ok(!/^(breakfast|head to|walk to|return)/i.test(tue.lede.split(' · ')[0]),'the line under the title is what the day is for');
+ // A skipped stop is not printed, and a chosen option replaces the others.
+ const edited=upgraded(seed);edited.steps.find(s=>s.title==='Kiddy Land').status='skipped';
+ assert.ok(!travelGuide(edited).chapters[1].items.some(i=>i.title==='Kiddy Land'));
+ assert.deepEqual(guideDays(state,{range:'ahead',today:'2026-10-04'}).map(d=>d.date),['2026-10-04','2026-10-05','2026-10-06']);
+ assert.equal(travelGuide(state,{range:'day',day:'2026-09-24'}).chapters[0].moving,true,'a hotel change is said');
+ assert.ok(g.checks.some(c=>/Qantas/.test(c)),'what the plan itself says to check goes in the front');
+ // A crop is the page scaled inside a frame of the piece's shape.
+ const f=cropFrame({x:.5,y:.25,w:.5,h:.25});
+ assert.equal(f.width,200);assert.equal(f.left,-100);assert.equal(f.top,-100);assert.ok(Math.abs(f.ratio-(.5*1247)/(.25*1800))<1e-9);
+ assert.deepEqual(glance([{time:'08:00'},{time:'09:00',kind:'optional'},{time:'10:00',locked:true},{time:'11:00'},{time:'12:00',kind:'optional'},{time:'13:00'},{time:'14:00'}]).map(s=>s.time),['08:00','10:00','11:00','13:00','14:00']);
+});
 test('the trip shop orders the essentials by lead time, and every link leaves through one seam',async()=>{
  const shop=await import('../src/shop-data.js');
  const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');

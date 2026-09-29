@@ -25,6 +25,22 @@ The trip has a before, a during and an after, and each should give the family a 
 | 14 | Hunt picks — Done | Before | The boys choose the hunts they want to do before they land |
 | 15 | Trip shop — Done | Before and after | The essentials pack (adapters, cash, eSIMs, IC cards) by lead time, and keepsakes made from the trip; commercial seams logged in [commercialisation.md](commercialisation.md) |
 
+## Printable travel guide — logged 29 September 2026
+
+The original 72-page guide was designed once, from the plan as it stood before we flew. The plan has moved on since. This rebuilds the guide from the plan as it stands, in the original's structure and design, so an edited day prints as it now is.
+
+| Original pages | Rebuilt as | From |
+|---|---|---|
+| 1 Cover | The original cover, with an edition line (days, nights, dates, printed on) | Cover image, trip dates |
+| 13 Where we're staying | Our journey strip; a card per hotel with nights, dates, English and Japanese names and addresses, and its photograph cut from page 13 | Days' hotels, map locations |
+| 14–17 Trip summary | The trip at a glance: every day, where, the day's title, what is booked to a time, the hotel | Days and fixed steps |
+| 2–3 Before you go, phrases | Check before relying on it (plan notices and review steps); if you only remember six phrases | Notices, phrasebook |
+| 19–72 Day chapters | Banner cut from the day's first original page; the day at a glance (up to five times, bookings always kept); numbered steps with times, places in Japanese, Booked / If time / Check flags and short notes; a sketch map numbered as the steps; a tip from our notes; the day's bookings; tonight's hotel; our photos from the day, or thumbnails of the original pages | Active steps (choices applied, skipped left out), documents, day map, photos |
+| — | Keep this page: emergency and consular numbers, every hotel in Japanese to show a driver | Safety data, map locations |
+
+Status: Done. Whole trip, from today on, or one day; toggles for original artwork, sketch maps and the front/back pages. Checked in headless Chromium: 20 sheets, 38 A4 pages for the whole trip.
+
+Not yet done, for a later pass: per-day banner crops that avoid the original's baked-in titles; editorial pages (food, matcha, shopping, etiquette) generated from the hunts, food list and shortlist; page numbers in a running footer (browser print support for these is uneven, Safari especially); a server-side PDF so the file can be sent without a browser print dialog.
 ## To come back to — logged 30 September 2026
 
 **Passports & visas (#230)** is merged but switched off until the key is set, and has not been tried on a real phone.
