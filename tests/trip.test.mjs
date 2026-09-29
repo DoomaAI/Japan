@@ -1035,75 +1035,107 @@ test('ticking off an activity ticks off the bookings that got us in, and undoing
 });
 
 test('daily thank-you notes schedule one note per trip day, honour pins and reorder',async()=>{
- const {ensureFeatures,thankYouSchedule,thankYouForDay,thankYouNotes,thankYouSpares,initialThankYou}=await import('../src/trip-features.js');
+ const {ensureFeatures,thankYouSchedule,thankYouForDay,thankYouNotes,thankYouSpares,initialThankYou,THANK_YOU_FOR}=await import('../src/trip-features.js');
  const state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(THANK_YOU_FOR,['Lauren','Nate','Boston']);
  assert.equal(initialThankYou().length,20);
- assert.equal(state.thankYou.messages.length,20);
- const schedule=thankYouSchedule(state);
- assert.equal(schedule.length,state.days.length);
- assert.deepEqual(schedule.map(e=>e.day),state.days.map(d=>d.date));
- assert.ok(schedule.every(e=>e.message&&e.message.text));
- assert.equal(new Set(schedule.map(e=>e.message.id)).size,state.days.length);
- assert.equal(thankYouSpares(state).length,20-state.days.length);
+ assert.equal(state.thankYou.lists.Lauren.messages.length,20);
+ for(const to of THANK_YOU_FOR){
+  const schedule=thankYouSchedule(state,to);
+  assert.equal(schedule.length,state.days.length);
+  assert.deepEqual(schedule.map(e=>e.day),state.days.map(d=>d.date));
+  assert.ok(schedule.every(e=>e.message&&e.message.text),`${to} has a note for every day`);
+  assert.equal(new Set(schedule.map(e=>e.message.id)).size,state.days.length);
+  assert.equal(thankYouSpares(state,to).length,thankYouNotes(state,to).length-state.days.length);
+ }
+ assert.equal(new Set(THANK_YOU_FOR.flatMap(to=>thankYouNotes(state,to).map(m=>m.id))).size,THANK_YOU_FOR.reduce((n,to)=>n+thankYouNotes(state,to).length,0),'no note id is shared between lists');
  assert.equal(thankYouForDay(state,'2099-01-01'),null);
 
  const last=thankYouNotes(state).at(-1);
  const pinned=applyOperation(state,{type:'thankYouEdit',id:last.id,text:last.text,day:'2026-09-21'},parent);
  assert.equal(thankYouForDay(pinned,'2026-09-21').id,last.id);
  assert.throws(()=>applyOperation(pinned,{type:'thankYouAdd',text:'Clash',day:'2026-09-21'},parent),/already has a note/);
+ // A pin in Lauren's list does not block the same day in Nate's.
+ assert.equal(thankYouForDay(applyOperation(pinned,{type:'thankYouAdd',to:'Nate',text:'Yours, Nate',day:'2026-09-21'},parent),'2026-09-21','Nate').text,'Yours, Nate');
 
  const first=thankYouNotes(state)[0],second=thankYouNotes(state)[1];
  const swapped=applyOperation(state,{type:'thankYouReorder',ids:[second.id,first.id,...thankYouNotes(state).slice(2).map(m=>m.id)]},parent);
  assert.equal(thankYouForDay(swapped,state.days[0].date).id,second.id);
  assert.throws(()=>applyOperation(state,{type:'thankYouReorder',ids:[first.id]},parent),/Reload before reordering/);
+ assert.throws(()=>applyOperation(state,{type:'thankYouReorder',to:'Boston',ids:thankYouNotes(state).map(m=>m.id)},parent),/Reload before reordering/,'Lauren’s ids cannot reorder Boston’s list');
 
  const added=applyOperation(state,{type:'thankYouAdd',text:'  A brand new note.  '},parent);
  assert.equal(thankYouNotes(added).at(-1).text,'A brand new note.');
+ assert.equal(thankYouNotes(added,'Nate').length,thankYouNotes(state,'Nate').length);
+ const forBoston=applyOperation(state,{type:'thankYouAdd',to:'Boston',text:'Just for Boston'},parent);
+ assert.equal(thankYouNotes(forBoston,'Boston').at(-1).text,'Just for Boston');
+ assert.equal(thankYouNotes(forBoston).length,20);
+ assert.throws(()=>applyOperation(state,{type:'thankYouAdd',to:'Damien',text:'Me'},parent),/who the note is for/);
  assert.throws(()=>applyOperation(state,{type:'thankYouAdd',text:'   '},parent),/1–1200/);
  assert.throws(()=>applyOperation(state,{type:'thankYouEdit',id:'missing',text:'Hello'},parent),e=>e.status===404);
+ assert.throws(()=>applyOperation(state,{type:'thankYouEdit',to:'Nate',id:first.id,text:'Hello'},parent),e=>e.status===404,'a note is only found in its own list');
  const removed=applyOperation(state,{type:'thankYouRemove',id:first.id},parent);
- assert.equal(removed.thankYou.messages.length,19);
+ assert.equal(removed.thankYou.lists.Lauren.messages.length,19);
  assert.equal(thankYouForDay(removed,state.days[0].date).id,second.id);
 });
 
-test('only Damien writes the notes, only Lauren marks one read, and they never reach the boys',async()=>{
- const {ensureFeatures}=await import('../src/trip-features.js');
+test('a trip that kept a single list for Lauren keeps it, and the boys get their own',async()=>{
+ const {ensureFeatures,thankYouNotes}=await import('../src/trip-features.js');
+ const old={...structuredClone(seed),thankYou:{messages:[{id:'mine',text:'Written before',day:null,order:10}],seen:{[seed.days[0].date]:'2026-09-21T01:00:00Z'}}};
+ const state=ensureFeatures(old);
+ assert.deepEqual(thankYouNotes(state).map(m=>m.text),['Written before']);
+ assert.ok(state.thankYou.lists.Lauren.seen[seed.days[0].date]);
+ assert.ok(thankYouNotes(state,'Nate').length>=seed.days.length);
+ assert.ok(thankYouNotes(state,'Boston').length>=seed.days.length);
+ assert.equal(state.thankYou.messages,undefined);
+ // And the server moves it over the same way when the first note is written.
+ const written=applyOperation(old,{type:'thankYouAdd',to:'Nate',text:'Hello Nate'},parent);
+ assert.deepEqual(thankYouNotes(written).map(m=>m.text),['Written before']);
+ assert.equal(thankYouNotes(written,'Nate').at(-1).text,'Hello Nate');
+});
+
+test('only Damien writes the notes, each person marks only their own read, and nobody sees another’s',async()=>{
+ const {ensureFeatures,thankYouNotes}=await import('../src/trip-features.js');
  const {visibleTrip}=await import('../server/visibility.mjs');
- const lauren={name:'Lauren',role:'parent'},boston={name:'Boston',role:'child'};
- const state=ensureFeatures(structuredClone(seed)),note=state.thankYou.messages[0];
- for(const op of [{type:'thankYouAdd',text:'Mine now'},{type:'thankYouEdit',id:note.id,text:'Rewritten'},{type:'thankYouRemove',id:note.id},{type:'thankYouReorder',ids:state.thankYou.messages.map(m=>m.id)}]){
-  assert.throws(()=>applyOperation(state,op,lauren),e=>e.status===403);
-  assert.throws(()=>applyOperation(state,op,boston),e=>e.status===403);
+ const lauren={name:'Lauren',role:'parent'},boston={name:'Boston',role:'child'},nate={name:'Nate',role:'child'};
+ const state=ensureFeatures(structuredClone(seed)),note=thankYouNotes(state)[0];
+ for(const to of ['Lauren','Nate','Boston'])for(const op of [{type:'thankYouAdd',to,text:'Mine now'},{type:'thankYouEdit',to,id:note.id,text:'Rewritten'},{type:'thankYouRemove',to,id:note.id},{type:'thankYouReorder',to,ids:thankYouNotes(state,to).map(m=>m.id)}]){
+  for(const who of [lauren,boston,nate])assert.throws(()=>applyOperation(state,op,who),e=>e.status===403);
  }
  assert.throws(()=>applyOperation(state,{type:'thankYouSeen',day:seed.days[0].date},parent),e=>e.status===403);
- assert.throws(()=>applyOperation(state,{type:'thankYouSeen',day:seed.days[0].date},boston),e=>e.status===403);
  const read=applyOperation(state,{type:'thankYouSeen',day:seed.days[0].date},lauren);
- assert.ok(read.thankYou.seen[seed.days[0].date]);
+ assert.ok(read.thankYou.lists.Lauren.seen[seed.days[0].date]);
+ assert.deepEqual(read.thankYou.lists.Boston.seen,{});
+ // Marking read is always your own: Boston cannot mark Lauren's note.
+ const bostonRead=applyOperation(read,{type:'thankYouSeen',to:'Lauren',day:seed.days[1].date},boston);
+ assert.ok(bostonRead.thankYou.lists.Boston.seen[seed.days[1].date]);
+ assert.equal(bostonRead.thankYou.lists.Lauren.seen[seed.days[1].date],undefined);
  assert.throws(()=>applyOperation(state,{type:'thankYouSeen',day:'2099-01-01'},lauren),/trip day/);
 
  // Private: no family alert, no shared history entry.
- const written=applyOperation(state,{type:'thankYouAdd',text:'A quiet note'},parent);
+ const written=applyOperation(state,{type:'thankYouAdd',to:'Nate',text:'A quiet note'},parent);
  assert.equal(written.alerts.length,state.alerts.length);
  assert.equal((written.history||[]).length,(state.history||[]).length);
- assert.equal(read.alerts.length,state.alerts.length);
+ assert.equal(bostonRead.alerts.length,state.alerts.length);
 
- // Redaction: Damien keeps the list, Lauren gets only the current day, the boys get nothing.
+ // Redaction: Damien keeps every list; each person gets only their own note for the current day.
  const onTrip=new Date(`${seed.days[1].date}T09:00:00+09:00`),offTrip=new Date('2026-08-01T09:00:00+09:00');
- assert.equal(visibleTrip(read,parent,onTrip).thankYou.messages.length,20);
- const hers=visibleTrip(read,lauren,onTrip);
- assert.equal(hers.thankYou.messages,undefined);
- assert.equal(hers.thankYou.today.day,seed.days[1].date);
- assert.equal(hers.thankYou.today.text,state.thankYou.messages[1].text);
- assert.ok(hers.thankYou.seen[seed.days[0].date]);
- assert.equal(visibleTrip(read,lauren,offTrip).thankYou.today,null);
- for(const person of [boston,{name:'Nate',role:'child'}]){
-  const theirs=visibleTrip(read,person,onTrip);
-  assert.deepEqual(theirs.thankYou,{seen:{},today:null});
-  assert.equal(JSON.stringify(theirs).includes(state.thankYou.messages[1].text),false);
+ assert.equal(visibleTrip(bostonRead,parent,onTrip).thankYou.lists.Lauren.messages.length,20);
+ const texts=to=>thankYouNotes(state,to).map(m=>m.text);
+ for(const person of [lauren,nate,boston]){
+  const theirs=visibleTrip(bostonRead,person,onTrip);
+  assert.equal(theirs.thankYou.lists,undefined);
+  assert.equal(theirs.thankYou.today.day,seed.days[1].date);
+  assert.equal(theirs.thankYou.today.text,thankYouNotes(state,person.name)[1].text);
+  const json=JSON.stringify(theirs);
+  for(const other of ['Lauren','Nate','Boston'].filter(n=>n!==person.name))assert.ok(texts(other).every(t=>!json.includes(t)),`${person.name} never receives ${other}’s notes`);
+  assert.equal(visibleTrip(bostonRead,person,offTrip).thankYou.today,null);
+  // Redacted state must not re-seed the lists when the phone normalises it.
+  assert.equal(ensureFeatures(theirs).thankYou.lists,undefined);
  }
- // Redacted state must not re-seed the list when the phone normalises it.
- assert.equal(ensureFeatures(visibleTrip(read,boston,onTrip)).thankYou.messages,undefined);
- assert.equal(ensureFeatures(hers).thankYou.messages,undefined);
+ assert.ok(visibleTrip(bostonRead,lauren,onTrip).thankYou.seen[seed.days[0].date]);
+ assert.ok(visibleTrip(bostonRead,boston,onTrip).thankYou.seen[seed.days[1].date]);
+ assert.deepEqual(visibleTrip(bostonRead,nate,onTrip).thankYou.seen,{});
 });
 
 test('the full-screen ticket viewer groups a ticket with its attached files, skipping notes and links',async()=>{
