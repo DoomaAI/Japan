@@ -1,12 +1,12 @@
 import React,{useState,useMemo,useEffect,useRef} from 'react';
-import {Trophy,RotateCcw,Check,X,Wifi,WifiOff} from 'lucide-react';
+import {Trophy,RotateCcw,Check,X,Wifi,WifiOff,ChevronLeft,ChevronRight} from 'lucide-react';
 import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER,SIGHTS,ELEMENTS,elementById,startingElements,combine,discoverable,SUMO_RANKS,rankAt,TOP_RANK,STABLE_SIZE,emptyStable,recruit,promote,shortRank,bestRank,stableFull,oddsOf,bout,challengerFor,SUMO_RITUALS,STOMPS,STOMP_WINDOW,stompScore,SALT_BAND,saltScore,MATTA,chargeScore,leadUpEffect,ceremonyScore,KIMARITE,kimariteById,SUMO_TICK,SURGE_TICKS,TAKEN_AS_READ,theirWeight,startBout,sumoAction,SEKITORI,BASHO_DAYS,bashoAt,newCareer,rankRate,climb,bashoOpponent,bashoWorth,bashoDay} from './kana-data.js';
 import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-features.js';
 import SpotDifference from './SpotDifference.jsx';
 import Origami from './Origami.jsx';
 import Drawing from './Drawing.jsx';
 import {useKanaVoice} from './SayIt.jsx';
-import {SpeakRules} from './AdventurePages.jsx';
+import {SpeakRules,useReadAloud} from './AdventurePages.jsx';
 import {gameRule} from './spoken-rules.js';
 import {gameGuide} from './game-guide.js';
 import {WinBurst} from './Win.jsx';
@@ -897,43 +897,43 @@ const ORIGINS={
  modern:{tag:'Japanese',what:'Japanese, and modern.'}
 };
 const GAMES=[
- {id:'match',title:'Match the letters',ease:1,needs:OFFLINE,Component:KanaMatch},
- {id:'decode',title:'Read the sign',ease:2,needs:OFFLINE,Component:Decoder},
- {id:'karuta',title:'Karuta',ease:2,ja:'かるた',origin:'traditional',needs:OFFLINE,Component:Karuta,
+ {id:'match',title:'Match the letters',ease:1,icon:'🔤',needs:OFFLINE,Component:KanaMatch},
+ {id:'decode',title:'Read the sign',ease:2,icon:'🪧',needs:OFFLINE,Component:Decoder},
+ {id:'karuta',title:'Karuta',ease:2,icon:'🃏',ja:'かるた',origin:'traditional',needs:OFFLINE,Component:Karuta,
   story:'Played at New Year since the Edo period. A reader reads, the cards lie face up, and the first hand on the right one keeps it. The proverb deck is iroha karuta, where the card is found by the letter the reading opens with.'},
- {id:'shogi',title:'Animal shogi',ease:3,ja:'どうぶつしょうぎ',origin:'modern',needs:OFFLINE,Component:AnimalShogi,
+ {id:'shogi',title:'Animal shogi',ease:3,icon:'🦁',ja:'どうぶつしょうぎ',origin:'modern',needs:OFFLINE,Component:AnimalShogi,
   story:'The game is new — Madoka Kitao, a professional shogi player, drew it up in 2008 so a small child could play a whole game. What it is a small version of is not: shogi has been played in Japan since the 1500s, and taking a piece and playing it back as your own is the part that makes it shogi rather than chess.'},
- {id:'fukuwarai',title:'Fukuwarai',ease:1,ja:'福笑い',origin:'traditional',needs:OFFLINE,Component:Fukuwarai,
+ {id:'fukuwarai',title:'Fukuwarai',ease:1,icon:'😄',ja:'福笑い',origin:'traditional',needs:OFFLINE,Component:Fukuwarai,
   story:'The New Year one, played blindfolded since the Edo period. The two faces are the two it is always played with — お多福, whose name means much good fortune, and ひょっとこ, who is blowing on a fire. It is the only game in here where losing is funnier than winning.'},
- {id:'daruma',title:'Daruma',ease:1,ja:'だるまさんがころんだ',origin:'traditional',needs:OFFLINE,Component:Daruma,
+ {id:'daruma',title:'Daruma',ease:1,icon:'🚦',ja:'だるまさんがころんだ',origin:'traditional',needs:OFFLINE,Component:Daruma,
   story:'Japan’s red light, green light, and the chant is the game — だるまさんがころんだ, ten syllables at whatever speed the demon feels like, and he spins round on the last one. The child at the wall is the 鬼, the demon, which is what he is called in every Japanese chasing game.'},
- {id:'shiritori',title:'Shiritori',ease:2,ja:'しりとり',origin:'traditional',needs:OFFLINE,Component:Shiritori,
+ {id:'shiritori',title:'Shiritori',ease:2,icon:'🔗',ja:'しりとり',origin:'traditional',needs:OFFLINE,Component:Shiritori,
   story:'The word game every family plays on a train, and it is older than any of them. Your word starts with the last sound of theirs, no word twice, and a word ending in ん loses because nothing in Japanese begins with it. That one rule is why it is worth playing while you are learning kana: it makes you read the end of a word.'},
- {id:'kingyo',title:'Goldfish scooping',ease:2,ja:'金魚すくい',origin:'traditional',needs:OFFLINE,Component:Kingyo,
+ {id:'kingyo',title:'Goldfish scooping',ease:2,icon:'🐠',ja:'金魚すくい',origin:'traditional',needs:OFFLINE,Component:Kingyo,
   story:'The festival stall, and the boys will stand in front of a real one. You are handed a paper scoop and a bowl and you get what you can before the paper goes, which it always does — the man running the stall knows that and so does everybody queueing. The paper comes in numbered grades, and the higher the number the thinner it is, which is the difficulty setting at a real stall as well as in here.'},
- {id:'picross',title:'Picross',ease:3,ja:'お絵かきロジック',origin:'modern',needs:OFFLINE,Component:Picross,
+ {id:'picross',title:'Picross',ease:3,icon:'🧩',ja:'お絵かきロジック',origin:'modern',needs:OFFLINE,Component:Picross,
   story:'The genuinely Japanese puzzle, and the reason this mark exists at all. Two people invented nonograms independently in Japan in 1987 — Non Ishida, who won a competition with it, and Tetsuya Nishio — and it went out from there. Sudoku is the opposite story: American, out of Indianapolis in 1979, named and made famous in Japan, and called Japanese ever since.'},
- {id:'gomoku',title:'Five in a row',ease:3,ja:'五目並べ',origin:'traditional',needs:OFFLINE,Component:Gomoku,
+ {id:'gomoku',title:'Five in a row',ease:3,icon:'⚫',ja:'五目並べ',origin:'traditional',needs:OFFLINE,Component:Gomoku,
   story:'Played in Japan for centuries and formalised here as renju in 1899 — but games of five-in-a-row are older than that and are not only Japanese, so it is traditional here rather than invented here. The mark exists to stop that sort of thing being fudged, and it would be a poor showing to fudge it on this one.'},
- {id:'kendama',title:'Kendama',ease:2,ja:'けん玉',origin:'traditional',needs:OFFLINE,Component:Kendama,
+ {id:'kendama',title:'Kendama',ease:2,icon:'🎯',ja:'けん玉',origin:'traditional',needs:OFFLINE,Component:Kendama,
   story:'The cup-and-ball came to Japan from abroad, but the shape everybody means by kendama — the crosspiece with a big cup one side and a small cup the other — was designed in Hiroshima in 1919, and the trick names and the grading behind them are entirely Japanese. Those names are why it is in here: it teaches them the way the sumo game teaches the ranks, by making you say one before you can do it.'},
- {id:'beigoma',title:'Spinning tops',ease:1,ja:'べーごま',origin:'traditional',needs:OFFLINE,Component:Beigoma,
+ {id:'beigoma',title:'Spinning tops',ease:1,icon:'🌀',ja:'べーごま',origin:'traditional',needs:OFFLINE,Component:Beigoma,
   story:'Small cast-iron tops thrown into a ring — a barrel with a cloth stretched over it, and the cloth sags so they find each other. Children have played it since the Edo period, and boys spent their pocket money filing and weighting their tops to make them last a bout longer. The whole skill is in the throw: once it has left your hand you are a spectator, which is why this is one flick and then watching.'},
- {id:'hanafuda',title:'Hanafuda',ease:3,ja:'花札',origin:'traditional',needs:OFFLINE,Component:Hanafuda,
+ {id:'hanafuda',title:'Hanafuda',ease:3,icon:'🎴',ja:'花札',origin:'traditional',needs:OFFLINE,Component:Hanafuda,
   story:'Flower cards: forty-eight of them, twelve months, four cards a month, played in Japan since the 1700s. The game here is こいこい, the two-handed one. It is the only game in here that teaches the twelve months and the flower that belongs to each, which is worth knowing somewhere half the sweets and half the place names are named after them.'},
- {id:'merge',title:'Onigiri to Fuji',ease:2,needs:OFFLINE,Component:Merge},
- {id:'remember',title:'What we did',ease:2,needs:OFFLINE,Component:Remember},
- {id:'sights',title:'Japan pairs',ease:1,needs:OFFLINE,Component:Sights},
- {id:'kitchen',title:'Make it',ease:1,needs:OFFLINE,Component:Kitchen},
- {id:'snake',title:'Sushi snake',ease:1,needs:OFFLINE,Component:Snake},
- {id:'stable',title:'Sumo stable',ease:2,needs:OFFLINE,Component:Stable},
- {id:'sumo',title:'Sumo',ease:3,ja:'相撲',origin:'traditional',needs:OFFLINE,Component:Sumo,
+ {id:'merge',title:'Onigiri to Fuji',ease:2,icon:'🍙',needs:OFFLINE,Component:Merge},
+ {id:'remember',title:'What we did',ease:2,icon:'📸',needs:OFFLINE,Component:Remember},
+ {id:'sights',title:'Japan pairs',ease:1,icon:'🗾',needs:OFFLINE,Component:Sights},
+ {id:'kitchen',title:'Make it',ease:1,icon:'🍳',needs:OFFLINE,Component:Kitchen},
+ {id:'snake',title:'Sushi snake',ease:1,icon:'🍣',needs:OFFLINE,Component:Snake},
+ {id:'stable',title:'Sumo stable',ease:2,icon:'🏆',needs:OFFLINE,Component:Stable},
+ {id:'sumo',title:'Sumo',ease:3,icon:'🤼',ja:'相撲',origin:'traditional',needs:OFFLINE,Component:Sumo,
   story:'Japan’s oldest sport, and the rituals in here are the real ones — the stamps, the salt and the charge are what you will watch at Ryogoku before anybody touches anybody.'},
- {id:'origami',title:'Origami',ease:2,ja:'折り紙',origin:'traditional',needs:'Works with no signal. You need a square of paper.',Component:Origami,
+ {id:'origami',title:'Origami',ease:2,icon:'🦢',ja:'折り紙',origin:'traditional',needs:'Works with no signal. You need a square of paper.',Component:Origami,
   story:'Folded in Japan for centuries, and written down as a craft to teach by 1797, in the Senbazuru Orikata — the book of a thousand cranes.'},
- {id:'draw',title:'Draw it',ease:1,needs:'Works with no signal, on paper or on the phone. Sending one to the family needs signal.',Component:Drawing},
- {id:'spot',title:'Spot the difference',ease:2,needs:'Needs signal once, to fetch the photo. The puzzle is made on the phone.',Component:SpotDifference},
- {id:'janken',title:'Janken',ease:1,ja:'じゃんけん',origin:'traditional',needs:'Needs both phones online.',Component:Janken,
+ {id:'draw',title:'Draw it',ease:1,icon:'🖍️',needs:'Works with no signal, on paper or on the phone. Sending one to the family needs signal.',Component:Drawing},
+ {id:'spot',title:'Spot the difference',ease:2,icon:'🔍',needs:'Needs signal once, to fetch the photo. The puzzle is made on the phone.',Component:SpotDifference},
+ {id:'janken',title:'Janken',ease:1,icon:'✊',ja:'じゃんけん',origin:'traditional',needs:'Needs both phones online.',Component:Janken,
   story:'The Japanese hand game that became the world’s rock, paper and scissors — it went out from here, rather than arriving.'}
 ];
 // Easiest first, in three bands, because a picker that opens on the hardest game in the list
@@ -945,47 +945,81 @@ const BANDS=[
  [2,'A bit harder','A bit of reading, or a plan.'],
  [3,'The hard ones','Worth beating a grown-up at.']
 ];
-// Which of them are the old Japanese games and which are not. The distinction is already drawn
-// on every card; this turns it into a way to choose, because "show me a real Japanese one" is a
-// thing both boys ask for and there was no way to answer it but to read every name in the list.
+// One row of big picture buttons to choose by, because the person choosing often cannot read
+// yet. Stars are how hard it is, the same stars as on every game below them, and the gate is the
+// old Japanese ones — "show me a real Japanese one" is a thing both boys ask for. The words sit
+// underneath for whoever can read them, and the phone says the name aloud when it is tapped.
 const FILTERS=[
- ['all','All games',()=>true],
- ['traditional','Traditional Japanese',g=>g.origin==='traditional'],
- ['rest','Everything else',g=>g.origin!=='traditional']
+ ['all','🎮','All',()=>true],
+ ['easy','⭐','Easy',g=>g.ease===1],
+ ['harder','⭐⭐','Harder',g=>g.ease===2],
+ ['hard','⭐⭐⭐','Hard',g=>g.ease===3],
+ ['traditional','⛩️','Old Japan',g=>g.origin==='traditional']
 ];
 const sortedGames=filterId=>{
- const match=FILTERS.find(([id])=>id===filterId)?.[2]||FILTERS[0][2];
+ const match=FILTERS.find(([id])=>id===filterId)?.[3]||FILTERS[0][3];
  return GAMES.filter(match).sort((a,b)=>a.ease-b.ease);
 };
+const stars=n=>'⭐'.repeat(n);
 export default function Games(props){
  const [game,setGame]=useState('match');
  const [filter,setFilter]=useState('all');
+ const {read}=useReadAloud();
+ const strip=useRef(null);
+ const [ends,setEnds]=useState({start:true,end:false});
  const showing=sortedGames(filter);
  // Changing the filter changes what is on offer, so it changes what you are playing rather
  // than leaving a board on screen that nothing in the picker points at any more.
  const pick=id=>{
   setFilter(id);
+  const [,,label]=FILTERS.find(([f])=>f===id);
+  read(`filter-${id}`,id==='all'?'All the games':`${label} games`,'en-AU',0.9);
   const list=sortedGames(id);
   if(!list.some(g=>g.id===game))setGame(list[0].id);
  };
+ const choose=g=>{
+  setGame(g.id);
+  read(`game-${g.id}`,g.title,'en-AU',0.9);
+ };
+ // Whether there is more to either side, so the arrows only offer what is really there. A
+ // child who does not know to swipe still has a big button to press.
+ const measure=()=>{
+  const el=strip.current;
+  if(!el)return;
+  setEnds({start:el.scrollLeft<=4,end:el.scrollLeft+el.clientWidth>=el.scrollWidth-4});
+ };
+ const nudge=dir=>strip.current?.scrollBy({left:dir*strip.current.clientWidth*0.8,behavior:'smooth'});
+ // The chosen game stays in view, including after a filter, so the one lit up is never off
+ // the edge where nobody can see which one it is.
+ useEffect(()=>{
+  const el=strip.current;
+  const on=el?.querySelector('.selected');
+  if(on)el.scrollTo({left:on.offsetLeft-(el.clientWidth-on.offsetWidth)/2,behavior:'smooth'});
+  measure();
+ },[game,filter]);
+ useEffect(()=>{
+  window.addEventListener('resize',measure);
+  return ()=>window.removeEventListener('resize',measure);
+ },[]);
  const current=GAMES.find(g=>g.id===game)||GAMES[0];
  const origin=ORIGINS[current.origin];
  const band=BANDS.find(([level])=>level===current.ease);
  return <>
   <p className="eyebrow">SOMETHING TO DO IN A QUEUE</p><h1>Games</h1>
-  <div className="segmented game-filter">{FILTERS.map(([id,label])=>
-   <button key={id} className={filter===id?'selected':''} onClick={()=>pick(id)}>{label}</button>)}</div>
-  {BANDS.map(([level,label,note])=>{
-   const inBand=showing.filter(g=>g.ease===level);
-   if(!inBand.length)return null;
-   return <div className="game-band" key={level}>
-    <p className="game-band-head"><b>{label}</b><small>{note}</small></p>
-    <div className="segmented game-picker">{inBand.map(g=>
-     <button key={g.id} className={game===g.id?'selected':''} onClick={()=>setGame(g.id)}
-      aria-label={ORIGINS[g.origin]?`${g.title} — ${ORIGINS[g.origin].tag.toLowerCase()}`:undefined}>{g.title}
-      {ORIGINS[g.origin]&&<i className={`game-tag ${g.origin}`} aria-hidden="true"/>}</button>)}</div>
-   </div>;
-  })}
+  <div className="game-filter" role="group" aria-label="Which games">{FILTERS.map(([id,icon,label])=>
+   <button key={id} type="button" className={filter===id?'selected':''} aria-pressed={filter===id} onClick={()=>pick(id)}>
+    <span className="game-filter-icon" aria-hidden="true">{icon}</span><small>{label}</small></button>)}</div>
+  <div className="game-shelf">
+   <button type="button" className="game-shelf-arrow" aria-label="More games this way" disabled={ends.start} onClick={()=>nudge(-1)}><ChevronLeft size={26}/></button>
+   <div className="game-strip" ref={strip} onScroll={measure} role="group" aria-label="Games">{showing.map(g=>
+    <button key={g.id} type="button" className={`game-tile${game===g.id?' selected':''}`} aria-pressed={game===g.id} onClick={()=>choose(g)}
+     aria-label={`${g.title}${ORIGINS[g.origin]?` — ${ORIGINS[g.origin].tag.toLowerCase()}`:''}`}>
+     <span className="game-tile-icon" aria-hidden="true">{g.icon}</span>
+     <b>{g.title}</b>
+     <span className="game-tile-stars" aria-hidden="true">{stars(g.ease)}
+      {ORIGINS[g.origin]&&<i className={`game-tag ${g.origin}`}/>}</span></button>)}</div>
+   <button type="button" className="game-shelf-arrow" aria-label="More games that way" disabled={ends.end} onClick={()=>nudge(1)}><ChevronRight size={26}/></button>
+  </div>
   {/* Before anything else on the page, because the person who needs it cannot read the rest. */}
   <SpeakRules id={`rules-${current.id}`} text={gameRule(current.id)} label={`How to play ${current.title}`}/>
   {origin&&<p className="game-origin">
@@ -993,7 +1027,7 @@ export default function Games(props){
    {current.ja&&<em lang="ja">{current.ja}</em>}
    <small>{current.story||origin.what}</small></p>}
   <GameGuide game={current}/>
-  <p><small>{band?`${band[1]} · ${band[2]} `:''}{current.needs}</small></p>
+  <p><small>{band?`${stars(band[0])} ${band[1]} · ${band[2]} `:''}{current.needs}</small></p>
   <current.Component {...props}/>
  </>;
 }

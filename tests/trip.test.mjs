@@ -5436,16 +5436,22 @@ test('the games are offered easiest first, and can be narrowed to the Japanese o
  assert.equal(easeOf('beigoma'),1,'one flick and then watching');
  assert.equal(easeOf('kendama'),2,'the pull and the catch both have to be right');
  assert.match(games,/const \[game,setGame\]=useState\('match'\)/,'and it opens on an easy one');
- // Easiest first inside each band, and the bands walked in order rather than sorted by hand.
+ // Easiest first, and the bands still name what each difficulty means.
  assert.match(games,/\.sort\(\(a,b\)=>a\.ease-b\.ease\)/);
  assert.match(games,/const BANDS=\[\n \[1,/);
- assert.match(games,/BANDS\.map\(\(\[level,label,note\]\)=>\{/);
- // "Show me a real Japanese one" is a thing both boys ask, and the marks to answer it were
- // already on every card — this turns them into a way to choose.
- assert.match(games,/\['traditional','Traditional Japanese',g=>g\.origin==='traditional'\]/);
- assert.match(games,/\['rest','Everything else',g=>g\.origin!=='traditional'\]/);
+ // Chosen by picture, for a child who cannot read yet: every game has one, the filters are
+ // stars for how hard and a gate for the old Japanese ones, and the games sit on one shelf
+ // that scrolls rather than a wall of buttons that pushes the game itself off the screen.
+ const icons=[...games.matchAll(/\{id:'([a-z]+)',title:'[^']+',ease:\d,icon:'([^']+)'/g)];
+ assert.equal(icons.length,rows.length,'every game has a picture to choose it by');
+ for(const [id,label] of [['easy','Easy'],['harder','Harder'],['hard','Hard']])
+  assert.ok(games.includes(`['${id}','`)&&games.includes(`','${label}',g=>g.ease===`),`there is no ${label} filter`);
+ assert.match(games,/\['traditional','⛩️','Old Japan',g=>g\.origin==='traditional'\]/);
+ assert.match(games,/className="game-strip" ref=\{strip\}/);
+ assert.match(games,/read\(`game-\$\{g\.id\}`,g\.title,'en-AU'/,'and the name is said aloud when it is tapped');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/\.game-strip\{[^}]*overflow-x:auto/);
  assert.ok(rows.filter(r=>r.traditional).length>=8,'the traditional filter has something in it');
- assert.ok(rows.filter(r=>!r.traditional).length>=8,'and so does everything else');
  // The filter changes what is on offer, so it changes what you are playing rather than leaving
  // a board up that nothing in the picker points at any more.
  assert.match(games,/if\(!list\.some\(g=>g\.id===game\)\)setGame\(list\[0\]\.id\)/);
