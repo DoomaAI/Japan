@@ -60,6 +60,16 @@ The original 72-page guide was designed once, from the plan as it stood before w
 Status: Done. Whole trip, from today on, or one day; toggles for original artwork, sketch maps and the front/back pages. Checked in headless Chromium: 20 sheets, 38 A4 pages for the whole trip.
 
 Not yet done, for a later pass: per-day banner crops that avoid the original's baked-in titles; editorial pages (food, matcha, shopping, etiquette) generated from the hunts, food list and shortlist; page numbers in a running footer (browser print support for these is uneven, Safari especially); a server-side PDF so the file can be sent without a browser print dialog.
+## Outstanding after the 29 September session — logged 30 September 2026
+
+Nineteen PRs merged on 29 September (#211–#261, this session's share). Four things could not be finished from the cloud session and are yours to do; none is code.
+
+- [ ] **Vercel.** Every deploy since #181 fails with "BUILD_FAILED · Resource provisioning failed". It is on the account or project side (Storage or integration settings), not in the build: `npm run build` passes on every branch. Until a deploy lands, nothing merged since #181 has reached a phone. Once one does, open the app on each phone so the six-month link renewal takes effect.
+- [ ] **Neon link expiry.** The SQL to extend links already in the database to six months is parked. Only needed if a phone has been logged out before a deploy lands; the sliding renewal handles the rest.
+- [ ] **Branch clean-up.** `git push --delete` is refused by the session's egress proxy (HTTP 403, organisation policy). The script `delete-merged-branches.sh` handed over in the session lists 125 remote branches whose tips are the head commits of merged PRs; run it from a clone with push rights. It keeps `claude/party-likes-recommendations`, `claude/list-save-card-condense-ohew3p` and five stale branches that conflict with main.
+- [ ] **Stray commit.** `claude/party-likes-recommendations` carries one unmerged commit, "What's on: dated events near where we stay", which conflicts with main in `style.css` and the tests. Rebase and open a PR, or let it go.
+- [ ] **On a real phone, once deployed:** Back and the edge swipe (#222), Appearance → Dark in Settings (#254), a first open of Games with no signal (#257, the offline shell must hold every chunk), and the Just say it box on the To-do list with dictation (#211).
+
 ## To come back to — logged 30 September 2026
 
 **Passports & visas (#230)** is merged but switched off until the key is set, and has not been tried on a real phone.
