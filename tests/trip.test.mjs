@@ -10126,3 +10126,22 @@ test('a parent’s question and its answer are kept in the trip, so the other pa
  assert.match(main,/hasAskHistory\(user\)\|\|!!state\?\.askThread\?\.length/,'a phone with shared answers keeps the page even before its config arrives');
  assert.equal((main.match(/<AskTrip [^\n]*mutate=\{mutate\}/g)||[]).length,2,'both the page and the stop sheet can keep to the trip');
 });
+
+test('Back and the swipe from the edge walk back through screens, and close a sheet before leaving its page',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // Moving between pages, days and stops pushes an entry; a sheet is one more entry over its page.
+ assert.match(main,/function navigate\(url,replace=false\)\{/);
+ assert.match(main,/else history\.pushState\(null,'',url\);/,'a move is an entry on the stack');
+ assert.match(main,/if\(next&&!prev\)history\.pushState\(\{\.\.\.\(history\.state\|\|\{\}\),sheet:true\},'',location\.href\);/,'opening a sheet pushes over the page');
+ assert.match(main,/else if\(!next&&prev&&history\.state\?\.sheet\)history\.back\(\);/,'closing it by its own button pops that entry');
+ assert.match(main,/if\(overSheet\|\|replace\|\|url===here\)history\.replaceState/,'a move made while a sheet is open takes the sheet’s place, and the same address is not stacked twice');
+ // Turning the guide's pages replaces rather than pushes: seventy-two pages is not seventy-two steps back.
+ assert.match(main,/setGuidePage\(n\);updateUrl\(day,null,n,true\);/);
+ // Back reads the address into the screen and closes a sheet whose entry was just left.
+ assert.match(main,/window\.addEventListener\('popstate',onPop\)/);
+ assert.match(main,/if\(!e\.state\?\.sheet&&modalRef\.current\)\{modalRef\.current=null;setModalState\(null\);\}/);
+ assert.match(main,/window\.removeEventListener\('popstate',onPop\)/,'and the listener goes when the app does');
+ // Only the start-up rewrites still replace: the join token, the deep link, and the overnight move to today.
+ assert.equal((main.match(/history\.replaceState\(/g)||[]).length,3,'no screen change slips through as a replace');
+ for(const fn of ['go','selectStep','selectPhotoDay','choosePhotoPerson'])assert.doesNotMatch(main,new RegExp(`function ${fn}\\([^\\n]*history\\.replaceState`),`${fn} goes through navigate`);
+});

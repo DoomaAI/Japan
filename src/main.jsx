@@ -170,7 +170,7 @@ function App(){
  // Whose day the screen follows on a split: null is your own, '' is everyone, or a name. Changing
  // it lets go of the stop being looked at, which may not be on the day being switched to.
  const [lensChoice,setLensChoice]=useState(null),follow=p=>{setLensChoice(p);setSelected(null);};
- const [updateReady,setUpdateReady]=useState(false),[modal,setModal]=useState(null),[busy,setBusy]=useState(false),[online,setOnline]=useState(navigator.onLine),[now,setNow]=useState(new Date()),[queue,setQueue]=useState(stored('japan.queue',[])),[conflict,setConflict]=useState(false),[syncedAt,setSyncedAt]=useState(null),[syncing,setSyncing]=useState(false);
+ const [updateReady,setUpdateReady]=useState(false),[modal,setModalState]=useState(null),[busy,setBusy]=useState(false),[online,setOnline]=useState(navigator.onLine),[now,setNow]=useState(new Date()),[queue,setQueue]=useState(stored('japan.queue',[])),[conflict,setConflict]=useState(false),[syncedAt,setSyncedAt]=useState(null),[syncing,setSyncing]=useState(false);
  // One speaking voice for the whole screen, handed to whatever on it can be read out, so the
  // fact on a step card reads aloud for Nate the same way the pop-up does and two of them can
  // never talk over each other.
@@ -220,7 +220,24 @@ function App(){
  // the browser to notice, and the bar can say when the plan was last confirmed.
  function accept(e){e={...e,state:ensureFeatures(e.state)};envRef.current=e;setEnvelope(e);setOnline(true);setSyncedAt(Date.now());localStorage.setItem('japan.snapshot',JSON.stringify({...e,savedAt:Date.now()}));}
  function saveQueue(q){queueRef.current=q;setQueue(q);localStorage.setItem('japan.queue',JSON.stringify(q));}
- function updateUrl(d,id,page){if(d)localStorage.setItem('japan.position',JSON.stringify({day:d,step:id||null}));const p=new URLSearchParams();if(d)p.set('day',d);if(id)p.set('step',id);if(page)p.set('page',page);history.replaceState(null,'','/?'+p);}
+ // The browser's own Back, and the swipe from the edge of the screen, walk back through the
+ // screens the way they look as if they should. Every move between pages, days and stops is an
+ // entry on the stack; a sheet is one more entry over its page, so Back closes the sheet before it
+ // leaves the page. Turning the pages of the guide replaces the entry instead: seventy-two pages
+ // is not seventy-two steps back. A move made while a sheet is open takes the sheet's place.
+ const modalRef=useRef(null);
+ function setModal(next){
+  const prev=modalRef.current;modalRef.current=next;setModalState(next);
+  if(next&&!prev)history.pushState({...(history.state||{}),sheet:true},'',location.href);
+  else if(!next&&prev&&history.state?.sheet)history.back();
+ }
+ function navigate(url,replace=false){
+  const overSheet=!!history.state?.sheet;
+  if(modalRef.current){modalRef.current=null;setModalState(null);}
+  const here=location.pathname+location.search;
+  if(overSheet||replace||url===here)history.replaceState(null,'',url);else history.pushState(null,'',url);
+ }
+ function updateUrl(d,id,page,replace=false){if(d)localStorage.setItem('japan.position',JSON.stringify({day:d,step:id||null}));const p=new URLSearchParams();if(d)p.set('day',d);if(id)p.set('step',id);if(page)p.set('page',page);navigate('/?'+p,replace);}
  async function refresh(){try{const e=await request('state');accept(e);setError('');return e;}catch(e){if(e.status===401){localStorage.removeItem('japan.snapshot');setEnvelope(null);setError(e.message);}else if(!e.status)setOnline(false);throw e;}}
  useEffect(()=>{
   let stop=false;
@@ -250,6 +267,16 @@ function App(){
    if(d!==start.day){setDay(d);setSelected(null);return;}
    if(!start.fromUrl&&start.step){const st=s.steps.find(x=>x.id===start.step);if(!st||st.day!==d||['done','skipped'].includes(st.status))setSelected(null);}
   }
+  // Back and forward: the address is read back into the screen, and a sheet whose entry has
+  // just been left is closed. Only a day on the plan is taken; anything else stays where it was.
+  const onPop=e=>{
+   if(!e.state?.sheet&&modalRef.current){modalRef.current=null;setModalState(null);}
+   const p=new URLSearchParams(location.search),t=p.get('tab'),d=p.get('day'),page=Number(p.get('page'))||0;
+   if(d&&(envRef.current?.state?.days||[]).some(x=>x.date===d))setDay(d);
+   setSelected(p.get('step')||null);setFocus(p.get('item')||null);if(page)setGuidePage(page);
+   setTab(TABS.includes(t)?t:page?'guide':'today');setQuery('');
+  };
+  window.addEventListener('popstate',onPop);
   const on=()=>setOnline(true),off=()=>setOnline(false);window.addEventListener('online',on);window.addEventListener('offline',off);
   if('serviceWorker'in navigator&&!import.meta.env.DEV)navigator.serviceWorker.register('/sw.js').then(reg=>{
    // A Home Screen app can sit on an old build for days. Watch for a new one and offer a reload.
@@ -258,7 +285,7 @@ function App(){
    const look=()=>{if(document.visibilityState==='visible')reg.update().catch(()=>{});};
    document.addEventListener('visibilitychange',look);look();
   }).catch(()=>{});
-  return()=>{stop=true;window.removeEventListener('online',on);window.removeEventListener('offline',off);};
+  return()=>{stop=true;window.removeEventListener('online',on);window.removeEventListener('offline',off);window.removeEventListener('popstate',onPop);};
  },[]);
  useEffect(()=>{const i=setInterval(()=>setNow(new Date()),30000);return()=>clearInterval(i);},[]);
  // A phone put down on one day and picked up on the next opens on the new day, not on the stop
@@ -270,7 +297,7 @@ function App(){
   const look=()=>{
    if(document.visibilityState!=='visible')return;
    const today=japanDate();if(today===seen)return;seen=today;
-   if(dayRef.current<today&&(envRef.current?.state.days||[]).some(d=>d.date===today)){setDay(today);setSelected(null);setModal(null);updateUrl(today);}
+   if(dayRef.current<today&&(envRef.current?.state.days||[]).some(d=>d.date===today)){setDay(today);setSelected(null);setModal(null);updateUrl(today,null,null,true);}
   };
   document.addEventListener('visibilitychange',look);return()=>document.removeEventListener('visibilitychange',look);
  },[]);
@@ -398,12 +425,12 @@ function App(){
   return m<=120&&m>=-15?{fixed,departure,minutes:m}:null;
  })();
  const done=steps.filter(s=>s.status==='done').length,nextFixed=steps.find(s=>s.locked&&!['done','skipped'].includes(s.status)&&s.id!==current?.id),groups=state?[...new Set(state.steps.filter(s=>s.day===day&&s.group&&state.groupModes?.[s.group]!=='split').map(s=>s.group))]:[];
- function go(id,d,item){setFocus(item||null);if(d&&state.days.some(x=>x.date===d)){setDay(d);setSelected(null);}setTab(id);setQuery('');setModal(null);history.replaceState(null,'','/?'+new URLSearchParams({tab:id,day:d||day,...(item?{item}:{})}));}
+ function go(id,d,item){setFocus(item||null);if(d&&state.days.some(x=>x.date===d)){setDay(d);setSelected(null);}setTab(id);setQuery('');navigate('/?'+new URLSearchParams({tab:id,day:d||day,...(item?{item}:{})}));}
  // Today on the bar or in the menu means today: on a trip day it lands on today's date rather than
  // whichever day was last being looked at. Before and after the trip it keeps the day in hand.
  function navGo(id){go(id,id==='glance'&&japanDate()!==day&&state?.days.some(x=>x.date===japanDate())?japanDate():undefined);}
  function selectDay(d){setDay(d);setSelected(null);setTab('today');updateUrl(d);}
- function selectStep(s){if(s.day===null){setTab('options');setQuery(s.title);setModal(null);return;}setModal(null);setDay(s.day);setSelected(s.id);setTab('today');updateUrl(s.day,s.id);}
+ function selectStep(s){if(s.day===null){setTab('options');setQuery(s.title);navigate('/?'+new URLSearchParams({tab:'options',day}));return;}setDay(s.day);setSelected(s.id);setTab('today');updateUrl(s.day,s.id);}
  // What happens to a stop, in one place, because the row in the timeline and the card for the
  // same stop must not drift into two different answers. The card is simply another way of
  // pointing at the stop the timeline row points at.
@@ -416,21 +443,21 @@ function App(){
   if(await mutate({type:'backlog',id:s.id}))notice(`${s.title} was saved to Options, with everything on it. Add it to a day whenever it fits.`);
  }
  function move(delta){const s=steps[index+delta];if(s){setSelected(s.id);updateUrl(day,s.id);}}
- function openPage(n){setGuidePage(n);setTab('guide');setModal(null);updateUrl(day,null,n);}
+ function openPage(n){setGuidePage(n);setTab('guide');updateUrl(day,null,n);}
  // Seventy-two pages is a lot of arrow-tapping, so the guide turns like a book: swipe it, or
  // use the arrow keys. Clamped at both ends rather than wrapping, because page 1 coming after
  // page 72 is disorienting when you are looking for something.
- function selectPhotoDay(d){setDay(d);history.replaceState(null,'','/?'+new URLSearchParams({tab:'photos',day:d}));}
+ function selectPhotoDay(d){setDay(d);navigate('/?'+new URLSearchParams({tab:'photos',day:d}));}
  // Whose photos you are looking at lives in the address, so a profile can link straight to
  // somebody's and the back button does what it looks like it does.
  function choosePhotoPerson(name){
   setPhotoPerson(name);
-  history.replaceState(null,'','/?'+new URLSearchParams(name?{tab:'photos',who:name}:{tab:'photos',day}));
+  navigate('/?'+new URLSearchParams(name?{tab:'photos',who:name}:{tab:'photos',day}));
  }
  function turnPage(delta){
   const n=Math.min(72,Math.max(1,guidePage+delta));
   if(n===guidePage)return;
-  setGuidePage(n);updateUrl(day,null,n);
+  setGuidePage(n);updateUrl(day,null,n,true);
  }
  // The buttons and arrow keys turn the page over the way a swipe does; the book calls
  // turnPage once it has landed, so there is still only one place that changes the page.
