@@ -89,3 +89,18 @@ export function SuggestDeck({items,keyOf,titleOf=item=>item.draft?.title||keyOf(
   </div>
  </div>;
 }
+// Who in the party a card answers, and why — the reason it is where it is in the pile. The first
+// card is marked when it pleases more than one of us, because that is the one to look at twice.
+export function PartyMatch({fit,members,top=false}){
+ if(!fit)return null;
+ const reasons=Object.entries(fit.reasons||{}),avoid=Object.entries(fit.avoid||{});
+ if(!reasons.length&&!avoid.length&&!fit.fans.length)return <p className="party-match none"><small>Nobody’s likes point at this one — it is here on its own merits.</small></p>;
+ return <div className="party-match">
+  <p className="party-match-head">{top&&fit.fans.length>1&&<span className="tag party-top">Best match for the party</span>}
+   {!!fit.fans.length&&<span className="tag"><Heart size={12}/>Matches {fit.fans.length} of {members.length}: {fit.fans.join(', ')}</span>}</p>
+  {(!!reasons.length||!!avoid.length)&&<ul className="picked-why">
+   {reasons.map(([name,why])=><li key={name}><Heart size={13}/><span><strong>{name}: </strong>{why.join(', ')}</span></li>)}
+   {avoid.map(([name,terms])=><li key={`x${name}`} className="picked-avoid"><X size={13}/><span>{name} would rather avoid {terms.join(', ')}</span></li>)}
+  </ul>}
+ </div>;
+}

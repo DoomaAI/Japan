@@ -10539,3 +10539,45 @@ test('one line under each title, and the rest of the why behind How this works',
  assert.ok(css.includes('.how-this-works summary{'));
  assert.match(css,/\.how-this-works summary\{[^}]*min-height:40px/,'the fold is a proper tap target');
 });
+
+test('suggestions and places near here are dealt with what pleases the most of us first, and say how far',async()=>{
+ const {partyFit,rankByParty,travelText}=await import('../src/trip-features.js');
+ const {normaliseSuggestion}=await import('../server/suggest.mjs');
+ let state=upgraded(structuredClone(seed));
+ state=applyOperation(state,{type:'partyPerson',name:'Boston',age:8,interests:['trains'],likes:['ramen']},parent);
+ state=applyOperation(state,{type:'partyPerson',name:'Nate',age:5,interests:['kids'],likes:['ramen']},parent);
+ state=applyOperation(state,{type:'partyPerson',name:'Damien',age:41,interests:[],likes:['coffee'],avoid:'queues'},parent);
+ const card=(title,extra={})=>({draft:{title,place:'',notes:'',tags:[],category:'place',suitableFor:[],...extra}});
+ const items=[card('Blue Bottle coffee'),card('Ichiran ramen'),card('A quiet garden'),card('Ramen with a long queue',{notes:'Famous for its queues.'})];
+ // Two of us like ramen: that card leads and says whose; the one Damien would avoid drops below it.
+ const ranked=rankByParty(items,state,i=>i.draft);
+ assert.equal(ranked[0].draft.title,'Ichiran ramen');
+ assert.deepEqual(ranked[0].fit.fans.sort(),['Boston','Nate']);
+ assert.deepEqual(ranked[0].fit.reasons.Boston,['ramen']);
+ assert.deepEqual(ranked[1].draft.title,'Ramen with a long queue');
+ assert.deepEqual(ranked[1].fit.avoid.Damien,['queues']);
+ assert.equal(ranked.at(-1).draft.title,'A quiet garden','nobody’s likes point at it, so it goes last');
+ // Marked for somebody else, it is not a match for anyone left out.
+ assert.deepEqual(partyFit(state,card('Kids ramen',{suitableFor:['Nate']}).draft).fans,['Nate']);
+ // Distance reads the way a family says it, and is left off rather than guessed.
+ assert.equal(travelText(12,'walk','the hotel'),'About 12 min walk from the hotel');
+ assert.equal(travelText(25,'train'),'About 25 min by train');
+ assert.equal(travelText(null,'walk'),'');
+ const s=normaliseSuggestion({title:'Tokyo Tower',travelMinutes:18,travelMode:'train'},state);
+ assert.equal(s.travelMinutes,18);assert.equal(s.travelMode,'train');
+ const bad=normaliseSuggestion({title:'X',travelMinutes:-4,travelMode:'rocket'},state);
+ assert.equal(bad.travelMinutes,null);assert.equal(bad.travelMode,'walk');
+ // Both panels deal their cards this way and show it on the card.
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ const nearby=await readFile(new URL('../src/Nearby.jsx',import.meta.url),'utf8');
+ const server=await readFile(new URL('../server/suggest.mjs',import.meta.url),'utf8');
+ assert.match(party,/const ranked=result\?rankByParty\(result\.suggestions,state,i=>i\.draft\):\[\]/);
+ assert.match(party,/<PartyMatch fit=\{item\.fit\}/);
+ assert.match(party,/travelText\(item\.travelMinutes,item\.travelMode,result\.from\)/);
+ assert.match(party,/Nothing is planned for \{dayLabel\(scopeDay\.date\)\} yet/);
+ assert.match(party,/if\(near\)body\.near=near;/);
+ assert.match(server,/Starting from: \$\{from\}/);
+ assert.match(nearby,/<SuggestDeck key=\{round\} items=\{ranked\}/);
+ assert.match(nearby,/\(b\.dish\?1:0\)-\(a\.dish\?1:0\)\|\|\(b\.fit\?\.fans\.length\|\|0\)-\(a\.fit\?\.fans\.length\|\|0\)/);
+ assert.match(nearby,/fit:isRatedKind\(o\.kind\)\?partyFit\(state,o\.draft\):null/,'a toilet is the nearest one, whoever likes what');
+});
