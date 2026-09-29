@@ -142,8 +142,9 @@ export const hiddenNav=(user,prefs)=>cleanNav(prefs,user).hidden;
 // Whatever the bottom bar does not already show, grouped so a long list stays scannable, and
 // without whatever this person has put away. Nothing put away is lost: My menu lists it, and
 // My menu is one of the two screens that can never be put away itself.
-export const moreSections=(user,prefs)=>{
- const shown=new Set(primaryNav(user,prefs)),away=new Set(hiddenNav(user,prefs));
+// With withBar, the bar's own screens are listed too, in their places, so More can mark them.
+export const moreSections=(user,prefs,withBar=false)=>{
+ const shown=new Set(withBar?[]:primaryNav(user,prefs)),away=new Set(hiddenNav(user,prefs));
  return MORE_SECTIONS
   .map(([title,ids])=>[title,ids.filter(id=>!shown.has(id)&&!away.has(id)&&allowed(id,user))])
   .filter(([,ids])=>ids.length);

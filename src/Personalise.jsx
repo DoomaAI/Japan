@@ -70,7 +70,8 @@ export function BarShortcuts({user,prefs,setPrefs}){
   <p>Home is always at the left end and More at the right. The shortcuts between them come in
    this order, and swipe sideways like the days along the top when there are more than fit.
    Swipe the bar up for everything else, and down to come back. You can have
-   up to {BAR_MAX-1} shortcuts.</p>
+   up to {BAR_MAX-1} shortcuts. You can also press and hold one on the bar until they wobble,
+   then drag them where you want.</p>
   <ol className="menu-order">{shortcuts.map((id,i)=>{const Icon=iconFor(id);return <li key={id}>
    <span className="more-icon"><Icon size={19}/></span>
    <span><strong>{PAGES[id].label}</strong><small>{PAGES[id].note}</small></span>

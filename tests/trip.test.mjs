@@ -1806,10 +1806,10 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
  assert.match(css,/\.bottom-nav \.nav-grip\{position:absolute/);
  // The bar is the one this person arranged, and so is what More has left to show.
  assert.match(nav,/const bar=primaryNav\(user,prefs\);/);
- assert.match(nav,/moreSections\(user,prefs\)/);
+ assert.match(nav,/moreSections\(user,prefs(,where)?\)/);
  // Both go through navGo, which sends Today to today's date on a trip day.
  assert.match(main,/<BottomNav tab=\{tab\} user=\{user\} go=\{navGo\} prefs=\{navPrefs\}/);
- assert.match(main,/<MorePage user=\{user\} tab=\{tab\} go=\{navGo\} prefs=\{navPrefs\}>/);
+ assert.match(main,/<MorePage user=\{user\} tab=\{tab\} go=\{navGo\} prefs=\{navPrefs\} home=\{homePrefs\}>/);
  // Kept on the phone, per person, and cleaned on the way in as well as on the way out.
  assert.match(main,/localStorage\.setItem\(`japan\.nav\.\$\{user\.name\}`/);
  assert.match(main,/setNavPrefs\(cleanNav\(stored\(`japan\.nav\.\$\{user\.name\}`,emptyNav\(\)\),user\)\)/);
@@ -1824,7 +1824,8 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
  // Home and More are pinned either side of the strip that scrolls, and the shortcuts between
  // them can be put in order from Settings as well as from My menu.
  assert.match(nav,/\{tab_\(pinned,'nav-home'\)\}\s*<div className="nav-tabs"/);
- assert.match(nav,/shortcuts\.map\(id=>tab_\(id\)\)/);
+ assert.match(nav,/useWobble\(\{ids:shortcuts,/);
+ assert.match(nav,/\{w\.order\.map\(id=>tab_\(id\)\)\}/);
  assert.match(css,/\.bottom-nav \.nav-more,\.bottom-nav \.nav-home\{flex:0 0 auto/);
  const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
  assert.match(settings,/<BarShortcuts user=\{user\} prefs=\{navPrefs\} setPrefs=\{setNavPrefs\}\/>/);
@@ -8909,6 +8910,14 @@ test('each ride shows the line symbol its signs carry',async()=>{
  assert.deepEqual(lineSymbols(legStops({line:'naraBus',from:'Kintetsu-Nara Station (stop 1)',to:'Todaiji Daibutsuden / Kasugataisha-mae'})),[]);
  assert.equal(inkOn('#FFD400'),'#1f1f1f');
  assert.equal(inkOn('#E5171F'),'#fff');
+ // Drawn as each operator describes its own: rings for Tokyo's subways, JR East's framed code.
+ const {LINES,symbolStyle,symbolColour}=await import('../src/route-data.js');
+ assert.equal(symbolStyle(LINES.marunouchi),'ring circle');
+ assert.equal(symbolStyle(LINES.oedo),'ring circle');
+ assert.equal(symbolStyle(LINES.yamanote),'jre');
+ assert.equal(symbolStyle(LINES.midosuji),'fill square');
+ for(const l of Object.values(LINES))if(l.stations.some(s=>s[2]))assert.ok(symbolStyle(l),l.name);
+ assert.deepEqual(['B','A'].map(c=>symbolColour(LINES.kintetsu,c)),['#E7A61A','#C22047']);
 });
 test('tracking at a change follows the ride still to come',async()=>{
  const {legStops,whereOnRoute}=await import('../src/route-data.js');
@@ -9481,4 +9490,60 @@ test('every stop in the plan reads as a sort of stop, and a parent can set it by
  assert.equal(entryType(applyOperation(seed,{type:'patch',id:s.id,patch:{category:''}},parent).steps.find(x=>x.id===s.id)).id,'food');
  assert.throws(()=>applyOperation(seed,{type:'patch',id:s.id,patch:{category:'spa'}},parent),/sort of stop/);
  assert.ok(ENTRY_TYPE_IDS.includes('food'));
+});
+
+test('the buttons under each stop come in each person’s own order, rearranged by holding and dragging',async()=>{
+ const {CARD_LINKS,LINKS_DEFAULT,emptyLinks,cleanLinks,linkOrder,dropLink,stepLink}=await import('../src/card-links.js');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const row=await readFile(new URL('../src/StopButtons.jsx',import.meta.url),'utf8');
+ const wobble=await readFile(new URL('../src/wobble.js',import.meta.url),'utf8');
+ const {mergeVisible}=await import('../src/wobble.js');
+ // Untouched, the day's own buttons lead and Share ends the row.
+ assert.deepEqual(linkOrder(emptyLinks()),LINKS_DEFAULT);
+ assert.deepEqual(LINKS_DEFAULT,['park','sumo','eyespy','tickets','guide','website','ask','nearby','photos','voice','remind','share']);
+ for(const id of LINKS_DEFAULT)assert.ok(CARD_LINKS[id].label&&CARD_LINKS[id].note,id);
+ // Dragged onto another, a button takes its place and the rest shuffle along, either way.
+ assert.deepEqual(dropLink(['a','b','c','d'],'a','c'),['b','c','a','d']);
+ assert.deepEqual(dropLink(['a','b','c','d'],'d','b'),['a','d','b','c']);
+ assert.deepEqual(dropLink(['a','b'],'a','nothing'),['a','b']);
+ // A step along skips buttons this stop does not show, and does nothing off the end.
+ assert.deepEqual(stepLink(['a','b','c'],'a',1,['a','c']),['b','c','a']);
+ assert.deepEqual(stepLink(['a','b','c'],'a',-1),['a','b','c']);
+ // Whatever localStorage hands back is cleaned: unknown and repeated ids go, new buttons arrive.
+ assert.deepEqual(cleanLinks({order:['share','nothing','share','nearby']}).order,
+  ['share','nearby',...LINKS_DEFAULT.filter(id=>id!=='share'&&id!=='nearby')]);
+ for(const rubbish of [null,undefined,'x',{order:'x'}])assert.deepEqual(linkOrder(rubbish),LINKS_DEFAULT,JSON.stringify(rubbish));
+ // The stop card hands every button to the row by name and keeps the order on this phone.
+ for(const id of LINKS_DEFAULT)assert.match(main,new RegExp(`\\n\\s+${id}:`),id);
+ assert.match(main,/<StopButtons label="For this stop" order=\{linkOrder\(linkPrefs\)\}/);
+ assert.match(main,/japan\.links\.\$\{user\.name\}/);
+ // Holding wobbles the row, and while it wobbles a tap does not open anything.
+ assert.match(row,/data-wobbling=\{w\.editing\|\|undefined\}/);
+ assert.match(wobble,/onClickCapture:e=>\{if\(editing\|\|eat\.current\)/);
+ // Only the buttons a stop shows move; the rest keep their places in the whole order.
+ assert.deepEqual(mergeVisible(['a','b','c','d'],['d','a']),['d','b','c','a']);
+});
+
+test('the bottom bar wobbles to be rearranged, and More can mark what is already on the bar or Home',async()=>{
+ const {homePages,emptyHome,toggleWidget}=await import('../src/home-widgets.js');
+ const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
+ // Home and More are pinned; the shortcuts between them are what is held and dragged, and the
+ // new order goes back through the same save as My menu, Home first.
+ assert.match(nav,/onMove:next=>setPrefs\?\.\(\{bar:\[pinned,\.\.\.next\],hidden:hiddenNav\(user,prefs\)\}\)/);
+ assert.match(nav,/const \{held,\.\.\.item\}=extra\?\{\}:w\.item\(id\)/,'Home is never picked up');
+ // A drag while the bar wobbles is not the swipe up that opens the menu.
+ assert.match(nav,/if\(!from\|\|w\.editing\)return;/);
+ // Widgets name the screen they are a slice of, and only the ones on Home count.
+ assert.ok(homePages(emptyHome()).has('weather'));
+ assert.ok(!homePages(emptyHome()).has('help'),'useful apps starts put away');
+ assert.ok(homePages(toggleWidget(emptyHome(),'apps')).has('help'));
+ assert.ok(!homePages(toggleWidget(emptyHome(),'weather')).has('weather'));
+ assert.match(nav,/aria-pressed=\{where\}/);
+ const {moreIds,moreSections,primaryNav,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const inMenu=new Set(MORE_SECTIONS.flatMap(([,ids])=>ids));
+ const parent={name:'Damien',role:'parent'},bar=primaryNav(parent,null);
+ assert.ok(!moreIds(parent,null).includes('tickets'),'the bar’s screens are left out of More');
+ const all=moreSections(parent,null,true).flatMap(([,ids])=>ids);
+ for(const id of bar.slice(1).filter(id=>inMenu.has(id)))assert.ok(all.includes(id),`${id} is listed to be marked`);
+ assert.match(nav,/Shortcut on the bar/);assert.match(nav,/Widget on Home/);
 });
