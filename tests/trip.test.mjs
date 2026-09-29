@@ -1666,7 +1666,7 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   const bar=primaryNav(user),more=moreIds(user),all=[...bar,...more];
   // Nothing appears twice, and nothing is stranded.
   assert.equal(new Set(all).size,all.length,`${user.name} lists a page twice`);
-  const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(!['inbox','ledger','paying'].includes(id)||user.role==='parent'));
+  const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(!['inbox','ledger','paying','vault'].includes(id)||user.role==='parent'));
   assert.deepEqual([...all].sort(),[...expected].sort(),`${user.name} cannot reach every page`);
   // The bar holds six, plus More: Home, Today and the Itinerary, and three for whoever it is.
   assert.equal(bar.length,6,user.name);
