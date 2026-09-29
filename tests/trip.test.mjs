@@ -10539,3 +10539,49 @@ test('one line under each title, and the rest of the why behind How this works',
  assert.ok(css.includes('.how-this-works summary{'));
  assert.match(css,/\.how-this-works summary\{[^}]*min-height:40px/,'the fold is a proper tap target');
 });
+
+test('the palette is named once, the fonts carry their own weights, and night is a choice',async()=>{
+ const {THEMES,readTheme,saveTheme,isDark,applyTheme,THEME_COLOUR}=await import('../src/theme.js');
+ const store=(saved={})=>({getItem:k=>saved[k]??null,setItem:(k,v)=>{saved[k]=v;},saved});
+ // Light until told otherwise, however the phone stored it (plain, or in quotes through the JSON hook).
+ assert.equal(readTheme(store()),'light');
+ assert.equal(readTheme(store({'japan.theme':'dark'})),'dark');
+ assert.equal(readTheme(store({'japan.theme':'"auto"'})),'auto');
+ assert.equal(readTheme(store({'japan.theme':'purple'})),'light');
+ assert.equal(readTheme({getItem(){throw new Error('no');}}),'light','a phone that refuses storage is light, not broken');
+ const st=store();assert.equal(saveTheme('dark',st),'dark');assert.equal(st.saved['japan.theme'],'dark');assert.equal(saveTheme('nope',st),'light');
+ assert.equal(isDark('dark'),true);assert.equal(isDark('light',true),false);assert.equal(isDark('auto',true),true);assert.equal(isDark('auto',false),false);
+ // Applying puts the choice on the page and matches the bar above the app to it.
+ const meta={content:'',setAttribute(k,v){this.content=v;}},doc={documentElement:{dataset:{}},querySelector:()=>meta};
+ applyTheme('dark',doc,false);assert.equal(doc.documentElement.dataset.theme,'dark');assert.equal(meta.content,THEME_COLOUR.dark);
+ applyTheme('auto',doc,false);assert.equal(meta.content,THEME_COLOUR.light);
+ assert.equal(applyTheme('light',null),'light','no document, nothing to do');
+ assert.deepEqual(THEMES.map(([id])=>id),['light','dark','auto']);
+ const read=async f=>readFile(new URL(`../src/${f}`,import.meta.url),'utf8');
+ const base=await read('style.css'),guide=await read('guide-theme.css'),stages=await read('stages.css');
+ // One set of names, declared in the base sheet and given the guide's values in the guide sheet.
+ for(const name of ['--paper','--page','--tint','--tint-deep','--tint-border','--cream','--sand','--sand-border','--sand-ink','--blush','--blush-border','--danger','--danger-bright','--green-deep','--mint','--stone','--ink-deep'])
+  for(const [sheet,label] of [[base,'style.css'],[guide,'guide-theme.css']])assert.match(sheet,new RegExp(`:root\\{[^}]*${name}:#`),`${name} in ${label}`);
+ // Night: the same names, under a choice or under the phone's own setting; never unasked.
+ assert.match(guide,/:root\[data-theme=dark\]\{--ink:#/);
+ assert.match(guide,/@media \(prefers-color-scheme:dark\)\{:root\[data-theme=auto\]\{--ink:#/);
+ assert.doesNotMatch(guide,/@media \(prefers-color-scheme:dark\)\{:root\{/,'a phone in dark mode is not switched without being asked');
+ // The colours went onto the names: what is left raw is shadows, transparencies and one-offs.
+ const raw=sheet=>(sheet.replace(/:root(\[[^\]]*\])?\{[^}]*\}/g,'').match(/#[0-9a-fA-F]{3,8}\b/g)||[]).filter(h=>h.length===4||h.length===7);
+ assert.ok(raw(base).length<300,`${raw(base).length} raw colours left in style.css`);
+ assert.ok(raw(guide).length<20,`${raw(guide).length} raw colours left in guide-theme.css`);
+ assert.doesNotMatch(base,/(?<=[:,\s])white\b/,'no colour keywords either');
+ // The boards keep literal colours: a board is the same at night, and its empty and filled squares are compared as real channels.
+ assert.match(base,/\.merge-tile\.filled\{background:#fff/);
+ // Real weights: the guide's two families as variable woff2 files, no TTF single weights left.
+ for(const f of ['robotocondensed','robotocondensed-italic','playfairdisplay','playfairdisplay-italic'])assert.match(guide,new RegExp(`url\\('\\./fonts/${f}\\.woff2'\\) format\\('woff2'\\)`),f);
+ assert.match(guide,/font-family:Guide Sans;src:url\('\.\/fonts\/robotocondensed\.woff2'\)[^}]*font-weight:100 900/);
+ assert.match(guide,/font-family:Guide Serif;src:url\('\.\/fonts\/playfairdisplay\.woff2'\)[^}]*font-weight:400 900/);
+ assert.doesNotMatch(guide,/\.ttf/);
+ await assert.rejects(()=>readFile(new URL('../src/fonts/guide-sans.ttf',import.meta.url)));
+ assert.match(guide,/font-synthesis:none/,'bold is drawn by the font, never thickened by the browser');
+ // Chosen in Settings, applied before the first paint.
+ assert.match(await read('Settings.jsx'),/<Appearance\/>/);
+ assert.match(await read('main.jsx'),/applyTheme\(readTheme\(\)\);\ncreateRoot/);
+ assert.ok(stages.includes('var(--paper)'),'the third sheet uses the names too');
+});

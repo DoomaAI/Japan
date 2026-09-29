@@ -6,6 +6,7 @@ import Notifications from './Notifications.jsx';
 import {BarShortcuts} from './Personalise.jsx';
 import {CARD_LINKS,linkOrder,stepLink} from './card-links.js';
 import {DEEP_LINKS,deepLinkUrl} from './deep-links.js';
+import {THEMES,readTheme,saveTheme,applyTheme} from './theme.js';
 const ICONS={dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
@@ -108,12 +109,24 @@ function DeepLinks({notice}){
   <p><small>The address only opens on a phone already signed in to the trip; on any other phone it shows the front door.</small></p>
  </section>;
 }
+// Light or dark, chosen here rather than left to the phone, because midday at a ramen counter
+// and midnight in a hotel room want different things and the phone only knows the clock.
+function Appearance(){
+ const [theme,setTheme]=useState(readTheme);
+ const pick=id=>{setTheme(saveTheme(id));applyTheme(id);};
+ return <section className="settings-section">
+  <h2>Appearance</h2>
+  <div className="segmented theme-picker" role="radiogroup" aria-label="Appearance">{THEMES.map(([id,label])=><button type="button" key={id} role="radio" aria-checked={theme===id} className={theme===id?'selected':''} onClick={()=>pick(id)}>{label}</button>)}</div>
+  <p><small>Photos and the original guide stay as they are; everything else takes the darker colours. Match the phone follows the phone’s own light and dark schedule.</small></p>
+ </section>;
+}
 export default function Settings({user,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice,config}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR CHOICE</p>
   <h1>Settings</h1>
   <p>The phrase and the fact are the only things the app puts on your screen without being asked.</p>
  <HowThisWorks><p>Turn one off and it stops opening{user?.name?` on ${user.name}’s phone`:''} — everybody else keeps theirs.</p></HowThisWorks>
+  <Appearance/>
   <section className="settings-section">
    <h2>What opens on its own</h2>
    {SETTINGS.filter(s=>!s.group).map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
