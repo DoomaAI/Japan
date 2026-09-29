@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react';
+import {useStored} from './stored.js';
 import {Trophy,RotateCcw} from 'lucide-react';
 import {RING,TICK,EDGE,TOPS,topById,RIVALS,rivalAt,SPIN,newBout,beigomaTick,beigomaWorth,rng} from './beigoma.js';
 import {bestScore} from './trip-features.js';
@@ -20,8 +21,8 @@ const Koma=({top,spin,turn,dim})=>{
  </g>;
 };
 export default function Beigoma({user,state,mutate,busy}){
- const [mine,setMine]=useState('nami');
- const [rung,setRung]=useState(0),[beaten,setBeaten]=useState(0);
+ const [mine,setMine]=useStored('japan.beigoma.top','nami');
+ const [rung,setRung]=useStored('japan.beigoma.rung',0),[beaten,setBeaten]=useStored('japan.beigoma.beaten',0);
  const [bout,setBout]=useState(null),[aim,setAim]=useState(null);
  const rand=useRef(rng(Date.now()%100000)),drag=useRef(null),ring=useRef(null),saved=useRef(null);
  const rival=rivalAt(rung);

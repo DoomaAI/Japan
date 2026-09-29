@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react';
+import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Heart} from 'lucide-react';
 import {CHANT,CHANT_SAY,LEVELS,levelById,TRACK,TICK,newRun,start,darumaTick,resume,darumaWorth} from './daruma.js';
 import {bestScore} from './trip-features.js';
@@ -20,9 +21,11 @@ const Doll=({watching})=><svg viewBox="0 0 60 64" className="daruma-doll" role="
     <path d="M13 40q17-5 34 0" stroke="#8d241f" strokeWidth="2" fill="none"/></>}
 </svg>;
 export default function Daruma({user,state,mutate,busy}){
- const [levelId,setLevelId]=useState('gentle');
- const [run,setRun]=useState(()=>newRun('gentle'));
- const [began,setBegan]=useState(null),[seconds,setSeconds]=useState(0);
+ const [levelId,setLevelId]=useStored('japan.daruma.level','gentle');
+ const [run,setRun]=useStored('japan.daruma.run',()=>newRun('gentle'));
+ // The run and when it began are kept, time away included, as the picross clock is; the
+ // seconds on screen are only ever worked out from that.
+ const [began,setBegan]=useStored('japan.daruma.began',null),[seconds,setSeconds]=useState(0);
  // The finger is kept in both a ref and a state: the ticker reads the ref, because a closure
  // over state is a tick behind, and the screen reads the state, because a ref does not redraw.
  // What it holds is where the finger actually is, not where the game would like it to be —
