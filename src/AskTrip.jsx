@@ -41,7 +41,7 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
  }
  return <div className="ask">
   {step?<p>Ask anything about {step.title} — how long it takes, what to eat, what the boys will like. It reads this stop and the rest of the day, and searches for what the plan cannot say.</p>:<>
-  <p className="eyebrow">{user?.name?`${user.name.toUpperCase()}’S TRIP PROJECT`:'ASK ABOUT OUR TRIP'}</p>
+  <p className="eyebrow">ASK ABOUT OUR TRIP</p>
   <h1>Better today or tomorrow?</h1>
   <p>Ask anything about the trip in your own words. Answers are for you first.</p>
  <HowThisWorks><p>Every question is answered from the trip as it is right now: every day and what is booked, the forecast we last checked, the board and its votes, the places we saved, how each stop was rated, and everyone’s profile, with yours first. Change any of those and the next answer knows. It searches only for what the plan cannot say.</p></HowThisWorks></>}
