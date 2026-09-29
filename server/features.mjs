@@ -6,6 +6,7 @@ import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
+import {IC_MAX,RECEIPT_TYPES} from '../src/ledger-data.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
@@ -29,6 +30,23 @@ export function extraOperation(state,op,user,fail,now){
  const dayCheck=day=>{if(!dayOK(day))fail('Choose a trip day or Whole trip.');};
  // What somebody cannot eat, for the card handed to a waiter. A parent writes it; every allergen
  // has to be one Japan has a word for, because the card is only worth having in Japanese.
+ // Squaring up between the parents: a hand-over of yen from one to the other, recorded so the
+ // balance card comes back to even. Parents only, like the ledger it sits under.
+ if(op.type==='settleUp'){
+  if(!parent)fail('Squaring up is for Mum and Dad.',403);
+  if(!PAYERS.includes(op.from)||!PAYERS.includes(op.to)||op.from===op.to)fail('Say who handed the money to whom.');
+  if(!Number.isInteger(op.yen)||op.yen<1||op.yen>10000000)fail('Enter the amount as whole yen.');
+  state.settlements=[...(state.settlements||[]),{id:randomUUID(),from:op.from,to:op.to,yen:op.yen,at:now,by:user.name}];
+  return {summary:null,important:false,title:`${op.from} squared up ¥${op.yen.toLocaleString()} with ${op.to}`};
+ }
+ // The balance left on somebody's IC card, read off the gate or the machine and typed in.
+ if(op.type==='icBalance'){
+  if(!parent)fail('A parent keeps the card balances.',403);
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!Number.isInteger(op.yen)||op.yen<0||op.yen>IC_MAX)fail(`Enter the balance as whole yen, up to ¥${IC_MAX.toLocaleString()}.`);
+  state.icCards={...(state.icCards||{}),[op.person]:{yen:op.yen,at:now,by:user.name}};
+  return {summary:null,important:false,title:`${op.person}’s IC card: ¥${op.yen.toLocaleString()}`};
+ }
  if(op.type==='allergySet'){
   if(!parent)fail('A parent keeps the allergy cards.',403);
   if(!state.members.includes(op.person))fail('Choose a family member.');
@@ -797,6 +815,13 @@ export function extraOperation(state,op,user,fail,now){
    dayCheck(op.day??null);
    requireText(op.notes||'',1000,'notes');
    const values=expenseFields(op);
+   // A receipt is a file the parent already put in the family's private storage; the ledger only
+   // keeps where it is. A file of the wrong kind, or from anywhere else, is refused.
+   if(op.receipt!==undefined){
+    const r=op.receipt;
+    if(r!==null&&(typeof r!=='object'||!string(r.pathname,300)||!r.pathname.startsWith('receipts/')||r.pathname.includes('..')||!RECEIPT_TYPES.includes(r.type)))fail('That receipt file could not be used.');
+    values.receipt=r?{pathname:r.pathname,type:r.type}:null;
+   }else if(op.type==='expenseAdd')values.receipt=null;
    if(op.type==='expenseEdit'){Object.assign(found(),values);return {summary:null,important:false,title:values.title};}
    if(state.expenses.length>=2000)fail('That is two thousand payments already.');
    let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}

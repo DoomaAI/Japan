@@ -9967,3 +9967,65 @@ test('a Shortcut, Siri or the Action button can open the app straight onto one j
  assert.match(settings,/<DeepLinks notice=\{notice\}\/>/,'the addresses are listed in Settings with Copy, for every phone');
  assert.match(settings,/DEEP_LINKS\.map\(link=>/);
 });
+
+test('the parents know who owes whom, what is on each IC card, and where the receipt is',async()=>{
+ const {balanceBetween,settlements,icBalance,icLow,IC_MAX,RECEIPT_TYPES,receiptUrl}=await import('../src/ledger-data.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ const day=seed.days[3].date;
+ let state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.settlements,[]);assert.deepEqual(state.icCards,{});
+ assert.equal(balanceBetween(state),null,'nothing to square with nothing spent');
+ const add=(s,o)=>applyOperation(s,{type:'expenseAdd',title:'Lunch',yen:3000,category:'food',method:'card',paidBy:'Damien',day,...o},parent);
+ state=add(state,{});
+ state=add(state,{title:'Train',yen:9000,paidBy:'Lauren'});
+ // ¥12,000 shared, ¥6,000 each: Damien paid ¥3,000, so he owes Lauren ¥3,000.
+ assert.deepEqual(balanceBetween(state),{from:'Damien',to:'Lauren',yen:3000,shared:12000});
+ // A payment marked own is the payer's alone and stays out of the split.
+ state=add(state,{title:'Massage',yen:8000,paidBy:'Lauren',own:true});
+ assert.equal(state.expenses.at(-1).own,true);
+ assert.deepEqual(balanceBetween(state),{from:'Damien',to:'Lauren',yen:3000,shared:12000});
+ // Squaring up brings it back to even, and is a parent's to record.
+ assert.throws(()=>applyOperation(state,{type:'settleUp',from:'Damien',to:'Lauren',yen:3000},child),e=>e.status===403);
+ for(const bad of [{from:'Nate'},{to:'Damien'},{yen:0},{yen:12.5}])assert.throws(()=>applyOperation(state,{type:'settleUp',from:'Damien',to:'Lauren',yen:3000,...bad},parent),AppError,JSON.stringify(bad));
+ state=applyOperation(state,{type:'settleUp',from:'Damien',to:'Lauren',yen:3000},parent);
+ assert.equal(settlements(state).length,1);assert.equal(settlements(state)[0].by,'Damien');
+ assert.deepEqual(balanceBetween(state),{from:null,to:null,yen:0,shared:12000});
+ // Overpaying the square-up swings it the other way.
+ state=applyOperation(state,{type:'settleUp',from:'Damien',to:'Lauren',yen:1000},parent);
+ assert.deepEqual(balanceBetween(state),{from:'Lauren',to:'Damien',yen:1000,shared:12000});
+ // IC card balances: whole yen up to the card's ceiling, any family member, parents only.
+ state=applyOperation(state,{type:'icBalance',person:'Nate',yen:800},parent);
+ assert.equal(icBalance(state,'Nate').yen,800);assert.equal(icBalance(state,'Nate').by,'Damien');
+ assert.equal(icLow(state,'Nate'),true,'under a thousand yen is low');
+ assert.equal(icLow(state,'Boston'),false,'no balance is not low, just unknown');
+ assert.throws(()=>applyOperation(state,{type:'icBalance',person:'Nate',yen:IC_MAX+1},parent),AppError);
+ assert.throws(()=>applyOperation(state,{type:'icBalance',person:'Grandma',yen:500},parent),AppError);
+ assert.throws(()=>applyOperation(state,{type:'icBalance',person:'Nate',yen:500},child),e=>e.status===403);
+ // A receipt is only a pointer into the family's private receipts folder, of a kind that can be shown.
+ state=add(state,{title:'Dinner',yen:6000,receipt:{pathname:'receipts/u1/abc.jpg',type:'image/jpeg'}});
+ const dinner=state.expenses.at(-1);
+ assert.deepEqual(dinner.receipt,{pathname:'receipts/u1/abc.jpg',type:'image/jpeg'});
+ assert.equal(receiptUrl(dinner),`/api/receipt?id=${dinner.id}`);
+ for(const bad of [{pathname:'tickets/u1/abc.jpg',type:'image/jpeg'},{pathname:'receipts/u1/../x.jpg',type:'image/jpeg'},{pathname:'receipts/u1/a.exe',type:'application/x-msdownload'}])
+  assert.throws(()=>add(state,{receipt:bad}),AppError,JSON.stringify(bad));
+ assert.ok(RECEIPT_TYPES.includes('application/pdf'),'a PDF receipt from an online booking counts');
+ state=applyOperation(state,{type:'expenseEdit',id:dinner.id,title:'Dinner',yen:6000,category:'food',method:'card',paidBy:'Damien',day,receipt:null},parent);
+ assert.equal(state.expenses.find(e=>e.id===dinner.id).receipt,null,'and can be taken off again');
+ // None of it reaches the boys.
+ assert.deepEqual(visibleTrip(state,child).settlements,[]);
+ assert.deepEqual(visibleTrip(state,child).expenses,[]);
+ assert.equal(visibleTrip(state,parent).settlements.length,2);
+ const handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handler,/route==='receipt'&&req\.method==='GET'\)\{\s*parent\(user\);/,'the receipt file is served to a parent only');
+ assert.match(handler,/pathname\.startsWith\(`receipts\/\$\{user\.id\}\/`\)/,'and uploaded into a folder of its own');
+ assert.match(handler,/if\(receipt\)\{parent\(user\);return \{allowedContentTypes:RECEIPT_TYPES/);
+ const ledger=await readFile(new URL('../src/Ledger.jsx',import.meta.url),'utf8');
+ assert.match(ledger,/<BalanceCard state=\{state\}/);
+ assert.match(ledger,/<IcCards state=\{state\}/);
+ assert.match(ledger,/type:'settleUp',from:b\.from,to:b\.to,yen:b\.yen/);
+ assert.match(ledger,/upload\(`receipts\/\$\{user\.id\}\//,'the receipt goes to private storage and the payment keeps only where it is');
+ assert.match(ledger,/own:f\.get\('own'\)==='on',receipt\}/);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/<Ledger [^\n]*config=\{config\} online=\{online\} notice=\{notice\}\/>/);
+});
