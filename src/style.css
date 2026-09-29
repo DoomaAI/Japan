@@ -632,7 +632,11 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 /* A booking whose own time has gone is a prompt, not an alarm. */
 .departure.passed{border-left-color:#a7a89e}.departure.passed .departure-leave{color:var(--muted);font-weight:500}
 /* The clock's place in the top bar, taken by the leave-by countdown while one is close. */
-.leave-chip{border:0;background:#fbe9e2;color:#8a3a26;border-radius:10px;padding:.2rem .55rem;min-height:40px;cursor:pointer}.leave-chip.now{background:#b3442a;color:#fff}.leave-chip small{letter-spacing:.08em}
+.leave-chip{border:0;background:#fbe9e2;color:#8a3a26;border-radius:10px;padding:.2rem .55rem;min-height:40px;cursor:pointer}.topbar .leave-chip.now{background:#9c2f14;color:#fff;opacity:1;text-shadow:none;font-size:1rem;font-weight:800;padding:.3rem .75rem;box-shadow:0 0 0 2px #fff,0 0 0 4px #9c2f14;animation:leave-pulse 1.6s ease-in-out infinite}
+.topbar .leave-chip.now small{color:#fff;font-size:.7rem;font-weight:700;opacity:1}
+.topbar .leave-chip.now svg{stroke:#fff}
+@keyframes leave-pulse{50%{box-shadow:0 0 0 2px #fff,0 0 0 7px rgba(156,47,20,.35)}}
+@media(prefers-reduced-motion:reduce){.topbar .leave-chip.now{animation:none}}.leave-chip small{letter-spacing:.08em}
 .syncbar .sync-now{margin-left:auto;min-height:30px;padding:0 .7rem;font-size:.75rem;border-radius:999px;background:#fff;border:1px solid var(--border);color:inherit;white-space:nowrap}.syncbar .sync-now small{margin-left:.35rem;opacity:.7;font-size:inherit}
 .expiry-note{display:flex;align-items:center;gap:.5rem;margin:.5rem 1.2rem 0;padding:.5rem .8rem;border-radius:10px;background:#fff6e0;color:#6b4d12;font-size:.85rem}
 .crash{padding:2rem 1.2rem;max-width:520px;margin:0 auto;font-family:system-ui,sans-serif}.crash-detail{font-size:.8rem;color:#666;overflow-wrap:anywhere}
