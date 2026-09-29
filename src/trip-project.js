@@ -1,6 +1,7 @@
 import {BOYS,party,personProfile,interestLabel,paceLabel,partyInterests,partyLikes} from './trip-features.js';
 import {allergyOf,allergenById} from './allergy-data.js';
 import {PRIORITIES,PRIORITY_LEVELS} from './decide-data.js';
+import {localBrief} from './local-data.js';
 // Each person's project: everything Claude knows about the trip besides the day-by-day plan,
 // built live from the trip as it stands every time somebody asks, and centred on whoever is
 // asking. Nothing is exported or kept: change a profile, rate a stop or save a place and the
@@ -113,7 +114,7 @@ function places(state){
 // never stored; the cache only saves re-reading what is byte-for-byte the same as last time.
 export function tripProject(state,person=null){
  if(person&&!(state.members||[]).includes(person))person=null;
- return {shared:[overview(state),places(state)].join('\n\n'),personal:[whose(state,person),profiles(state,person),feedback(state)].join('\n\n')};
+ return {shared:[overview(state),places(state),localBrief(state)].filter(Boolean).join('\n\n'),personal:[whose(state,person),profiles(state,person),feedback(state)].join('\n\n')};
 }
 // Stops a person is not on, so "not you" can be marked on the plan beside the question.
 export const notOn=(step,person)=>!!person&&Array.isArray(step.participants)&&step.participants.length>0&&!step.participants.includes(person);

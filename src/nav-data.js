@@ -8,6 +8,7 @@ export const PAGES={
  inbox:{label:'Forwarded email',note:'Booking emails you sent in, waiting to be filed'},
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
  hunts:{label:'Hunts & lists',note:'Rate and rank every matcha, gachapon and ramen, lists of our own, and where each one was'},
+ local:{label:'Like a local',note:'The bathhouse, the food hall, the tram and the Sunday market: what the locals do more than visitors, by base'},
  money:{label:'Yen',note:'What a price is in dollars, signal or not'},
  paying:{label:'Which card?',note:'The cheapest card or cash for a payment or an ATM, and each card\u2019s fees looked up'},
  ledger:{label:'Family spending',note:'What we have spent, by day and category, in yen and dollars'},
@@ -73,7 +74,7 @@ export const PRIMARY={
 // memories now; the app's own housekeeping (updates, the bin, search, the original guide) has
 // a shelf of its own rather than sitting among the photos.
 export const MORE_SECTIONS=[
- ['Out and about',['weather','ask','places','food','allergy','hunts','phrases','meeting','safety','help','apps']],
+ ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','meeting','safety','help','apps']],
  ['Money',['money','paying','ledger','shopping','shortlist','shop']],
  ['The plan',['glance','days','todo','packing','trackers','windows','arrival','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
  ['Looking back',['noticed','photos','memorymap','diary','recap','book']],

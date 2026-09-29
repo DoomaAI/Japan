@@ -43,6 +43,7 @@ import OnThisDay from './OnThisDay.jsx';
 import RunUp from './RunUp.jsx';
 import DailyJapan from './DailyJapan.jsx';
 import TodaysJapan from './TodaysJapan.jsx';
+import LikeALocalCard from './LikeALocalCard.jsx';
 import TravelGuide from './TravelGuide.jsx';
 import DayMap from './DayMap.jsx';
 import BookingWindows,{BookingWindowsCard} from './BookingWindows.jsx';
@@ -95,6 +96,7 @@ const Stamps=lazy(()=>import('./Stamps.jsx'));
 const Leaderboard=lazy(()=>import('./Leaderboard.jsx'));
 const TripShop=lazy(()=>import('./TripShop.jsx'));
 const Apps=lazy(()=>import('./Apps.jsx'));
+const LikeALocal=lazy(()=>import('./LikeALocal.jsx'));
 const Arrival=lazy(()=>import('./Arrival.jsx'));
 const AskTrip=lazy(()=>import('./AskTrip.jsx'));
 const Ledger=lazy(()=>import('./Ledger.jsx'));
@@ -649,7 +651,8 @@ function App(){
   running:<Running state={visibleState} day={day}/>,
   packing:<PackingNudge state={visibleState} user={user} day={day} go={go}/>,
   todos:<DayTodos state={visibleState} user={user} day={day} mutate={mutate} busy={busy} go={go}/>,
-  finds:<DayFinds state={visibleState} day={day} go={go}/>
+  finds:<DayFinds state={visibleState} day={day} go={go}/>,
+  local:<LikeALocalCard state={visibleState} today={japanDate(now)} day={day} go={go}/>
  };
  // One place decides what a phrase sounds like, so every SayIt on every screen offers the
  // family's own recording where there is one without being handed props down five levels.
@@ -701,6 +704,7 @@ function App(){
   {tab==='windows'&&<BookingWindows state={visibleState} user={user} now={now} mutate={mutate} busy={busy} go={go}/>}
   {tab==='shop'&&<TripShop state={visibleState} user={user} today={japanDate(now)} go={go} mutate={mutate} busy={busy}/>}
   {tab==='apps'&&<Apps state={visibleState} today={japanDate(now)} dayLabel={fmtDay}/>}
+  {tab==='local'&&<LikeALocal state={visibleState} user={user} today={japanDate(now)} dayLabel={fmtDay} mutate={mutate} busy={busy} notice={notice} go={go}/>}
   {tab==='vault'&&<Vault state={visibleState} user={user} request={request} notice={notice} online={online}/>}
   {tab==='arrival'&&<Arrival homeFirst={japanDate(now)>=(state.days[0]?.date||'')}/>}
   {tab==='predictions'&&<Predictions state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy}/>}
