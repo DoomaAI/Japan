@@ -10206,6 +10206,48 @@ test('Back and the swipe from the edge walk back through screens, and close a sh
  assert.equal((main.match(/history\.replaceState\(/g)||[]).length,3,'no screen change slips through as a replace');
  for(const fn of ['go','selectStep','selectPhotoDay','choosePhotoPerson'])assert.doesNotMatch(main,new RegExp(`function ${fn}\\([^\\n]*history\\.replaceState`),`${fn} goes through navigate`);
 });
+test('choosing together: each of us weights weather, cost, likes and votes, and the ideas are ranked for a day',async()=>{
+ const {groupPriorities,personPriorities,decide,ideaSetting,weatherFit,groupCost,betterDay}=await import('../src/decide-data.js');
+ const day=seed.days[1].date,city=seed.days[1].city,other=seed.days.find(d=>d.city===city&&d.date!==day)?.date;
+ let state=applyOperation(seed,{type:'proposalAdd',title:'Shinjuku Gyoen garden walk',category:'place',cost:500,costNote:'each'},parent);
+ state=applyOperation(state,{type:'proposalAdd',title:'teamLab Planets',category:'activity',cost:12000,setting:'indoor'},parent);
+ state=applyOperation(state,{type:'proposalAdd',title:'Somewhere hoped for another day',day:seed.days[3].date},parent);
+ const [garden,teamlab]=state.proposals.slice(-3);
+ // Indoors or out: said on the card wins, otherwise read from its words.
+ assert.deepEqual(ideaSetting(garden),{setting:'outdoor',said:false});
+ assert.deepEqual(ideaSetting(teamlab),{setting:'indoor',said:true});
+ // A price "each" is for everyone it suits; anything else is the group's price.
+ assert.deepEqual(groupCost(state,garden),{yen:2000,each:true,heads:4});
+ assert.equal(groupCost(state,teamlab).yen,12000);
+ // Only ideas for this day or no day are weighed, unless every idea is asked for.
+ assert.equal(decide(state,day).length,2);
+ assert.equal(decide(state,day,{all:true}).length,3);
+ // Everyone counts as "matters" until they say otherwise; a boy sets his own, not his brother's.
+ assert.deepEqual(groupPriorities(state),{weather:2,cost:2,likes:2,votes:2});
+ state=applyOperation(state,{type:'partyPriorities',name:'Nate',weights:{cost:0,weather:3}},child);
+ assert.deepEqual(personPriorities(state,'Nate'),{weather:3,cost:0,likes:2,votes:2});
+ assert.equal(groupPriorities(state).cost,1.5);
+ assert.throws(()=>applyOperation(state,{type:'partyPriorities',name:'Boston',weights:{cost:1}},child),e=>e.status===403);
+ for(const bad of [{name:'Grandma',weights:{cost:1}},{name:'Nate',weights:{cost:7}},{name:'Nate',weights:{mood:1}},{name:'Nate'}])
+  assert.throws(()=>applyOperation(state,{type:'partyPriorities',...bad},parent),`${JSON.stringify(bad)} should be refused`);
+ assert.equal(personPriorities(applyOperation(state,{type:'partyPriorities',name:'Nate',weights:null},parent),'Nate').cost,2);
+ // The weather decides between them once there is a forecast: rain sends us indoors.
+ assert.equal(weatherFit(null,'outdoor').score,null);
+ const wet={code:63,max:22,min:17,rain:90},fine={code:0,max:23,min:15,rain:0};
+ assert.ok(weatherFit(wet,'indoor').score>weatherFit(wet,'outdoor').score);
+ assert.ok(weatherFit(fine,'outdoor').score>weatherFit(fine,'indoor').score);
+ const rainy={...state,weather:{...state.weather,days:{[day]:wet,...(other?{[other]:fine}:{})}}};
+ assert.equal(decide(rainy,day,{weights:{weather:3,cost:0,likes:0,votes:0}})[0].proposal.id,teamlab.id);
+ const sunny={...state,weather:{...state.weather,days:{[day]:fine}}};
+ assert.equal(decide(sunny,day,{weights:{weather:3,cost:1,likes:0,votes:0}})[0].proposal.id,garden.id);
+ if(other)assert.equal(betterDay(rainy,garden,day)?.date,other,'a garden on a wet day points at a fine one in the same city');
+ // Votes count: a must-do lifts an idea when votes are what matter.
+ state=applyOperation(state,{type:'proposalMust',id:garden.id,person:'Nate',must:true},child);
+ const top=decide(state,day,{weights:{weather:0,cost:0,likes:0,votes:3}})[0];
+ assert.equal(top.proposal.id,garden.id);assert.deepEqual(top.musts,['Nate']);
+ // Something with nothing to weigh is left unscored rather than counted as a zero.
+ assert.equal(decide(state,day,{weights:{weather:3,cost:0,likes:0,votes:0}})[0].match,null);
+});
 
 test('suggested ideas come one card at a time: swipe right to put one on the board, left to pass',async()=>{
  const {flingDirection,cardTilt,stampStrength,FLING}=await import('../src/swipe.js');
