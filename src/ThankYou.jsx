@@ -1,44 +1,50 @@
 import React,{useState} from 'react';
 import {Heart,ArrowUp,ArrowDown,Plus,Trash2,Check} from 'lucide-react';
-import {thankYouNotes,thankYouSchedule,thankYouSpares,noteReadState,THANK_YOU_FROM,THANK_YOU_TO} from './trip-features.js';
+import {thankYouNotes,thankYouSchedule,thankYouSpares,thankYouList,noteReadState,THANK_YOU_FROM,THANK_YOU_FOR,BOYS} from './trip-features.js';
 import {japanClock,japanDate} from './timing.js';
-import {dayLabel} from './AdventurePages.jsx';
+import {YOUNG_RATE} from './speech.js';
+import {dayLabel,useReadAloud,ReadAloudButton} from './AdventurePages.jsx';
 const preview=t=>t.length>110?t.slice(0,110).trimEnd()+'…':t;
 const readLabel=s=>s.read?`Read ${s.late?dayLabel(s.readDay)+' · ':''}${japanClock(s.when)} JST`:{waiting:'Waiting',today:'Not opened yet',missed:'Not opened'}[s.pending];
 function ReadStatus({day,seen,today}){
  const status=noteReadState(day,seen,today);
  return <span className={`thank-you-status${status.read?' read':''}`}>{status.read&&<Check size={15}/>}{readLabel(status)}</span>;
 }
-export function ThankYouNote({note,seenAt,busy,dismiss}){
+// The boys know him as Dad, and Nate is five: his note can be read out to him.
+const signedBy=to=>BOYS.includes(to)?'Dad':THANK_YOU_FROM;
+export function ThankYouNote({note,to,seenAt,busy,dismiss}){
+ const {supported:canRead,reading,read}=useReadAloud(),young=to==='Nate';
  return <div className="thank-you-note">
-  <p className="eyebrow">FOR {THANK_YOU_TO.toUpperCase()} · {dayLabel(note.day)}</p>
+  <p className="eyebrow">FOR {to.toUpperCase()} · {dayLabel(note.day)}</p>
   <Heart size={26} aria-hidden="true"/>
   <blockquote>{note.text}</blockquote>
-  <p className="thank-you-sign">— {THANK_YOU_FROM}</p>
+  <p className="thank-you-sign">— {signedBy(to)}</p>
+  {canRead&&BOYS.includes(to)&&<p><ReadAloudButton id={`note-${note.day}`} text={`${note.text} From ${signedBy(to)}.`} reading={reading} read={read} what="note" rate={young?YOUNG_RATE:undefined} className={young?'young':''}/></p>}
   <button className="primary" disabled={busy} onClick={dismiss}>Thank you · close this note</button>
   {seenAt&&<small>You opened today’s note at {japanClock(new Date(seenAt))} JST.</small>}
  </div>;
 }
 export function ThankYouEditor({state,mutate,busy}){
- const [edit,setEdit]=useState(null);
- const notes=thankYouNotes(state),schedule=thankYouSchedule(state),spares=thankYouSpares(state);
+ const [edit,setEdit]=useState(null),[to,setTo]=useState(THANK_YOU_FOR[0]);
+ const notes=thankYouNotes(state,to),schedule=thankYouSchedule(state,to),spares=thankYouSpares(state,to);
  const dayFor=new Map(schedule.filter(e=>e.message).map(e=>[e.message.id,e.day]));
- const order=notes.map(m=>m.id),seen=state.thankYou?.seen||{},today=japanDate();
+ const order=notes.map(m=>m.id),seen=thankYouList(state,to).seen||{},today=japanDate();
  // Only days that have already arrived and carry a note can have been opened.
  const delivered=schedule.filter(e=>e.message&&e.day<=today).map(e=>e.day);
  const unopened=delivered.filter(d=>!seen[d]),opened=delivered.length-unopened.length;
  async function move(id,delta){
   const i=order.indexOf(id),j=i+delta;if(j<0||j>=order.length)return;
-  const ids=[...order];[ids[i],ids[j]]=[ids[j],ids[i]];await mutate({type:'thankYouReorder',ids});
+  const ids=[...order];[ids[i],ids[j]]=[ids[j],ids[i]];await mutate({type:'thankYouReorder',to,ids});
  }
  async function save(e){
   e.preventDefault();const f=new FormData(e.currentTarget);
-  if(await mutate({type:edit.id?'thankYouEdit':'thankYouAdd',id:edit.id,text:f.get('text'),day:f.get('day')||null}))setEdit(null);
+  if(await mutate({type:edit.id?'thankYouEdit':'thankYouAdd',to,id:edit.id,text:f.get('text'),day:f.get('day')||null}))setEdit(null);
  }
  return <>
-  <p className="eyebrow">JUST BETWEEN YOU AND {THANK_YOU_TO.toUpperCase()}</p>
-  <h1>Daily notes for {THANK_YOU_TO}</h1>
-  <p>One note pops up for {THANK_YOU_TO} on each day of the trip. She sees only that day’s note, never this list. Nate and Boston see nothing at all, and these notes stay out of Family updates and the change history.</p>
+  <p className="eyebrow">JUST BETWEEN YOU AND {to.toUpperCase()}</p>
+  <h1>Daily notes</h1>
+  <div className="segmented" role="tablist" aria-label="Whose notes">{THANK_YOU_FOR.map(n=><button key={n} role="tab" aria-selected={to===n} className={to===n?'selected':''} onClick={()=>{setTo(n);setEdit(null);}}>{n}</button>)}</div>
+  <p>One note pops up for {to} on each day of the trip. {to} sees only that day’s note, never this list, and nobody else sees {to}’s notes at all. They stay out of Family updates and the change history.{BOYS.includes(to)&&` The boys’ notes are signed from Dad, and there is a Read to me button${to==='Nate'?', read slowly for Nate':''}.`}</p>
   <p className="callout"><Heart size={18}/>Reorder the list to change which day gets which note. Pin a note to a specific day, amend the wording, or write a new one.</p>
   <h2>The schedule</h2>
   {!!delivered.length&&<p className="thank-you-tally"><Heart size={18}/><strong>{opened} of {delivered.length}</strong> {delivered.length===1?'note':'notes'} opened so far{unopened.length>0&&` · not opened: ${unopened.map(d=>dayLabel(d)).join(', ')}`}</p>}
@@ -60,11 +66,11 @@ export function ThankYouEditor({state,mutate,busy}){
     <p>{m.text}</p>
     <div className="row wrap">
      <button onClick={()=>setEdit(m)}>Amend</button>
-     <button className="danger" disabled={busy} onClick={()=>{if(confirm('Remove this note? The remaining notes move up a day.'))mutate({type:'thankYouRemove',id:m.id});}}><Trash2 size={16}/>Remove</button>
+     <button className="danger" disabled={busy} onClick={()=>{if(confirm('Remove this note? The remaining notes move up a day.'))mutate({type:'thankYouRemove',to,id:m.id});}}><Trash2 size={16}/>Remove</button>
     </div>
    </article>;
   })}
-  {!notes.length&&<div className="empty"><h3>No notes yet</h3><p>Write the first one and it will appear for {THANK_YOU_TO} on day one.</p></div>}
+  {!notes.length&&<div className="empty"><h3>No notes yet</h3><p>Write the first one and it will appear for {to} on day one.</p></div>}
  </>;
 }
 function NoteForm({edit,state,busy,save,cancel}){

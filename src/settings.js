@@ -17,7 +17,7 @@ export const SETTINGS=[
   on:'One new Japanese phrase each morning, with how to say it.',
   off:'No phrase will pop up. The whole phrasebook stays under More, and Show me another still hands over the next one.'},
  {id:'dailyFact',label:'Fun fact of the day',
-  on:'One fact each morning about what that day actually holds, out of our own guide — and one as each activity it is about gets started.',
+  on:'One fact each morning about what that day actually holds, out of our own guide — and one as each stop it is about gets started.',
   off:'No fact will pop up. Every fact stays under More, and Show me another still hands over the next one.'},
  // Off until asked for: it listens with the phone's speech engine while a voice note records,
  // which on some phones means the words go through Apple's or Google's servers.

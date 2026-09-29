@@ -106,11 +106,134 @@ Poll settings:
 - **Splitting costs:** shared costs split evenly, by room or by person, with a running balance (like Splitwise). The family spending ledger (#151) is a starting point.
 - **Roles:** organiser, member, view-only (as in roadmap item 11).
 
+### Sign-ups with limited places
+
+Added 29 September 2026. The organiser offers options that each member selects for themselves, sets how many places each option has, and chooses how places are given out. Examples: a cooking class for 8, two dinner sittings, a day tour with 12 seats, rooms of different sizes, a golf tee time for 4.
+
+#### What the organiser sets
+
+| Setting | Examples | Notes |
+|---|---|---|
+| Options | Tour A or tour B; 18:00 or 20:30 sitting; twin or triple room | Each option has a title, time, cost per place and notes |
+| Places per option | 8 places; unlimited; a minimum to run (e.g. 4) | An option below its minimum at the deadline is cancelled or merged, as the organiser chooses |
+| Choice type | Pick one; pick any; pick up to N; rank in order of preference | Ranking lets places be given out by preference when options fill |
+| Allocation method | First come, first served; organiser selects; ballot | Fixed before sign-ups open and shown to everyone |
+| Opening and closing | Opens 19:00 Friday; closes 48 hours before the activity | A set opening time gives everyone a fair start |
+| Who counts | Adults, children, guests of a member | A child's place can require an adult on the same option |
+| Reserved places | Places held for the organiser or a guide | Shown as held, not as free |
+| Waitlist | On or off; how long an offered place is held (e.g. 12 hours) | Applies to all methods |
+
+#### Allocation methods
+
+| Method | How it works | Suits |
+|---|---|---|
+| **First come, first served** (default) | Places are confirmed in the order the server receives them. When an option is full, later sign-ups join its waitlist in order. | Casual activities; groups where speed is fair |
+| **Organiser selects** | Members register interest, optionally ranked, with a short note. The organiser picks who gets each place before a set date; everyone else is waitlisted or told they were not selected. | Scarce or costly places; balancing across the group; skill or age limits |
+| **Ballot** (optional third) | Registrations close, then places are drawn at random, honouring rankings where given. | High demand where neither speed nor judgement is fair |
+
+For **organiser selects**, the selection screen shows each member's other allocations and how many first choices they have had, so places can be spread fairly. Selection notes stay with the organiser.
+
+#### Initial policy
+
+Decided 29 September 2026. These are the defaults a new sign-up starts with; the organiser can change any of them before sign-ups open.
+
+| Setting | Default | Why |
+|---|---|---|
+| Allocation method | First come, first served | Simplest to understand and run; no work for the organiser after opening |
+| Choice type | Pick one | Keeps places spread across the group |
+| Places per option | Set by the organiser; no default | Must match what is actually held with the supplier |
+| Minimum to run | None | |
+| Opening | When the organiser publishes, or at a set time if one is given | A set time is recommended when demand is likely to exceed places |
+| Closing | 48 hours before the activity | Leaves time to confirm numbers with the supplier |
+| Waitlist | On; an offered place is held for 12 hours | Offers stop at closing; after that the organiser fills gaps by hand |
+| Reserved places | None | |
+| Children | Need an adult confirmed on the same option | |
+| Deposit | Not required | Payment holds apply only when the organiser adds a deposit |
+| Names | Shown to members of the group | Waitlist positions stay private to each member |
+| Member cancellation | Allowed until closing; after closing, only through the organiser | |
+| Switching method | Not allowed once the first place is confirmed | Changing the rules mid-way is unfair to those who signed up under them. To change method, the organiser closes the sign-up and opens a new one, and everyone is told. |
+| Transfers | Not allowed | A released place goes through the waitlist, so the order stays fair |
+
+#### Member status
+
+Each member's status on each option is one of: **interested**, **confirmed**, **waitlisted** (with position), **offered** (a freed place, held until a set time), **declined**, **not selected**, or **cancelled**. The option shows places taken, places left and the waitlist length; names are shown or hidden as the organiser chooses.
+
+#### Rules the system enforces
+
+- **No overselling:** places are counted on the server in one transaction (a row lock in Postgres), never on the phone. A sign-up made offline is queued as a request, not a place, until the server confirms it; the phone says so. The app's pending-change queue already works this way for edits.
+- **Clashes:** a member cannot hold two options at the same time; picking the second asks which to keep.
+- **Waitlist promotion:** when a place frees up, the next person is offered it by push (#214) and email, with the hold time. An offer not taken in time passes down the list. Under organiser selects, the organiser can promote by hand instead.
+- **Payment holds:** where a deposit is required, a place is confirmed only once paid; an unpaid place is released after a set time and offered to the waitlist.
+- **Changes after opening:** the allocation method is locked once the first place is confirmed. Place numbers can be raised at any time, which promotes from the waitlist automatically; lowering them never removes a confirmed place and needs notice to everyone affected.
+- **No transfers:** a member cannot hand their place to someone else. A released place goes to the waitlist, or back to open if the waitlist is empty.
+- **Audit trail:** every sign-up, offer, selection and cancellation is timestamped, so any dispute over order or fairness can be answered.
+
+#### What exists in this app to build on
+
+- **Per-person choices and slots:** the Universal Express Pass panel already has one pick per person per ☆ choice, time windows, and a parent adding slots.
+- **Individual picks:** hunt picks (#209) and the planning board's votes and must-do stars.
+- **Split lanes:** Split the day (#197) already puts part of the party on one activity and the rest on another, meeting back up; an allocated option could land on each member's day the same way.
+- **Notifications:** push (#214) for offers, reminders before closing and changes to an option.
+- **Offline queue and roles:** the pending-change queue and the parent/child split in what each phone receives.
+
+#### Considerations
+
+- **Fairness and transparency:** the method, opening time and any reserved places must be visible before sign-ups open. First come, first served favours whoever has signal at the opening time; a ballot window (e.g. the first hour counts as simultaneous) is a middle path.
+- **Paid places and refunds:** if a member pays and is not selected, or an option is cancelled for falling below its minimum, the refund terms must be stated up front (ACL consumer guarantees and unfair contract terms rules apply to standard-form terms).
+- **Privacy:** selection notes, members' ranked preferences and waitlist positions of others are personal information under the APPs; show members only their own.
+- **Supplier limits:** places often mirror a supplier's booking (a class of 8, a table of 10). The organiser's place count should match what is actually held with the supplier, and the hold's expiry should close sign-ups first (as for poll holds above).
+
 ### Group-specific considerations
 
 - **Holding money for others:** collecting deposits and paying suppliers for the group may need an Australian financial services licence or an exemption. Use a payment platform that holds the funds (e.g. Stripe Connect) rather than the app holding them.
 - **Privacy:** private budgets and needs must not reach other members' devices. The server already strips parent-only data from the boys' copies of the trip; the same approach applies.
 - **Booking:** group rates and blocks of rooms (usually 8–10+ rooms) go through different channels from single bookings.
+
+## Trip shop: the essentials pack and keepsakes
+
+Added 29 September 2026. A first version is live in the family app under More → The plan → **Trip shop** (`src/TripShop.jsx`, `src/shop-data.js`). It sells nothing and earns nothing yet; the seams below are what a commercial version would build on.
+
+### What it covers
+
+| Part | When | Items |
+|---|---|---|
+| Essentials pack | Before, by lead time | Insurance (60 days), rail passes and big tickets (45), core cash (14), eSIM (7), plug adapters (7), IC cards (3), power banks (3), luggage forwarding (on the trip) |
+| Keepsakes before | Before | Family shirts with each person's own character; bag tags and sticker sheets |
+| Keepsakes after | After | Printed photobook, a photo-of-the-day calendar, the route as a wall print, a stamp book poster |
+
+Each essential links to the shop or the official page and to the screen in the app that already covers part of it (Which card?, Packing, Booking windows, Safety). Each keepsake says whether the trip has given it enough material yet (characters, photos of the day, days, stops done).
+
+### Seams built
+
+| Seam | Where | What it allows later |
+|---|---|---|
+| `shopLink(url)` and `PARTNERS` | `src/shop-data.js` | Every outbound link goes through one function. A referral or affiliate tag is added per host in `PARTNERS`, and every link to that host picks it up. |
+| `partnered(url)` | `src/shop-data.js` | Drives a plain disclosure line on the page and `rel="sponsored"` on the link as soon as any link carries a tag. |
+| `lead` per essential, `essentialDue()` | `src/shop-data.js` | Days-before-flight for each item, so the pack can join the run-up milestones (#205), booking windows (#210) and push reminders (#214). |
+| `shopLog` in the trip state, `shopLogged()` | `src/shop-data.js`, `server/features.mjs` | A parent's sorted or ordered tick, worth it or not, and a line for next time on every item. It is kept with the trip, so a later trip, or a commercial version's "what other families said", starts from it. |
+| `from` and `provider` per keepsake, `keepsakeMaterial()` | `src/shop-data.js` | Names the trip material a keepsake is made from and the print provider (none chosen), so ordering can become a server call that sends the family's own images. |
+
+### Candidate partners to assess
+
+| Category | Candidates | Notes |
+|---|---|---|
+| eSIM | Airalo, Ubigi, Holafly; Telstra and Optus roaming | Most eSIM sellers run affiliate programmes; check terms and payout. |
+| Cash and cards | Wise, Travelex; Seven Bank ATMs (information only) | Financial product referral: check whether it is general advice under the Corporations Act (s 766B) and whether an AFSL or authorised representative arrangement is needed. |
+| Insurance | Direct insurers or a comparison service | Arranging or recommending insurance is a financial service; link to Smartraveller guidance only unless licensed. |
+| Adapters, power banks | JB Hi-Fi, Officeworks, Amazon AU | Retail affiliate programmes vary by retailer. |
+| Print on demand | Gelato (prints in Australia), Printful, Redbubble, Momento (photobooks) | Gelato and Printful have order APIs; Momento is Australian and print-only. Private photos would be sent to the provider: needs consent and a Privacy Act (APP 8) check on overseas disclosure. |
+| Rail and tickets | Official JR Pass site, Klook, KKday | Resellers pay commission; official sites mostly do not. |
+
+### Compliance to check before any link earns
+
+- **Disclosure:** the ACCC expects paid or referral relationships to be disclosed clearly and up front (ACL s 18, s 29). The page already shows a line when any link is partnered.
+- **Financial services:** anything recommending cards, currency or insurance may be a financial service under Chapter 7 of the Corporations Act.
+- **Images of children:** keepsakes use the boys' photos and characters; a commercial version needs a parent's consent before any image leaves the private store.
+
+### Not built yet
+
+- The pack on the run-up countdown and in push reminders.
+- Ordering a keepsake from the app.
 
 ## Open questions
 
@@ -124,4 +247,4 @@ Poll settings:
 
 ## Next step when picked up
 
-A short design note (like `docs/design/maps-memories-tags.md`) covering the watch data model, the rating formula, the polling job, and the group and poll model. Then build a prototype with one fare feed, Open-Meteo, the sumo calendar, and open polls built on the existing planning board votes.
+A short design note (like `docs/design/maps-memories-tags.md`) covering the watch data model, the rating formula, the polling job, the group and poll model, and the sign-up model (options, places, allocation method, statuses and waitlist). Then build a prototype with one fare feed, Open-Meteo, the sumo calendar, and open polls built on the existing planning board votes.
