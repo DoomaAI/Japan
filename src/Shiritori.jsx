@@ -1,4 +1,5 @@
 import React,{useState,useMemo,useRef,useEffect} from 'react';
+import {useStored} from './stored.js';
 import {Trophy,RotateCcw,X} from 'lucide-react';
 import {WORDS,OPENER,LEVELS,levelById,optionsFor,phoneReply,shiritoriScore,DEAD} from './shiritori-data.js';
 import {bestScore} from './trip-features.js';
@@ -9,9 +10,9 @@ import {WinBurst} from './Win.jsx';
 // makes a child look at the end of a word, which is the half of it nobody ever reads.
 const rng=seed=>{let n=seed>>>0||1;return()=>{n^=n<<13;n>>>=0;n^=n>>17;n^=n<<5;n>>>=0;return n/4294967296;};};
 export default function Shiritori({user,state,mutate,busy}){
- const [levelId,setLevelId]=useState('pictures');
- const [chain,setChain]=useState([OPENER]);
- const [over,setOver]=useState(null),[nudge,setNudge]=useState(null),[seed,setSeed]=useState(()=>Date.now()%100000);
+ const [levelId,setLevelId]=useStored('japan.shiritori.level','pictures');
+ const [chain,setChain]=useStored('japan.shiritori.chain',[OPENER]);
+ const [over,setOver]=useStored('japan.shiritori.over',null),[nudge,setNudge]=useState(null),[seed,setSeed]=useStored('japan.shiritori.seed',()=>Date.now()%100000);
  const rand=useRef(rng(seed));
  const speak=useKanaVoice(false);
  const level=levelById(levelId);

@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react';
+import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Check} from 'lucide-react';
 import {TRICKS,MOSHIKAME,HANG,trickById,trickAt,airtime,judge,moshikameWindow,kendamaScore,moshikameScore} from './kendama.js';
 import {bestScore} from './trip-features.js';
@@ -18,11 +19,11 @@ const Ken=({tilt=0})=><g transform={`rotate(${tilt} 50 74)`}>
 const Tama=({x,y})=><g><circle cx={x} cy={y} r="9" fill="#c0392b" stroke={INK} strokeWidth="1.6"/>
  <circle cx={x} cy={y-3} r="2.6" fill="#7d1f16"/></g>;
 export default function Kendama({user,state,mutate,busy}){
- const [mode,setMode]=useState('tricks');
- const [step,setStep]=useState(0),[landed,setLanded]=useState([]);
+ const [mode,setMode]=useStored('japan.kendama.mode','tricks');
+ const [step,setStep]=useStored('japan.kendama.step',0),[landed,setLanded]=useStored('japan.kendama.landed',[]);
  const [phase,setPhase]=useState('ready'),[power,setPower]=useState(0);
  const [flight,setFlight]=useState(0),[said,setSaid]=useState(null);
- const [reps,setReps]=useState(0),[bestRun,setBestRun]=useState(0);
+ const [reps,setReps]=useStored('japan.kendama.reps',0),[bestRun,setBestRun]=useStored('japan.kendama.bestRun',0);
  const tossed=useRef(0),drag=useRef(null),area=useRef(null),saved=useRef(null);
  const trick=mode==='tricks'?trickAt(step):MOSHIKAME;
  const window_=mode==='tricks'?trick.window:moshikameWindow(reps);

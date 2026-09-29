@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useRef,useMemo,useCallback} from 'react';
+import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Lightbulb,Eye,Timer,Camera,WifiOff} from 'lucide-react';
 import {photosFor,scoresFor} from './trip-features.js';
 import {photoUrl} from './PhotoDay.jsx';
@@ -32,13 +33,18 @@ function useViewport(){
 }
 export default function SpotDifference({state,user,mutate,busy,online}){
  const photos=useMemo(()=>photosFor(state),[state.photos]);
- const [photoId,setPhotoId]=useState(()=>photos[0]?.id||'');
- const [levelId,setLevelId]=useState('normal');
+ const [photoId,setPhotoId]=useStored('japan.spot.photo',()=>photos[0]?.id||'');
+ const [levelId,setLevelId]=useStored('japan.spot.level','normal');
  const [plan,setPlan]=useState(null),[status,setStatus]=useState('idle'),[problem,setProblem]=useState('');
- const [found,setFound]=useState([]),[misses,setMisses]=useState(0),[hints,setHints]=useState(0);
+ const [found,setFound]=useStored('japan.spot.found',[]),[misses,setMisses]=useStored('japan.spot.misses',0),[hints,setHints]=useStored('japan.spot.hints',0);
  const [miss,setMiss]=useState(null),[hint,setHint]=useState(null),[seconds,setSeconds]=useState(0);
- const [revealed,setRevealed]=useState(false),[aspect,setAspect]=useState(1.5);
- const original=useRef(null),edited=useRef(null),saved=useRef(''),watcher=useRef(null),source=useRef(null);
+ const [revealed,setRevealed]=useStored('japan.spot.revealed',false),[aspect,setAspect]=useState(1.5);
+ // Which round has had its score saved is kept with the round, so a finished one that comes
+ // back after a reload is not scored again off a clock that has only just started.
+ const [scored,setScored]=useStored('japan.spot.scored','');
+ // The round the finds belong to, as it was kept; anything else on screen is a new round.
+ const shown=useRef(`${photoId}:${levelId}`);
+ const original=useRef(null),edited=useRef(null),watcher=useRef(null),source=useRef(null);
  const [boardWidth,setBoardWidth]=useState(0);
  const viewport=useViewport();
  // The board measures itself rather than being guessed at, because a tap is turned into a
@@ -64,7 +70,7 @@ export default function SpotDifference({state,user,mutate,busy,online}){
  const box=paneBox({width,height,aspect,mode});
  const reset=useCallback(()=>{
   setFound([]);setMisses(0);setHints(0);setMiss(null);setHint(null);setSeconds(0);setRevealed(false);
-  saved.current='';
+  setScored('');
  },[]);
  // Work the round out: measure the photo and choose the places worth changing. The painting
  // is a second step, below, because the two canvases do not exist until this has decided
@@ -72,7 +78,12 @@ export default function SpotDifference({state,user,mutate,busy,online}){
  useEffect(()=>{
   if(!photo)return;
   let cancelled=false;
-  setStatus('loading');setProblem('');setPlan(null);reset();
+  setStatus('loading');setProblem('');setPlan(null);
+  // What was found stays found while this is still the photo and the level it was found on —
+  // the screen opening on a kept round — and goes the moment either of them changes, or the
+  // kept photo has since been deleted and another has taken its place.
+  const key=`${photo.id}:${level.id}`;
+  if(shown.current!==key)reset();shown.current=key;
   const image=new Image();
   image.decoding='async';
   image.onload=()=>{
@@ -124,8 +135,8 @@ export default function SpotDifference({state,user,mutate,busy,online}){
  const score=spotScore({found:found.length,total,misses,hints,seconds});
  // Saved once, when the round is finished honestly. A round that was given away is not one.
  useEffect(()=>{
-  if(!finished||revealed||!game||saved.current===game)return;
-  saved.current=game;
+  if(!finished||revealed||!game||scored===game)return;
+  setScored(game);
   if(score>0)mutate({type:'gameScore',person:user.name,game,score});
  },[finished,revealed,game,score]);
  function tap(e){

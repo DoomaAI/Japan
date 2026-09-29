@@ -4963,8 +4963,10 @@ test('every game in the picker says what it needs, and spot the difference is on
  // The old yes-or-no is gone: one of these needs the other phone and one needs a photo.
  assert.doesNotMatch(source,/offline:(true|false)/);
  const game=await readFile(new URL('../src/SpotDifference.jsx',import.meta.url),'utf8');
- // A revealed round is not scored, and the score is only ever saved once.
- assert.match(game,/if\(!finished\|\|revealed\|\|!game\|\|saved\.current===game\)return/);
+ // A revealed round is not scored, and the score is only ever saved once — and which round it
+ // was saved for is kept with the round, so a reload does not score a finished one again.
+ assert.match(game,/if\(!finished\|\|revealed\|\|!game\|\|scored===game\)return/);
+ assert.match(game,/const \[scored,setScored\]=useStored\('japan\.spot\.scored',''\)/);
  // Nothing about a round leaves the phone: no request, no upload, only the photo coming down.
  assert.doesNotMatch(game,/\brequest\(/);
  assert.doesNotMatch(game,/upload\(/);
@@ -9884,4 +9886,43 @@ test('the shopping list groups by the shop we will be standing in, or the day we
  assert.deepEqual(groupShopping([],'shop'),[]);
  const pages=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
  assert.match(pages,/useStored\('japan\.shopping\.group','shop'\)/,'the grouping is this phone’s choice and starts by shop');
+});
+
+test('every game keeps its board across a switch of tab and a reload, not only the ones that had it first',async()=>{
+ // iOS puts a Home Screen app down and picks it up fresh, and a boy who was three cards into
+ // karuta or two folds into a crane should find it where he left it. What comes back is the
+ // board, the deck, the score and the round, under a japan.<game>.<field> key like the rest
+ // of the phone's own state; the clock, the flashes and a finger on the glass start fresh.
+ const kept={
+  'Karuta.jsx':[/\[taken,setTaken\]=useStored\('japan\.karuta\.taken',\[\]\)/,/\[taken,setTaken\]=useState/],
+  'Shiritori.jsx':[/\[chain,setChain\]=useStored\('japan\.shiritori\.chain',\[OPENER\]\)/,/\[chain,setChain\]=useState/],
+  'SpotDifference.jsx':[/\[found,setFound\]=useStored\('japan\.spot\.found',\[\]\)/,/\[found,setFound\]=useState/],
+  'Kingyo.jsx':[/\[tank,setTank\]=useStored\('japan\.kingyo\.tank',\(\)=>newTank\('yon'\)\)/,/\[tank,setTank\]=useState/],
+  'Daruma.jsx':[/\[run,setRun\]=useStored\('japan\.daruma\.run',\(\)=>newRun\('gentle'\)\)/,/\[run,setRun\]=useState/],
+  'Beigoma.jsx':[/\[rung,setRung\]=useStored\('japan\.beigoma\.rung',0\)/,/\[rung,setRung\]=useState/],
+  'Kendama.jsx':[/\[landed,setLanded\]=useStored\('japan\.kendama\.landed',\[\]\)/,/\[landed,setLanded\]=useState/],
+  'Origami.jsx':[/\[at,setAt\]=useStored\('japan\.origami\.step',0\)/,/\[at,setAt\]=useState/],
+  'Fukuwarai.jsx':[/\[placed,setPlaced\]=useStored\('japan\.fukuwarai\.placed',\{\}\)/,/\[placed,setPlaced\]=useState/],
+  'Games.jsx':[/\[board,setBoard\]=useStored\('japan\.merge\.board',/,/\[board,setBoard\]=useState/]
+ };
+ for(const [file,[stored,plain]] of Object.entries(kept)){
+  const source=await readFile(new URL(`../src/${file}`,import.meta.url),'utf8');
+  assert.match(source,/import \{useStored\} from '\.\/stored\.js';/,`${file} reaches for the stored hook`);
+  assert.match(source,stored,`${file} keeps its board under a japan.<game> key`);
+  assert.doesNotMatch(source,plain,`${file} no longer holds its board in plain state, which a reload throws away`);
+ }
+ // The inline games on the page keep theirs too: the pairs found, the elements made, the
+ // snake as it lay, the stable as it stood.
+ const games=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ for(const key of ['japan.kana.done','japan.decoder.score','japan.remember.done','japan.sights.done','japan.kitchen.found','japan.snake.body','japan.stable.cells'])
+  assert.ok(games.includes(`useStored('${key}'`),`${key} is kept`);
+ // And what must not come back: the running clock, the ball in the air, the card mid-flip,
+ // the finger held down. Those belong to the moment, and a moment does not survive a reload.
+ const karuta=await readFile(new URL('../src/Karuta.jsx',import.meta.url),'utf8');
+ assert.match(karuta,/\[elapsed,setElapsed\]=useState\(/,'the karuta clock is not stored, only when it started and stopped');
+ const kendama=await readFile(new URL('../src/Kendama.jsx',import.meta.url),'utf8');
+ assert.match(kendama,/\[phase,setPhase\]=useState\('ready'\)/,'the kendama swing is not stored');
+ const daruma=await readFile(new URL('../src/Daruma.jsx',import.meta.url),'utf8');
+ assert.match(daruma,/\[holding,setHolding\]=useState\(false\)/,'a finger on the glass is not stored');
+ assert.match(games,/\[picked,setPicked\]=useState\(\[\]\),\[done,setDone\]=useStored\('japan\.kana\.done'/,'a card mid-flip is not stored, the pairs found are');
 });

@@ -71,8 +71,8 @@ const Ladder=({title,items,notes})=><details className="merge-ladder"><summary>{
 </details>;
 // Tap the Japanese letter, then the sound it makes. Nate's game.
 function KanaMatch({user,mutate,busy,state}){
- const [set,setSet]=useState('hiragana'),[seed,setSeed]=useState(()=>Date.now()%100000),[pairs,setPairs]=useState(PAIRS);
- const [picked,setPicked]=useState([]),[done,setDone]=useState([]),[taps,setTaps]=useState(0);
+ const [set,setSet]=useStored('japan.kana.set','hiragana'),[seed,setSeed]=useStored('japan.kana.seed',()=>Date.now()%100000),[pairs,setPairs]=useStored('japan.kana.pairs',PAIRS);
+ const [picked,setPicked]=useState([]),[done,setDone]=useStored('japan.kana.done',[]),[taps,setTaps]=useStored('japan.kana.taps',0);
  const speak=useKanaVoice();
  const source=set==='hiragana'?HIRAGANA:KATAKANA;
  const cards=useMemo(()=>{
@@ -123,7 +123,7 @@ function KanaMatch({user,mutate,busy,state}){
 }
 // Read the katakana, pick the English. Boston's game, and the one that pays off on a menu.
 function Decoder({user,mutate,busy,state}){
- const [seed,setSeed]=useState(()=>Date.now()%100000),[answer,setAnswer]=useState(null),[score,setScore]=useState(0),[asked,setAsked]=useState(0);
+ const [seed,setSeed]=useStored('japan.decoder.seed',()=>Date.now()%100000),[answer,setAnswer]=useStored('japan.decoder.answer',null),[score,setScore]=useStored('japan.decoder.score',0),[asked,setAsked]=useStored('japan.decoder.asked',0);
  const speak=useKanaVoice();
  const word=useMemo(()=>shuffled(LOANWORDS,seed)[0],[seed]);
  const options=useMemo(()=>shuffled([word,...shuffled(LOANWORDS.filter(w=>w.en!==word.en),seed+3).slice(0,3)],seed+11),[seed]);
@@ -187,8 +187,8 @@ function Janken({user,state,mutate,busy,online,refresh}){
 }
 // Two of the same become the next one up, from a rice ball to Fuji. Swipe, or use the keys.
 function Merge({user,mutate,busy,state}){
- const [board,setBoard]=useState(()=>addTile(addTile(emptyBoard(),Date.now()),Date.now()+1));
- const [score,setScore]=useState(0),[over,setOver]=useState(false);
+ const [board,setBoard]=useStored('japan.merge.board',()=>addTile(addTile(emptyBoard(),Date.now()),Date.now()+1));
+ const [score,setScore]=useStored('japan.merge.score',0),[over,setOver]=useStored('japan.merge.over',false);
  const touch=useRef(null);
  const move=direction=>{
   if(over)return;
@@ -235,8 +235,8 @@ function Merge({user,mutate,busy,state}){
 }
 // Pairs made from the trip itself: the thing we did, and the day we did it.
 function Remember({user,state,mutate,busy,dayLabel}){
- const [seed,setSeed]=useState(()=>Date.now()%100000);
- const [picked,setPicked]=useState([]),[done,setDone]=useState([]),[taps,setTaps]=useState(0);
+ const [seed,setSeed]=useStored('japan.remember.seed',()=>Date.now()%100000);
+ const [picked,setPicked]=useState([]),[done,setDone]=useStored('japan.remember.done',[]),[taps,setTaps]=useStored('japan.remember.taps',0);
  const doneSteps=state.steps.filter(s=>s.status==='done'&&s.day);
  const pairs=Math.min(6,doneSteps.length);
  const cards=useMemo(()=>{
@@ -273,10 +273,10 @@ function Remember({user,state,mutate,busy,dayLabel}){
 // Picture pairs. The same game as the kana one, but for a boy who would rather match a torii
 // gate than a letter — and each pair tells him what the thing is called.
 function Sights({user,state,mutate,busy}){
- const [seed,setSeed]=useState(()=>Date.now()%100000);
- const [picked,setPicked]=useState([]),[done,setDone]=useState([]),[taps,setTaps]=useState(0);
+ const [seed,setSeed]=useStored('japan.sights.seed',()=>Date.now()%100000);
+ const [picked,setPicked]=useState([]),[done,setDone]=useStored('japan.sights.done',[]),[taps,setTaps]=useStored('japan.sights.taps',0);
  // How many to find. Four is a board Nate can clear; eighteen is everything we have.
- const [pairs,setPairs]=useState(8);
+ const [pairs,setPairs]=useStored('japan.sights.pairs',8);
  const cards=useMemo(()=>{
   const chosen=shuffled(SIGHTS,seed).slice(0,pairs);
   return shuffled(chosen.flatMap(s=>[{key:`${s.id}-a`,pair:s.id,sight:s},{key:`${s.id}-b`,pair:s.id,sight:s}]),seed+9);
@@ -307,8 +307,8 @@ function Sights({user,state,mutate,busy}){
 }
 // Two things make a third. Tap one, tap another, and find out what you have made.
 function Kitchen({user,state,mutate,busy}){
- const [found,setFound]=useState(()=>startingElements());
- const [first,setFirst]=useState(null),[last,setLast]=useState(null),[tried,setTried]=useState(0);
+ const [found,setFound]=useStored('japan.kitchen.found',()=>startingElements());
+ const [first,setFirst]=useState(null),[last,setLast]=useState(null),[tried,setTried]=useStored('japan.kitchen.tried',0);
  const total=ELEMENTS.length;
  function mix(a,bId){
   setTried(t=>t+1);
@@ -357,9 +357,9 @@ const SNAKE_TICK=260;
 // Quicker with every piece eaten, down to a floor that is still steerable by a five-year-old.
 export const snakeTick=eaten=>Math.max(110,SNAKE_TICK-eaten*12);
 function Snake({user,state,mutate,busy}){
- const [body,setBody]=useState(()=>SNAKE_START.map(p=>({...p})));
- const [food,setFood]=useState({x:8,y:6});
- const [dir,setDir]=useState({x:1,y:0}),[running,setRunning]=useState(false),[over,setOver]=useState(false),[score,setScore]=useState(0);
+ const [body,setBody]=useStored('japan.snake.body',()=>SNAKE_START.map(p=>({...p})));
+ const [food,setFood]=useStored('japan.snake.food',{x:8,y:6});
+ const [dir,setDir]=useStored('japan.snake.dir',{x:1,y:0}),[running,setRunning]=useState(false),[over,setOver]=useStored('japan.snake.over',false),[score,setScore]=useStored('japan.snake.score',0);
  const dirRef=useRef(dir),bodyRef=useRef(body),scoreRef=useRef(score),touch=useRef(null);
  dirRef.current=dir;bodyRef.current=body;scoreRef.current=score;
  const steer=(x,y)=>{const d=dirRef.current;if(d.x===-x&&d.y===-y)return;setDir({x,y});};
@@ -676,7 +676,7 @@ const saveCareer=(name,career)=>{try{localStorage.setItem(sumoKey(name),JSON.str
 // highest one ever reached is synced like any other score, because that is the bit worth
 // keeping and the bit a brother wants to see.
 function Sumo({user,state,mutate,busy}){
- const [mode,setMode]=useState(''),[level,setLevel]=useState('nate'),[firstDrill,setFirstDrill]=useState('');
+ const [mode,setMode]=useStored('japan.sumo.mode',''),[level,setLevel]=useStored('japan.sumo.level','nate'),[firstDrill,setFirstDrill]=useState('');
  const [career,setCareer]=useState(()=>loadCareer(user.name));
  const [fighting,setFighting]=useState(false),[attempt,setAttempt]=useState(0),[after,setAfter]=useState(null);
  const sekitori=career.rank>=SEKITORI;
@@ -790,8 +790,8 @@ function Sumo({user,state,mutate,busy}){
 // Merge two wrestlers of the same rank and one of them is promoted. Build one big enough to
 // win a bout, then send him out. The ladder is the real one, bottom to top.
 function Stable({user,state,mutate,busy}){
- const [stable,setStable]=useState(()=>recruit(recruit(emptyStable(),Date.now()),Date.now()+3)||emptyStable());
- const [picked,setPicked]=useState(null),[score,setScore]=useState(0),[cleared,setCleared]=useState(0);
+ const [stable,setStable]=useStored('japan.stable.cells',()=>recruit(recruit(emptyStable(),Date.now()),Date.now()+3)||emptyStable());
+ const [picked,setPicked]=useState(null),[score,setScore]=useStored('japan.stable.score',0),[cleared,setCleared]=useStored('japan.stable.cleared',0);
  const [last,setLast]=useState(null),[fighting,setFighting]=useState(false);
  const best=bestRank(stable),full=stableFull(stable);
  const challenger=challengerFor(best,cleared);
