@@ -1,5 +1,4 @@
 import React,{useState} from 'react';
-import HowThisWorks from './HowThisWorks.jsx';
 import {CloudSun,RefreshCw,ChevronRight,ChevronDown} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
@@ -60,8 +59,7 @@ export default function WeatherPage({state,day,now,check,checking,busy,online}){
    <RefreshCw size={16}/>{checking?'Checking…':online?'Check the forecast':'Offline — showing what we have'}</button>
  </div>
  <p className="weather-age"><small>{ageLabel(age)}{state.weather?.by?` · by ${state.weather.by}`:''}.</small></p>
- <p>Every day of the trip, and every hour of each day.</p>
- <HowThisWorks><p>It is kept in the trip, so one person checking it puts it on everybody’s phone and it is still here with no signal. A forecast more than a few days out is a guess, and the hours further out are a guess about a guess.</p></HowThisWorks>
+ <details className="page-help"><summary>How this works</summary>Every day of the trip, and every hour of each day. It is kept in the trip, so one person checking it puts it on everybody’s phone and it is still here with no signal. A forecast more than a few days out is a guess, and the hours further out are a guess about a guess.</details>
  {!state.days.some(d=>has(d.date))&&<p className="callout">No forecast saved yet. {online?'Tap Check the forecast and the next fortnight fills in for every phone.':'It fills in the next time somebody checks with signal.'}</p>}
  {earlier.length>0&&<details className="weather-earlier" open={earlier.some(d=>d.date===open)||undefined}><summary>Earlier days ({earlier.length})</summary><div className="weather-list">{earlier.map(row)}</div></details>}
  <div className="weather-list">{ahead.map(row)}</div>

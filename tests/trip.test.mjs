@@ -10520,7 +10520,8 @@ test('one line under each title, and the rest of the why behind How this works',
  const read=async f=>readFile(new URL(`../src/${f}`,import.meta.url),'utf8');
  const how=await read('HowThisWorks.jsx');
  assert.match(how,/<details className="how-this-works"><summary>/,'a native disclosure: closed by default, no state to keep, works with no script');
- const folded=['AdventurePages','Apps','AskTrip','BookingWindows','Hunts','MascotMaker','Noticed','Planning','RecentlyDeleted','Settings','Shortlist','Spending','TodoList','Trackers','TripShop','Vault','WeatherPage','WhichCard'];
+ const folded=['AdventurePages','Apps','AskTrip','BookingWindows','Hunts','MascotMaker','Noticed','Planning','RecentlyDeleted','Settings','Shortlist','Spending','TodoList','Trackers','TripShop','Vault','WhichCard'];
+ // Weather folds its own explanation under its button (tests/ux.test.mjs), the same idea in its own place.
  for(const f of folded){
   const s=await read(`${f}.jsx`);
   assert.match(s,/import HowThisWorks from '\.\/HowThisWorks\.jsx';/,f);
