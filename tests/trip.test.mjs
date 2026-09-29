@@ -10602,5 +10602,42 @@ test('activity suggestions carry the Google rating where there is one, and it se
  const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
  assert.match(party,/\{item\.rating!=null&&<span className="suggest-rating"><Star size=\{14\}\/>\{ratingText\(item\.rating,item\.ratingCount\)\} on Google<\/span>\}/);
  const server=await readFile(new URL('../server/suggest.mjs',import.meta.url),'utf8');
- assert.match(server,/'travelMinutes','travelMode','rating','ratingCount'\]/);
+ assert.match(server,/'travelMinutes','travelMode','rating','ratingCount'/);
+});
+
+test('every card has directions, and a website or booking link only when the search actually turned it up',async()=>{
+ const {seenHosts,checkedLink}=await import('../server/links.mjs');
+ const {normaliseSuggestion}=await import('../server/suggest.mjs');
+ const {normaliseNearby}=await import('../server/nearby.mjs');
+ const {directionsLink,bookingSearchLink}=await import('../src/trip-features.js');
+ const state=upgraded(structuredClone(seed));
+ // What the searches in the answer returned, from results and from citations alike.
+ const hosts=seenHosts([[{type:'web_search_tool_result',content:[{type:'web_search_result',url:'https://www.teamlab.art/e/planets/'},{url:'http://insecure.example/'}]},
+  {type:'text',text:'x',citations:[{url:'https://ticket.teamlab.art/'},{url:'https://www.tablecheck.com/en/shops/sushi'}]}]]);
+ assert.deepEqual([...hosts].sort(),['teamlab.art','ticket.teamlab.art','tablecheck.com'].sort());
+ assert.equal(checkedLink('https://planets.teamlab.art/tokyo/',hosts),'https://planets.teamlab.art/tokyo/','a page on a site that came up');
+ assert.equal(checkedLink('https://teamlab-tickets.com/buy',hosts),'','a site the search never returned is dropped');
+ assert.equal(checkedLink('http://www.teamlab.art/',hosts),'','not HTTPS');
+ assert.equal(checkedLink('https://user:pw@teamlab.art/',hosts),'');
+ assert.equal(checkedLink('javascript:alert(1)',hosts),'');
+ assert.equal(checkedLink('https://teamlab.art/',new Set()),'','with no search, no link');
+ assert.equal(checkedLink('https://evilteamlab.art/',hosts),'','a look-alike is not a subdomain');
+ // Suggestions and near-here places keep what was seen and drop what was not.
+ const s=normaliseSuggestion({title:'teamLab Planets',website:'https://www.teamlab.art/e/planets/',bookingUrl:'https://made-up-tickets.jp/teamlab'},state,hosts);
+ assert.equal(s.draft.website,'https://www.teamlab.art/e/planets/');assert.equal(s.draft.ticketUrl,'');
+ const n=normaliseNearby({title:'Sushi Saito',kind:'sushi',website:'',bookingUrl:'https://www.tablecheck.com/en/shops/sushi'},state,[],hosts);
+ assert.equal(n.draft.ticketUrl,'https://www.tablecheck.com/en/shops/sushi');
+ assert.equal(normaliseSuggestion({title:'X',website:'https://www.teamlab.art/'},state).draft.website,'','no searches seen, no links');
+ // Directions go from where the day starts, the way the card says to travel.
+ assert.equal(directionsLink('Tokyo Tower','Minato','Hotel Gracery','train'),'https://www.google.com/maps/dir/?api=1&origin=Hotel%20Gracery&destination=Tokyo%20Tower%20Minato&travelmode=transit');
+ assert.match(directionsLink('Tokyo Tower','',{lat:35.66,lng:139.75}),/origin=35\.66%2C139\.75&destination=Tokyo%20Tower&travelmode=walking$/);
+ assert.doesNotMatch(directionsLink('Tokyo Tower','',null),/origin=/,'no start, Maps asks');
+ assert.match(bookingSearchLink('Ghibli Museum','Mitaka'),/^https:\/\/www\.google\.com\/search\?q=Ghibli%20Museum%20Mitaka%20official%20tickets%20booking$/);
+ // On the cards.
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ const nearby=await readFile(new URL('../src/Nearby.jsx',import.meta.url),'utf8');
+ assert.match(party,/<CardLinks item=\{item\} from=\{start==='me'&&coords\?coords:result\.from\}\/>/);
+ assert.match(party,/:item\.bookAhead&&<a className="button" href=\{bookingSearchLink\(title,place\)\}/);
+ assert.match(nearby,/\{item\.draft\.ticketUrl&&<a className="button" href=\{item\.draft\.ticketUrl\}/);
+ assert.match(nearby,/website:item\.draft\.ticketUrl\|\|item\.draft\.website\|\|'',/,'added to today, the booking page comes too');
 });

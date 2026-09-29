@@ -728,3 +728,4 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .card-lock{color:var(--muted);flex:0 0 auto}.step-quick{margin:0 0 1rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
 .party-match{margin:.5rem 0}.party-match-head{display:flex;flex-wrap:wrap;gap:.35rem;margin:0 0 .3rem}.party-match .picked-why{margin:.2rem 0}.party-top{background:var(--green);color:#fff;border-color:var(--green)}.party-match.none{margin:.3rem 0;color:var(--muted)}.suggest-travel{font-weight:650;color:var(--ink)}
 .suggest-rating{font-weight:650;color:#9a6a1f}.suggest-rating svg{fill:currentColor}
+.card-links{margin:.6rem 0 .2rem;gap:.4rem}.card-links .button{display:inline-flex;align-items:center;gap:.3rem}

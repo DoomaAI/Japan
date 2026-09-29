@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
-import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split,MapPin,LocateFixed,Tag,Star} from 'lucide-react';
+import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split,MapPin,LocateFixed,Tag,Star,Navigation,Globe,Ticket,ExternalLink} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf,rankByParty,travelText,COORD_PLACES,ratingText,UNRATED_STARS} from './trip-features.js';
+import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf,rankByParty,travelText,COORD_PLACES,ratingText,UNRATED_STARS,directionsLink,bookingSearchLink} from './trip-features.js';
 import {activeSteps} from './timing.js';
 import {askPhoneWhereItIs} from './geo.js';
 import {photoUrl} from './PhotoDay.jsx';
@@ -149,6 +149,19 @@ export function PickedFor({state,user,mutate,busy,onOpen}){
 // Ideas for a place, in the flavours asked for — the famous ones, the ones nobody finds on their
 // own, and everything in between. Nothing is added to the board here: each one is put up by a
 // person, and the rest of the family votes on it like any other idea.
+// Getting there and getting in, on every card: directions built by the app from where the day
+// starts, the place's own website and its booking page when the search actually turned them up,
+// and a search for tickets when it did not but the place is usually booked ahead.
+export function CardLinks({item,from}){
+ const {title,place,website,ticketUrl}=item.draft;
+ const out={target:'_blank',rel:'noopener noreferrer'};
+ return <div className="row wrap card-links">
+  <a className="button" href={directionsLink(title,place||item.area,from,item.travelMode)} {...out}><Navigation size={16}/>Directions<ExternalLink size={12}/></a>
+  {website&&<a className="button" href={website} {...out}><Globe size={16}/>Website<ExternalLink size={12}/></a>}
+  {ticketUrl?<a className="button primary" href={ticketUrl} {...out}><Ticket size={16}/>{item.kind?'Book a table':'Book'}<ExternalLink size={12}/></a>
+   :item.bookAhead&&<a className="button" href={bookingSearchLink(title,place)} {...out}><Ticket size={16}/>Find where to book<ExternalLink size={12}/></a>}
+ </div>;
+}
 export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded}){
  const [scope,setScope]=useState(day?`d:${day}`:'');
  const [elsewhere,setElsewhere]=useState(''),[kinds,setKinds]=useState(['landmark','unique']),[count,setCount]=useState(6);
@@ -283,6 +296,7 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
       {item.bookAhead&&<span>Usually booked ahead</span>}
       <span>{item.draft.suitableFor.length?`Suits ${item.draft.suitableFor.join(', ')}`:'Suits everyone'}</span>
      </div>
+     <CardLinks item={item} from={start==='me'&&coords?coords:result.from}/>
      <div className="row wrap">
       {splitting&&<button disabled={busy} onClick={()=>add(item,false)}><Plus size={16}/>Just put it on the board</button>}
       <button disabled={busy} onClick={()=>add(item,true)}><Search size={16}/>Add and look it up</button>

@@ -1,5 +1,6 @@
 import {AppError,MEMBERS} from './model.mjs';
 import {activeSteps} from '../src/timing.js';
+import {seenHosts,checkedLink} from './links.mjs';
 import {PROPOSAL_KINDS,PROPOSAL_TIMING,SUGGEST_KINDS,TRAVEL_MODES,MIN_RATING_VOTES,validRating,ratingText,proposalDraft,partyBrief,proposals,rejoinAt,BOYS} from '../src/trip-features.js';
 export const suggestReady=()=>!!process.env.ANTHROPIC_API_KEY;
 export const MAX_SUGGESTIONS=8;
@@ -9,7 +10,7 @@ export const MAX_SUGGESTIONS=8;
 const SEARCH={type:'web_search_20260209',name:'web_search',max_uses:5,user_location:{type:'approximate',country:'JP',timezone:'Asia/Tokyo'}};
 const suggestion={
  type:'object',additionalProperties:false,
- required:['title','place','japanese','flavour','category','timing','duration','cost','costNote','suitableFor','tags','notes','why','bookAhead','travelMinutes','travelMode','rating','ratingCount'],
+ required:['title','place','japanese','flavour','category','timing','duration','cost','costNote','suitableFor','tags','notes','why','bookAhead','travelMinutes','travelMode','rating','ratingCount','website','bookingUrl'],
  properties:{
   title:{type:'string',description:'What it is, in English, as the family would name it.'},
   place:{type:'string',description:'The area or district it is in, and the city.'},
@@ -28,7 +29,9 @@ const suggestion={
   travelMinutes:{anyOf:[{type:'integer'},{type:'null'}],description:'Rough minutes to get there from the starting point they gave, door to door. Null if they gave no starting point.'},
   travelMode:{type:'string',enum:TRAVEL_MODES.map(([id])=>id),description:'How they would most sensibly get there from the starting point: walk if it is under about fifteen minutes on foot.'},
   rating:{anyOf:[{type:'number'},{type:'null'}],description:'Its Google Maps star rating, 1 to 5, as it stands today. Null if you have not actually seen it — never a guess, never another branch, and null for something with no single place, such as a walk or a festival.'},
-  ratingCount:{anyOf:[{type:'integer'},{type:'null'}],description:'How many Google ratings that average is made of. Null if you do not know.'}}
+  ratingCount:{anyOf:[{type:'integer'},{type:'null'}],description:'How many Google ratings that average is made of. Null if you do not know.'},
+  website:{type:'string',description:'Its official website, exactly as a search result showed it. Empty if you did not see it in a search — never assembled from the name.'},
+  bookingUrl:{type:'string',description:'The page where tickets or a table are actually booked, exactly as a search result showed it: the official ticket page, or the booking service it uses. Empty if you did not see one, or it cannot be booked.'}}
 };
 const RECORD={
  name:'record_suggestions',
@@ -53,14 +56,14 @@ How to choose:
 - Where it is one place — a museum, a shrine, a café, a park — search for its Google rating and the number of ratings behind it. A rating you have not seen is null; a made-up 4.6 is worse than none.
 - Write "notes" as what it actually is and what to know before going. Two or three sentences, no brochure language.
 
-What this is not: you are not checking opening hours, prices or whether tickets are available. The family looks a place up separately for that, and the app tells them so. Give a rough cost and a rough duration and be plain that they are rough. Never invent a web address — you are not asked for one and there is nowhere to put it.
+What this is not: you are not checking opening hours, prices or whether tickets are available. The family looks a place up separately for that, and the app tells them so. Give a rough cost and a rough duration and be plain that they are rough. Give "website" and "bookingUrl" only as a search result actually showed them; the app throws away any address whose site did not come up in your searches, so a guessed one is simply lost.
 
 Search if it helps, then call record_suggestions exactly once. Everything you suggest goes in that call, not in a message.`;
 const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 // A suggestion lands on the board as an ordinary idea, so it is cut to the same shape and the
-// same limits as one somebody typed. It carries no links at all: nothing here has been checked,
-// and an unchecked address is worse than none.
-export function normaliseSuggestion(item,state){
+// same limits as one somebody typed. An unchecked address is worse than none, so the only links
+// it carries are ones whose site the searches in this same answer returned.
+export function normaliseSuggestion(item,state,hosts=new Set()){
  const members=state.members||MEMBERS;
  const cost=Number.isInteger(item.cost)&&item.cost>=0&&item.cost<=10000000?item.cost:null;
  // Google's number or nothing, as on Near here: out of range is dropped, and an average of a
@@ -76,6 +79,7 @@ export function normaliseSuggestion(item,state){
   timing:PROPOSAL_TIMING.some(([id])=>id===item.timing)?item.timing:'flex',
   suitableFor:(Array.isArray(item.suitableFor)?item.suitableFor:[]).filter(n=>members.includes(n)),
   tags:(Array.isArray(item.tags)?item.tags:[]).map(t=>clamp(t,50)).filter(Boolean).slice(0,20),
+  website:checkedLink(item.website,hosts),ticketUrl:checkedLink(item.bookingUrl,hosts),
   source:'suggested'
  });
  if(draft.suitableFor.length===members.length)draft.suitableFor=[];
@@ -167,7 +171,9 @@ ${alreadyHave(state).join(' · ')||'nothing yet'}`;
  const call=message.content.find(b=>b.type==='tool_use'&&b.name==='record_suggestions');
  const result=call?.input;
  if(!result||!Array.isArray(result.suggestions))throw new AppError(message.stop_reason==='max_tokens'?'Suggestions ran long and did not finish. Ask for fewer.':'Nothing came back to suggest. Try again, or narrow it to one kind.',502);
- const suggestions=result.suggestions.map(item=>normaliseSuggestion(item,state)).filter(s=>s.draft.title).slice(0,MAX_SUGGESTIONS);
+ // Only links whose site the searches in this answer actually returned survive.
+ const hosts=seenHosts([...messages.map(m=>m.content),message.content]);
+ const suggestions=result.suggestions.map(item=>normaliseSuggestion(item,state,hosts)).filter(s=>s.draft.title).slice(0,MAX_SUGGESTIONS);
  // An alternative is for the ones sitting the stop out, on that day, whatever came back.
  if(instead)for(const s of suggestions){
   const members=state.members||MEMBERS;
