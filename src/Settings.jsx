@@ -1,5 +1,5 @@
-import React from 'react';
-import {MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2} from 'lucide-react';
+import React,{useState} from 'react';
+import {MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import {BarShortcuts} from './Personalise.jsx';
 import {CARD_LINKS,linkOrder,stepLink} from './card-links.js';
@@ -42,7 +42,26 @@ function StopButtonOrder({prefs,setPrefs}){
   {prefs?.order&&<button type="button" onClick={()=>setPrefs({order:null})}><RotateCcw size={16}/> Put them back how they were</button>}
  </>;
 }
-export default function Settings({user,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs}){
+// The trip in the phone's own Calendar: every fixed booking with an alert at the leave-by time,
+// which is the one thing the app cannot do for itself with the screen off. A parent subscribes
+// once; the link can be handed to the other phones.
+function TripCalendar({request,notice}){
+ const [busy,setBusy]=useState(false),[link,setLink]=useState('');
+ const fetchLink=async()=>{const r=await request('calendar-link',{});setLink(r.url);return r.url;};
+ const subscribe=async()=>{setBusy(true);try{const url=await fetchLink();location.href=url;notice('Your phone should now offer to add the Japan 2026 calendar.');}catch(e){notice(e.message);}finally{setBusy(false);}};
+ const copy=async()=>{setBusy(true);try{const url=link||await fetchLink();await navigator.clipboard.writeText(url);notice('Calendar link copied. Open it on the other phone to subscribe there.');}catch(e){notice(e.message||'Select and copy the link.');}finally{setBusy(false);}};
+ return <section className="settings-section">
+  <h2>Trip calendar</h2>
+  <p>Every fixed booking, with an alert at the leave-by time and another ten minutes before, in this phone’s own Calendar, so the lock screen says when to go even with the app closed. Subscribe once; the phone checks for changes about every hour.</p>
+  <div className="row wrap">
+   <button type="button" className="primary" disabled={busy} onClick={subscribe}><CalendarDays size={16}/> Subscribe on this phone</button>
+   <button type="button" disabled={busy} onClick={copy}><Copy size={16}/> Copy the link</button>
+  </div>
+  {link&&<textarea readOnly value={link} rows={2}/>}
+  <p><small>Anyone holding the link can read the bookings, so share it only with the family.</small></p>
+ </section>;
+}
+export default function Settings({user,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR CHOICE</p>
   <h1>Settings</h1>
@@ -59,6 +78,7 @@ export default function Settings({user,settings,change,navPrefs,setNavPrefs,link
    <h2>Route cards</h2>
    {SETTINGS.filter(s=>s.group==='route').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
+  {user?.role==='parent'&&request&&<TripCalendar request={request} notice={notice}/>}
   {setNavPrefs&&<section className="settings-section"><BarShortcuts user={user} prefs={navPrefs} setPrefs={setNavPrefs}/></section>}
   {setLinkPrefs&&<section className="settings-section"><StopButtonOrder prefs={linkPrefs} setPrefs={setLinkPrefs}/></section>}
   <p><small>Remembered on this phone under your own name, so it takes effect with no signal and changes nothing for anybody else. Turning one back on brings it straight back, starting with today’s if you have not already marked it; nothing you have already seen is ever offered twice.</small></p>

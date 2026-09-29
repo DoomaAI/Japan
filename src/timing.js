@@ -23,12 +23,38 @@ export function scheduleProposal(steps,delta){
  }
  return {changes,conflicts:[...new Set(conflicts)]};
 }
+const icsStamp=d=>d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z/,'Z');
+const icsEsc=s=>String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');
+// A calendar line longer than 75 characters is continued on the next line after a space; a
+// calendar app that does not fold is a calendar app that drops the event.
+const icsFold=line=>{const out=[];let s=line;while(s.length>72){out.push(s.slice(0,72));s=' '+s.slice(72);}out.push(s);return out.join('\r\n');};
 export function calendarEvent(step){
  if(!step.time)return null;
  const start=new Date(`${step.day}T${step.time}:00+09:00`),end=new Date(+start+Math.max(step.duration||30,5)*60000);
- const stamp=d=>d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z/,'Z');
- const esc=s=>String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');
- return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Pasfield//Japan Trip//EN','BEGIN:VEVENT',`UID:${step.id}@pasfield-japan`,`DTSTAMP:${stamp(new Date())}`,`DTSTART:${stamp(start)}`,`DTEND:${stamp(end)}`,`SUMMARY:${esc(step.title)}`,`LOCATION:${esc(step.place)}`,`DESCRIPTION:${esc(step.notes)}`,`URL:${location.origin}/?day=${step.day}&step=${step.id}`,'BEGIN:VALARM','TRIGGER:-PT15M','ACTION:DISPLAY','DESCRIPTION:Trip reminder','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+ return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Pasfield//Japan Trip//EN','BEGIN:VEVENT',`UID:${step.id}@pasfield-japan`,`DTSTAMP:${icsStamp(new Date())}`,`DTSTART:${icsStamp(start)}`,`DTEND:${icsStamp(end)}`,`SUMMARY:${icsEsc(step.title)}`,`LOCATION:${icsEsc(step.place)}`,`DESCRIPTION:${icsEsc(step.notes)}`,`URL:${location.origin}/?day=${step.day}&step=${step.id}`,'BEGIN:VALARM','TRIGGER:-PT15M','ACTION:DISPLAY','DESCRIPTION:Trip reminder','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+}
+// The whole trip as one calendar a phone subscribes to once: a line across each day saying where
+// we are and where we sleep, and every fixed booking as a timed event with two alerts — one at
+// the leave-by time, worked out the same way the Home card works it out, and one ten minutes
+// before the booking itself. The phone's own Calendar then does what the app cannot: it says so
+// on the lock screen with the app closed. Booking references stay out of it; a calendar is shared
+// more casually than the app is. The phone asks for a fresh copy about once an hour.
+export function calendarFeed(state,origin=''){
+ const now=icsStamp(new Date()),lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Pasfield//Japan Trip//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Japan 2026','X-WR-TIMEZONE:Asia/Tokyo','REFRESH-INTERVAL;VALUE=DURATION:PT1H','X-PUBLISHED-TTL:PT1H'];
+ for(const d of state.days){
+  const after=new Date(`${d.date}T00:00:00Z`);after.setUTCDate(after.getUTCDate()+1);
+  lines.push('BEGIN:VEVENT',`UID:day-${d.date}@pasfield-japan`,`DTSTAMP:${now}`,`DTSTART;VALUE=DATE:${d.date.replace(/-/g,'')}`,`DTEND;VALUE=DATE:${after.toISOString().slice(0,10).replace(/-/g,'')}`,`SUMMARY:${icsEsc(`${d.title} · ${d.city}`)}`,`LOCATION:${icsEsc(d.hotel)}`,`URL:${origin}/?day=${d.date}`,'TRANSP:TRANSPARENT','END:VEVENT');
+  for(const s of activeSteps(state,d.date)){
+   if(!s.locked||!s.time||s.status==='skipped')continue;
+   const start=new Date(`${s.day}T${s.time}:00+09:00`),end=new Date(+start+Math.max(s.duration||30,5)*60000),lead=(s.travelMinutes??20)+(s.arrivalBuffer??15);
+   lines.push('BEGIN:VEVENT',`UID:${s.id}@pasfield-japan`,`DTSTAMP:${now}`,`DTSTART:${icsStamp(start)}`,`DTEND:${icsStamp(end)}`,`SUMMARY:${icsEsc(s.title)}`,`LOCATION:${icsEsc(s.place)}`,
+    `DESCRIPTION:${icsEsc(`Fixed booking. Leave by ${japanClock(new Date(+start-lead*60000))}.${s.notes?`\n${s.notes}`:''}`)}`,`URL:${origin}/?day=${s.day}&step=${s.id}`,
+    'BEGIN:VALARM',`TRIGGER:-PT${lead}M`,'ACTION:DISPLAY',`DESCRIPTION:${icsEsc(`Leave now for ${s.title}`)}`,'END:VALARM',
+    'BEGIN:VALARM','TRIGGER:-PT10M','ACTION:DISPLAY',`DESCRIPTION:${icsEsc(`${s.title} in 10 minutes`)}`,'END:VALARM','END:VEVENT');
+  }
+ }
+ lines.push('END:VCALENDAR');
+ return lines.map(icsFold).join('\r\n')+'\r\n';
 }
 // Minutes as a person would say them out loud. Anything under an hour stays in minutes, because
 // "75 min" is a number you have to do arithmetic on while standing in a station.

@@ -9631,3 +9631,21 @@ test('a family link, its session and its cookie all last six months, and renew i
  assert.match(handler,/INSERT INTO japan_sessions\(token_hash,grant_id,expires_at\)/,'a new session says its own life rather than trusting the table default');
  assert.match(handler,/INSERT INTO japan_grants\(id,token_hash,name,role,expires_at\)/,'and so does a new invite');
 });
+
+test('the subscribable calendar carries a line per day and every fixed booking with a leave-by alarm',async()=>{
+ const {calendarFeed}=await import('../src/timing.js');
+ const ics=calendarFeed(seed,'https://example.test');
+ assert.match(ics,/^BEGIN:VCALENDAR\r\n/);assert.match(ics,/X-WR-CALNAME:Japan 2026/);assert.match(ics,/REFRESH-INTERVAL;VALUE=DURATION:PT1H/);
+ const fixed=seed.days.flatMap(d=>activeSteps(seed,d.date)).filter(s=>s.locked&&s.time&&s.status!=='skipped');
+ assert.ok(fixed.length>5,'the seed has fixed bookings to put in it');
+ assert.equal((ics.match(/BEGIN:VEVENT/g)||[]).length,seed.days.length+fixed.length);
+ for(const s of fixed)assert.ok(ics.includes(`UID:${s.id}@pasfield-japan`),s.title);
+ const lead=(fixed[0].travelMinutes??20)+(fixed[0].arrivalBuffer??15);
+ assert.ok(ics.includes(`TRIGGER:-PT${lead}M\r\nACTION:DISPLAY\r\nDESCRIPTION:Leave now for `),'the leave-by alarm is the same sum the Home card uses');
+ assert.match(ics,/DTSTART;VALUE=DATE:20260921\r\nDTEND;VALUE=DATE:20260922/);
+ assert.ok(!/bookingReference/.test(ics),'no booking references in a calendar');
+ assert.ok(ics.split('\r\n').every(l=>l.length<=75),'every line folded to 75 characters');
+ // The key is never part of the plan a phone is sent, and the feed refuses without it.
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ assert.equal(visibleTrip({...seed,calendarKey:'k'.repeat(64)},parent).calendarKey,undefined);
+});
