@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react';
+import {useStored} from './stored.js';
 import {Trophy,RotateCcw} from 'lucide-react';
 import {SIZES,EMPTY,BLACK,WHITE,newBoard,place,winsAt,full,aiMove,LEVELS,levelById,gomokuWorth,idx} from './gomoku.js';
 import {bestScore} from './trip-features.js';
@@ -6,10 +7,12 @@ import {WinBurst} from './Win.jsx';
 // Gomoku. You are black and you go first, which is how it is played and is also a real
 // advantage — worth knowing rather than worth hiding.
 export default function Gomoku({user,state,mutate,busy}){
- const [size,setSize]=useState(11);
- const [levelId,setLevelId]=useState('child');
- const [board,setBoard]=useState(()=>newBoard(11));
- const [over,setOver]=useState(null),[last,setLast]=useState(null),[stones,setStones]=useState(0);
+ // The board and whose turn it is live on the phone, so a game survives a switch to another
+ // game and the app being reloaded behind a boy's back.
+ const [size,setSize]=useStored('game.gomoku.size',11);
+ const [levelId,setLevelId]=useStored('game.gomoku.level','child');
+ const [board,setBoard]=useStored('game.gomoku.board',()=>newBoard(11));
+ const [over,setOver]=useStored('game.gomoku.over',null),[last,setLast]=useStored('game.gomoku.last',null),[stones,setStones]=useStored('game.gomoku.stones',0);
  const saved=useRef(null);
  const level=levelById(levelId);
  const game=`gomoku-${level.id}-${size}`;

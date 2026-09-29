@@ -6,7 +6,7 @@ import {japanClock} from './timing.js';
 const KindIcon=({kind,...props})=>kind==='buy'?<ShoppingBag {...props}/>:<ListChecks {...props}/>;
 // One row, used on the day panel and on the full list, so a job looks the same wherever it is
 // ticked off. Anyone can tick; the wording and the bin are a parent's.
-function TodoRow({item,user,mutate,busy,onEdit,showDay,state}){
+function TodoRow({item,user,mutate,busy,onEdit,showDay,state,remove}){
  const parent=user.role==='parent',done=!!item.doneAt;
  // A boy's own thing to buy can be handed straight to his spending money, where it is counted
  // against what he actually has. Offered once: something already over there is not offered again.
@@ -32,7 +32,7 @@ function TodoRow({item,user,mutate,busy,onEdit,showDay,state}){
   {parent&&onEdit&&<div className="todo-actions">
    <button className="icon" aria-label={`Edit ${item.title}`} onClick={()=>onEdit(item)}><CalendarDays size={16}/></button>
    <button className="icon danger" aria-label={`Remove ${item.title}`} disabled={busy}
-    onClick={()=>{if(confirm(`Take “${item.title}” off the list?`))mutate({type:'todoRemove',id:item.id});}}><Trash2 size={16}/></button>
+    onClick={()=>remove({type:'todoRemove',id:item.id},{type:'todoAdd',title:item.title,kind:item.kind,day:item.day,person:item.person,notes:item.notes,at:item.createdAt},`“${item.title}” taken off the list.`)}><Trash2 size={16}/></button>
   </div>}
  </div>;
 }
@@ -65,7 +65,7 @@ export function DayTodos({state,user,day,mutate,busy,go}){
   {go&&<button className="todo-all" onClick={()=>go('todo')}>The whole list<ChevronRight size={16}/></button>}
  </section>;
 }
-export default function TodoList({state,user,mutate,busy,go}){
+export default function TodoList({state,user,mutate,busy,go,day=null,remove}){
  const [edit,setEdit]=useState(null),[kind,setKind]=useState(''),[person,setPerson]=useState(''),[show,setShow]=useState('open');
  const parent=user.role==='parent';
  const match=t=>(!kind||t.kind===kind)&&(!person||t.person===person)&&(show==='all'||(show==='done'?!!t.doneAt:!t.doneAt));
@@ -91,12 +91,12 @@ export default function TodoList({state,user,mutate,busy,go}){
  {!!loose.length&&<section className="todo-group">
   <h2>No day yet</h2>
   <p><small>Before we go, or whenever it fits. Give one a day to have it show on that day.</small></p>
-  {loose.map(item=><TodoRow key={item.id} item={item} state={state} user={user} mutate={mutate} busy={busy} onEdit={setEdit}/>)}
+  {loose.map(item=><TodoRow key={item.id} item={item} state={state} user={user} mutate={mutate} busy={busy} onEdit={setEdit} remove={remove}/>)}
  </section>}
  {byDay.map(({day:d,list})=><section className="todo-group" key={d.date}>
   <h2>{dayLabel(d.date)} · {d.city}</h2>
   <p><small>{d.title}</small></p>
-  {list.map(item=><TodoRow key={item.id} item={item} state={state} user={user} mutate={mutate} busy={busy} onEdit={setEdit} showDay={false}/>)}
+  {list.map(item=><TodoRow key={item.id} item={item} state={state} user={user} mutate={mutate} busy={busy} onEdit={setEdit} showDay={false} remove={remove}/>)}
  </section>)}
  {!loose.length&&!byDay.length&&<div className="empty"><Inbox/><h2>{all.length?'Nothing matches those filters.':'Nothing on the list.'}</h2><p>{all.length?'Try Everything, or a different kind.':'Write down the small things — post the postcards, buy a SIM at the airport, charge the power banks — and put a day on the ones that belong to one.'}</p></div>}
  {edit&&<form key={edit.id||'new'} className="feature-card" onSubmit={save}>
@@ -106,7 +106,9 @@ export default function TodoList({state,user,mutate,busy,go}){
    <label>Kind<select name="kind" defaultValue={edit.kind}>{TODO_KINDS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
    <label>For<select name="person" defaultValue={edit.person}><option>Family</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label>
   </div>
-  <label>Which day<select name="day" defaultValue={edit.day||''}><option value="">No day yet</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select></label>
+  {/* A new item starts on the day being looked at, which is nearly always the day it is for;
+      an item being edited keeps whatever day it already has, including none. */}
+  <label>Which day<select name="day" defaultValue={edit.id?edit.day||'':edit.day||(state.days.some(d=>d.date===day)?day:'')}><option value="">No day yet</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select></label>
   <label>Notes<textarea name="notes" maxLength={2000} defaultValue={edit.notes||''} placeholder="Which post office, how many stamps, what size"/></label>
   <div className="row wrap"><button className="primary" disabled={busy}>{edit.id?'Save':'Add it'}</button><button type="button" onClick={()=>setEdit(null)}>Cancel</button></div>
  </form>}

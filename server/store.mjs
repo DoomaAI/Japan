@@ -52,7 +52,10 @@ export async function session(req){
  if(localDemo())return {id:'preview',name:'Damien',role:'parent',demo:true};
  const cookie=(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('japan_session='))?.slice(14);
  if(!cookie||!/^[a-f0-9]{64}$/.test(cookie))throw new AppError('Open your private family invite link to join.',401);
- const db=await database();const [u]=await db`SELECT g.id,g.name,g.role FROM japan_sessions s JOIN japan_grants g ON g.id=s.grant_id WHERE s.token_hash=${hash(cookie)} AND s.expires_at>now() AND g.expires_at>now() AND g.revoked=false`;
- if(!u)throw new AppError('This family link has expired or been revoked.',401);return u;
+ // The sooner of the two expiries goes back with the user, so the app can say when this phone
+ // will stop being let in, days ahead of it happening in the middle of the trip.
+ const db=await database();const [u]=await db`SELECT g.id,g.name,g.role,LEAST(s.expires_at,g.expires_at) AS expires_at FROM japan_sessions s JOIN japan_grants g ON g.id=s.grant_id WHERE s.token_hash=${hash(cookie)} AND s.expires_at>now() AND g.expires_at>now() AND g.revoked=false`;
+ if(!u)throw new AppError('This family link has expired or been revoked.',401);
+ const {expires_at,...user}=u;return {...user,expiresAt:expires_at instanceof Date?expires_at.toISOString():expires_at?String(expires_at):null};
 }
 export function setCookie(res,value){res.setHeader('Set-Cookie',`japan_session=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${value?3888000:0}${process.env.VERCEL||process.env.APP_ORIGIN?.startsWith('https:')?'; Secure':''}`);}

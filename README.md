@@ -6,6 +6,17 @@ A private iPhone Home Screen web app, prepared for a new GitHub repository and V
 
 The production frontend builds and the automated model/API checks pass. No GitHub repository, Vercel deployment, Neon database or Blob store has been created or connected yet. Live family sharing and uploads must be checked after those connections are made. The internal browser preview was blocked by the browser environment (`ERR_BLOCKED_BY_CLIENT`), so visual, touch, iPhone installation, calendar import, alarm Shortcut and offline browser checks remain outstanding. Do not treat this as a deployed or fully device-tested release.
 
+## Changed on the road, 29 September 2026
+
+- **Home opens on today.** A phone put down on an earlier day opens on today, a stop that has since been finished is let go of, and the day moves on when the date turns while the app is in the background.
+- **Leave-by, retired and promoted.** Once a fixed booking's own time has passed its card says so and asks for a tick, instead of counting minutes overdue. From two hours before a departure until a quarter of an hour after it, the top-bar clock becomes a countdown that opens the booking.
+- **Sync that recovers.** Any answer from the server clears Offline, the fifteen-second check runs whatever the bar says and sends waiting changes first, and a **Sync now** button shows the last confirmed time. A plan that moved on while a phone was out of signal is replayed against rather than stopped at. Discarding pending updates and signing out with unsynced changes both ask first.
+- **Nothing hangs, nothing is lost by a stray tap.** Requests time out with a plain sentence. A sheet with something typed in it asks before a backdrop tap or Escape closes it. A broken screen shows a Reload button rather than a blank page. The saved copy opens after four seconds on a weak network.
+- **Undo instead of "Are you sure?"** Taking a to-do, packing item, shopping item, tracker, payment, card or hunt find off its list happens on the tap, with **Undo** on the toast for nine seconds. What comes back is a fresh copy of what was typed; other people's ratings are not carried. Money, photos, voice notes, AI results and whole-list resets still ask first, and a child putting a bought item back is asked because the money returns to the purse.
+- **Try again where it failed.** Reading a document, translating a file, adding a photo and reading a forwarded email keep their error on the screen with a Try again button. Features that are not set up say "not switched on for this trip yet" rather than naming an API key.
+- **Games keep their boards.** Shogi, hanafuda, picross and five in a row survive a switch to another game and the app being reloaded, and the Games tab reopens on the game that was open.
+- **Small things.** Packing shows who packed each item and when. New to-dos start on the day being viewed. Four selects no longer zoom the page on iOS. The app warns a fortnight before a family link expires.
+
 ## Included
 
 - 16 trip days, 237 editable steps, 6 groups of alternative plans, and all 72 original guide pages.

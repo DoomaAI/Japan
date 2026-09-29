@@ -3,7 +3,7 @@ import {ChevronDown,ChevronUp,LockKeyhole} from 'lucide-react';
 import {isOpen,setOpen} from './fold.js';
 import React,{useEffect,useState} from 'react';
 import {nextSummary,delayForDay,offlineManifest,isArchived,documentServesStep} from './trip-features.js';
-import {japanClock,japanDate} from './timing.js';
+import {japanClock,japanDate,spanWords} from './timing.js';
 import EntryIcon from './EntryIcon.jsx';
 import {dayLabel} from './AdventurePages.jsx';
 // The dashboard is the one block on the day that is read in a second and then in the way: the
@@ -17,7 +17,12 @@ export function NextUp({state,day,person=null,after=null,now,selectStep,open,go,
  const remaining=departure?Math.round((departure-now)/60000):null;
  const [shown,setShown]=useState(()=>isOpen(FOLD_ID,undefined,false));
  const fold=()=>setShown(v=>setOpen(FOLD_ID,!v));
- const leaveBy=fixed?`Leave by ${japanClock(departure)}${japanDate(departure)!==day?` on ${dayLabel(japanDate(departure))}`:''}${day===japanDate(now)?remaining>=0?` · in ${remaining} min`:` · ${Math.abs(remaining)} min past departure target`:''}`:'';
+ // Three states, said differently: time in hand, time to go now, and a booking whose own time has
+ // already passed. The last one is not an alarm any more — nobody needs to be told at half past
+ // two that they should have left at five to eleven — it is a prompt to tick the stop off or
+ // adjust the rest of the day.
+ const isToday=day===japanDate(now),passed=isToday&&fixed&&now>=new Date(`${day}T${fixed.time}:00+09:00`);
+ const leaveBy=!fixed?'':passed?`Its ${fixed.time} time has passed · tick it off, or adjust the day`:`Leave by ${japanClock(departure)}${japanDate(departure)!==day?` on ${dayLabel(japanDate(departure))}`:''}${isToday?remaining>=0?` · in ${spanWords(remaining)}`:` · leave now, ${spanWords(remaining)} behind`:''}`;
  return <section className={`next-up${shown?'':' folded'}`}>
   <div className="next-up-head">
    <div className="next-up-now">
@@ -28,7 +33,7 @@ export function NextUp({state,day,person=null,after=null,now,selectStep,open,go,
   </div>
   {/* The booking that cannot move is its own small card, folded or not: it is the one line on
       the tile it would be alarming to miss. */}
-  {fixed&&<div className={`departure${day===japanDate(now)&&remaining<0?' late':''}`}>
+  {fixed&&<div className={`departure${passed?' passed':isToday&&remaining<0?' late':''}`}>
    <span className="eyebrow"><LockKeyhole size={12}/>Next fixed booking</span>
    <button className="next-title" onClick={()=>selectStep(fixed)}>{fixed.time} · {fixed.title}</button>
    <span className="departure-leave">{leaveBy}</span>

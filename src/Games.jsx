@@ -1,4 +1,5 @@
 import React,{useState,useMemo,useEffect,useRef} from 'react';
+import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Check,X,Wifi,WifiOff,ChevronLeft,ChevronRight} from 'lucide-react';
 import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER,SIGHTS,ELEMENTS,elementById,startingElements,combine,discoverable,SUMO_RANKS,rankAt,TOP_RANK,STABLE_SIZE,emptyStable,recruit,promote,shortRank,bestRank,stableFull,oddsOf,bout,challengerFor,SUMO_RITUALS,STOMPS,STOMP_WINDOW,stompScore,SALT_BAND,saltScore,MATTA,chargeScore,leadUpEffect,ceremonyScore,KIMARITE,kimariteById,SUMO_TICK,SURGE_TICKS,TAKEN_AS_READ,theirWeight,startBout,sumoAction,SEKITORI,BASHO_DAYS,bashoAt,newCareer,rankRate,climb,bashoOpponent,bashoWorth,bashoDay} from './kana-data.js';
 import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-features.js';
@@ -962,7 +963,9 @@ const sortedGames=filterId=>{
 };
 const stars=n=>'⭐'.repeat(n);
 export default function Games(props){
- const [game,setGame]=useState('match');
+ // The game that was open is the game that opens: a boy who put the phone down mid-shogi finds
+ // the board, not the letters, when he picks it up.
+ const [game,setGame]=useStored('japan.game','match');
  const [filter,setFilter]=useState('all');
  const {read}=useReadAloud();
  const strip=useRef(null);

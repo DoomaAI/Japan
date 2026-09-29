@@ -3,7 +3,7 @@ import {Radar,Luggage,Plus,X,Pencil,Trash2,RotateCcw,Inbox,MapPin,CloudSun,Compa
 import {packing} from './trip-features.js';
 import {PACK_CATEGORIES,PACK_PRIORITY,PACK_SOURCES,packCategoryLabel,packingSuggestions,dismissedSuggestions,nextPackUp,packingProgress,daysAhead,packingWeather} from './packing-data.js';
 import {forwardedTrackers,linkState} from './trackers.js';
-import {japanDate} from './timing.js';
+import {japanDate,japanClock} from './timing.js';
 import GoingHome from './GoingHome.jsx';
 import {goingHomeSoon} from './going-home.js';
 const SOURCE_ICONS={japan:MapPin,weather:CloudSun,activity:Compass,person:User,trip:CalendarDays};
@@ -27,7 +27,7 @@ function Suggestion({s,mutate,busy,user}){
   </div>
  </div>;
 }
-function PackRow({item,user,mutate,busy,onEdit}){
+function PackRow({item,user,mutate,busy,onEdit,remove}){
  const packed=!!item.packedAt,mine=user.role==='parent'||item.createdBy===user.name;
  return <div className={`todo-row ${packed?'done':''}`}>
   <label className="todo-tick">
@@ -37,13 +37,13 @@ function PackRow({item,user,mutate,busy,onEdit}){
   </label>
   <div className="todo-body">
    <strong>{item.title}{item.qty>1&&<span className="pack-qty"> ×{item.qty}</span>}</strong>
-   <small>{whose(item.person)}{item.pending?' · Waiting to sync':packed?` · Packed by ${item.packedBy}`:''}</small>
+   <small>{whose(item.person)}{item.pending?' · Waiting to sync':packed?` · Packed by ${item.packedBy}${item.packedAt?` at ${japanClock(new Date(item.packedAt))}`:''}`:''}</small>
    {item.notes&&<p>{item.notes}</p>}
   </div>
   {mine&&onEdit&&!item.pending&&<div className="todo-actions">
    <button className="icon" aria-label={`Edit ${item.title}`} onClick={()=>onEdit(item)}><Pencil size={16}/></button>
    <button className="icon danger" aria-label={`Remove ${item.title}`} disabled={busy}
-    onClick={()=>{if(confirm(`Take “${item.title}” off the packing list?`))mutate({type:'packRemove',id:item.id});}}><Trash2 size={16}/></button>
+    onClick={()=>remove({type:'packRemove',id:item.id},{type:'packAdd',title:item.title,category:item.category,person:item.person,qty:item.qty,notes:item.notes},`“${item.title}” taken off the packing list.`)}><Trash2 size={16}/></button>
   </div>}
  </div>;
 }
@@ -71,7 +71,7 @@ export function PackingNudge({state,user,day,go}){
  {next.home&&<GoingHome/>}
  </>;
 }
-export default function Packing({state,user,mutate,busy}){
+export default function Packing({state,user,mutate,busy,remove}){
  const today=japanDate(),parent=user.role==='parent';
  const {items}=packing(state),suggestions=packingSuggestions(state,today),dismissed=dismissedSuggestions(state,today);
  const [view,setView]=useState(items.length?'list':'suggest');
@@ -108,7 +108,7 @@ export default function Packing({state,user,mutate,busy}){
   <button className="primary" onClick={()=>setEdit({title:'',category:'other',person:user.role==='parent'?'Family':user.name,qty:1,notes:''})}><Plus size={18}/>Add something of our own</button>
   {byCategory.map(g=><section className="todo-group" key={g.id}>
    <h2>{g.label}</h2>
-   {g.list.map(item=><PackRow key={item.id} item={item} user={user} mutate={mutate} busy={busy} onEdit={setEdit}/>)}
+   {g.list.map(item=><PackRow key={item.id} item={item} user={user} mutate={mutate} busy={busy} onEdit={setEdit} remove={remove}/>)}
   </section>)}
   {!byCategory.length&&<div className="empty"><Inbox/><h2>{items.length?(show==='open'?'Everything here is packed.':'Nothing matches those filters.'):'Nothing on the list yet.'}</h2>
    <p>{items.length?'Try Everything, or somebody else.':<>Start from the <button onClick={()=>setView('suggest')}>suggestions</button>, or add something of our own.</>}</p></div>}

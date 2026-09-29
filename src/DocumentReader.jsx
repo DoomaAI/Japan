@@ -1,4 +1,4 @@
-import React,{useState} from 'react';
+import React,{useState,useRef} from 'react';
 import {FileText,Copy,Check,AlertCircle,Clock} from 'lucide-react';
 import {shrinkPhoto} from './MenuReader.jsx';
 const readAsBase64=file=>new Promise((resolve,reject)=>{
@@ -12,8 +12,12 @@ const readAsBase64=file=>new Promise((resolve,reject)=>{
 export default function DocumentReader({config,busy,setBusy,request,notice,mutate}){
  const [result,setResult]=useState(null),[name,setName]=useState(''),[note,setNote]=useState('');
  const [working,setWorking]=useState(''),[copied,setCopied]=useState(false),[saved,setSaved]=useState(false);
+ // A read that fails stays on the screen with the file it was for, so a dropped connection on
+ // a platform is one tap to try again rather than a toast that has gone before it is read.
+ const [failed,setFailed]=useState(''),last=useRef(null);
  async function choose(file){
   if(!file)return;
+  last.current=file;setFailed('');
   setResult(null);setCopied(false);setSaved(false);setName(file.name||'photo');
   setBusy(true);setWorking('Reading…');
   try{
@@ -24,7 +28,7 @@ export default function DocumentReader({config,busy,setBusy,request,notice,mutat
    const answer=await request('read-document',{file:data,mediaType:pdf?'application/pdf':'image/jpeg',note});
    if(!answer.readable)notice('That could not be read. Try a straighter, closer photo, or one page at a time.');
    setResult(answer);
-  }catch(e){notice(e.message||'That document could not be read.');}
+  }catch(e){setFailed(e.message||'That document could not be read.');}
   finally{setBusy(false);setWorking('');}
  }
  async function keep(){
@@ -39,7 +43,7 @@ export default function DocumentReader({config,busy,setBusy,request,notice,mutat
   <h2><FileText size={18}/> Read a document</h2>
   <p>A letter from the hotel, a form, a notice, a receipt. Photograph it, pick a photo you already took, or choose a PDF — it comes back in English, with anything you have to do pulled out.</p>
   {!config?.documentReader
-   ?<p className="callout">This needs an Anthropic API key on the deployment. Everything else on this page works without one.</p>
+   ?<p className="callout">Reading a document is not switched on for this trip yet. Everything else on this page works without it.</p>
    :<>
     <label>Anything particular you want to know? (optional)
      <input value={note} maxLength={500} onChange={e=>setNote(e.target.value)} placeholder="Is there a deadline? What do we owe?"/></label>
@@ -50,6 +54,7 @@ export default function DocumentReader({config,busy,setBusy,request,notice,mutat
       <input type="file" accept="image/*,application/pdf,.pdf" disabled={busy} onChange={e=>{choose(e.target.files?.[0]);e.target.value='';}}/></label>
     </div>
     {working&&<p className="game-status"><Clock size={15}/> {working} A page takes a few seconds.</p>}
+    {failed&&!working&&<p className="callout"><AlertCircle size={16}/> {failed}<button type="button" className="try-again" disabled={busy} onClick={()=>choose(last.current)}>Try again</button></p>}
    </>}
   {result&&result.readable&&<div className="document-result">
    <p className="eyebrow">{result.kind||'Document'}{result.language?` · ${result.language}`:''}</p>

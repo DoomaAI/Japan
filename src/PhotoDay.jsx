@@ -1,7 +1,7 @@
-import React,{useState} from 'react';
+import React,{useState,useRef} from 'react';
 import {photoPosition} from './exif-gps.js';
 import {upload} from '@vercel/blob/client';
-import {Camera,Trophy,Trash2,Check,Sparkles,Users} from 'lucide-react';
+import {Camera,Trophy,Trash2,Check,Sparkles,Users,AlertCircle} from 'lucide-react';
 import {shrinkPhoto} from './MenuReader.jsx';
 import {photosFor,photosOf,photoOwner,photoCounts,photoVotesFor,photoOfTheDay,BOYS} from './trip-features.js';
 export const photoUrl=p=>`/api/photo?id=${encodeURIComponent(p.id)}`;
@@ -16,6 +16,9 @@ const AGES={Nate:5,Boston:8};
 // screen rather than another entry in a menu that already has twenty-two.
 export default function PhotoDay({state,user,day,config,busy,setBusy,request,accept,mutate,notice,dayLabel,person='',setPerson}){
  const [working,setWorking]=useState(''),[preview,setPreview]=useState(null);
+ // A photo that did not go up stays offered, with the file still in hand, so a dropped signal
+ // is one tap to try again rather than choosing the photo all over again.
+ const [failed,setFailed]=useState(''),last=useRef(null);
  const [belongsTo,setBelongsTo]=useState(user.name);
  const parent=user.role==='parent';
  const whole=!!person;
@@ -29,6 +32,7 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
   if(!file)return;
   if(!config?.uploads)return notice('Photos need private file storage connected.');
   if(!navigator.onLine)return notice('Adding a photo needs signal. It will have to wait.');
+  last.current=file;setFailed('');
   setBusy(true);setWorking('Shrinking the photo…');
   try{
    const shot=await shrinkPhoto(file,1600,0.75);
@@ -45,7 +49,7 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
    accept(await request('photo',{pathname:blob.pathname,day,for:belongsTo,title:feedback?.title||'',feedback,gps:await photoPosition(file)}));
    setPreview(null);
    notice(feedback?`${feedback.title} — ${feedback.score}/10`:`Photo added${belongsTo===user.name?'':` for ${belongsTo}`}.`);
-  }catch(e){notice(e.message||'That photo could not be added.');setPreview(null);}
+  }catch(e){setFailed(e.message||'That photo could not be added.');setPreview(null);}
   finally{setBusy(false);setWorking('');}
  }
  const canEnter=BOYS.includes(user.name)||parent;
@@ -76,7 +80,8 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
    {parent&&belongsTo!==user.name&&<p><small>This one will be {belongsTo}’s, and counts towards {belongsTo}’s twelve for the day.</small></p>}
   </>}
   {preview&&<img className="menu-shot" src={preview} alt="The photo being added"/>}
-  {!config?.photoCoach&&canEnter&&!whole&&<p><small>Feedback needs an API key on the deployment. Photos and voting work without one.</small></p>}
+  {failed&&!working&&<p className="callout"><AlertCircle size={16}/> {failed}<button type="button" className="try-again" disabled={busy} onClick={()=>add(last.current)}>Try again</button></p>}
+  {!config?.photoCoach&&canEnter&&!whole&&<p><small>Photo tips are not switched on for this trip yet. Photos and voting work without them.</small></p>}
   {!whole&&result?.winners?.length===1&&<p className="photo-winner"><Trophy size={16}/> <strong>{photoOwner(result.winners[0])}</strong> has photo of the day with {result.votes} vote{result.votes===1?'':'s'}.</p>}
   {!whole&&result?.winners?.length>1&&<p className="photo-winner"><Trophy size={16}/> A tie on {result.votes} vote{result.votes===1?'':'s'} — {result.winners.map(photoOwner).join(' and ')}.</p>}
   {!entries.length&&<p className="callout">{whole?`Nothing of ${person}’s yet.`:'No photos yet today. First one in sets the bar.'}</p>}

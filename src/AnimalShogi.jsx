@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useMemo} from 'react';
+import {useStored} from './stored.js';
 import {Trophy,RotateCcw} from 'lucide-react';
 import {newGame,play,movesFor,dropsFor,aiMove,pieceById,PIECES,LEVELS,levelById,shogiWorth} from './shogi.js';
 import {bestScore} from './trip-features.js';
@@ -7,9 +8,11 @@ import {WinBurst} from './Win.jsx';
 // board that turns around between moves is how a child loses track of which lion is his.
 const HELD=['giraffe','elephant','chick'];
 export default function AnimalShogi({user,state,mutate,busy}){
- const [levelId,setLevelId]=useState('chick');
- const [game,setGame]=useState(newGame);
- const [picked,setPicked]=useState(null),[score,setScore]=useState(0),[won,setWon]=useState(0);
+ // The board, the level and the tally live on the phone, so leaving for another game or the app
+ // being reloaded in the background does not lose a game in progress.
+ const [levelId,setLevelId]=useStored('game.shogi.level','chick');
+ const [game,setGame]=useStored('game.shogi.game',newGame);
+ const [picked,setPicked]=useState(null),[score,setScore]=useStored('game.shogi.score',0),[won,setWon]=useStored('game.shogi.won',0);
  const level=levelById(levelId);
  const key=`shogi-${level.id}`;
  // His move. The wait is not the machine thinking — it decides in a few milliseconds — it is
