@@ -492,7 +492,7 @@ export function extraOperation(state,op,user,fail,now){
   if(op.done)c.completions[op.person]=c.completions[op.person]||at;else delete c.completions[op.person];
  }else if(op.type==='shoppingAdd'||op.type==='shoppingEdit'){
   if(!string(op.title,250)||!op.title.trim())fail('Add an item name.');dayCheck(op.day??null);
-  const item={title:op.title.trim(),day:op.day??null,person:op.person||'Family',store:op.store||'',notes:op.notes||'',url:op.url||'',quantity:op.quantity??1,budget:op.budget??null};
+  const item={title:op.title.trim(),day:op.day??null,person:op.person||'Family',store:op.store||'',notes:op.notes||'',url:op.url||'',quantity:op.quantity??1,budget:op.budget??null,taxFree:op.taxFree===true};
   if(!['Family',...state.members].includes(item.person))fail('Choose a family member.');
   for(const key of ['store','notes','url'])requireText(item[key],key==='notes'?2000:2000,key);
   if(item.url){try{if(new URL(item.url).protocol!=='https:')fail('Use an HTTPS shopping link.');}catch{fail('Use an HTTPS shopping link.');}}
@@ -521,7 +521,7 @@ export function extraOperation(state,op,user,fail,now){
     price:op.price===undefined||op.price===''?null:op.price,
     stepId:op.stepId||null,locationId:op.locationId||null,
     pin:op.pin??null,rating:op.rating===undefined||op.rating===''||op.rating===0?null:op.rating,
-    tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))]};
+    tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))],taxFree:op.taxFree===true};
    if(!['Family',...state.members].includes(item.person))fail('Choose a family member.');
    for(const [key,max] of [['shop',250],['place',250],['notes',2000]])requireText(item[key],max,key);
    // Where it was, pinned to the trip itself rather than only described. One anchor, not two: a
@@ -583,7 +583,7 @@ export function extraOperation(state,op,user,fail,now){
    const day=entry.stepId?(state.steps.find(s=>s.id===entry.stepId)?.day??null):entry.day;
    extraOperation(state,{type:'shoppingAdd',title:entry.title,person:entry.person,day,quantity:1,
     budget:entry.price??null,store:[entry.shop,entry.place].filter(Boolean).join(' · '),url:'',
-    notes:entry.notes},user,fail,now);
+    notes:entry.notes,taxFree:!!entry.taxFree},user,fail,now);
    const created=state.shopping.at(-1);
    created.shortlistId=entry.id;
    entry.shoppingId=created.id;
