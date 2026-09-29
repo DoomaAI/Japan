@@ -13,7 +13,7 @@ export const HOME_WIDGETS={
  countdown:{label:'Trip countdown',note:'Days to go before we fly, then which day of the trip it is',off:true},
  step:{label:'The step we are on',note:'The current stop, swipe for the rest of the day'},
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},
- needs:{label:'Before we head out',note:'What to carry out the door this morning'},
+ needs:{label:'Before we head out',note:'A tick for each thing to carry out the door, fresh each morning, with a streak'},
  links:{label:'Next fixed time and hotel',note:'The next time that cannot move, then tonight’s hotel'},
  running:{label:'Is everything running?',note:'Service status for today’s trains, and flight status on a flight day'},
  weather:{label:'Weather',note:'The day’s forecast, folded or open',page:'weather'},

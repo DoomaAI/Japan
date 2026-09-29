@@ -9734,3 +9734,25 @@ test('nothing taken off a list is gone for thirty days, and comes back exactly a
  assert.deepEqual(binVisible(old,child),[]);assert.equal(binVisible(old,parent).length,1);
  for(const [op,k] of Object.entries(BIN_KINDS))assert.ok(k.kind&&k.label&&typeof k.list==='function'&&typeof k.put==='function',op);
 });
+
+test('before we head out is a list built for the day, ticked fresh each morning, with a streak',async()=>{
+ const {morningList,MORNING_ALWAYS,nextStreak,streakWords}=await import('../src/morning-data.js');
+ const s=upgraded(seed);
+ const plain=morningList(s,'2026-09-27'),move=morningList(s,'2026-09-29'),last=morningList(s,s.days.at(-1).date);
+ for(const i of MORNING_ALWAYS)assert.ok(plain.some(x=>x.id===i.id),`${i.id} every day`);
+ assert.ok(!plain.some(x=>x.id==='cases'),'no cases on a day we stay put');
+ assert.ok(move.some(x=>x.id==='cases'&&/Fantasy Springs/.test(x.why)),'cases on the morning we change hotel');
+ assert.ok(last.some(x=>x.id==='cases'),'and on the last morning');
+ assert.equal(last.filter(x=>x.id==='cases').length,1,'never twice');
+ const wet=morningList({...s,weather:{days:{'2026-09-27':{code:61,max:19,min:9,rain:80}}}},'2026-09-27');
+ assert.ok(wet.some(x=>x.id==='umbrella')&&wet.some(x=>x.id==='jumpers'),'the forecast adds umbrellas and jumpers');
+ assert.ok(!plain.some(x=>x.id==='umbrella'),'and says nothing about them on a dry day');
+ const days=s.days;
+ assert.deepEqual(nextStreak({count:0,last:null},'2026-09-27',days),{count:1,last:'2026-09-27'});
+ assert.deepEqual(nextStreak({count:1,last:'2026-09-27'},'2026-09-28',days),{count:2,last:'2026-09-28'});
+ assert.deepEqual(nextStreak({count:2,last:'2026-09-28'},'2026-09-28',days),{count:2,last:'2026-09-28'},'the same morning twice changes nothing');
+ assert.deepEqual(nextStreak({count:2,last:'2026-09-26'},'2026-09-28',days),{count:1,last:'2026-09-28'},'a missed morning starts again');
+ assert.equal(streakWords(1),'First morning done');assert.equal(streakWords(4),'4 mornings in a row');assert.equal(streakWords(0),'');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/needs:<MorningChecklist key=\{day\} state=\{visibleState\} day=\{day\} today=\{japanDate\(now\)\}\/>/,'the widget slot is the checklist');
+});
