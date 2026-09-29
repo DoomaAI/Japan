@@ -196,3 +196,19 @@ test('the run-up unlocks a family task at 100, 50, 30, 14 and 7 days, each count
  assert.equal(m.packing.total,0);assert.equal(MILESTONES.map(x=>x.at).join(),'100,50,30,14,7');
  assert.equal(runUp(state,'2026-09-20').days,1);
 });
+test('a little Japan each day counts back from the flight, and remembers what each person has learnt',async()=>{
+ const {dailyJapan}=await import('../src/daily-japan-data.js');
+ const state=upgraded(seed);
+ assert.equal(dailyJapan(state,'2026-09-21','Nate'),null,'only before we fly');
+ const eve=dailyJapan(state,'2026-09-20','Nate');
+ assert.equal(eve.days,1);assert.equal(eve.phrase.id,'hello');assert.equal(eve.fact.id,'flight','the day before ends on the flight itself');
+ assert.notEqual(dailyJapan(state,'2026-09-19','Nate').phrase.id,'hello','a new phrase each day');
+ assert.equal(eve.phraseLearnt,false);
+ state.phraseLog={Nate:{hello:'x'}};state.factLog={Nate:{flight:'x'}};
+ const again=dailyJapan(state,'2026-09-20','Nate');
+ assert.equal(again.phraseLearnt,true);assert.equal(again.factRead,true);
+ assert.equal(dailyJapan(state,'2026-09-20','Boston').phraseLearnt,false,'each their own');
+ const {applyOperation}=await import('../server/model.mjs');
+ const next=applyOperation(state,{type:'phraseSeen',person:'Nate',day:null,phraseIds:['thanks']},{name:'Nate',role:'child'});
+ assert.ok(next.phraseLog.Nate.thanks,'the run-up can log a phrase with no trip day');
+});
