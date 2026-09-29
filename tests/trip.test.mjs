@@ -10843,7 +10843,10 @@ test('nothing tappable is under 40px, past days still read, and a press shows',a
  assert.match(sweep,/\.timeline \.timeline-tick input,\.timeline-tick input\{width:40px;height:40px;min-height:40px\}/);
  // Where it cannot, the hit area is widened around the same drawing.
  assert.match(sweep,/\.timeline button\[aria-label\^="Move "\]::after,\.to-options::after,\.remove-stop::after,\.drag-handle::after\{content:'';position:absolute;inset:-8px -10px/);
- assert.match(sweep,/\.timeline-insert::after\{content:'';position:absolute;inset:-12px 0/);
+ // The add-a-stop line's ::after is its dashed divider, so its hit area is ::before: taking over
+ // ::after lifted the divider 12px up against the stop above and the gaps stopped reading even.
+ assert.match(sweep,/\.timeline-insert::before\{content:'';position:absolute;inset:-12px 0/);
+ assert.doesNotMatch(sweep,/\.timeline-insert::?after/,'the dashed divider stays in the gap, level with its +');
  assert.match(sweep,/\.callout button::after\{content:'';position:absolute;inset:-10px -4px\}/,'a button inside a sentence keeps its line but gains a finger’s worth of room');
  assert.match(sweep,/\.nav-grip::after\{content:'';position:absolute;inset:-14px -8px/);
  // Past days on the strip are dimmed, not faded out.
