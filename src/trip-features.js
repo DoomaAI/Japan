@@ -925,6 +925,18 @@ export const NEARBY_KINDS=[
  ['shelter','Out of the rain']
 ];
 export const PRICE_BANDS=[['free','Free'],['cheap','Cheap'],['mid','Mid-range'],['pricey','Pricey']];
+// The practical things, straight to Maps: no signal to the app, no key, and no waiting. The
+// search is in Japanese because that is what the place calls itself on the map, and Maps works
+// out "near me" on its own from the phone. Where the phone has already said where it is, the
+// map opens there rather than wherever it was last left.
+export const MAPS_NEARBY=[
+ ['toilet','Toilets','トイレ'],['konbini','Convenience store','コンビニ'],['cash','Cash / ATM','ATM セブン銀行'],
+ ['lockers','Coin lockers','コインロッカー'],['pharmacy','Pharmacy','ドラッグストア 薬局'],['clinic','Doctor or clinic','病院 クリニック'],
+ ['laundry','Laundromat','コインランドリー'],['station','Nearest station','駅']
+];
+export const mapsNearbyLink=(term,from=null)=>from&&validCoords(from.lat,from.lng)
+ ?`https://www.google.com/maps/search/${encodeURIComponent(term)}/@${from.lat},${from.lng},16z`
+ :`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(term)}`;
 // The same question asked from the food page is a narrower one: a toilet and a coin locker are
 // not what somebody reading the food list wants, so only the ones that can feed you are offered.
 export const FOOD_NEARBY_KINDS=['food','quick','ramen','sushi','bakery','matcha','sweets','coffee','izakaya','konbini'];

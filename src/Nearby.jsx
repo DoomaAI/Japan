@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import {MapPin,Navigation,Search,Plus,Check,AlertCircle,Clock,Coins,ExternalLink,Inbox,Users,LocateFixed,UtensilsCrossed,Star} from 'lucide-react';
-import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MAX_DISH_HUNT,MINUTES_PER_STAR,isRatedKind,nearbyKindLabel,priceBandLabel,ratingText,walkingLink,COORD_PLACES} from './trip-features.js';
+import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MAX_DISH_HUNT,MINUTES_PER_STAR,isRatedKind,nearbyKindLabel,priceBandLabel,ratingText,walkingLink,COORD_PLACES,MAPS_NEARBY,mapsNearbyLink} from './trip-features.js';
 import {askPhoneWhereItIs} from './geo.js';
 import {activeSteps} from './timing.js';
 // Asked standing in the street, so it opens on what it can answer fastest: where the phone says
@@ -20,7 +20,15 @@ import {activeSteps} from './timing.js';
 // The asking is specific for the same reason: matcha, ramen, sushi, a bakery, something the boys
 // can hold. "Somewhere to eat" is the question you ask when nobody minds, and somebody usually
 // minds.
-export default function Nearby({state,user,day,step,request,mutate,busy,notice,close,selectStep,mode,wishlist}){
+// One tap to Maps for each of the practical things. Used at the top of the Nearby screen and on
+// its own on the Help page, so it is there whether or not the app can be asked.
+export function MapsNearby({coords=null,hint=true}){
+ return <div>
+  {hint&&<p className="nearby-hint">No signal to the app needed. The search is in Japanese, so it finds what the place calls itself; Maps sorts out “near me”.</p>}
+  <div className="chips">{MAPS_NEARBY.map(([id,label,term])=><a className="chip" key={id} href={mapsNearbyLink(term,coords)} target="_blank" rel="noopener noreferrer"><ExternalLink size={13}/>{label}</a>)}</div>
+ </div>;
+}
+export default function Nearby({state,user,day,step,request,mutate,busy,notice,close,selectStep,mode,wishlist,available=true}){
  const today=state.days.find(d=>d.date===day),steps=activeSteps(state,day);
  const current=step||steps.find(s=>!['done','skipped'].includes(s.status))||steps.at(-1);
  const hunt=mode==='food';
@@ -75,7 +83,13 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
    notes:[item.draft.notes,item.why].filter(Boolean).join('\n\n').slice(0,4000)});
   if(saved){setAdded(a=>[...a,item.draft.title]);notice?.('Saved to the planning board.');}
  }
+ // The Maps row comes first whatever else the screen can do, because a toilet is wanted now,
+ // not after the app has thought about it; and it is the whole screen when asking the app is not
+ // switched on, rather than a form that always answers no.
+ const maps=<fieldset className="maps-nearby"><legend>Straight to Maps</legend><MapsNearby coords={coords}/></fieldset>;
+ if(!available)return <div className="nearby">{maps}<p className="callout"><AlertCircle size={18}/>Asking the app what is near here is not switched on for this trip yet. Maps above works without it.</p></div>;
  return <div className="nearby">
+  {maps}
   <div className="segmented nearby-scope">
    <button className={anchor==='me'?'selected':''} onClick={()=>{setAnchor('me');if(!coords)locate();}}><LocateFixed size={16}/>Where I am</button>
    <button className={anchor!=='me'?'selected':''} onClick={()=>setAnchor(current?`s:${current.id}`:'hotel')}><MapPin size={16}/>A planned place</button>
