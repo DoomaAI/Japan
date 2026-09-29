@@ -21,6 +21,7 @@ import {fetchSumoDay,fetchSumoResults,fetchWrestler,sumoReady} from './sumo.mjs'
 import {readDocument,readerReady,translateStoredFile} from './document-reader.mjs';
 import {coachPhoto,coachReady} from './photo-coach.mjs';
 import {shareCheckin,listCheckins} from './checkins.mjs';
+import {validTakenAt} from '../src/exif-gps.js';
 import {parseKml,matchPlacemarks,myMapKmlUrl,roundedPosition,validPosition,PHOTO_PLACES} from '../src/memory-map.js';
 import {calendarFeed,japanDate} from '../src/timing.js';
 import {RECEIPT_TYPES} from '../src/ledger-data.js';
@@ -528,7 +529,7 @@ export default async function handler(req,res){
    const existing=current.state.documents.find(d=>d.pathname===b.pathname);if(existing)return json(res,visibleEnvelope(current,user));
    // A file added to a ticket already marked used is archived with it, rather than reappearing
    // on the list and in the offline download on its own.
-   current.state.documents.push({id:randomUUID(),title:b.title,...details,...association,...(root?{parentDocumentId:root.id,archivedAt:root.archivedAt??null,archivedBy:root.archivedBy??null}:{}),size:blob.size,pathname:b.pathname,type:blob.contentType,person:b.person||'Family',...(details.category==='memory'&&photoGps(b.gps)?{gps:photoGps(b.gps)}:{}),createdAt:new Date().toISOString()});
+   current.state.documents.push({id:randomUUID(),title:b.title,...details,...association,...(root?{parentDocumentId:root.id,archivedAt:root.archivedAt??null,archivedBy:root.archivedBy??null}:{}),size:blob.size,pathname:b.pathname,type:blob.contentType,person:b.person||'Family',...(details.category==='memory'&&photoGps(b.gps)?{gps:photoGps(b.gps)}:{}),...(details.category==='memory'&&validTakenAt(b.takenAt)?{takenAt:b.takenAt}:{}),createdAt:new Date().toISOString()});
    return json(res,visibleEnvelope(await writeTrip(current.state,current.revision),user));
   }
   // A receipt photo on a payment: the parents' money, so a parent's eyes only.
