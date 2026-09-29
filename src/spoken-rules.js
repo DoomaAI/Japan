@@ -48,6 +48,7 @@ export const PAGE_RULES={
  games:'Games. All the games are in here. Press the name of the one you want at the top. Some of them are real Japanese games and they have a little dot next to them.',
  photos:'Photos. All the photos everyone has taken. You can add yours, and at the end of the day everybody votes for the best one.',
  stamps:'Stamp book. In Japan, stations and temples have a stamp you can press into a book. These are our stamps. Every time we finish a place, a sight, a ride or a train, it gets a red stamp. Your own stamps come when you try five foods, or ten, or twenty five.',
+ leaderboard:'Leaderboard. Who has tried the most foods, been on the most rides and taken the most photos. The one at the top of each list gets a crown. If two people have the same number, they share the place.',
  facts:'Fun facts. A new fact every day about somewhere we are going or something we are about to see. Press the speaker to hear it. All the ones you have already had are kept in here too.',
  highlights:'Trip highlights. After the trip we will make a short film of our best bits, from our own photos and videos and voice notes. This page counts up everything we have saved for it so far.',
  safety:'Safety. What to do if something goes wrong. There are phone numbers for help, and your own card to show a grown up if you get lost. It has your name and our phone numbers on it, written in Japanese.',

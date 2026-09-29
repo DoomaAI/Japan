@@ -60,3 +60,14 @@ test('the stamp book is earned from what is ticked off, with milestones per pers
  assert.equal(personalStamps(state,'Boston').find(c=>c.id==='food').count,2);
  assert.deepEqual(MILESTONES,[1,5,10,25,50]);
 });
+test('the leaderboard ranks everyone per board, shares a tie and gives no place for nought',async()=>{
+ const {rankings,crowns}=await import('../src/leaderboard-data.js');
+ const state=upgraded(seed);
+ state.food={a:{tried:{Nate:'x',Boston:'x'}},b:{tried:{Nate:'x',Boston:'x'}},c:{tried:{Lauren:'x'}}};
+ state.parkRides={r:{ridden:{Boston:'x'}}};
+ const food=rankings(state).find(b=>b.id==='food');
+ assert.deepEqual(food.rows.map(r=>[r.person,r.count,r.place]),[['Boston',2,1],['Nate',2,1],['Lauren',1,3],['Damien',0,null]]);
+ assert.deepEqual(food.leaders,['Boston','Nate']);
+ assert.deepEqual(rankings(state).find(b=>b.id==='photos').leaders,[],'nobody leads a board nobody has started');
+ assert.deepEqual(crowns(state).slice(0,2),[{person:'Boston',crowns:2},{person:'Nate',crowns:1}]);
+});
