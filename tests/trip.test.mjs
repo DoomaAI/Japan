@@ -8877,6 +8877,83 @@ test('memory map: a JPEG gives up its GPS position and nothing else',async()=>{
  assert.equal(await photoPosition({type:'image/png'}),null);
  assert.equal(await photoPosition({type:'image/jpeg',slice:()=>{throw new Error('no');}}),null);
 });
+test('bulk photos: a JPEG and a HEIC say when they were taken, with the offset when the phone kept it',async()=>{
+ const {exifFromJpeg,exifFromHeic,photoDetails,validTakenAt}=await import('../src/exif-gps.js');
+ // IFD0 pointing at an Exif IFD holding DateTimeOriginal and, optionally, OffsetTimeOriginal.
+ const tiff=(stamp,offset)=>{
+  const t=new DataView(new ArrayBuffer(160));let o=0;
+  const u16=v=>{t.setUint16(o,v,true);o+=2;},u32=v=>{t.setUint32(o,v,true);o+=4;};
+  const text=(at,s)=>{for(let i=0;i<s.length;i++)t.setUint8(at+i,s.charCodeAt(i));};
+  u16(0x4949);u16(42);u32(8);
+  u16(1);u16(0x8769);u16(4);u32(1);u32(26);u32(0);            // IFD0 → Exif IFD at 26
+  u16(offset?2:1);
+  u16(0x9003);u16(2);u32(20);u32(80);
+  if(offset){u16(0x9011);u16(2);u32(7);u32(110);}
+  u32(0);
+  text(80,stamp);if(offset)text(110,offset);
+  return new Uint8Array(t.buffer);
+ };
+ const jpeg=body=>{const out=new Uint8Array(12+body.length+2);out.set([0xFF,0xD8,0xFF,0xE1,(body.length+8)>>8,(body.length+8)&255,0x45,0x78,0x69,0x66,0,0]);out.set(body,12);out.set([0xFF,0xD9],12+body.length);return out.buffer;};
+ assert.deepEqual(exifFromJpeg(jpeg(tiff('2026:09:28 14:05:12','+09:00'))),{gps:null,takenAt:'2026-09-28T14:05:12+09:00'});
+ assert.equal(exifFromJpeg(jpeg(tiff('2026:09:28 14:05:12'))).takenAt,'2026-09-28T14:05:12','no offset: the phone clock as it was');
+ assert.equal(exifFromJpeg(jpeg(tiff('0000:00:00 00:00:00'))).takenAt,null,'a camera with no clock set says nothing');
+ // A HEIC is found by the Exif block's own signature somewhere in the file.
+ const heic=new Uint8Array(400);heic.set([0,0,0,24,0x66,0x74,0x79,0x70,0x68,0x65,0x69,0x63]);heic.set([0x45,0x78,0x69,0x66,0,0],100);heic.set(tiff('2026:09:22 09:30:00','+09:00'),106);
+ assert.equal(exifFromHeic(heic.buffer).takenAt,'2026-09-22T09:30:00+09:00');
+ assert.equal(exifFromHeic(new Uint8Array(64).buffer),null);
+ assert.deepEqual(await photoDetails({type:'image/png'}),{gps:null,takenAt:null});
+ assert.deepEqual(await photoDetails({type:'image/heic',slice:()=>{throw new Error('no');}}),{gps:null,takenAt:null});
+ assert.ok(validTakenAt('2026-09-28T14:05:12')&&validTakenAt('2026-09-28T05:05:12-07:00'));
+ for(const bad of ['2026-09-28','2026-13-40T99:99:99','<script>',42,null])assert.equal(validTakenAt(bad),false,String(bad));
+});
+test('bulk photos: each photo goes to the stop it was taken at, by place first and then by the plan’s clock',async()=>{
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {sortPhoto,sortReason,sortedTarget,stepAtTime,japanMoment}=await import('../src/photo-sort.js');
+ const day='2026-09-28';
+ let state=ensureFeatures(structuredClone(seed));
+ const hozenji={lat:34.6683,lng:135.5019},glico={lat:34.6687,lng:135.5013},rikuro={lat:34.6655,lng:135.5010};
+ state.steps=state.steps.map(s=>s.id==='2026-09-28-07'?{...s,pin:hozenji}:s.id==='2026-09-28-06-2'?{...s,pin:glico}:s.id==='2026-09-28-13'?{...s,pin:rikuro}:s);
+ // The clock alone: the stop underway, a few minutes early is its queue, and late at night is nobody's.
+ assert.deepEqual(japanMoment('2026-09-28T05:10:00Z'),{date:day,minute:14*60+10},'a UTC stamp is read in Japan');
+ assert.equal(stepAtTime(state,day,10*60+50).id,'2026-09-28-04');
+ assert.equal(stepAtTime(state,day,9*60+45).id,'2026-09-28-02-2','still on the train, not yet at the matcha');
+ assert.equal(stepAtTime(state,day,12*60+45).id,'2026-09-28-06','between stops, a few minutes early is the queue for the next');
+ assert.equal(stepAtTime(state,day,7*60),null,'before the day starts');
+ assert.equal(stepAtTime(state,day,23*60+30),null,'long after the train home');
+ const byTime=sortPhoto(state,{takenAt:'2026-09-28T10:50:00+09:00'});
+ assert.deepEqual([byTime.how,byTime.stepId,byTime.day,byTime.city],['time','2026-09-28-04',day,'Osaka']);
+ assert.match(sortReason(state,byTime,'2026-09-28T10:50:00+09:00'),/10:50 am · on the plan for Shinsaibashi shopping/);
+ // Place wins over the clock: beside Hozenji at 11 in the morning is Hozenji, not Amerikamura,
+ // and not the Glico sign eighty metres off either, since neither was on at 11.
+ const early=sortPhoto(state,{gps:{lat:34.66835,lng:135.5020},takenAt:'2026-09-28T11:00:00'});
+ assert.deepEqual([early.how,early.stepId],['place','2026-09-28-07']);
+ assert.ok(early.metres<50);
+ // Two stops a hundred metres apart: the clock picks between them.
+ assert.equal(sortPhoto(state,{gps:{lat:34.6685,lng:135.5016},takenAt:'2026-09-28T13:25:00+09:00'}).stepId,'2026-09-28-06-2');
+ assert.equal(sortPhoto(state,{gps:{lat:34.6685,lng:135.5016},takenAt:'2026-09-28T13:50:00+09:00'}).stepId,'2026-09-28-07');
+ // A place and no time: the nearest stop across the whole trip, and its day.
+ const noTime=sortPhoto(state,{gps:{lat:34.6656,lng:135.5011}});
+ assert.deepEqual([noTime.how,noTime.stepId,noTime.day],['place','2026-09-28-13',day]);
+ // Far from the stop the plan had us at: the plan was wrong, so the day album.
+ const away=sortPhoto(state,{gps:{lat:35.0,lng:135.77},takenAt:'2026-09-28T13:47:00+09:00'});
+ assert.deepEqual([away.how,away.stepId,away.day,away.away],['day',null,day,true]);
+ assert.equal(sortedTarget(away),`day:${day}`);
+ // A skipped stop is not where anyone was.
+ const skipped={...state,steps:state.steps.map(s=>s.id==='2026-09-28-04'?{...s,status:'skipped'}:s)};
+ assert.equal(sortPhoto(skipped,{takenAt:'2026-09-28T10:50:00+09:00'}).stepId,'2026-09-28-03');
+ // Outside the trip, or saying nothing: left for the parent.
+ const before=sortPhoto(state,{takenAt:'2026-08-01T10:00:00+10:00'});
+ assert.deepEqual([before.how,sortedTarget(before)],['none','']);
+ assert.match(sortReason(state,before,'2026-08-01T10:00:00+10:00'),/outside the trip/);
+ assert.match(sortReason(state,sortPhoto(state,{}),null),/choose where it goes/);
+});
+test('bulk photos: the time a photo was taken is kept with it, and nothing that is not a time',async()=>{
+ const src=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(src,/details\.category==='memory'&&validTakenAt\(b\.takenAt\)\?\{takenAt:b\.takenAt\}/);
+ const gallery=await readFile(new URL('../src/MediaGallery.jsx',import.meta.url),'utf8');
+ assert.match(gallery,/value="auto">Sort each photo by where and when it was taken/);
+ assert.match(gallery,/filter\(entry=>!entry\.done\)/,'a retry does not send a saved photo again');
+});
 test('memory map: check-ins are rounded, shared only by tapping, and the boys see only Mum and Dad',async()=>{
  const {canSeeCheckin,checkinFresh,ageText}=await import('../src/memory-map.js');
  const {checkPosition,resetDemoCheckins}=await import('../server/checkins.mjs');
