@@ -10,6 +10,7 @@ import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
 import {HUNTS,MAX_CUSTOM_HUNTS,MAX_HUNT_ENTRIES,huntEntryFields} from '../src/hunt-data.js';
+import {allergenById} from '../src/allergy-data.js';
 import {MAX_NOTICED,NOTICED_TEXT,noticedFields} from '../src/noticed-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
@@ -23,6 +24,16 @@ export function extraOperation(state,op,user,fail,now){
  const parent=user.role==='parent',dayOK=day=>day===null||state.days.some(d=>d.date===day);
  const requireText=(v,max,label)=>{if(!string(v,max))fail(`Invalid ${label}.`);};
  const dayCheck=day=>{if(!dayOK(day))fail('Choose a trip day or Whole trip.');};
+ // What somebody cannot eat, for the card handed to a waiter. A parent writes it; every allergen
+ // has to be one Japan has a word for, because the card is only worth having in Japanese.
+ if(op.type==='allergySet'){
+  if(!parent)fail('A parent keeps the allergy cards.',403);
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!Array.isArray(op.allergens)||op.allergens.length>40||op.allergens.some(id=>!allergenById(id)))fail('Choose from the allergens on the list.');
+  requireText(op.note||'',500,'note');
+  state.allergies={...(state.allergies||{}),[op.person]:{allergens:[...new Set(op.allergens)],severe:!!op.severe,note:(op.note||'').trim()}};
+  return {summary:null,important:false,title:`${op.person}’s allergy card`};
+ }
  if(op.type==='challengeAdd'||op.type==='challengeEdit'){
   if(!string(op.title,250)||!op.title.trim())fail('Add a challenge title.');dayCheck(op.day??null);
   if(!Array.isArray(op.participants)||!op.participants.length||op.participants.some(n=>!BOYS.includes(n)))fail('Choose Nate, Boston or both.');
