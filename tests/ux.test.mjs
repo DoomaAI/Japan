@@ -53,8 +53,8 @@ test('dark mode: every colour in a stylesheet becomes a variable with a turned-o
  const {themeCss,darkOf,parseColour}=await import('../scripts/dark-theme.mjs');
  const out=themeCss(':root{--ink:#16383b}.card{background:#fff;color:#16383b;box-shadow:0 4px 16px #24231b08;white-space:nowrap}.x:hover{border-color:rgba(0,0,0,.25)}/* white paper */');
  assert.match(out,/^:root\{--c16383b:#16383b;--cffffff:#ffffff;/,'the light values are exactly what was written');
- assert.match(out,/@media \(prefers-color-scheme:dark\)\{:root:not\(\[data-theme=light\]\)\{[^}]*color-scheme:dark\}\}/);
- assert.match(out,/:root\[data-theme=dark\]\{/);
+ assert.match(out,/@media screen and \(prefers-color-scheme:dark\)\{:root:not\(\[data-theme=light\]\)\{[^}]*color-scheme:dark\}\}/);
+ assert.match(out,/@media screen\{:root\[data-theme=dark\]\{/,"printing stays on paper colours");
  assert.match(out,/--ink:var\(--c16383b\)/,'the app\'s own tokens follow too');
  assert.match(out,/background:var\(--cffffff\);color:var\(--c16383b\)/);
  assert.match(out,/white-space:nowrap/,'a property name is not a colour');

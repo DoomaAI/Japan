@@ -60,7 +60,7 @@ export function themeCss(css){
  if(!seen.size)return css;
  const light=[...seen].map(([k,v])=>`--${k}:${hex(parseColour(v))}`).join(';');
  const dark=[...seen].map(([k,v])=>`--${k}:${darkOf(v)}`).join(';');
- return `:root{${light}}@media (prefers-color-scheme:dark){:root:not([data-theme=light]){${dark};color-scheme:dark}}:root[data-theme=dark]{${dark};color-scheme:dark}\n`+out;
+ return `:root{${light}}@media screen and (prefers-color-scheme:dark){:root:not([data-theme=light]){${dark};color-scheme:dark}}@media screen{:root[data-theme=dark]{${dark};color-scheme:dark}}\n`+out;
 }
 // The same pair for a colour written in a script — a chart's axis, an SVG's fill — so drawings
 // can ask for either.
