@@ -9649,3 +9649,16 @@ test('the subscribable calendar carries a line per day and every fixed booking w
  const {visibleTrip}=await import('../server/visibility.mjs');
  assert.equal(visibleTrip({...seed,calendarKey:'k'.repeat(64)},parent).calendarKey,undefined);
 });
+
+test('the practical things go straight to Maps, in Japanese, whether or not the app can be asked',async()=>{
+ const {MAPS_NEARBY,mapsNearbyLink}=await import('../src/trip-features.js');
+ assert.ok(MAPS_NEARBY.length>=7);
+ for(const [id,label,term] of MAPS_NEARBY){assert.ok(id&&label,'named');assert.match(term,/[぀-ヿ一-鿿]|ATM/,`${label} searches in Japanese`);}
+ assert.equal(mapsNearbyLink('トイレ'),'https://www.google.com/maps/search/?api=1&query=%E3%83%88%E3%82%A4%E3%83%AC');
+ assert.equal(mapsNearbyLink('トイレ',{lat:35.6,lng:139.7}),'https://www.google.com/maps/search/%E3%83%88%E3%82%A4%E3%83%AC/@35.6,139.7,16z');
+ assert.equal(mapsNearbyLink('ATM',{lat:'x',lng:null}),mapsNearbyLink('ATM'),'a bad position is ignored, not sent');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8'),nearby=await readFile(new URL('../src/Nearby.jsx',import.meta.url),'utf8');
+ assert.match(main,/nearby:<button onClick=\{\(\)=>setModal\(\{type:'nearby',step:current\}\)\}/,'the stop button no longer waits on the key');
+ assert.match(main,/available=\{!!config\?\.nearby\}/);
+ assert.match(nearby,/if\(!available\)return <div className="nearby">\{maps\}/,'without the key the screen is the Maps row and a plain sentence');
+});
