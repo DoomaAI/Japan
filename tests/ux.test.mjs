@@ -52,10 +52,10 @@ test('no text is set below 12px, outside game boards and the drawn day map',asyn
 test('dark mode: every colour in a stylesheet becomes a variable with a turned-over dark value',async()=>{
  const {themeCss,darkOf,parseColour}=await import('../scripts/dark-theme.mjs');
  const out=themeCss(':root{--ink:#16383b}.card{background:#fff;color:#16383b;box-shadow:0 4px 16px #24231b08;white-space:nowrap}.x:hover{border-color:rgba(0,0,0,.25)}/* white paper */');
- assert.match(out,/^:root\{--c16383b:#16383b;--cffffff:#ffffff;/,'the light values are exactly what was written');
- assert.match(out,/@media screen and \(prefers-color-scheme:dark\)\{:root:not\(\[data-theme=light\]\)\{[^}]*color-scheme:dark\}\}/);
+ assert.match(out,/^:root\{--cffffff:#ffffff;--c16383b:#16383b;/,'the light values are exactly what was written');
+ assert.match(out,/@media screen and \(prefers-color-scheme:dark\)\{:root\[data-theme=auto\]\{[^}]*color-scheme:dark\}\}/,'night is a choice: match the phone');
  assert.match(out,/@media screen\{:root\[data-theme=dark\]\{/,"printing stays on paper colours");
- assert.match(out,/--ink:var\(--c16383b\)/,'the app\'s own tokens follow too');
+ assert.match(out,/--ink:#16383b/,'a named token keeps its value; its night value is set by hand under data-theme');
  assert.match(out,/background:var\(--cffffff\);color:var\(--c16383b\)/);
  assert.match(out,/white-space:nowrap/,'a property name is not a colour');
  assert.match(out,/\/\* white paper \*\//,'nor is a comment');
@@ -70,7 +70,7 @@ test('dark mode is built into every stylesheet, and the status bar follows the p
  const vite=await readFile(new URL('../vite.config.js',import.meta.url),'utf8');
  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
  assert.match(vite,/name:'dark-theme',enforce:'pre',transform\(code,id\)\{if\(\/\\\/src\\\/\[\^\/\]\+\\\.css\$\//);
- assert.match(html,/<meta name="theme-color" media="\(prefers-color-scheme: dark\)" content="#262523"\/>/);
+ assert.match(html,/<meta name="theme-color" media="\(prefers-color-scheme: dark\)" content="#f4f3ef"\/>/,'light is the default on any phone until night is chosen');
  assert.doesNotMatch(html,/#102e32/);
 });
 test('screens lead with the tool, and a feature not switched on is left off rather than explained',async()=>{
@@ -147,4 +147,17 @@ test('the wallet leads with the next passes to scan, in the order we reach them'
  assert.match(main,/<h1>Wallet<\/h1><NextPasses /,'the passes come first');
  assert.match(main,/<summary>Search and filter all \{ticketList\(state,\{archived:false\}\)\.length\} bookings<\/summary>/);
  assert.match(nav,/tickets:\{label:'Wallet'/);
+});
+test('the build step leaves the hand-set night colours and the game boards alone, so nothing turns over twice',async()=>{
+ const {themeCss}=await import('../scripts/dark-theme.mjs');
+ const out=themeCss(':root[data-theme=dark]{--ink:#ece9df}@media (prefers-color-scheme:dark){:root[data-theme=auto]{--ink:#ece9df}}.merge-tile.filled{background:#fff}.picross-cell{background:#222}.note{color:#16383b}');
+ assert.match(out,/:root\[data-theme=dark\]\{--ink:#ece9df\}/);
+ assert.match(out,/:root\[data-theme=auto\]\{--ink:#ece9df\}/);
+ assert.match(out,/\.merge-tile\.filled\{background:#fff\}/);assert.match(out,/\.picross-cell\{background:#222\}/);
+ assert.match(out,/\.note\{color:var\(--c16383b\)\}/,'a one-off colour still follows');
+ const {applyTheme,THEME_COLOUR}=await import('../src/theme.js');
+ const metas=[{c:''},{c:''}].map(m=>({...m,setAttribute(k,v){this.c=v;}}));
+ applyTheme('dark',{documentElement:{dataset:{}},querySelectorAll:()=>metas},false);
+ assert.deepEqual(metas.map(m=>m.c),[THEME_COLOUR.dark,THEME_COLOUR.dark],'both of the page\'s bar colours follow the choice');
+ assert.equal(THEME_COLOUR.light,'#f4f3ef','the bar is the page, not dark teal over cream');
 });

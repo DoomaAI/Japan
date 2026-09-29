@@ -19,10 +19,12 @@ export function saveTheme(theme,store=device()){
 export const isDark=(theme,prefersDark=false)=>theme==='dark'||(theme==='auto'&&prefersDark);
 // The bar above the app takes the page colour, so the status bar does not sit as a pale strip
 // over a dark screen. Anything the browser refuses (no document, no meta) is simply skipped.
-export const THEME_COLOUR={light:'#102e32',dark:'#0e1513'};
+export const THEME_COLOUR={light:'#f4f3ef',dark:'#121311'};
 export function applyTheme(theme,doc=typeof document==='undefined'?null:document,prefersDark=typeof matchMedia==='function'&&matchMedia('(prefers-color-scheme: dark)').matches){
  if(!doc)return theme;
  doc.documentElement.dataset.theme=theme;
- const meta=doc.querySelector('meta[name="theme-color"]');if(meta)meta.setAttribute('content',THEME_COLOUR[isDark(theme,prefersDark)?'dark':'light']);
+ // index.html carries one per phone scheme; a choice made here overrides both.
+ const metas=doc.querySelectorAll?[...doc.querySelectorAll('meta[name="theme-color"]')]:[doc.querySelector('meta[name="theme-color"]')];
+ for(const meta of metas)meta?.setAttribute('content',THEME_COLOUR[isDark(theme,prefersDark)?'dark':'light']);
  return theme;
 }
