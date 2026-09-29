@@ -9925,4 +9925,202 @@ test('every game keeps its board across a switch of tab and a reload, not only t
  const daruma=await readFile(new URL('../src/Daruma.jsx',import.meta.url),'utf8');
  assert.match(daruma,/\[holding,setHolding\]=useState\(false\)/,'a finger on the glass is not stored');
  assert.match(games,/\[picked,setPicked\]=useState\(\[\]\),\[done,setDone\]=useStored\('japan\.kana\.done'/,'a card mid-flip is not stored, the pairs found are');
+test('one sentence, said or typed, becomes a to-do the plain way when Claude is out of reach',async()=>{
+ const {parseCaptureLocally,captureDay,capturePerson,CAPTURE_MAX}=await import('../src/capture-data.js');
+ const today='2026-09-29';
+ // "tomorrow" counts from the Japan date; a weekday is the next one on the trip; a city the next day there.
+ assert.equal(captureDay('buy a poncho tomorrow',seed.days,today).date,'2026-09-30');
+ assert.equal(captureDay('post the cards on Friday',seed.days,today).date,'2026-10-02');
+ assert.equal(captureDay('charge the banks when we are in Kyoto',seed.days,'2026-09-22').date,'2026-09-24');
+ assert.equal(captureDay('stamps on the 3rd',seed.days,today).date,'2026-10-03');
+ assert.equal(captureDay('nothing dated here',seed.days,today),null);
+ // Who: "for Nate", "Nate's", "Nate needs".
+ assert.equal(capturePerson("buy Nate's hat",seed.members).person,'Nate');
+ assert.equal(capturePerson('Boston needs new socks',seed.members).person,'Boston');
+ assert.equal(capturePerson('post the cards',seed.members),null);
+ const t=parseCaptureLocally('Buy Nate a rain poncho tomorrow',seed,today);
+ assert.equal(t.kind,'buy');assert.equal(t.person,'Nate');assert.equal(t.day,'2026-09-30');assert.equal(t.via,'local');
+ assert.match(t.title,/^Buy .*rain poncho$/,'the day and the name come out of the title, the verb stays in');
+ const d=parseCaptureLocally('post the postcards on Friday for the family',seed,today);
+ assert.equal(d.kind,'do');assert.equal(d.person,'Family');assert.equal(d.day,'2026-10-02');
+ assert.equal(d.title,'Post the postcards for the family');
+ // The result always fits the to-do rules, so the form it lands in can be saved as it stands.
+ const state=applyOperation(seed,{type:'todoAdd',...t,by:'Damien'},parent);
+ assert.equal(state.todos.at(-1).person,'Nate');assert.equal(state.todos.at(-1).day,'2026-09-30');
+ assert.ok(CAPTURE_MAX>=200);
+ // The server answers with the plain parse when there is no key, rather than an error: the box
+ // is never dead, only less clever.
+ const {parseCapture,captureReady}=await import('../server/capture.mjs');
+ const key=process.env.ANTHROPIC_API_KEY;delete process.env.ANTHROPIC_API_KEY;
+ try{
+  assert.equal(captureReady(),false);
+  const r=await parseCapture({text:'get a SIM at the airport today',day:null},seed,new Date('2026-09-29T03:00:00Z'));
+  assert.equal(r.via,'local');assert.equal(r.kind,'buy');assert.equal(r.day,'2026-09-29');
+  await assert.rejects(()=>parseCapture({text:'   '},seed),e=>e.status===400);
+  await assert.rejects(()=>parseCapture({text:'x'.repeat(CAPTURE_MAX+1)},seed),e=>e.status===400);
+ }finally{if(key!==undefined)process.env.ANTHROPIC_API_KEY=key;}
+ const capture=await readFile(new URL('../server/capture.mjs',import.meta.url),'utf8');
+ assert.match(capture,/format:\{type:'json_schema',schema:SCHEMA\}/,'Claude answers in the one shape the form takes');
+ assert.match(capture,/state\.days\.some\(d=>d\.date===parsed\.day\)\?parsed\.day:null/,'and a date it made up is dropped');
+ const handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handler,/route==='capture'&&post/);
+ assert.match(handler,/capture:captureReady\(\)/,'the phone is told whether Claude will read it');
+ const todo=await readFile(new URL('../src/TodoList.jsx',import.meta.url),'utf8');
+ assert.match(todo,/export function CaptureBox/);
+ assert.match(todo,/<Dictate onText=/,'the box takes dictation as well as typing');
+ assert.match(todo,/parsed=parseCaptureLocally\(said,state,japanDate\(\)\)/,'and falls back to the phone when the request fails or there is no signal');
+ assert.match(todo,/edit\.said\?'Check it, then add it'/,'nothing is saved without being looked at first');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/<TodoList [^\n]*request=\{request\} online=\{online&&!!config\?\.capture\}/);
+});
+
+test('a Shortcut, Siri or the Action button can open the app straight onto one job',async()=>{
+ const {DEEP_LINKS,deepLinkUrl,deepLinkAction,withoutDeepLink}=await import('../src/deep-links.js');
+ // Every link is a plain query on the front door, and the ones that take a value say so.
+ for(const l of DEEP_LINKS){assert.match(l.path,/^\/\?[a-z]+=/,l.id);assert.ok(l.label&&l.how,l.id);}
+ assert.equal(deepLinkUrl(DEEP_LINKS.find(l=>l.id==='todo-add'),'https://japan.example'),'https://japan.example/?tab=todo&add=');
+ assert.equal(deepLinkUrl(DEEP_LINKS.find(l=>l.id==='allergy'),'',"Nate"),'/?tab=allergy&who=Nate');
+ // A dictated line becomes a to-do request, cut to what the box takes; the rest map to their sheet.
+ assert.deepEqual(deepLinkAction('?tab=todo&add=buy%20Nate%20a%20hat'),{type:'todoAdd',text:'buy Nate a hat'});
+ assert.equal(deepLinkAction('?tab=todo&add='+'x'.repeat(400)).text.length,300);
+ assert.deepEqual(deepLinkAction('?tab=todo&say=1'),{type:'todoSay'});
+ assert.deepEqual(deepLinkAction('?open=nearby&need=toilet'),{type:'nearby',need:'toilet'});
+ assert.deepEqual(deepLinkAction('?open=nearby&need=unicorns'),{type:'nearby',need:null},'a kind Nearby does not know is dropped, not passed on');
+ assert.deepEqual(deepLinkAction('?open=hotel'),{type:'hotel'});
+ assert.deepEqual(deepLinkAction('?open=capture'),{type:'capture'});
+ assert.equal(deepLinkAction('?tab=todo&day=2026-09-30'),null,'an ordinary page is not an action');
+ // Once done, the action comes out of the address and the page stays.
+ assert.equal(withoutDeepLink('?tab=todo&add=hat&day=2026-09-30'),'/?tab=todo&day=2026-09-30');
+ assert.equal(withoutDeepLink('?open=hotel'),'/');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/land\(e\.state\);arrive\(e\.state\);/,'the action runs once the plan is here');
+ assert.match(main,/land\(s\);arrive\(s\);/,'and from the phone’s own copy when there is no signal');
+ assert.match(main,/history\.replaceState\(null,'',withoutDeepLink\(location\.search\)\)/,'and is taken out of the address so a reload does not repeat it');
+ assert.match(main,/setModal\(\{type:'nearby',need:action\.need\}\)/);
+ assert.match(main,/who=\{new URLSearchParams\(location\.search\)\.get\('who'\)\}/,'the allergy card can be opened on a named person');
+ const nearby=await readFile(new URL('../src/Nearby.jsx',import.meta.url),'utf8');
+ assert.match(nearby,/need\?\[need\]:\['food'\]/,'Nearby arrives with the asked-for kind ticked');
+ const todo=await readFile(new URL('../src/TodoList.jsx',import.meta.url),'utf8');
+ assert.match(todo,/if\(first\.text\)sortIt\(\);else if\(first\.focus\)box\.current\?\.focus\(\)/,'a dictated line is sorted out on arrival; a bare say-it puts the cursor in the box');
+ const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
+ assert.match(settings,/<DeepLinks notice=\{notice\}\/>/,'the addresses are listed in Settings with Copy, for every phone');
+ assert.match(settings,/DEEP_LINKS\.map\(link=>/);
+});
+
+test('the parents know who owes whom, what is on each IC card, and where the receipt is',async()=>{
+ const {balanceBetween,settlements,icBalance,icLow,IC_MAX,RECEIPT_TYPES,receiptUrl}=await import('../src/ledger-data.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ const day=seed.days[3].date;
+ let state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.settlements,[]);assert.deepEqual(state.icCards,{});
+ assert.equal(balanceBetween(state),null,'nothing to square with nothing spent');
+ const add=(s,o)=>applyOperation(s,{type:'expenseAdd',title:'Lunch',yen:3000,category:'food',method:'card',paidBy:'Damien',day,...o},parent);
+ state=add(state,{});
+ state=add(state,{title:'Train',yen:9000,paidBy:'Lauren'});
+ // ¥12,000 shared, ¥6,000 each: Damien paid ¥3,000, so he owes Lauren ¥3,000.
+ assert.deepEqual(balanceBetween(state),{from:'Damien',to:'Lauren',yen:3000,shared:12000});
+ // A payment marked own is the payer's alone and stays out of the split.
+ state=add(state,{title:'Massage',yen:8000,paidBy:'Lauren',own:true});
+ assert.equal(state.expenses.at(-1).own,true);
+ assert.deepEqual(balanceBetween(state),{from:'Damien',to:'Lauren',yen:3000,shared:12000});
+ // Squaring up brings it back to even, and is a parent's to record.
+ assert.throws(()=>applyOperation(state,{type:'settleUp',from:'Damien',to:'Lauren',yen:3000},child),e=>e.status===403);
+ for(const bad of [{from:'Nate'},{to:'Damien'},{yen:0},{yen:12.5}])assert.throws(()=>applyOperation(state,{type:'settleUp',from:'Damien',to:'Lauren',yen:3000,...bad},parent),AppError,JSON.stringify(bad));
+ state=applyOperation(state,{type:'settleUp',from:'Damien',to:'Lauren',yen:3000},parent);
+ assert.equal(settlements(state).length,1);assert.equal(settlements(state)[0].by,'Damien');
+ assert.deepEqual(balanceBetween(state),{from:null,to:null,yen:0,shared:12000});
+ // Overpaying the square-up swings it the other way.
+ state=applyOperation(state,{type:'settleUp',from:'Damien',to:'Lauren',yen:1000},parent);
+ assert.deepEqual(balanceBetween(state),{from:'Lauren',to:'Damien',yen:1000,shared:12000});
+ // IC card balances: whole yen up to the card's ceiling, any family member, parents only.
+ state=applyOperation(state,{type:'icBalance',person:'Nate',yen:800},parent);
+ assert.equal(icBalance(state,'Nate').yen,800);assert.equal(icBalance(state,'Nate').by,'Damien');
+ assert.equal(icLow(state,'Nate'),true,'under a thousand yen is low');
+ assert.equal(icLow(state,'Boston'),false,'no balance is not low, just unknown');
+ assert.throws(()=>applyOperation(state,{type:'icBalance',person:'Nate',yen:IC_MAX+1},parent),AppError);
+ assert.throws(()=>applyOperation(state,{type:'icBalance',person:'Grandma',yen:500},parent),AppError);
+ assert.throws(()=>applyOperation(state,{type:'icBalance',person:'Nate',yen:500},child),e=>e.status===403);
+ // A receipt is only a pointer into the family's private receipts folder, of a kind that can be shown.
+ state=add(state,{title:'Dinner',yen:6000,receipt:{pathname:'receipts/u1/abc.jpg',type:'image/jpeg'}});
+ const dinner=state.expenses.at(-1);
+ assert.deepEqual(dinner.receipt,{pathname:'receipts/u1/abc.jpg',type:'image/jpeg'});
+ assert.equal(receiptUrl(dinner),`/api/receipt?id=${dinner.id}`);
+ for(const bad of [{pathname:'tickets/u1/abc.jpg',type:'image/jpeg'},{pathname:'receipts/u1/../x.jpg',type:'image/jpeg'},{pathname:'receipts/u1/a.exe',type:'application/x-msdownload'}])
+  assert.throws(()=>add(state,{receipt:bad}),AppError,JSON.stringify(bad));
+ assert.ok(RECEIPT_TYPES.includes('application/pdf'),'a PDF receipt from an online booking counts');
+ state=applyOperation(state,{type:'expenseEdit',id:dinner.id,title:'Dinner',yen:6000,category:'food',method:'card',paidBy:'Damien',day,receipt:null},parent);
+ assert.equal(state.expenses.find(e=>e.id===dinner.id).receipt,null,'and can be taken off again');
+ // None of it reaches the boys.
+ assert.deepEqual(visibleTrip(state,child).settlements,[]);
+ assert.deepEqual(visibleTrip(state,child).expenses,[]);
+ assert.equal(visibleTrip(state,parent).settlements.length,2);
+ const handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handler,/route==='receipt'&&req\.method==='GET'\)\{\s*parent\(user\);/,'the receipt file is served to a parent only');
+ assert.match(handler,/pathname\.startsWith\(`receipts\/\$\{user\.id\}\/`\)/,'and uploaded into a folder of its own');
+ assert.match(handler,/if\(receipt\)\{parent\(user\);return \{allowedContentTypes:RECEIPT_TYPES/);
+ const ledger=await readFile(new URL('../src/Ledger.jsx',import.meta.url),'utf8');
+ assert.match(ledger,/<BalanceCard state=\{state\}/);
+ assert.match(ledger,/<IcCards state=\{state\}/);
+ assert.match(ledger,/type:'settleUp',from:b\.from,to:b\.to,yen:b\.yen/);
+ assert.match(ledger,/upload\(`receipts\/\$\{user\.id\}\//,'the receipt goes to private storage and the payment keeps only where it is');
+ assert.match(ledger,/own:f\.get\('own'\)==='on',receipt\}/);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/<Ledger [^\n]*config=\{config\} online=\{online\} notice=\{notice\}\/>/);
+});
+
+test('a parent’s question and its answer are kept in the trip, so the other parent reads them too',async()=>{
+ const {mergeThreads,threadFor,askItem,sharesThread,SHARED_KEEP}=await import('../src/ask-thread.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ const day=seed.days[3].date,lauren={name:'Lauren',role:'parent'};
+ let state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.askThread,[]);
+ const answer={id:'1700000000000',at:'2026-09-24T02:00:00.000Z',question:'Is Fushimi Inari better today or tomorrow?',verdict:'Tomorrow.',answer:'Rain clears overnight.',
+  because:['Forecast says 70% today','Nothing booked tomorrow morning'],days:[day,'2030-01-01'],checkFirst:'',sources:[{title:'JMA',url:'https://www.jma.go.jp/'},{title:'bad',url:'http://x'}],about:day,step:null,usage:{input:1,output:1,searches:2}};
+ const item=askItem(answer,'Damien');
+ assert.equal(item.searches,2,'the count of searches travels, the token counts do not');
+ assert.equal(item.usage,undefined);
+ // Kept by a parent, cut to size and checked; read by the other parent; never by the boys.
+ state=applyOperation(state,{type:'askKeep',item},parent);
+ assert.equal(state.askThread.length,1);
+ assert.equal(state.askThread[0].by,'Damien');
+ assert.deepEqual(state.askThread[0].days,[day],'a day off the plan is dropped');
+ assert.deepEqual(state.askThread[0].sources,[{title:'JMA',url:'https://www.jma.go.jp/'}],'and a link that is not https');
+ assert.equal(visibleTrip(state,lauren).askThread.length,1);
+ assert.deepEqual(visibleTrip(state,child).askThread,[]);
+ assert.throws(()=>applyOperation(state,{type:'askKeep',item},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'askKeep',item:{...item,about:'2030-01-01'}},parent),AppError);
+ assert.throws(()=>applyOperation(state,{type:'askKeep',item:{...item,step:'nope'}},parent),AppError);
+ assert.throws(()=>applyOperation(state,{type:'askKeep',item:{...item,question:''}},parent),AppError);
+ // Keeping the same one again replaces it rather than doubling it; the newest sits first and the
+ // list stops at a couple of dozen.
+ state=applyOperation(state,{type:'askKeep',item:{...item,verdict:'Still tomorrow.'}},parent);
+ assert.equal(state.askThread.length,1);assert.equal(state.askThread[0].verdict,'Still tomorrow.');
+ for(let i=0;i<SHARED_KEEP+3;i++)state=applyOperation(state,{type:'askKeep',item:{...item,id:`q${i}`,at:`2026-09-25T00:00:${String(i).padStart(2,'0')}.000Z`}},lauren);
+ assert.equal(state.askThread.length,SHARED_KEEP);
+ assert.equal(state.askThread[0].id,`q${SHARED_KEEP+2}`);assert.equal(state.askThread[0].by,'Lauren');
+ // What a phone shows: the trip's thread and its own together, the trip's copy winning, newest
+ // first — for a parent. A boy's phone shows only what it asked itself.
+ // q0 to q2 fell off the end of the trip's list, so the phone's copy of q0 is the only one; q5 is in both.
+ const local=[{id:'q0',at:'2026-09-25T00:00:00.000Z',question:'old copy',verdict:'phone'},{id:'q5',at:'2026-09-25T00:00:05.000Z',question:'old copy',verdict:'phone'},{id:'mine',at:'2026-09-26T00:00:00.000Z',question:'only on this phone'}];
+ const merged=mergeThreads(state.askThread,local);
+ assert.equal(merged[0].id,'mine');
+ assert.equal(merged.filter(i=>i.id==='q5').length,1);
+ assert.equal(merged.find(i=>i.id==='q5').by,'Lauren','the trip’s copy wins');
+ assert.equal(merged.find(i=>i.id==='q0').verdict,'phone','and one the trip has let go of is still on the phone');
+ assert.equal(threadFor(state,child,local).length,3);
+ assert.equal(threadFor(state,lauren,local).length,SHARED_KEEP+2);
+ assert.equal(sharesThread(child),false);
+ // Clearing takes named ones out of the trip.
+ state=applyOperation(state,{type:'askForget',ids:['q5','q6']},parent);
+ assert.equal(state.askThread.length,SHARED_KEEP-2);
+ assert.throws(()=>applyOperation(state,{type:'askForget',ids:['q3']},child),e=>e.status===403);
+ const screen=await readFile(new URL('../src/AskTrip.jsx',import.meta.url),'utf8');
+ assert.match(screen,/keep\(\[item,\.\.\.local\]\);\s*if\(shared\)mutate\(\{type:'askKeep',item:askItem\(item,user\.name\)\}\);/,'the phone first, then the trip');
+ assert.match(screen,/const shared=sharesThread\(user\)&&!!mutate,all=threadFor\(state,user,local\);/);
+ assert.match(screen,/Asked by \{item\.by\}/,'the other parent’s questions say whose they were');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/hasAskHistory\(user\)\|\|!!state\?\.askThread\?\.length/,'a phone with shared answers keeps the page even before its config arrives');
+ assert.equal((main.match(/<AskTrip [^\n]*mutate=\{mutate\}/g)||[]).length,2,'both the page and the stop sheet can keep to the trip');
 });

@@ -18,3 +18,13 @@ export function groupShopping(items,by='shop',today=null,dayLabel=d=>d){
  }
  return [{key:'all',label:'',items}];
 }
+// Tax-free: ¥5,000 or more before tax, in one shop on one day, and receipts from different
+// shops or days do not add up. So the running total is per shop, for the things flagged as
+// bought tax-free (or planned to be), counted from the budget or what was paid.
+export const TAX_FREE_MIN=5000;
+export function taxFreeTally(items){
+ const tagged=items.filter(s=>s.taxFree&&shopKey(s.store));
+ if(!tagged.length)return null;
+ const total=tagged.reduce((n,s)=>n+(Number.isFinite(s.budget)?s.budget:0),0);
+ return {count:tagged.length,total,reached:total>=TAX_FREE_MIN,short:Math.max(0,TAX_FREE_MIN-total)};
+}

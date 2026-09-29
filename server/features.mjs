@@ -6,6 +6,8 @@ import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
+import {IC_MAX,RECEIPT_TYPES} from '../src/ledger-data.js';
+import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
@@ -29,6 +31,49 @@ export function extraOperation(state,op,user,fail,now){
  const dayCheck=day=>{if(!dayOK(day))fail('Choose a trip day or Whole trip.');};
  // What somebody cannot eat, for the card handed to a waiter. A parent writes it; every allergen
  // has to be one Japan has a word for, because the card is only worth having in Japanese.
+ // Squaring up between the parents: a hand-over of yen from one to the other, recorded so the
+ // balance card comes back to even. Parents only, like the ledger it sits under.
+ if(op.type==='settleUp'){
+  if(!parent)fail('Squaring up is for Mum and Dad.',403);
+  if(!PAYERS.includes(op.from)||!PAYERS.includes(op.to)||op.from===op.to)fail('Say who handed the money to whom.');
+  if(!Number.isInteger(op.yen)||op.yen<1||op.yen>10000000)fail('Enter the amount as whole yen.');
+  state.settlements=[...(state.settlements||[]),{id:randomUUID(),from:op.from,to:op.to,yen:op.yen,at:now,by:user.name}];
+  return {summary:null,important:false,title:`${op.from} squared up ¥${op.yen.toLocaleString()} with ${op.to}`};
+ }
+ // The balance left on somebody's IC card, read off the gate or the machine and typed in.
+ if(op.type==='icBalance'){
+  if(!parent)fail('A parent keeps the card balances.',403);
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!Number.isInteger(op.yen)||op.yen<0||op.yen>IC_MAX)fail(`Enter the balance as whole yen, up to ¥${IC_MAX.toLocaleString()}.`);
+  state.icCards={...(state.icCards||{}),[op.person]:{yen:op.yen,at:now,by:user.name}};
+  return {summary:null,important:false,title:`${op.person}’s IC card: ¥${op.yen.toLocaleString()}`};
+ }
+ // A parent's question and its answer, kept in the trip for the other parent. The item arrives
+ // from the phone that asked, so every field is cut to size and every day and link checked; the
+ // model's own blocks were never in it. Newest first, a couple of dozen kept.
+ if(op.type==='askKeep'){
+  if(!parent)fail('The shared questions are the parents’.',403);
+  const it=op.item;if(!it||typeof it!=='object'||!string(it.id,60)||!it.id||!string(it.question,ASK_LIMIT)||!it.question.trim())fail('Nothing to keep.');
+  const cut=(v,max)=>String(v??'').trim().slice(0,max);
+  const at=Number.isFinite(Date.parse(it.at))?new Date(it.at).toISOString():now;
+  if(it.about!==null&&it.about!==undefined)dayCheck(it.about);
+  if(it.step&&!state.steps.some(s=>s.id===it.step))fail('That stop is no longer on the plan.');
+  const https=v=>{try{const u=new URL(v);return u.protocol==='https:'?u.href:null;}catch{return null;}};
+  const item={id:it.id,at,by:user.name,question:cut(it.question,ASK_LIMIT),verdict:cut(it.verdict,240),answer:cut(it.answer,4000),
+   because:(Array.isArray(it.because)?it.because:[]).map(l=>cut(l,400)).filter(Boolean).slice(0,6),
+   days:[...new Set((Array.isArray(it.days)?it.days:[]).filter(d=>state.days.some(x=>x.date===d)))].slice(0,8),
+   checkFirst:cut(it.checkFirst,800),
+   sources:(Array.isArray(it.sources)?it.sources:[]).map(x=>({title:cut(x?.title,200),url:https(x?.url)||''})).filter(x=>x.url).slice(0,6),
+   about:it.about||null,step:it.step||null,searches:Number.isInteger(it.searches)&&it.searches>=0?it.searches:0};
+  state.askThread=[item,...(state.askThread||[]).filter(x=>x.id!==item.id)].slice(0,SHARED_KEEP);
+  return {summary:null,important:false,title:item.question};
+ }
+ if(op.type==='askForget'){
+  if(!parent)fail('The shared questions are the parents’.',403);
+  const ids=Array.isArray(op.ids)?op.ids.map(String):[];if(!ids.length)fail('Nothing to clear.');
+  state.askThread=(state.askThread||[]).filter(x=>!ids.includes(x.id));
+  return {summary:null,important:false,title:`${ids.length} question${ids.length>1?'s':''} cleared`};
+ }
  if(op.type==='allergySet'){
   if(!parent)fail('A parent keeps the allergy cards.',403);
   if(!state.members.includes(op.person))fail('Choose a family member.');
@@ -492,7 +537,7 @@ export function extraOperation(state,op,user,fail,now){
   if(op.done)c.completions[op.person]=c.completions[op.person]||at;else delete c.completions[op.person];
  }else if(op.type==='shoppingAdd'||op.type==='shoppingEdit'){
   if(!string(op.title,250)||!op.title.trim())fail('Add an item name.');dayCheck(op.day??null);
-  const item={title:op.title.trim(),day:op.day??null,person:op.person||'Family',store:op.store||'',notes:op.notes||'',url:op.url||'',quantity:op.quantity??1,budget:op.budget??null};
+  const item={title:op.title.trim(),day:op.day??null,person:op.person||'Family',store:op.store||'',notes:op.notes||'',url:op.url||'',quantity:op.quantity??1,budget:op.budget??null,taxFree:op.taxFree===true};
   if(!['Family',...state.members].includes(item.person))fail('Choose a family member.');
   for(const key of ['store','notes','url'])requireText(item[key],key==='notes'?2000:2000,key);
   if(item.url){try{if(new URL(item.url).protocol!=='https:')fail('Use an HTTPS shopping link.');}catch{fail('Use an HTTPS shopping link.');}}
@@ -521,7 +566,7 @@ export function extraOperation(state,op,user,fail,now){
     price:op.price===undefined||op.price===''?null:op.price,
     stepId:op.stepId||null,locationId:op.locationId||null,
     pin:op.pin??null,rating:op.rating===undefined||op.rating===''||op.rating===0?null:op.rating,
-    tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))]};
+    tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))],taxFree:op.taxFree===true};
    if(!['Family',...state.members].includes(item.person))fail('Choose a family member.');
    for(const [key,max] of [['shop',250],['place',250],['notes',2000]])requireText(item[key],max,key);
    // Where it was, pinned to the trip itself rather than only described. One anchor, not two: a
@@ -583,7 +628,7 @@ export function extraOperation(state,op,user,fail,now){
    const day=entry.stepId?(state.steps.find(s=>s.id===entry.stepId)?.day??null):entry.day;
    extraOperation(state,{type:'shoppingAdd',title:entry.title,person:entry.person,day,quantity:1,
     budget:entry.price??null,store:[entry.shop,entry.place].filter(Boolean).join(' · '),url:'',
-    notes:entry.notes},user,fail,now);
+    notes:entry.notes,taxFree:!!entry.taxFree},user,fail,now);
    const created=state.shopping.at(-1);
    created.shortlistId=entry.id;
    entry.shoppingId=created.id;
@@ -797,6 +842,13 @@ export function extraOperation(state,op,user,fail,now){
    dayCheck(op.day??null);
    requireText(op.notes||'',1000,'notes');
    const values=expenseFields(op);
+   // A receipt is a file the parent already put in the family's private storage; the ledger only
+   // keeps where it is. A file of the wrong kind, or from anywhere else, is refused.
+   if(op.receipt!==undefined){
+    const r=op.receipt;
+    if(r!==null&&(typeof r!=='object'||!string(r.pathname,300)||!r.pathname.startsWith('receipts/')||r.pathname.includes('..')||!RECEIPT_TYPES.includes(r.type)))fail('That receipt file could not be used.');
+    values.receipt=r?{pathname:r.pathname,type:r.type}:null;
+   }else if(op.type==='expenseAdd')values.receipt=null;
    if(op.type==='expenseEdit'){Object.assign(found(),values);return {summary:null,important:false,title:values.title};}
    if(state.expenses.length>=2000)fail('That is two thousand payments already.');
    let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}

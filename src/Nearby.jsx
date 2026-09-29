@@ -22,20 +22,21 @@ import {activeSteps} from './timing.js';
 // minds.
 // One tap to Maps for each of the practical things. Used at the top of the Nearby screen and on
 // its own on the Help page, so it is there whether or not the app can be asked.
-export function MapsNearby({coords=null,hint=true}){
+export function MapsNearby({coords=null,hint=true,need=null}){
  return <div>
   {hint&&<p className="nearby-hint">No signal to the app needed. The search is in Japanese, so it finds what the place calls itself; Maps sorts out “near me”.</p>}
-  <div className="chips">{MAPS_NEARBY.map(([id,label,term])=><a className="chip" key={id} href={mapsNearbyLink(term,coords)} target="_blank" rel="noopener noreferrer"><ExternalLink size={13}/>{label}</a>)}</div>
+  <div className="chips">{MAPS_NEARBY.map(([id,label,term])=><a className={`chip${id===need?' on':''}`} key={id} href={mapsNearbyLink(term,coords)} target="_blank" rel="noopener noreferrer"><ExternalLink size={13}/>{label}</a>)}</div>
  </div>;
 }
-export default function Nearby({state,user,day,step,request,mutate,busy,notice,close,selectStep,mode,wishlist,available=true}){
+export default function Nearby({state,user,day,step,request,mutate,busy,notice,close,selectStep,mode,wishlist,need=null,available=true}){
  const today=state.days.find(d=>d.date===day),steps=activeSteps(state,day);
  const current=step||steps.find(s=>!['done','skipped'].includes(s.status))||steps.at(-1);
  const hunt=mode==='food';
  const offered=(wishlist||[]).slice(0,MAX_DISH_HUNT);
  const [anchor,setAnchor]=useState(current?`s:${current.id}`:'me');
  const [coords,setCoords]=useState(null),[locating,setLocating]=useState(false);
- const [kinds,setKinds]=useState(hunt?['food','quick']:['food']),[note,setNote]=useState('');
+ // A deep link ("nearest toilet") arrives with the one kind it is about already ticked.
+ const [kinds,setKinds]=useState(hunt?['food','quick']:need?[need]:['food']),[note,setNote]=useState('');
  const [dishes,setDishes]=useState(offered);
  const [working,setWorking]=useState(false),[result,setResult]=useState(null),[error,setError]=useState(''),[added,setAdded]=useState([]);
  const parent=user.role==='parent';
@@ -86,7 +87,7 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
  // The Maps row comes first whatever else the screen can do, because a toilet is wanted now,
  // not after the app has thought about it; and it is the whole screen when asking the app is not
  // switched on, rather than a form that always answers no.
- const maps=<fieldset className="maps-nearby"><legend>Straight to Maps</legend><MapsNearby coords={coords}/></fieldset>;
+ const maps=<fieldset className="maps-nearby"><legend>Straight to Maps</legend><MapsNearby coords={coords} need={need}/></fieldset>;
  if(!available)return <div className="nearby">{maps}<p className="callout"><AlertCircle size={18}/>Asking the app what is near here is not switched on for this trip yet. Maps above works without it.</p></div>;
  return <div className="nearby">
   {maps}

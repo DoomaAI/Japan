@@ -15,6 +15,7 @@ import {researchPlace,researchReady} from './research.mjs';
 import {researchPayMethod} from './pay-research.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {askTrip,askReady} from './ask.mjs';
+import {parseCapture,captureReady} from './capture.mjs';
 import {nearbyPlaces,nearbyReady} from './nearby.mjs';
 import {fetchSumoDay,fetchSumoResults,fetchWrestler,sumoReady} from './sumo.mjs';
 import {readDocument,readerReady,translateStoredFile} from './document-reader.mjs';
@@ -22,7 +23,9 @@ import {coachPhoto,coachReady} from './photo-coach.mjs';
 import {shareCheckin,listCheckins} from './checkins.mjs';
 import {parseKml,matchPlacemarks,myMapKmlUrl,roundedPosition,validPosition,PHOTO_PLACES} from '../src/memory-map.js';
 import {calendarFeed,japanDate} from '../src/timing.js';
+import {RECEIPT_TYPES} from '../src/ledger-data.js';
 import {followView,followPhoto} from '../src/follow-data.js';
+import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange} from './push.mjs';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
 // A photo's own position, if the phone read one out of it, kept to about ten metres. Anything
 // that is not a plain pair of coordinates is dropped rather than refused: the photo matters more.
@@ -84,7 +87,15 @@ export default async function handler(req,res){
    res.setHeader('Content-Type',shot.type);res.setHeader('Content-Disposition','inline');res.setHeader('Cache-Control','private, max-age=3600');
    const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
   }
-  if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender()});
+  // The push tick: sends whatever fell due since the last one. Called every few minutes by a
+  // scheduler holding the cron secret, as a bearer token (Vercel Cron sends it that way) or ?key=.
+  if(route==='push-tick'&&(req.method==='GET'||post)){
+   const secret=process.env.CRON_SECRET||'',given=(req.headers.authorization||'').replace(/^Bearer /,'')||url.searchParams.get('key')||'';
+   if(!secret||secret.length<16||hash(given)!==hash(secret))throw new AppError('Not allowed.',403);
+   if(!pushReady())return json(res,{ok:true,ready:false,sent:[]});
+   return json(res,{ok:true,ready:true,sent:await tick((await readTrip()).state)});
+  }
+  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -121,6 +132,9 @@ export default async function handler(req,res){
    const origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
    return json(res,{url:`${origin}/?follow=${key}`});
   }
+  // Turning notifications on and off on this phone, and which kinds it wants.
+  if(route==='push-subscribe'&&post){if(!pushReady())throw new AppError('Notifications are not set up on the server yet.',503);return json(res,{prefs:await subscribe(user,b.subscription,b.prefs)});}
+  if(route==='push-unsubscribe'&&post){await unsubscribe(user,b.endpoint);return json(res,{ok:true});}
   if(route==='logout'&&post){if(!localDemo()){const c=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('japan_session='))?.slice(14);if(c){const db=await database();await db`DELETE FROM japan_sessions WHERE token_hash=${hash(c)}`;}}setCookie(res,'');return json(res,{ok:true});}
   if(route==='state'&&req.method==='GET')return json(res,visibleEnvelope(await readTrip(),user));
   // Where we each last said we were. Shared by tapping, never by the app on its own; read by the
@@ -146,6 +160,9 @@ export default async function handler(req,res){
    const current=await readTrip();if(b.operation?.operationId&&current.state.appliedOperationIds?.includes(b.operation.operationId))return json(res,visibleEnvelope(current,user));if(b.revision!==current.revision)throw new AppError('The family updated the trip. Review your change against the latest plan.',409);
    const state=applyOperation(current.state,b.operation,user);
    const saved=await writeTrip(state,current.revision);
+   // A new line in Family updates is a change to the plan: the others' phones are told now.
+   const fresh=(saved.state.alerts||[])[0];
+   if(fresh&&!(current.state.alerts||[]).some(a=>a.id===fresh.id))await Promise.race([tellChange(fresh,user.name),new Promise(r=>setTimeout(r,4000))]).catch(()=>{});
    // A discarded email leaves no attachments behind in private storage. The files are gone
    // from the trip either way, so a failed delete is not worth failing the change over.
    if(b.operation?.type==='inboxDiscard')for(const pathname of inboxFiles(current.state,b.operation.id))await del(pathname).catch(()=>{});
@@ -277,6 +294,12 @@ export default async function handler(req,res){
   // want to know what is happening as much as anybody. It is answered from the plan as that
   // person is allowed to see it, so a question can never read back what the screen hides, and
   // nothing it says is written anywhere — the family makes every change themselves.
+  // One sentence into a to-do, for the box at the top of the list. Anyone can use it: the
+  // result is only a filled-in form, and saving it goes through the same to-do rules as typing.
+  if(route==='capture'&&post){
+   const {state}=await readTrip();
+   return json(res,await parseCapture(b,visibleTrip(state,user)));
+  }
   if(route==='ask'&&post){
    const {state}=await readTrip();
    return json(res,await askTrip(b,visibleTrip(state,user),user));
@@ -444,7 +467,9 @@ export default async function handler(req,res){
     const voice=pathname.startsWith(`voice/${user.id}/`),photo=pathname.startsWith(`photos/${user.id}/`)||pathname.startsWith(`art/${user.id}/`)||pathname.startsWith(`shortlist/${user.id}/`);
     // A recorded phrase is the family's reference pronunciation, so a parent makes it.
     const said=pathname.startsWith(`phrases/${user.id}/`);
-    if(pathname.includes('..')||!(voice||photo||said||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
+    const receipt=pathname.startsWith(`receipts/${user.id}/`);
+    if(pathname.includes('..')||!(voice||photo||said||receipt||pathname.startsWith(`tickets/${user.id}/`)))throw new AppError('Invalid upload path.');
+    if(receipt){parent(user);return {allowedContentTypes:RECEIPT_TYPES,maximumSizeInBytes:25*1024*1024,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};}
     if(said){parent(user);return {allowedContentTypes:AUDIO_TYPES,maximumSizeInBytes:VOICE_MAX_BYTES,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};}
     if(photo)return {allowedContentTypes:['image/jpeg','image/png','image/webp'],maximumSizeInBytes:25*1024*1024,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
     if(voice)return {allowedContentTypes:AUDIO_TYPES,maximumSizeInBytes:VOICE_MAX_BYTES,addRandomSuffix:true,tokenPayload:JSON.stringify({grant:user.id})};
@@ -505,6 +530,15 @@ export default async function handler(req,res){
    // on the list and in the offline download on its own.
    current.state.documents.push({id:randomUUID(),title:b.title,...details,...association,...(root?{parentDocumentId:root.id,archivedAt:root.archivedAt??null,archivedBy:root.archivedBy??null}:{}),size:blob.size,pathname:b.pathname,type:blob.contentType,person:b.person||'Family',...(details.category==='memory'&&photoGps(b.gps)?{gps:photoGps(b.gps)}:{}),createdAt:new Date().toISOString()});
    return json(res,visibleEnvelope(await writeTrip(current.state,current.revision),user));
+  }
+  // A receipt photo on a payment: the parents' money, so a parent's eyes only.
+  if(route==='receipt'&&req.method==='GET'){
+   parent(user);
+   const {state}=await readTrip();const e=state.expenses?.find(x=>x.id===url.searchParams.get('id')&&x.receipt?.pathname);
+   if(!e)throw new AppError('Receipt not found.',404);
+   const result=await get(e.receipt.pathname,{access:'private',useCache:false});if(!result||!result.stream)throw new AppError('Receipt unavailable.',404);
+   res.setHeader('Content-Type',e.receipt.type);res.setHeader('Content-Disposition','inline');res.setHeader('Cache-Control','private, max-age=3600');
+   const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
   }
   if(route==='document'&&req.method==='GET'){
    const {state}=await readTrip();const doc=state.documents.find(d=>d.id===url.searchParams.get('id')&&d.pathname);if(!doc)throw new AppError('Ticket not found.',404);

@@ -291,3 +291,77 @@ test('booking windows: when a booking opens, suggested from the plan, kept by a 
  assert.throws(()=>applyOperation(state,{type:'bookingWindowAdd',title:'X',opensAt:'soon'},{name:'Damien',role:'parent'}),/when the booking opens/);
  assert.throws(()=>applyOperation(state,{type:'bookingWindowAdd',title:'X',opensAt:'2026-08-01T00:00:00Z',url:'http://insecure'},{name:'Damien',role:'parent'}),/https/);
 });
+test('the follow-along link is sent with a message written for family at home',async()=>{
+ const src=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
+ assert.match(src,/navigator\.share\(\{title:'Follow our Japan trip',text\}\)/,'the phone’s own share sheet');
+ assert.match(src,/Send to family at home/);
+ const m=src.match(/export const followMessage=url=>`([^`]+)`/)[1];
+ assert.match(m,/\$\{url\}/);assert.match(m,/No login needed/);assert.match(m,/don't pass it on/);
+});
+test('push: what falls due, who wants it, and nothing sent twice',async()=>{
+ const {pushMoments,duePushes,wants,PUSH_LATE_LIMIT}=await import('../src/push-data.js');
+ const {tick,tellChange,subscribe,resetDemoPush}=await import('../server/push.mjs');
+ process.env.LOCAL_DEMO='1';delete process.env.VERCEL;resetDemoPush();
+ try{
+  const state=upgraded(seed),nozomi=state.steps.find(s=>s.title==='Nozomi 33 to Kyoto');
+  const leave=pushMoments(state).find(m=>m.key.startsWith(`leave|${nozomi.id}`));
+  assert.equal(new Date(leave.at).toISOString(),new Date(Date.parse('2026-09-24T12:30:00+09:00')-((nozomi.travelMinutes??20)+(nozomi.arrivalBuffer??15))*60000).toISOString(),'the same leave-by the calendar uses');
+  assert.equal(new Date(pushMoments(state).find(m=>m.key==='morning|2026-09-24').at).toISOString(),'2026-09-23T22:30:00.000Z','7:30 in Japan');
+  assert.deepEqual(duePushes(state,leave.at-1,leave.at).map(m=>m.key),[leave.key]);
+  assert.deepEqual(duePushes(state,leave.at-1,leave.at+PUSH_LATE_LIMIT+1),[],'too late to be any use is not sent');
+  assert.equal(wants({name:'Nate',prefs:{leave:false}},leave),false);
+  assert.equal(wants({name:'Nate',prefs:{}},{...leave,to:['Damien']}),false,'not your booking');
+  const sub=n=>({endpoint:`https://push.example/${n}`,keys:{p256dh:'k'.repeat(20),auth:'a'.repeat(10)}});
+  await subscribe({name:'Nate'},sub('nate'),{});await subscribe({name:'Damien'},sub('damien'),{leave:false});
+  const sent=[],send=async(s,p)=>{sent.push([s.endpoint,p.title]);};
+  await tick(state,leave.at-10*60000,send);
+  const out=await tick(state,leave.at+60000,send);
+  assert.deepEqual(out.map(o=>o.key),[leave.key]);
+  assert.ok(sent.some(([e,t])=>e.endsWith('/nate')&&/Nozomi 33/.test(t)));
+  assert.ok(!sent.some(([e])=>e.endsWith('/damien')),'Damien turned leave-by off');
+  assert.deepEqual(await tick(state,leave.at+120000,send),[],'nothing twice');
+  sent.length=0;
+  await tellChange({id:'a1',summary:'Dinner moved to 19:00',stepId:null},'Nate',send);
+  assert.deepEqual(sent.map(([e])=>e),['https://push.example/damien'],'everyone but whoever changed it');
+  await tellChange({id:'a1',summary:'again'},'Nate',send);assert.equal(sent.length,1,'a change is told once');
+  const gone=async()=>{const e=new Error('Gone');e.statusCode=410;throw e;};
+  await tellChange({id:'a2',summary:'x'},'Nate',gone);sent.length=0;
+  await tellChange({id:'a3',summary:'y'},'Nate',send);assert.equal(sent.length,0,'a phone the push service says is gone is dropped');
+ }finally{delete process.env.LOCAL_DEMO;resetDemoPush();}
+});
+test('API: the push tick needs the cron secret, and a phone cannot subscribe until the server has keys',async()=>{
+ const {createServer}=await import('node:http');const handler=(await import('../server/handler.mjs')).default;
+ process.env.LOCAL_DEMO='1';delete process.env.VERCEL;delete process.env.VAPID_PUBLIC_KEY;delete process.env.VAPID_PRIVATE_KEY;
+ const server=createServer(handler);await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
+ try{
+  const post=(path,data)=>fetch(base+'/api/'+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify(data)});
+  delete process.env.CRON_SECRET;
+  assert.equal((await fetch(base+'/api/push-tick')).status,403,'no secret set, nobody gets in');
+  process.env.CRON_SECRET='s'.repeat(32);
+  assert.equal((await fetch(base+'/api/push-tick?key=wrong')).status,403);
+  const r=await fetch(base+'/api/push-tick',{headers:{authorization:`Bearer ${'s'.repeat(32)}`}});assert.equal(r.status,200);
+  assert.deepEqual(await r.json(),{ok:true,ready:false,sent:[]},'no keys, nothing sent');
+  assert.equal((await(await fetch(base+'/api/config')).json()).push,false);
+  assert.equal((await post('push-subscribe',{subscription:{}})).status,503);
+ }finally{delete process.env.LOCAL_DEMO;delete process.env.CRON_SECRET;await new Promise(r=>server.close(r));}
+});
+test('tax-free: a flag on shopping and shortlist items, carried across, and a per-shop total against ¥5,000',async()=>{
+ const {applyOperation}=await import('../server/model.mjs');
+ const {taxFreeTally,TAX_FREE_MIN}=await import('../src/shopping-groups.js');
+ const parent={name:'Damien',role:'parent'};
+ let state=upgraded(seed);
+ state=applyOperation(state,{type:'shoppingAdd',title:'Kit Kats',store:'Don Quijote, Shibuya',budget:3000,quantity:1,taxFree:true},parent);
+ state=applyOperation(state,{type:'shoppingAdd',title:'Socks',store:'Don Quijote',budget:1500,quantity:1,taxFree:true},parent);
+ state=applyOperation(state,{type:'shoppingAdd',title:'Postcard',store:'Don Quijote',budget:900,quantity:1},parent);
+ assert.equal(state.shopping.at(-1).taxFree,false);
+ let t=taxFreeTally(state.shopping);
+ assert.equal(t.total,4500);assert.equal(t.reached,false);assert.equal(t.short,500);assert.equal(TAX_FREE_MIN,5000);
+ state=applyOperation(state,{type:'shoppingEdit',id:state.shopping.at(-1).id,title:'Postcard',store:'Don Quijote',budget:900,quantity:1,taxFree:true},parent);
+ t=taxFreeTally(state.shopping);assert.equal(t.reached,true);
+ assert.equal(taxFreeTally([{taxFree:true,store:'',budget:9000}]),null,'no shop, no visit to count');
+ state=applyOperation(state,{type:'shortlistAdd',title:'Kimono jacket',shop:'Nakamise',price:12000,taxFree:true},parent);
+ const find=state.shortlist.at(-1);assert.equal(find.taxFree,true);
+ state=applyOperation(state,{type:'shortlistStatus',id:find.id,status:'yes'},parent);
+ state=applyOperation(state,{type:'shortlistShop',id:find.id},parent);
+ assert.equal(state.shopping.at(-1).taxFree,true,'the flag comes across with it');
+});

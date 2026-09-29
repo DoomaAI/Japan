@@ -20,6 +20,7 @@ import SayIt from './SayIt.jsx';
 import Phrasebook,{PhraseOfDay} from './Phrasebook.jsx';
 import {phraseForDay} from './phrasebook-data.js';
 import {phraseSeenBy,phraseQueue} from './trip-features.js';
+import {deepLinkAction,withoutDeepLink} from './deep-links.js';
 import FunFacts,{FactOfDay,CardFacts,factAloudFor} from './FunFacts.jsx';
 import {factForDay,factsForStep} from './fact-data.js';
 import {factSeenBy,factsSeenBy,factQueue} from './trip-features.js';
@@ -163,6 +164,7 @@ function App(){
  const [start]=useState(startingPosition);
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(start.day),[selected,setSelected]=useState(start.step);
  const [focus,setFocus]=useState(new URLSearchParams(location.search).get('item')||null);
+ const [sayFirst,setSayFirst]=useState(null);
  // Whose day the screen follows on a split: null is your own, '' is everyone, or a name. Changing
  // it lets go of the stop being looked at, which may not be on the day being switched to.
  const [lensChoice,setLensChoice]=useState(null),follow=p=>{setLensChoice(p);setSelected(null);};
@@ -176,7 +178,7 @@ function App(){
  // The menu can only offer what this deployment can do. Anything already waiting keeps the
  // screen reachable too, so email that arrived before a key was removed is never stranded
  // behind a menu item that has gone.
- setAvailable({inbox:!!config?.emailInbox||(state?inboxWaiting(state):0)>0,ask:!!config?.ask||hasAskHistory(user)});
+ setAvailable({inbox:!!config?.emailInbox||(state?inboxWaiting(state):0)>0,ask:!!config?.ask||hasAskHistory(user)||!!state?.askThread?.length});
  // How this person has arranged their own menu. It lives on the phone beside the sumo rank and
  // the downloaded guide pages: it is about the phone in your hand rather than about the trip,
  // so it does not sync, does not need signal, and cannot be argued about. Loaded once the app
@@ -225,11 +227,22 @@ function App(){
    const fragment=new URLSearchParams(location.hash.slice(1)),join=fragment.get('join');
    if(join){history.replaceState(null,'',location.pathname+location.search);await request('join',{token:join});}
    const e=await request('state');if(stop)return;accept(e);
-   land(e.state);
+   land(e.state);arrive(e.state);
    if(new URLSearchParams(location.search).has('page'))setTab('guide');
-  }catch(e){const cache=stored('japan.snapshot',null);if(!e.status&&cache&&Date.now()-cache.savedAt<45*86400000){const s=ensureFeatures(cache.state);setEnvelope({...cache,state:s});setOnline(false);land(s);}else setError(e.message);}finally{if(!stop)setLoading(false);}})();
+  }catch(e){const cache=stored('japan.snapshot',null);if(!e.status&&cache&&Date.now()-cache.savedAt<45*86400000){const s=ensureFeatures(cache.state);setEnvelope({...cache,state:s});setOnline(false);land(s);arrive(s);}else setError(e.message);}finally{if(!stop)setLoading(false);}})();
   // The day the phone opened on is checked against the plan once it is here, and a stop that was
   // restored from the phone rather than the address is let go of if it has since been finished.
+  // A Shortcut, Siri or the Action button asked for something on the way in: do it once the
+  // plan is here, then take it out of the address so a reload is only a reload.
+  function arrive(s){
+   const action=deepLinkAction(location.search);if(!action)return;
+   history.replaceState(null,'',withoutDeepLink(location.search));
+   if(action.type==='todoAdd'){setSayFirst({text:action.text});setTab('todo');}
+   else if(action.type==='todoSay'){setSayFirst({focus:true});setTab('todo');}
+   else if(action.type==='nearby')setModal({type:'nearby',need:action.need});
+   else if(action.type==='capture')setModal({type:'capture'});
+   else if(action.type==='hotel'){const d=s.days.find(x=>x.date===nearestDay(s.days,japanDate()));if(d?.hotel)location.assign(directions(d.hotel));else setTab('help');}
+  }
   function land(s){
    const d=nearestDay(s.days,start.day);
    if(d!==start.day){setDay(d);setSelected(null);return;}
@@ -635,7 +648,7 @@ function App(){
   {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy} go={go} remove={removeThen}/>}
   {tab==='shortlist'&&<Shortlist key={focus||'shortlist'} initialId={focus} state={visibleState} user={user} day={day} config={config} busy={busy} setBusy={setBusy} mutate={mutate} request={request} accept={accept} notice={notice} go={go} selectStep={selectStep}/>}
   {tab==='meeting'&&<><MeetingCard key={day} state={state} user={user} day={day} mutate={mutate} busy={busy}/><LostCards state={visibleState} user={user} day={day}/></>}
-  {tab==='allergy'&&<AllergyCard state={visibleState} user={user} mutate={mutate} busy={busy} speak={speak}/>}
+  {tab==='allergy'&&<AllergyCard state={visibleState} user={user} mutate={mutate} busy={busy} speak={speak} who={new URLSearchParams(location.search).get('who')}/>}
   {tab==='updates'&&<Updates state={state} user={user} mutate={mutate} busy={busy}/>}
   {tab==='bin'&&<RecentlyDeleted state={visibleState} user={user} mutate={mutate} busy={busy}/>}
   {tab==='photos'&&<><p className="eyebrow">THROUGH THEIR EYES</p><h1>Photos</h1>{!photoPerson&&<div className="form-row"><label>Day<select value={day} onChange={e=>selectPhotoDay(e.target.value)}>{state.days.map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)} · {d.title}</option>)}</select></label></div>}<PhotoDay state={visibleState} user={user} day={day} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay} person={photoPerson} setPerson={choosePhotoPerson}/></>}
@@ -653,21 +666,21 @@ function App(){
   {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><button className="hunt-link" onClick={()=>go('hunts')}>🍵 🎰 🍜 Hunts & lists: rate and rank every one we try</button><button className="hunt-link" onClick={()=>go('allergy')}>🥜 Allergy card: what each of us cannot eat, in Japanese, to show the waiter</button><FoodList state={visibleState} user={user} speak={speak} openPage={openPage} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal}/></>}
   {tab==='thanks'&&user.name===THANK_YOU_FROM&&<ThankYouEditor state={state} mutate={mutate} busy={busy}/>}
-  {tab==='settings'&&<Settings user={user} settings={settings} change={changeSetting} request={request} notice={notice} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
+  {tab==='settings'&&<Settings config={config} user={user} settings={settings} change={changeSetting} request={request} notice={notice} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
   {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
-  {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go} day={day} remove={removeThen}/>}
+  {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go} day={day} remove={removeThen} request={request} online={online&&!!config?.capture} sayFirst={sayFirst} clearSayFirst={()=>setSayFirst(null)}/>}
   {tab==='packing'&&<Packing state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
   {tab==='trackers'&&<Trackers state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
   {tab==='memorymap'&&<Suspense fallback={<p>Opening the map…</p>}><MemoryMap state={visibleState} user={user} request={request} accept={accept} notice={notice} busy={busy}/></Suspense>}
   {tab==='spending'&&<Spending state={visibleState} user={user} mutate={mutate} busy={busy} go={go} notice={notice} today={japanDate(now)}/>}
   {tab==='inbox'&&parent&&isAvailable('inbox')&&<EmailInbox state={state} config={config} busy={busy} mutate={mutate} request={request} accept={accept} notice={notice} go={go}/>}
-  {tab==='ask'&&<AskTrip state={visibleState} user={user} day={day} config={config} online={online} request={request} go={go} selectDay={selectDay} notice={notice}/>}
+  {tab==='ask'&&<AskTrip state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} go={go} selectDay={selectDay} notice={notice}/>}
   {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
   {tab==='hunts'&&<Hunts state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
   {tab==='noticed'&&<Noticed state={visibleState} user={user} mutate={mutate} busy={busy} show={setModal}/>}
   {tab==='paying'&&parent&&<WhichCard state={visibleState} user={user} config={config} request={request} mutate={mutate} busy={busy} notice={notice} remove={removeThen}/>}
-  {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
+  {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen} config={config} online={online} notice={notice}/>}
   {tab==='safety'&&<Safety state={visibleState} user={user} day={day} go={go}/>}
   {tab==='highlights'&&<Highlights state={visibleState} dayLabel={fmtDay}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}
@@ -695,8 +708,8 @@ function App(){
   {toast&&!modal&&toastBar}
   {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Window I spy',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo','ask'].includes(modal.type)}>
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
-   {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} mode={modal.mode} wishlist={modal.wishlist} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)} available={!!config?.nearby}/>}
-   {modal.type==='ask'&&<AskTrip state={visibleState} user={user} day={modal.step?.day||day} step={modal.step} config={config} online={online} request={request} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
+   {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} mode={modal.mode} wishlist={modal.wishlist} need={modal.need} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)} available={!!config?.nearby}/>}
+   {modal.type==='ask'&&<AskTrip state={visibleState} user={user} day={modal.step?.day||day} step={modal.step} config={config} online={online} request={request} mutate={mutate} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
    {modal.type==='voice'&&<VoiceNotes state={visibleState} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay} transcribe={settingOn(settings,'transcribeVoice')}/>}
    {modal.type==='foodcard'&&<FoodCard item={modal.item} notice={notice}/>}
    {modal.type==='park'&&<ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={modal.park} mutate={mutate} busy={busy} open={setModal}/>}

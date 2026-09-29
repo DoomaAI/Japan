@@ -30,7 +30,7 @@ The trip has a before, a during and an after, and each should give the family a 
 |---|---|---|
 | 4. Web push notifications | At a computer | VAPID keys as Vercel environment variables, a subscriptions table in Neon, a Vercel cron job, and testing on each iPhone (Home Screen app, iOS 16.4+) |
 | 6. Offline day maps | Only if signal proves patchy | A map image per day, saved alongside the guide pages for offline use |
-| 7b. Tax-free flag per shopping item | Optional | A field on shopping and shortlist items, and a filter |
+| 7b. Tax-free flag per shopping item | Done | A flag on shopping and shortlist items, and a per-shop total against ¥5,000 |
 | 8. Visit Japan Web card | Before a future trip | Nothing; content only |
 | 9. Trip highlights video | After the trip | Decide how the video is put together: on the phone, or a paid service. Then the Claude selection call. Placeholder page already live |
 | 10. Trip recap and photobook | Done (#200, #202) | Our trip story and the Photobook |
