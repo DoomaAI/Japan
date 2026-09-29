@@ -26,74 +26,44 @@ import FunFacts,{FactOfDay,CardFacts,factAloudFor} from './FunFacts.jsx';
 import {factForDay,factsForStep} from './fact-data.js';
 import {factSeenBy,factsSeenBy,factQueue} from './trip-features.js';
 import {PHRASES} from './phrases.js';
-import Settings from './Settings.jsx';
 import {readSettings,writeSetting,settingOn} from './settings.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
 import {primaryNav,moreIds,PAGES,cleanNav,emptyNav,setAvailable,isAvailable} from './nav-data.js';
-import Personalise from './Personalise.jsx';
 import {homeShown,homeRuns,emptyHome,cleanHome} from './home-widgets.js';
 import {linkOrder,emptyLinks,cleanLinks} from './card-links.js';
 import StopButtons from './StopButtons.jsx';
 import {pageRule} from './spoken-rules.js';
-import Bingo from './Bingo.jsx';
-import ParkGuide from './ParkGuide.jsx';
 import FoodList,{FoodCard} from './FoodList.jsx';
 import {parkForDay} from './park-data.js';
 import {THANK_YOU_FROM,THANK_YOU_FOR,BOYS as NOTE_BOYS} from './trip-features.js';
 import {MeetingCard,QuickCapture,GlobalSearch,Diary} from './PracticalPages.jsx';
-import MediaGallery from './MediaGallery.jsx';
 import Briefing from './Briefing.jsx';
 import Tonight from './Tonight.jsx';
 import OnThisDay from './OnThisDay.jsx';
 import RunUp from './RunUp.jsx';
 import DailyJapan from './DailyJapan.jsx';
-import Stamps from './Stamps.jsx';
-import Leaderboard from './Leaderboard.jsx';
-import RecapStory from './RecapStory.jsx';
-import Photobook from './Photobook.jsx';
 import TravelGuide from './TravelGuide.jsx';
-import Predictions from './Predictions.jsx';
-import Arrival from './Arrival.jsx';
-import TripShop from './TripShop.jsx';
-import Apps from './Apps.jsx';
-import Vault from './Vault.jsx';
 import DayMap from './DayMap.jsx';
 import BookingWindows,{BookingWindowsCard} from './BookingWindows.jsx';
 import FollowAlong from './FollowAlong.jsx';
 import Safety,{LostCards} from './Safety.jsx';
-import AllergyCard from './AllergyCard.jsx';
-import RecentlyDeleted from './RecentlyDeleted.jsx';
 import MorningChecklist from './Morning.jsx';
 import StayCard from './StayCard.jsx';
-import Ledger from './Ledger.jsx';
 import Running from './Running.jsx';
-import WhichCard from './WhichCard.jsx';
-import Hunts from './Hunts.jsx';
-import Noticed from './Noticed.jsx';
-import Planning from './Planning.jsx';
 import Nearby,{MapsNearby} from './Nearby.jsx';
-import AskTrip from './AskTrip.jsx';
 import {hasAskHistory} from './ask-thread.js';
 import TodoList,{DayTodos} from './TodoList.jsx';
 import Packing,{PackingNudge} from './Packing.jsx';
-import Trackers from './Trackers.jsx';
-import Spending from './Spending.jsx';
-import Sumo from './Sumo.jsx';
 import StepReview from './StepReview.jsx';
-import WeatherPage from './WeatherPage.jsx';
 import {useForecastCheck} from './Weather.jsx';
 import DayTimeline from './DayTimeline.jsx';
 import EntryIcon from './EntryIcon.jsx';
 import {ENTRY_TYPES,guessEntryType} from './entry-types.js';
 import {BOOKING_PLATFORMS,bookedVia} from './booked-via.js';
 import RemoveStop from './RemoveStop.jsx';
-import VoiceNotes from './VoiceNotes.jsx';
-import Games from './Games.jsx';
 import Weather,{StepWeather} from './Weather.jsx';
 import DocumentReader from './DocumentReader.jsx';
-import EmailInbox from './EmailInbox.jsx';
 import PhotoDay from './PhotoDay.jsx';
-import MascotMaker from './MascotMaker.jsx';
 import {MascotBadge} from './Mascot.jsx';
 import React,{useEffect,useMemo,useRef,useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
@@ -112,6 +82,36 @@ import './guide-theme.css';
 import './travel-guide.css';
 // The map library is only fetched when the map is opened, so every other screen stays as quick.
 const MemoryMap=lazy(()=>import('./MemoryMap.jsx'));
+const WeatherPage=lazy(()=>import('./WeatherPage.jsx'));
+const AllergyCard=lazy(()=>import('./AllergyCard.jsx'));
+const Bingo=lazy(()=>import('./Bingo.jsx'));
+const RecentlyDeleted=lazy(()=>import('./RecentlyDeleted.jsx'));
+const ParkGuide=lazy(()=>import('./ParkGuide.jsx'));
+const Stamps=lazy(()=>import('./Stamps.jsx'));
+const Leaderboard=lazy(()=>import('./Leaderboard.jsx'));
+const TripShop=lazy(()=>import('./TripShop.jsx'));
+const Apps=lazy(()=>import('./Apps.jsx'));
+const Arrival=lazy(()=>import('./Arrival.jsx'));
+const AskTrip=lazy(()=>import('./AskTrip.jsx'));
+const Ledger=lazy(()=>import('./Ledger.jsx'));
+const MediaGallery=lazy(()=>import('./MediaGallery.jsx'));
+const Personalise=lazy(()=>import('./Personalise.jsx'));
+const Settings=lazy(()=>import('./Settings.jsx'));
+const Predictions=lazy(()=>import('./Predictions.jsx'));
+const Photobook=lazy(()=>import('./Photobook.jsx'));
+const RecapStory=lazy(()=>import('./RecapStory.jsx'));
+const WhichCard=lazy(()=>import('./WhichCard.jsx'));
+const Trackers=lazy(()=>import('./Trackers.jsx'));
+const Noticed=lazy(()=>import('./Noticed.jsx'));
+const EmailInbox=lazy(()=>import('./EmailInbox.jsx'));
+const MascotMaker=lazy(()=>import('./MascotMaker.jsx'));
+const Vault=lazy(()=>import('./Vault.jsx'));
+const VoiceNotes=lazy(()=>import('./VoiceNotes.jsx'));
+const Hunts=lazy(()=>import('./Hunts.jsx'));
+const Spending=lazy(()=>import('./Spending.jsx'));
+const Planning=lazy(()=>import('./Planning.jsx'));
+const Sumo=lazy(()=>import('./Sumo.jsx'));
+const Games=lazy(()=>import('./Games.jsx'));
 
 const API='/api/';
 const APPS={maps:['Google Maps','https://maps.google.com/'],translate:['Google Translate','https://translate.google.com/?sl=en&tl=ja&op=translate'],qantas:['Qantas','https://www.qantas.com/au/en/qantas-app.html'],disney:['Tokyo Disney Resort','https://www.tokyodisneyresort.jp/en/tdr/app.html'],usj:['Universal Studios Japan','https://www.usj.co.jp/web/en/us/service-guide/theme-park-services/official-app'],japan:['Visit Japan Web','https://www.vjw.digital.go.jp/']};
@@ -144,7 +144,7 @@ function Button({icon:Icon,children,...props}){return <button {...props}>{Icon&&
 // Typing is noticed as it happens rather than read back from the fields, because a field the
 // screen controls reports its starting value as whatever it holds now. Ticks and search boxes
 // do not count: a tick saves itself, and a filter is not something anybody minds losing.
-function Dialog({title,children,onClose,wide=false}){const ref=useRef(),typed=useRef(false);useEffect(()=>{const d=ref.current;d.showModal();const on=e=>{if(!['checkbox','radio','search','range','file'].includes(e.target.type))typed.current=true;};d.addEventListener('input',on);return()=>{d.removeEventListener('input',on);d.close();};},[]);const ask=()=>!typed.current||confirm('Close without keeping what you typed?');return <dialog ref={ref} onCancel={e=>{if(ask())onClose();else e.preventDefault();}} onClick={e=>{if(e.target===ref.current&&ask())onClose();}} className={wide?'wide':''}><header><h2>{title}</h2><button className="icon" aria-label="Close" onClick={onClose}><X/></button></header><div className="dialog-body">{children}</div></dialog>;}
+function Dialog({title,children,onClose,wide=false}){const ref=useRef(),typed=useRef(false);useEffect(()=>{const d=ref.current;d.showModal();const on=e=>{if(!['checkbox','radio','search','range','file'].includes(e.target.type))typed.current=true;};d.addEventListener('input',on);return()=>{d.removeEventListener('input',on);d.close();};},[]);const ask=()=>!typed.current||confirm('Close without keeping what you typed?');return <dialog ref={ref} onCancel={e=>{if(ask())onClose();else e.preventDefault();}} onClick={e=>{if(e.target===ref.current&&ask())onClose();}} className={wide?'wide':''}><header><h2>{title}</h2><button className="icon" aria-label="Close" onClick={onClose}><X/></button></header><div className="dialog-body"><Suspense fallback={<p className="page-loading">Opening…</p>}>{children}</Suspense></div></dialog>;}
 async function copyOrShare(url,title,share=false){if(share&&navigator.share){await navigator.share({title,url});return;}await navigator.clipboard.writeText(url);}
 const TABS=[...Object.keys(PAGES),'more'];
 // What a phone can do with no signal and hand over later. Everything here either records
@@ -657,6 +657,10 @@ function App(){
   {user.expiresAt&&new Date(user.expiresAt)-now<14*86400000&&<div className="expiry-note"><AlertCircle size={14}/><span>Your link to the family plan ends {fmtDay(japanDate(new Date(user.expiresAt)))}. {parent?'Make a fresh link in Family settings before then.':'Ask a parent for a fresh link before then.'}</span></div>}
   {conflict&&<div className="conflict"><strong>The family changed the plan while you were offline.</strong><p>Your {queue.length} progress update(s) are still saved. Review them against the latest itinerary.</p><div className="row"><Button onClick={()=>setModal({type:'pending'})}>Review updates</Button><Button onClick={()=>{if(confirm(`Throw away ${queue.length} unsynced update${queue.length===1?'':'s'}? They cannot be brought back.`)){saveQueue([]);setConflict(false);}}}>Discard my pending updates</Button></div></div>}
   <main>
+  {/* The pages opened now and then load when they are opened, so the shell that has to be
+      on screen at a station stays small; every chunk is still put in the offline shell by
+      the build, so a page opened for the first time in a tunnel still opens. */}
+  <Suspense fallback={<p className="page-loading">Opening…</p>}>
   {tab==='today'&&<div className="home">
    {dayHeading}
    {dayStrip(selectDay)}
@@ -734,6 +738,7 @@ function App(){
   {tab==='places'&&<><p className="eyebrow">FAVOURITES & FINDING OUR WAY</p><h1>Places to go</h1><div className="map-frame"><iframe src={state.mapEmbed} title="Our Japan Google My Map" loading="lazy" referrerPolicy="no-referrer" allowFullScreen/><p>Your saved Google map · internet and map access required. If the map does not load here, use Open our map below. Embedding requires public map sharing.</p></div><div className="row wrap"><Link className="button primary" href={state.mapUrl}><ExternalLink size={18}/>Open our map</Link><Button icon={Plus} disabled={!parent} onClick={()=>setModal({type:'edit',step:null})}>Add a stop</Button></div><LocationDirectory key={focus||'locations'} initialId={focus} state={state} user={user} speak={speak} parent={parent} mutate={mutate} busy={busy} day={day} selectStep={selectStep} openPage={openPage} notice={notice}/></>}
   {tab==='guide'&&<><p className="eyebrow">THE ORIGINAL 72-PAGE GUIDE</p><h1>Our travel guide</h1><div className="row wrap"><label>Jump to a day<select aria-label="Jump to guide pages for a day" value={state.days.find(d=>d.pages?.includes(guidePage))?.date||''} onChange={e=>{const d=state.days.find(d=>d.date===e.target.value);if(d?.pages?.length){setDay(d.date);setGuidePage(d.pages[0]);updateUrl(d.date,null,d.pages[0]);}}}><option value="" disabled>Choose a day</option>{state.days.filter(d=>d.pages?.length).map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)} · {d.title}</option>)}</select></label><Button icon={CalendarDays} onClick={()=>selectDay(state.days.find(d=>d.pages?.includes(guidePage))?.date||day)}>Back to day</Button></div><div className="guide-controls"><Button icon={ArrowLeft} aria-label="Previous page" disabled={guidePage<=1} onClick={()=>flipPage(-1)}/><label>Page <select value={guidePage} onChange={e=>{setGuidePage(+e.target.value);updateUrl(day,null,+e.target.value);}}>{Array.from({length:72},(_,i)=><option key={i+1}>{i+1}</option>)}</select> of 72</label><Button icon={ArrowRight} aria-label="Next page" disabled={guidePage>=72} onClick={()=>flipPage(1)}/><Button icon={Download} onClick={()=>saveOffline(`/api/guide?page=${guidePage}`,`page-${guidePage}`)}>{saved.includes(`page-${guidePage}`)?'Saved':'Save page'}</Button><Button icon={Maximize2} aria-label="Read full screen" onClick={()=>setReading(true)}/><Button icon={Share2} onClick={()=>copyOrShare(`${location.origin}/?page=${guidePage}`,'Japan guide',true).catch(()=>{})}/></div><div className="guide-view"><GuideBook page={guidePage} turn={turnPage} flipRef={reading?null:guideFlip} onTap={()=>setReading(true)} onMissing={()=>notice('This page is not downloaded. Connect to view and save it.')}/><p className="guide-hint"><small>Swipe to turn · tap the page to read it full screen · {guidePage} of 72</small></p></div>{reading&&<GuideReader page={guidePage} label={(d=>d?`${fmtDay(d.date)} · ${d.title}`:'')(state.days.find(d=>d.pages?.includes(guidePage)))} turn={turnPage} jump={n=>{setGuidePage(n);updateUrl(day,null,n);}} flipRef={guideFlip} close={()=>setReading(false)} onMissing={()=>notice('This page is not downloaded. Connect to view and save it.')}/>}<GuideLocations state={state} page={guidePage} go={go}/><details className="guide-search" onToggle={async e=>{if(e.currentTarget.open&&!guideIndex.length){try{const i=await request('guide-index');setGuideIndex(i);}catch{notice('Search needs an internet connection.');}}}}><summary>Search guide text</summary><input placeholder="Search food, shopping, places…" value={query} onChange={e=>setQuery(e.target.value)}/>{query&&guideIndex.filter(p=>p.text.toLowerCase().includes(query.toLowerCase())).map(p=><button key={p.number} onClick={()=>{setGuidePage(p.number);updateUrl(day,null,p.number);}}>Page {p.number} <ChevronRight size={14}/></button>)}</details></>}
   {tab==='help'&&<><p className="eyebrow">A LITTLE HELP, ALWAYS HANDY</p><h1>Find our way</h1><div className="help-grid"><Link className="help-card dark" href={directions(today?.hotel)}><House/><h2>Take me to our hotel</h2><p>{today?.hotel}</p><span>Open directions <ArrowRight size={18}/></span></Link><button className="help-card" onClick={()=>setModal({type:'show',step:current||{title:today?.hotel,place:today?.hotel,japanese:''}})}><Languages/><h2>Show someone</h2><p>Large destination name and Japanese help.</p></button><Link className="help-card" href={APPS.translate[1]}><Languages/><h2>Google Translate</h2><p>Translate text; use the official app for camera and conversation.</p></Link><button className="help-card" onClick={()=>setModal({type:'tickets'})}><Ticket/><h2>Tickets & documents</h2><p>All family bookings in one place.</p></button><button className="help-card" onClick={()=>setModal({type:'nearby'})}><Compass/><h2>Food & amenities near here</h2><p>Toilets, a convenience store, cash or somewhere to eat, from where we are standing.</p></button></div><h2>Straight to Maps</h2><MapsNearby/><h2>Useful apps</h2><AppLinks/><button type="button" className="button" onClick={()=>go('apps')}>Every app we suggest, and what to set up <ArrowRight size={16}/></button><h2>Before we rely on the plan</h2>{state.notices.map(n=><p className="callout" key={n.id}><AlertCircle size={18}/>{n.text}</p>)}<details><summary>Offline access and iPhone setup</summary><p>In Safari, tap Share → Add to Home Screen → Open as Web App. Each family member opens their own invite link first.</p><p>Your loaded itinerary is saved on this phone. Use Save page and Save file offline before going offline. Maps, live translations and external apps need their own offline preparation.</p><p>Offline progress queues on this phone. Reconnect to sync. Conflicting changes are shown for review.</p><p>Private downloads remain on a phone until cleared, even if its invite is later revoked.</p><Button icon={Download} onClick={async()=>{setBusy(true);try{for(const p of today.pages){const r=await fetch(`/api/guide?page=${p}`);if(!r.ok)throw new Error();const c=await caches.open('japan-private-v1');await c.put(`/api/guide?page=${p}`,r);}const next=[...new Set([...saved,...today.pages.map(p=>`page-${p}`)])];setSaved(next);localStorage.setItem('japan.saved',JSON.stringify(next));notice('All guide pages for this day are downloaded.');}catch{notice('Some pages could not download. Please retry.');}finally{setBusy(false);}}} disabled={busy}>Download this day’s guide pages</Button></details></>}
+  </Suspense>
   </main>
   <BottomNav tab={tab} user={user} go={navGo} prefs={navPrefs} setPrefs={saveNav} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}

@@ -10687,3 +10687,23 @@ test('every card has directions, and a website or booking link only when the sea
  assert.match(nearby,/\{item\.draft\.ticketUrl&&<a className="button" href=\{item\.draft\.ticketUrl\}/);
  assert.match(nearby,/website:item\.draft\.ticketUrl\|\|item\.draft\.website\|\|'',/,'added to today, the booking page comes too');
 });
+
+test('the pages opened now and then load when opened, and every chunk is still in the offline shell',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // Thirty pages and sheets leave the shell: the games, sumo, the planning board, the ledger and
+ // the rest that are not on screen at a station. What Home, Today and the itinerary need stays.
+ const lazy=[...main.matchAll(/^const ([A-Za-z]+)=lazy\(\(\)=>import\('\.\/([A-Za-z]+)\.jsx'\)\);$/gm)].map(m=>m[1]);
+ for(const name of ['Games','Sumo','Planning','Spending','Ledger','Settings','VoiceNotes','MediaGallery','ParkGuide','MemoryMap'])assert.ok(lazy.includes(name),`${name} is lazy`);
+ for(const name of lazy)assert.doesNotMatch(main,new RegExp(`^import ${name} from`,'m'),`${name} is not also imported statically`);
+ for(const name of ['DayTimeline','RouteCard','Navigation','FunFacts','Phrasebook','TodoList','Packing'])assert.match(main,new RegExp(`^import ${name}[,\\s]`,'m'),`${name} stays in the shell: it is on Home or Today`);
+ // One fallback around the pages and one inside the sheet, so a first open in a tunnel says something.
+ assert.match(main,/<main>\s*\{\/\*[^*]*\*\/\}\s*<Suspense fallback=\{<p className="page-loading">Opening…<\/p>\}>/);
+ assert.match(main,/<\/Suspense>\s*<\/main>/);
+ assert.match(main,/<div className="dialog-body"><Suspense fallback=\{<p className="page-loading">Opening…<\/p>\}>\{children\}<\/Suspense><\/div>/);
+ // The build puts every file in dist/assets into the service worker's shell, chunks included: a
+ // page never opened online is still there offline. This is the line that must not change.
+ const finalize=await readFile(new URL('../scripts/finalize-build.mjs',import.meta.url),'utf8');
+ assert.match(finalize,/readdir\(new URL\('\.\.\/dist\/assets\/',import\.meta\.url\)\)\)\.map\(n=>'\/assets\/'\+n\)/);
+ const sw=await readFile(new URL('../public/sw.js',import.meta.url),'utf8');
+ assert.match(sw,/\/\* BUILD_ASSETS \*\//);
+});
