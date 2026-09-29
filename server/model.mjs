@@ -1,6 +1,6 @@
 import {ensureFeatures,inboxNotes,documentSteps,documentServesStep,documentSpent,validPin} from '../src/trip-features.js';
 import {extraOperation} from './features.mjs';
-import {cleanCode} from '../src/wallet-codes.js';
+import {cleanCode,answerCodes} from '../src/wallet-codes.js';
 import {expressOperation} from './express.mjs';
 import { randomUUID } from 'node:crypto';
 import {activeSteps} from '../src/timing.js';
@@ -275,8 +275,13 @@ export function applyOperation(input,op,user){
   // which app it has to be shown in.
   const doc=state.documents.find(d=>d.id===op.id);if(!doc)throw new AppError('Document not found.',404);
   const {value,error}=cleanCode(op);if(error)throw new AppError(error);
-  if(value.code!==undefined){doc.code=value.code;doc.codeAt=now;}
+  if(value.code!==undefined){doc.code=value.code;doc.codeAt=now;delete doc.codeFound;}
+  else if(value.found!==undefined){if(value.found===null){doc.code=null;doc.codeAt=now;}else doc.codeFound=value.found;}
   if(value.live!==undefined){if(doc.parentDocumentId)throw new AppError('Mark the ticket itself.');doc.codeLive=value.live;doc.codeApp=value.live?value.app:'';}
+ }else if(op.type==='codesAnswer'){
+  // Yes or no to the codes found on a booking, for it and its attached pages together.
+  if(typeof op.add!=='boolean')throw new AppError('Invalid choice.');
+  if(answerCodes(state,op.id,op.add,now)===null)throw new AppError('Document not found.',404);
  }else if(op.type==='archiveDocument'){
   // A used ticket is not wrong, it is finished. Deleting it is the only thing worse than
   // leaving it in the way: the gate can still be argued about a week later. So it is archived

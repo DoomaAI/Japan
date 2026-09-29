@@ -5,6 +5,10 @@
 // when one file carries several (a PDF with a ticket a page, four tickets on one page), null once
 // a file has been looked at and has none, and missing while it has not been looked at yet.
 //
+// A code found is not added by itself: it waits on the file as `codeFound` until a parent says
+// whether it belongs in the Wallet. A confirmation letter can carry a QR code that is only a link
+// to a website, and a menu or a poster photographed for the diary can carry one too.
+//
 // Some codes cannot be copied: the ones that change every few seconds, or only show once you are
 // signed in to the operator's app. A parent marks those, with the app they live in, and the gate
 // view says to show it there rather than drawing a copy that would be turned away.
@@ -29,23 +33,53 @@ export function codesFor(state,doc){
 export function toRead(state){
  const docs=state?.documents||[],byId=new Map(docs.map(d=>[d.id,d]));
  return docs.filter(d=>{
-  if(!readable(d)||d.code!==undefined||d.category==='memory')return false;
+  if(!readable(d)||d.code!==undefined||d.codeFound!==undefined||d.category==='memory')return false;
   const owner=d.parentDocumentId?byId.get(d.parentDocumentId):d;
   return !!owner&&!isArchived(owner)&&!live(owner)&&owner.category!=='memory';
  });
 }
-// What the server accepts, checked the same way on the phone: one code, a list of them, or null.
-// A list of one is kept as the code itself, and an empty list as none.
-export function cleanCode(op){
- let code=op.code;
- if(Array.isArray(code)){
-  if(code.length>CODES_MAX)return {error:'That is more codes than one file can hold.'};
-  code=code.length===0?null:code.length===1?code[0]:code;
+// The tickets with codes found and not yet answered, each with every code found on it and its
+// attached pages, so one question covers a whole booking.
+export function pendingCodes(state){
+ const docs=state?.documents||[];
+ return docs.filter(d=>!d.parentDocumentId&&!isArchived(d)&&!live(d)).map(doc=>{
+  const files=[doc,...attachmentsOf(state,doc)].filter(f=>listOf(f.codeFound).length);
+  return files.length?{doc,files,codes:files.flatMap(f=>listOf(f.codeFound))}:null;
+ }).filter(Boolean);
+}
+// A code that is a web address is usually a link printed on a letter, not what a gate scans.
+export const isLink=text=>/^https?:\/\//i.test(text);
+export const preview=text=>text.startsWith('b64:')?'A code in its own characters':text.length>48?text.slice(0,45)+'…':text;
+const clean=list=>{
+ if(list===undefined||list===null)return {value:list};
+ if(Array.isArray(list)){
+  if(list.length>CODES_MAX)return {error:'That is more codes than one file can hold.'};
+  list=list.length===0?null:list.length===1?list[0]:list;
  }
  const bad=c=>typeof c!=='string'||!c||c.length>CODE_MAX;
- if(code!==undefined&&code!==null&&(Array.isArray(code)?code.some(bad):bad(code)))return {error:'That code is not one the app can keep.'};
+ if(list!==null&&(Array.isArray(list)?list.some(bad):bad(list)))return {error:'That code is not one the app can keep.'};
+ return {value:list};
+};
+// What the server accepts, checked the same way on the phone: for `code` (in the Wallet) and
+// `found` (waiting to be asked about), one code, a list of them, or null. A list of one is kept
+// as the code itself, and an empty list as none.
+export function cleanCode(op){
+ const code=clean(op.code),found=clean(op.found);
+ if(code.error)return code;if(found.error)return found;
  if(op.live!==undefined&&typeof op.live!=='boolean')return {error:'Invalid choice.'};
  const app=String(op.app??'').trim();
  if(app.length>APP_MAX)return {error:'Keep the app’s name short.'};
- return {value:{code,live:op.live,app}};
+ return {value:{code:code.value,found:found.value,live:op.live,app}};
+}
+// A parent's answer for a whole booking: its codes go into the Wallet, or they are let go and the
+// files are never read or asked about again. Changes the documents in place; says how many moved.
+export function answerCodes(state,id,add,now){
+ const doc=(state.documents||[]).find(d=>d.id===id&&!d.parentDocumentId);
+ if(!doc)return null;
+ let moved=0;
+ for(const f of [doc,...attachmentsOf(state,doc)]){
+  if(f.codeFound===undefined)continue;
+  f.code=add?f.codeFound:null;f.codeAt=now;moved+=add?listOf(f.codeFound).length:0;delete f.codeFound;
+ }
+ return moved;
 }
