@@ -181,3 +181,18 @@ test('API: the follow-along link is a parent’s to make and stop, and a wrong o
   const again=(await(await post('follow-link',{})).json()).url;assert.notEqual(again,url,'the next link is a different one');
  }finally{delete process.env.LOCAL_DEMO;await new Promise(r=>server.close(r));}
 });
+test('the run-up unlocks a family task at 100, 50, 30, 14 and 7 days, each counted from the trip',async()=>{
+ const {runUp,prepMeasures,MILESTONES}=await import('../src/prep-data.js');
+ const state=upgraded(seed);
+ assert.equal(runUp(state,'2026-09-21'),null,'not once we have landed');
+ let r=runUp(state,'2026-05-01');
+ assert.equal(r.days,143);assert.equal(r.now,null);assert.equal(r.next.at,100);
+ r=runUp(state,'2026-08-22');
+ assert.equal(r.days,30);assert.equal(r.now.measure,'profiles','the oldest open task comes first');
+ state.party={people:Object.fromEntries(state.members.map(n=>[n,{age:30}])),pace:'steady',budget:null,notes:''};
+ r=runUp(state,'2026-08-22');assert.equal(r.milestones[0].complete,true);assert.equal(r.now.measure,'votes');
+ const m=prepMeasures(state);
+ assert.equal(m.phrases.total,20);assert.ok(m.tickets.total>0,'the fixed bookings are counted');
+ assert.equal(m.packing.total,0);assert.equal(MILESTONES.map(x=>x.at).join(),'100,50,30,14,7');
+ assert.equal(runUp(state,'2026-09-20').days,1);
+});
