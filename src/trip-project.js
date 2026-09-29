@@ -105,11 +105,15 @@ function places(state){
  }
  return out.join('\n');
 }
-// The whole project for one person (or the party, with no one named), as one block of text the
-// model reads before the question. Built fresh on every call; nothing here is stored.
+// The project for one person (or the party, with no one named), in two parts so the model does
+// not start from scratch on every question. The shared part — the saved places and the stays,
+// most of the length — is the same for everyone and changes only when the trip does, so it is
+// cached once for all of them. The personal part is small: whose project it is, every profile
+// with theirs first, and the votes and ratings, which move most. Built fresh on every call and
+// never stored; the cache only saves re-reading what is byte-for-byte the same as last time.
 export function tripProject(state,person=null){
  if(person&&!(state.members||[]).includes(person))person=null;
- return [whose(state,person),overview(state),profiles(state,person),feedback(state),places(state)].join('\n\n');
+ return {shared:[overview(state),places(state)].join('\n\n'),personal:[whose(state,person),profiles(state,person),feedback(state)].join('\n\n')};
 }
 // Stops a person is not on, so "not you" can be marked on the plan beside the question.
 export const notOn=(step,person)=>!!person&&Array.isArray(step.participants)&&step.participants.length>0&&!step.participants.includes(person);

@@ -16,6 +16,8 @@ export const MAX_HISTORY=8;
 export const DETAIL_DAYS=3;
 // Enough searching to settle an opening time or a festival date. The plan itself is already in
 // the question, so most answers need no search at all.
+// An hour, not the default five minutes: questions on a trip day come an hour or two apart.
+const CACHE={type:'ephemeral',ttl:'1h'};
 const SEARCH={type:'web_search_20260209',name:'web_search',max_uses:5,user_location:{type:'approximate',country:'JP',timezone:'Asia/Tokyo'}};
 const RECORD={
  name:'record_answer',
@@ -163,15 +165,17 @@ export async function askTrip({question,day,step:stepId,history},state,user,now=
 ${user?.role==='child'?`${who} is asking, and he is one of the boys. Keep it short and kind, in words he can follow, and never talk about money he does not have or a booking he cannot change.`:`${who} is asking.`}
 
 Their question: ${asked}`;
+ // The rules and the tools never change; the shared part of the project changes only when the
+ // trip does; the personal part is this person's. Each is cached for an hour in that order, so a
+ // question reads the trip in full only when something in it has moved since the last one.
+ const project=tripProject(state,person);
  let message,messages=[...conversation(history),{role:'user',content:ask}];
  try{
   for(let attempt=0;attempt<4;attempt++){
    message=await client.messages.create({
     model:'claude-opus-5',
     max_tokens:6000,
-    // The instructions, then this person's project. The project is marked for caching: it is the
-    // long part, and it is the same from one question to the next until the trip changes.
-    system:[{type:'text',text:SYSTEM},{type:'text',text:tripProject(state,person),cache_control:{type:'ephemeral'}}],
+    system:[{type:'text',text:SYSTEM},{type:'text',text:project.shared,cache_control:CACHE},{type:'text',text:project.personal,cache_control:CACHE}],
     thinking:{type:'adaptive'},
     output_config:{effort:'medium'},
     tools:[SEARCH,RECORD],
@@ -192,5 +196,5 @@ Their question: ${asked}`;
  const answer=normaliseAnswer(call.input,state);
  if(!answer.answer&&!answer.verdict)throw new AppError('Nothing usable came back. Try asking it another way.',502);
  return {...answer,question:asked,about:day||null,step:step?.id||null,
-  usage:{input:message.usage?.input_tokens??0,output:message.usage?.output_tokens??0,searches:message.usage?.server_tool_use?.web_search_requests??0}};
+  usage:{input:message.usage?.input_tokens??0,output:message.usage?.output_tokens??0,cacheRead:message.usage?.cache_read_input_tokens??0,cacheWrite:message.usage?.cache_creation_input_tokens??0,searches:message.usage?.server_tool_use?.web_search_requests??0}};
 }

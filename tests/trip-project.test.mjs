@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {ensureFeatures} from '../src/trip-features.js';
-import {tripProject,notOn,isChild} from '../src/trip-project.js';
+import {tripProject as parts,notOn,isChild} from '../src/trip-project.js';
+const tripProject=(state,person)=>{const p=parts(state,person);return `${p.personal}\n\n${p.shared}`;};
 import {tripBrief} from '../server/ask.mjs';
 const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url)));
 const locations=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url))).locations;
@@ -11,7 +12,7 @@ const trip=()=>({...ensureFeatures(structuredClone(seed)),locations});
 test('Project: whose it is comes first, their profile leads, and a child is spoken to as one',()=>{
  const state=trip();
  const nate=tripProject(state,'Nate'),damien=tripProject(state,'Damien'),party=tripProject(state);
- assert.match(nate,/^# Whose project this is\n\n- This is \*\*Nate\*\*’s project/);
+ assert.match(parts(state,'Nate').personal,/^# Whose project this is\n\n- This is \*\*Nate\*\*’s project/);
  assert.match(nate,/young child can follow/);assert.match(nate,/ask a parent/);
  assert.doesNotMatch(damien,/young child|ask a parent/);
  assert.match(party,/The whole party/);
@@ -43,6 +44,15 @@ test('Project: built live — a profile, an allergy, a rating or a vote changes 
  assert.match(after,/Meiji.*4\.5★: “The sake barrels!”/);
  assert.match(after,/Railway Museum · Kyoto — yes: Boston; no: Lauren; a must for Boston/);
  assert.match(after,/1 Hotel Tokyo/);
+});
+
+test('Project: the long shared part is the same for everyone, so one cached copy serves all of them',()=>{
+ const state=trip(),nate=parts(state,'Nate'),damien=parts(state,'Damien');
+ assert.equal(nate.shared,damien.shared);assert.notEqual(nate.personal,damien.personal);
+ assert.ok(nate.shared.length>nate.personal.length*3,'the places and stays are most of it');
+ assert.match(nate.shared,/# Saved places/);assert.doesNotMatch(nate.shared,/Whose project|## Nate/);
+ state.party.people.Nate={age:5,interests:['trains'],likes:[],loves:'',avoid:'',dietary:'',notes:''};
+ assert.equal(parts(state,'Nate').shared,nate.shared,'a profile change leaves the shared part, and its cache, alone');
 });
 
 test('Project: the private parts of the trip never reach it',()=>{
