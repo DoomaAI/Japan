@@ -7,6 +7,7 @@ import {HUNTS} from './hunt-data.js';
 import {noticedWhere} from './noticed-data.js';
 import {resolveLocation,locationKey} from './locations.js';
 import {activeSteps} from './timing.js';
+import {stepPoint as stepPointFor} from './weather-data.js';
 // A position somebody shares with the family is rounded to about a hundred metres, and is gone
 // three hours after it was shared. It says which part of the aquarium, not which tank.
 export const CHECKIN_PLACES=3;
@@ -128,3 +129,30 @@ export function ageText(minutes){
 }
 // Who can see whose position: a parent sees everybody; the boys see Mum and Dad and themselves.
 export const canSeeCheckin=(viewer,checkin,parents)=>viewer?.role==='parent'||checkin.name===viewer?.name||parents.includes(checkin.name);
+// ---- Replaying the trip ----------------------------------------------------------------------
+// The whole trip as one line drawn stop by stop, to watch the family move across Japan. A stop
+// goes where the memory map would put it, or failing that in its neighbourhood, so there is
+// always a line to draw even before our My Map's coordinates are loaded. Once anything has been
+// ticked, it is what we did that is replayed; before that, it is the plan.
+export function replayFrames(state){
+ const days=state.days||[],all=days.flatMap(d=>activeSteps(state,d.date));
+ const did=all.some(s=>s.status==='done');
+ const frames=[];
+ days.forEach((d,i)=>{
+  for(const s of activeSteps(state,d.date).filter(s=>!did||s.status==='done')){
+   const at=stepPosition(state,s),near=at?null:stepPointFor(state,s);
+   const lat=at?.lat??near?.lat,lng=at?.lng??near?.lon;
+   if(!validCoords(lat,lng))continue;
+   const last=frames.at(-1);
+   if(last&&last.day===d.date&&last.lat===lat&&last.lng===lng){last.titles.push(s.title);continue;}
+   frames.push({day:d.date,dayNumber:i+1,city:d.city||'',titles:[s.title],time:s.time||null,lat,lng,exact:!!at});
+  }
+ });
+ return {frames,plan:!did};
+}
+// Distance in kilometres, to tell a walk across town from a train across the country.
+export function kmBetween(a,b){
+ const r=Math.PI/180,dLat=(b.lat-a.lat)*r,dLng=(b.lng-a.lng)*r;
+ const h=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)**2;
+ return 12742*Math.asin(Math.sqrt(h));
+}
