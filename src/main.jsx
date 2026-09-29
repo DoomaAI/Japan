@@ -75,7 +75,7 @@ import React,{useEffect,useMemo,useRef,useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
 import {MessageCircleQuestion,Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Archive,ArchiveRestore,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
-import {activeSteps,dayProgress,dayBehind,tripCountdown,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent,scheduleVariance,stayPlan} from './timing.js';
+import {activeSteps,dayProgress,dayBehind,tripCountdown,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent,scheduleVariance,stayPlan,spanWords} from './timing.js';
 import {todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,ticketList,isArchived,attachmentsOf,documentSteps,documentStepList,documentServesStep} from './trip-features.js';
 import {armPlayback} from './speech.js';
 import {PhraseAudio} from './PhraseAudio.jsx';
@@ -96,10 +96,24 @@ const maps=place=>isMapLink(place)?place:'https://www.google.com/maps/search/?ap
 // The Days screen's book opens on the cover the offline shell keeps, so it is there with no signal.
 const coverSource=n=>n===1?'/cover.jpg':`/api/guide?page=${n}`;
 const stored=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
-async function request(path,data){const r=await fetch(API+path,{method:data?'POST':'GET',credentials:'same-origin',headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined});let b;try{b=await r.json();}catch{throw new Error('The connection was interrupted. Please try again.');}if(!r.ok){const e=new Error(b.error||'Please try again.');e.status=r.status;throw e;}return b;}
+// Nothing waits forever on a train: a read gets twenty seconds and a save or an answer fifty,
+// which is inside the minute the server allows itself. A request that runs out of time, or one
+// that never connects, comes back as a plain sentence with no status, which is what the callers
+// already read as "no signal" when they decide whether to keep the change on the phone.
+async function request(path,data){
+ const signal=typeof AbortSignal!=='undefined'&&AbortSignal.timeout?AbortSignal.timeout(data?50000:20000):undefined;
+ let r;try{r=await fetch(API+path,{method:data?'POST':'GET',credentials:'same-origin',headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined,signal});}
+ catch(e){throw new Error(e?.name==='TimeoutError'||e?.name==='AbortError'?'That took too long to answer. Check the signal and try again.':'No connection right now. Check the signal and try again.');}
+ let b;try{b=await r.json();}catch{throw new Error('The connection was interrupted. Please try again.');}if(!r.ok){const e=new Error(b.error||'Please try again.');e.status=r.status;throw e;}return b;}
 function Link({href,children,...props}){return <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;}
 function Button({icon:Icon,children,...props}){return <button {...props}>{Icon&&<Icon size={18}/>} {children}</button>;}
-function Dialog({title,children,onClose,wide=false}){const ref=useRef();useEffect(()=>{const d=ref.current;d.showModal();return()=>d.close();},[]);return <dialog ref={ref} onCancel={onClose} onClick={e=>{if(e.target===ref.current)onClose();}} className={wide?'wide':''}><header><h2>{title}</h2><button className="icon" aria-label="Close" onClick={onClose}><X/></button></header><div className="dialog-body">{children}</div></dialog>;}
+// Anything typed into a sheet is asked about before a stray tap on the backdrop, or Escape,
+// throws it away. A sheet with nothing changed in it still closes on the tap as it always has,
+// and the Close button never asks: pressing it is the answer.
+// Typing is noticed as it happens rather than read back from the fields, because a field the
+// screen controls reports its starting value as whatever it holds now. Ticks and search boxes
+// do not count: a tick saves itself, and a filter is not something anybody minds losing.
+function Dialog({title,children,onClose,wide=false}){const ref=useRef(),typed=useRef(false);useEffect(()=>{const d=ref.current;d.showModal();const on=e=>{if(!['checkbox','radio','search','range','file'].includes(e.target.type))typed.current=true;};d.addEventListener('input',on);return()=>{d.removeEventListener('input',on);d.close();};},[]);const ask=()=>!typed.current||confirm('Close without keeping what you typed?');return <dialog ref={ref} onCancel={e=>{if(ask())onClose();else e.preventDefault();}} onClick={e=>{if(e.target===ref.current&&ask())onClose();}} className={wide?'wide':''}><header><h2>{title}</h2><button className="icon" aria-label="Close" onClick={onClose}><X/></button></header><div className="dialog-body">{children}</div></dialog>;}
 async function copyOrShare(url,title,share=false){if(share&&navigator.share){await navigator.share({title,url});return;}await navigator.clipboard.writeText(url);}
 const TABS=[...Object.keys(PAGES),'more'];
 // What a phone can do with no signal and hand over later. Everything here either records
@@ -110,14 +124,28 @@ const TABS=[...Object.keys(PAGES),'more'];
 const OFFLINE_OPS=['status','legStatus','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove','voiceNoteWords',
  'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed'];
+// Where the app opens. The address wins, then the place this phone was last looking — unless
+// that day is behind us, in which case the phone was put down overnight and Home should open on
+// today, not on last night's hotel. A stop restored this way is checked once the plan arrives:
+// a finished one is let go of, so the morning starts on what is next rather than what was last.
+function startingPosition(){
+ const p=new URLSearchParams(location.search),saved=stored('japan.position',{}),today=japanDate();
+ if(p.get('day'))return {day:p.get('day'),step:p.get('step')||null,fromUrl:true};
+ if(saved.day&&saved.day>=today)return {day:saved.day,step:saved.step||null,fromUrl:false};
+ return {day:today,step:null,fromUrl:false};
+}
+// A date outside the trip lands on the nearest end of it: the first day before we go, the last
+// day once we are home, so the diary is what opens after the trip rather than day one again.
+const nearestDay=(days,d)=>days.some(x=>x.date===d)?d:d>days.at(-1).date?days.at(-1).date:days[0].date;
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
- const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
+ const [start]=useState(startingPosition);
+ const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(start.day),[selected,setSelected]=useState(start.step);
  const [focus,setFocus]=useState(new URLSearchParams(location.search).get('item')||null);
  // Whose day the screen follows on a split: null is your own, '' is everyone, or a name. Changing
  // it lets go of the stop being looked at, which may not be on the day being switched to.
  const [lensChoice,setLensChoice]=useState(null),follow=p=>{setLensChoice(p);setSelected(null);};
- const [updateReady,setUpdateReady]=useState(false),[modal,setModal]=useState(null),[busy,setBusy]=useState(false),[online,setOnline]=useState(navigator.onLine),[now,setNow]=useState(new Date()),[queue,setQueue]=useState(stored('japan.queue',[])),[conflict,setConflict]=useState(false);
+ const [updateReady,setUpdateReady]=useState(false),[modal,setModal]=useState(null),[busy,setBusy]=useState(false),[online,setOnline]=useState(navigator.onLine),[now,setNow]=useState(new Date()),[queue,setQueue]=useState(stored('japan.queue',[])),[conflict,setConflict]=useState(false),[syncedAt,setSyncedAt]=useState(null),[syncing,setSyncing]=useState(false);
  // One speaking voice for the whole screen, handed to whatever on it can be read out, so the
  // fact on a step card reads aloud for Nate the same way the pop-up does and two of them can
  // never talk over each other.
@@ -162,10 +190,13 @@ function App(){
  const envRef=useRef(envelope),queueRef=useRef(queue),working=useRef(false),touch=useRef(null),guideFlip=useRef(null),noteShown=useRef(''),phraseSeen=useRef(''),factShown=useRef(''),stepFactShown=useRef(new Set()),landed=useRef(false);
  envRef.current=envelope;queueRef.current=queue;
  function notice(s){setToast(s);}
- function accept(e){e={...e,state:ensureFeatures(e.state)};envRef.current=e;setEnvelope(e);localStorage.setItem('japan.snapshot',JSON.stringify({...e,savedAt:Date.now()}));}
+ // Every envelope accepted here came over the network a moment ago, so accepting one is also the
+ // proof that the phone is back in touch: the Offline line clears on its own, without waiting for
+ // the browser to notice, and the bar can say when the plan was last confirmed.
+ function accept(e){e={...e,state:ensureFeatures(e.state)};envRef.current=e;setEnvelope(e);setOnline(true);setSyncedAt(Date.now());localStorage.setItem('japan.snapshot',JSON.stringify({...e,savedAt:Date.now()}));}
  function saveQueue(q){queueRef.current=q;setQueue(q);localStorage.setItem('japan.queue',JSON.stringify(q));}
  function updateUrl(d,id,page){if(d)localStorage.setItem('japan.position',JSON.stringify({day:d,step:id||null}));const p=new URLSearchParams();if(d)p.set('day',d);if(id)p.set('step',id);if(page)p.set('page',page);history.replaceState(null,'','/?'+p);}
- async function refresh(){try{const e=await request('state');accept(e);setOnline(navigator.onLine);setError('');return e;}catch(e){if(e.status===401){localStorage.removeItem('japan.snapshot');setEnvelope(null);setError(e.message);}throw e;}}
+ async function refresh(){try{const e=await request('state');accept(e);setError('');return e;}catch(e){if(e.status===401){localStorage.removeItem('japan.snapshot');setEnvelope(null);setError(e.message);}else if(!e.status)setOnline(false);throw e;}}
  useEffect(()=>{
   let stop=false;
   (async()=>{try{
@@ -173,9 +204,16 @@ function App(){
    const fragment=new URLSearchParams(location.hash.slice(1)),join=fragment.get('join');
    if(join){history.replaceState(null,'',location.pathname+location.search);await request('join',{token:join});}
    const e=await request('state');if(stop)return;accept(e);
-   if(!e.state.days.some(d=>d.date===day)){setDay(e.state.days[0].date);setSelected(null);}
+   land(e.state);
    if(new URLSearchParams(location.search).has('page'))setTab('guide');
-  }catch(e){const cache=stored('japan.snapshot',null);if(!e.status&&cache&&Date.now()-cache.savedAt<45*86400000){setEnvelope({...cache,state:ensureFeatures(cache.state)});setOnline(false);if(!cache.state.days.some(d=>d.date===day))setDay(cache.state.days[0].date);}else setError(e.message);}finally{if(!stop)setLoading(false);}})();
+  }catch(e){const cache=stored('japan.snapshot',null);if(!e.status&&cache&&Date.now()-cache.savedAt<45*86400000){const s=ensureFeatures(cache.state);setEnvelope({...cache,state:s});setOnline(false);land(s);}else setError(e.message);}finally{if(!stop)setLoading(false);}})();
+  // The day the phone opened on is checked against the plan once it is here, and a stop that was
+  // restored from the phone rather than the address is let go of if it has since been finished.
+  function land(s){
+   const d=nearestDay(s.days,start.day);
+   if(d!==start.day){setDay(d);setSelected(null);return;}
+   if(!start.fromUrl&&start.step){const st=s.steps.find(x=>x.id===start.step);if(!st||st.day!==d||['done','skipped'].includes(st.status))setSelected(null);}
+  }
   const on=()=>setOnline(true),off=()=>setOnline(false);window.addEventListener('online',on);window.addEventListener('offline',off);
   if('serviceWorker'in navigator&&!import.meta.env.DEV)navigator.serviceWorker.register('/sw.js').then(reg=>{
    // A Home Screen app can sit on an old build for days. Watch for a new one and offer a reload.
@@ -187,6 +225,19 @@ function App(){
   return()=>{stop=true;window.removeEventListener('online',on);window.removeEventListener('offline',off);};
  },[]);
  useEffect(()=>{const i=setInterval(()=>setNow(new Date()),30000);return()=>clearInterval(i);},[]);
+ // A phone put down on one day and picked up on the next opens on the new day, not on the stop
+ // it was left on. Only the turn of the date moves it, and only off a day that is now behind us:
+ // somebody reading back through the diary is left where they are.
+ const dayRef=useRef(day);dayRef.current=day;
+ useEffect(()=>{
+  let seen=japanDate();
+  const look=()=>{
+   if(document.visibilityState!=='visible')return;
+   const today=japanDate();if(today===seen)return;seen=today;
+   if(dayRef.current<today&&(envRef.current?.state.days||[]).some(d=>d.date===today)){setDay(today);setSelected(null);setModal(null);updateUrl(today);}
+  };
+  document.addEventListener('visibilitychange',look);return()=>document.removeEventListener('visibilitychange',look);
+ },[]);
  // The strip of dates opens on the day being shown, not on the first day of the trip, so the
  // day in hand is always one of the dates in view. Only the strip scrolls, never the page.
  useEffect(()=>{for(const strip of document.querySelectorAll('.date-strip')){const on=strip.querySelector('.selected');if(on)strip.scrollLeft=on.offsetLeft-(strip.clientWidth-on.offsetWidth)/2;}},[day,tab,!!envelope]);
@@ -211,23 +262,34 @@ function App(){
   if(working.current||!queueRef.current.length||!navigator.onLine)return;
   working.current=true;
   try{let e=await request('state');
-   if(!force&&e.revision!==queueRef.current[0].revision){accept(e);setConflict(true);return;}
-   const dropped=[];
+   // The queue only ever holds things that happened — ticks, ratings, notes, purchases — and
+   // they stay true whatever else the family changed while this phone was out of signal, so a
+   // plan that has moved on is replayed against, not stopped at. A single stale revision on the
+   // way through (another phone saving at the same moment) is read again and retried once;
+   // what the plan no longer has room for is dropped and said, never left blocking the rest.
+   const moved=e.revision!==queueRef.current[0].revision,dropped=[];let reread=false;
    while(queueRef.current.length){
     const q=queueRef.current[0];
-    try{e=await request('mutate',{revision:e.revision,operation:q.operation});accept(e);saveQueue(queueRef.current.slice(1));}
+    try{e=await request('mutate',{revision:e.revision,operation:q.operation});accept(e);saveQueue(queueRef.current.slice(1));reread=false;}
     catch(err){
+     if(err.status===409&&!reread){reread=true;e=await request('state');continue;}
+     if(!err.status||err.status===409||err.status>=500)throw err;
      // A change the server will never accept — the activity was deleted while we were out of
      // signal, say — must not sit at the head of the queue blocking everything behind it.
-     if(!err.status||err.status===409||err.status>=500)throw err;
-     dropped.push(err.message||'One update could not be saved.');saveQueue(queueRef.current.slice(1));
+     dropped.push(err.message||'One update could not be saved.');saveQueue(queueRef.current.slice(1));reread=false;
     }
    }
    setConflict(false);
-   notice(dropped.length?`Synced, except ${dropped.length} update${dropped.length>1?'s':''} the family plan had moved past: ${dropped[0]}`:'Your updates are synced with the family.');
+   notice(dropped.length?`Synced, except ${dropped.length} update${dropped.length>1?'s':''} the family plan had moved past: ${dropped[0]}`:moved?'Your updates are synced. The family changed the plan while you were out of signal, so have a look at today.':'Your updates are synced with the family.');
   }catch(e){if(e.status===409)setConflict(true);notice(e.message);}finally{working.current=false;}
  }
- useEffect(()=>{if(!envelope||!online)return;flush();const t=setInterval(()=>{if(!working.current&&!queueRef.current.length)refresh().catch(()=>{});},15000);return()=>clearInterval(t);},[!!envelope,online]);
+ // The plan is confirmed every fifteen seconds whatever the bar says, because the bar can only
+ // report the last thing it heard: a phone that opened from its saved copy in a tunnel has no
+ // other way of finding out it is back in touch. Waiting changes go first, then the plan is read.
+ useEffect(()=>{if(!envelope)return;flush();const t=setInterval(()=>{if(working.current||!navigator.onLine)return;if(queueRef.current.length)flush();else refresh().catch(()=>{});},15000);return()=>clearInterval(t);},[!!envelope,online]);
+ // Sync now is for the moment the family steps out of the station and wants to know, not in
+ // fifteen seconds but now, that the morning's ticks have gone through.
+ async function syncNow(){if(working.current||syncing)return;setSyncing(true);try{if(queueRef.current.length)await flush();else await refresh();}catch(e){notice(e.message);}finally{setSyncing(false);}}
  async function mutate(operation){
   if(working.current){notice('Finishing the previous change. Try again in a moment.');return false;}
   operation={...operation,operationId:crypto.randomUUID()};
@@ -276,6 +338,17 @@ function App(){
   const variance=scheduleVariance(s,at);
   notice(`All ${total} legs done: ${s.title} completed ${japanClock(at)}${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used.`:''}`);
  }
+ // The one time it would be alarming to miss, kept in the top bar wherever the family is in the
+ // app: from two hours before the leave-by time until a quarter of an hour after it, the clock
+ // gives its place to a countdown, and tapping it opens that booking. It always reads today's
+ // plan, whichever day is being looked at, and says nothing once the booking's own time has gone.
+ const leave=(()=>{
+  if(!visibleState)return null;
+  const t=japanDate(now),fixed=stepsFor(visibleState,t,lens||null).filter(s=>s.locked&&s.time&&!['done','skipped'].includes(s.status)&&now<new Date(`${t}T${s.time}:00+09:00`)).sort((a,b)=>a.time.localeCompare(b.time))[0];
+  if(!fixed)return null;
+  const departure=new Date(new Date(`${t}T${fixed.time}:00+09:00`).getTime()-((fixed.travelMinutes??20)+(fixed.arrivalBuffer??15))*60000),m=Math.round((departure-now)/60000);
+  return m<=120&&m>=-15?{fixed,departure,minutes:m}:null;
+ })();
  const done=steps.filter(s=>s.status==='done').length,nextFixed=steps.find(s=>s.locked&&!['done','skipped'].includes(s.status)&&s.id!==current?.id),groups=state?[...new Set(state.steps.filter(s=>s.day===day&&s.group&&state.groupModes?.[s.group]!=='split').map(s=>s.group))]:[];
  function go(id,d,item){setFocus(item||null);if(d&&state.days.some(x=>x.date===d)){setDay(d);setSelected(null);}setTab(id);setQuery('');setModal(null);history.replaceState(null,'','/?'+new URLSearchParams({tab:id,day:d||day,...(item?{item}:{})}));}
  // Today on the bar or in the menu means today: on a trip day it lands on today's date rather than
@@ -498,11 +571,12 @@ function App(){
       own, for the five-year-old holding the phone. It says what the screen is for in words he
       can follow rather than reading the heading at him, and being in the same place on every
       page is what lets him find it without reading anything to find it. */}
-  <header className="topbar"><a className="brand" href="/" onClick={e=>{e.preventDefault();setTab('today');}}><span className="brand-mark" aria-hidden="true">✿</span><span>Japan <b>2026</b><small>THE PASFIELD FAMILY</small></span></a><div className="top-actions">{noteForMe&&<button className="icon thank-you-button" aria-label={`A note from ${THANK_YOU_FROM}`} onClick={()=>setModal({type:'thankyou',note:noteForMe})}><Heart size={20}/>{!noteRead&&<i/>}</button>}<button className="icon" aria-label="Search everything" onClick={()=>go('search')}><Search size={20}/></button><button className="icon notification-button" aria-label="Family updates" onClick={()=>go('updates')}><Bell size={20}/>{state.alerts.some(a=>!a.seenBy?.[user.name])&&<i/>}</button><SpeakRules id={`page-${tab}`} text={pageRule(tab)} label="What is this page?" compact/><span className="local-clock"><Clock size={14}/>{japanClock(now)}<small>JAPAN</small></span><button className="avatar" aria-label="Family settings" onClick={()=>setModal({type:'family'})}><MascotBadge state={state} person={user.name} size={38}/></button></div></header>
+  <header className="topbar"><a className="brand" href="/" onClick={e=>{e.preventDefault();setTab('today');}}><span className="brand-mark" aria-hidden="true">✿</span><span>Japan <b>2026</b><small>THE PASFIELD FAMILY</small></span></a><div className="top-actions">{noteForMe&&<button className="icon thank-you-button" aria-label={`A note from ${THANK_YOU_FROM}`} onClick={()=>setModal({type:'thankyou',note:noteForMe})}><Heart size={20}/>{!noteRead&&<i/>}</button>}<button className="icon" aria-label="Search everything" onClick={()=>go('search')}><Search size={20}/></button><button className="icon notification-button" aria-label="Family updates" onClick={()=>go('updates')}><Bell size={20}/>{state.alerts.some(a=>!a.seenBy?.[user.name])&&<i/>}</button><SpeakRules id={`page-${tab}`} text={pageRule(tab)} label="What is this page?" compact/>{leave?<button type="button" className={`local-clock leave-chip${leave.minutes<=0?' now':''}`} aria-label={`${leave.minutes>0?`Leave in ${spanWords(leave.minutes)}`:'Leave now'} for ${leave.fixed.title} at ${leave.fixed.time}. Open it.`} onClick={()=>selectStep(leave.fixed)}><Clock size={14}/>{leave.minutes>0?spanWords(leave.minutes):'Now'}<small>LEAVE {japanClock(leave.departure)}</small></button>:<span className="local-clock"><Clock size={14}/>{japanClock(now)}<small>JAPAN</small></span>}<button className="avatar" aria-label="Family settings" onClick={()=>setModal({type:'family'})}><MascotBadge state={state} person={user.name} size={38}/></button></div></header>
   {/* On Home, the line that only says all is well gives its room to the step card; offline, a
       queue or a local preview still say so there as everywhere else. */}
-  <div className={`syncbar${tab==='today'&&online&&!user.demo&&!queue.length?' quiet':''}`}>{!online?<><WifiOff size={14}/> Offline · saved on this phone</>:user.demo?<><AlertCircle size={14}/> Local preview · family sharing needs setup</>:queue.length?<><Clock size={14}/>{queue.length} update{queue.length!==1?'s':''} waiting to sync</>:<><Cloud size={14}/> Shared family plan <span>Signed in as {user.name}</span></>}</div>
-  {conflict&&<div className="conflict"><strong>The family changed the plan while you were offline.</strong><p>Your {queue.length} progress update(s) are still saved. Review them against the latest itinerary.</p><div className="row"><Button onClick={()=>setModal({type:'pending'})}>Review updates</Button><Button onClick={()=>{saveQueue([]);setConflict(false);}}>Discard my pending updates</Button></div></div>}
+  <div className={`syncbar${tab==='today'&&online&&!user.demo&&!queue.length?' quiet':''}`}>{!online?<><WifiOff size={14}/> Offline · saved on this phone</>:user.demo?<><AlertCircle size={14}/> Local preview · family sharing needs setup</>:queue.length?<><Clock size={14}/>{queue.length} update{queue.length!==1?'s':''} waiting to sync</>:<><Cloud size={14}/> Shared family plan <span>Signed in as {user.name}</span></>}{!user.demo&&<button type="button" className="sync-now" disabled={syncing} onClick={syncNow}>{syncing?'Syncing…':'Sync now'}{syncedAt&&!syncing&&<small>{japanClock(new Date(syncedAt))}</small>}</button>}</div>
+  {user.expiresAt&&new Date(user.expiresAt)-now<14*86400000&&<div className="expiry-note"><AlertCircle size={14}/><span>Your link to the family plan ends {fmtDay(japanDate(new Date(user.expiresAt)))}. {parent?'Make a fresh link in Family settings before then.':'Ask a parent for a fresh link before then.'}</span></div>}
+  {conflict&&<div className="conflict"><strong>The family changed the plan while you were offline.</strong><p>Your {queue.length} progress update(s) are still saved. Review them against the latest itinerary.</p><div className="row"><Button onClick={()=>setModal({type:'pending'})}>Review updates</Button><Button onClick={()=>{if(confirm(`Throw away ${queue.length} unsynced update${queue.length===1?'':'s'}? They cannot be brought back.`)){saveQueue([]);setConflict(false);}}}>Discard my pending updates</Button></div></div>}
   <main>
   {tab==='today'&&<div className="home">
    {dayHeading}
@@ -535,7 +609,7 @@ function App(){
   {tab==='settings'&&<Settings user={user} settings={settings} change={changeSetting} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
   {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
-  {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go}/>}
+  {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go} day={day}/>}
   {tab==='packing'&&<Packing state={visibleState} user={user} mutate={mutate} busy={busy}/>}
   {tab==='trackers'&&<Trackers state={visibleState} user={user} mutate={mutate} busy={busy}/>}
   {tab==='memorymap'&&<Suspense fallback={<p>Opening the map…</p>}><MemoryMap state={visibleState} user={user} request={request} accept={accept} notice={notice} busy={busy}/></Suspense>}
@@ -598,7 +672,7 @@ function App(){
 
    {modal.type==='media'&&<MediaGallery initialSearch={modal.initialSearch} state={state} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} accept={accept} mutate={mutate} notice={notice} request={request}/>}
    {modal.type==='tickets'&&<Tickets initialSearch={modal.initialSearch} initialArchived={!!modal.archived} state={state} user={user} step={modal.step} config={config} busy={busy} setBusy={setBusy} accept={accept} mutate={mutate} notice={notice} saved={saved} saveOffline={saveOffline} selectStep={selectStep}/>}
-   {modal.type==='family'&&<Family user={user} state={state} notice={notice} onLogout={async()=>{try{await request('logout',{});}catch{}localStorage.removeItem('japan.snapshot');localStorage.removeItem('japan.queue');localStorage.removeItem('japan.saved');localStorage.removeItem('japan.position');localStorage.removeItem('japan.capture');localStorage.removeItem('japan.guide-index');Object.keys(localStorage).filter(k=>k.startsWith('japan.offline-external.')||k.startsWith('japan.note.')||k.startsWith('japan.phrase.')||k.startsWith('japan.needs.')).forEach(k=>localStorage.removeItem(k));await caches.delete('japan-private-v1');location.href='/';}}/>}
+   {modal.type==='family'&&<Family user={user} state={state} notice={notice} pending={queue.length} onLogout={async()=>{try{await request('logout',{});}catch{}localStorage.removeItem('japan.snapshot');localStorage.removeItem('japan.queue');localStorage.removeItem('japan.saved');localStorage.removeItem('japan.position');localStorage.removeItem('japan.capture');localStorage.removeItem('japan.guide-index');Object.keys(localStorage).filter(k=>k.startsWith('japan.offline-external.')||k.startsWith('japan.note.')||k.startsWith('japan.phrase.')||k.startsWith('japan.needs.')).forEach(k=>localStorage.removeItem(k));await caches.delete('japan-private-v1');location.href='/';}}/>}
    
    {modal.type==='apps'&&<AppLinks day={day}/>}
    {modal.type==='alarm'&&<><p><strong>{modal.step.title}</strong><br/>{fmtDay(modal.step.day)} · {modal.step.time||'No target time'} Japan time</p>{!modal.step.time?<p>Set a target time first.</p>:<><Button className="primary" icon={CalendarDays} onClick={()=>{const file=new Blob([calendarEvent(modal.step)],{type:'text/calendar;charset=utf-8'}),url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download='japan-reminder.ics';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notice('Open the calendar file to add the event and 15-minute alert.');}}>Add to Calendar</Button><p>A dated calendar event with a 15-minute alert. Check it was added on your phone.</p><details><summary>Use a phone alarm Shortcut</summary><p>Create an Apple Shortcut named <strong>Japan Alarm</strong>: receive text input → Get Dictionary from Input → Get Dictionary Value “time” → Create Alarm. Use dictionary value “label” for the alarm label.</p><p>This creates a Clock alarm for a time of day, not a future trip date. Use it only for today, with the phone timezone set to Japan. Test once on each phone.</p><label>Installed shortcut name<input value={clockShortcut} placeholder="Japan Alarm" onChange={e=>{setClockShortcut(e.target.value);localStorage.setItem('japan.shortcut',e.target.value);}}/></label>{clockShortcut&&modal.step.day===japanDate()&&Intl.DateTimeFormat().resolvedOptions().timeZone==='Asia/Tokyo'?<a className="button" href={`shortcuts://run-shortcut?name=${encodeURIComponent(clockShortcut)}&input=text&text=${encodeURIComponent(JSON.stringify({time:modal.step.time,label:modal.step.title}))}`}>Run alarm shortcut</a>:<p>Alarm link becomes available on the activity day when this phone uses Japan time.</p>}</details><p className="callout">If the itinerary changes, update any calendar event or phone alarm yourself. Existing reminders do not change automatically.</p></>}</>}
@@ -728,9 +802,20 @@ function Tickets({state,user,step,initialSearch='',initialArchived=false,config,
  {view&&<TicketViewer documents={state.documents} tickets={docs} view={view} setView={setView}/>}
  {parent&&<details key={editing?.id||`new-${reset}`} open={!!editing||!state.documents.length}><summary>{editing?'Edit details and tags':'Add a ticket, reservation or luggage tag'}</summary>{!config?.uploads&&<p className="callout">File uploads will work after private Blob storage is connected. Links and written details can be added now.</p>}<form onSubmit={submit}><label>Type<select name="category" defaultValue={editing?.category||'ticket'}><option value="ticket">Ticket / QR code</option><option value="reservation">Reservation</option><option value="luggage">Luggage tag / forwarding receipt</option><option value="other">Other</option></select></label><label>Title<input name="title" defaultValue={editing?.title||''} required placeholder="Blue suitcase tag / dinner reservation" maxLength={250}/></label><label>For<select name="person" defaultValue={editing?.person||'Family'}><option>Family</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label><StepAllocation steps={state.steps} value={allocated} onChange={setAllocated}/><label>Reference / tag / collection number<input name="reference" defaultValue={editing?.reference||''} maxLength={250} placeholder="Bag tag or booking number"/></label><label>Notes<textarea name="notes" defaultValue={editing?.notes||''} maxLength={4000} placeholder="Which bag, collection place, delivery hotel or reservation details"/></label><label>Tags (comma-separated)<input name="tags" defaultValue={(editing?.tags||[]).join(', ')} placeholder="Tokyo, dinner, flight, blue bag"/></label>{!editing&&<><label>Pages, PDFs or photos (up to 25 MB each)<input type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!config?.uploads||busy} onChange={e=>{choose(e.target.files);e.target.value='';}}/></label><label>Photograph a page<input type="file" accept="image/jpeg,image/png" capture="environment" disabled={!config?.uploads||busy} onChange={e=>{choose(e.target.files);e.target.value='';}}/></label>{!!files.length&&<div className="pending-pages"><strong>{files.length} page{files.length===1?'':'s'}, in this order</strong>{files.map((f,i)=><div className="list-row" key={f.id}><span>{i+1}. {f.file.name}{f.blob?' · uploaded':''}</span><button type="button" disabled={busy} onClick={()=>setFiles(old=>old.filter(x=>x.id!==f.id))}>Remove</button></div>)}<small>The first page is the document itself; the rest are attached to it, so the set opens and swipes as one booking. Photograph a page again to add the next one.</small></div>}{savedId&&<p className="callout"><AlertCircle size={18}/>The document is saved with the pages that made it up. Retry to add the ones still waiting.</p>}<label>Or paste a booking link<input name="url" type="url" placeholder="https://…"/></label></>}<Button className="primary" disabled={busy}>{busy?`Uploading ${uploading} · ${Math.round(progress)}%…`:savedId?`Retry the remaining ${files.length} page${files.length===1?'':'s'}`:editing?'Save changes':files.length>1?`Save ${files.length} pages as one document`:'Save to family trip'}</Button>{editing&&<Button type="button" onClick={clearForm}>Cancel edit</Button>}<p>Choose every page of a booking at once, or photograph them one after another. Afterwards, ‘Add photos / files to this ticket’ adds more and labels each page with the person it belongs to. For rotating QR codes, add the official ticket link or app. Downloaded screenshots may not be valid.</p></form></details>}</>;
 }
-function Family({user,state,notice,onLogout}){const [invites,setInvites]=useState([]),[link,setLink]=useState(''),[name,setName]=useState('Lauren'),[busy,setBusy]=useState(false);const load=()=>request('invites').then(r=>setInvites(r.invites)).catch(e=>notice(e.message));useEffect(()=>{if(user.role==='parent')load();},[]);return <><p>You’re using the trip as <strong>{user.name}</strong> · {user.role==='parent'?'Parent editor':'Family member'}</p><div className="family-people">{state.members.map(n=><span key={n}><MascotBadge state={state} person={n} size={45}/>{n}</span>)}</div>{user.role==='parent'&&<><h3>Invite the family</h3><p>Each person gets their own private link. Anyone holding a parent link can edit the trip and see tickets. Links expire after 45 days.</p><label>Family member<select value={name} onChange={e=>setName(e.target.value)}>{state.members.map(n=><option key={n}>{n}</option>)}</select></label><Button className="primary" icon={Share2} disabled={busy} onClick={async()=>{setBusy(true);try{const r=await request('invites',{name,role:['Damien','Lauren'].includes(name)?'parent':'child'});setLink(r.url);await load();}catch(e){notice(e.message);}finally{setBusy(false);}}}>Create private invite link</Button>{link&&<><textarea readOnly value={link}/><Button icon={Copy} onClick={()=>navigator.clipboard.writeText(link).then(()=>notice('Private invite copied.')).catch(()=>notice('Select and copy the link.'))}>Copy link</Button></>}{invites.map(i=><div className="list-row" key={i.id}><span>{i.name} · {i.role}{i.revoked?' · revoked':''}</span>{i.id!=='owner'&&i.id!==user.id&&!i.revoked&&<button className="danger" onClick={async()=>{if(!confirm('Revoke this invite and its online sessions? Offline downloads cannot be remotely removed.'))return;try{await request('revoke',{id:i.id});load();}catch(e){notice(e.message);}}}>Revoke</button>}</div>)}</>}<details><summary>Recent family changes</summary>{(state.history||[]).slice(0,30).map(h=><p key={h.id}><strong>{h.by}</strong> · {h.title}<small>{japanClock(new Date(h.at))} · {h.type}</small></p>)}</details><Button icon={Download} onClick={()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='japan-trip-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}}>Download itinerary backup</Button><hr/><Button className="danger" onClick={()=>{if(confirm('Sign out and remove saved itinerary and tickets from this phone?'))onLogout();}}>Sign out and clear this phone</Button></>;}
+function Family({user,state,notice,onLogout,pending=0}){const [invites,setInvites]=useState([]),[link,setLink]=useState(''),[name,setName]=useState('Lauren'),[busy,setBusy]=useState(false);const load=()=>request('invites').then(r=>setInvites(r.invites)).catch(e=>notice(e.message));useEffect(()=>{if(user.role==='parent')load();},[]);return <><p>You’re using the trip as <strong>{user.name}</strong> · {user.role==='parent'?'Parent editor':'Family member'}</p><div className="family-people">{state.members.map(n=><span key={n}><MascotBadge state={state} person={n} size={45}/>{n}</span>)}</div>{user.role==='parent'&&<><h3>Invite the family</h3><p>Each person gets their own private link. Anyone holding a parent link can edit the trip and see tickets. Links expire after 45 days.</p><label>Family member<select value={name} onChange={e=>setName(e.target.value)}>{state.members.map(n=><option key={n}>{n}</option>)}</select></label><Button className="primary" icon={Share2} disabled={busy} onClick={async()=>{setBusy(true);try{const r=await request('invites',{name,role:['Damien','Lauren'].includes(name)?'parent':'child'});setLink(r.url);await load();}catch(e){notice(e.message);}finally{setBusy(false);}}}>Create private invite link</Button>{link&&<><textarea readOnly value={link}/><Button icon={Copy} onClick={()=>navigator.clipboard.writeText(link).then(()=>notice('Private invite copied.')).catch(()=>notice('Select and copy the link.'))}>Copy link</Button></>}{invites.map(i=><div className="list-row" key={i.id}><span>{i.name} · {i.role}{i.revoked?' · revoked':''}</span>{i.id!=='owner'&&i.id!==user.id&&!i.revoked&&<button className="danger" onClick={async()=>{if(!confirm('Revoke this invite and its online sessions? Offline downloads cannot be remotely removed.'))return;try{await request('revoke',{id:i.id});load();}catch(e){notice(e.message);}}}>Revoke</button>}</div>)}</>}<details><summary>Recent family changes</summary>{(state.history||[]).slice(0,30).map(h=><p key={h.id}><strong>{h.by}</strong> · {h.title}<small>{japanClock(new Date(h.at))} · {h.type}</small></p>)}</details><Button icon={Download} onClick={()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='japan-trip-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}}>Download itinerary backup</Button><hr/><Button className="danger" onClick={()=>{if(confirm(pending?`${pending} update${pending===1?' has':'s have'} not reached the family yet and will be lost. Sign out anyway, and remove the saved itinerary and tickets from this phone?`:'Sign out and remove saved itinerary and tickets from this phone?'))onLogout();}}>Sign out and clear this phone</Button></>;}
 
-createRoot(document.getElementById('root')).render(<App/>);
+// One broken screen must not take the whole trip down with it. Whatever throws, the family gets
+// a page that says so in plain words and two buttons that bring the app back; the plan and the
+// queue are on the phone already, so nothing is lost by reloading.
+class Boundary extends React.Component{
+ constructor(p){super(p);this.state={error:null};}
+ static getDerivedStateFromError(error){return {error};}
+ render(){
+  if(!this.state.error)return this.props.children;
+  return <div className="crash"><h1>Something went wrong on this screen.</h1><p>Your plan and progress are saved on this phone. Reloading brings the app back.</p><p className="crash-detail">{String(this.state.error?.message||this.state.error)}</p><div className="row"><button className="primary" onClick={()=>location.reload()}>Reload</button><button onClick={()=>{location.href='/?tab=today';}}>Go Home</button></div></div>;
+ }
+}
+createRoot(document.getElementById('root')).render(<Boundary><App/></Boundary>);
 
 function ShowLocation({state,step,notice,maps}){
  const {english,japanese,japaneseAddress,address,phone,copyText}=showLocationDetails(state,step);

@@ -65,7 +65,7 @@ export function DayTodos({state,user,day,mutate,busy,go}){
   {go&&<button className="todo-all" onClick={()=>go('todo')}>The whole list<ChevronRight size={16}/></button>}
  </section>;
 }
-export default function TodoList({state,user,mutate,busy,go}){
+export default function TodoList({state,user,mutate,busy,go,day=null}){
  const [edit,setEdit]=useState(null),[kind,setKind]=useState(''),[person,setPerson]=useState(''),[show,setShow]=useState('open');
  const parent=user.role==='parent';
  const match=t=>(!kind||t.kind===kind)&&(!person||t.person===person)&&(show==='all'||(show==='done'?!!t.doneAt:!t.doneAt));
@@ -106,7 +106,9 @@ export default function TodoList({state,user,mutate,busy,go}){
    <label>Kind<select name="kind" defaultValue={edit.kind}>{TODO_KINDS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
    <label>For<select name="person" defaultValue={edit.person}><option>Family</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label>
   </div>
-  <label>Which day<select name="day" defaultValue={edit.day||''}><option value="">No day yet</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select></label>
+  {/* A new item starts on the day being looked at, which is nearly always the day it is for;
+      an item being edited keeps whatever day it already has, including none. */}
+  <label>Which day<select name="day" defaultValue={edit.id?edit.day||'':edit.day||(state.days.some(d=>d.date===day)?day:'')}><option value="">No day yet</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select></label>
   <label>Notes<textarea name="notes" maxLength={2000} defaultValue={edit.notes||''} placeholder="Which post office, how many stamps, what size"/></label>
   <div className="row wrap"><button className="primary" disabled={busy}>{edit.id?'Save':'Add it'}</button><button type="button" onClick={()=>setEdit(null)}>Cancel</button></div>
  </form>}

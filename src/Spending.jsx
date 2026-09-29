@@ -42,7 +42,7 @@ function SpendRow({item,user,rate,mine,busy,mutate,onEdit}){
  return <div className={`todo-row spend-row${bought?' done':''}`}>
   <label className="todo-tick">
    <input type="checkbox" checked={bought||asking} disabled={busy||!mine}
-    onChange={e=>{if(e.target.checked)setAsking(true);else if(bought)mutate({type:'spendBought',id:item.id,done:false,by:user.name});else setAsking(false);}}
+    onChange={e=>{if(e.target.checked)setAsking(true);else if(bought){if(confirm(`Put “${item.title}” back on the list? What it cost goes back into the purse.`))mutate({type:'spendBought',id:item.id,done:false,by:user.name});}else setAsking(false);}}
     aria-label={`${bought?'Put back on the list':'Mark bought'} ${item.title}`}/>
   </label>
   <div className="todo-body">
@@ -67,7 +67,7 @@ function SpendRow({item,user,rate,mine,busy,mutate,onEdit}){
    {mine&&<div className="todo-actions">
     <button className="icon" aria-label={`Edit ${item.title}`} onClick={()=>onEdit(item)}><CalendarDays size={16}/></button>
     <button className="icon danger" aria-label={`Remove ${item.title}`} disabled={busy}
-     onClick={()=>{if(confirm(`Take “${item.title}” off the spending list?`))mutate({type:'spendRemove',id:item.id});}}><Trash2 size={16}/></button>
+     onClick={()=>{if(confirm(bought?`Remove “${item.title}”? It was bought, so what it cost goes back into the purse.`:`Take “${item.title}” off the spending list?`))mutate({type:'spendRemove',id:item.id});}}><Trash2 size={16}/></button>
    </div>}
   </div>
  </div>;
