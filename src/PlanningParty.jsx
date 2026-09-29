@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
-import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight} from 'lucide-react';
+import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,party,personProfile,partyInterests,profileFilled,interestLabel,paceLabel,yenPerAud,yenToAud,photosOf} from './trip-features.js';
+import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf} from './trip-features.js';
 import {photoUrl} from './PhotoDay.jsx';
 const kindLabel=id=>(PROPOSAL_KINDS.find(([key])=>key===id)||PROPOSAL_KINDS.at(-1))[1];
 const flavourLabel=id=>(SUGGEST_KINDS.find(([key])=>key===id)||SUGGEST_KINDS[1])[1];
@@ -21,13 +21,37 @@ function PersonPhotos({state,name}){
    <img key={p.id} loading="lazy" src={photoUrl(p)} alt={p.feedback?.subject||`A photo by ${name}`}/>)}</div>
  </div>;
 }
+// A person's own likes, as tags they type — ramen, Lego, jazz bars. Commas or Enter add one, a
+// tap on a tag takes it off, and what the rest of the family or the board already says is
+// offered underneath so a five-year-old can pick rather than spell.
+function LikesInput({state,name,likes,setLikes}){
+ const [draft,setDraft]=useState('');
+ const add=text=>{
+  const next=cleanLikes([...likes,...String(text).split(',')]).filter(t=>t.length<=MAX_LIKE_LENGTH).slice(0,MAX_LIKES);
+  setLikes(next);setDraft('');
+ };
+ const have=new Set(likes.map(t=>t.toLowerCase()));
+ const offered=cleanLikes([...partyLikes(state).filter(l=>!l.who.includes(name)).map(l=>l.tag),
+  ...proposals(state).flatMap(p=>p.tags||[]).filter(t=>t!=='book ahead')])
+  .filter(t=>!have.has(t.toLowerCase())&&t.length<=MAX_LIKE_LENGTH).slice(0,12);
+ return <fieldset className="likes-input"><legend>Things {name} likes, in their own words</legend>
+  {!!likes.length&&<div className="chips">{likes.map(t=><button type="button" className="chip on" key={t} onClick={()=>setLikes(likes.filter(x=>x!==t))} aria-label={`Remove ${t}`}><Heart size={13}/>{t}<X size={13}/></button>)}</div>}
+  <div className="row">
+   <input value={draft} maxLength={MAX_LIKE_LENGTH*3} onChange={e=>setDraft(e.target.value)} placeholder="ramen · Pokémon · steam trains"
+    onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();if(draft.trim())add(draft);}}} enterKeyHint="done" aria-label="Add a like"/>
+   <button type="button" disabled={!draft.trim()||likes.length>=MAX_LIKES} onClick={()=>add(draft)}><Plus size={16}/>Add</button>
+  </div>
+  {!!offered.length&&<><small>Tap to add</small><div className="chips">{offered.map(t=><button type="button" className="chip" key={t} disabled={likes.length>=MAX_LIKES} onClick={()=>add(t)}><Plus size={13}/>{t}</button>)}</div></>}
+ </fieldset>;
+}
 export function TravelParty({state,user,mutate,busy}){
- const [editing,setEditing]=useState(null);
- const parent=user.role==='parent',us=party(state),shared=partyInterests(state);
+ const [editing,setEditing]=useState(null),[likes,setLikes]=useState([]);
+ const parent=user.role==='parent',us=party(state),shared=partyInterests(state),sharedLikes=partyLikes(state).filter(l=>l.who.length>1);
+ const edit=name=>{setLikes(name&&name!=='trip'?personProfile(state,name).likes:[]);setEditing(name);};
  const blank=state.members.filter(n=>!profileFilled(state,n));
  async function savePerson(e,name){
   e.preventDefault();const f=new FormData(e.currentTarget);
-  if(await mutate({type:'partyPerson',name,age:f.get('age'),interests:f.getAll('interests'),
+  if(await mutate({type:'partyPerson',name,age:f.get('age'),interests:f.getAll('interests'),likes,
    loves:f.get('loves'),avoid:f.get('avoid'),dietary:f.get('dietary'),notes:f.get('notes')}))setEditing(null);
  }
  async function saveTrip(e){
@@ -37,13 +61,13 @@ export function TravelParty({state,user,mutate,busy}){
  return <details className="party-panel">
   <summary><Users size={17}/>Who we are, and what we like{blank.length?` · ${blank.length} still blank`:''}</summary>
   <p>Fill in your own and the suggestions get better. Everyone keeps their own; a parent can fill in the ones the five-year-old will not.</p>
-  {!!shared.length&&<p className="row wrap plan-tags">{shared.map(i=><span className="tag" key={i.id}>{i.label} · {i.who.join(', ')}</span>)}</p>}
+  {!!(shared.length||sharedLikes.length)&&<p className="row wrap plan-tags">{shared.map(i=><span className="tag" key={i.id}>{i.label} · {i.who.join(', ')}</span>)}{sharedLikes.map(l=><span className="tag" key={l.tag}><Heart size={12}/>{l.tag} · {l.who.join(', ')}</span>)}</p>}
   {state.members.map(name=>{
    const me=personProfile(state,name),mine=parent||user.name===name;
    return <div className="party-person" key={name}>
-    <div className="section-heading"><h3>{name}{me.age?` · ${me.age}`:''}</h3>{mine&&<button onClick={()=>setEditing(editing===name?null:name)}>{editing===name?'Close':profileFilled(state,name)?'Edit':'Fill this in'}</button>}</div>
+    <div className="section-heading"><h3>{name}{me.age?` · ${me.age}`:''}</h3>{mine&&<button onClick={()=>edit(editing===name?null:name)}>{editing===name?'Close':profileFilled(state,name)?'Edit':'Fill this in'}</button>}</div>
     {editing!==name&&<>
-     {me.interests.length?<div className="row wrap plan-tags">{me.interests.map(id=><span className="tag" key={id}>{interestLabel(id)}</span>)}</div>:<p><small>Nothing said yet.</small></p>}
+     {me.interests.length||me.likes.length?<div className="row wrap plan-tags">{me.interests.map(id=><span className="tag" key={id}>{interestLabel(id)}</span>)}{me.likes.map(t=><span className="tag like" key={t}><Heart size={12}/>{t}</span>)}</div>:<p><small>Nothing said yet.</small></p>}
      {me.loves&&<p><small><strong>Loves:</strong> {me.loves}</small></p>}
      {me.avoid&&<p><small><strong>Would rather avoid:</strong> {me.avoid}</small></p>}
      {me.dietary&&<p><small><strong>Food:</strong> {me.dietary}</small></p>}
@@ -53,15 +77,16 @@ export function TravelParty({state,user,mutate,busy}){
     {editing===name&&<form onSubmit={e=>savePerson(e,name)}>
      <label>Age<input name="age" type="number" min="0" max="120" defaultValue={me.age??''}/></label>
      <fieldset><legend>What {name} is into</legend><div className="chips">{INTERESTS.map(([id,label])=><label className="chip" key={id}><input type="checkbox" name="interests" value={id} defaultChecked={me.interests.includes(id)}/>{label}</label>)}</div></fieldset>
+     <LikesInput state={state} name={name} likes={likes} setLikes={setLikes}/>
      <label>Loves<input name="loves" maxLength={500} defaultValue={me.loves} placeholder="a proper coffee · anything with a train in it"/></label>
      <label>Would rather avoid<input name="avoid" maxLength={500} defaultValue={me.avoid} placeholder="long queues · another temple"/></label>
      <label>Food<input name="dietary" maxLength={500} defaultValue={me.dietary} placeholder="no raw fish · allergies · will eat anything"/></label>
      <label>Anything else worth knowing<textarea name="notes" maxLength={500} defaultValue={me.notes} placeholder="Flags after about three o'clock."/></label>
-     <div className="row wrap"><button className="primary" disabled={busy}>Save {name}</button><button type="button" onClick={()=>setEditing(null)}>Cancel</button></div>
+     <div className="row wrap"><button className="primary" disabled={busy}>Save {name}</button><button type="button" onClick={()=>edit(null)}>Cancel</button></div>
     </form>}
    </div>;})}
   <div className="party-person">
-   <div className="section-heading"><h3>How we want the days to go</h3>{parent&&<button onClick={()=>setEditing(editing==='trip'?null:'trip')}>{editing==='trip'?'Close':'Edit'}</button>}</div>
+   <div className="section-heading"><h3>How we want the days to go</h3>{parent&&<button onClick={()=>edit(editing==='trip'?null:'trip')}>{editing==='trip'?'Close':'Edit'}</button>}</div>
    {editing!=='trip'?<>
     <p><small><strong>Pace:</strong> {paceLabel(us.pace)}{us.budget?` · about ¥${us.budget.toLocaleString()} a day for the four of us (≈$${yenToAud(us.budget,yenPerAud(state)).toFixed(0)})`:''}</small></p>
     {us.notes&&<p><small>{us.notes}</small></p>}
@@ -74,22 +99,57 @@ export function TravelParty({state,user,mutate,busy}){
   </div>
  </details>;
 }
+// Ideas already on the board, picked out for one of us or for all four, from what each person
+// ticked, tagged and voted — worked out on the phone, so it needs no signal and no API key.
+// Everyone gets it, the boys included: "what is on the board that I would like?" is theirs too.
+export function PickedFor({state,user,onOpen}){
+ const [who,setWho]=useState(user.role==='parent'?'':user.name);
+ const picks=recommendIdeas(state,who);
+ const filled=state.members.filter(n=>profileFilled(state,n));
+ return <details className="party-panel picked-panel">
+  <summary><Heart size={17}/>Picked for {who===user.name?'you':who||'all of us'}</summary>
+  <div className="segmented" role="group" aria-label="Picked for">{[['','Everyone'],...state.members.map(n=>[n,n===user.name?`${n} (you)`:n])].map(([key,label])=>
+   <button key={key||'all'} className={who===key?'selected':''} onClick={()=>setWho(key)}>{label}</button>)}</div>
+  <p>{who?`Ideas up for a vote that match what ${who===user.name?'you':who} ticked, tagged or backed.`:'Ideas up for a vote that please the most of us at once, and who each one is for.'}</p>
+  {!picks.length&&<p className="callout"><AlertCircle size={18}/>{!filled.length||(who&&!profileFilled(state,who))
+   ?`Nothing to go on yet — fill in ${who&&who!==user.name?`${who}’s`:who?'your':'a'} profile under “Who we are, and what we like” with a few interests and likes.`
+   :'Nothing up for a vote matches yet. Add an idea, or ask for suggestions.'}</p>}
+  {picks.map(r=>{const p=r.proposal,votes=Object.values(p.votes||{}).filter(v=>v===1).length;
+   return <article className="feature-card suggest-card picked-card" key={p.id}>
+    <div className="section-heading"><h4>{p.title}</h4>{!who&&<span className="tag"><Users size={12}/>{r.fans.length} of {state.members.length}</span>}</div>
+    {p.place&&<p><small>{p.place}</small></p>}
+    <ul className="picked-why">{Object.entries(r.reasons).map(([name,why])=><li key={name}><Heart size={13}/><span>{who?'':<strong>{name}: </strong>}{why.join(', ')}</span></li>)}
+     {Object.entries(r.avoid).map(([name,terms])=><li key={`x${name}`} className="picked-avoid"><AlertCircle size={13}/><span>{name} would rather avoid {terms.join(', ')}</span></li>)}</ul>
+    <div className="row wrap">{!!votes&&<span className="tag"><ThumbsUp size={12}/>{votes}</span>}<button onClick={()=>onOpen?.(p)}><ChevronRight size={16}/>See it on the board</button></div>
+   </article>;})}
+ </details>;
+}
 // Ideas for a place, in the flavours asked for — the famous ones, the ones nobody finds on their
 // own, and everything in between. Nothing is added to the board here: each one is put up by a
 // person, and the rest of the family votes on it like any other idea.
 export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded}){
  const [scope,setScope]=useState(day?`d:${day}`:'');
  const [elsewhere,setElsewhere]=useState(''),[kinds,setKinds]=useState(['landmark','unique']),[count,setCount]=useState(6);
+ const [forWhom,setForWhom]=useState('');
+ // "Something else instead": a stop on the plan, and who would rather not do it.
+ const [mode,setMode]=useState('ideas'),[altDay,setAltDay]=useState(day||state.days[0]?.date||''),[stopId,setStopId]=useState(''),[sitting,setSitting]=useState([]);
+ const stops=sitOutStops(state,altDay),stop=stops.find(s=>s.id===stopId)||null,rejoin=stop?rejoinAt(state,stop):null;
+ const staying=stop?stop.participants.filter(n=>!sitting.includes(n)):[];
+ const boysAlone=sitting.length>0&&sitting.every(n=>BOYS.includes(n));
+ const [splitDone,setSplitDone]=useState([]);
  const [working,setWorking]=useState(false),[result,setResult]=useState(null),[error,setError]=useState(''),[added,setAdded]=useState([]);
  const cities=[...new Set(state.days.map(d=>d.city))];
  const filled=state.members.filter(n=>profileFilled(state,n));
  const toggle=id=>setKinds(k=>k.includes(id)?k.filter(x=>x!==id):[...k,id]);
  async function ask(e){
   e.preventDefault();
-  if(!kinds.length){setError('Choose at least one kind of idea.');return;}
-  setWorking(true);setError('');setResult(null);setAdded([]);
+  if(mode==='instead'&&(!stop||!sitting.length)){setError('Choose the stop, and who would rather not go.');return;}
+  if(mode==='ideas'&&!kinds.length){setError('Choose at least one kind of idea.');return;}
+  setWorking(true);setError('');setResult(null);setAdded([]);setSplitDone([]);
   try{
+   if(mode==='instead'){setResult(await request('suggest',{instead:{stepId:stop.id,who:sitting},count:Number(count)}));return;}
    const body={kinds,count:Number(count)};
+   if(forWhom)body.forWhom=forWhom;
    if(scope.startsWith('d:'))body.day=scope.slice(2);
    else if(scope.startsWith('c:'))body.city=scope.slice(2);
    else body.city=elsewhere;
@@ -100,15 +160,38 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
  async function add(item,look){
   const notes=[item.draft.notes,item.why].filter(Boolean).join('\n\n').slice(0,4000);
   const saved=await mutate({type:'proposalAdd',person:user.name,...item.draft,notes});
-  if(!saved)return;
+  if(!saved)return null;
   setAdded(a=>[...a,item.draft.title]);onAdded?.();
   const created=saved?.state?.proposals?.at(-1);
   if(look&&created)onLookUp?.(created);
+  return created||null;
  }
+ // Straight onto the day as a split: the idea goes up on the board as the record of why, and
+ // then sits beside the planned stop, with the ones who would rather not on it.
+ async function splitOff(item){
+  const created=added.includes(item.draft.title)?proposals(state).findLast(p=>p.title===item.draft.title&&!p.stepId):await add(item,false);
+  if(!created)return;
+  if(await mutate({type:'proposalInstead',id:created.id,stepId:result.instead.stepId,who:result.instead.who}))setSplitDone(d=>[...d,item.draft.title]);
+ }
+ const insteadGone=result?.instead&&(splitDone.length||state.steps.find(s=>s.id===result.instead.stepId)?.group);
  return <details className="party-panel suggest-panel">
   <summary><Sparkles size={17}/>Suggest some ideas</summary>
   <p>Built from who is going and what each of us said we are into{filled.length?` — ${filled.join(', ')} so far`:''}. {filled.length<state.members.length&&<strong>Fill in the rest above and these get sharper.</strong>}</p>
-  <form onSubmit={ask}>
+  <div className="segmented" role="group" aria-label="What to suggest">{[['ideas','New ideas'],['instead','Something else instead']].map(([key,label])=>
+   <button type="button" key={key} className={mode===key?'selected':''} onClick={()=>{setMode(key);setError('');}}>{label}</button>)}</div>
+  {mode==='instead'?<form onSubmit={ask}>
+   <p><small>When some of us would rather not do a stop that is planned: ideas close by, in the same time, for the ones sitting it out — and back in time for the next thing we all do.</small></p>
+   <label>Day<select value={altDay} onChange={e=>{setAltDay(e.target.value);setStopId('');setSitting([]);}}>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city} · {d.title}</option>)}</select></label>
+   <label>Instead of<select value={stopId} onChange={e=>{setStopId(e.target.value);setSitting([]);}}>
+    <option value="">{stops.length?'Choose a stop…':'Nothing on this day to sit out'}</option>
+    {stops.map(s=><option key={s.id} value={s.id}>{s.time?`${s.time} · `:''}{s.title}</option>)}
+   </select></label>
+   {stop&&<fieldset><legend>Who would rather not go</legend><div className="chips">{stop.participants.map(n=><label className={`chip ${sitting.includes(n)?'on':''}`} key={n}><input type="checkbox" checked={sitting.includes(n)} onChange={()=>setSitting(w=>w.includes(n)?w.filter(x=>x!==n):[...w,n])}/>{n}</label>)}</div></fieldset>}
+   {stop&&!!sitting.length&&<p><small>{staying.length?`${staying.join(' and ')} carry on with ${stop.title}`:'Nobody would be doing it — anything you pick goes on the board to swap in'}{staying.length&&rejoin?`; everyone meets back up at ${rejoin.title}${rejoin.time?` at ${rejoin.time}`:''}.`:staying.length?'. Nothing later brings everyone back together yet.':'.'}</small></p>}
+   {boysAlone&&<p className="callout"><AlertCircle size={18}/>Only the boys are ticked. A grown-up has to go with them — tick Damien or Lauren as well.</p>}
+   <label>How many<select value={count} onChange={e=>setCount(e.target.value)}>{[4,6,8].map(n=><option key={n}>{n}</option>)}</select></label>
+   <button className="primary" disabled={working||!stop||!sitting.length}><Split size={17}/>{working?'Thinking, and checking what is near…':'Suggest something else'}</button>
+  </form>:<form onSubmit={ask}>
    <label>Where<select value={scope} onChange={e=>setScope(e.target.value)}>
     <option value="">Somewhere else…</option>
     <optgroup label="A day on the trip">{state.days.map(d=><option key={d.date} value={`d:${d.date}`}>{dayLabel(d.date)} · {d.city} · {d.title}</option>)}</optgroup>
@@ -116,13 +199,17 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
    </select></label>
    {!scope&&<label>Which place?<input value={elsewhere} onChange={e=>setElsewhere(e.target.value)} maxLength={120} placeholder="Nara · Gion after dark · near Tokyo Station"/></label>}
    <fieldset><legend>What kind of thing</legend><div className="chips">{SUGGEST_KINDS.map(([id,label])=><label className={`chip ${kinds.includes(id)?'on':''}`} key={id}><input type="checkbox" checked={kinds.includes(id)} onChange={()=>toggle(id)}/>{label}</label>)}</div></fieldset>
+   <label>For<select value={forWhom} onChange={e=>setForWhom(e.target.value)}>
+    <option value="">All of us — what most of us like</option>
+    {state.members.map(n=><option key={n} value={n}>{n} — {profileFilled(state,n)?'from their likes':'nothing filled in yet'}</option>)}
+   </select></label>
    <label>How many<select value={count} onChange={e=>setCount(e.target.value)}>{[4,6,8].map(n=><option key={n}>{n}</option>)}</select></label>
    <button className="primary" disabled={working||(!scope&&!elsewhere.trim())}><Sparkles size={17}/>{working?'Thinking, and checking what is on…':'Suggest ideas'}</button>
    <small>Searches for what is actually on while we are there. Rough costs and times only — nothing here is checked, and <strong>Look it up</strong> on an idea is what fills in the hours, the ticket page and the map.</small>
-  </form>
+  </form>}
   {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
   {result&&<div className="suggest-results">
-   <h3>{result.suggestions.length} ideas for {result.where}</h3>
+   <h3>{result.instead?`${result.suggestions.length} things ${result.instead.who.join(' and ')} could do instead of ${result.instead.title}`:`${result.suggestions.length} ideas for ${result.forWhom?`${result.forWhom} in `:''}${result.where}`}</h3>
    {result.note&&<p className="callout"><AlertCircle size={18}/>{result.note}</p>}
    {result.suggestions.map(item=>{
     const done=added.includes(item.draft.title);
@@ -139,8 +226,10 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
       <span>{item.draft.suitableFor.length?`Suits ${item.draft.suitableFor.join(', ')}`:'Suits everyone'}</span>
      </div>
      <div className="row wrap">
+      {result.instead&&(splitDone.includes(item.draft.title)?<span className="tag"><Split size={13}/>On the day, split with {result.instead.title}</span>
+       :result.instead.staying.length&&!insteadGone?<button className="primary" disabled={busy} onClick={()=>splitOff(item)}><Split size={16}/>Split the day: {result.instead.who.join(' and ')} do this</button>:null)}
       {done?<span className="tag"><Check size={13}/>On the board</span>:<>
-       <button className="primary" disabled={busy} onClick={()=>add(item,false)}><Plus size={16}/>Put it on the board</button>
+       <button className={result.instead?.staying.length?'':'primary'} disabled={busy} onClick={()=>add(item,false)}><Plus size={16}/>Put it on the board</button>
        <button disabled={busy} onClick={()=>add(item,true)}><Search size={16}/>Add and look it up</button>
       </>}
      </div>

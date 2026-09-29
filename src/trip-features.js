@@ -1039,7 +1039,20 @@ export const SUGGEST_KINDS=[
 ];
 export const EMPTY_PARTY={people:{},pace:'steady',budget:null,notes:''};
 export const party=state=>({...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}});
-export const personProfile=(state,name)=>({age:null,interests:[],loves:'',avoid:'',dietary:'',notes:'',...(party(state).people[name]||{})});
+export const personProfile=(state,name)=>({age:null,interests:[],likes:[],loves:'',avoid:'',dietary:'',notes:'',...(party(state).people[name]||{})});
+// Things a person likes in their own words — ramen, Pokémon, Lego, jazz bars — kept as short
+// tags next to the fixed list, because the fixed list cannot know that Boston means Shinkansen
+// and not trams. Case is kept as typed; duplicates are caught regardless of case.
+export const MAX_LIKES=30,MAX_LIKE_LENGTH=40;
+export function cleanLikes(list){
+ const seen=new Set(),out=[];
+ for(const raw of Array.isArray(list)?list:[]){
+  const tag=String(raw??'').replace(/\s+/g,' ').replace(/^#/,'').trim();
+  if(!tag||seen.has(tag.toLowerCase()))continue;
+  seen.add(tag.toLowerCase());out.push(tag);
+ }
+ return out;
+}
 export const interestLabel=id=>(INTERESTS.find(([key])=>key===id)||[id,id])[1];
 export const paceLabel=id=>(PACES.find(([key])=>key===id)||PACES[1])[1];
 // Everyone's interests, most shared first — what the family as a whole is actually after.
@@ -1048,7 +1061,16 @@ export function partyInterests(state){
  for(const name of state.members||[])for(const id of personProfile(state,name).interests)tally.set(id,[...(tally.get(id)||[]),name]);
  return [...tally.entries()].sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0])).map(([id,who])=>({id,label:interestLabel(id),who}));
 }
-export const profileFilled=(state,name)=>{const p=personProfile(state,name);return !!(p.age||p.interests.length||p.loves||p.avoid||p.dietary||p.notes);};
+// Everyone's own likes, most shared first, so the family can see that three of them said ramen.
+export function partyLikes(state){
+ const tally=new Map();
+ for(const name of state.members||[])for(const tag of personProfile(state,name).likes){
+  const key=tag.toLowerCase(),seen=tally.get(key)||{tag,who:[]};
+  tally.set(key,{...seen,who:[...seen.who,name]});
+ }
+ return [...tally.values()].sort((a,b)=>b.who.length-a.who.length||a.tag.localeCompare(b.tag));
+}
+export const profileFilled=(state,name)=>{const p=personProfile(state,name);return !!(p.age||p.interests.length||p.likes.length||p.loves||p.avoid||p.dietary||p.notes);};
 // The party as a paragraph a model can read. Nothing invented: a blank stays blank, so an empty
 // profile reads as "nothing said yet" rather than as a person with no interests.
 export function partyBrief(state){
@@ -1056,6 +1078,7 @@ export function partyBrief(state){
  const lines=(state.members||[]).map(name=>{
   const me=personProfile(state,name),bits=[];
   if(me.interests.length)bits.push(`likes ${me.interests.map(interestLabel).join(', ')}`);
+  if(me.likes.length)bits.push(`tagged as their own favourites: ${me.likes.join(', ')}`);
   if(me.loves)bits.push(`loves ${me.loves}`);
   if(me.avoid)bits.push(`would rather avoid ${me.avoid}`);
   if(me.dietary)bits.push(`food: ${me.dietary}`);
@@ -1127,6 +1150,89 @@ export function rankedProposals(state,{query='',category='',suits='',by='',place
   new:(a,b)=>age(b).localeCompare(age(a)),
   cost:(a,b)=>(a.cost??Infinity)-(b.cost??Infinity)||proposalScore(b)-proposalScore(a)};
  return [...list].sort(order[sort]||order.top);
+}
+// Stops somebody can sit out while the rest carry on: on the day's live plan, not finished, not
+// already one of a set of alternatives, and shared — a stop with one person on it is theirs to skip.
+export const sitOutStops=(state,day)=>activeSteps(state,day).filter(s=>!s.group&&!['done','skipped'].includes(s.status)&&(s.participants||[]).length>1);
+// Where the ones who sat it out would rejoin: the first later stop that everybody on it is going to.
+export function rejoinAt(state,step){
+ const steps=activeSteps(state,step.day),i=steps.findIndex(s=>s.id===step.id);
+ return steps.slice(i+1).find(s=>!s.group&&(step.participants||[]).every(m=>(s.participants||[]).includes(m)))||null;
+}
+// Words that give an idea away as belonging to one of the fixed interests. Matched at the start
+// of a word, so "temple" finds "temples" and "onsen" does not fire on "sensible".
+export const INTEREST_WORDS={
+ temples:['temple','shrine','jinja','torii','pagoda','buddha','zen','inari','taisha'],
+ history:['castle','history','historic','samurai','ninja','edo','museum','palace','ruins'],
+ art:['art','gallery','design','museum','teamlab','exhibition','architecture'],
+ anime:['anime','manga','pokemon','pokémon','nintendo','ghibli','arcade','game','akihabara','character'],
+ food:['food','market','ramen','sushi','street food','depachika','okonomiyaki','takoyaki','yakitori','izakaya','nishiki','kuromon','tsukiji','restaurant','eat'],
+ drink:['bar','sake','whisky','whiskey','beer','brewery','coffee','cafe','café','kissaten','cocktail'],
+ nature:['garden','park','forest','bamboo','nature','river','lake','hike','mountain','maple','autumn'],
+ views:['view','tower','observatory','skytree','sky','lookout','deck','rooftop','panorama'],
+ shopping:['shop','shopping','market','mall','store','arcade','don quijote','donki','uniqlo','souvenir'],
+ crafts:['craft','workshop','making','pottery','origami','calligraphy','kimono','indigo','class','make your own'],
+ trains:['train','railway','rail','shinkansen','station','tram','monorail','locomotive','steam'],
+ animals:['animal','zoo','aquarium','deer','monkey','cat cafe','owl','owl cafe','penguin','fox'],
+ sport:['sumo','baseball','sport','stadium','match','soccer','football','dome'],
+ music:['music','concert','live','show','jazz','karaoke','theatre','theater','kabuki','taiko'],
+ onsen:['onsen','sento','bath','hot spring','spa','ryokan'],
+ quirky:['quirky','weird','robot','capsule','themed','unusual','odd','hidden'],
+ kids:['playground','kids','children','family','play','theme park','legoland','disney','universal','adventure'],
+ photo:['photo','view','sunset','night view','instagram','lantern','illumination'],
+ quiet:['quiet','peaceful','calm','hidden','backstreet','off the beaten','secluded'],
+ nightlife:['night','after dark','evening','izakaya','bar','illumination','nightlife','neon','yokocho']
+};
+// A board category that answers an interest on its own, whatever the words on the card.
+const INTEREST_KINDS={food:['food'],drink:['food'],shopping:['shopping'],quiet:['rest']};
+const escapeRe=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const wordIn=(text,word)=>new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRe(word.toLowerCase())}`,'u').test(text);
+// The things a person said they would rather avoid, as separate terms: "long queues · another
+// temple" is two, and neither of them is the word "another".
+const avoidTerms=text=>String(text||'').toLowerCase().split(/[·,;/\n]|\band\b|\bor\b/).map(t=>t.replace(/\b(another|any|anything|too|many|much|more|long|big|the|a|an)\b/g,' ').trim()).filter(t=>t.length>=3);
+const ideaText=p=>[p.title,p.place,p.japanese,p.notes,p.availability,p.costNote,...(p.tags||[])].filter(Boolean).join(' ').toLowerCase();
+// How well one idea fits one person, and why, from what they told us: the interests they ticked,
+// their own tags, the things they would rather avoid, and how they have already voted on it.
+// An idea marked as suiting somebody else is not theirs at all.
+export function ideaFit(state,p,name){
+ if((p.suitableFor||[]).length&&!p.suitableFor.includes(name))return {score:null,reasons:[],avoid:[]};
+ const me=personProfile(state,name),text=ideaText(p),reasons=[],avoid=[];let score=0;
+ for(const tag of me.likes)if(wordIn(text,tag)){score+=3;reasons.push(tag);}
+ for(const id of me.interests){
+  const words=INTEREST_WORDS[id]||[];
+  if((INTEREST_KINDS[id]||[]).includes(p.category)||words.some(w=>wordIn(text,w))){score+=2;reasons.push(interestLabel(id));}
+ }
+ for(const term of avoidTerms(me.avoid))if(wordIn(text,term)){score-=4;avoid.push(term);}
+ const vote=(p.votes||{})[name];
+ if(vote===1){score+=2;reasons.push('backed it');}
+ if(vote===-1)score-=3;
+ if((p.musts||{})[name]){score+=3;reasons.push('starred it');}
+ return {score,reasons,avoid};
+}
+// Ideas still up for a vote, picked for one person or for the whole party. For one person it is
+// simply their best fits. For everyone it favours the ideas that please the most people over the
+// one that thrills a single person, and says who each one is for — so a group pick is the one
+// that answers Boston's trains and Nate's playgrounds in the same afternoon.
+export function recommendIdeas(state,who='',{limit=6}={}){
+ const members=state.members||[];
+ const open=proposals(state).filter(p=>proposalPlacement(state,p).state==='open');
+ if(who){
+  if(!members.includes(who))return [];
+  return open.map(p=>({proposal:p,...ideaFit(state,p,who)}))
+   .filter(r=>r.score!==null&&r.score>0)
+   .sort((a,b)=>b.score-a.score||proposalScore(b.proposal)-proposalScore(a.proposal)||a.proposal.title.localeCompare(b.proposal.title))
+   .slice(0,limit).map(r=>({proposal:r.proposal,score:r.score,fans:[who],reasons:{[who]:r.reasons},avoid:r.avoid.length?{[who]:r.avoid}:{}}));
+ }
+ return open.map(p=>{
+  const fits=members.map(name=>[name,ideaFit(state,p,name)]).filter(([,f])=>f.score!==null);
+  const fans=fits.filter(([,f])=>f.score>0).map(([name])=>name);
+  const score=fits.reduce((t,[,f])=>t+f.score,0);
+  return {proposal:p,score,fans,
+   reasons:Object.fromEntries(fits.filter(([,f])=>f.score>0&&f.reasons.length).map(([name,f])=>[name,f.reasons])),
+   avoid:Object.fromEntries(fits.filter(([,f])=>f.avoid.length).map(([name,f])=>[name,f.avoid]))};
+ }).filter(r=>r.fans.length&&r.score>0)
+  .sort((a,b)=>b.fans.length-a.fans.length||b.score-a.score||proposalScore(b.proposal)-proposalScore(a.proposal)||a.proposal.title.localeCompare(b.proposal.title))
+  .slice(0,limit);
 }
 export function searchTrip(state,query,guide=[]){
  const q=query.trim().toLowerCase();if(!q)return [];
