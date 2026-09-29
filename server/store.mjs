@@ -7,8 +7,13 @@ export const localDemo=()=>process.env.LOCAL_DEMO==='1'&&!process.env.VERCEL&&pr
 export const hash=s=>createHash('sha256').update(s).digest('hex');
 export const token=()=>randomBytes(32).toString('hex');
 export const readSeed=async()=>JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url),'utf8'));
-let sql,ready,demo,locationData;
-async function withLocations(state){locationData??=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url),'utf8'));return {...ensureFeatures(state),locations:locationData.locations,locationSource:locationData.source};}
+let sql,ready,demo,locationData,placeJapanese;
+async function withLocations(state){
+ locationData??=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url),'utf8'));
+ // Stations, broad areas and venues inside a bigger complex stay out of the catalogue, but a taxi driver still needs them in Japanese.
+ placeJapanese??=JSON.parse(await readFile(new URL('../data/place-japanese.json',import.meta.url),'utf8'));
+ return {...ensureFeatures(state),locations:locationData.locations,locationSource:locationData.source,placeJapanese};
+}
 export async function database(){
  if(!process.env.DATABASE_URL)throw new AppError('Connect Neon to enable the shared family trip.',503);
  sql??=neon(process.env.DATABASE_URL);

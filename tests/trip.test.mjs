@@ -893,6 +893,21 @@ test('every catalogue place can be shown to a taxi driver in Japanese',async()=>
  for(const name of new Set(seed.days.map(d=>d.hotel)))assert.match(showLocationDetails(state,{place:name}).phone,/^0\d{1,3}-\d{3,4}-\d{4}$/,name);
  assert.equal(showLocationDetails(state,{place:'1 Hotel Tokyo',phone:'03-0000-0000'}).phone,'03-0000-0000');
 });
+test('every stop in the plan has Japanese to show, even where the catalogue leaves it unlinked',async()=>{
+ const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
+ const placeJapanese=JSON.parse(await readFile(new URL('../data/place-japanese.json',import.meta.url)));
+ const {showLocationDetails,resolveLocation}=await import('../src/locations.js');const state={...seed,locations,placeJapanese};
+ const japanese=/[぀-ヿ一-龯]/;
+ for(const step of seed.steps.filter(s=>s.place))assert.match(showLocationDetails(state,step).japanese,japanese,`${step.title} (${step.place}) has no Japanese`);
+ // The table only fills gaps: nothing in it is a place the catalogue already links.
+ for(const place of Object.keys(placeJapanese)){assert.equal(resolveLocation(state,place),null,place);assert.match(placeJapanese[place].japaneseAddress,japanese,place);}
+ const keiyo=showLocationDetails(state,{place:'Tokyo Station Keiyo Line'});
+ assert.equal(keiyo.japanese,'東京駅 京葉線のりば');assert.match(keiyo.copyText,/^東京駅 京葉線のりば\n〒100-0005/);
+ // Spelling the name a little differently still finds it; the activity's own wording still wins.
+ assert.equal(showLocationDetails(state,{place:'tokyo station  keiyo line'}).japanese,'東京駅 京葉線のりば');
+ assert.equal(showLocationDetails(state,{place:'Tokyo Station Keiyo Line',japanese:'京葉線'}).japanese,'京葉線');
+ assert.equal(showLocationDetails({...state,placeJapanese:undefined},{place:'Tokyo Station Keiyo Line'}).japanese,'');
+});
 test('address matches preserve exact branches and leave ambiguous areas or station entrances alone',async()=>{
  const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
  const {resolveLocation,destinationFor,locationsForPage}=await import('../src/locations.js');const state={...seed,locations};
