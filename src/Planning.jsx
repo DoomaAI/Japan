@@ -1,7 +1,7 @@
 import React,{useRef,useState} from 'react';
 import {ThumbsUp,ThumbsDown,Star,MapPin,ExternalLink,CalendarDays,LockKeyhole,LockKeyholeOpen,Clock,Coins,Plus,Inbox,Trash2,ChevronRight,Users,Ticket,Search,AlertCircle} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {TravelParty,Suggestions} from './PlanningParty.jsx';
+import {TravelParty,PickedFor,Suggestions} from './PlanningParty.jsx';
 import {PROPOSAL_KINDS,PROPOSAL_TIMING,PROPOSAL_SORTS,PLACEMENT_LABEL,rankedProposals,proposalPlacement,proposalScore,proposalVoters,proposalMusts,yenPerAud,yenToAud} from './trip-features.js';
 const labelFor=(list,id,fallback)=>(list.find(([key])=>key===id)||fallback)[1];
 const kindLabel=id=>labelFor(PROPOSAL_KINDS,id,PROPOSAL_KINDS.at(-1));
@@ -82,6 +82,7 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
  <p>Anywhere any of us wants to go, eat or see. Put it up, and the rest of the family can back it, pass on it or star it as a must-do. A parent puts the ones we agree on onto a day — locked to a booked time, or left flexible.</p>
  <button className="primary" onClick={()=>open({...blank,day:date||'',suitableFor:[]})}><Plus size={18}/>Add an idea</button>
  <TravelParty state={state} user={user} mutate={mutate} busy={busy}/>
+ <PickedFor state={state} user={user} onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('open');}}/>
  {canLook&&<Suggestions state={state} user={user} day={date||day} request={request} mutate={mutate} busy={busy}
   onAdded={()=>{if(placement==='scheduled')setPlacement('open');}}
   onLookUp={p=>{open(toForm(p));lookup(toForm(p));}}/>}

@@ -79,7 +79,7 @@ export function normaliseSuggestion(item,state){
 function alreadyHave(state){
  return [...new Set([...state.steps.map(s=>s.title),...proposals(state).map(p=>p.title)])].slice(0,300);
 }
-export async function suggestIdeas({city,day,kinds,count},state){
+export async function suggestIdeas({city,day,kinds,count,forWhom},state){
  if(!suggestReady())throw new AppError('Suggestions are not switched on. Add an Anthropic API key to the deployment.',503);
  const onDay=day?state.days.find(d=>d.date===day):null;
  if(day&&!onDay)throw new AppError('Choose a trip day.');
@@ -88,13 +88,21 @@ export async function suggestIdeas({city,day,kinds,count},state){
  const want=(Array.isArray(kinds)?kinds:[]).filter(id=>SUGGEST_KINDS.some(([key])=>key===id));
  if(!want.length)throw new AppError('Choose at least one kind of idea.');
  const wanted=Math.min(MAX_SUGGESTIONS,Math.max(3,Number(count)||6));
+ // Ideas for one person rather than the four of them: the same family and the same day, but
+ // every idea has to answer something that person said they like.
+ const members=state.members||MEMBERS;
+ if(forWhom&&!members.includes(forWhom))throw new AppError('Choose a family member, or everyone.');
  const {default:Anthropic}=await import('@anthropic-ai/sdk');
  const client=new Anthropic();
  const cityDays=state.days.filter(d=>d.city===where);
  const ask=`Suggest ${wanted} ideas in ${where}${onDay?` for ${onDay.date}, the day they are on "${onDay.title}"`:''}.
 
 Flavours they asked for: ${want.map(id=>SUGGEST_KINDS.find(([key])=>key===id)[1]).join(', ')}
-
+${forWhom?`
+These are for ${forWhom} in particular. Every idea should answer something ${forWhom} ticked, tagged or said they love, and "why" names which. Still fit it to the day the family is having; say in suitableFor if the others would sit it out.
+`:`
+These are for the whole party. Prefer ideas that answer more than one person's likes at once, and say whose in "why".
+`}
 Who is going:
 ${partyBrief(state)}
 
@@ -129,6 +137,6 @@ ${alreadyHave(state).join(' · ')||'nothing yet'}`;
  if(!result||!Array.isArray(result.suggestions))throw new AppError(message.stop_reason==='max_tokens'?'Suggestions ran long and did not finish. Ask for fewer.':'Nothing came back to suggest. Try again, or narrow it to one kind.',502);
  const suggestions=result.suggestions.map(item=>normaliseSuggestion(item,state)).filter(s=>s.draft.title).slice(0,MAX_SUGGESTIONS);
  if(!suggestions.length)throw new AppError('Nothing usable came back. Try a different place or another kind of idea.',502);
- return {suggestions,where,note:clamp(result.note,500),
+ return {suggestions,where,forWhom:forWhom||null,note:clamp(result.note,500),
   usage:{input:message.usage?.input_tokens??0,output:message.usage?.output_tokens??0,searches:message.usage?.server_tool_use?.web_search_requests??0}};
 }

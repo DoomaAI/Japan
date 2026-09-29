@@ -3136,6 +3136,50 @@ test('everyone keeps their own travel profile, and a parent keeps the ones a fiv
  // None of this is the plan, so it never lands in the family alert feed.
  assert.ok(!state.alerts.some(a=>/profile|pace|budget/i.test(a.summary||'')));
 });
+test('each person tags their own likes, and board ideas are picked for one of us or for all four',async()=>{
+ const {ensureFeatures,personProfile,partyBrief,partyLikes,profileFilled,recommendIdeas,ideaFit,MAX_LIKES}=await import('../src/trip-features.js');
+ let state=ensureFeatures(structuredClone(seed));
+ // Likes are free-form tags, tidied: trimmed, a leading # dropped, duplicates caught whatever the case.
+ state=applyOperation(state,{type:'partyPerson',name:'Boston',age:8,interests:['trains','sport'],likes:[' Pokémon ','#ramen','Ramen','']},parent);
+ assert.deepEqual(personProfile(state,'Boston').likes,['Pokémon','ramen']);
+ // A boy tags his own, and an older phone that does not send likes leaves them where they were.
+ state=applyOperation(state,{type:'partyPerson',name:'Nate',age:5,interests:['kids','animals'],likes:['ramen','dinosaurs']},child);
+ assert.ok(profileFilled(applyOperation(ensureFeatures(structuredClone(seed)),{type:'partyPerson',name:'Lauren',likes:['gardens']},parent),'Lauren'),'a like alone fills a profile in');
+ assert.deepEqual(personProfile(applyOperation(state,{type:'partyPerson',name:'Nate',interests:['kids']},child),'Nate').likes,['ramen','dinosaurs']);
+ assert.deepEqual(partyLikes(state)[0],{tag:'ramen',who:['Nate','Boston']},'what more than one of us likes comes first');
+ assert.match(partyBrief(state),/Boston, 8 — likes Trains & engineering, Sport & sumo; tagged as their own favourites: Pokémon, ramen/);
+ for(const bad of [{likes:'ramen'},{likes:Array.from({length:MAX_LIKES+1},(_,i)=>`like ${i}`)},{likes:['x'.repeat(41)]}])
+  assert.throws(()=>applyOperation(state,{type:'partyPerson',name:'Boston',interests:[],...bad},parent),`${JSON.stringify(bad).slice(0,40)} should be refused`);
+ assert.throws(()=>applyOperation(state,{type:'partyPerson',name:'Boston',likes:['lego']},child),e=>e.status===403,'nobody tags anybody else');
+
+ state=applyOperation(state,{type:'partyPerson',name:'Damien',age:41,interests:['drink'],avoid:'long queues · another temple'},parent);
+ const add=(title,extra={})=>{state=applyOperation(state,{type:'proposalAdd',person:'Damien',title,...extra},parent);return state.proposals.at(-1);};
+ const ramen=add('Ichiran ramen in Shibuya',{category:'food'});
+ const rail=add('Railway Museum',{notes:'Steam trains and a Shinkansen simulator.'});
+ const zoo=add('Ueno Zoo',{notes:'Pandas and a playground.'});
+ const bar=add('Golden Gai bars',{suitableFor:['Damien','Lauren'],tags:['after dark']});
+ const shrine=add('Meiji Shrine',{notes:'A long queues at New Year temple walk.'});
+ // For one person: their own tags and ticked interests, and what they would rather avoid counts against it.
+ assert.deepEqual(recommendIdeas(state,'Boston').map(r=>r.proposal.title),['Ichiran ramen in Shibuya','Railway Museum']);
+ assert.deepEqual(recommendIdeas(state,'Boston')[0].reasons.Boston,['ramen']);
+ assert.ok(recommendIdeas(state,'Nate').some(r=>r.proposal.id===zoo.id));
+ assert.equal(ideaFit(state,bar,'Nate').score,null,'an idea marked for the grown-ups is never picked for Nate');
+ assert.ok(ideaFit(state,shrine,'Damien').score<0);
+ assert.deepEqual(ideaFit(state,shrine,'Damien').avoid,['queues','temple']);
+ assert.ok(!recommendIdeas(state,'Damien').some(r=>r.proposal.id===shrine.id));
+ // For everyone: what pleases the most of us first, and whose likes it answers.
+ const group=recommendIdeas(state);
+ assert.equal(group[0].proposal.id,ramen.id);
+ assert.deepEqual(group[0].fans.sort(),['Boston','Damien','Nate']);
+ assert.deepEqual(group[0].reasons.Nate,['ramen']);
+ // A vote counts: backing an idea lifts it for that person.
+ state=applyOperation(state,{type:'proposalVote',id:bar.id,person:'Lauren',vote:1},parent);
+ assert.ok(recommendIdeas(state,'Lauren').some(r=>r.proposal.id===bar.id&&r.reasons.Lauren.includes('backed it')));
+ // Only ideas still up for a vote are picked; and nobody who is not in the party.
+ state=applyOperation(state,{type:'proposalSchedule',id:rail.id,day:state.days[3].date,time:'10:00',kind:'flexible'},parent);
+ assert.ok(!recommendIdeas(state,'Boston').some(r=>r.proposal.id===rail.id));
+ assert.deepEqual(recommendIdeas(state,'Grandma'),[]);
+});
 test('suggestions are built from who is going, and land on the board as ordinary ideas',async()=>{
  const {createServer}=await import('node:http');
  const {ensureFeatures,proposalPlacement}=await import('../src/trip-features.js');
@@ -3194,6 +3238,11 @@ test('suggestions are built from who is going, and land on the board as ordinary
   assert.match(ask,new RegExp(seed.steps[0].title.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')),'nor what is already on the plan');
   assert.match(seen.system,/Only-in-Japan, off the usual list/);
   assert.match(seen.system,/you are not checking opening hours, prices/);
+  assert.match(ask,/These are for the whole party/,'with nobody chosen, the ideas are for the four of them');
+  // Aimed at one person: the same family, but every idea answers something that person likes.
+  await suggestIdeas({city:'Tokyo',kinds:['unique'],count:4,forWhom:'Boston'},state);
+  assert.match(seen.messages[0].content,/These are for Boston in particular/);
+  await assert.rejects(()=>suggestIdeas({city:'Tokyo',kinds:['unique'],forWhom:'Grandma'},state),/Choose a family member/);
 
   // What comes back is board-ready, and the junk one is cut to size rather than dropped whole.
   assert.equal(result.where,'Tokyo');

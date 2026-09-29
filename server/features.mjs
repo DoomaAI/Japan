@@ -5,7 +5,7 @@ import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
-import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
@@ -181,11 +181,15 @@ export function extraOperation(state,op,user,fail,now){
    const me=personProfile(state,op.name);
    const values={age:op.age===undefined?me.age:(op.age===null||op.age===''?null:Number(op.age)),
     interests:[...new Set(Array.isArray(op.interests)?op.interests:[])],
+    likes:op.likes===undefined?me.likes:cleanLikes(op.likes),
     loves:(op.loves??me.loves??'').trim(),avoid:(op.avoid??me.avoid??'').trim(),
     dietary:(op.dietary??me.dietary??'').trim(),notes:(op.notes??me.notes??'').trim()};
    if(values.age!==null&&(!Number.isInteger(values.age)||values.age<0||values.age>120))fail('Enter an age between 0 and 120.');
    if(values.interests.some(id=>!INTERESTS.some(([key])=>key===id)))fail('Choose interests from the list.');
    if(values.interests.length>INTERESTS.length)fail('Choose interests from the list.');
+   if(op.likes!==undefined&&!Array.isArray(op.likes))fail('Add likes as a list of tags.');
+   if(values.likes.length>MAX_LIKES)fail(`Keep it to ${MAX_LIKES} likes.`);
+   if(values.likes.some(t=>t.length>MAX_LIKE_LENGTH))fail(`Keep each like under ${MAX_LIKE_LENGTH} characters.`);
    for(const key of ['loves','avoid','dietary','notes'])requireText(values[key],500,key);
    state.party={...current,people:{...current.people,[op.name]:{...values,by:user.name,at:now}}};
    return {summary:null,important:false,title:`${op.name}’s travel profile`};
