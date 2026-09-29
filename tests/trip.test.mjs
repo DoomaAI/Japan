@@ -8197,8 +8197,17 @@ test('a question about the trip is answered out of the plan, and cannot change a
   const record=seen.tools.find(t=>t.name==='record_answer');
   assert.equal(record.strict,true);
   assert.deepEqual(record.input_schema.required.sort(),['answer','because','checkFirst','days','sources','verdict']);
-  assert.match(seen.system,/cannot change their plan, move an activity, book anything/);
-  assert.match(seen.system,/Never invent a web address/);
+  const [rules,shared,project]=seen.system;
+  // The shared part of the project, then the personal part, each cached for an hour.
+  assert.deepEqual(shared.cache_control,{type:'ephemeral',ttl:'1h'});
+  assert.match(shared.text,/# Saved places/);
+  assert.match(rules.text,/cannot change their plan, move an activity, book anything/);
+  assert.match(rules.text,/Never invent a web address/);
+  // Damien's own project, built from the trip as it stands, rides behind the rules and is cached.
+  assert.deepEqual(project.cache_control,{type:'ephemeral',ttl:'1h'});
+  assert.match(project.text,/This is \*\*Damien\*\*’s project/);
+  assert.match(project.text,/## Boston \(8\)\n- Interests: Sport & sumo, Trains & engineering/);
+  assert.match(project.text,/Fushimi Inari at dawn · Kyoto/);
   // What was said before comes back as plain text, in order, before the new question.
   assert.equal(seen.messages.length,3);
   assert.deepEqual(seen.messages.slice(0,2),[{role:'user',content:'What is the weather doing in Kyoto?'},{role:'assistant',content:'Wet on Thursday afternoon.'}]);
@@ -8218,7 +8227,6 @@ test('a question about the trip is answered out of the plan, and cannot change a
   assert.match(ask,/The forecast above was checked .*, by Damien\./);
   assert.match(ask,/Fushimi Inari at dawn · Kyoto · free/);
   assert.match(ask,/Buy an umbrella · on 2026-09-24/);
-  assert.match(ask,/Boston, 8 — likes Sport & sumo, Trains & engineering/);
   assert.match(ask,/In Japan it is 2026-09-24, 10:00\./);
 
   // What comes back is cut to what the screen can draw, and nothing else survives.
@@ -8237,6 +8245,7 @@ test('a question about the trip is answered out of the plan, and cannot change a
   // A boy asking is told he is a boy asking, so the answer is not about money or bookings.
   await askTrip({question:'Can we do the monkeys?'},state,{name:'Boston',role:'child'},now);
   assert.match(seen.messages.at(-1).content,/Boston is asking, and he is one of the boys/);
+  assert.match(seen.system[2].text,/This is \*\*Boston\*\*’s project; Boston is 8\. Speak to Boston directly, in short, plain sentences/);
   // No day chosen means the whole trip, anchored on the Japan day it actually is.
   assert.match(seen.messages.at(-1).content,/They are asking about 2026-09-24/);
 

@@ -4,6 +4,7 @@ import {AlertCircle,CalendarDays,Check,ExternalLink,MessageCircleQuestion,Search
 import {ASK_LIMIT,askDayLabel,askHistory,askItem,askStarters,readThread,sharesThread,stepStarters,threadFor,writeThread} from './ask-thread.js';
 import Dictate from './Dictate.jsx';
 import {joinSpoken} from './dictation.js';
+import {profileFilled} from './trip-features.js';
 // Asking about the trip. It reads the plan and answers; it cannot touch it. That line is on the
 // screen rather than only in the prompt, because a box that answers questions looks like a box
 // that does things, and nobody should find out otherwise by asking it to move a booking.
@@ -42,8 +43,9 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
   {step?<p>Ask anything about {step.title} — how long it takes, what to eat, what the boys will like. It reads this stop and the rest of the day, and searches for what the plan cannot say.</p>:<>
   <p className="eyebrow">ASK ABOUT OUR TRIP</p>
   <h1>Better today or tomorrow?</h1>
-  <p>Ask anything about the trip in your own words.</p>
- <HowThisWorks><p>It reads our plan — every day, what is booked, the forecast we last checked and what is still on the board — and answers out of that, searching only for what the plan cannot say.</p></HowThisWorks></>}
+  <p>Ask anything about the trip in your own words. Answers are for you first.</p>
+ <HowThisWorks><p>Every question is answered from the trip as it is right now: every day and what is booked, the forecast we last checked, the board and its votes, the places we saved, how each stop was rated, and everyone’s profile, with yours first. Change any of those and the next answer knows. It searches only for what the plan cannot say.</p></HowThisWorks></>}
+  {!step&&ready&&user?.name&&state.members?.includes(user.name)&&!profileFilled(state,user.name)&&<p className="callout"><AlertCircle size={18}/><span>Your profile is empty, so recommendations can only go by the whole family. {go&&<button className="linkish" onClick={()=>go('planning')}>Fill it in on the Planning board</button>}</span></p>}
   {!ready&&<p className="callout"><AlertCircle size={18}/>Asking is not switched on for this deployment. Anything already answered is still below.</p>}
   {!online&&<p className="callout"><WifiOff size={18}/>No signal. Old answers are saved on this phone; a new question has to wait.</p>}
   {ready&&<>
