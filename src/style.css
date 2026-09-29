@@ -471,7 +471,12 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .timeline .timeline-step strong{font-size:.95rem;line-height:1.3}
 .timeline .timeline-time{font-size:.8rem;margin-top:.05rem}
 .timeline .timeline-dot{width:14px;height:14px;margin-top:2px}
-.timeline .timeline-step:not(:last-child) .timeline-dot:after{top:17px;height:30px}
+/* The line joining one dot to the next is drawn from the stop's own box, so it reaches the next dot
+   whether the title takes one line or two, and runs on through the add-a-stop gap between them. */
+.timeline .timeline-row>.timeline-step{align-self:stretch}
+.timeline .timeline-step .timeline-dot:after{content:none}
+.timeline .timeline-row:is(:has(+.timeline-row),:has(+.timeline-gap),:has(+.timeline-insert:not(.end)))>.timeline-step:after{content:'';position:absolute;left:calc(.45rem + 42px + .55rem + 6.5px);width:1px;top:calc(.4rem + 2px + 14px + 3px);bottom:calc(3px - .4rem - 2px);background:var(--tint-border);pointer-events:none}
+.timeline .timeline-row:has(+.timeline-insert:not(.end))>.timeline-step:after{bottom:calc(3px - .4rem - 2px - 16px)}
 .timeline .timeline-meta{display:flex;align-items:baseline;flex-wrap:wrap;column-gap:.5rem;margin-top:.05rem}
 .timeline .timeline-meta small{margin:0;font-size:.75rem}
 .timeline .timeline-meta .timeline-weather{font-size:.75rem}
