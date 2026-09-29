@@ -1037,6 +1037,16 @@ export const SUGGEST_KINDS=[
  ['food','Food'],['drink','Drink'],['outdoors','Outdoors & views'],['kids','With the boys'],
  ['shopping','Shopping & markets'],['evening','After dark']
 ];
+// The kinds of dated event worth changing a plan for.
+export const EVENT_KINDS=[['sport','Sport'],['music','Music & concerts'],['festival','Festivals & matsuri'],['culture','Theatre & traditional arts'],
+ ['exhibition','Exhibitions'],['seasonal','Seasonal & illuminations'],['family','For the boys'],['other','Anything else big']];
+// The base a trip day is in, as places an event can be near. The day labels say what the day is
+// ("DisneySea / Tokyo", "Nara / Kyoto"); the resort is in Tokyo's reach, so it counts as Tokyo.
+export const dayAreas=day=>[...new Set(String(day?.city||'').split('/').map(c=>c.trim()).filter(Boolean).map(c=>/disney/i.test(c)?'Tokyo':c))];
+export const tripAreas=state=>[...new Set((state.days||[]).flatMap(dayAreas))];
+// The trip days an event could be gone to: on while it is on, near where we are, and not gone by.
+export const eventDays=(state,{start,end,near,from=''})=>(state.days||[])
+ .filter(d=>d.date>=start&&d.date<=end&&d.date>=from&&dayAreas(d).some(a=>near.includes(a))).map(d=>d.date).sort();
 export const EMPTY_PARTY={people:{},pace:'steady',budget:null,notes:''};
 export const party=state=>({...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}});
 export const personProfile=(state,name)=>({age:null,interests:[],likes:[],loves:'',avoid:'',dietary:'',notes:'',...(party(state).people[name]||{})});

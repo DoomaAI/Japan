@@ -83,7 +83,7 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
  <button className="primary" onClick={()=>open({...blank,day:date||'',suitableFor:[]})}><Plus size={18}/>Add an idea</button>
  <TravelParty state={state} user={user} mutate={mutate} busy={busy}/>
  <PickedFor state={state} user={user} onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('open');}}/>
- {canLook&&<Suggestions state={state} user={user} day={date||day} request={request} mutate={mutate} busy={busy}
+ {canLook&&<Suggestions state={state} user={user} day={date||day} request={request} mutate={mutate} busy={busy} events={config?.events!==false}
   onAdded={()=>{if(placement==='scheduled')setPlacement('open');}}
   onLookUp={p=>{open(toForm(p));lookup(toForm(p));}}/>}
  <div className="segmented plan-scope">{[['open','Up for a vote'],['scheduled','On the itinerary'],['','Everything']].map(([key,label])=><button key={key||'all'} className={placement===key?'selected':''} onClick={()=>setPlacement(key)}>{label}{key&&counts[key]?` · ${counts[key]}`:''}</button>)}</div>

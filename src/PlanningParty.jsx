@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
-import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split} from 'lucide-react';
+import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split,CalendarDays,ExternalLink,Train} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
-import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf} from './trip-features.js';
+import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,EVENT_KINDS,tripAreas,yenPerAud,yenToAud,photosOf} from './trip-features.js';
 import {photoUrl} from './PhotoDay.jsx';
 const kindLabel=id=>(PROPOSAL_KINDS.find(([key])=>key===id)||PROPOSAL_KINDS.at(-1))[1];
 const flavourLabel=id=>(SUGGEST_KINDS.find(([key])=>key===id)||SUGGEST_KINDS[1])[1];
@@ -127,7 +127,7 @@ export function PickedFor({state,user,onOpen}){
 // Ideas for a place, in the flavours asked for — the famous ones, the ones nobody finds on their
 // own, and everything in between. Nothing is added to the board here: each one is put up by a
 // person, and the rest of the family votes on it like any other idea.
-export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded}){
+export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded,events:canEvents=true}){
  const [scope,setScope]=useState(day?`d:${day}`:'');
  const [elsewhere,setElsewhere]=useState(''),[kinds,setKinds]=useState(['landmark','unique']),[count,setCount]=useState(6);
  const [forWhom,setForWhom]=useState('');
@@ -137,17 +137,27 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
  const staying=stop?stop.participants.filter(n=>!sitting.includes(n)):[];
  const boysAlone=sitting.length>0&&sitting.every(n=>BOYS.includes(n));
  const [splitDone,setSplitDone]=useState([]);
+ // What is on: matches, festivals, concerts, exhibitions, near where we are and while we are there.
+ const [eventScope,setEventScope]=useState(''),[eventKinds,setEventKinds]=useState(['sport','music','festival','culture']);
+ const areas=tripAreas(state);
+ const toggleEvent=id=>setEventKinds(k=>k.includes(id)?k.filter(x=>x!==id):[...k,id]);
  const [working,setWorking]=useState(false),[result,setResult]=useState(null),[error,setError]=useState(''),[added,setAdded]=useState([]);
  const cities=[...new Set(state.days.map(d=>d.city))];
  const filled=state.members.filter(n=>profileFilled(state,n));
  const toggle=id=>setKinds(k=>k.includes(id)?k.filter(x=>x!==id):[...k,id]);
  async function ask(e){
   e.preventDefault();
+  if(mode==='events'&&!eventKinds.length){setError('Choose at least one kind of event.');return;}
   if(mode==='instead'&&(!stop||!sitting.length)){setError('Choose the stop, and who would rather not go.');return;}
   if(mode==='ideas'&&!kinds.length){setError('Choose at least one kind of idea.');return;}
   setWorking(true);setError('');setResult(null);setAdded([]);setSplitDone([]);
   try{
    if(mode==='instead'){setResult(await request('suggest',{instead:{stepId:stop.id,who:sitting},count:Number(count)}));return;}
+   if(mode==='events'){
+    const body={kinds:eventKinds,count:Number(count)};
+    if(eventScope.startsWith('d:'))body.day=eventScope.slice(2);else if(eventScope.startsWith('a:'))body.area=eventScope.slice(2);
+    setResult(await request('events',body));return;
+   }
    const body={kinds,count:Number(count)};
    if(forWhom)body.forWhom=forWhom;
    if(scope.startsWith('d:'))body.day=scope.slice(2);
@@ -177,9 +187,20 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
  return <details className="party-panel suggest-panel">
   <summary><Sparkles size={17}/>Suggest some ideas</summary>
   <p>Built from who is going and what each of us said we are into{filled.length?` — ${filled.join(', ')} so far`:''}. {filled.length<state.members.length&&<strong>Fill in the rest above and these get sharper.</strong>}</p>
-  <div className="segmented" role="group" aria-label="What to suggest">{[['ideas','New ideas'],['instead','Something else instead']].map(([key,label])=>
-   <button type="button" key={key} className={mode===key?'selected':''} onClick={()=>{setMode(key);setError('');}}>{label}</button>)}</div>
-  {mode==='instead'?<form onSubmit={ask}>
+  <div className="segmented" role="group" aria-label="What to suggest">{[['ideas','New ideas'],...(canEvents?[['events','What’s on']]:[]),['instead','Something else instead']].map(([key,label])=>
+   <button type="button" key={key} className={mode===key?'selected':''} onClick={()=>{setMode(key);setError('');setResult(null);}}>{label}</button>)}</div>
+  {mode==='events'?<form onSubmit={ask}>
+   <p><small>Big matches, festivals, concerts, exhibitions and seasonal events that are on while we are in Japan, near where we are staying — each one with its dates, the days we could go and where the dates came from.</small></p>
+   <label>When and where<select value={eventScope} onChange={e=>setEventScope(e.target.value)}>
+    <option value="">The rest of the trip, everywhere we stay</option>
+    <optgroup label="While we are in">{areas.map(a=><option key={a} value={`a:${a}`}>{a}</option>)}</optgroup>
+    <optgroup label="One day">{state.days.map(d=><option key={d.date} value={`d:${d.date}`}>{dayLabel(d.date)} · {d.city}</option>)}</optgroup>
+   </select></label>
+   <fieldset><legend>What kind of event</legend><div className="chips">{EVENT_KINDS.map(([id,label])=><label className={`chip ${eventKinds.includes(id)?'on':''}`} key={id}><input type="checkbox" checked={eventKinds.includes(id)} onChange={()=>toggleEvent(id)}/>{label}</label>)}</div></fieldset>
+   <label>How many<select value={count} onChange={e=>setCount(e.target.value)}>{[4,6,8,10].map(n=><option key={n}>{n}</option>)}</select></label>
+   <button className="primary" disabled={working||!eventKinds.length}><CalendarDays size={17}/>{working?'Searching what is on…':'Find what’s on'}</button>
+   <small>Only events with dates found in a search come back. A link is kept only if it is a page the search actually read — still check tickets and times before planning around one.</small>
+  </form>:mode==='instead'?<form onSubmit={ask}>
    <p><small>When some of us would rather not do a stop that is planned: ideas close by, in the same time, for the ones sitting it out — and back in time for the next thing we all do.</small></p>
    <label>Day<select value={altDay} onChange={e=>{setAltDay(e.target.value);setStopId('');setSitting([]);}}>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city} · {d.title}</option>)}</select></label>
    <label>Instead of<select value={stopId} onChange={e=>{setStopId(e.target.value);setSitting([]);}}>
@@ -208,7 +229,37 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
    <small>Searches for what is actually on while we are there. Rough costs and times only — nothing here is checked, and <strong>Look it up</strong> on an idea is what fills in the hours, the ticket page and the map.</small>
   </form>}
   {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
-  {result&&<div className="suggest-results">
+  {result?.events&&<div className="suggest-results">
+   <h3>{result.events.length} event{result.events.length===1?'':'s'} on {result.from===result.to?dayLabel(result.from):`${dayLabel(result.from)} – ${dayLabel(result.to)}`}</h3>
+   {result.note&&<p className="callout"><AlertCircle size={18}/>{result.note}</p>}
+   {!result.events.length&&<p>Nothing with confirmed dates came back. Try more kinds, or the whole trip.</p>}
+   {result.events.map(item=>{
+    const done=added.includes(item.draft.title);
+    return <article className={`feature-card suggest-card event-card ${done?'finished':''}`} key={item.draft.title}>
+     <div className="section-heading"><div><span className="eyebrow">{(EVENT_KINDS.find(([id])=>id===item.kind)||EVENT_KINDS.at(-1))[1]}</span><h4>{item.draft.title}</h4></div></div>
+     {item.draft.place&&<p><small>{item.draft.place}{item.draft.japanese&&<span lang="ja"> · {item.draft.japanese}</span>}</small></p>}
+     <p className="event-dates"><CalendarDays size={15}/>{item.start===item.end?dayLabel(item.start):`${dayLabel(item.start)} – ${dayLabel(item.end)}`}{item.time?` · from ${item.time}`:''}</p>
+     <p className={item.days.length?'event-fit':'event-fit none'}>{item.days.length?<>We could go {item.days.map(dayLabel).join(', ')}{item.near.length?` · from ${item.near.join(' or ')}`:''}</>:'We are not near it on those dates'}{item.travelMinutes!==null&&item.days.length?<> · <Train size={13}/> about {item.travelMinutes} min away</>:''}</p>
+     <p className="suggest-why">{item.why}</p>
+     <p>{item.draft.notes}</p>
+     <div className="plan-facts">
+      <span>Tickets: {item.tickets}</span>
+      {item.draft.cost!==null&&<span><Coins size={14}/>Around ¥{item.draft.cost.toLocaleString()}</span>}
+      {!!item.draft.duration&&<span><Clock size={14}/>About {item.draft.duration} min</span>}
+      <span>{item.draft.suitableFor.length?`Suits ${item.draft.suitableFor.join(', ')}`:'Suits everyone'}</span>
+      {item.verified?<a href={item.draft.website} target="_blank" rel="noreferrer"><ExternalLink size={14}/>Where the dates came from</a>:<span>No source page kept — look it up</span>}
+     </div>
+     <div className="row wrap">
+      {done?<span className="tag"><Check size={13}/>On the board{item.draft.day?` for ${dayLabel(item.draft.day)}`:''}</span>:<>
+       <button className="primary" disabled={busy} onClick={()=>add(item,false)}><Plus size={16}/>Put it on the board</button>
+       <button disabled={busy} onClick={()=>add(item,true)}><Search size={16}/>Add and look it up</button>
+      </>}
+     </div>
+    </article>;})}
+   <small>{result.usage.searches} web {result.usage.searches===1?'search':'searches'}. Dates are from the pages searched; tickets and times still need checking before anything is booked around them.</small>
+   <button onClick={()=>setResult(null)}><X size={16}/>Clear these</button>
+  </div>}
+  {result?.suggestions&&<div className="suggest-results">
    <h3>{result.instead?`${result.suggestions.length} things ${result.instead.who.join(' and ')} could do instead of ${result.instead.title}`:`${result.suggestions.length} ideas for ${result.forWhom?`${result.forWhom} in `:''}${result.where}`}</h3>
    {result.note&&<p className="callout"><AlertCircle size={18}/>{result.note}</p>}
    {result.suggestions.map(item=>{
