@@ -9925,6 +9925,8 @@ test('every game keeps its board across a switch of tab and a reload, not only t
  const daruma=await readFile(new URL('../src/Daruma.jsx',import.meta.url),'utf8');
  assert.match(daruma,/\[holding,setHolding\]=useState\(false\)/,'a finger on the glass is not stored');
  assert.match(games,/\[picked,setPicked\]=useState\(\[\]\),\[done,setDone\]=useStored\('japan\.kana\.done'/,'a card mid-flip is not stored, the pairs found are');
+});
+
 test('one sentence, said or typed, becomes a to-do the plain way when Claude is out of reach',async()=>{
  const {parseCaptureLocally,captureDay,capturePerson,CAPTURE_MAX}=await import('../src/capture-data.js');
  const today='2026-09-29';
