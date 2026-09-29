@@ -13,6 +13,8 @@ import {HUNTS,MAX_CUSTOM_HUNTS,MAX_HUNT_ENTRIES,huntEntryFields} from '../src/hu
 import {allergenById} from '../src/allergy-data.js';
 import {MAX_NOTICED,NOTICED_TEXT,noticedFields} from '../src/noticed-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
+import {PREDICTION_MAX,findPrediction,predictionPhase} from '../src/prediction-data.js';
+import {japanDate} from '../src/timing.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
 const MAX_PROPOSALS=300;
 // A shortlist is a list you can still read. Past a couple of hundred finds it is an archive of
@@ -1171,6 +1173,17 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:t.label};
   }
   fail('Unknown tracker action.');
+ }else if(op.type==='predictionSet'){
+  // A sealed prediction: your own, or a parent's for anyone, and only until we land.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Make your own predictions.',403);
+  if(!findPrediction(op.id))fail('Unknown prediction.',404);
+  if(predictionPhase(state.days,japanDate(new Date(now)))!=='open')fail('The predictions were sealed when the trip began.',409);
+  const text=(op.text??'').trim();requireText(text,PREDICTION_MAX,'prediction');
+  const mine={...(state.predictions?.[op.person]||{})};
+  if(text)mine[op.id]={text,at:now};else delete mine[op.id];
+  state.predictions={...(state.predictions||{}),[op.person]:mine};
+  return {summary:null,important:false,title:'A sealed prediction'};
  }else if(op.type==='meeting'){
   dayCheck(op.day);if(!op.day)fail('Choose a day.');
   const m={place:op.place||'',japanese:op.japanese||'',time:op.time||'',notes:op.notes||'',hotelJapanese:op.hotelJapanese||'',hotelAddress:op.hotelAddress||''};

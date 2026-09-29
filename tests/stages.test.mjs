@@ -212,3 +212,23 @@ test('a little Japan each day counts back from the flight, and remembers what ea
  const next=applyOperation(state,{type:'phraseSeen',person:'Nate',day:null,phraseIds:['thanks']},{name:'Nate',role:'child'});
  assert.ok(next.phraseLog.Nate.thanks,'the run-up can log a phrase with no trip day');
 });
+test('sealed predictions are written before we fly, hidden from the others, and open once we are home',async()=>{
+ const {applyOperation}=await import('../server/model.mjs');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ const {predictionPhase,visiblePredictions}=await import('../src/prediction-data.js');
+ const {recapStory}=await import('../src/recap-story.js');
+ assert.equal(predictionPhase(seed.days,'2026-09-20'),'open');assert.equal(predictionPhase(seed.days,'2026-09-21'),'sealed');assert.equal(predictionPhase(seed.days,'2026-10-07'),'revealed');
+ const state=upgraded(seed);
+ state.predictions={Nate:{fuji:{text:'Yes, from the train',at:'x'}},Boston:{food:{text:'Ramen',at:'x'},fuji:{text:'No',at:'x'}}};
+ const seen=visiblePredictions(state,'Nate','2026-09-25');
+ assert.deepEqual(seen.Nate,state.predictions.Nate,'your own you can read');
+ assert.deepEqual(seen.Boston,{food:{sealed:true},fuji:{sealed:true}},'his are only a count');
+ assert.ok(!JSON.stringify(visibleTrip(state,{name:'Nate',role:'child'},new Date('2026-09-25T03:00:00Z'))).includes('Ramen'),'not in what the server sends');
+ assert.ok(JSON.stringify(visibleTrip(state,{name:'Nate',role:'child'},new Date('2026-10-07T03:00:00Z'))).includes('Ramen'),'opened once we are home');
+ // The trip has begun by today's date, so the server refuses a change.
+ assert.throws(()=>applyOperation(state,{type:'predictionSet',person:'Nate',id:'fuji',text:'Maybe'},{name:'Nate',role:'child'}),/sealed/);
+ const cards=recapStory(state,{today:'2026-10-07'});
+ const p=cards.find(c=>c.kind==='predictions');
+ assert.deepEqual(p.asked.find(q=>q.id==='fuji').answers.map(a=>a.person),['Nate','Boston']);
+ assert.ok(!recapStory(state,{today:'2026-09-29'}).some(c=>c.kind==='predictions'),'not before we are home');
+});

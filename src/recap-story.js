@@ -7,6 +7,7 @@ import {FOOD} from './food-data.js';
 import {foodAverage,triedFood,photoOfTheDay,expenseSummary,stepRatings,stepThoughts} from './trip-features.js';
 import {cityNames,personCounts} from './stamp-data.js';
 import {crowns} from './leaderboard-data.js';
+import {PREDICTIONS} from './prediction-data.js';
 const CITY_ICON={Tokyo:'🗼',Kyoto:'⛩️',Osaka:'🏯',Nara:'🦌','Disney Resort':'🏨',Disneyland:'🏰',DisneySea:'🌋'};
 const foodName=(state,id)=>{const f=FOOD.find(x=>x.id===id)||(state.foodItems||[]).find(x=>x.id===id);return f?String(f.en||f.title||'').split(' — ')[0]:null;};
 export function recapStory(state,{today,parent=false}={}){
@@ -33,6 +34,8 @@ export function recapStory(state,{today,parent=false}={}){
   const shown=Object.values(counts).filter(x=>x.count>0).sort((a,b)=>b.count-a.count).slice(0,3);
   if(best||shown.length)cards.push({kind:'person',person,favourite:best&&{title:best.step.title,stars:best.stars,thought:best.thought||mine.find(x=>x.thought)?.thought||''},counts:shown,crowns:table.find(t=>t.person===person)?.crowns||0});
  }
+ // The sealed predictions, opened: only once we are home, and only the questions somebody answered.
+ if(over){const asked=PREDICTIONS.map(q=>({...q,answers:(state.members||[]).map(n=>({person:n,text:state.predictions?.[n]?.[q.id]?.text||''})).filter(a=>a.text)})).filter(q=>q.answers.length);if(asked.length)cards.push({kind:'predictions',asked});}
  if(parent){const m=expenseSummary(state);if(m.total>0)cards.push({kind:'money',total:m.total,aud:m.aud,dailyAverage:m.dailyAverage});}
  cards.push({kind:'end',over});
  return cards;

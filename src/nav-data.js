@@ -30,6 +30,7 @@ export const PAGES={
  facts:{label:'Fun facts',note:'A fact a day about what is coming up, and the whole collection'},
  help:{label:'Help & useful apps',note:'Translation, hotel directions, reminders'},
  options:{label:'Options & ideas',note:'Places and activities saved for later'},
+ predictions:{label:'Sealed predictions',note:'Guess how the trip will go; the answers stay sealed until we are home'},
  planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, and voting on them'},
  ask:{label:'Ask about our trip',note:'Better today or tomorrow? Ask, and get an answer out of our own plan'},
  todo:{label:'To-do list',note:'Things to do or buy, on the day we will do them'},
@@ -64,7 +65,7 @@ export const PRIMARY={
 // between the bookings and the paperwork.
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','money','paying','ledger','food','allergy','hunts','phrases','meeting','safety','help']],
- ['The plan',['glance','todo','packing','trackers','planning','options','parks','shopping','shortlist','tickets','inbox']],
+ ['The plan',['glance','todo','packing','trackers','planning','predictions','options','parks','shopping','shortlist','tickets','inbox']],
  ['Looking back',['noticed','photos','memorymap','diary','recap','book','highlights','updates','bin','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
  ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot']]
