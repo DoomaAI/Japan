@@ -48,6 +48,7 @@ import Stamps from './Stamps.jsx';
 import Leaderboard from './Leaderboard.jsx';
 import RecapStory from './RecapStory.jsx';
 import Photobook from './Photobook.jsx';
+import FollowAlong from './FollowAlong.jsx';
 import Safety,{LostCards} from './Safety.jsx';
 import AllergyCard from './AllergyCard.jsx';
 import RecentlyDeleted from './RecentlyDeleted.jsx';
@@ -852,7 +853,10 @@ class Boundary extends React.Component{
   return <div className="crash"><h1>Something went wrong on this screen.</h1><p>Your plan and progress are saved on this phone. Reloading brings the app back.</p><p className="crash-detail">{String(this.state.error?.message||this.state.error)}</p><div className="row"><button className="primary" onClick={()=>location.reload()}>Reload</button><button onClick={()=>{location.href='/?tab=today';}}>Go Home</button></div></div>;
  }
 }
-createRoot(document.getElementById('root')).render(<Boundary><App/></Boundary>);
+// A follower's link opens the read-only page and nothing else: no session is asked for, and
+// none of the app behind it is started.
+const followKey=new URLSearchParams(location.search).get('follow');
+createRoot(document.getElementById('root')).render(<Boundary>{followKey?<FollowAlong followKey={followKey}/>:<App/>}</Boundary>);
 
 function ShowLocation({state,step,notice,maps}){
  const {english,japanese,japaneseAddress,address,phone,copyText}=showLocationDetails(state,step);

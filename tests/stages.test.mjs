@@ -139,3 +139,45 @@ test('on this day brings a trip day back a month, and a year, on',async()=>{
  assert.equal(anniversary(state,'2027-10-15'),null,'a day that was not a trip day');
  assert.equal(anniversary(state,'2028-02-22'),null,'seventeen months is not an anniversary');
 });
+test('following along sends only the allow-list: days so far, photos, stars, words and the diary',async()=>{
+ const {followView,followPhoto}=await import('../src/follow-data.js');
+ const state=upgraded(seed),day='2026-09-22',meiji=state.steps.find(s=>s.title==='Meiji Jingu forest and shrine');
+ state.steps=state.steps.map(s=>s.id===meiji.id?{...s,status:'done',pin:{lat:35.67,lng:139.69},bookingReference:'ABC123',phone:'03-1234-5678'}:s);
+ state.stepReviews={[meiji.id]:{ratings:{Nate:5,Boston:4},thoughts:{Nate:{text:'Huge gate',at:'x'}}}};
+ state.photos=[{id:'p1',day,by:'Nate',pathname:'photos/Nate/a.jpg',type:'image/jpeg',gps:{lat:35.6,lng:139.7},at:'2026-09-22T01:00:00Z'},{id:'p2',day:'2026-10-01',by:'Nate',pathname:'photos/Nate/b.jpg',type:'image/jpeg',at:'x'}];
+ state.photoVotes={[day]:{Lauren:'p1'}};state.journal={[day]:'A day in the forest.'};
+ state.expenses=[{id:'e',yen:5000}];state.contacts={Damien:'+61 400 000 000'};
+ const v=followView(state,'2026-09-29');
+ assert.equal(v.days.length,9,'only the days that have begun');assert.equal(v.days[0].number,9,'newest first');
+ const d=v.days.find(x=>x.date===day);
+ assert.deepEqual(d.photos,[{id:'p1',by:'Nate',best:true}]);
+ assert.deepEqual(d.stops,[{id:meiji.id,title:meiji.title,stars:4.5,said:[{person:'Nate',text:'Huge gate'}]}]);
+ assert.equal(d.diary,'A day in the forest.');
+ const text=JSON.stringify(v);
+ for(const secret of ['ABC123','03-1234-5678','+61','35.67','35.6','pathname','hotel','Hilton','Kanra','5000','Fantasy Springs'])assert.ok(!text.includes(secret),`${secret} must not reach a follower`);
+ assert.equal(followPhoto(state,'p1','2026-09-29')?.id,'p1');
+ assert.equal(followPhoto(state,'p2','2026-09-29'),null,'not a photo from a day still to come');
+ assert.equal(followPhoto(state,(state.documents[0]||{}).id,'2026-09-29'),null,'never a ticket');
+});
+test('API: the follow-along link is a parent’s to make and stop, and a wrong or stopped key learns nothing',async()=>{
+ const {createServer}=await import('node:http');const handler=(await import('../server/handler.mjs')).default;
+ process.env.LOCAL_DEMO='1';delete process.env.VERCEL;
+ const server=createServer(handler);await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
+ try{
+  const post=(path,data)=>fetch(base+'/api/'+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify(data)});
+  assert.equal((await fetch(base+'/api/follow?key='+'a'.repeat(64))).status,403,'no link made yet');
+  const {url}=await(await post('follow-link',{})).json();
+  const key=new URL(url).searchParams.get('follow');assert.match(key,/^[a-f0-9]{64}$/);
+  assert.equal((await(await post('follow-link',{})).json()).url,url,'asking again hands out the same link');
+  const state=(await(await fetch(base+'/api/state')).json()).state;
+  assert.equal('followKey' in state,false,'the key never travels with the trip');
+  const r=await fetch(`${base}/api/follow?key=${key}`,{headers:{cookie:''}});assert.equal(r.status,200);
+  const view=await r.json();assert.ok(Array.isArray(view.days));assert.equal('documents' in view,false);
+  assert.equal((await fetch(`${base}/api/follow?key=${'b'.repeat(64)}`)).status,403);
+  assert.equal((await fetch(`${base}/api/follow?key=nonsense`)).status,403);
+  assert.equal((await fetch(`${base}/api/follow-photo?key=${key}&id=nope`)).status,404);
+  await post('follow-link',{stop:true});
+  assert.equal((await fetch(`${base}/api/follow?key=${key}`)).status,403,'a stopped link stops at once');
+  const again=(await(await post('follow-link',{})).json()).url;assert.notEqual(again,url,'the next link is a different one');
+ }finally{delete process.env.LOCAL_DEMO;await new Promise(r=>server.close(r));}
+});
