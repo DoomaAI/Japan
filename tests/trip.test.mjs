@@ -1855,7 +1855,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  const ON=HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id));
  assert.deepEqual(HOME_OFF,['countdown','glance','adjust','tired','apps']);
  assert.deepEqual(homeShown(emptyHome()),ON);
- assert.equal(ON[0],'step','the step card leads Home');
+ assert.equal(ON[0],'briefing','the day in brief leads Home');assert.equal(ON[1],'step','then the step card');
  for(const id of HOME_DEFAULT)assert.ok(HOME_WIDGETS[id].label&&HOME_WIDGETS[id].note,id);
  // Moved and put away, and nothing lost: a widget put away is still in the order to come back.
  let prefs=moveWidget(emptyHome(),'weather',-10);
@@ -9809,7 +9809,6 @@ test('before we head out is a list built for the day, ticked fresh each morning,
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/needs:<MorningChecklist key=\{day\} state=\{visibleState\} day=\{day\} today=\{japanDate\(now\)\}\/>/,'the widget slot is the checklist');
 });
-
 test('the shopping list groups by the shop we will be standing in, or the day we will be there',async()=>{
  const {groupShopping,shopKey,shopLabel}=await import('../src/shopping-groups.js');
  const items=[
