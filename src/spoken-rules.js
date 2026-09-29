@@ -49,6 +49,7 @@ export const PAGE_RULES={
  photos:'Photos. All the photos everyone has taken. You can add yours, and at the end of the day everybody votes for the best one.',
  stamps:'Stamp book. In Japan, stations and temples have a stamp you can press into a book. These are our stamps. Every time we finish a place, a sight, a ride or a train, it gets a red stamp. Your own stamps come when you try five foods, or ten, or twenty five.',
  leaderboard:'Leaderboard. Who has tried the most foods, been on the most rides and taken the most photos. The one at the top of each list gets a crown. If two people have the same number, they share the place.',
+ shop:'Trip shop. These are the things Mum and Dad buy before a trip, like plugs and money. There are also things we can make from our trip. We could have shirts with our own characters on them, and a real photobook.',
  arrival:'Arrival paperwork. The forms Mum and Dad fill in so we can get into Japan, and back into Australia. Each of us gets a special square code on the phone to show at the airport.',
  windows:'Booking windows. Some things in Japan sell out in minutes, like special cafes and Disney restaurants. This page says exactly when each booking opens, so Mum and Dad are ready at the right minute.',
  predictions:'Sealed predictions. Before we go, guess things about the trip, like the best food or if we will see Mount Fuji. Nobody can see your guesses until we get home. Then we open them all together and see who was right.',

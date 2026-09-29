@@ -390,3 +390,42 @@ test('the day map is drawn from positions the trip holds, needs no network, and 
  const src=await readFile(new URL('../src/DayMap.jsx',import.meta.url),'utf8');
  assert.doesNotMatch(src,/fetch\(|tile\.openstreetmap|https?:\/\//,'nothing in the map comes from the network');
 });
+test('the trip shop orders the essentials by lead time, and every link leaves through one seam',async()=>{
+ const shop=await import('../src/shop-data.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ assert.ok(PAGES.shop?.label&&PAGE_RULES.shop,'a screen with something to say');
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('shop'));
+ const leads=shop.ESSENTIALS.map(e=>e.lead);
+ assert.deepEqual(leads,[...leads].sort((a,b)=>b-a),'in the order to do them');
+ for(const id of ['power','cash','esim','ic'])assert.ok(shop.ESSENTIALS.some(e=>e.id===id),`${id} is in the pack`);
+ for(const item of [...shop.ESSENTIALS,...shop.KEEPSAKES]){
+  assert.ok(item.buy.length,`${item.id} has somewhere to go`);
+  for(const [,url] of item.buy)assert.match(url,/^https:\/\//,`${item.id} links over https`);
+  if(item.page)assert.ok(PAGES[item.page],`${item.id} points at a real screen`);
+ }
+ const cash=shop.ESSENTIALS.find(e=>e.id==='cash');
+ assert.equal(shop.essentialDue(cash,25),'soon');assert.equal(shop.essentialDue(cash,14),'now');
+ assert.equal(shop.essentialDue(cash,90),'later');assert.equal(shop.essentialDue(cash,-3),'past');
+ assert.equal(shop.essentialDue(shop.ESSENTIALS.find(e=>e.id==='luggage'),-3),'now','forwarding is done on the trip');
+ assert.equal(shop.daysUntil({days:[{date:'2026-09-21'}]},'2026-09-01'),20);
+ assert.equal(shop.daysUntil({days:[]},'2026-09-01'),null);
+ // No partner yet: links go out untouched and nothing claims a commission.
+ const url='https://www.airalo.com/japan-esim';
+ assert.equal(shop.shopLink(url),url);assert.equal(shop.partnered(url),false);
+ shop.PARTNERS['airalo.com']=u=>`${u}?ref=trip`;
+ try{assert.equal(shop.shopLink(url),`${url}?ref=trip`);assert.equal(shop.partnered(url),true);}
+ finally{delete shop.PARTNERS['airalo.com'];}
+ assert.equal(shop.shopLink('not a url'),'not a url');
+});
+test('keepsakes say whether the trip has given them enough to be made from',async()=>{
+ const {KEEPSAKES,keepsakeMaterial,keepsakeReady}=await import('../src/shop-data.js');
+ const state={members:['Nate','Boston'],mascots:{Nate:{name:'Kitsu'},Boston:{name:' '}},
+  photoVotes:{'2026-09-21':{Nate:'p1'},'2026-09-22':{}},steps:[{day:'2026-09-21',status:'done'},{day:'2026-09-22',status:'done'},{day:'2026-09-22',status:'todo'}]};
+ const m=keepsakeMaterial(state);
+ assert.deepEqual(m,{characters:1,photos:1,days:2,stamps:2});
+ assert.equal(keepsakeReady(KEEPSAKES.find(k=>k.id==='shirts'),m).ready,true);
+ assert.deepEqual(keepsakeReady(KEEPSAKES.find(k=>k.id==='book'),m),{have:1,need:6,ready:false});
+ for(const k of KEEPSAKES){assert.ok(['before','after'].includes(k.when));assert.ok(k.from in m,`${k.id} is made from something counted`);assert.equal(k.provider,null,'no print provider chosen yet');}
+ assert.deepEqual(keepsakeMaterial({}),{characters:0,photos:0,days:0,stamps:0});
+});
