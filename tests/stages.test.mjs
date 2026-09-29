@@ -345,3 +345,23 @@ test('API: the push tick needs the cron secret, and a phone cannot subscribe unt
   assert.equal((await post('push-subscribe',{subscription:{}})).status,503);
  }finally{delete process.env.LOCAL_DEMO;delete process.env.CRON_SECRET;await new Promise(r=>server.close(r));}
 });
+test('tax-free: a flag on shopping and shortlist items, carried across, and a per-shop total against ¥5,000',async()=>{
+ const {applyOperation}=await import('../server/model.mjs');
+ const {taxFreeTally,TAX_FREE_MIN}=await import('../src/shopping-groups.js');
+ const parent={name:'Damien',role:'parent'};
+ let state=upgraded(seed);
+ state=applyOperation(state,{type:'shoppingAdd',title:'Kit Kats',store:'Don Quijote, Shibuya',budget:3000,quantity:1,taxFree:true},parent);
+ state=applyOperation(state,{type:'shoppingAdd',title:'Socks',store:'Don Quijote',budget:1500,quantity:1,taxFree:true},parent);
+ state=applyOperation(state,{type:'shoppingAdd',title:'Postcard',store:'Don Quijote',budget:900,quantity:1},parent);
+ assert.equal(state.shopping.at(-1).taxFree,false);
+ let t=taxFreeTally(state.shopping);
+ assert.equal(t.total,4500);assert.equal(t.reached,false);assert.equal(t.short,500);assert.equal(TAX_FREE_MIN,5000);
+ state=applyOperation(state,{type:'shoppingEdit',id:state.shopping.at(-1).id,title:'Postcard',store:'Don Quijote',budget:900,quantity:1,taxFree:true},parent);
+ t=taxFreeTally(state.shopping);assert.equal(t.reached,true);
+ assert.equal(taxFreeTally([{taxFree:true,store:'',budget:9000}]),null,'no shop, no visit to count');
+ state=applyOperation(state,{type:'shortlistAdd',title:'Kimono jacket',shop:'Nakamise',price:12000,taxFree:true},parent);
+ const find=state.shortlist.at(-1);assert.equal(find.taxFree,true);
+ state=applyOperation(state,{type:'shortlistStatus',id:find.id,status:'yes'},parent);
+ state=applyOperation(state,{type:'shortlistShop',id:find.id},parent);
+ assert.equal(state.shopping.at(-1).taxFree,true,'the flag comes across with it');
+});

@@ -232,7 +232,7 @@ export default function Shortlist({state,user,day,config,busy,setBusy,mutate,req
   const f=new FormData(e.currentTarget),file=f.get('photo');
   const fields={title:f.get('title'),person:f.get('person'),day:f.get('day')||null,shop:f.get('shop'),place:f.get('place'),
    price:f.get('price')===''?null:Number(f.get('price')),tags:splitTags(f.get('tags')),notes:f.get('notes'),
-   rating:stars||null,pin:pin||null,...readAnchor(anchor)};
+   rating:stars||null,pin:pin||null,taxFree:f.get('taxFree')==='on',...readAnchor(anchor)};
   // Which one is new is worked out from the ids we already had rather than guessed at from the
   // end of the list, because the family's phones are adding to the same list at the same time.
   const before=new Set((state.shortlist||[]).map(s=>s.id));
@@ -267,6 +267,7 @@ export default function Shortlist({state,user,day,config,busy,setBusy,mutate,req
     <small>{stars?`${stars} of ${SHORTLIST_STARS}`:'Optional — and it can be changed from the card'}</small>
    </div>
    <label>Shop<input name="shop" maxLength={250} defaultValue={edit.shop||''} placeholder="Nakamise-dori stall, third on the left"/></label>
+   <label className="checkline"><input type="checkbox" name="taxFree" defaultChecked={!!edit.taxFree}/>A tax-free shop</label>
    <label>Where were we?<AnchorSelect state={state} name="anchor" value={anchor} onChange={e=>setAnchor(e.target.value)}/></label>
    <p><small>Pin it to what we were doing at the time, or to a place off our own map, and it comes back on that day’s screen. A place off the map gets walking directions back to it later.</small></p>
    {!anchor.startsWith('step:')&&<label>Day we saw it<select name="day" defaultValue={edit.day||''}><option value="">Not noted</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select></label>}
