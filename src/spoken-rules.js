@@ -50,6 +50,7 @@ export const PAGE_RULES={
  photos:'Photos. All the photos everyone has taken. You can add yours, and at the end of the day everybody votes for the best one.',
  stamps:'Stamp book. In Japan, stations and temples have a stamp you can press into a book. These are our stamps. Every time we finish a place, a sight, a ride or a train, it gets a red stamp. Your own stamps come when you try five foods, or ten, or twenty five.',
  leaderboard:'Leaderboard. Who has tried the most foods, been on the most rides and taken the most photos. The one at the top of each list gets a crown. If two people have the same number, they share the place.',
+ apps:'Apps to download. The apps Mum and Dad put on their phones for Japan: for trains, for taxis, for reading signs and menus, and for the theme parks. There is even one that warns us about earthquakes.',
  vault:'Passports and visas. Where Mum and Dad keep the details of everyone’s passport, locked up safe. Only their phones can open it.',
  arrival:'Arrival paperwork. The forms Mum and Dad fill in so we can get into Japan, and back into Australia. Each of us gets a special square code on the phone to show at the airport.',
  windows:'Booking windows. Some things in Japan sell out in minutes, like special cafes and Disney restaurants. This page says exactly when each booking opens, so Mum and Dad are ready at the right minute.',

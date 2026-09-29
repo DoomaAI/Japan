@@ -1,15 +1,17 @@
 // Push notifications: what the phones should be told, and when. This is the list of moments —
 // the leave-by time for each fixed booking, a booking window a quarter of an hour before it opens
-// and on the minute, and a short briefing at half past seven each trip morning — worked out from
+// and on the minute, a short briefing at half past seven each trip morning, and the apps to set up — worked out from
 // the trip alone, so the server can ask "what fell due since I last looked?" and never send the
 // same thing twice. Each has a key that names it for good; a key already sent is not sent again.
 import {activeSteps,japanClock} from './timing.js';
 import {dayBriefing} from './briefing-data.js';
+import {appReminders,APP_REMIND_AT} from './apps-data.js';
 export const PUSH_KINDS=[
  ['leave','Time to leave','The leave-by time for each fixed booking'],
  ['windows','Booking windows','15 minutes before a booking opens, and when it opens (parents)'],
  ['changes','Plan changes','When someone else changes the plan'],
- ['morning','Morning briefing','At 7:30 each trip morning, the day in a line']
+ ['morning','Morning briefing','At 7:30 each trip morning, the day in a line'],
+ ['apps','Apps to set up','A week before we fly, and the evening before the parks and the Shinkansen (parents)']
 ];
 export const PUSH_KIND_IDS=PUSH_KINDS.map(([id])=>id);
 export const MORNING_AT='07:30';
@@ -35,6 +37,11 @@ export function pushMoments(state){
   const open=Date.parse(w.opensAt);
   out.push({key:`window-soon|${w.id}|${w.opensAt}`,kind:'windows',at:open-15*60000,title:`${w.title} opens in 15 minutes`,body:`At ${japanClock(new Date(open))} Japan time. Have the booking page open.`,url:w.url||'/?tab=windows',to:parents});
   out.push({key:`window-open|${w.id}|${w.opensAt}`,kind:'windows',at:open,title:`${w.title} is open now`,body:w.notes||'Book it before it goes.',url:w.url||'/?tab=windows',to:parents});
+ }
+ for(const r of appReminders(state)){
+  const one=r.apps.length===1&&r.first;
+  out.push({key:`apps|${r.id}|${r.day}`,kind:'apps',at:at(r.day,APP_REMIND_AT),title:one?`Tomorrow: ${r.apps[0].name}`:'A week to go: apps to set up',
+   body:one?r.apps[0].setup:`${r.apps.map(a=>a.name).join(', ')}. Set each one up on home Wi-Fi.`,url:'/?tab=apps',to:parents});
  }
  return out.sort((a,b)=>a.at-b.at);
 }
