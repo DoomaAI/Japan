@@ -85,3 +85,22 @@ details{border-radius:5px;background:#f5f3ed}summary{font-size:1rem}.callout{bor
 .step-more .step-notes{margin:.6rem 0}
 .step-more .matched-address{display:block;margin:.5rem 0}
 .step-more .participants{margin:.7rem 0 0}
+
+/* The strip under the phone's clock. With the page drawn edge to edge, iOS blurs whatever
+   scrolls beneath the status bar; a plain band of page colour there leaves nothing to blur. */
+body:before{content:'';position:fixed;top:0;left:0;right:0;z-index:40;height:env(safe-area-inset-top,0px);background:#f4f3ef;pointer-events:none}
+
+/* The family button: the initial fills the circle and sits in its optical middle. */
+.avatar .mascot,.avatar .mascot-letter{width:100%!important;height:100%!important}
+.avatar .mascot-letter{line-height:1;font-size:.9rem;text-box:trim-both cap alphabetic}
+
+/* Choose a plan: the label, the picker and the split button share one height and one centre line. */
+.option-bar{align-items:center}
+.option-group{flex:1;align-items:center;min-width:0}
+.option-group label{flex:999 1 11rem;align-items:center;min-width:11rem}
+.option-group select{flex:1;width:auto;min-width:5.5rem}
+.option-group select,.option-group .split-toggle{height:40px;min-height:40px;border:1px solid #cbc6ba;border-radius:4px;background-color:#fffefa;font-size:.9rem;font-weight:700;line-height:1.2;color:var(--ink)}
+.option-group select{padding:0 2rem 0 .75rem}
+.option-group .split-toggle{flex:1 0 auto;padding:0 .9rem;white-space:nowrap}
+.home .option-bar{padding:.5rem .6rem}
+.home .option-bar select{min-height:40px;min-width:5.5rem;padding:0 2rem 0 .75rem}
