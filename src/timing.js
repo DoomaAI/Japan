@@ -53,6 +53,18 @@ export function calendarFeed(state,origin=''){
     'BEGIN:VALARM','TRIGGER:-PT10M','ACTION:DISPLAY',`DESCRIPTION:${icsEsc(`${s.title} in 10 minutes`)}`,'END:VALARM','END:VEVENT');
   }
  }
+ // Booking windows: the moment a booking opens, with an alert the day before, a quarter of an
+ // hour before and on the minute, because the good ones are gone in the first few minutes. The
+ // calendar does the waking; the phone says it in whatever time zone it is in.
+ for(const w of state.bookingWindows||[]){
+  if(w.bookedAt||!Number.isFinite(Date.parse(w.opensAt)))continue;
+  const start=new Date(w.opensAt),end=new Date(+start+15*60000);
+  lines.push('BEGIN:VEVENT',`UID:window-${w.id}@pasfield-japan`,`DTSTAMP:${now}`,`DTSTART:${icsStamp(start)}`,`DTEND:${icsStamp(end)}`,`SUMMARY:${icsEsc(`Booking opens: ${w.title}`)}`,
+   `DESCRIPTION:${icsEsc(`${japanClock(start)} Japan time.${w.notes?`\n${w.notes}`:''}${w.url?`\n${w.url}`:''}`)}`,`URL:${w.url||`${origin}/?tab=windows`}`,
+   'BEGIN:VALARM','TRIGGER:-P1D','ACTION:DISPLAY',`DESCRIPTION:${icsEsc(`Tomorrow: ${w.title} opens`)}`,'END:VALARM',
+   'BEGIN:VALARM','TRIGGER:-PT15M','ACTION:DISPLAY',`DESCRIPTION:${icsEsc(`${w.title} opens in 15 minutes`)}`,'END:VALARM',
+   'BEGIN:VALARM','TRIGGER:PT0M','ACTION:DISPLAY',`DESCRIPTION:${icsEsc(`${w.title} is open now`)}`,'END:VALARM','END:VEVENT');
+ }
  lines.push('END:VCALENDAR');
  return lines.map(icsFold).join('\r\n')+'\r\n';
 }
