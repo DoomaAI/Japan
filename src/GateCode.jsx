@@ -1,13 +1,19 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {X,ArrowLeft,ArrowRight,SunMedium,ScanLine,Image as ImageIcon,ExternalLink,Wallet} from 'lucide-react';
-import {codesFor,toRead,readable,pendingCodes,isLink,preview} from './wallet-codes.js';
-import {readCodes,drawCode} from './qr-reader.js';
+import {X,ArrowLeft,ArrowRight,SunMedium,ScanLine,Image as ImageIcon,ExternalLink,Wallet,Send,UserRound} from 'lucide-react';
+import {codesFor,toRead,readable,pendingCodes,isLink,preview,startAt} from './wallet-codes.js';
+import {readCodes,drawCode,codeCard} from './qr-reader.js';
 // A ticket's codes at the gate: each one drawn fresh, as large as the screen allows, black on
 // white whatever the theme, with the screen kept awake while it is up. Four park tickets swipe
 // through as four people. The photo it was read from is one tap away for anyone who asks to see it.
-export default function GateCode({state,doc,onClose,onPhoto}){
- const codes=codesFor(state,doc);
- const [at,setAt]=useState(0),[src,setSrc]=useState(''),touch=useRef(null);
+// A parent can also say whose each code is, so each phone opens on its own person's code, and send
+// one code out of the app, after being told plainly that sending it hands the ticket over.
+const when=iso=>new Intl.DateTimeFormat('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tokyo'}).format(new Date(iso));
+export default function GateCode({state,doc:opened,onClose,onPhoto,user=null,busy=false,mutate=null,notice=()=>{}}){
+ // The ticket as it is now, not as it was when the view opened, so a name given or a send made
+ // here shows straight away.
+ const doc=state.documents.find(d=>d.id===opened.id)||opened;
+ const codes=codesFor(state,doc),parent=user?.role==='parent'&&!!mutate;
+ const [at,setAt]=useState(()=>startAt(codes,user?.name)),[src,setSrc]=useState(''),[sending,setSending]=useState(false),touch=useRef(null);
  const here=codes[Math.min(at,codes.length-1)];
  useEffect(()=>{let on=true;if(here)drawCode(here.text).then(u=>{if(on)setSrc(u);}).catch(()=>setSrc(''));return()=>{on=false;};},[here?.text]);
  // The screen stays on while a code is up; a phone that refuses simply dims as it would.
@@ -17,16 +23,37 @@ export default function GateCode({state,doc,onClose,onPhoto}){
  return <div className="gate-code" role="dialog" aria-modal="true" aria-label={`${doc.title}: code to scan`}
   onTouchStart={e=>{touch.current=e.touches[0]?.clientX??null;}}
   onTouchEnd={e=>{if(touch.current===null)return;const dx=e.changedTouches[0].clientX-touch.current;if(Math.abs(dx)>60)setAt(i=>Math.max(0,Math.min(codes.length-1,i+(dx<0?1:-1))));touch.current=null;}}>
-  <header><div><strong>{doc.title}</strong><small>{here.person}{codes.length>1?` · ${at+1} of ${codes.length}`:''}</small></div><button type="button" aria-label="Close" onClick={onClose}><X/></button></header>
+  <header><div><strong>{doc.title}</strong><small>{here.who}{codes.length>1?` · ${at+1} of ${codes.length}`:''}</small></div><button type="button" aria-label="Close" onClick={onClose}><X/></button></header>
   <div className="gate-code-card">{src?<img src={src} alt={`QR code for ${here.person}`}/>:<ScanLine size={48}/>}</div>
   {doc.reference&&<p className="gate-code-ref">Ref <b>{doc.reference}</b></p>}
+  {here.sent.length>0&&<p className="gate-code-sent"><Send size={15}/>Sent by {here.sent.at(-1).by}, {when(here.sent.at(-1).at)}{here.sent.length>1?` (${here.sent.length} times)`:''}. Whoever has it may have used it.</p>}
   <p className="gate-code-hint"><SunMedium size={16}/>Turn the brightness right up and hold the phone flat to the scanner.</p>
   <div className="gate-code-nav">
    {codes.length>1&&<button type="button" disabled={at===0} onClick={()=>setAt(i=>i-1)}><ArrowLeft size={18}/>Previous</button>}
    {onPhoto&&readable(state.documents.find(d=>d.id===here.id))&&<button type="button" onClick={()=>onPhoto(state.documents.find(d=>d.id===here.id))}><ImageIcon size={17}/>The original</button>}
    {codes.length>1&&<button type="button" disabled={at===codes.length-1} onClick={()=>setAt(i=>i+1)}>Next<ArrowRight size={18}/></button>}
   </div>
+  {parent&&<div className="gate-code-tools">
+   {codes.length>1&&<label><UserRound size={15}/>Whose is this one?<select id={`owner-${here.key}`} value={here.owner||''} disabled={busy} onChange={e=>mutate({type:'codeOwner',id:doc.id,key:here.key,person:e.target.value})}><option value="">Not said</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label>}
+   {!sending
+    ?<button type="button" onClick={()=>setSending(true)}><Send size={16}/>Send this code</button>
+    :<div className="gate-code-warn"><p><strong>Sending it hands the ticket over.</strong> Whoever has it can use it, and usually only the first scan gets in. Send it only to someone who is using this ticket instead of us.</p>
+     <div className="row wrap"><button type="button" className="primary" disabled={busy} onClick={()=>send(here)}>Send it</button><button type="button" onClick={()=>setSending(false)}>Keep it</button></div></div>}
+  </div>}
  </div>;
+ // The share sheet with the code as a picture; on a phone or browser that cannot share files,
+ // the picture is saved instead. Recorded only once it has actually gone.
+ async function send(code){
+  try{
+   const blob=await codeCard(code.text,{title:doc.title,person:code.owner||code.person,reference:doc.reference});
+   const file=new File([blob],`${doc.title} - ${code.owner||code.person}.png`.replace(/[\\/:*?"<>|]/g,' '),{type:'image/png'});
+   const words=`${doc.title}${code.owner?` for ${code.owner}`:''}${doc.reference?` (ref ${doc.reference})`:''}. Show this code at the gate.`;
+   if(navigator.canShare?.({files:[file]}))await navigator.share({files:[file],title:doc.title,text:words});
+   else{const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:file.name});document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);}
+   setSending(false);
+   if(await mutate({type:'codeSent',id:doc.id,key:code.key}))notice('Sent. If they use it, mark the ticket used so it leaves Up next.');
+  }catch(e){if(e?.name!=='AbortError')notice(e?.message||'The code could not be sent.');}
+ }
 }
 // Reads the codes on tickets that have not been looked at yet, one file at a time, on a parent's
 // phone with signal, whichever screen is open. What it finds waits to be asked about rather than

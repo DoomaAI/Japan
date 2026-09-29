@@ -86,3 +86,17 @@ export async function drawCode(text){
  // The library's margin is in pixels, not modules: four modules of eight pixels each.
  return qr.createDataURL(8,32);
 }
+// The code as a card to send: the code large on white, with the ticket's name, whose it is and
+// the reference underneath, as a PNG that saves to Photos and shows at a gate like a screenshot.
+export async function codeCard(text,{title='',person='',reference=''}={}){
+ const url=await drawCode(text),img=new Image();img.src=url;await img.decode();
+ const W=900,pad=60,size=W-pad*2,lines=[[title,'600 40px'],[person,'400 34px'],[reference&&`Ref ${reference}`,'400 30px']].filter(([t])=>t);
+ const canvas=document.createElement('canvas');canvas.width=W;canvas.height=pad+size+30+lines.length*54+pad;
+ const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+ ctx.imageSmoothingEnabled=false;ctx.drawImage(img,pad,pad,size,size);
+ ctx.fillStyle='#111';ctx.textAlign='center';
+ let y=pad+size+30;
+ for(const [t,font] of lines){ctx.font=`${font} system-ui,-apple-system,sans-serif`;y+=46;
+  let s=t;while(ctx.measureText(s).width>W-pad*2&&s.length>4)s=s.slice(0,-2);ctx.fillText(s===t?t:s+'…',W/2,y);}
+ return new Promise((ok,fail)=>canvas.toBlob(b=>b?ok(b):fail(new Error('The code could not be drawn.')),'image/png'));
+}
