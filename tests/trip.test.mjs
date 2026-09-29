@@ -230,8 +230,11 @@ test('a stop is ticked off where the day is read, and says when it was finished'
  assert.match(timeline,/s\.status==='done'&&s\.completedAt\?doneClock\(s\):\(s\.time\|\|'—'\)/);
  assert.match(timeline,/`Completed\$\{s\.time\?` · due \$\{s\.time\}`:''\}`/);
  assert.match(timeline,/className=\{`timeline-row \$\{s\.status\}/);
- assert.match(css,/\.timeline-row\.done \.timeline-step\{opacity:\.55\}/);
- assert.match(css,/\.timeline-row\.done \.timeline-step \.timeline-dot\{opacity:1\}/);
+ // A finished stop fades everything but its circle, which stays the same as every other stop's,
+ // outlined and unfaded, with a green tick inside rather than a filled green disc.
+ assert.match(css,/\.timeline-row\.done \.timeline-step>:not\(\.timeline-dot\)\{opacity:\.55\}/);
+ assert.match(css,/\.timeline-step\.done \.timeline-dot\{color:var\(--green\)\}/);
+ assert.doesNotMatch(css,/\.timeline-step\.done \.timeline-dot\{[^}]*background/);
  // The two clock helpers agree with each other: a stamp read back in Japan time is the time that
  // was typed, whatever the phone reading it is set to.
  const step={day:'2026-10-02',completedAt:doneStamp({day:'2026-10-02'},'14:20').toISOString()};
@@ -1459,7 +1462,9 @@ test('food is ticked and rated per person, and four stars makes it a favourite',
  assert.throws(()=>applyOperation(state,{type:'foodRating',itemId:'tonkatsu',person:'Boston',rating:5},nate),e=>e.status===403);
  assert.ok(applyOperation(state,{type:'foodRating',itemId:'tonkatsu',person:'Boston',rating:5},parent));
  assert.throws(()=>applyOperation(state,{type:'foodTried',itemId:'sausage-roll',person:'Nate',done:true},nate),e=>e.status===404);
- for(const bad of [6,-1,2.5,'five'])assert.throws(()=>applyOperation(state,{type:'foodRating',itemId:'ramen',person:'Nate',rating:bad},nate),/1 to 5/,String(bad));
+ for(const bad of [6,-1,2.3,0.25,5.5,'five'])assert.throws(()=>applyOperation(state,{type:'foodRating',itemId:'ramen',person:'Nate',rating:bad},nate),/½ to 5/,String(bad));
+ // Half stars are a rating: better than a three, not quite a four.
+ assert.equal(applyOperation(state,{type:'foodRating',itemId:'ramen',person:'Nate',rating:3.5},nate).food.ramen.ratings.Nate,3.5);
  // A tick made with no signal shows on the phone straight away.
  const pending=pendingProgress(state,[{operation:{type:'foodRating',itemId:'ramen',person:'Nate',rating:3}},{operation:{type:'foodTried',itemId:'udon',person:'Nate',done:true,at}}]);
  assert.equal(foodRatings(pending,'ramen').Nate,3);
@@ -1752,12 +1757,14 @@ test('each phone arranges its own menu, and nothing put away is lost',async()=>{
  // And whatever the bar holds, More stands in for everything it does not.
  assert.equal(navActive('games','more',nate,mine),false,'a screen on the bar lights the bar');
  assert.equal(navActive('weather','more',nate,mine),true,'and everything else lights More');
- assert.ok(BAR_MIN>=3&&BAR_MAX<=8&&BAR_MIN<BAR_MAX);
+ assert.ok(BAR_MIN>=3&&BAR_MAX<=12&&BAR_MIN<BAR_MAX);
  assert.deepEqual(cleanNav(undefined,nate),{bar:null,hidden:[]});
- // Home is on the bar wherever they put it. It can be moved along the row but not off it: a
- // swipe down the bar lands on whatever is first, and that has to be somewhere to land.
+ // Home is always first on the bar: it is pinned to the left end, outside the strip that
+ // scrolls, and a swipe down the bar lands on whatever is first.
  assert.deepEqual(primaryNav(lauren,{bar:['games','weather','places','food']}),
   ['today','games','weather','places','food']);
+ assert.deepEqual(primaryNav(lauren,{bar:['games','today','weather','places']}),
+  ['today','games','weather','places'],'an older bar with Home moved along it puts Home back first');
  assert.ok(primaryNav(damien,{bar:pagesFor(damien).filter(id=>id!=='today')}).includes('today'));
  // A screen put away cannot come back through the back door. Without a bar of their own the
  // one for their role is used, minus anything they put away, topped up in the order the menu
@@ -1814,6 +1821,14 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
  // And a way out of any arrangement at all.
  assert.match(screen,/setPrefs\(emptyNav\(\)\)/);
  assert.match(main,/tab==='personalise'&&<Personalise/);
+ // Home and More are pinned either side of the strip that scrolls, and the shortcuts between
+ // them can be put in order from Settings as well as from My menu.
+ assert.match(nav,/\{tab_\(pinned,'nav-home'\)\}\s*<div className="nav-tabs"/);
+ assert.match(nav,/shortcuts\.map\(id=>tab_\(id\)\)/);
+ assert.match(css,/\.bottom-nav \.nav-more,\.bottom-nav \.nav-home\{flex:0 0 auto/);
+ const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
+ assert.match(settings,/<BarShortcuts user=\{user\} prefs=\{navPrefs\} setPrefs=\{setNavPrefs\}\/>/);
+ assert.match(main,/<Settings [^>]*navPrefs=\{navPrefs\} setNavPrefs=\{saveNav\}\/>/);
 });
 
 test('Home is a column of widgets each phone orders and puts away for itself',async()=>{
@@ -1887,10 +1902,10 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  assert.match(nav,/export const iconFor=id=>ICONS\[id\]\|\|Circle;/);
  assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,2,'the bar and the More list both go through the fallback');
  assert.ok(!/const Icon=ICONS\[id\]/.test(nav),'nothing indexes ICONS directly any more');
- // The tabs share the bar equally and scroll only on a phone too narrow for them all. Six
- // must fit a standard iPhone: at 60px a tab the sixth was faded off the edge on every one.
+ // The tabs share the bar while they fit, never shrink below their own label, and scroll
+ // like the days along the top once there are more of them than fit.
  assert.match(css,/\.nav-tabs\{position:relative;flex:1;min-width:0;display:flex;[^}]*overflow-x:auto/);
- assert.match(css,/\.nav-tabs button\{flex:1 1 0;min-width:68px;scroll-snap-align:center\}/);
+ assert.match(css,/\.nav-tabs button\{flex:1 0 auto;min-width:68px;scroll-snap-align:center\}/);
  assert.match(css,/@media\(max-width:600px\)\{[^@]*\.nav-tabs button\{min-width:48px;/);
  assert.match(css,/\.nav-tabs::-webkit-scrollbar\{display:none\}/);
  // Auto margins centre the strip while it fits and fall to zero when it overflows, so the
@@ -1900,7 +1915,7 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  // More is not in the scroller. It is the way to every other screen, so it is pinned to the
  // end of the bar and cannot be swiped off the edge the way the reported bug had it.
  assert.match(nav,/<\/div>\s*\n\s*<button className=\{`nav-more/,'More sits outside the scrolling strip');
- assert.match(css,/\.bottom-nav \.nav-more\{flex:0 0 auto/);
+ assert.match(css,/\.bottom-nav \.nav-more,\.bottom-nav \.nav-home\{flex:0 0 auto/);
  // A tab stopped by a hard edge reads as the end of the bar, so the side with more on it fades.
  assert.match(nav,/data-swipe=\{swipe\|\|undefined\}/);
  for(const side of ['end','start','both'])assert.match(css,new RegExp(`\\.nav-tabs\\[data-swipe="${side}"\\]\\{-webkit-mask-image:linear-gradient`),side);
@@ -4532,7 +4547,7 @@ test('we rate an activity and say what we thought, each of us for ourselves',asy
  assert.deepEqual(stepThoughts(applyOperation(state,{type:'stepThought',id:step.id,person:'Nate',thought:'  '},child),step.id),{});
  // It is our own opinion, not each other's — and only for real activities.
  assert.throws(()=>applyOperation(state,{type:'stepRating',id:step.id,person:'Boston',rating:5},child),e=>e.status===403);
- for(const bad of [{type:'stepRating',id:step.id,person:'Nate',rating:6},{type:'stepRating',id:step.id,person:'Nate',rating:2.5},
+ for(const bad of [{type:'stepRating',id:step.id,person:'Nate',rating:6},{type:'stepRating',id:step.id,person:'Nate',rating:2.3},{type:'stepRating',id:step.id,person:'Nate',rating:5.5},
   {type:'stepRating',id:'nope',person:'Nate',rating:3},{type:'stepRating',id:step.id,person:'Grandma',rating:3},
   {type:'stepThought',id:step.id,person:'Nate',thought:'x'.repeat(2001)}])
   assert.throws(()=>applyOperation(state,bad,parent),`${JSON.stringify(bad).slice(0,46)} should be refused`);
@@ -7593,13 +7608,13 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  const store=(saved={})=>({getItem:k=>saved[k]??null,setItem:(k,v)=>{saved[k]=v;},saved});
  // Nothing is off until somebody says so, so a phone that never opens this page behaves
  // exactly as it always did.
- assert.deepEqual(DEFAULTS,{dailyPhrase:true,dailyFact:true});
+ assert.deepEqual(DEFAULTS,{dailyPhrase:true,dailyFact:true,transcribeVoice:false});
  assert.deepEqual(readSettings('Nate',store()),DEFAULTS);
  // One at a time: turning the fun fact off leaves the phrase alone, which is the whole point
  // of two switches rather than one.
  const phone=store();
- assert.deepEqual(writeSetting('Nate','dailyFact',false,phone),{dailyPhrase:true,dailyFact:false});
- assert.deepEqual(readSettings('Nate',phone),{dailyPhrase:true,dailyFact:false});
+ assert.deepEqual(writeSetting('Nate','dailyFact',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false});
+ assert.deepEqual(readSettings('Nate',phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false});
  // Under the person's own name. Two boys sharing a phone do not share an opinion about a
  // pop-up, and switching one off must never switch it off for somebody else.
  assert.deepEqual(readSettings('Boston',phone),DEFAULTS);
@@ -7613,7 +7628,8 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'not json at all'})),DEFAULTS);
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'{"dailyFact":"no"}'})),DEFAULTS);
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'{"dailyLater":false}'})),DEFAULTS);
- assert.deepEqual(writeSetting('Nate','dailyLater',false,phone),{dailyPhrase:true,dailyFact:false},'a setting nothing knows about is not written');
+ assert.deepEqual(writeSetting('Nate','dailyLater',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false},'a setting nothing knows about is not written');
+ assert.equal(settingOn(undefined,'transcribeVoice'),false,'writing voice notes down starts off');
  assert.equal(settingOn(undefined,'dailyFact'),true,'before anything is read, everything is still on');
  // And the switches are actually wired to the pop-ups. Off counts as done with it, so the
  // phrase never opens — and the fun fact behind it stops waiting on a phrase that is never
@@ -7629,7 +7645,7 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  // what stops somebody turning a thing off is not knowing what else goes with it.
  for(const s of SETTINGS){
   assert.ok(s.label&&s.on&&s.off,`${s.id} is missing its label or its two lines`);
-  assert.match(s.off,/stays under More|Show me another/,`${s.id} does not say what is left when it is off`);
+  if(!s.group)assert.match(s.off,/stays under More|Show me another/,`${s.id} does not say what is left when it is off`);
  }
  // It is a switch to a screen reader too, not a button whose meaning is in the word beside it.
  assert.match(page,/role="switch" aria-checked=\{on\} aria-label=\{s\.label\}/);
@@ -9132,8 +9148,11 @@ test('the hunts: every matcha and gachapon added, rated by each of us, best firs
  state=applyOperation(state,{type:'huntRate',id:maruni.id,person:'Boston',rating:5},boston);
  assert.throws(()=>applyOperation(state,{type:'huntRate',id:maruni.id,person:'Nate',rating:1},boston),AppError);
  state=applyOperation(state,{type:'huntRate',id:uji.id,person:'Lauren',rating:3},parent);
- for(const bad of [{hunt:'nope'},{title:''},{yen:-1},{day:'2030-01-01'},{rating:6}])
+ for(const bad of [{hunt:'nope'},{title:''},{yen:-1},{day:'2030-01-01'},{rating:6},{rating:3.3}])
   assert.throws(()=>applyOperation(state,{type:'huntAdd',hunt:'matcha',title:'x',...bad},parent),AppError,JSON.stringify(bad));
+ // Half stars count, and average like any other.
+ const halved=applyOperation(state,{type:'huntRate',id:uji.id,person:'Lauren',rating:3.5},parent);
+ assert.equal(huntAverage(halved.hunts.entries.find(e=>e.id===uji.id)),4.3);
  // The leaderboard: best average first, and each person's own favourite.
  const board=huntBoard(state,'matcha');
  assert.equal(board.count,2);
@@ -9310,4 +9329,150 @@ test('28 September has a time on every stop, from the guide, and the live trip p
  assert.equal(timesSeeded({timesSeed:1,steps:[{...rik.steps[0],notes:'Get two'}]}).steps[0].notes,'Get two');
  const moved={...out,steps:[{...out.steps[0],time:'10:30'}]};
  assert.equal(timesSeeded(moved).steps[0].time,'10:30','and it only ever runs once');
+});
+test('a stop reached by several legs is ticked leg by leg, and the last leg ticks the stop',async()=>{
+ const {legCount,legsTicked}=await import('../src/route-data.js');
+ const {pendingProgress}=await import('../src/trip-features.js');
+ const s=seed.steps.find(s=>s.id==='2026-09-26-01');
+ assert.equal(legCount(s),3);
+ const at=k=>`2026-09-26T0${k}:00:00.000Z`;
+ let state=applyOperation(seed,{type:'legStatus',id:s.id,leg:0,done:true,at:at(1)},child);
+ let step=state.steps.find(x=>x.id===s.id);
+ assert.equal(step.status,'started');assert.equal(step.startedAt,at(1));assert.equal(legsTicked(step),1);assert.equal(step.completedAt,undefined);
+ state=applyOperation(state,{type:'legStatus',id:s.id,leg:2,done:true,at:at(2)},child);
+ assert.equal(state.steps.find(x=>x.id===s.id).status,'started');
+ state=applyOperation(state,{type:'legStatus',id:s.id,leg:1,done:true,at:at(3)},child);
+ step=state.steps.find(x=>x.id===s.id);
+ assert.equal(step.status,'done');assert.equal(step.completedAt,at(3));assert.equal(legsTicked(step),3);
+ // Unticking one leg takes the stop back off, and leaves the other legs ticked.
+ const undone=applyOperation(state,{type:'legStatus',id:s.id,leg:1,done:false},child).steps.find(x=>x.id===s.id);
+ assert.equal(undone.status,'started');assert.equal(undone.completedAt,undefined);assert.equal(legsTicked(undone),2);
+ // Unticking a leg of a stop ticked as a whole keeps the rest ticked too.
+ const whole=applyOperation(seed,{type:'status',id:s.id,status:'done',at:at(4)},parent);
+ assert.equal(legsTicked(applyOperation(whole,{type:'legStatus',id:s.id,leg:0,done:false},parent).steps.find(x=>x.id===s.id)),2);
+ // Resetting the stop clears its legs.
+ assert.equal(applyOperation(state,{type:'status',id:s.id,status:'todo'},parent).steps.find(x=>x.id===s.id).legsDone,undefined);
+ // Offline, the queued ticks replay to the same result.
+ const queue=[0,1,2].map((leg,k)=>({operation:{type:'legStatus',id:s.id,leg,done:true,at:at(k+1)}}));
+ const shown=pendingProgress(seed,queue).steps.find(x=>x.id===s.id);
+ assert.equal(shown.status,'done');assert.equal(shown.completedAt,at(3));
+});
+test('leg ticks are checked like stop ticks',()=>{
+ const multi=seed.steps.find(s=>s.id==='2026-09-26-01'),single=seed.steps.find(s=>s.id==='2026-09-29-06');
+ for(const leg of [-1,3,1.5,'0'])assert.throws(()=>applyOperation(seed,{type:'legStatus',id:multi.id,leg,done:true},parent),/Invalid progress change/);
+ assert.throws(()=>applyOperation(seed,{type:'legStatus',id:single.id,leg:0,done:true},parent),/Invalid progress change/);
+ assert.throws(()=>applyOperation(seed,{type:'legStatus',id:multi.id,leg:0,done:'yes'},parent),/Invalid progress change/);
+ assert.throws(()=>applyOperation(seed,{type:'legStatus',id:'missing',leg:0,done:true},parent),e=>e.status===404);
+ assert.throws(()=>applyOperation(seed,{type:'legStatus',id:multi.id,leg:0,done:true,at:new Date(Date.now()+3600000).toISOString()},parent),/valid past completion time/);
+ const theirs={...seed,steps:seed.steps.map(s=>s.id===multi.id?{...s,participants:['Damien']}:s)};
+ assert.throws(()=>applyOperation(theirs,{type:'legStatus',id:multi.id,leg:0,done:true},child),e=>e.status===403);
+});
+test('things we noticed: said out loud, tagged to where it was and what it was about, and in the diary and on the map',async()=>{
+ const {ensureFeatures,pendingProgress,searchTrip,diaryDays}=await import('../src/trip-features.js');
+ const {noticedWhere,noticedItem,noticedFor}=await import('../src/noticed-data.js');
+ const {memoryPoints}=await import('../src/memory-map.js');
+ const boston={name:'Boston',role:'child'};
+ let state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.noticed,[]);
+ const kyotoDay=seed.days.find(d=>/kyoto/i.test(d.city)),step=seed.steps.find(s=>s.day===kyotoDay.date);
+ state=applyOperation(state,{type:'huntAdd',hunt:'matcha',title:'Uji latte'},parent);
+ const latte=state.hunts.entries[0];
+ // A boy can say one, tagged to a stop and to a hunt find; a stop gives it its day.
+ state=applyOperation(state,{type:'noticedAdd',text:'  The deer bowed back to us  ',stepId:step.id,day:kyotoDay.date,item:{kind:'hunt',id:latte.id},spoken:true},child);
+ state=applyOperation(state,{type:'noticedAdd',text:'A vending machine that sang',day:kyotoDay.date,pin:{lat:35.0116,lng:135.7681}},boston);
+ const [deer,machine]=state.noticed;
+ assert.equal(deer.text,'The deer bowed back to us');assert.equal(deer.by,'Nate');assert.equal(deer.day,null);assert.ok(deer.spoken);
+ assert.equal(noticedWhere(state,deer).day,kyotoDay.date);
+ assert.match(noticedItem(state,deer).label,/Uji latte/);
+ for(const bad of [{text:''},{text:'x',stepId:'nope'},{text:'x',locationId:'nope'},{text:'x',pin:{lat:999,lng:0}},{text:'x',item:{kind:'hunt',id:'nope'}},{text:'x',item:{kind:'other',id:latte.id}},{text:'x'.repeat(2001)}])
+  assert.throws(()=>applyOperation(state,{type:'noticedAdd',...bad},parent),AppError,JSON.stringify(bad).slice(0,60));
+ // Only whoever said it, or a parent, changes or removes it.
+ assert.throws(()=>applyOperation(state,{type:'noticedEdit',id:deer.id,text:'Mine now'},boston),AppError);
+ state=applyOperation(state,{type:'noticedEdit',id:deer.id,text:'The deer bowed first',stepId:step.id},child);
+ assert.equal(state.noticed[0].text,'The deer bowed first');assert.ok(state.noticed[0].spoken,'still said out loud');
+ // In the diary, in search and on the map.
+ assert.deepEqual(diaryDays(state,kyotoDay.date)[0].noticed.map(n=>n.text),['The deer bowed first','A vending machine that sang']);
+ assert.ok(searchTrip(state,'vending').some(h=>h.type==='Noticed'&&h.id===machine.id));
+ assert.ok(memoryPoints(state).points.some(p=>p.kind==='noticed'&&p.noticed.id===machine.id&&p.exact));
+ assert.deepEqual(noticedFor(state,{person:'Boston'}).map(n=>n.id),[machine.id]);
+ // Removing the hunt find leaves the noticing; removing the stop puts it back on the stop's day.
+ state=applyOperation(state,{type:'huntRemove',id:latte.id},parent);
+ assert.equal(noticedItem(state,state.noticed[0]),null);
+ state=applyOperation(state,{type:'patch',id:step.id,patch:{locked:false}},parent);
+ state=applyOperation(state,{type:'lock',id:step.id,locked:false},parent);
+ state=applyOperation(state,{type:'remove',id:step.id},parent);
+ assert.equal(state.noticed[0].stepId,null);assert.equal(state.noticed[0].day,kyotoDay.date);
+ // Offline, a new one shows at once.
+ const shown=pendingProgress(state,[{operation:{type:'noticedAdd',operationId:'n1',text:'Lanterns',by:'Lauren',at:new Date().toISOString()}}]);
+ assert.ok(shown.noticed.some(n=>n.id==='pending-n1'&&n.pending&&n.by==='Lauren'));
+ state=applyOperation(state,{type:'noticedRemove',id:machine.id},boston);
+ assert.equal(state.noticed.length,1);
+ // Voice notes from anywhere in the app are in the same list; one a noticing is about is shown inside it, not twice.
+ const {noticedFeed}=await import('../src/noticed-data.js');
+ state.voiceNotes=[{id:'v1',by:'Lauren',pathname:'voice/x/a.m4a',day:kyotoDay.date,stepId:null,title:'',seconds:12,type:'audio/mp4',size:10,at:'2026-10-02T01:00:00.000Z'},
+  {id:'v2',by:'Nate',pathname:'voice/x/b.m4a',day:kyotoDay.date,stepId:null,title:'Temple bell',seconds:5,type:'audio/mp4',size:10,at:'2026-10-02T02:00:00.000Z'}];
+ assert.deepEqual(noticedFeed(state).filter(e=>e.kind==='voice').map(e=>e.id),['v2','v1']);
+ assert.deepEqual(noticedFeed(state,{person:'Lauren'}).map(e=>e.id),['v1']);
+ assert.ok(!noticedFeed(state,{voice:false}).some(e=>e.kind==='voice'));
+ state=applyOperation(state,{type:'noticedAdd',text:'The bell at closing time',day:kyotoDay.date,item:{kind:'voice',id:'v2'}},child);
+ assert.equal(noticedItem(state,state.noticed.at(-1)).voice.id,'v2');
+ assert.ok(!noticedFeed(state).some(e=>e.kind==='voice'&&e.id==='v2'),'shown inside its noticing');
+ assert.throws(()=>applyOperation(state,{type:'noticedAdd',text:'x',item:{kind:'voice',id:'gone'}},child),AppError);
+});
+test('voice notes can be written down, fixed afterwards, and found by what was said',async()=>{
+ const {checkVoiceNote,addVoiceNote}=await import('../server/voice.mjs');
+ const {ensureFeatures,searchTrip,pendingProgress}=await import('../src/trip-features.js');
+ const nate={id:'g-nate',name:'Nate',role:'child'},boston={name:'Boston',role:'child'};
+ let state=ensureFeatures(structuredClone(seed));const day=seed.days[2].date;
+ const blob={contentType:'audio/mp4',size:20000};
+ // Written down by the phone while it recorded, and sent with the recording.
+ const checked=checkVoiceNote(state,{pathname:'voice/g-nate/a.m4a',day,seconds:9,transcript:'  The deer bowed at me three times  '},nate);
+ assert.equal(checked.transcript,'The deer bowed at me three times');
+ assert.ok(!('transcript' in checkVoiceNote(state,{pathname:'voice/g-nate/b.m4a',day,seconds:9},nate)),'sound only when nothing was written down');
+ assert.throws(()=>checkVoiceNote(state,{pathname:'voice/g-nate/c.m4a',day,seconds:9,transcript:'x'.repeat(6001)},nate),AppError);
+ state=addVoiceNote(state,checked,nate,blob);
+ state=addVoiceNote(state,checkVoiceNote(state,{pathname:'voice/g-nate/b.m4a',day,seconds:4},nate),nate,blob);
+ const [deer,quiet]=state.voiceNotes;
+ // Found by what was said, not only by its label.
+ assert.ok(searchTrip(state,'bowed at me').some(h=>h.type==='Voice note'&&h.id===deer.id));
+ // Words added afterwards by whoever recorded it, or a parent; nobody else.
+ assert.throws(()=>applyOperation(state,{type:'voiceNoteWords',id:quiet.id,transcript:'Mine'},boston),AppError);
+ state=applyOperation(state,{type:'voiceNoteWords',id:quiet.id,transcript:'Lanterns on the river'},nate);
+ assert.ok(searchTrip(state,'lanterns').some(h=>h.id===quiet.id));
+ state=applyOperation(state,{type:'voiceNoteWords',id:quiet.id,transcript:'  '},parent);
+ assert.ok(!('transcript' in state.voiceNotes[1]),'emptied is taken away');
+ // Offline, fixed words show at once.
+ const shown=pendingProgress(state,[{operation:{type:'voiceNoteWords',id:deer.id,transcript:'Four times, actually'}}]);
+ assert.equal(shown.voiceNotes[0].transcript,'Four times, actually');
+});
+
+test('saved list items fold to one line so the whole list stays in view, and open for more',async()=>{
+ const src=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ const shop=src.slice(src.indexOf('export function Shopping('));
+ assert.match(shop,/className="shop-toggle" aria-expanded=\{shown\}/,'each item has a fold toggle');
+ assert.match(shop,/\{shown&&<div className="shop-more">/,'shop, notes and buttons only when opened');
+ assert.match(shop,/new Set\(initial\?\[initial\.id\]:\[\]\)/,'an item opened from a link starts open');
+ const hunts=await readFile(new URL('../src/Hunts.jsx',import.meta.url),'utf8');
+ assert.match(hunts,/className="hunt-toggle" aria-expanded=\{shown\}/,'each find has a fold toggle');
+ assert.match(hunts,/\{shown&&<><div className="hunt-ratings">/,'everybody’s stars only when opened');
+});
+test('every stop in the plan reads as a sort of stop, and a parent can set it by hand',async()=>{
+ const {entryType,guessEntryType,ENTRY_TYPE_IDS}=await import('../src/entry-types.js');
+ const by=t=>guessEntryType(seed.steps.find(s=>s.title===t));
+ assert.equal(by('Tonkatsu Maisen lunch'),'food');
+ assert.equal(by('Nozomi 33 to Kyoto'),'transport');
+ assert.equal(by('Shinsaibashi shopping'),'shopping');
+ assert.equal(by('Mario Kart — Express Pass'),'entertainment');
+ assert.equal(by('Flight of the Hippogriff'),'entertainment');
+ assert.equal(by('Yasaka Shrine at dusk'),'sightseeing');
+ assert.equal(by('mipig café'),'cafe');
+ assert.equal(by('Check in and settle in'),'hotel');
+ assert.equal(by('Chuo-dori shopping and snacks'),'shopping');
+ for(const s of seed.steps)assert.notEqual(guessEntryType(s),'other',s.title);
+ const s=seed.steps.find(s=>s.title==='Tonkatsu Maisen lunch');
+ const edited=applyOperation(seed,{type:'patch',id:s.id,patch:{category:'sightseeing'}},parent).steps.find(x=>x.id===s.id);
+ assert.equal(entryType(edited).id,'sightseeing');
+ assert.equal(entryType(applyOperation(seed,{type:'patch',id:s.id,patch:{category:''}},parent).steps.find(x=>x.id===s.id)).id,'food');
+ assert.throws(()=>applyOperation(seed,{type:'patch',id:s.id,patch:{category:'spa'}},parent),/sort of stop/);
+ assert.ok(ENTRY_TYPE_IDS.includes('food'));
 });

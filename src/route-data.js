@@ -132,6 +132,26 @@ export function legStops(leg){
  return (i<=j?all.slice(i,j+1):all.slice(j,i+1).reverse()).map(station);
 }
 export const routeFor=step=>ROUTES[step?.id]||null;
+// A stop reached by more than one leg (a walk, a train, a change, another train) is ticked off
+// leg by leg as each is done, and the stop ticks itself off with the last one. A single-leg
+// route is just the stop, so it has no legs of its own to tick.
+export const legCount=step=>{const legs=routeFor(step);return legs&&legs.length>1?legs.length:0;};
+export const legDone=(step,k)=>step?.status==='done'||!!step?.legsDone?.[k];
+export const legsTicked=step=>step?.status==='done'?legCount(step):Object.keys(step?.legsDone||{}).length;
+// Applies one leg's tick to the stop, in place, and says what that did to the stop as a whole:
+// 'done' when it was the last leg, 'undone' when it took a finished stop back off the list, else
+// null. Unticking one leg of a finished stop leaves the others ticked: only that leg is undone.
+export function tickLeg(step,leg,done,at){
+ const total=legCount(step),ticked={...(step.legsDone||{})};
+ if(step.status==='done')for(let k=0;k<total;k++)ticked[k]=ticked[k]||step.completedAt||at;
+ if(done)ticked[leg]=ticked[leg]||at;else delete ticked[leg];
+ step.legsDone=ticked;
+ const count=Object.keys(ticked).length;
+ if(count>=total){if(step.status==='done')return null;step.status='done';step.completedAt=at;return 'done';}
+ if(step.status==='done'){delete step.completedAt;step.status=count?'started':'todo';if(!count)delete step.startedAt;return 'undone';}
+ if(done&&step.status!=='started'){step.status='started';step.startedAt=step.startedAt||at;}
+ return null;
+}
 // What each ride costs, and the total when the route crosses companies: each company is its own
 // ticket, and an IC card pays each part as it taps out and in again at the change.
 const fareOf=l=>l.yen||l.options?.[0]?.yen;

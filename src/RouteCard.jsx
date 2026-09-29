@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket} from 'lucide-react';
-import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn} from './route-data.js';
+import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket} from 'lucide-react';
+import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn,legCount,legDone,legsTicked} from './route-data.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
 // Follows the phone along the route while it is open and tracking is on. GPS fades underground,
 // so the last good fix is kept and its age shown rather than guessing.
@@ -45,20 +45,29 @@ function LineSymbol({code,line}){
  return <b className={`line-symbol${line.kind==='Subway'?' round':''}`} style={{background:line.colour,color:inkOn(line.colour)}} aria-hidden="true">{code}</b>;
 }
 const KIND_ICON={Subway:TrainFrontTunnel,Bus,Monorail:TramFront};
-export default function RouteCard({legs}){
+// The tick beside one leg. Whoever may tick the stop may tick its legs; everyone else still sees
+// which legs are behind the family. The mark is the same circle as a stop's on the day at a glance,
+// with the checkbox laid invisibly over the whole label so the finger target stays generous.
+function LegTick({step,k,label,canTick,busy,onTick}){
+ const done=legDone(step,k);
+ return <label className={`route-leg-tick${done?' is-done':''}`}><input type="checkbox" checked={done} disabled={busy||!canTick} aria-label={`${done?'Done':'Mark done'}: leg ${k+1}, ${label}`} onChange={e=>onTick(k,e.target.checked)}/><span className="route-leg-dot" aria-hidden="true">{done&&<Check size={10} strokeWidth={3}/>}</span><span>{done?'Done':'Done?'}</span></label>;
+}
+export default function RouteCard({legs,step,canTick,busy,onTick}){
  const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
  const fares=routeFares(legs),rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
  // Every ride offers the one tracker; its status sits with the ride it is following (the one pressed until it knows).
  const [pressed,setPressed]=useState(0),trackAt=where?where.i:pressed;
+ const ticks=step&&onTick?legCount(step):0,tick=(k,label)=>ticks?<LegTick step={step} k={k} label={label} canTick={canTick} busy={busy} onTick={onTick}/>:null,doneClass=k=>ticks>0&&legDone(step,k)?' leg-done':'';
  return <section className="route-card" aria-label="Route">
   <p className="eyebrow">ROUTE</p>
+  {ticks>0&&<p className="route-progress"><CheckCircle2 size={15}/><span><b>{legsTicked(step)} of {ticks} legs done.</b> {step.status==='done'?'This stop is complete.':'Tick each leg as you finish it; the last one ticks off the whole stop.'}</span></p>}
   {fares&&<p className="route-fares"><Ticket size={15}/><span><b>Fare: adult {yen(fares.adult)} · child {yen(fares.child)} each,</b> as {fares.rides.length} separate tickets, one per company: {fares.rides.map(r=>`${r.operator} ${yen(r.yen[0])} / ${yen(r.yen[1])}`).join(' + ')}. An IC card covers them all: tap out at one company's gates and in again at the next, and each part is charged.{legs.some(l=>l.options)?' Seat tickets on the options below are extra.':''}</span></p>}
   {legs.map((leg,k)=>{
-   if(leg.mode==='walk')return <p className="route-walk" key={k}><Footprints size={15}/><span>{leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span></p>;
+   if(leg.mode==='walk')return <p className={`route-walk${doneClass(k)}`} key={k}><Footprints size={15}/><span>{leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span>{tick(k,'walk')}</p>;
    const r=rideAt[k],line=LINES[leg.line],stops=rides[r],on=where&&where.i===r,here=on?where.index:-1,next=on&&!where.arrived?where.next:-1;
    const Icon=KIND_ICON[line.kind]||TrainFront,fast=line.fast||[],symbols=lineSymbols(stops);
-   return <div className="route-ride" key={k} style={{'--line':line.colour}}>
-    <strong className="route-line"><Icon size={16}/>{symbols.map(c=><LineSymbol key={c} code={c} line={line}/>)}{line.name} <span lang="ja">{line.ja}</span></strong>
+   return <div className={`route-ride${doneClass(k)}`} key={k} style={{'--line':line.colour}}>
+    <div className="route-head"><strong className="route-line"><Icon size={16}/>{symbols.map(c=><LineSymbol key={c} code={c} line={line}/>)}{line.name} <span lang="ja">{line.ja}</span></strong>{tick(k,line.name)}</div>
     <p className="route-kind">{symbols.length===0&&<i aria-hidden="true"/>}{line.kind} · {line.operator}</p>
     <p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>
     <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes&&!leg.options?` · about ${leg.minutes} min`:''}</p>

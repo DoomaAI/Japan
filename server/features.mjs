@@ -5,11 +5,12 @@ import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
-import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isHalfStar,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_TO,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
 import {HUNTS,MAX_CUSTOM_HUNTS,MAX_HUNT_ENTRIES,huntEntryFields} from '../src/hunt-data.js';
+import {MAX_NOTICED,NOTICED_TEXT,noticedFields} from '../src/noticed-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
 const MAX_PROPOSALS=300;
@@ -60,7 +61,7 @@ export function extraOperation(state,op,user,fail,now){
     if(op.done)tried[op.person]=tried[op.person]||at;else delete tried[op.person];
     state.food={...state.food,[op.itemId]:{...entry,tried}};
    }else{
-    if(op.rating!==0&&!(Number.isInteger(op.rating)&&op.rating>=1&&op.rating<=5))fail('Rate it from 1 to 5 stars.');
+    if(op.rating!==0&&!isHalfStar(op.rating))fail('Rate it from ½ to 5 stars.');
     const ratings={...(entry.ratings||{})},tried={...(entry.tried||{})};
     if(op.rating){ratings[op.person]=op.rating;tried[op.person]=tried[op.person]||now;}else delete ratings[op.person];
     state.food={...state.food,[op.itemId]:{...entry,ratings,tried}};
@@ -384,6 +385,13 @@ export function extraOperation(state,op,user,fail,now){
   if(!parent&&note.by!==user.name)fail('You can only label your own voice notes.',403);
   if(typeof op.title!=='string'||op.title.length>200)fail('Keep the label short.');
   note.title=op.title.trim();
+ }else if(op.type==='voiceNoteWords'){
+  // The words of a voice note, added or corrected afterwards by whoever recorded it, or a parent.
+  const note=state.voiceNotes.find(v=>v.id===op.id);if(!note)fail('Voice note not found.',404);
+  if(!parent&&note.by!==user.name)fail('You can only write down your own voice notes.',403);
+  if(typeof op.transcript!=='string'||op.transcript.length>6000)fail('The words are too long to keep.');
+  const words=op.transcript.trim();if(words)note.transcript=words;else delete note.transcript;
+  return {summary:null,important:false,title:note.title||'Voice note'};
  }else if(op.type==='exchangeRate'){
   if(!parent)fail('A parent can set the rate.',403);
   if(!Number.isFinite(op.perAud)||op.perAud<1||op.perAud>1000)fail('Enter how many yen one Australian dollar buys.');
@@ -540,6 +548,29 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:entry.title};
   }
   fail('Unknown shortlist action.');
+ }else if(op.type==='noticedAdd'||op.type==='noticedEdit'||op.type==='noticedRemove'){
+  // Things we noticed. Anyone adds one, the boys included; changing or removing one is for
+  // whoever said it, or a parent.
+  const list=state.noticed;
+  const found=()=>{const n=list.find(n=>n.id===op.id);if(!n)fail('That one is no longer there.',404);
+   if(!parent&&n.by!==user.name)fail('Only whoever said it, or a parent, can change it.',403);return n;};
+  if(op.type==='noticedRemove'){const n=found();state.noticed=list.filter(x=>x.id!==n.id);return {summary:null,important:false,title:'Something we noticed'};}
+  if(!string(op.text,NOTICED_TEXT)||!op.text.trim())fail('Say what you noticed.');
+  dayCheck(op.day??null);
+  if(op.stepId&&op.locationId)fail('Tag it to a stop or to a place, not both.');
+  if(op.stepId&&!state.steps.some(s=>s.id===op.stepId))fail('Activity not found.',404);
+  if(op.locationId&&!(state.locations||[]).some(l=>l.id===op.locationId))fail('Choose a place from the map list.');
+  if(!validPin(op.pin??null))fail('That position could not be read.');
+  if(op.item!=null){
+   const kinds={hunt:()=>(state.hunts?.entries||[]).some(e=>e.id===op.item.id),find:()=>(state.shortlist||[]).some(f=>f.id===op.item.id),voice:()=>(state.voiceNotes||[]).some(v=>v.id===op.item.id)};
+   if(typeof op.item!=='object'||!kinds[op.item.kind]||typeof op.item.id!=='string'||!kinds[op.item.kind]())fail('That item is no longer on its list.');
+  }
+  const fields=noticedFields(op);
+  if(op.type==='noticedEdit'){const n=found();Object.assign(n,fields,{spoken:n.spoken||fields.spoken});return {summary:null,important:false,title:'Something we noticed'};}
+  if(list.length>=MAX_NOTICED)fail(`That is ${MAX_NOTICED} already.`);
+  let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+  state.noticed=[...list,{id:randomUUID(),...fields,by:user.name,at}];
+  return {summary:null,important:false,title:'Something we noticed'};
  }else if(typeof op.type==='string'&&op.type.startsWith('hunt')){
   // The hunts. Anyone adds a find and anyone starts a new hunt, the boys included; everyone
   // rates for themselves; changing or removing a find is for whoever added it, or a parent.
@@ -548,7 +579,7 @@ export function extraOperation(state,op,user,fail,now){
   const known=id=>HUNTS.some(h=>h.id===id)||hunts.custom.some(h=>h.id===id);
   const found=()=>{const e=hunts.entries.find(e=>e.id===op.id);if(!e)fail('That one is no longer on the list.',404);return e;};
   const stamp=()=>{if(!op.at)return now;if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');return new Date(op.at).toISOString();};
-  const rating=v=>{if(v!==0&&!(Number.isInteger(v)&&v>=1&&v<=5))fail('Rate it from 1 to 5 stars.');return v;};
+  const rating=v=>{if(v!==0&&!isHalfStar(v))fail('Rate it from ½ to 5 stars.');return v;};
   const check=o=>{
    if(!known(o.hunt))fail('Choose a hunt.');
    if(!string(o.title,120)||!o.title.trim())fail('Say what it was.');
@@ -949,7 +980,7 @@ export function extraOperation(state,op,user,fail,now){
   let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
   const entry={...(state.stepReviews[op.id]||{})};
   if(op.type==='stepRating'){
-   if(op.rating!==0&&!(Number.isInteger(op.rating)&&op.rating>=1&&op.rating<=5))fail('Rate it from 1 to 5 stars.');
+   if(op.rating!==0&&!isHalfStar(op.rating))fail('Rate it from ½ to 5 stars.');
    const ratings={...(entry.ratings||{})};
    if(op.rating)ratings[op.person]=op.rating;else delete ratings[op.person];
    entry.ratings=ratings;

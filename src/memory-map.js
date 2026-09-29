@@ -4,6 +4,7 @@
 // position is placed there instead. Nothing here asks the phone where it is.
 import {stepPin,validCoords,documentSteps} from './trip-features.js';
 import {HUNTS} from './hunt-data.js';
+import {noticedWhere} from './noticed-data.js';
 import {resolveLocation,locationKey} from './locations.js';
 import {activeSteps} from './timing.js';
 // A position somebody shares with the family is rounded to about a hundred metres, and is gone
@@ -104,6 +105,15 @@ export function memoryPoints(state,{day=null,person=null}={}){
   if(!at)continue;
   const ratings=Object.fromEntries(Object.entries(e.ratings||{}).filter(([n])=>mine(person,n)).map(([n,v])=>[n,v]));
   points.push({id:`hunt-${e.id}`,kind:'hunt',title:e.title,day:date,...at,hunt:e,icon:icons[e.hunt]||'⭐',photos:[],voice:[],ratings,thoughts:{},count:1});
+ }
+ // Something we noticed goes where it was pinned, else on its stop, else on its place.
+ for(const n of (state.noticed||[]).filter(n=>mine(person,n.by))){
+  const w=noticedWhere(state,n);
+  if(day&&w.day!==day)continue;
+  const coords=n.locationId?placeCoords(state)[n.locationId]:null;
+  const at=validPosition(n.pin)?{lat:n.pin.lat,lng:n.pin.lng,exact:true}:w.step?stepPosition(state,w.step):validPosition(coords)?{lat:coords.lat,lng:coords.lng,exact:false}:null;
+  if(!at)continue;
+  points.push({id:`noticed-${n.id}`,kind:'noticed',title:n.text.length>60?`${n.text.slice(0,57)}…`:n.text,day:w.day,...at,noticed:n,photos:[],voice:[],ratings:{},thoughts:{},count:1});
  }
  return {points,unplaced};
 }

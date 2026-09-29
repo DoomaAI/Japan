@@ -4,8 +4,10 @@ import {expressSeeded} from './park-data.js';
 import {splitSeeded} from './stop-splits.js';
 import {timesSeeded} from './day-times.js';
 import {notesSeeded} from './stop-notes.js';
+import {tickLeg} from './route-data.js';
 import {ORDERED_PHRASES,phraseForDay} from './phrasebook-data.js';
 import {ALL_FACTS,orderedFacts} from './fact-data.js';
+import {noticedFields,noticedWhere,noticedFor} from './noticed-data.js';
 export const BOYS=['Nate','Boston'];
 export const THANK_YOU_FROM='Damien',THANK_YOU_TO='Lauren';
 export function initialThankYou(){
@@ -403,7 +405,7 @@ export function seededChallenges(state){
 }
 export function ensureFeatures(input){
  const state=timesSeeded(notesSeeded(splitSeeded({...input,...expressSeeded(input)})));
- return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},noticed:state.noticed??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -536,6 +538,10 @@ export function stepAverage(state,id){
 }
 export const stepRated=(state,id)=>Object.keys(stepRatings(state,id)).length;
 export const STEP_STARS=5;
+// A rating of our own is whole or half stars from ½ to 5 — "better than a three, not a four" is
+// the answer a family actually gives. Nought is not a rating; it takes one back.
+export const isHalfStar=v=>typeof v==='number'&&v>=0.5&&v<=STEP_STARS&&Number.isInteger(v*2);
+export const starText=v=>`${Math.floor(v)||''}${v%1?'½':''}`;
 // The days we would do again, best first — the trip's own highlights, built out of what the
 // four of them actually said rather than out of what was planned.
 export function ratedSteps(state,{day=null,min=0}={}){
@@ -1124,6 +1130,9 @@ export function searchTrip(state,query,guide=[]){
  for(const i of spending(state).items)if(match(i.title,i.notes,i.person))hits.push({type:'Spending',id:i.id,title:i.title,detail:`${i.person}’s spending money`,day:i.day});
  for(const c of state.challenges)if(match(c.title,c.notes))hits.push({type:'Challenge',id:c.id,title:c.title,day:c.day});
  for(const [day,m]of Object.entries(state.meetings))if(match(m.place,m.japanese,m.notes))hits.push({type:'Meeting',id:day,title:m.place,detail:m.notes,day});
+ // A voice note is found by its label and, once written down, by what was actually said in it.
+ for(const v of state.voiceNotes||[])if(match(v.title,v.transcript,v.by))hits.push({type:'Voice note',id:v.id,title:v.title||`${v.by}’s voice note`,detail:v.transcript||'',day:v.day});
+ for(const n of state.noticed||[])if(match(n.text,n.by,noticedWhere(state,n).label))hits.push({type:'Noticed',id:n.id,title:n.text.slice(0,80),detail:[n.by,noticedWhere(state,n).label].filter(Boolean).join(' · '),day:noticedWhere(state,n).day});
  for(const [day,n]of Object.entries(state.journal))if(match(n))hits.push({type:'Diary',id:day,title:`Diary · ${day}`,detail:n,day});
  for(const p of guide)if(match(p.text))hits.push({type:'Guide',id:p.number,title:`Guide page ${p.number}`,page:p.number});
  return hits;
@@ -1133,13 +1142,19 @@ export function diaryDays(state,day){
   const steps=state.steps.filter(s=>s.day===d.date&&s.status==='done').sort((a,b)=>(a.completedAt||'').localeCompare(b.completedAt||''));
   const media=state.documents.filter(m=>m.category==='memory'&&(m.day===d.date||state.steps.find(s=>s.id===m.stepId)?.day===d.date));
   const challenges=state.challenges.flatMap(c=>Object.entries(c.completions||{}).filter(([,at])=>at&&japanDate(new Date(at))===d.date).map(([name])=>`${name}: ${c.title}${c.responses?.[name]?' — '+c.responses[name]:''}`));
-  return {...d,steps,media,challenges,note:state.journal[d.date]||'',rating:dayRating(state,d.date),reviews:ratedSteps(state,{day:d.date})};
+  return {...d,steps,media,challenges,note:state.journal[d.date]||'',noticed:noticedFor(state,{day:d.date}).reverse(),rating:dayRating(state,d.date),reviews:ratedSteps(state,{day:d.date})};
  });
 }
 export function pendingProgress(state,queue){
  const next=ensureFeatures(structuredClone(state));
  for(const {operation:o}of queue){
-  if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=true;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;}
+  // A leg ticked with no signal is replayed the same way the server will apply it, so the stop
+  // it finishes shows as finished, and its tickets leave the list, straight away.
+  if(o.type==='legStatus'){const s=next.steps.find(s=>s.id===o.id);if(s){s.pending=true;const outcome=tickLeg(s,o.leg,o.done,o.at);
+   if(outcome==='done')next.documents=next.documents.map(d=>documentServesStep(d,s.id)&&documentSpent(next.steps,d)&&d.category!=='memory'&&!d.archivedAt?{...d,archivedAt:o.at,archivedWith:s.id,pending:true}:d);
+   if(outcome==='undone')next.documents=next.documents.map(d=>d.archivedWith&&documentServesStep(d,s.id)?{...d,archivedAt:null,archivedBy:null,archivedWith:null,pending:true}:d);
+  }}
+  if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=true;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;delete s.legsDone;}
    // The tickets for an activity ticked off on a train with no signal leave the list there and
    // then, exactly as they will when the change lands, rather than lingering until it syncs.
    if(o.status==='done')next.documents=next.documents.map(d=>documentServesStep(d,s.id)&&documentSpent(next.steps,d)&&d.category!=='memory'&&!d.archivedAt?{...d,archivedAt:o.at,archivedWith:s.id,pending:true}:d);
@@ -1159,7 +1174,9 @@ export function pendingProgress(state,queue){
    next.games={...next.games,scores:{...next.games.scores,[o.person]:mine}};
   }
   if(o.type==='foodTried'){const e=next.food[o.itemId]||{},tried={...(e.tried||{})};if(o.done)tried[o.person]=tried[o.person]||o.at;else delete tried[o.person];next.food={...next.food,[o.itemId]:{...e,tried}};}
-  if(o.type==='huntAdd'){const h={custom:[],entries:[],...(next.hunts||{})};const ratings=Number.isInteger(o.rating)&&o.rating>0&&o.by?{[o.by]:o.rating}:{};next.hunts={...h,entries:[...h.entries,{id:`pending-${o.operationId}`,hunt:o.hunt,title:String(o.title||'').trim(),place:String(o.place||'').trim(),day:o.stepId?null:(o.day??null),yen:Number.isInteger(o.yen)?o.yen:null,note:String(o.note||'').trim(),status:o.status==='want'?'want':'tried',shortlistId:o.shortlistId||null,stepId:o.stepId||null,locationId:o.locationId||null,pin:validPin(o.pin??null)?(o.pin??null):null,ratings:o.status==='want'?{}:ratings,by:o.by||'',at:o.at,pending:true}]};}
+  if(o.type==='huntAdd'){const h={custom:[],entries:[],...(next.hunts||{})};const ratings=isHalfStar(o.rating)&&o.by?{[o.by]:o.rating}:{};next.hunts={...h,entries:[...h.entries,{id:`pending-${o.operationId}`,hunt:o.hunt,title:String(o.title||'').trim(),place:String(o.place||'').trim(),day:o.stepId?null:(o.day??null),yen:Number.isInteger(o.yen)?o.yen:null,note:String(o.note||'').trim(),status:o.status==='want'?'want':'tried',shortlistId:o.shortlistId||null,stepId:o.stepId||null,locationId:o.locationId||null,pin:validPin(o.pin??null)?(o.pin??null):null,ratings:o.status==='want'?{}:ratings,by:o.by||'',at:o.at,pending:true}]};}
+  if(o.type==='voiceNoteWords'){next.voiceNotes=(next.voiceNotes||[]).map(v=>v.id===o.id?{...v,transcript:String(o.transcript||'').trim()||undefined,pending:true}:v);}
+  if(o.type==='noticedAdd'){next.noticed=[...(next.noticed||[]),{id:`pending-${o.operationId}`,...noticedFields(o),by:o.by||'',at:o.at,pending:true}];}
   if(o.type==='huntTried'){const h={custom:[],entries:[],rankings:{},...(next.hunts||{})};next.hunts={...h,entries:h.entries.map(e=>e.id===o.id?{...e,status:o.done?'tried':'want',pending:true}:e)};}
   if(o.type==='huntRate'&&o.rating){const h=next.hunts||{};if(h.entries)next.hunts={...h,entries:h.entries.map(e=>e.id===o.id&&e.status==='want'?{...e,status:'tried'}:e)};}
   if(o.type==='huntRank'&&Array.isArray(o.order)){const h={custom:[],entries:[],rankings:{},...(next.hunts||{})};next.hunts={...h,rankings:{...h.rankings,[o.hunt]:{...(h.rankings[o.hunt]||{}),[o.person]:o.order}}};}

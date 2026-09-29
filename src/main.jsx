@@ -4,7 +4,7 @@ import {destinationFor,resolveLocation,showLocationDetails} from './locations.js
 import {ensureFeatures,pendingProgress,phoneLinks,isTrainLeg,EYE_SPY,eyeSpySpotted,PIN_PLACES,stepPin,pinText} from './trip-features.js';
 import {askPhoneWhereItIs} from './geo.js';
 import RouteCard from './RouteCard.jsx';
-import {routeFor} from './route-data.js';
+import {routeFor,legCount,legsTicked} from './route-data.js';
 import {Challenges,Shopping,SpeakRules,useReadAloud} from './AdventurePages.jsx';
 import Shortlist,{DayFinds} from './Shortlist.jsx';
 import {NextUp,RunningLate,OfflineReadiness,Updates} from './HomeFeatures.jsx';
@@ -44,6 +44,7 @@ import Ledger from './Ledger.jsx';
 import Running from './Running.jsx';
 import WhichCard from './WhichCard.jsx';
 import Hunts from './Hunts.jsx';
+import Noticed from './Noticed.jsx';
 import Planning from './Planning.jsx';
 import Nearby from './Nearby.jsx';
 import AskTrip from './AskTrip.jsx';
@@ -57,6 +58,8 @@ import StepReview from './StepReview.jsx';
 import WeatherPage from './WeatherPage.jsx';
 import {useForecastCheck} from './Weather.jsx';
 import DayTimeline from './DayTimeline.jsx';
+import EntryIcon from './EntryIcon.jsx';
+import {ENTRY_TYPES,guessEntryType} from './entry-types.js';
 import RemoveStop from './RemoveStop.jsx';
 import VoiceNotes from './VoiceNotes.jsx';
 import Games from './Games.jsx';
@@ -102,9 +105,9 @@ const TABS=[...Object.keys(PAGES),'more'];
 // What is missing is deliberate: anything that reshapes the plan needs the latest revision
 // to be safe, a stale exchange rate or forecast overwriting a fresh one is worse than not
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
-const OFFLINE_OPS=['status','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
- 'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove',
- 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed'];
+const OFFLINE_OPS=['status','legStatus','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
+ 'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove','voiceNoteWords',
+ 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed'];
 function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(new URLSearchParams(location.search).get('day')||stored('japan.position',{}).day||japanDate()),[selected,setSelected]=useState(new URLSearchParams(location.search).get('step')||stored('japan.position',{}).step||null);
@@ -252,6 +255,17 @@ function App(){
  const chosenLens=lensChoice===null?user?.name||'':lensChoice,hiddenLane=selected&&chosenLens&&!stepsFor(visibleState||{steps:[]},day,chosenLens).some(s=>s.id===selected)?splits.flatMap(sp=>sp.lanes).find(l=>l.steps.some(s=>s.id===selected)):null;
  const lens=hiddenLane?hiddenLane.members[0]:chosenLens;
  const today=state?.days.find(d=>d.date===day),steps=visibleState?stepsFor(visibleState,day,lens||null):[],current=steps.find(s=>s.id===selected)||steps.find(s=>!['done','skipped'].includes(s.status))||steps.at(-1),index=steps.findIndex(s=>s.id===current?.id);
+ // One leg of the way to a stop — a walk, a train, the change between two — ticked as it is
+ // done. The last leg ticks the stop itself, so the stop is finished the moment the family is
+ // actually there, and nobody has to remember to tick it twice.
+ async function tickRouteLeg(leg,finished){
+  const s=current,total=legCount(s),left=total-legsTicked(s),at=new Date(),used=finished&&left===1?ticketList(state,{step:s,all:false}).length:0;
+  if(!await mutate({type:'legStatus',id:s.id,leg,done:finished}))return;
+  if(!finished){notice(`Leg ${leg+1} of ${total} is back on the list${s.status==='done'?`, and so is ${s.title}`:''}.`);return;}
+  if(left>1){notice(`Leg ${leg+1} of ${total} done. ${left-1} to go.`);return;}
+  const variance=scheduleVariance(s,at);
+  notice(`All ${total} legs done: ${s.title} completed ${japanClock(at)}${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used.`:''}`);
+ }
  const done=steps.filter(s=>s.status==='done').length,nextFixed=steps.find(s=>s.locked&&!['done','skipped'].includes(s.status)&&s.id!==current?.id),groups=state?[...new Set(state.steps.filter(s=>s.day===day&&s.group&&state.groupModes?.[s.group]!=='split').map(s=>s.group))]:[];
  function go(id,d,item){setFocus(item||null);if(d&&state.days.some(x=>x.date===d)){setDay(d);setSelected(null);}setTab(id);setQuery('');setModal(null);history.replaceState(null,'','/?'+new URLSearchParams({tab:id,day:d||day,...(item?{item}:{})}));}
  // Today on the bar or in the menu means today: on a trip day it lands on today's date rather than
@@ -401,7 +415,7 @@ function App(){
    {current?<article className={`step-card ${current.status==='done'?'complete':''}`} onTouchStart={e=>{touch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}} onTouchEnd={e=>{if(!touch.current||['BUTTON','A','INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;const dx=e.changedTouches[0].clientX-touch.current.x,dy=e.changedTouches[0].clientY-touch.current.y;if(Math.abs(dx)>65&&Math.abs(dy)<50)move(dx<0?1:-1);touch.current=null;}}>
     <div className="card-top"><span className="eyebrow">STEP {index+1} / {steps.length}</span><div className="row"><StepWeather state={visibleState} step={current} steps={steps} pill onOpen={()=>go('weather',day)}/><span className={`tag ${current.kind}`}>{current.locked?'Fixed time':current.kind==='optional'?'Optional':current.review?'Check details':'Flexible'}</span>{parent&&<><button className="icon" aria-label={current.locked?'Unlock time':'Lock time'} onClick={()=>mutate({type:'lock',id:current.id,locked:!current.locked})}>{current.locked?<LockKeyhole size={19}/>:<LockKeyholeOpen size={19}/>}</button>{/* The same two answers the timeline row offers, on the stop you are actually standing in front of: the tray moves it to Options on the tap, the bin only opens the question. */}<button className="icon to-options" aria-label={`Save ${current.title} to Options`} onClick={()=>optionStop(current)}><Inbox size={19}/></button><button className="icon remove-stop" aria-label={`Remove ${current.title} from this day`} onClick={()=>removeStop(current)}><Trash2 size={19}/></button></>}</div></div>
     <div className="step-head"><div className="time-display">{current.time||'Any time'}{current.time&&<span>JST</span>}</div><div className="step-stepper"><button className="icon" aria-label="Previous step" disabled={index<=0} onClick={()=>move(-1)}><ArrowLeft size={20}/></button><button className="icon" aria-label="Next step" disabled={index>=steps.length-1} onClick={()=>move(1)}><ArrowRight size={20}/></button></div></div>
-    <h2>{current.title}</h2>
+    <h2><EntryIcon step={current} size="0.68em"/>{current.title}</h2>
     {current.place&&<p className="place-line"><MapPin size={16}/><span>{/^https?:\/\//.test(current.place||'')?<Link className="place-pin" href={current.place}>Map pin</Link>:current.place}{showLocationDetails(state,current).japanese&&<span className="place-japanese" lang="ja">{showLocationDetails(state,current).japanese}</span>}</span></p>}
     {(current.originalTime&&current.originalTime!==current.time||current.bookingTime||current.bookingReference||current.startedAt||current.completedAt||current.pending)&&<div className="timing-details">{current.originalTime&&current.originalTime!==current.time&&<span>Original target {current.originalTime}</span>}{current.bookingTime&&<span><Ticket size={14}/> Booking {current.bookingTime}</span>}{current.bookingReference&&<span>Ref: {current.bookingReference}</span>}{current.startedAt&&<span>Started {japanClock(new Date(current.startedAt))}</span>}{current.completedAt&&<span className="done-note">Completed {japanClock(new Date(current.completedAt))}{scheduleVariance(current,current.completedAt)&&` · ${scheduleVariance(current,current.completedAt).text}`}</span>}{current.pending&&<span className="tag">Waiting to sync</span>}</div>}
     <div className="primary-actions"><Link className="button primary" href={directions(current.place||stepPin(current)?current:today.hotel)}><Navigation size={18}/>Directions</Link><Button icon={Languages} onClick={()=>setModal({type:'show',step:current})}>Show someone</Button></div>
@@ -419,7 +433,7 @@ function App(){
      // now stands as well: ticking off is the one moment we know both what was planned and what
      // actually happened, and twelve minutes in hand is worth hearing before the next step.
      setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);}}}>Done</Button></>}{parent&&<button className="icon completion-more" aria-label="Edit or skip activity" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal size={18}/></button>}</div>
-    {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)}/>}
+    {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg}/>}
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore step</button></p>}
     {/* One row that scrolls sideways rather than three that stack: what only this day has (the
         park, the sumo, the train window) comes first, then everything every stop has. */}
@@ -434,7 +448,7 @@ function App(){
      {config?.ask&&<button onClick={()=>setModal({type:'ask',step:current})}><MessageCircleQuestion size={15}/>Ask a question</button>}
      <button onClick={()=>openPage(current.page)}><BookOpen size={15}/>Guide p.{current.page}</button>
      <button onClick={()=>setModal({type:'alarm',step:current})}><Bell size={15}/>Remind me</button>
-     {config?.nearby&&<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={15}/>Food nearby</button>}
+     {config?.nearby&&<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={15}/>Nearby</button>}
      <button aria-label="Share this step" onClick={()=>shareStep(current)}><Share2 size={15}/>Share</button>
     </div>
     {current.status==='done'&&<StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>}
@@ -507,7 +521,7 @@ function App(){
   {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><button className="hunt-link" onClick={()=>go('hunts')}>🍵 🎰 🍜 Hunts & lists: rate and rank every one we try</button><FoodList state={visibleState} user={user} speak={speak} openPage={openPage} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal}/></>}
   {tab==='thanks'&&user.name===THANK_YOU_FROM&&<ThankYouEditor state={state} mutate={mutate} busy={busy}/>}
-  {tab==='settings'&&<Settings user={user} settings={settings} change={changeSetting}/>}
+  {tab==='settings'&&<Settings user={user} settings={settings} change={changeSetting} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
   {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go}/>}
@@ -519,6 +533,7 @@ function App(){
   {tab==='ask'&&<AskTrip state={visibleState} user={user} day={day} config={config} online={online} request={request} go={go} selectDay={selectDay} notice={notice}/>}
   {tab==='planning'&&<Planning key={focus||'planning'} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} selectStep={selectStep} go={go} request={request} config={config}/>}
   {tab==='hunts'&&<Hunts state={visibleState} user={user} mutate={mutate} busy={busy}/>}
+  {tab==='noticed'&&<Noticed state={visibleState} user={user} mutate={mutate} busy={busy} show={setModal}/>}
   {tab==='paying'&&parent&&<WhichCard state={visibleState} user={user} config={config} request={request} mutate={mutate} busy={busy} notice={notice}/>}
   {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy}/>}
   {tab==='safety'&&<Safety state={visibleState} user={user} day={day} go={go}/>}
@@ -550,7 +565,7 @@ function App(){
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} mode={modal.mode} wishlist={modal.wishlist} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)}/>}
    {modal.type==='ask'&&<AskTrip state={visibleState} user={user} day={modal.step?.day||day} step={modal.step} config={config} online={online} request={request} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
-   {modal.type==='voice'&&<VoiceNotes state={visibleState} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay}/>}
+   {modal.type==='voice'&&<VoiceNotes state={visibleState} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay} transcribe={settingOn(settings,'transcribeVoice')}/>}
    {modal.type==='foodcard'&&<FoodCard item={modal.item} notice={notice}/>}
    {modal.type==='park'&&<ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={modal.park} mutate={mutate} busy={busy} open={setModal}/>}
    {modal.type==='phrase'&&<PhraseOfDay queue={phraseQueue(visibleState,user.name,modal.day)} day={modal.day} dateLabel={fmtDay(modal.day)} busy={busy} dismiss={ids=>seePhrase(modal.day,ids)}/>}
@@ -578,7 +593,7 @@ function App(){
    {modal.type==='alarm'&&<><p><strong>{modal.step.title}</strong><br/>{fmtDay(modal.step.day)} · {modal.step.time||'No target time'} Japan time</p>{!modal.step.time?<p>Set a target time first.</p>:<><Button className="primary" icon={CalendarDays} onClick={()=>{const file=new Blob([calendarEvent(modal.step)],{type:'text/calendar;charset=utf-8'}),url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download='japan-reminder.ics';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notice('Open the calendar file to add the event and 15-minute alert.');}}>Add to Calendar</Button><p>A dated calendar event with a 15-minute alert. Check it was added on your phone.</p><details><summary>Use a phone alarm Shortcut</summary><p>Create an Apple Shortcut named <strong>Japan Alarm</strong>: receive text input → Get Dictionary from Input → Get Dictionary Value “time” → Create Alarm. Use dictionary value “label” for the alarm label.</p><p>This creates a Clock alarm for a time of day, not a future trip date. Use it only for today, with the phone timezone set to Japan. Test once on each phone.</p><label>Installed shortcut name<input value={clockShortcut} placeholder="Japan Alarm" onChange={e=>{setClockShortcut(e.target.value);localStorage.setItem('japan.shortcut',e.target.value);}}/></label>{clockShortcut&&modal.step.day===japanDate()&&Intl.DateTimeFormat().resolvedOptions().timeZone==='Asia/Tokyo'?<a className="button" href={`shortcuts://run-shortcut?name=${encodeURIComponent(clockShortcut)}&input=text&text=${encodeURIComponent(JSON.stringify({time:modal.step.time,label:modal.step.title}))}`}>Run alarm shortcut</a>:<p>Alarm link becomes available on the activity day when this phone uses Japan time.</p>}</details><p className="callout">If the itinerary changes, update any calendar event or phone alarm yourself. Existing reminders do not change automatically.</p></>}</>}
    {modal.type==='reschedule'&&<Reschedule steps={steps} mutate={mutate} close={()=>setModal(null)}/>}
    {modal.type==='tired'&&<><p>Keep the next fixed booking and take out a little of the walking or waiting.</p>{nextFixed&&<p className="callout">Protect {nextFixed.time} · {nextFixed.title}</p>}{steps.filter(s=>s.kind==='optional'&&!s.locked&&s.status==='todo').map(s=><div className="list-row" key={s.id}><span>{s.time} {s.title}</span>{parent&&<Button onClick={()=>mutate({type:'backlog',id:s.id})}>Save to Options</Button>}</div>)}<Link className="button primary" href={directions(today.hotel,'driving')}>Driving directions to hotel</Link></>}
-   {modal.type==='pending'&&<><p>The current shared plan is loaded behind this panel. Applying your updates changes only progress, not the schedule.</p>{queue.map(q=><p key={q.operation.operationId}>{state.steps.find(s=>s.id===q.operation.id)?.title||state.challenges.find(c=>c.id===q.operation.id)?.title} → {q.operation.status||(q.operation.done?'Completed':'Reset')} at {japanClock(new Date(q.operation.at))}</p>)}<Button className="primary" onClick={async()=>{await flush(true);setModal(null);}}>Apply my progress to the latest plan</Button></>}
+   {modal.type==='pending'&&<><p>The current shared plan is loaded behind this panel. Applying your updates changes only progress, not the schedule.</p>{queue.map(q=><p key={q.operation.operationId}>{state.steps.find(s=>s.id===q.operation.id)?.title||state.challenges.find(c=>c.id===q.operation.id)?.title} → {q.operation.type==='legStatus'?`leg ${q.operation.leg+1} ${q.operation.done?'done':'undone'}`:q.operation.status||(q.operation.done?'Completed':'Reset')} at {japanClock(new Date(q.operation.at))}</p>)}<Button className="primary" onClick={async()=>{await flush(true);setModal(null);}}>Apply my progress to the latest plan</Button></>}
    {/* A pop-up opens in the browser's top layer, above everything on the page, so a message
        shown on the page sits hidden behind it — a save that failed looked like a save that did
        nothing. While a pop-up is open the message is shown inside it instead. */}
@@ -607,11 +622,12 @@ function StepForm({step,day,before,state,busy,onSave,onRemove,onCancel}){
   catch(e){setGeoTrouble(`${e.message}. Type the place or a Google Maps link instead.`);}
   finally{setLocating(false);}
  }
- return <form onSubmit={e=>{e.preventDefault();let patch=Object.fromEntries(['title','day','time','duration','place','japanese','notes','kind','page','participants','group','option','bookingTime','bookingReference','locked','website','phone','travelMinutes','arrivalBuffer','locationId','pin'].map(k=>[k,form[k]]));patch.pin=form.pin||null;patch.time=patch.time||null;patch.bookingTime=patch.bookingTime||null;if(form.day===null){patch.time=null;patch.bookingTime=null;patch.locked=false;}patch.travelMinutes=Number(patch.travelMinutes);patch.arrivalBuffer=Number(patch.arrivalBuffer);patch.duration=Number(patch.duration);patch.page=Number(patch.page);if(!step&&position!=='end'){const target=state.steps.find(s=>s.id===position&&s.day===form.day);if(target)patch.order=target.order-0.5;}onSave(step?{type:'patch',id:step.id,patch}:{type:'add',step:patch});}}>
+ return <form onSubmit={e=>{e.preventDefault();let patch=Object.fromEntries(['title','day','time','duration','place','japanese','notes','kind','page','participants','group','option','bookingTime','bookingReference','locked','website','phone','travelMinutes','arrivalBuffer','locationId','pin','category'].map(k=>[k,form[k]]));patch.category=form.category||'';patch.pin=form.pin||null;patch.time=patch.time||null;patch.bookingTime=patch.bookingTime||null;if(form.day===null){patch.time=null;patch.bookingTime=null;patch.locked=false;}patch.travelMinutes=Number(patch.travelMinutes);patch.arrivalBuffer=Number(patch.arrivalBuffer);patch.duration=Number(patch.duration);patch.page=Number(patch.page);if(!step&&position!=='end'){const target=state.steps.find(s=>s.id===position&&s.day===form.day);if(target)patch.order=target.order-0.5;}onSave(step?{type:'patch',id:step.id,patch}:{type:'add',step:patch});}}>
   <label>Activity<input required value={form.title} maxLength={250} onChange={e=>field('title',e.target.value)}/></label>
   <div className="form-row"><label>Day<select value={form.day||''} disabled={form.locked&&!!step} onChange={e=>{field('day',e.target.value||null);setPosition('end');}}>{form.day===null&&<option value="">Options — no date</option>}{state.days.map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)}</option>)}</select></label><label>Japan time<input type="time" value={form.time||''} disabled={form.day===null||(form.locked&&!!step)} onChange={e=>field('time',e.target.value)}/></label></div>
   {form.locked&&!!step&&<p className="callout">Turn off the time lock below to change the date, target time or booking time.</p>}
   <div className="form-row"><label>Estimated minutes<input type="number" min="0" max="1440" value={form.duration} onChange={e=>field('duration',e.target.value)}/></label><label>Type<select value={form.kind} onChange={e=>setForm({...form,kind:e.target.value,locked:e.target.value==='fixed'})}><option value="flexible">Flexible</option><option value="optional">Optional</option>{form.day!==null&&<option value="fixed">Fixed booking / time</option>}<option value="review">Needs checking</option></select></label></div>
+  <label>What sort of stop<select value={form.category||''} onChange={e=>field('category',e.target.value)}><option value="">Work it out from the name · {ENTRY_TYPES.find(t=>t.id===guessEntryType(form)).label}</option>{ENTRY_TYPES.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}</select></label>
   {form.day!==null&&<fieldset><legend>Reservation & time lock</legend><label className="checkline"><input type="checkbox" checked={!!form.locked} onChange={e=>field('locked',e.target.checked)}/>Lock this step against rescheduling</label><div className="form-row"><label>Booking time (Japan)<input type="time" value={form.bookingTime||''} disabled={form.locked&&!!step} onChange={e=>field('bookingTime',e.target.value)}/></label><label>Booking reference<input maxLength={250} value={form.bookingReference||''} onChange={e=>field('bookingReference',e.target.value)}/></label></div><Button type="button" disabled={!form.bookingTime||(form.locked&&!!step)} onClick={()=>field('time',form.bookingTime)}>Use booking time as target</Button><p>Record a reservation made with the provider. Editing here does not make or change the actual booking. Upload its confirmation under Tickets.</p></fieldset>}
   <div className="form-row"><label>Travel estimate (minutes)<input type="number" min="0" max="360" value={form.travelMinutes} onChange={e=>field('travelMinutes',e.target.value)}/></label><label>Arrive early (minutes)<input type="number" min="0" max="360" value={form.arrivalBuffer} onChange={e=>field('arrivalBuffer',e.target.value)}/></label></div><p>Used for the leave-by estimate and late-day planning. Check live travel times in Maps.</p>
   <label>Website / booking page<input type="url" value={form.website||''} maxLength={2000} placeholder="https://…" onChange={e=>field('website',e.target.value)}/></label>

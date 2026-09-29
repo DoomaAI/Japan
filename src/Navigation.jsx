@@ -1,8 +1,8 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,Clapperboard,ShieldAlert,Receipt,CreditCard,Medal} from 'lucide-react';
+import {Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,Clapperboard,ShieldAlert,Receipt,CreditCard,Medal} from 'lucide-react';
 import {PAGES,primaryNav,moreSections,navActive} from './nav-data.js';
 import {swipeVertical} from './swipe.js';
-const ICONS={today:House,days:CalendarDays,glance:CalendarCheck,tickets:Ticket,food:UtensilsCrossed,money:Coins,ledger:Receipt,paying:CreditCard,hunts:Medal,challenges:Trophy,games:Dices,photos:Camera,
+const ICONS={today:House,days:CalendarDays,glance:CalendarCheck,tickets:Ticket,food:UtensilsCrossed,money:Coins,ledger:Receipt,paying:CreditCard,hunts:Medal,noticed:Eye,challenges:Trophy,games:Dices,photos:Camera,
  diary:NotebookPen,highlights:Clapperboard,places:MapPin,meeting:Users,safety:ShieldAlert,help:LifeBuoy,options:Inbox,parks:FerrisWheel,weather:CloudSun,todo:ListChecks,packing:Luggage,trackers:Radar,memorymap:MapIcon,
  planning:ClipboardList,inbox:Mail,ask:MessageCircleQuestion,
  shopping:ShoppingBag,shortlist:CameraIcon,spending:PiggyBank,phrases:MessageSquare,facts:Lightbulb,guide:BookOpen,updates:Bell,search:Search,thanks:Heart,mascot:Sparkles,
@@ -14,9 +14,10 @@ export const iconFor=id=>ICONS[id]||Circle;
 const SLACK=8;
 export function BottomNav({tab,user,go,unread,prefs}){
  const strip=useRef(null);
- // The tabs swipe sideways when the phone is too narrow for them. More does not travel
- // with them: it is pinned to the end of the bar, because it is the way to every other screen
- // and a way out that can be swiped off the edge is no way out at all.
+ // The shortcuts swipe sideways, like the days along the top. Home and More do not travel
+ // with them: Home is pinned to the start of the bar and More to the end, because they are the
+ // way back and the way to every other screen, and a way out that can be swiped off the edge
+ // is no way out at all.
  useEffect(()=>{
   const box=strip.current,on=box?.querySelector('.active');
   if(!box||!on||!box.scrollTo)return;
@@ -80,6 +81,13 @@ export function BottomNav({tab,user,go,unread,prefs}){
  const drag=useRef(null);
  const bar=primaryNav(user,prefs);
  const moreOn=navActive(tab,'more',user,prefs);
+ const pinned=bar[0],shortcuts=bar.slice(1);
+ const tab_=(id,extra)=>{
+  const Icon=iconFor(id),active=navActive(tab,id,user,prefs);
+  return <button key={id} className={[extra,active&&'active'].filter(Boolean).join(' ')||undefined} aria-current={active?'page':undefined} onClick={()=>go(id)}>
+   <Icon size={22}/><span>{PAGES[id].label}</span>
+  </button>;
+ };
  return <nav className="bottom-nav" aria-label="Main navigation" ref={nav}
   style={drop?{transform:`translate(-50%,${drop}px)`}:undefined}
   onTouchStart={e=>{drag.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
@@ -94,13 +102,9 @@ export function BottomNav({tab,user,go,unread,prefs}){
       there. It is drawn rather than written because it is under the thumb at all times. */}
   <button type="button" className="nav-grip" aria-label={moreOn?'Close the menu':'Open the whole menu'}
    onClick={()=>go(moreOn?bar[0]:'more')}><ChevronUp size={14}/></button>
+  {tab_(pinned,'nav-home')}
   <div className="nav-tabs" data-swipe={swipe||undefined} ref={strip}>
-   {bar.map(id=>{
-    const Icon=iconFor(id),active=navActive(tab,id,user,prefs);
-    return <button key={id} className={active?'active':''} aria-current={active?'page':undefined} onClick={()=>go(id)}>
-     <Icon size={22}/><span>{PAGES[id].label}</span>
-    </button>;
-   })}
+   {shortcuts.map(id=>tab_(id))}
   </div>
   <button className={`nav-more${moreOn?' active':''}`} aria-current={moreOn?'page':undefined} onClick={()=>go('more')}>
    <MoreHorizontal size={22}/><span>More</span>
