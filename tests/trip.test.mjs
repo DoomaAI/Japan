@@ -9885,3 +9885,52 @@ test('the shopping list groups by the shop we will be standing in, or the day we
  const pages=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
  assert.match(pages,/useStored\('japan\.shopping\.group','shop'\)/,'the grouping is this phone’s choice and starts by shop');
 });
+
+test('one sentence, said or typed, becomes a to-do the plain way when Claude is out of reach',async()=>{
+ const {parseCaptureLocally,captureDay,capturePerson,CAPTURE_MAX}=await import('../src/capture-data.js');
+ const today='2026-09-29';
+ // "tomorrow" counts from the Japan date; a weekday is the next one on the trip; a city the next day there.
+ assert.equal(captureDay('buy a poncho tomorrow',seed.days,today).date,'2026-09-30');
+ assert.equal(captureDay('post the cards on Friday',seed.days,today).date,'2026-10-02');
+ assert.equal(captureDay('charge the banks when we are in Kyoto',seed.days,'2026-09-22').date,'2026-09-24');
+ assert.equal(captureDay('stamps on the 3rd',seed.days,today).date,'2026-10-03');
+ assert.equal(captureDay('nothing dated here',seed.days,today),null);
+ // Who: "for Nate", "Nate's", "Nate needs".
+ assert.equal(capturePerson("buy Nate's hat",seed.members).person,'Nate');
+ assert.equal(capturePerson('Boston needs new socks',seed.members).person,'Boston');
+ assert.equal(capturePerson('post the cards',seed.members),null);
+ const t=parseCaptureLocally('Buy Nate a rain poncho tomorrow',seed,today);
+ assert.equal(t.kind,'buy');assert.equal(t.person,'Nate');assert.equal(t.day,'2026-09-30');assert.equal(t.via,'local');
+ assert.match(t.title,/^Buy .*rain poncho$/,'the day and the name come out of the title, the verb stays in');
+ const d=parseCaptureLocally('post the postcards on Friday for the family',seed,today);
+ assert.equal(d.kind,'do');assert.equal(d.person,'Family');assert.equal(d.day,'2026-10-02');
+ assert.equal(d.title,'Post the postcards for the family');
+ // The result always fits the to-do rules, so the form it lands in can be saved as it stands.
+ const state=applyOperation(seed,{type:'todoAdd',...t,by:'Damien'},parent);
+ assert.equal(state.todos.at(-1).person,'Nate');assert.equal(state.todos.at(-1).day,'2026-09-30');
+ assert.ok(CAPTURE_MAX>=200);
+ // The server answers with the plain parse when there is no key, rather than an error: the box
+ // is never dead, only less clever.
+ const {parseCapture,captureReady}=await import('../server/capture.mjs');
+ const key=process.env.ANTHROPIC_API_KEY;delete process.env.ANTHROPIC_API_KEY;
+ try{
+  assert.equal(captureReady(),false);
+  const r=await parseCapture({text:'get a SIM at the airport today',day:null},seed,new Date('2026-09-29T03:00:00Z'));
+  assert.equal(r.via,'local');assert.equal(r.kind,'buy');assert.equal(r.day,'2026-09-29');
+  await assert.rejects(()=>parseCapture({text:'   '},seed),e=>e.status===400);
+  await assert.rejects(()=>parseCapture({text:'x'.repeat(CAPTURE_MAX+1)},seed),e=>e.status===400);
+ }finally{if(key!==undefined)process.env.ANTHROPIC_API_KEY=key;}
+ const capture=await readFile(new URL('../server/capture.mjs',import.meta.url),'utf8');
+ assert.match(capture,/format:\{type:'json_schema',schema:SCHEMA\}/,'Claude answers in the one shape the form takes');
+ assert.match(capture,/state\.days\.some\(d=>d\.date===parsed\.day\)\?parsed\.day:null/,'and a date it made up is dropped');
+ const handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handler,/route==='capture'&&post/);
+ assert.match(handler,/capture:captureReady\(\)/,'the phone is told whether Claude will read it');
+ const todo=await readFile(new URL('../src/TodoList.jsx',import.meta.url),'utf8');
+ assert.match(todo,/export function CaptureBox/);
+ assert.match(todo,/<Dictate onText=/,'the box takes dictation as well as typing');
+ assert.match(todo,/parsed=parseCaptureLocally\(said,state,japanDate\(\)\)/,'and falls back to the phone when the request fails or there is no signal');
+ assert.match(todo,/edit\.said\?'Check it, then add it'/,'nothing is saved without being looked at first');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/<TodoList [^\n]*request=\{request\} online=\{online&&!!config\?\.capture\}/);
+});
