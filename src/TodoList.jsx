@@ -1,5 +1,8 @@
 import React,{useState} from 'react';
-import {ListChecks,ShoppingBag,Plus,Trash2,CalendarDays,ChevronRight,Inbox,PiggyBank} from 'lucide-react';
+import {ListChecks,ShoppingBag,Plus,Trash2,CalendarDays,ChevronRight,Inbox,PiggyBank,Sparkles} from 'lucide-react';
+import Dictate from './Dictate.jsx';
+import {parseCaptureLocally,CAPTURE_MAX} from './capture-data.js';
+import {japanDate} from './timing.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {TODO_KINDS,todos,todosFor,todoProgress,unallocatedTodos,BOYS,spending} from './trip-features.js';
 import {japanClock} from './timing.js';
@@ -65,7 +68,31 @@ export function DayTodos({state,user,day,mutate,busy,go}){
   {go&&<button className="todo-all" onClick={()=>go('todo')}>The whole list<ChevronRight size={16}/></button>}
  </section>;
 }
-export default function TodoList({state,user,mutate,busy,go,day=null,remove}){
+// One line, said or typed, and the form fills itself in. Claude reads it when there is signal
+// and a key; the phone's own parser reads it otherwise, so the box works in a tunnel too. Either
+// way nothing is saved here: the parsed job opens in the ordinary form to be looked at first.
+export function CaptureBox({state,day,request,online,onParsed}){
+ const [text,setText]=useState(''),[busy,setBusy]=useState(false);
+ async function sortIt(e){
+  e.preventDefault();const said=text.trim();if(!said)return;
+  setBusy(true);
+  let parsed;
+  try{parsed=online&&request?await request('capture',{text:said,day}):null;}catch{parsed=null;}
+  if(!parsed)parsed=parseCaptureLocally(said,state,japanDate());
+  setBusy(false);
+  if(!parsed.title){parsed={...parsed,title:said.slice(0,250)};}
+  setText('');onParsed({...parsed,said});
+ }
+ return <form className="capture-box" onSubmit={sortIt} aria-label="Say what needs doing">
+  <label>Just say it<input value={text} maxLength={CAPTURE_MAX} onChange={e=>setText(e.target.value)} placeholder="Buy Nate a rain poncho tomorrow · post the postcards in Kyoto"/></label>
+  <div className="row wrap">
+   <Dictate onText={heard=>setText(t=>(t?`${t} `:'')+heard)} label="Say it" what="the job, who it is for and which day"/>
+   <button className="primary" disabled={busy||!text.trim()}><Sparkles size={16}/>{busy?'Sorting it out…':'Sort it out'}</button>
+  </div>
+  <small>{online&&request?'The day, who it is for and what kind get filled in for you; check them, then add it.':'No signal: the phone fills in what it can, and you check the rest.'}</small>
+ </form>;
+}
+export default function TodoList({state,user,mutate,busy,go,day=null,remove,request,online=true}){
  const [edit,setEdit]=useState(null),[kind,setKind]=useState(''),[person,setPerson]=useState(''),[show,setShow]=useState('open');
  const parent=user.role==='parent';
  const match=t=>(!kind||t.kind===kind)&&(!person||t.person===person)&&(show==='all'||(show==='done'?!!t.doneAt:!t.doneAt));
@@ -80,6 +107,7 @@ export default function TodoList({state,user,mutate,busy,go,day=null,remove}){
  return <><p className="eyebrow">THE LITTLE THINGS, WRITTEN DOWN</p><h1>To-do list</h1>
  <p>Things we want to do or buy. Put a day on one and it shows up on that day’s screen, where you will actually be standing when it matters. Anyone can add one and anyone can tick it off, with no signal needed.</p>
  <button className="primary" onClick={()=>setEdit({kind:'do',day:'',person:'Family',title:'',notes:''})}><Plus size={18}/>Add something</button>
+ {!edit&&<CaptureBox state={state} day={day} request={request} online={online} onParsed={p=>setEdit({kind:p.kind,day:p.day||'',person:p.person,title:p.title,notes:p.notes||'',said:p.said,via:p.via})}/>}
  <div className="document-filters">
   <div className="form-row">
    <label>Show<select value={show} onChange={e=>setShow(e.target.value)}><option value="open">Still to do</option><option value="done">Ticked off</option><option value="all">Everything</option></select></label>
@@ -100,7 +128,8 @@ export default function TodoList({state,user,mutate,busy,go,day=null,remove}){
  </section>)}
  {!loose.length&&!byDay.length&&<div className="empty"><Inbox/><h2>{all.length?'Nothing matches those filters.':'Nothing on the list.'}</h2><p>{all.length?'Try Everything, or a different kind.':'Write down the small things — post the postcards, buy a SIM at the airport, charge the power banks — and put a day on the ones that belong to one.'}</p></div>}
  {edit&&<form key={edit.id||'new'} className="feature-card" onSubmit={save}>
-  <h2>{edit.id?'Edit this one':'Add something'}</h2>
+  <h2>{edit.id?'Edit this one':edit.said?'Check it, then add it':'Add something'}</h2>
+  {edit.said&&<p className="hint"><small>You said “{edit.said}”. {edit.via==='claude'?'Filled in by Claude — change anything it got wrong.':'Filled in on this phone — change anything it got wrong.'}</small></p>}
   <label>What needs doing?<input name="title" required maxLength={250} defaultValue={edit.title||''} placeholder="Post the postcards · buy a SIM at the airport"/></label>
   <div className="form-row">
    <label>Kind<select name="kind" defaultValue={edit.kind}>{TODO_KINDS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
