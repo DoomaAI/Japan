@@ -17,3 +17,26 @@ test('the day in brief gathers the day number, stops, fixed times and a hotel mo
  assert.equal(briefingGreeting('2026-09-29','2026-09-29','14:00'),'Today');
  assert.equal(briefingGreeting('2026-09-30','2026-09-29','08:00'),'Coming up');
 });
+test('tonight asks for stars, a photo vote and a memory, and counts what is left',async()=>{
+ const {tonightShows,tonightFor}=await import('../src/tonight-data.js');
+ assert.equal(tonightShows('2026-09-29','2026-09-29','16:59'),false);
+ assert.equal(tonightShows('2026-09-29','2026-09-29','17:00'),true);
+ assert.equal(tonightShows('2026-09-28','2026-09-29','09:00'),true,'an earlier day can still be wrapped');
+ assert.equal(tonightShows('2026-09-30','2026-09-29','20:00'),false);
+ const day='2026-09-22',state=upgraded(seed);
+ const ids=state.steps.filter(s=>s.day===day).slice(0,4).map(s=>s.id);
+ state.steps=state.steps.map(s=>ids.includes(s.id)?{...s,status:'done'}:s);
+ let t=tonightFor(state,day,'Nate');
+ assert.equal(t.tasks.rate,false);assert.equal(t.toRate.length,3);assert.equal(t.tasks.vote,true,'no photos, nothing to vote on');
+ assert.equal(t.complete,false);
+ state.stepReviews={[t.toRate[0].id]:{ratings:{Nate:4}}};
+ assert.equal(tonightFor(state,day,'Nate').toRate.length,2);
+ state.photos=[{id:'p1',day,by:'Nate',at:'2026-09-22T10:00:00Z'}];
+ assert.equal(tonightFor(state,day,'Nate').tasks.vote,false);
+ state.photoVotes={[day]:{Nate:'p1'}};state.journal={[day]:'A great day.'};
+ assert.equal(tonightFor(state,day,'Nate').tasks.memory,false,'the diary is a parent’s; Nate needs a voice note');
+ assert.equal(tonightFor(state,day,'Damien',true).tasks.memory,true);
+ state.voiceNotes=[{id:'v',day,by:'Nate',at:'2026-09-22T11:00:00Z'}];
+ state.stepReviews={...state.stepReviews,...Object.fromEntries(ids.slice(1,3).map(id=>[id,{ratings:{Nate:5}}]))};
+ t=tonightFor(state,day,'Nate');assert.equal(t.complete,true);assert.equal(t.finished,3);
+});
