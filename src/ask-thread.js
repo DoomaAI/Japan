@@ -30,6 +30,23 @@ export const hasAskHistory=user=>{
  try{const raw=localStorage.getItem(askKey(user?.name));return !!raw&&raw!=='[]';}
  catch{return false;}
 };
+// The parents' questions are also kept in the trip, so an answer one of them got is on the
+// other's phone too: "is Fushimi Inari better tomorrow" is a decision they make together, and
+// asking it twice costs a search and gets two answers. The phone's own copy stays as it was,
+// written first, so the answer is there with no signal and before the trip has caught up; the
+// two are shown together, the trip's copy winning where both hold the same question.
+export const SHARED_KEEP=24;
+export const sharesThread=user=>user?.role==='parent';
+export function mergeThreads(shared,local){
+ const seen=new Set(),out=[];
+ for(const item of [...(shared||[]),...(local||[])]){if(!item?.id||seen.has(item.id))continue;seen.add(item.id);out.push(item);}
+ return out.sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')));
+}
+export const threadFor=(state,user,local)=>sharesThread(user)?mergeThreads(state?.askThread,local):local;
+// What of an answer is worth the trip carrying: the words, not the token counts.
+export const askItem=(item,by)=>({id:String(item.id),at:item.at,by,question:item.question,verdict:item.verdict||'',answer:item.answer||'',
+ because:item.because||[],days:item.days||[],checkFirst:item.checkFirst||'',sources:item.sources||[],about:item.about||null,step:item.step||null,
+ searches:item.usage?.searches||item.searches||0});
 // What goes back with the next question: whole exchanges, oldest first, as plain text. The
 // model's own blocks are never replayed — nothing a previous answer carried can come back round.
 export const askHistory=thread=>thread.slice(0,ASK_HISTORY).reverse()

@@ -10029,3 +10029,59 @@ test('the parents know who owes whom, what is on each IC card, and where the rec
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/<Ledger [^\n]*config=\{config\} online=\{online\} notice=\{notice\}\/>/);
 });
+
+test('a parent’s question and its answer are kept in the trip, so the other parent reads them too',async()=>{
+ const {mergeThreads,threadFor,askItem,sharesThread,SHARED_KEEP}=await import('../src/ask-thread.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ const day=seed.days[3].date,lauren={name:'Lauren',role:'parent'};
+ let state=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(state.askThread,[]);
+ const answer={id:'1700000000000',at:'2026-09-24T02:00:00.000Z',question:'Is Fushimi Inari better today or tomorrow?',verdict:'Tomorrow.',answer:'Rain clears overnight.',
+  because:['Forecast says 70% today','Nothing booked tomorrow morning'],days:[day,'2030-01-01'],checkFirst:'',sources:[{title:'JMA',url:'https://www.jma.go.jp/'},{title:'bad',url:'http://x'}],about:day,step:null,usage:{input:1,output:1,searches:2}};
+ const item=askItem(answer,'Damien');
+ assert.equal(item.searches,2,'the count of searches travels, the token counts do not');
+ assert.equal(item.usage,undefined);
+ // Kept by a parent, cut to size and checked; read by the other parent; never by the boys.
+ state=applyOperation(state,{type:'askKeep',item},parent);
+ assert.equal(state.askThread.length,1);
+ assert.equal(state.askThread[0].by,'Damien');
+ assert.deepEqual(state.askThread[0].days,[day],'a day off the plan is dropped');
+ assert.deepEqual(state.askThread[0].sources,[{title:'JMA',url:'https://www.jma.go.jp/'}],'and a link that is not https');
+ assert.equal(visibleTrip(state,lauren).askThread.length,1);
+ assert.deepEqual(visibleTrip(state,child).askThread,[]);
+ assert.throws(()=>applyOperation(state,{type:'askKeep',item},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'askKeep',item:{...item,about:'2030-01-01'}},parent),AppError);
+ assert.throws(()=>applyOperation(state,{type:'askKeep',item:{...item,step:'nope'}},parent),AppError);
+ assert.throws(()=>applyOperation(state,{type:'askKeep',item:{...item,question:''}},parent),AppError);
+ // Keeping the same one again replaces it rather than doubling it; the newest sits first and the
+ // list stops at a couple of dozen.
+ state=applyOperation(state,{type:'askKeep',item:{...item,verdict:'Still tomorrow.'}},parent);
+ assert.equal(state.askThread.length,1);assert.equal(state.askThread[0].verdict,'Still tomorrow.');
+ for(let i=0;i<SHARED_KEEP+3;i++)state=applyOperation(state,{type:'askKeep',item:{...item,id:`q${i}`,at:`2026-09-25T00:00:${String(i).padStart(2,'0')}.000Z`}},lauren);
+ assert.equal(state.askThread.length,SHARED_KEEP);
+ assert.equal(state.askThread[0].id,`q${SHARED_KEEP+2}`);assert.equal(state.askThread[0].by,'Lauren');
+ // What a phone shows: the trip's thread and its own together, the trip's copy winning, newest
+ // first — for a parent. A boy's phone shows only what it asked itself.
+ // q0 to q2 fell off the end of the trip's list, so the phone's copy of q0 is the only one; q5 is in both.
+ const local=[{id:'q0',at:'2026-09-25T00:00:00.000Z',question:'old copy',verdict:'phone'},{id:'q5',at:'2026-09-25T00:00:05.000Z',question:'old copy',verdict:'phone'},{id:'mine',at:'2026-09-26T00:00:00.000Z',question:'only on this phone'}];
+ const merged=mergeThreads(state.askThread,local);
+ assert.equal(merged[0].id,'mine');
+ assert.equal(merged.filter(i=>i.id==='q5').length,1);
+ assert.equal(merged.find(i=>i.id==='q5').by,'Lauren','the trip’s copy wins');
+ assert.equal(merged.find(i=>i.id==='q0').verdict,'phone','and one the trip has let go of is still on the phone');
+ assert.equal(threadFor(state,child,local).length,3);
+ assert.equal(threadFor(state,lauren,local).length,SHARED_KEEP+2);
+ assert.equal(sharesThread(child),false);
+ // Clearing takes named ones out of the trip.
+ state=applyOperation(state,{type:'askForget',ids:['q5','q6']},parent);
+ assert.equal(state.askThread.length,SHARED_KEEP-2);
+ assert.throws(()=>applyOperation(state,{type:'askForget',ids:['q3']},child),e=>e.status===403);
+ const screen=await readFile(new URL('../src/AskTrip.jsx',import.meta.url),'utf8');
+ assert.match(screen,/keep\(\[item,\.\.\.local\]\);\s*if\(shared\)mutate\(\{type:'askKeep',item:askItem\(item,user\.name\)\}\);/,'the phone first, then the trip');
+ assert.match(screen,/const shared=sharesThread\(user\)&&!!mutate,all=threadFor\(state,user,local\);/);
+ assert.match(screen,/Asked by \{item\.by\}/,'the other parent’s questions say whose they were');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/hasAskHistory\(user\)\|\|!!state\?\.askThread\?\.length/,'a phone with shared answers keeps the page even before its config arrives');
+ assert.equal((main.match(/<AskTrip [^\n]*mutate=\{mutate\}/g)||[]).length,2,'both the page and the stop sheet can keep to the trip');
+});
