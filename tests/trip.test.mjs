@@ -9697,3 +9697,40 @@ test('More opens on a Right now row, and Safety on the two numbers that dial',as
  assert.match(safety,/className="call-row"/);assert.ok(safety.indexOf('call-row')<safety.indexOf('Everything on this page works'),'the numbers come before the first sentence');
  assert.match(safety,/\['police','ambulance'\]\.includes\(e\.id\)/,'110 and 119, from the same list the page already keeps');
 });
+
+test('nothing taken off a list is gone for thirty days, and comes back exactly as it was',async()=>{
+ const {binEntries,binVisible,BIN_KINDS}=await import('../src/bin-data.js');
+ const s0=upgraded(seed);
+ assert.deepEqual(s0.bin,[],'an older plan starts with an empty bin');
+ // A ticked to-do, removed by a parent, waits in the bin with its tick and comes back with it.
+ const withTodo=applyOperation(s0,{type:'todoAdd',title:'Post the postcards',kind:'do',day:null,person:'Family',notes:''},parent);
+ const todo=withTodo.todos.at(-1);
+ const ticked=applyOperation(withTodo,{type:'todoStatus',id:todo.id,done:true},child);
+ const removed=applyOperation(ticked,{type:'todoRemove',id:todo.id},parent);
+ assert.ok(!removed.todos.some(t=>t.id===todo.id));
+ assert.equal(removed.bin.length,1);assert.equal(removed.bin[0].kind,'todo');assert.equal(removed.bin[0].title,'Post the postcards');assert.equal(removed.bin[0].by,'Damien');
+ assert.equal(removed.bin[0].item.doneBy,'Nate','the tick travels with it');
+ const back=applyOperation(removed,{type:'binRestore',id:removed.bin[0].id},parent);
+ assert.deepEqual(back.todos.find(t=>t.id===todo.id),ticked.todos.find(t=>t.id===todo.id),'back exactly as it was');
+ assert.equal(back.bin.length,0);
+ assert.throws(()=>applyOperation(removed,{type:'binRestore',id:'nope'},parent),/no longer/);
+ // Whoever removed it can put it back; somebody else's child cannot; a parent always can.
+ const withHunt=applyOperation(s0,{type:'huntAdd',hunt:Object.keys(s0.hunts.rankings)[0]||'matcha',title:'Station melon pan',status:'tried',rating:4},child);
+ const entry=withHunt.hunts.entries.at(-1);
+ const gone=applyOperation(withHunt,{type:'huntRemove',id:entry.id},child);
+ assert.equal(gone.bin[0].by,'Nate');
+ assert.throws(()=>applyOperation(gone,{type:'binRestore',id:gone.bin[0].id},{name:'Boston',role:'child'}),/whoever removed it/);
+ assert.ok(applyOperation(gone,{type:'binRestore',id:gone.bin[0].id},child).hunts.entries.some(e=>e.id===entry.id));
+ assert.ok(applyOperation(gone,{type:'binRestore',id:gone.bin[0].id},parent).hunts.entries.some(e=>e.id===entry.id));
+ // A stop removed from the plan waits too.
+ const step=s0.steps.find(x=>!x.locked&&!x.group);
+ const noStep=applyOperation(s0,{type:'remove',id:step.id},parent);
+ assert.equal(noStep.bin[0].kind,'step');assert.equal(noStep.bin[0].title,step.title);
+ assert.ok(applyOperation(noStep,{type:'binRestore',id:noStep.bin[0].id},parent).steps.some(x=>x.id===step.id));
+ // Thirty-one days on, it is let go on the way past; a child never sees the family's payments.
+ const old={...removed,bin:[{...removed.bin[0],at:new Date(Date.now()-31*86400000).toISOString()},{id:'x',op:'expenseRemove',kind:'expense',title:'Taxi',item:{id:'e1'},at:new Date().toISOString(),by:'Damien'}]};
+ assert.deepEqual(binEntries(old).map(e=>e.id),['x']);
+ assert.equal(applyOperation(old,{type:'todoAdd',title:'Anything at all',kind:'do',day:null,person:'Family',notes:''},parent).bin.length,1,'the old one is let go on the way past');
+ assert.deepEqual(binVisible(old,child),[]);assert.equal(binVisible(old,parent).length,1);
+ for(const [op,k] of Object.entries(BIN_KINDS))assert.ok(k.kind&&k.label&&typeof k.list==='function'&&typeof k.put==='function',op);
+});

@@ -653,3 +653,5 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 @media(min-width:600px){.right-now{grid-template-columns:repeat(6,1fr)}}
 /* The two numbers that dial, at the top of Safety. */
 .call-row{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin:.2rem 0 1rem}.call-chip{display:flex;align-items:center;gap:.6rem;min-height:64px;padding:.6rem .9rem;border-radius:14px;text-decoration:none;color:#fff;background:#b3442a;font-weight:600}.call-chip strong{font-size:1.6rem;line-height:1}.call-chip span{font-size:.85rem;opacity:.95}.call-chip.call-police{background:#16383b}
+/* Recently deleted: one row per thing, the way back on the right. */
+.bin-list{list-style:none;padding:0;margin:0}.bin-row{display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.8rem 1rem;margin-bottom:.5rem;background:#fff;border:1px solid var(--border);border-radius:12px}.bin-row>div:first-child{display:flex;flex-direction:column;gap:.15rem;min-width:0}.bin-row small{color:var(--muted)}

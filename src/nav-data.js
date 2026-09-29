@@ -37,6 +37,7 @@ export const PAGES={
  shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need'},
  shortlist:{label:'Purchase shortlist',note:'Things we have seen in a shop, photographed, priced and still to decide on'},
  guide:{label:'Original travel guide',note:'All 72 pages, linked and searchable'},
+ bin:{label:'Recently deleted',note:'Anything taken off a list in the last thirty days, ready to put back'},
  updates:{label:'Family updates',note:'What changed and who has seen it'},
  search:{label:'Search everything',note:'Find a booking, note, shop or guide page'},
  mascot:{label:'Our characters',note:'Design your own Japanese character and use it in the app'},
@@ -60,7 +61,7 @@ export const PRIMARY={
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','money','paying','ledger','food','allergy','hunts','phrases','meeting','safety','help']],
  ['The plan',['glance','todo','packing','trackers','planning','options','parks','shopping','shortlist','tickets','inbox']],
- ['Looking back',['noticed','photos','memorymap','diary','highlights','updates','search','guide']],
+ ['Looking back',['noticed','photos','memorymap','diary','highlights','updates','bin','search','guide']],
  ['Just for you',['personalise','settings','thanks']],
  ['For the boys',['challenges','games','spending','facts','mascot']]
 ];
