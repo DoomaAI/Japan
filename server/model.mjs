@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import {activeSteps} from '../src/timing.js';
 import {legCount,tickLeg} from '../src/route-data.js';
 import {ENTRY_TYPE_IDS} from '../src/entry-types.js';
+import {guessPlatform} from '../src/booked-via.js';
 import {BIN_KINDS,binEntries,binTitle} from '../src/bin-data.js';
 export const MEMBERS = ['Damien','Lauren','Nate','Boston'];
 // Where a forwarded email can be filed. A ticket is the default; the rest put it where the
@@ -42,11 +43,11 @@ export function ticketParent(id,state){
  return doc;
 }
 export function validatePatch(p,state){
- const allowed=['title','notes','place','japanese','time','duration','kind','day','page','group','option','participants','order','review','bookingTime','bookingReference','locked','website','travelMinutes','arrivalBuffer','locationId','phone','pin','category'];
+ const allowed=['title','notes','place','japanese','time','duration','kind','day','page','group','option','participants','order','review','bookingTime','bookingReference','locked','website','bookedVia','bookedViaUrl','travelMinutes','arrivalBuffer','locationId','phone','pin','category'];
  if(!p || typeof p!=='object' || Array.isArray(p))throw new AppError('Invalid change.');
  for(const [k,v] of Object.entries(p)){
   if(!allowed.includes(k))throw new AppError('Unsupported field.');
-  if(['title','notes','place','japanese','group','option','bookingReference'].includes(k)&&!text(v,k==='notes'?4000:250))throw new AppError('Text is too long.');
+  if(['title','notes','place','japanese','group','option','bookingReference','bookedVia'].includes(k)&&!text(v,k==='notes'?4000:k==='bookedVia'?80:250))throw new AppError('Text is too long.');
   if(k==='title'&&!v.trim())throw new AppError('Add an activity name.');
   if(['time','bookingTime'].includes(k)&&!clock(v))throw new AppError('Use a valid time.');
   if(k==='locked'&&typeof v!=='boolean')throw new AppError('Invalid lock.');
@@ -56,6 +57,7 @@ export function validatePatch(p,state){
   // read or not at all: a stray field or half a pair is a bug, not a place.
   if(k==='pin'&&!validPin(v))throw new AppError('A pinned position needs a latitude and a longitude.');
   if(k==='website'&&(v!==''&&(!text(v,2000)||!safeLink(v))))throw new AppError('Use an HTTPS website link.');
+  if(k==='bookedViaUrl'&&(v!==''&&(!text(v,2000)||!safeLink(v))))throw new AppError('Use an HTTPS link to the booking.');
   if(k==='phone'&&(!text(v,40)||(v!==''&&!/^\+?[\d\s().-]{5,}$/.test(v))))throw new AppError('Use a phone number, ideally with its country code.');
   if(['travelMinutes','arrivalBuffer'].includes(k)&&(!Number.isInteger(v)||v<0||v>360))throw new AppError('Travel and arrival buffers must be 0–360 minutes.');
   if(k==='duration'&&(!Number.isInteger(v)||v<0||v>1440))throw new AppError('Duration must be 0–1440 minutes.');
@@ -118,7 +120,7 @@ export function applyOperation(input,op,user){
  const state=ensureFeatures(structuredClone(input)),now=new Date().toISOString();
  const parent=user.role==='parent';
  const step=state.steps.find(s=>s.id===op.id);
- if(!parent && !['status','legStatus','challengeStatus','challengeSkip','challengeNew','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore','weatherUpdate','jankenThrow','jankenNewRound','binRestore','binDrop','voiceNoteRemove','voiceNoteLabel','voiceNoteWords','shoppingAdd','shoppingStatus','shortlistAdd','shortlistEdit','shortlistStatus','shortlistRating','shortlistShop','shortlistRemove','todoAdd','todoStatus','packAdd','packAddAll','packEdit','packStatus','packRemove','packDismiss','noticedAdd','noticedEdit','noticedRemove','huntNew','huntPick','huntAdd','huntEdit','huntRate','huntRemove','huntRank','huntTried','huntListEdit','huntListRemove','spendAdd','spendEdit','spendBought','spendRemove','spendRequest','spendRequestCancel','sumoResult','sumoPredict','stepRating','stepThought','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust','partyPerson','photoVote','photoRemove','photoAssign','drawingRemove','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet'].includes(op.type))throw new AppError('A parent can make this change.',403);
+ if(!parent && !['status','legStatus','challengeStatus','challengeSkip','challengeNew','eyeSpy','bingoTick','bingoCard','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore','weatherUpdate','jankenThrow','jankenNewRound','binRestore','binDrop','voiceNoteRemove','voiceNoteLabel','voiceNoteWords','shoppingAdd','shoppingStatus','shortlistAdd','shortlistEdit','shortlistStatus','shortlistRating','shortlistShop','shortlistRemove','todoAdd','todoStatus','packAdd','packAddAll','packEdit','packStatus','packRemove','packDismiss','noticedAdd','noticedEdit','noticedRemove','huntNew','huntPick','huntAdd','huntEdit','huntRate','huntRemove','huntRank','huntTried','huntListEdit','huntListRemove','spendAdd','spendEdit','spendBought','spendRemove','spendRequest','spendRequestCancel','sumoResult','sumoPredict','stepRating','stepThought','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust','partyPerson','partyPriorities','photoVote','photoRemove','photoAssign','drawingRemove','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','thankYouSeen'].includes(op.type))throw new AppError('A parent can make this change.',403);
  if(['status','legStatus','patch','lock','remove','backlog','schedule'].includes(op.type)&&!step)throw new AppError('Activity not found.',404);
  const before=step?structuredClone(step):null;
  const fail=(message,status=400)=>{throw new AppError(message,status);};
@@ -233,8 +235,10 @@ export function applyOperation(input,op,user){
   if(destination==='activity'||destination==='options'){
    const onDay=destination==='activity';
    if(onDay&&!op.day)throw new AppError('Choose a trip day for this activity.');
+   // A confirmation forwarded from Booking.com or Klook says so, and the stop says it too.
+   const via=guessPlatform(item.subject,item.text);
    const created=addStep(state,validatePatch({title,notes:english.slice(0,4000),day:onDay?op.day:null,
-    ...(onDay&&op.time?{time:op.time,kind:'fixed'}:{kind:'flexible'})},state));
+    ...(onDay&&op.time?{time:op.time,kind:'fixed'}:{kind:'flexible'}),...(via?{bookedVia:via}:{})},state));
    association={stepId:created.id,stepIds:[created.id],day:null};
    extra={summary:`${title} was added to the plan from a forwarded email`,important:true,title};
   }else if(destination==='idea'){

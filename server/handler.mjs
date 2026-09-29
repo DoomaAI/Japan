@@ -21,11 +21,13 @@ import {fetchSumoDay,fetchSumoResults,fetchWrestler,sumoReady} from './sumo.mjs'
 import {readDocument,readerReady,translateStoredFile} from './document-reader.mjs';
 import {coachPhoto,coachReady} from './photo-coach.mjs';
 import {shareCheckin,listCheckins} from './checkins.mjs';
+import {validTakenAt} from '../src/exif-gps.js';
 import {parseKml,matchPlacemarks,myMapKmlUrl,roundedPosition,validPosition,PHOTO_PLACES} from '../src/memory-map.js';
 import {calendarFeed,japanDate} from '../src/timing.js';
 import {RECEIPT_TYPES} from '../src/ledger-data.js';
 import {followView,followPhoto} from '../src/follow-data.js';
 import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange} from './push.mjs';
+import {vaultReady,listVault,saveVault,addVaultFile,readVaultFile,vaultView} from './vault.mjs';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
 // A photo's own position, if the phone read one out of it, kept to about ten metres. Anything
 // that is not a plain pair of coordinates is dropped rather than refused: the photo matters more.
@@ -48,7 +50,7 @@ export default async function handler(req,res){
   const post=req.method==='POST',base=route.split('/')[0];
   // A forwarded email carries its attachments inline. Vercel stops a request body at about
   // 4.5 MB, so this is the real ceiling on what can arrive by email at all.
-  let b=post?await body(req,['menu','packet','read-document','photo-feedback'].includes(base)?6000000:base==='email-in'?4400000:1000000):{};
+  let b=post?await body(req,['menu','packet','read-document','photo-feedback','vault-file'].includes(base)?6000000:base==='email-in'?4400000:1000000):{};
   // Blob callbacks carry a signature verified by the SDK. They do not mutate itinerary data.
   if(route==='upload'&&post&&b.type==='blob.upload-completed'){
    const result=await handleUpload({body:b,request:req,onBeforeGenerateToken:async()=>{throw new Error('Not a token request');},onUploadCompleted:async()=>{}});return json(res,result);
@@ -95,7 +97,7 @@ export default async function handler(req,res){
    if(!pushReady())return json(res,{ok:true,ready:false,sent:[]});
    return json(res,{ok:true,ready:true,sent:await tick((await readTrip()).state)});
   }
-  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender()});
+  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -528,8 +530,23 @@ export default async function handler(req,res){
    const existing=current.state.documents.find(d=>d.pathname===b.pathname);if(existing)return json(res,visibleEnvelope(current,user));
    // A file added to a ticket already marked used is archived with it, rather than reappearing
    // on the list and in the offline download on its own.
-   current.state.documents.push({id:randomUUID(),title:b.title,...details,...association,...(root?{parentDocumentId:root.id,archivedAt:root.archivedAt??null,archivedBy:root.archivedBy??null}:{}),size:blob.size,pathname:b.pathname,type:blob.contentType,person:b.person||'Family',...(details.category==='memory'&&photoGps(b.gps)?{gps:photoGps(b.gps)}:{}),createdAt:new Date().toISOString()});
+   current.state.documents.push({id:randomUUID(),title:b.title,...details,...association,...(root?{parentDocumentId:root.id,archivedAt:root.archivedAt??null,archivedBy:root.archivedBy??null}:{}),size:blob.size,pathname:b.pathname,type:blob.contentType,person:b.person||'Family',...(details.category==='memory'&&photoGps(b.gps)?{gps:photoGps(b.gps)}:{}),...(details.category==='memory'&&validTakenAt(b.takenAt)?{takenAt:b.takenAt}:{}),createdAt:new Date().toISOString()});
    return json(res,visibleEnvelope(await writeTrip(current.state,current.revision),user));
+  }
+  // Passports, visas and the like: a parent's only, from routes of their own, and never part of
+  // the trip that every phone is sent. See vault.mjs for how they are sealed.
+  if(route==='vault'&&req.method==='GET'){parent(user);return json(res,{ready:vaultReady(),records:vaultReady()?vaultView(await listVault()):[]});}
+  if(route==='vault'&&post){
+   parent(user);const {state}=await readTrip();
+   await saveVault(b,user,state.members);
+   return json(res,{ready:true,records:vaultView(await listVault())});
+  }
+  if(route==='vault-file'&&post){parent(user);await addVaultFile(b,user);return json(res,{ready:true,records:vaultView(await listVault())});}
+  if(route==='vault-file'&&req.method==='GET'){
+   parent(user);
+   const {type,bytes}=await readVaultFile(url.searchParams.get('id'),url.searchParams.get('file'));
+   res.statusCode=200;res.setHeader('Content-Type',type);res.setHeader('Content-Disposition','inline');res.setHeader('Content-Length',bytes.length);
+   return res.end(bytes);
   }
   // A receipt photo on a payment: the parents' money, so a parent's eyes only.
   if(route==='receipt'&&req.method==='GET'){

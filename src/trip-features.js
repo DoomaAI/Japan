@@ -9,8 +9,50 @@ import {ORDERED_PHRASES,phraseForDay} from './phrasebook-data.js';
 import {ALL_FACTS,orderedFacts} from './fact-data.js';
 import {noticedFields,noticedWhere,noticedFor} from './noticed-data.js';
 export const BOYS=['Nate','Boston'];
-export const THANK_YOU_FROM='Damien',THANK_YOU_TO='Lauren';
-export function initialThankYou(){
+// Damien's private daily notes. He keeps one list for each of the others; each of them only
+// ever sees the day's note written for them.
+export const THANK_YOU_FROM='Damien',THANK_YOU_FOR=['Lauren','Nate','Boston'];
+const THANK_YOU_SEEDS={Nate:()=>[
+ 'Good morning, Nate. Thank you for being so brave on the big plane. I am proud of you.',
+ 'Thank you for holding my hand at the busy station. You are a great train buddy.',
+ 'Thank you for trying a new food. Even one tiny bite counts. That is very brave.',
+ 'Thank you for your big smile today. It makes the whole family happy.',
+ 'Thank you for being kind to the deer. They bow to say hello, and you were gentle with them.',
+ 'Thank you for walking so far on your own two legs. Your legs are getting super strong.',
+ 'Thank you for saying arigato. The people here love it when you say thank you in Japanese.',
+ 'Thank you for your hugs. They are the best hugs in all of Japan.',
+ 'Thank you for asking so many questions. Keep asking. That is how you learn about the world.',
+ 'Thank you for sharing with your brother. That is what a good brother does.',
+ 'Thank you for being patient in the line. Waiting is hard, and you did it.',
+ 'Thank you for being you, Nate. There is only one of you, and I love you to the moon.',
+ 'Thank you for helping carry your bag. You are a real traveller now.',
+ 'Thank you for your funny jokes. You make Mum and me laugh every single day.',
+ 'Thank you for being so good on the fast train. You looked out the window like a real explorer.',
+ 'Thank you for telling me when you were tired. That was the right thing to do.',
+ 'Thank you for this adventure, Nate. Japan is extra special because you are here.',
+ 'Thank you for being the best little adventure buddy a dad could have.'
+],Boston:()=>[
+ 'Thank you for being such a good traveller on the long flight, Boston. Sixteen days of Japan start now.',
+ 'Thank you for reading the signs with me. You worked out the trains faster than I did.',
+ 'Thank you for looking after Nate today. He copies everything you do, so you are teaching him more than you know.',
+ 'Thank you for trying the food I was not sure about. You are braver at dinner than most grown-ups.',
+ 'Thank you for your questions. Keep asking the hard ones. They make me think too.',
+ 'Thank you for learning a few words of Japanese. The people here noticed, and so did I.',
+ 'Thank you for your patience on the long days. I know some of them were more for the grown-ups.',
+ 'Thank you for keeping score on everything. The family leaderboard would be very boring without you.',
+ 'Thank you for being polite in a country that notices. You made us look good today.',
+ 'Thank you for carrying your own bag and keeping track of your things. That is real independence.',
+ 'Thank you for the way you laugh at the things that go wrong. It turns a bad moment into a good story.',
+ 'Thank you for noticing the little things. Your eyes find what the rest of us walk straight past.',
+ 'Thank you for being a good sport when things did not go your way. That is harder than winning.',
+ 'Thank you for telling me about your favourite part of the day. I love hearing it.',
+ 'Thank you for helping Mum today. She does a lot for all of us, and you saw it.',
+ 'Thank you for being curious about everything. Temples, trains, sumo, vending machines: you want to know how it all works.',
+ 'Thank you for being you, Boston. I am proud of the person you are becoming.',
+ 'Thank you for making this a trip I will never forget, Boston.'
+]};
+export function initialThankYou(to='Lauren'){
+ if(THANK_YOU_SEEDS[to])return THANK_YOU_SEEDS[to]().map((text,i)=>({id:`thanks-${to.toLowerCase()}-${i+1}`,text,day:null,order:(i+1)*10}));
  return [
  'Thank you for saying yes to Japan. Sixteen days, four passports and a plan that only works because you hold it together.',
  'Thank you for the packing. Every charger, every jumper and every snack the boys will claim they are starving for by nine in the morning.',
@@ -34,23 +76,34 @@ export function initialThankYou(){
  'Thank you for this whole trip. Whatever we remember about Japan, the best part of it was going with you.'
  ].map((text,i)=>({id:`thanks-${i+1}`,text,day:null,order:(i+1)*10}));
 }
-export const thankYouNotes=state=>[...(state.thankYou?.messages||[])].sort((a,b)=>(a.order-b.order)||String(a.id).localeCompare(String(b.id)));
-export function thankYouSchedule(state){
- const notes=thankYouNotes(state),pinned=new Map();
+// The notes as the server keeps them: one list and one set of read receipts per person.
+// An older trip kept a single list for Lauren; it becomes hers. A phone that was sent only its
+// own day's note (see server/visibility.mjs) is left exactly as it was, so it never re-seeds.
+export function normaliseThankYou(notes){
+ if(notes&&'today'in notes&&!notes.lists)return notes;
+ const lists={...(notes?.lists||{})};
+ if(Array.isArray(notes?.messages)&&!lists.Lauren)lists.Lauren={messages:notes.messages,seen:notes.seen||{}};
+ for(const to of THANK_YOU_FOR)lists[to]={seen:{},...lists[to],messages:Array.isArray(lists[to]?.messages)?lists[to].messages:initialThankYou(to)};
+ return {lists};
+}
+export const thankYouList=(state,to='Lauren')=>state.thankYou?.lists?.[to]||{messages:[],seen:{}};
+export const thankYouNotes=(state,to='Lauren')=>[...(thankYouList(state,to).messages||[])].sort((a,b)=>(a.order-b.order)||String(a.id).localeCompare(String(b.id)));
+export function thankYouSchedule(state,to='Lauren'){
+ const notes=thankYouNotes(state,to),pinned=new Map();
  for(const m of notes)if(m.day&&state.days.some(d=>d.date===m.day)&&!pinned.has(m.day))pinned.set(m.day,m);
  const pool=notes.filter(m=>!m.day);let next=0;
  return state.days.map(d=>({day:d.date,message:pinned.get(d.date)||pool[next++]||null}));
 }
-export const thankYouForDay=(state,day)=>thankYouSchedule(state).find(entry=>entry.day===day)?.message||null;
-// Whether Lauren has opened a day's note, and when. A note opened after midnight in Japan
-// reports the date she actually read it, so a late read is not mistaken for one on the day.
+export const thankYouForDay=(state,day,to='Lauren')=>thankYouSchedule(state,to).find(entry=>entry.day===day)?.message||null;
+// Whether the person a note is for has opened it, and when. A note opened after midnight in Japan
+// reports the date they actually read it, so a late read is not mistaken for one on the day.
 export function noteReadState(day,seen,today){
  const at=seen?.[day];
  if(!at)return {read:false,when:null,readDay:null,late:false,pending:day>today?'waiting':day===today?'today':'missed'};
  const when=new Date(at),readDay=japanDate(when);
  return {read:true,when,readDay,late:readDay!==day,pending:null};
 }
-export const thankYouSpares=state=>{const scheduled=new Set(thankYouSchedule(state).map(e=>e.message?.id));return thankYouNotes(state).filter(m=>!scheduled.has(m.id));};
+export const thankYouSpares=(state,to='Lauren')=>{const scheduled=new Set(thankYouSchedule(state,to).map(e=>e.message?.id));return thankYouNotes(state,to).filter(m=>!scheduled.has(m.id));};
 // A phone number as written, turned into something to tap. Japanese numbers are normally
 // written with a leading 0, which has to be dropped once +81 is added — so a number with no
 // country code is read as a Japanese one, and the app says so rather than dialling silently.
@@ -405,7 +458,7 @@ export function seededChallenges(state){
 }
 export function ensureFeatures(input){
  const state=timesSeeded(notesSeeded(splitSeeded({...input,...expressSeeded(input)})));
- return {...state,allergies:state.allergies||{},bin:state.bin||[],settlements:state.settlements||[],icCards:state.icCards||{},askThread:state.askThread||[],mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},noticed:state.noticed??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},predictions:state.predictions??{},bookingWindows:state.bookingWindows??[],mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:state.thankYou??{messages:initialThankYou(),seen:{}}};
+ return {...state,allergies:state.allergies||{},bin:state.bin||[],settlements:state.settlements||[],icCards:state.icCards||{},askThread:state.askThread||[],mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},bingo:state.bingo??{},shopLog:state.shopLog??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},noticed:state.noticed??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},predictions:state.predictions??{},bookingWindows:state.bookingWindows??[],mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:normaliseThankYou(state.thankYou)};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -1124,7 +1177,8 @@ export function proposalDraft(op){
   suitableFor:[...new Set(Array.isArray(op.suitableFor)?op.suitableFor:[])],
   tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))],
   day:op.day||null,availability:String(op.availability??'').trim(),timing:op.timing??'flex',
-  time:op.time||null,duration:number(op.duration,60),source:op.source==='suggested'?'suggested':'typed'};
+  time:op.time||null,duration:number(op.duration,60),source:op.source==='suggested'?'suggested':'typed',
+  setting:['indoor','outdoor','mixed'].includes(op.setting)?op.setting:''};
 }
 // What a scheduled step carries over from the board: the opening hours and the price the family
 // agreed on are exactly what someone standing outside the place will want to read.
@@ -1237,7 +1291,7 @@ export function recommendIdeas(state,who='',{limit=6}={}){
 export function searchTrip(state,query,guide=[]){
  const q=query.trim().toLowerCase();if(!q)return [];
  const hits=[],match=(...parts)=>parts.flat().filter(Boolean).join(' ').toLowerCase().includes(q);
- for(const s of state.steps)if(match(s.title,s.place,s.japanese,s.notes,s.bookingReference,s.website))hits.push({type:s.day?'Activity':'Option',id:s.id,title:s.title,detail:s.notes,day:s.day,step:s});
+ for(const s of state.steps)if(match(s.title,s.place,s.japanese,s.notes,s.bookingReference,s.bookedVia,s.website))hits.push({type:s.day?'Activity':'Option',id:s.id,title:s.title,detail:s.notes,day:s.day,step:s});
  for(const p of proposals(state))if(match(p.title,p.place,p.japanese,p.notes,p.availability,p.costNote,p.addedBy,p.tags))hits.push({type:'Planning',id:p.id,title:p.title,detail:p.notes||p.place,day:proposalPlacement(state,p).day||p.day});
  // An archived ticket is hidden from the list, not from the trip: search still finds it, says so,
  // and opens the used pile on it rather than a page that looks empty.
@@ -1306,6 +1360,8 @@ export function pendingProgress(state,queue){
    slot.pending=true;
   }}
   if(o.type==='parkRide'){const e=next.parkRides[o.rideId]||{},ridden={...(e.ridden||{})};if(o.done)ridden[o.person]=ridden[o.person]||o.at;else delete ridden[o.person];next.parkRides={...next.parkRides,[o.rideId]:{...e,ridden}};}
+  if(o.type==='bingoTick'){const mine={round:1,card:null,...(next.bingo[o.person]||{})},done={...(mine.done||{})},key=o.part!=null?`${o.square}:${o.part}`:o.square;if(o.done)done[key]=done[key]||o.at;else delete done[key];next.bingo={...next.bingo,[o.person]:{...mine,done}};}
+  if(o.type==='bingoCard'&&Array.isArray(o.card)){const mine={round:1,card:null,done:{},...(next.bingo[o.person]||{})};if(o.round>(mine.round||1))next.bingo={...next.bingo,[o.person]:{...mine,round:o.round,card:[...o.card]}};}
   if(o.type==='eyeSpy'){const key=eyeSpyKey(o.stepId,o.item),found={...(next.eyeSpy[key]||{})};if(o.done)found[o.person]=found[o.person]||o.at;else delete found[o.person];next.eyeSpy={...next.eyeSpy,[key]:found};}
   // An idea thought of on a train with no signal, and the votes cast on one, are additions:
   // they are still right whenever they land, so the board shows them straight away.

@@ -2,81 +2,81 @@
    spaced condensed sans for labels, tan numbered roundels, fine-ruled boxes and a tab down the
    right edge carrying the place and the date. On screen each chapter is a sheet; on paper each
    one starts a new page. */
-.travel-guide{--tg-paper:#fcfaf5;--tg-ink:#1d1c19;--tg-muted:#5f5b52;--tg-rule:#ddd8cc;--tg-tan:#b8957a;--tg-tan-soft:#f3e9df;--tg-green:#2b6a5b;--tg-warn:#9a4a2c}
+.travel-guide{--tg-base:16px;--tg-paper:#fcfaf5;--tg-ink:#1d1c19;--tg-muted:#5f5b52;--tg-rule:#ddd8cc;--tg-tan:#b8957a;--tg-tan-soft:#f3e9df;--tg-green:#2b6a5b;--tg-warn:#9a4a2c}
 .tg-controls{margin-bottom:1.25rem}.tg-controls .button,.tg-controls button{margin-top:.5rem}
 .tg-options{gap:.4rem 1.1rem;margin:.6rem 0}.tg-options label{display:flex;align-items:center;gap:.45rem;font-size:.92rem}.tg-options input{width:auto;margin:0}
-.tg-sheet{background:var(--tg-paper);color:var(--tg-ink);border:1px solid var(--tg-rule);box-shadow:0 6px 22px #2a241510;max-width:210mm;margin:0 auto 1.5rem;padding:9mm 9mm 8mm;position:relative;overflow:hidden;font-size:10pt;line-height:1.38}
+.tg-sheet{background:var(--tg-paper);color:var(--tg-ink);border:1px solid var(--tg-rule);box-shadow:0 6px 22px #2a241510;max-width:210mm;margin:0 auto 1.5rem;padding:9mm 9mm 8mm;position:relative;overflow:hidden;font-size:var(--tg-base);line-height:1.38}
 .tg-sheet h2,.tg-sheet h3{font-family:'Guide Serif',Georgia,'Times New Roman',serif;color:var(--tg-ink)}
 .tg-eyebrow,.tg-box h3,.tg-journey h3,.tg-summary th,.tg-tab,.tg-side,.tg-address small,.tg-nights b,.tg-flag{font-family:'Guide Sans','Arial Narrow',Arial,sans-serif;text-transform:uppercase;letter-spacing:.16em}
-.tg-eyebrow{font-size:8pt;color:var(--tg-muted);margin:0 0 .25rem}
-.tg-sub{font-family:Georgia,'Times New Roman',serif;font-style:italic;color:#44413a;margin:.2rem 0 0;font-size:10.5pt}
-.tg-small{font-size:8pt;color:var(--tg-muted)}
+.tg-eyebrow{font-size:calc(var(--tg-base) * 0.8);color:var(--tg-muted);margin:0 0 .25rem}
+.tg-sub{font-family:Georgia,'Times New Roman',serif;font-style:italic;color:#44413a;margin:.2rem 0 0;font-size:calc(var(--tg-base) * 1.05)}
+.tg-small{font-size:calc(var(--tg-base) * 0.8);color:var(--tg-muted)}
 /* A piece of an original page. */
 .tg-crop{position:relative;overflow:hidden;width:100%;background:#ece7dc}.tg-crop img{position:absolute;max-width:none;height:auto;display:block}
 /* Cover: the original's own, full page. */
 .tg-cover{padding:0;aspect-ratio:1247/1800}.tg-cover>img{width:100%;height:100%;object-fit:cover;display:block}
-.tg-cover-plain{height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:linear-gradient(#f6f1e7,#e9e1d1)}.tg-cover-plain h2{font-size:64pt;margin:.2em 0;letter-spacing:-.04em}.tg-cover-plain p{text-transform:uppercase;letter-spacing:.3em;font-size:10pt}
-.tg-edition{position:absolute;left:0;right:0;bottom:0;margin:0;padding:3mm 8mm;background:#fcfaf5e6;font-size:8pt;text-align:center;letter-spacing:.06em;color:var(--tg-muted)}
+.tg-cover-plain{height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:linear-gradient(#f6f1e7,#e9e1d1)}.tg-cover-plain h2{font-size:calc(var(--tg-base) * 6.4);margin:.2em 0;letter-spacing:-.04em}.tg-cover-plain p{text-transform:uppercase;letter-spacing:.3em;font-size:calc(var(--tg-base) * 1)}
+.tg-edition{position:absolute;left:0;right:0;bottom:0;margin:0;padding:3mm 8mm;background:#fcfaf5e6;font-size:calc(var(--tg-base) * 0.8);text-align:center;letter-spacing:.06em;color:var(--tg-muted)}
 /* Headings for the front and back pages, with the tab down the right edge. */
-.tg-head{position:relative;padding-right:14mm;margin-bottom:5mm;border-bottom:1px solid var(--tg-rule);padding-bottom:3mm}.tg-head h2{font-size:32pt;line-height:1;margin:.05em 0 .1em;letter-spacing:-.035em}
-.tg-side,.tg-tab{position:absolute;right:0;top:0;writing-mode:vertical-rl;font-size:7.5pt;background:var(--tg-tan-soft);color:#6d5645;padding:4mm 1.6mm;border-radius:0 0 0 3mm;white-space:nowrap}
+.tg-head{position:relative;padding-right:14mm;margin-bottom:5mm;border-bottom:1px solid var(--tg-rule);padding-bottom:3mm}.tg-head h2{font-size:calc(var(--tg-base) * 3.2);line-height:1;margin:.05em 0 .1em;letter-spacing:-.035em}
+.tg-side,.tg-tab{position:absolute;right:0;top:0;writing-mode:vertical-rl;font-size:calc(var(--tg-base) * 0.75);background:var(--tg-tan-soft);color:#6d5645;padding:4mm 1.6mm;border-radius:0 0 0 3mm;white-space:nowrap}
 .tg-side{right:-9mm;top:-9mm;height:auto}
 /* Our journey and the hotels. */
-.tg-journey{display:flex;align-items:center;gap:5mm;margin-bottom:4mm}.tg-journey h3{font-size:9pt;color:#8a6a52;margin:0;white-space:nowrap}
+.tg-journey{display:flex;align-items:center;gap:5mm;margin-bottom:4mm}.tg-journey h3{font-size:calc(var(--tg-base) * 0.9);color:#8a6a52;margin:0;white-space:nowrap}
 .tg-journey ol{display:flex;flex:1;gap:2mm;list-style:none;margin:0;padding:0}.tg-journey li{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;border:1px solid var(--tg-rule);border-radius:2mm;padding:2mm 1mm;background:#fff}
-.tg-journey li b{text-transform:uppercase;letter-spacing:.12em;font-size:8pt}.tg-journey li span{font-size:8pt;color:var(--tg-muted)}
+.tg-journey li b{text-transform:uppercase;letter-spacing:.12em;font-size:calc(var(--tg-base) * 0.8)}.tg-journey li span{font-size:calc(var(--tg-base) * 0.8);color:var(--tg-muted)}
 .tg-journey i,.tg-stay header i,.tg-steps li>i{font-style:normal;display:inline-grid;place-items:center;border-radius:50%;background:var(--tg-tan);color:#fff;font-weight:700;flex:none}
-.tg-journey i{width:5mm;height:5mm;font-size:7.5pt;order:3;margin-top:1mm}
+.tg-journey i{width:5mm;height:5mm;font-size:calc(var(--tg-base) * 0.75);order:3;margin-top:1mm}
 .tg-stays{display:grid;grid-template-columns:1fr 1fr;gap:4mm}
 .tg-stay{border:1px solid var(--tg-rule);border-radius:2mm;background:#fff;padding:3mm;break-inside:avoid}
-.tg-stay header{display:flex;gap:2.5mm;align-items:flex-start;margin-bottom:2.5mm}.tg-stay header i{width:9mm;height:9mm;font-size:12pt}
-.tg-stay header div{flex:1}.tg-stay h3{font-size:15pt;margin:0;line-height:1.05;letter-spacing:-.02em}.tg-stay header p{margin:.15rem 0 0;font-size:8.5pt}
-.tg-nights{border-left:1px solid var(--tg-rule);padding-left:2.5mm;font-size:8pt;text-align:left;white-space:nowrap}.tg-nights b{display:block;color:#8a6a52;font-size:7.5pt}
+.tg-stay header{display:flex;gap:2.5mm;align-items:flex-start;margin-bottom:2.5mm}.tg-stay header i{width:9mm;height:9mm;font-size:calc(var(--tg-base) * 1.2)}
+.tg-stay header div{flex:1}.tg-stay h3{font-size:calc(var(--tg-base) * 1.5);margin:0;line-height:1.05;letter-spacing:-.02em}.tg-stay header p{margin:.15rem 0 0;font-size:calc(var(--tg-base) * 0.85)}
+.tg-nights{border-left:1px solid var(--tg-rule);padding-left:2.5mm;font-size:calc(var(--tg-base) * 0.8);text-align:left;white-space:nowrap}.tg-nights b{display:block;color:#8a6a52;font-size:calc(var(--tg-base) * 0.75)}
 .tg-stay .tg-crop{border-radius:1mm}
-.tg-address{display:grid;grid-template-columns:1fr 1fr;gap:3mm;margin-top:2.5mm;font-size:8.5pt}.tg-address p{margin:0}.tg-address small{display:block;font-size:6.5pt;color:var(--tg-muted);margin-bottom:.5mm}
+.tg-address{display:grid;grid-template-columns:1fr 1fr;gap:3mm;margin-top:2.5mm;font-size:calc(var(--tg-base) * 0.85)}.tg-address p{margin:0}.tg-address small{display:block;font-size:calc(var(--tg-base) * 0.75);color:var(--tg-muted);margin-bottom:.5mm}
 /* The trip at a glance. */
-.tg-summary{width:100%;border-collapse:collapse;font-size:8.5pt;margin-bottom:5mm}.tg-summary th{text-align:left;font-size:6.5pt;color:var(--tg-muted);border-bottom:1.5px solid var(--tg-ink);padding:1.5mm 1.5mm}
+.tg-summary{width:100%;border-collapse:collapse;font-size:calc(var(--tg-base) * 0.85);margin-bottom:5mm}.tg-summary th{text-align:left;font-size:calc(var(--tg-base) * 0.75);color:var(--tg-muted);border-bottom:1.5px solid var(--tg-ink);padding:1.5mm 1.5mm}
 .tg-summary td{border-bottom:1px solid var(--tg-rule);padding:1.4mm 1.5mm;vertical-align:top}.tg-summary td:first-child{font-weight:700;color:#8a6a52}.tg-summary tr{break-inside:avoid}
 /* Boxes, as the original rules them. */
 .tg-box{border:1px solid var(--tg-rule);border-radius:2mm;background:#fff;padding:3mm 3.5mm;margin-bottom:3.5mm;break-inside:avoid}
-.tg-box h3{display:flex;align-items:center;gap:1.8mm;font-size:8.5pt;margin:0 0 2mm;color:var(--tg-ink);letter-spacing:.14em}
+.tg-box h3{display:flex;align-items:center;gap:1.8mm;font-size:calc(var(--tg-base) * 0.85);margin:0 0 2mm;color:var(--tg-ink);letter-spacing:.14em}
 .tg-cols{display:grid;grid-template-columns:1.45fr 1fr;gap:3.5mm;align-items:start}.tg-cols.even{grid-template-columns:1fr 1fr}
 .tg-list{margin:0;padding-left:4mm}.tg-list li{margin-bottom:1mm}
 .tg-phrases ul,.tg-driver ul{list-style:none;margin:0;padding:0;display:grid;gap:2mm}.tg-phrases li,.tg-driver li{display:flex;flex-direction:column;border-bottom:1px dotted var(--tg-rule);padding-bottom:1.5mm}
-.tg-phrases b{font-size:12pt}.tg-phrases span{font-style:italic;font-family:Georgia,serif}.tg-phrases small{color:var(--tg-muted);font-size:8pt}
+.tg-phrases b{font-size:calc(var(--tg-base) * 1.2)}.tg-phrases span{font-style:italic;font-family:Georgia,serif}.tg-phrases small{color:var(--tg-muted);font-size:calc(var(--tg-base) * 0.8)}
 .tg-checks li{color:#4d3a2f}
 /* A day's chapter. */
 .tg-day{padding-top:0}
 .tg-banner{position:relative;margin:0 -9mm 4mm}.tg-banner .tg-crop{border-radius:0}.tg-banner.plain{height:12mm;background:var(--tg-tan-soft)}
 .tg-banner .tg-tab{top:4mm;right:4mm;border-radius:2mm;background:#fcfaf5ee;color:#3a342b;padding:3mm 1.5mm}
-.tg-title{margin-bottom:3.5mm;padding-right:6mm}.tg-title h2{font-size:28pt;line-height:1;letter-spacing:-.035em;margin:0}
+.tg-title{margin-bottom:3.5mm;padding-right:6mm}.tg-title h2{font-size:calc(var(--tg-base) * 2.8);line-height:1;letter-spacing:-.035em;margin:0}
 .tg-glance ol{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));list-style:none;margin:0;padding:0;border-top:1px solid var(--tg-rule)}
-.tg-glance li{display:flex;flex-direction:column;align-items:center;text-align:center;padding:2mm 1.5mm 0;border-left:1px solid var(--tg-rule);font-size:8.5pt;line-height:1.25}.tg-glance li:first-child{border-left:0}
-.tg-glance b{font-family:'Guide Serif',Georgia,serif;font-size:13pt;margin-bottom:.8mm}.tg-glance small{color:var(--tg-warn);font-size:6.5pt;text-transform:uppercase;letter-spacing:.14em;margin-top:.6mm}
+.tg-glance li{display:flex;flex-direction:column;align-items:center;text-align:center;padding:2mm 1.5mm 0;border-left:1px solid var(--tg-rule);font-size:calc(var(--tg-base) * 0.85);line-height:1.25}.tg-glance li:first-child{border-left:0}
+.tg-glance b{font-family:'Guide Serif',Georgia,serif;font-size:calc(var(--tg-base) * 1.3);margin-bottom:.8mm}.tg-glance small{color:var(--tg-warn);font-size:calc(var(--tg-base) * 0.75);text-transform:uppercase;letter-spacing:.14em;margin-top:.6mm}
 .tg-steps ol{list-style:none;margin:0;padding:0}.tg-steps li{display:flex;gap:2.5mm;padding:1.4mm 0;border-bottom:1px dotted var(--tg-rule);break-inside:avoid}.tg-steps li:last-child{border-bottom:0}
-.tg-steps li>i{width:5.5mm;height:5.5mm;font-size:7.5pt;background:var(--tg-ink);margin-top:.3mm}.tg-steps li.optional>i{background:#fff;color:var(--tg-ink);border:1px solid var(--tg-ink)}.tg-steps li.fixed>i{background:var(--tg-warn)}
+.tg-steps li>i{width:5.5mm;height:5.5mm;font-size:calc(var(--tg-base) * 0.75);background:var(--tg-ink);margin-top:.3mm}.tg-steps li.optional>i{background:#fff;color:var(--tg-ink);border:1px solid var(--tg-ink)}.tg-steps li.fixed>i{background:var(--tg-warn)}
 .tg-steps p{margin:0}.tg-steps li>div{flex:1;min-width:0}.tg-steps b{font-weight:700}
-.tg-place{font-size:8.5pt;color:var(--tg-muted)}.tg-who{font-size:8pt;color:var(--tg-green);font-weight:600}.tg-note{font-family:Georgia,serif;font-style:italic;font-size:8.5pt;color:#48453d;margin-top:.5mm!important}
-.tg-flag{font-style:normal;font-size:6pt;margin-left:1.5mm;padding:.3mm 1.2mm;border-radius:1mm;background:#f6e7dd;color:var(--tg-warn);vertical-align:1px;letter-spacing:.1em}.tg-flag.soft{background:#eceee4;color:#556046}.tg-flag.warn{background:#fbe3a8;color:#6b4a00}
+.tg-place{font-size:calc(var(--tg-base) * 0.85);color:var(--tg-muted)}.tg-who{font-size:calc(var(--tg-base) * 0.8);color:var(--tg-green);font-weight:600}.tg-note{font-family:Georgia,serif;font-style:italic;font-size:calc(var(--tg-base) * 0.85);color:#48453d;margin-top:.5mm!important}
+.tg-flag{font-style:normal;font-size:calc(var(--tg-base) * 0.75);margin-left:1.5mm;padding:.3mm 1.2mm;border-radius:1mm;background:#f6e7dd;color:var(--tg-warn);vertical-align:1px;letter-spacing:.1em}.tg-flag.soft{background:#eceee4;color:#556046}.tg-flag.warn{background:#fbe3a8;color:#6b4a00}
 .tg-map{width:100%;height:auto;display:block}.tg-map-bg{fill:#eef1e8;stroke:#d6dccb}
 .tg-map-route{fill:none;stroke:var(--tg-green);stroke-width:2.2;stroke-dasharray:1 0;stroke-linejoin:round;stroke-linecap:round;opacity:.8}
 .tg-map-mark circle{fill:var(--tg-green);stroke:#fff;stroke-width:1.5}.tg-map-mark.rough circle{fill:#fff;stroke:var(--tg-green);stroke-dasharray:3 2}.tg-map-mark text{fill:#fff;font-size:8.5px;font-weight:700;text-anchor:middle;font-family:'Guide Sans',Arial,sans-serif}.tg-map-mark.rough text{fill:var(--tg-green)}
 .tg-map-north path{fill:var(--tg-ink)}.tg-map-north text{font-size:8px;text-anchor:middle;fill:var(--tg-ink)}.tg-map-scale line{stroke:var(--tg-ink);stroke-width:2}.tg-map-scale text{font-size:8px;fill:var(--tg-ink)}
-.tg-tip{background:#fbf6ee}.tg-tip p{margin:0;font-family:Georgia,serif;font-style:italic;font-size:9.5pt;line-height:1.45}.tg-tip .tg-tip-about{font-style:normal;font-family:'Guide Serif',Georgia,serif;font-weight:800;font-size:11pt;margin-bottom:1mm}
-.tg-hotel{margin:0;font-family:'Guide Serif',Georgia,serif;font-weight:800;font-size:12pt}
+.tg-tip{background:#fbf6ee}.tg-tip p{margin:0;font-family:Georgia,serif;font-style:italic;font-size:calc(var(--tg-base) * 0.95);line-height:1.45}.tg-tip .tg-tip-about{font-style:normal;font-family:'Guide Serif',Georgia,serif;font-weight:800;font-size:calc(var(--tg-base) * 1.1);margin-bottom:1mm}
+.tg-hotel{margin:0;font-family:'Guide Serif',Georgia,serif;font-weight:800;font-size:calc(var(--tg-base) * 1.2)}
 .tg-strip>div{display:grid;grid-template-columns:repeat(4,1fr);gap:2.5mm}.tg-strip img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:1mm;display:block}
 .tg-strip.pages>div{grid-template-columns:repeat(6,1fr)}.tg-strip.pages img{aspect-ratio:1247/1800;object-fit:contain;background:#fff;border:1px solid var(--tg-rule)}
 /* Keep this page. */
-.tg-numbers{list-style:none;margin:0;padding:0}.tg-numbers li{display:flex;flex-direction:column;padding:1.2mm 0;border-bottom:1px dotted var(--tg-rule)}.tg-numbers b{font-family:'Guide Serif',Georgia,serif;font-size:14pt}
-.tg-driver b{font-size:16pt}.tg-driver span{font-size:11pt}.tg-driver small{color:var(--tg-muted);font-size:8pt}
-@media (max-width:640px){.tg-sheet{padding:5mm;font-size:9pt}.tg-banner{margin:0 -5mm 4mm}.tg-cols,.tg-cols.even,.tg-stays,.tg-address{grid-template-columns:1fr}.tg-side{right:-5mm;top:-5mm}.tg-journey{flex-direction:column;align-items:stretch}.tg-summary{font-size:7.5pt}.tg-title h2{font-size:22pt}}
+.tg-numbers{list-style:none;margin:0;padding:0}.tg-numbers li{display:flex;flex-direction:column;padding:1.2mm 0;border-bottom:1px dotted var(--tg-rule)}.tg-numbers b{font-family:'Guide Serif',Georgia,serif;font-size:calc(var(--tg-base) * 1.4)}
+.tg-driver b{font-size:calc(var(--tg-base) * 1.6)}.tg-driver span{font-size:calc(var(--tg-base) * 1.1)}.tg-driver small{color:var(--tg-muted);font-size:calc(var(--tg-base) * 0.8)}
+@media (max-width:640px){.tg-sheet{padding:5mm}.tg-head h2{font-size:calc(var(--tg-base) * 2.2)}.tg-cover-plain h2{font-size:calc(var(--tg-base) * 3.6)}.tg-banner{margin:0 -5mm 4mm}.tg-cols,.tg-cols.even,.tg-stays,.tg-address{grid-template-columns:1fr}.tg-side{right:-5mm;top:-5mm}.tg-journey{flex-direction:column;align-items:stretch}.tg-summary{font-size:calc(var(--tg-base) * 0.75)}.tg-title h2{font-size:calc(var(--tg-base) * 2.2)}}
 /* On paper: only the guide, a page for each sheet, colours as drawn. */
 @media print{
  body.print-guide{background:#fff}
  body.print-guide .app>*:not(main),body.print-guide main>*:not(.travel-guide),body.print-guide .tg-controls,body.print-guide .toast{display:none!important}
  body.print-guide main{padding:0;max-width:none}
  body.print-guide .travel-guide{-webkit-print-color-adjust:exact;print-color-adjust:exact}
- body.print-guide .tg-sheet{box-shadow:none;border:0;margin:0;max-width:none;padding:0;break-after:page;page-break-after:always;overflow:visible;background:var(--tg-paper)}
+ body.print-guide .travel-guide{--tg-base:10pt}body.print-guide .tg-sheet{font-size:10pt;box-shadow:none;border:0;margin:0;max-width:none;padding:0;break-after:page;page-break-after:always;overflow:visible;background:var(--tg-paper)}
  body.print-guide .tg-sheet:last-child{break-after:auto;page-break-after:auto}
  body.print-guide .tg-banner{margin:0 0 4mm}
  body.print-guide .tg-side{right:0;top:0}

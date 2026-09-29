@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {MascotBadge} from './Mascot.jsx';
 import PurseCat from './PurseCat.jsx';
 import {PiggyBank,Plus,Trash2,ShoppingBag,ListChecks,CalendarDays,Check,AlertCircle,Wallet,X,HandCoins,ThumbsUp,Eye,UserCog} from 'lucide-react';
@@ -159,7 +160,8 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
  }
  return <>
  <p className="eyebrow">THEIR OWN MONEY, THEIR OWN CHOICES</p><h1>Spending money</h1>
- <p>What Nate and Boston have to spend, what they have already spent it on, and what is left. Money goes in by hand or as an amount a day that fills up by itself as the trip runs. Ticking something off is what turns it into money out, and that works with no signal.</p>
+ <p>What Nate and Boston have to spend, what they have already spent it on, and what is left.</p>
+ <HowThisWorks><p>Money goes in by hand or as an amount a day that fills up by itself as the trip runs. Ticking something off is what turns it into money out, and that works with no signal.</p></HowThisWorks>
  <div className="segmented spend-people with-mascots">{boys.map(n=>
   <button key={n} className={person===n?'selected':''} onClick={()=>{setPerson(n);setEdit(null);setAsking(false);}}><MascotBadge state={state} person={n} size={26}/>{n}
    {unanswered.some(r=>r.person===n)&&<i className="ask-dot" aria-label="Waiting on an answer"/>}</button>)}</div>

@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
@@ -111,7 +112,8 @@ export default function Settings({user,settings,change,navPrefs,setNavPrefs,link
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR CHOICE</p>
   <h1>Settings</h1>
-  <p>The phrase and the fact are the only things the app puts on your screen without being asked. Turn one off and it stops opening{user?.name?` on ${user.name}’s phone`:''} — everybody else keeps theirs.</p>
+  <p>The phrase and the fact are the only things the app puts on your screen without being asked.</p>
+ <HowThisWorks><p>Turn one off and it stops opening{user?.name?` on ${user.name}’s phone`:''} — everybody else keeps theirs.</p></HowThisWorks>
   <section className="settings-section">
    <h2>What opens on its own</h2>
    {SETTINGS.filter(s=>!s.group).map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}

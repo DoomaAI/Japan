@@ -1,4 +1,5 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
+import HowThisWorks from './HowThisWorks.jsx';
 import {AlertCircle,CalendarDays,Check,ExternalLink,MessageCircleQuestion,Search,Trash2,WifiOff} from 'lucide-react';
 import {ASK_LIMIT,askDayLabel,askHistory,askItem,askStarters,readThread,sharesThread,stepStarters,threadFor,writeThread} from './ask-thread.js';
 import Dictate from './Dictate.jsx';
@@ -41,7 +42,8 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
   {step?<p>Ask anything about {step.title} — how long it takes, what to eat, what the boys will like. It reads this stop and the rest of the day, and searches for what the plan cannot say.</p>:<>
   <p className="eyebrow">ASK ABOUT OUR TRIP</p>
   <h1>Better today or tomorrow?</h1>
-  <p>Ask anything about the trip in your own words. It reads our plan — every day, what is booked, the forecast we last checked and what is still on the board — and answers out of that, searching only for what the plan cannot say.</p></>}
+  <p>Ask anything about the trip in your own words.</p>
+ <HowThisWorks><p>It reads our plan — every day, what is booked, the forecast we last checked and what is still on the board — and answers out of that, searching only for what the plan cannot say.</p></HowThisWorks></>}
   {!ready&&<p className="callout"><AlertCircle size={18}/>Asking is not switched on for this deployment. Anything already answered is still below.</p>}
   {!online&&<p className="callout"><WifiOff size={18}/>No signal. Old answers are saved on this phone; a new question has to wait.</p>}
   {ready&&<>
@@ -77,6 +79,6 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
   {!thread.length&&ready&&<div className="empty"><MessageCircleQuestion/><h2>Nothing asked yet</h2><p>Tap one of the questions above, or write your own. {shared?'Answers are kept in the trip, so both of you can read them again, and on this phone for when there is no signal.':'Answers are kept on this phone so you can read them again with no signal.'}</p></div>}
   {!!thread.length&&<div className="row wrap"><button onClick={()=>{clear();notice?.(step?'The questions about this stop are cleared.':shared?'The shared questions are cleared.':'Your questions on this phone are cleared.');}}><Trash2 size={16}/>{step?'Clear these questions':shared?'Clear our questions':'Clear my questions'}</button>
    {!step&&<button onClick={()=>go?.('planning')}>Planning board</button>}</div>}
-  {ready&&<p className="callout"><AlertCircle size={18}/>This reads the plan and gives an opinion. It cannot move an activity, change a booking or tell anybody anything — every change is still made by one of us, on the day it belongs to. It can be wrong about what is open, what a ticket costs and what is on, so check anything you are about to rely on.</p>}
+  {ready&&<p className="callout"><AlertCircle size={18}/>This reads the plan and gives an opinion. It cannot move a stop, change a booking or tell anybody anything — every change is still made by one of us, on the day it belongs to. It can be wrong about what is open, what a ticket costs and what is on, so check anything you are about to rely on.</p>}
  </div>;
 }

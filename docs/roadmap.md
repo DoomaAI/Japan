@@ -23,6 +23,7 @@ The trip has a before, a during and an after, and each should give the family a 
 | 12 | Sealed predictions — Done (#207) | Before | Everyone predicts the trip; the answers stay sealed until the recap reveals them |
 | 13 | Ready to go — Done (#208) | Before | One progress bar for tickets, packing, profiles, votes and phrases |
 | 14 | Hunt picks — Done | Before | The boys choose the hunts they want to do before they land |
+| 15 | Trip shop — Done | Before and after | The essentials pack (adapters, cash, eSIMs, IC cards) by lead time, and keepsakes made from the trip; commercial seams logged in [commercialisation.md](commercialisation.md) |
 
 ## Printable travel guide — logged 29 September 2026
 
@@ -70,7 +71,7 @@ Not yet done, for a later pass: per-day banner crops that avoid the original's b
 
 ## After the trip
 
-9. **Trip highlights video.** Placeholder live now under More → Looking back → **Trip highlights**. See the design below.
+9. **Trip highlights video.** The placeholder page was retired from More on 29 September; `highlightsMaterial` in `src/recap-data.js` still counts the material. See the design below.
 10. **Trip recap.** Totals for days, cities, stops, photos and top-rated moments, plus a printable photobook layout for the diary.
 11. **Follow-along link for family at home.** A view-only link to the diary and photos, with no tickets, locations or invite rights.
 

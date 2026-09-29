@@ -24,7 +24,7 @@ export default function Personalise({user,prefs,setPrefs,home,setHome}){
  const row=id=>{const Icon=iconFor(id);return <><span className="more-icon"><Icon size={19}/></span>
   <span><strong>{PAGES[id].label}</strong><small>{PAGES[id].note}</small></span></>;};
  return <>
-  <p className="eyebrow">YOUR PHONE, YOUR MENU</p><h1>My menu</h1>
+  <p className="eyebrow">YOUR PHONE, YOUR WAY</p><h1>Customise</h1>
   <p>This is your phone only. Nobody else's menu changes, and nothing here changes the trip.</p>
   <HomeWidgets home={home} setHome={setHome}/>
   <BarShortcuts user={user} prefs={prefs} setPrefs={setPrefs}/>

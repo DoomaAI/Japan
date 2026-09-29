@@ -3,6 +3,7 @@ import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Check,X,Wifi,WifiOff,ChevronLeft,ChevronRight} from 'lucide-react';
 import {KANA,HIRAGANA,KATAKANA,LOANWORDS,THROWS,findThrow,shuffled,MERGE_SIZE,emptyBoard,addTile,slide,canMove,bestTile,mergeTile,MERGE_LADDER,SIGHTS,ELEMENTS,elementById,startingElements,combine,discoverable,SUMO_RANKS,rankAt,TOP_RANK,STABLE_SIZE,emptyStable,recruit,promote,shortRank,bestRank,stableFull,oddsOf,bout,challengerFor,SUMO_RITUALS,STOMPS,STOMP_WINDOW,stompScore,SALT_BAND,saltScore,MATTA,chargeScore,leadUpEffect,ceremonyScore,KIMARITE,kimariteById,SUMO_TICK,SURGE_TICKS,TAKEN_AS_READ,theirWeight,startBout,sumoAction,SEKITORI,BASHO_DAYS,bashoAt,newCareer,rankRate,climb,bashoOpponent,bashoWorth,bashoDay} from './kana-data.js';
 import {BOYS,bestScore,jankenRound,jankenScores,roundComplete} from './trip-features.js';
+import Bingo from './Bingo.jsx';
 import SpotDifference from './SpotDifference.jsx';
 import Origami from './Origami.jsx';
 import Drawing from './Drawing.jsx';
@@ -257,7 +258,7 @@ function Remember({user,state,mutate,busy,dayLabel}){
   setTimeout(()=>{if(hit)setDone(d=>[...d,next[0].pair]);setPicked([]);},hit?350:800);
  }
  if(pairs<2)return <><p>This one is built out of the trip itself — match the thing we did to the day we did it.</p>
-  <p className="callout">Once we have finished a few activities, they show up here. {doneSteps.length?`Only ${doneSteps.length} so far.`:'None ticked off yet.'}</p></>;
+  <p className="callout">Once we have finished a few stops, they show up here. {doneSteps.length?`Only ${doneSteps.length} so far.`:'None ticked off yet.'}</p></>;
  return <>
   <p>Match the thing we did to the day we did it. It grows as the trip does.</p>
   <div className="remember-grid">{cards.map(c=>{
@@ -933,6 +934,7 @@ const GAMES=[
  {id:'origami',title:'Origami',ease:2,icon:'🦢',ja:'折り紙',origin:'traditional',needs:'Works with no signal. You need a square of paper.',Component:Origami,
   story:'Folded in Japan for centuries, and written down as a craft to teach by 1797, in the Senbazuru Orikata — the book of a thousand cranes.'},
  {id:'draw',title:'Draw it',ease:1,icon:'🖍️',needs:'Works with no signal, on paper or on the phone. Sending one to the family needs signal.',Component:Drawing},
+ {id:'bingo',title:'Japan bingo',ease:1,icon:'🎱',needs:'Works with no signal. Played out in Japan, all trip long.',Component:Bingo},
  {id:'spot',title:'Spot the difference',ease:2,icon:'🔍',needs:'Needs signal once, to fetch the photo. The puzzle is made on the phone.',Component:SpotDifference},
  {id:'janken',title:'Janken',ease:1,icon:'✊',ja:'じゃんけん',origin:'traditional',needs:'Needs both phones online.',Component:Janken,
   story:'The Japanese hand game that became the world’s rock, paper and scissors — it went out from here, rather than arriving.'}
