@@ -35,3 +35,11 @@ export function runUp(state,today){
  const now=list.find(m=>m.unlocked&&!m.complete)||null,next=list.find(m=>!m.unlocked)||null;
  return {days:c.days,milestones:list,now,next,finished:list.filter(m=>m.unlocked&&m.complete).length};
 }
+// Ready to go: the five measures as one number, each counting the same however many things it
+// is made of, so eleven bookings do not outweigh four profiles. A measure with nothing in it yet
+// — no packing list made — counts as not started rather than being left out, or an empty list
+// would be the quickest way to look ready.
+export function readiness(state){
+ const parts=Object.entries(prepMeasures(state)).map(([id,m])=>({id,...m,share:m.total?Math.min(1,m.done/m.total):0}));
+ return {percent:Math.round(parts.reduce((n,p)=>n+p.share,0)/parts.length*100),parts};
+}
