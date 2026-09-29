@@ -18,7 +18,7 @@ Benchmarked against Marriott Bonvoy, Hilton Honors, World of Hyatt, IHG One Rewa
 | 07 | Explanation before the tool | Done (#253): Yen, Food, Tickets lead with the tool; switched-off features left off |
 | 08 | No push reminders | Done separately (#214) |
 | 09 | Meeting card overflow; weather from 21 Sept | Done (#235, #238) |
-| — | Apple Wallet passes for stays and tickets | Not built: needs an Apple Developer pass-type certificate and a server-side `.pkpass` signer. Logged for the commercial version |
+| — | Apple Wallet passes for stays and tickets | Not built: needs an Apple Developer pass-type certificate and a server-side `.pkpass` signer. What it is for, what it needs and why not this trip: [commercialisation.md](commercialisation.md#apple-wallet-and-google-wallet-passes) |
 | — | First-run onboarding for a new family | Not built: the app is set up for one family. Logged for the commercial version in commercialisation.md terms |
 
 ## Before, during and after — logged 29 September 2026
