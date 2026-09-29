@@ -10145,3 +10145,41 @@ test('Back and the swipe from the edge walk back through screens, and close a sh
  assert.equal((main.match(/history\.replaceState\(/g)||[]).length,3,'no screen change slips through as a replace');
  for(const fn of ['go','selectStep','selectPhotoDay','choosePhotoPerson'])assert.doesNotMatch(main,new RegExp(`function ${fn}\\([^\\n]*history\\.replaceState`),`${fn} goes through navigate`);
 });
+
+test('suggested ideas come one card at a time: swipe right to put one on the board, left to pass',async()=>{
+ const {flingDirection,cardTilt,stampStrength,FLING}=await import('../src/swipe.js');
+ const deck=await readFile(new URL('../src/SuggestDeck.jsx',import.meta.url),'utf8');
+ const party=await readFile(new URL('../src/PlanningParty.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // Far enough over decides it, whichever the phone's width; short of that it goes back.
+ assert.equal(flingDirection(FLING.least+1,0,200),1);
+ assert.equal(flingDirection(-(FLING.least+1),0,200),-1);
+ assert.equal(flingDirection(100,0,400),0,'a third of the way on a wide card is not yet a decision');
+ assert.equal(flingDirection(121,0,400),1);
+ // A quick flick counts even when short, but only the way the card is already leaning.
+ assert.equal(flingDirection(40,0,400,FLING.speed+.1),1);
+ assert.equal(flingDirection(40,0,400,-(FLING.speed+.1)),0,'pulled back towards the middle is a change of mind');
+ assert.equal(flingDirection(10,0,400,5),0,'a twitch is not a flick');
+ // Dragging mostly downwards is scrolling the page.
+ assert.equal(flingDirection(200,260,400),0);
+ assert.equal(flingDirection(NaN,0,400),0);
+ // The lean and the stamp follow the finger and stop.
+ assert.equal(cardTilt(0,300),0);
+ assert.equal(cardTilt(10000,300),15);assert.equal(cardTilt(-10000,300),-15);
+ assert.equal(stampStrength(0,300),0);assert.equal(stampStrength(10000,300),1);
+ // Every swipe has a button and a key that does the same, and a pass can be taken back.
+ assert.match(deck,/e\.key==='ArrowRight'\)\{e\.preventDefault\(\);decide\(1\)/);
+ assert.match(deck,/e\.key==='ArrowLeft'\)\{e\.preventDefault\(\);decide\(-1\)/);
+ assert.match(deck,/className="deck-pass"[^>]*onClick=\{\(\)=>decide\(-1\)\}/);
+ assert.match(deck,/className="deck-keep"[^>]*onClick=\{\(\)=>decide\(1\)\}/);
+ assert.match(deck,/onClick=\{\(\)=>setPassed\(p=>p\.slice\(0,-1\)\)\}/);
+ assert.match(deck,/Go through the \{passed\.length\} passed again/);
+ // A drag that starts on a button presses the button instead.
+ assert.match(deck,/e\.target\.closest\?\.\(PRESSABLE\)\)return/);
+ // The panel keeps what it did before: right is the board, or the split when some of us sit out.
+ assert.match(party,/onKeep=\{splitting\?splitOff:item=>add\(item,false\)\}/);
+ assert.match(party,/<SuggestDeck key=\{round\}/,'a new ask starts a fresh pile');
+ assert.match(party,/onClick=\{\(\)=>add\(item,true\)\}><Search size=\{16\}\/>Add and look it up/);
+ // Up and down still scroll the page with a finger on the card.
+ assert.match(css,/\.deck-card\.top\{touch-action:pan-y/);
+});

@@ -3,6 +3,7 @@ import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,Chevro
 import {dayLabel} from './AdventurePages.jsx';
 import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf} from './trip-features.js';
 import {photoUrl} from './PhotoDay.jsx';
+import {SuggestDeck} from './SuggestDeck.jsx';
 const kindLabel=id=>(PROPOSAL_KINDS.find(([key])=>key===id)||PROPOSAL_KINDS.at(-1))[1];
 const flavourLabel=id=>(SUGGEST_KINDS.find(([key])=>key===id)||SUGGEST_KINDS[1])[1];
 // Who is going, and what each of them would actually want out of a day. The boys fill in their
@@ -137,7 +138,7 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
  const staying=stop?stop.participants.filter(n=>!sitting.includes(n)):[];
  const boysAlone=sitting.length>0&&sitting.every(n=>BOYS.includes(n));
  const [splitDone,setSplitDone]=useState([]);
- const [working,setWorking]=useState(false),[result,setResult]=useState(null),[error,setError]=useState(''),[added,setAdded]=useState([]);
+ const [working,setWorking]=useState(false),[round,setRound]=useState(0),[result,setResult]=useState(null),[error,setError]=useState(''),[added,setAdded]=useState([]);
  const cities=[...new Set(state.days.map(d=>d.city))];
  const filled=state.members.filter(n=>profileFilled(state,n));
  const toggle=id=>setKinds(k=>k.includes(id)?k.filter(x=>x!==id):[...k,id]);
@@ -145,7 +146,7 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
   e.preventDefault();
   if(mode==='instead'&&(!stop||!sitting.length)){setError('Choose the stop, and who would rather not go.');return;}
   if(mode==='ideas'&&!kinds.length){setError('Choose at least one kind of idea.');return;}
-  setWorking(true);setError('');setResult(null);setAdded([]);setSplitDone([]);
+  setWorking(true);setError('');setResult(null);setAdded([]);setSplitDone([]);setRound(r=>r+1);
   try{
    if(mode==='instead'){setResult(await request('suggest',{instead:{stepId:stop.id,who:sitting},count:Number(count)}));return;}
    const body={kinds,count:Number(count)};
@@ -174,6 +175,9 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
   if(await mutate({type:'proposalInstead',id:created.id,stepId:result.instead.stepId,who:result.instead.who}))setSplitDone(d=>[...d,item.draft.title]);
  }
  const insteadGone=result?.instead&&(splitDone.length||state.steps.find(s=>s.id===result.instead.stepId)?.group);
+ // Right on the deck is the main thing the panel was asked for: onto the board, or, when some of
+ // us are sitting a stop out and the rest carry on, straight onto the day as a split.
+ const splitting=!!(result?.instead?.staying.length&&!insteadGone);
  return <details className="party-panel suggest-panel">
   <summary><Sparkles size={17}/>Suggest some ideas</summary>
   <p>Built from who is going and what each of us said we are into{filled.length?` — ${filled.join(', ')} so far`:''}. {filled.length<state.members.length&&<strong>Fill in the rest above and these get sharper.</strong>}</p>
@@ -211,9 +215,11 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
   {result&&<div className="suggest-results">
    <h3>{result.instead?`${result.suggestions.length} things ${result.instead.who.join(' and ')} could do instead of ${result.instead.title}`:`${result.suggestions.length} ideas for ${result.forWhom?`${result.forWhom} in `:''}${result.where}`}</h3>
    {result.note&&<p className="callout"><AlertCircle size={18}/>{result.note}</p>}
-   {result.suggestions.map(item=>{
-    const done=added.includes(item.draft.title);
-    return <article className={`feature-card suggest-card ${done?'finished':''}`} key={item.draft.title}>
+   <SuggestDeck key={round} items={result.suggestions} keyOf={item=>item.draft.title} kept={added} busy={busy}
+    onKeep={splitting?splitOff:item=>add(item,false)}
+    keepLabel={splitting?`Split the day: ${result.instead.who.join(' and ')} do this`:'Put it on the board'} keepStamp={splitting?'Split':'On the board'}
+    passLabel="Pass" keptWord={splitting?'split off':'on the board'}
+    render={item=><article className="feature-card suggest-card">
      <div className="section-heading"><div><span className="eyebrow">{flavourLabel(item.flavour)}</span><h4>{item.draft.title}</h4></div></div>
      {item.draft.place&&<p><small>{item.draft.place}{item.draft.japanese&&<span lang="ja"> · {item.draft.japanese}</span>}</small></p>}
      <p className="suggest-why">{item.why}</p>
@@ -226,14 +232,11 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
       <span>{item.draft.suitableFor.length?`Suits ${item.draft.suitableFor.join(', ')}`:'Suits everyone'}</span>
      </div>
      <div className="row wrap">
-      {result.instead&&(splitDone.includes(item.draft.title)?<span className="tag"><Split size={13}/>On the day, split with {result.instead.title}</span>
-       :result.instead.staying.length&&!insteadGone?<button className="primary" disabled={busy} onClick={()=>splitOff(item)}><Split size={16}/>Split the day: {result.instead.who.join(' and ')} do this</button>:null)}
-      {done?<span className="tag"><Check size={13}/>On the board</span>:<>
-       <button className={result.instead?.staying.length?'':'primary'} disabled={busy} onClick={()=>add(item,false)}><Plus size={16}/>Put it on the board</button>
-       <button disabled={busy} onClick={()=>add(item,true)}><Search size={16}/>Add and look it up</button>
-      </>}
+      {splitting&&<button disabled={busy} onClick={()=>add(item,false)}><Plus size={16}/>Just put it on the board</button>}
+      <button disabled={busy} onClick={()=>add(item,true)}><Search size={16}/>Add and look it up</button>
      </div>
-    </article>;})}
+    </article>}/>
+   {result.instead&&!!splitDone.length&&<p className="tag"><Split size={13}/>On the day, split with {result.instead.title}: {splitDone.join(', ')}</p>}
    <small>{result.usage.searches} web {result.usage.searches===1?'search':'searches'}. These are ideas, not checked facts — costs and times are rough, and anything you plan around needs looking up first.</small>
    <button onClick={()=>setResult(null)}><X size={16}/>Clear these</button>
   </div>}
