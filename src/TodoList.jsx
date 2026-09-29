@@ -1,4 +1,4 @@
-import React,{useState} from 'react';
+import React,{useState,useEffect,useRef} from 'react';
 import {ListChecks,ShoppingBag,Plus,Trash2,CalendarDays,ChevronRight,Inbox,PiggyBank,Sparkles} from 'lucide-react';
 import Dictate from './Dictate.jsx';
 import {parseCaptureLocally,CAPTURE_MAX} from './capture-data.js';
@@ -71,10 +71,13 @@ export function DayTodos({state,user,day,mutate,busy,go}){
 // One line, said or typed, and the form fills itself in. Claude reads it when there is signal
 // and a key; the phone's own parser reads it otherwise, so the box works in a tunnel too. Either
 // way nothing is saved here: the parsed job opens in the ordinary form to be looked at first.
-export function CaptureBox({state,day,request,online,onParsed}){
- const [text,setText]=useState(''),[busy,setBusy]=useState(false);
+export function CaptureBox({state,day,request,online,onParsed,first=null,clearFirst}){
+ const [text,setText]=useState(first?.text||''),[busy,setBusy]=useState(false),box=useRef(null);
+ // Arriving by Shortcut: a line already dictated is sorted out straight away; a bare "say it"
+ // puts the cursor in the box. Either way the request is used up so it does not run again.
+ useEffect(()=>{if(!first)return;clearFirst?.();if(first.text)sortIt();else if(first.focus)box.current?.focus();},[]);
  async function sortIt(e){
-  e.preventDefault();const said=text.trim();if(!said)return;
+  e?.preventDefault();const said=(e?text:(first?.text||text)).trim();if(!said)return;
   setBusy(true);
   let parsed;
   try{parsed=online&&request?await request('capture',{text:said,day}):null;}catch{parsed=null;}
@@ -84,7 +87,7 @@ export function CaptureBox({state,day,request,online,onParsed}){
   setText('');onParsed({...parsed,said});
  }
  return <form className="capture-box" onSubmit={sortIt} aria-label="Say what needs doing">
-  <label>Just say it<input value={text} maxLength={CAPTURE_MAX} onChange={e=>setText(e.target.value)} placeholder="Buy Nate a rain poncho tomorrow · post the postcards in Kyoto"/></label>
+  <label>Just say it<input ref={box} value={text} maxLength={CAPTURE_MAX} onChange={e=>setText(e.target.value)} placeholder="Buy Nate a rain poncho tomorrow · post the postcards in Kyoto"/></label>
   <div className="row wrap">
    <Dictate onText={heard=>setText(t=>(t?`${t} `:'')+heard)} label="Say it" what="the job, who it is for and which day"/>
    <button className="primary" disabled={busy||!text.trim()}><Sparkles size={16}/>{busy?'Sorting it out…':'Sort it out'}</button>
@@ -92,7 +95,7 @@ export function CaptureBox({state,day,request,online,onParsed}){
   <small>{online&&request?'The day, who it is for and what kind get filled in for you; check them, then add it.':'No signal: the phone fills in what it can, and you check the rest.'}</small>
  </form>;
 }
-export default function TodoList({state,user,mutate,busy,go,day=null,remove,request,online=true}){
+export default function TodoList({state,user,mutate,busy,go,day=null,remove,request,online=true,sayFirst=null,clearSayFirst}){
  const [edit,setEdit]=useState(null),[kind,setKind]=useState(''),[person,setPerson]=useState(''),[show,setShow]=useState('open');
  const parent=user.role==='parent';
  const match=t=>(!kind||t.kind===kind)&&(!person||t.person===person)&&(show==='all'||(show==='done'?!!t.doneAt:!t.doneAt));
@@ -107,7 +110,7 @@ export default function TodoList({state,user,mutate,busy,go,day=null,remove,requ
  return <><p className="eyebrow">THE LITTLE THINGS, WRITTEN DOWN</p><h1>To-do list</h1>
  <p>Things we want to do or buy. Put a day on one and it shows up on that day’s screen, where you will actually be standing when it matters. Anyone can add one and anyone can tick it off, with no signal needed.</p>
  <button className="primary" onClick={()=>setEdit({kind:'do',day:'',person:'Family',title:'',notes:''})}><Plus size={18}/>Add something</button>
- {!edit&&<CaptureBox state={state} day={day} request={request} online={online} onParsed={p=>setEdit({kind:p.kind,day:p.day||'',person:p.person,title:p.title,notes:p.notes||'',said:p.said,via:p.via})}/>}
+ {!edit&&<CaptureBox state={state} day={day} request={request} online={online} first={sayFirst} clearFirst={clearSayFirst} onParsed={p=>setEdit({kind:p.kind,day:p.day||'',person:p.person,title:p.title,notes:p.notes||'',said:p.said,via:p.via})}/>}
  <div className="document-filters">
   <div className="form-row">
    <label>Show<select value={show} onChange={e=>setShow(e.target.value)}><option value="open">Still to do</option><option value="done">Ticked off</option><option value="all">Everything</option></select></label>

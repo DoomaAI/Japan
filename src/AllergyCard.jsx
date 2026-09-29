@@ -4,9 +4,10 @@ import {ALLERGENS,allergyCard,allergyOf,allergyPeople} from './allergy-data.js';
 // The card a waiter is handed. Japanese large enough to read across a counter, English under it
 // for whoever is holding the phone, and a parent's editor under that. Nothing on it is a promise:
 // the restaurant confirms, the card only asks the question clearly.
-export default function AllergyCard({state,user,mutate,busy,speak}){
+export default function AllergyCard({state,user,mutate,busy,speak,who:asked=null}){
  const parent=user.role==='parent',people=state.members||[];
- const [who,setWho]=useState(()=>allergyPeople(state)[0]||(people.includes(user.name)?user.name:people[0]));
+ // A deep link can name the person, so the card is open on the right boy before the counter is reached.
+ const [who,setWho]=useState(()=>(asked&&people.includes(asked)?asked:null)||allergyPeople(state)[0]||(people.includes(user.name)?user.name:people[0]));
  const [edit,setEdit]=useState(false),[large,setLarge]=useState(false);
  const card=allergyCard(state,who),held=allergyOf(state,who);
  async function save(e){
