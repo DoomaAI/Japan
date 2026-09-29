@@ -28,7 +28,6 @@ import {RECEIPT_TYPES} from '../src/ledger-data.js';
 import {followView,followPhoto} from '../src/follow-data.js';
 import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange} from './push.mjs';
 import {vaultReady,listVault,saveVault,addVaultFile,readVaultFile,vaultView} from './vault.mjs';
-import {projectPack,packPerson} from '../src/claude-project.js';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
 // A photo's own position, if the phone read one out of it, kept to about ten metres. Anything
 // that is not a plain pair of coordinates is dropped rather than refused: the photo matters more.
@@ -140,14 +139,6 @@ export default async function handler(req,res){
   if(route==='push-unsubscribe'&&post){await unsubscribe(user,b.endpoint);return json(res,{ok:true});}
   if(route==='logout'&&post){if(!localDemo()){const c=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('japan_session='))?.slice(14);if(c){const db=await database();await db`DELETE FROM japan_sessions WHERE token_hash=${hash(c)}`;}}setCookie(res,'');return json(res,{ok:true});}
   if(route==='state'&&req.method==='GET')return json(res,visibleEnvelope(await readTrip(),user));
-  // The trip as a Claude Project: instructions and knowledge files, read off the plan as it stands.
-  // Everyone gets their own, built from what their phone may already see. A parent can also take
-  // anyone else's, or the whole party's with ?for=party.
-  if(route==='claude-project'&&req.method==='GET'){
-   const {state}=await readTrip(),{person,error,status}=packPerson(user,url.searchParams.get('for'),state.members);
-   if(error)throw new AppError(error,status);
-   return json(res,projectPack(visibleTrip(state,user),new Date(),person));
-  }
   // Where we each last said we were. Shared by tapping, never by the app on its own; read by the
   // map, which only ever gets the ones this person is allowed to see.
   if(route==='checkins'&&req.method==='GET')return json(res,{checkins:await listCheckins(user)});
