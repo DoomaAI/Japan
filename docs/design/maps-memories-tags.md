@@ -6,10 +6,10 @@ Status: built, apart from the options below.
   - Section 1, the Tracker tags screen.
   - Section 2, the Memory map screen, with Leaflet and OpenStreetMap tiles.
   - Section 3a, "last seen" check-ins with a 3-hour expiry.
+  - GPS and capture time from JPEG and HEIC photos, read on the phone, and bulk uploads sorted to stops by them (see `src/photo-sort.js`).
 - **Not built:**
   - Offline tiles (PMTiles).
   - Static day maps in the diary export.
-  - GPS from HEIC photos.
   - The Shortcuts background check-in (3b).
 Date: 23 September 2026 (trip day 3 of 16).
 
