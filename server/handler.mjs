@@ -15,6 +15,7 @@ import {researchPlace,researchReady} from './research.mjs';
 import {researchPayMethod} from './pay-research.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {askTrip,askReady} from './ask.mjs';
+import {parseCapture,captureReady} from './capture.mjs';
 import {nearbyPlaces,nearbyReady} from './nearby.mjs';
 import {fetchSumoDay,fetchSumoResults,fetchWrestler,sumoReady} from './sumo.mjs';
 import {readDocument,readerReady,translateStoredFile} from './document-reader.mjs';
@@ -84,7 +85,7 @@ export default async function handler(req,res){
    res.setHeader('Content-Type',shot.type);res.setHeader('Content-Disposition','inline');res.setHeader('Cache-Control','private, max-age=3600');
    const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
   }
-  if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender()});
+  if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -277,6 +278,12 @@ export default async function handler(req,res){
   // want to know what is happening as much as anybody. It is answered from the plan as that
   // person is allowed to see it, so a question can never read back what the screen hides, and
   // nothing it says is written anywhere — the family makes every change themselves.
+  // One sentence into a to-do, for the box at the top of the list. Anyone can use it: the
+  // result is only a filled-in form, and saving it goes through the same to-do rules as typing.
+  if(route==='capture'&&post){
+   const {state}=await readTrip();
+   return json(res,await parseCapture(b,visibleTrip(state,user)));
+  }
   if(route==='ask'&&post){
    const {state}=await readTrip();
    return json(res,await askTrip(b,visibleTrip(state,user),user));

@@ -656,7 +656,7 @@ function App(){
   {tab==='settings'&&<Settings user={user} settings={settings} change={changeSetting} request={request} notice={notice} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
   {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
-  {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go} day={day} remove={removeThen}/>}
+  {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go} day={day} remove={removeThen} request={request} online={online&&!!config?.capture}/>}
   {tab==='packing'&&<Packing state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
   {tab==='trackers'&&<Trackers state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
   {tab==='memorymap'&&<Suspense fallback={<p>Opening the map…</p>}><MemoryMap state={visibleState} user={user} request={request} accept={accept} notice={notice} busy={busy}/></Suspense>}
