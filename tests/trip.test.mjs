@@ -1757,12 +1757,14 @@ test('each phone arranges its own menu, and nothing put away is lost',async()=>{
  // And whatever the bar holds, More stands in for everything it does not.
  assert.equal(navActive('games','more',nate,mine),false,'a screen on the bar lights the bar');
  assert.equal(navActive('weather','more',nate,mine),true,'and everything else lights More');
- assert.ok(BAR_MIN>=3&&BAR_MAX<=8&&BAR_MIN<BAR_MAX);
+ assert.ok(BAR_MIN>=3&&BAR_MAX<=12&&BAR_MIN<BAR_MAX);
  assert.deepEqual(cleanNav(undefined,nate),{bar:null,hidden:[]});
- // Home is on the bar wherever they put it. It can be moved along the row but not off it: a
- // swipe down the bar lands on whatever is first, and that has to be somewhere to land.
+ // Home is always first on the bar: it is pinned to the left end, outside the strip that
+ // scrolls, and a swipe down the bar lands on whatever is first.
  assert.deepEqual(primaryNav(lauren,{bar:['games','weather','places','food']}),
   ['today','games','weather','places','food']);
+ assert.deepEqual(primaryNav(lauren,{bar:['games','today','weather','places']}),
+  ['today','games','weather','places'],'an older bar with Home moved along it puts Home back first');
  assert.ok(primaryNav(damien,{bar:pagesFor(damien).filter(id=>id!=='today')}).includes('today'));
  // A screen put away cannot come back through the back door. Without a bar of their own the
  // one for their role is used, minus anything they put away, topped up in the order the menu
@@ -1819,6 +1821,14 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
  // And a way out of any arrangement at all.
  assert.match(screen,/setPrefs\(emptyNav\(\)\)/);
  assert.match(main,/tab==='personalise'&&<Personalise/);
+ // Home and More are pinned either side of the strip that scrolls, and the shortcuts between
+ // them can be put in order from Settings as well as from My menu.
+ assert.match(nav,/\{tab_\(pinned,'nav-home'\)\}\s*<div className="nav-tabs"/);
+ assert.match(nav,/shortcuts\.map\(id=>tab_\(id\)\)/);
+ assert.match(css,/\.bottom-nav \.nav-more,\.bottom-nav \.nav-home\{flex:0 0 auto/);
+ const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
+ assert.match(settings,/<BarShortcuts user=\{user\} prefs=\{navPrefs\} setPrefs=\{setNavPrefs\}\/>/);
+ assert.match(main,/<Settings [^>]*navPrefs=\{navPrefs\} setNavPrefs=\{saveNav\}\/>/);
 });
 
 test('Home is a column of widgets each phone orders and puts away for itself',async()=>{
@@ -1892,10 +1902,10 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  assert.match(nav,/export const iconFor=id=>ICONS\[id\]\|\|Circle;/);
  assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,2,'the bar and the More list both go through the fallback');
  assert.ok(!/const Icon=ICONS\[id\]/.test(nav),'nothing indexes ICONS directly any more');
- // The tabs share the bar equally and scroll only on a phone too narrow for them all. Six
- // must fit a standard iPhone: at 60px a tab the sixth was faded off the edge on every one.
+ // The tabs share the bar while they fit, never shrink below their own label, and scroll
+ // like the days along the top once there are more of them than fit.
  assert.match(css,/\.nav-tabs\{position:relative;flex:1;min-width:0;display:flex;[^}]*overflow-x:auto/);
- assert.match(css,/\.nav-tabs button\{flex:1 1 0;min-width:68px;scroll-snap-align:center\}/);
+ assert.match(css,/\.nav-tabs button\{flex:1 0 auto;min-width:68px;scroll-snap-align:center\}/);
  assert.match(css,/@media\(max-width:600px\)\{[^@]*\.nav-tabs button\{min-width:48px;/);
  assert.match(css,/\.nav-tabs::-webkit-scrollbar\{display:none\}/);
  // Auto margins centre the strip while it fits and fall to zero when it overflows, so the
@@ -1905,7 +1915,7 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  // More is not in the scroller. It is the way to every other screen, so it is pinned to the
  // end of the bar and cannot be swiped off the edge the way the reported bug had it.
  assert.match(nav,/<\/div>\s*\n\s*<button className=\{`nav-more/,'More sits outside the scrolling strip');
- assert.match(css,/\.bottom-nav \.nav-more\{flex:0 0 auto/);
+ assert.match(css,/\.bottom-nav \.nav-more,\.bottom-nav \.nav-home\{flex:0 0 auto/);
  // A tab stopped by a hard edge reads as the end of the bar, so the side with more on it fades.
  assert.match(nav,/data-swipe=\{swipe\|\|undefined\}/);
  for(const side of ['end','start','both'])assert.match(css,new RegExp(`\\.nav-tabs\\[data-swipe="${side}"\\]\\{-webkit-mask-image:linear-gradient`),side);
