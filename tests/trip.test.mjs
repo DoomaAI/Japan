@@ -8463,6 +8463,10 @@ test('anyone packs and ticks; changing it is whoever added it, and starting agai
  state=applyOperation(state,{type:'packStatus',id:plugs.id,packed:true},boston);
  assert.equal(state.packing.items[1].packedBy,'Boston');
  assert.deepEqual(packingProgress(state),{packed:1,total:2,left:1});
+ // The joint list is what we share and each person's own list is theirs; the count follows the list shown.
+ assert.deepEqual(packingProgress(state,'joint'),{packed:1,total:1,left:0});
+ assert.deepEqual(packingProgress(state,'own','Nate'),{packed:0,total:1,left:1});
+ assert.deepEqual(packingProgress(state,'own','Boston'),{packed:0,total:0,left:0});
  // Nate changes his own, not the family's; a parent changes either.
  assert.equal(applyOperation(state,{type:'packEdit',id:cards.id,title:'Pokémon cards and binder',category:'kids',person:'Nate',qty:2},child).packing.items[0].qty,2);
  assert.throws(()=>applyOperation(state,{type:'packEdit',id:plugs.id,title:'x',category:'tech',person:'Family'},child),e=>e.status===403);
@@ -9768,4 +9772,25 @@ test('the day in brief gathers the day number, stops, fixed times and a hotel mo
  assert.equal(briefingGreeting('2026-09-29','2026-09-29','08:10'),'Good morning');
  assert.equal(briefingGreeting('2026-09-29','2026-09-29','14:00'),'Today');
  assert.equal(briefingGreeting('2026-09-30','2026-09-29','08:00'),'Coming up');
+
+test('the shopping list groups by the shop we will be standing in, or the day we will be there',async()=>{
+ const {groupShopping,shopKey,shopLabel}=await import('../src/shopping-groups.js');
+ const items=[
+  {id:'a',title:'Kit Kats',store:'Don Quijote, Shibuya',day:'2026-09-30'},
+  {id:'b',title:'Socks',store:'don quijote',day:'2026-10-02'},
+  {id:'c',title:'Chopsticks',store:'Daiso',day:null},
+  {id:'d',title:'Postcards',store:'',day:'2026-09-30'},
+  {id:'e',title:'Tea',store:'Ippodo (Kyoto)',day:null}
+ ];
+ assert.equal(shopKey('Don Quijote, Shibuya'),'don quijote');assert.equal(shopLabel('Ippodo (Kyoto)'),'Ippodo');
+ const byShop=groupShopping(items,'shop');
+ assert.deepEqual(byShop.map(g=>g.label),['Don Quijote','Daiso','Ippodo','Anywhere'],'biggest shop first, no shop last');
+ assert.deepEqual(byShop[0].items.map(i=>i.id),['a','b'],'two spellings of one shop are one group');
+ const byDay=groupShopping(items,'day','2026-09-30',d=>`Day ${d}`);
+ assert.deepEqual(byDay.map(g=>g.label),['Day 2026-09-30','Day 2026-10-02','Any day']);
+ assert.ok(byDay[0].today&&!byDay[1].today,'today is marked');
+ assert.equal(groupShopping(items,'none').length,1);assert.equal(groupShopping(items,'none')[0].items.length,5);
+ assert.deepEqual(groupShopping([],'shop'),[]);
+ const pages=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
+ assert.match(pages,/useStored\('japan\.shopping\.group','shop'\)/,'the grouping is this phone’s choice and starts by shop');
 });
