@@ -34,7 +34,7 @@ import {homeShown,homeRuns,emptyHome,cleanHome} from './home-widgets.js';
 import {linkOrder,emptyLinks,cleanLinks} from './card-links.js';
 import StopButtons from './StopButtons.jsx';
 import {pageRule} from './spoken-rules.js';
-import EyeSpy from './EyeSpy.jsx';
+import Bingo from './Bingo.jsx';
 import ParkGuide from './ParkGuide.jsx';
 import FoodList,{FoodCard} from './FoodList.jsx';
 import {parkForDay} from './park-data.js';
@@ -147,7 +147,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // What is missing is deliberate: anything that reshapes the plan needs the latest revision
 // to be safe, a stale exchange rate or forecast overwriting a fresh one is worse than not
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
-const OFFLINE_OPS=['status','legStatus','challengeStatus','challengeSkip','eyeSpy','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
+const OFFLINE_OPS=['status','legStatus','challengeStatus','challengeSkip','eyeSpy','bingoTick','bingoCard','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove','voiceNoteWords',
  'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntPick','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','bookingWindowBooked'];
 // Where the app opens. The address wins, then the place this phone was last looking — unless
@@ -608,7 +608,7 @@ function App(){
     <StopButtons label="For this stop" order={linkOrder(linkPrefs)} setOrder={order=>saveLinks({order})} buttons={{
      park:parkForDay(day)&&<button className="card-link-special" onClick={()=>setModal({type:'park',park:parkForDay(day)})}><span aria-hidden="true">🎢</span>Rides &amp; park map</button>,
      sumo:day===SUMO_DAY&&<button className="card-link-special" onClick={()=>setModal({type:'sumo'})}><span aria-hidden="true">🥋</span>Sumo card{sumoState(state).bouts.length?` · ${sumoState(state).bouts.length} bouts`:''}</button>,
-     eyespy:isTrainLeg(current)&&<button className="card-link-special" onClick={()=>setModal({type:'eyespy',step:current})}><span aria-hidden="true">🗻</span>Window I spy</button>,
+     eyespy:isTrainLeg(current)&&<button className="card-link-special" onClick={()=>setModal({type:'eyespy',step:current})}><span aria-hidden="true">🎱</span>Japan bingo</button>,
      website:<Link className="button" href={current.website||`https://www.google.com/search?q=${encodeURIComponent((current.place||current.title)+' official website Japan')}`}><ExternalLink size={15}/>{current.website?'Website':'Find website'}</Link>,
      tickets:<button onClick={()=>setModal({type:'tickets',step:current})}><Ticket size={15}/>Tickets{state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length?` (${state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length})`:''}</button>,
      photos:<button onClick={()=>setModal({type:'media',step:current})}><ImageIcon size={15}/>Photos</button>,
@@ -741,7 +741,7 @@ function App(){
   <BottomNav tab={tab} user={user} go={navGo} prefs={navPrefs} setPrefs={saveNav} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
   {toast&&!modal&&toastBar}
-  {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Window I spy',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo','ask'].includes(modal.type)}>
+  {modal&&<Dialog title={{edit:modal.step?'Edit activity':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Japan bingo',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo','ask'].includes(modal.type)}>
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} mode={modal.mode} wishlist={modal.wishlist} need={modal.need} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)} available={!!config?.nearby}/>}
    {modal.type==='ask'&&<AskTrip state={visibleState} user={user} day={modal.step?.day||day} step={modal.step} config={config} online={online} request={request} mutate={mutate} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
@@ -751,7 +751,7 @@ function App(){
    {modal.type==='phrase'&&<PhraseOfDay queue={phraseQueue(visibleState,user.name,modal.day)} day={modal.day} dateLabel={fmtDay(modal.day)} busy={busy} dismiss={ids=>seePhrase(modal.day,ids)}/>}
    {modal.type==='fact'&&<FactOfDay queue={factQueue(visibleState,user.name,modal.day)} dateLabel={fmtDay(modal.day)} busy={busy} young={user.name==='Nate'} dismiss={ids=>seeFact(modal.day,ids)} openPage={async(page,ids)=>{await seeFact(modal.day,ids);openPage(page);}}/>}
    {modal.type==='stepfact'&&<FactOfDay queue={modal.facts} heading={`FUN FACT · ${modal.step.title.toUpperCase()}`} busy={busy} young={user.name==='Nate'} dismiss={()=>setModal(null)} openPage={page=>openPage(page)}/>}
-   {modal.type==='eyespy'&&<EyeSpy state={visibleState} user={user} step={modal.step} mutate={mutate} busy={busy}/>}
+   {modal.type==='eyespy'&&<Bingo state={visibleState} user={user} step={modal.step} mutate={mutate} busy={busy}/>}
    {modal.type==='thankyou'&&<ThankYouNote note={modal.note} to={user.name} seenAt={state.thankYou.seen?.[modal.note.day]} busy={busy} dismiss={()=>readNote(modal.note)}/>}
    {modal.type==='late'&&<RunningLate state={state} day={day} mutate={mutate} busy={busy} close={()=>setModal(null)}/>}
    {modal.type==='offline'&&<OfflineReadiness state={state} day={day} notice={notice} refresh={refresh}/>}
