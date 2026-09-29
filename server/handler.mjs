@@ -21,7 +21,8 @@ import {readDocument,readerReady,translateStoredFile} from './document-reader.mj
 import {coachPhoto,coachReady} from './photo-coach.mjs';
 import {shareCheckin,listCheckins} from './checkins.mjs';
 import {parseKml,matchPlacemarks,myMapKmlUrl,roundedPosition,validPosition,PHOTO_PLACES} from '../src/memory-map.js';
-import {calendarFeed} from '../src/timing.js';
+import {calendarFeed,japanDate} from '../src/timing.js';
+import {followView,followPhoto} from '../src/follow-data.js';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
 // A photo's own position, if the phone read one out of it, kept to about ten metres. Anything
 // that is not a plain pair of coordinates is dropped rather than refused: the photo matters more.
@@ -69,6 +70,20 @@ export default async function handler(req,res){
    res.statusCode=200;res.setHeader('Content-Type','text/calendar; charset=utf-8');res.setHeader('Cache-Control','private, max-age=300');
    res.end(calendarFeed(trip.state,process.env.APP_ORIGIN||`http://${req.headers.host}`));return;
   }
+  // Following along from home: a read-only view of the days so far, let in on a key of its own
+  // like the calendar, with no session. What it sends is the allow-list in follow-data.js, and
+  // the only files it serves are the family's day photos. A wrong or withdrawn key learns nothing.
+  if((route==='follow'||route==='follow-photo')&&req.method==='GET'){
+   const key=url.searchParams.get('key')||'',trip=await readTrip();
+   if(!trip.state.followKey||!/^[a-f0-9]{64}$/.test(key)||hash(key)!==hash(trip.state.followKey))throw new AppError('This follow-along link is not valid any more.',403);
+   const today=japanDate();
+   if(route==='follow')return json(res,followView(trip.state,today));
+   const shot=followPhoto(trip.state,url.searchParams.get('id'),today);if(!shot)throw new AppError('Photo not found.',404);
+   const result=await get(shot.pathname,{access:'private',useCache:false});
+   if(!result||!result.stream)throw new AppError('Photo unavailable.',404);
+   res.setHeader('Content-Type',shot.type);res.setHeader('Content-Disposition','inline');res.setHeader('Cache-Control','private, max-age=3600');
+   const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
+  }
   if(route==='config'&&req.method==='GET')return json(res,{configured:!!process.env.DATABASE_URL,demo:localDemo(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
@@ -95,6 +110,16 @@ export default async function handler(req,res){
    key??=(await readTrip()).state.calendarKey;
    const host=process.env.APP_ORIGIN?new URL(process.env.APP_ORIGIN).host:req.headers.host,scheme=process.env.APP_ORIGIN?.startsWith('https:')?'webcal':'http';
    return json(res,{url:`${scheme}://${host}/api/calendar?key=${key}`});
+  }
+  // The follow-along link: made the first time a parent asks, and withdrawn by a parent, after
+  // which the old link stops working at once and the next one made is a different link.
+  if(route==='follow-link'&&post){
+   parent(user);
+   if(b.stop){await updateTrip(state=>state.followKey?{...state,followKey:null}:null);return json(res,{url:null});}
+   let key;await updateTrip(state=>{if(state.followKey)return null;key=token();return {...state,followKey:key};});
+   key??=(await readTrip()).state.followKey;
+   const origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
+   return json(res,{url:`${origin}/?follow=${key}`});
   }
   if(route==='logout'&&post){if(!localDemo()){const c=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('japan_session='))?.slice(14);if(c){const db=await database();await db`DELETE FROM japan_sessions WHERE token_hash=${hash(c)}`;}}setCookie(res,'');return json(res,{ok:true});}
   if(route==='state'&&req.method==='GET')return json(res,visibleEnvelope(await readTrip(),user));

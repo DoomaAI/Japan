@@ -28,7 +28,8 @@ const hideExpenses=(state,user)=>user?.role==='parent'?state:{...state,expenses:
 export function visibleTrip(state,user,now=new Date()){
  // The calendar key opens the trip's calendar to anyone holding it, so no phone is sent it as
  // part of the plan; a parent gets it from the one route that hands out the subscription link.
- const {calendarKey,...rest}=state;
+ // The follow-along key is the same kind of thing, and a parent is handed it the same way.
+ const {calendarKey,followKey,...rest}=state;
  state=hideExpenses(hideTrackerLinks(hideInbox(hideUnthrownHands(rest,user),user),user),user);
  if(user?.name===THANK_YOU_FROM)return state;
  if(user?.name!==THANK_YOU_TO)return {...state,thankYou:{seen:{},today:null}};

@@ -61,6 +61,24 @@ function TripCalendar({request,notice}){
   <p><small>Anyone holding the link can read the bookings, so share it only with the family.</small></p>
  </section>;
 }
+// Family at home can follow the trip: a link with no login that shows the days so far, the
+// photos, the stars and the diary, and none of the tickets, places, hotels or money. A parent
+// makes it, copies it to whoever should have it, and can stop it at any time.
+function FollowLink({request,notice}){
+ const [busy,setBusy]=useState(false),[link,setLink]=useState('');
+ const make=async()=>{setBusy(true);try{const r=await request('follow-link',{});setLink(r.url);await navigator.clipboard?.writeText(r.url).catch(()=>{});notice('Follow-along link copied. Send it to family at home.');}catch(e){notice(e.message);}finally{setBusy(false);}};
+ const stop=async()=>{if(!confirm('Stop the follow-along link? Anyone who has it will no longer be able to open it.'))return;setBusy(true);try{await request('follow-link',{stop:true});setLink('');notice('The follow-along link has been stopped. Making a new one gives a different link.');}catch(e){notice(e.message);}finally{setBusy(false);}};
+ return <section className="settings-section">
+  <h2>Follow along from home</h2>
+  <p>A link for grandparents and friends: the days so far, the photos, the stops we did with our stars and what we said, and the diary. No tickets, bookings, hotels, places, positions or money, and nothing about the days still to come.</p>
+  <div className="row wrap">
+   <button type="button" className="primary" disabled={busy} onClick={make}><Copy size={16}/> Copy the follow-along link</button>
+   <button type="button" className="danger" disabled={busy} onClick={stop}>Stop the link</button>
+  </div>
+  {link&&<textarea readOnly value={link} rows={2}/>}
+  <p><small>Anyone holding the link can see the photos, so send it only to people you would show them to.</small></p>
+ </section>;
+}
 export default function Settings({user,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR CHOICE</p>
@@ -79,6 +97,7 @@ export default function Settings({user,settings,change,navPrefs,setNavPrefs,link
    {SETTINGS.filter(s=>s.group==='route').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
   {user?.role==='parent'&&request&&<TripCalendar request={request} notice={notice}/>}
+  {user?.role==='parent'&&request&&<FollowLink request={request} notice={notice}/>}
   {setNavPrefs&&<section className="settings-section"><BarShortcuts user={user} prefs={navPrefs} setPrefs={setNavPrefs}/></section>}
   {setLinkPrefs&&<section className="settings-section"><StopButtonOrder prefs={linkPrefs} setPrefs={setLinkPrefs}/></section>}
   <p><small>Remembered on this phone under your own name, so it takes effect with no signal and changes nothing for anybody else. Turning one back on brings it straight back, starting with today’s if you have not already marked it; nothing you have already seen is ever offered twice.</small></p>
