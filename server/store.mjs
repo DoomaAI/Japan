@@ -19,8 +19,8 @@ export async function database(){
  sql??=neon(process.env.DATABASE_URL);
  if(!ready)ready=(async()=>{
   await sql`CREATE TABLE IF NOT EXISTS japan_trip (id text PRIMARY KEY, state jsonb NOT NULL, revision integer NOT NULL DEFAULT 1)`;
-  await sql`CREATE TABLE IF NOT EXISTS japan_grants (id text PRIMARY KEY, token_hash text UNIQUE NOT NULL, name text NOT NULL, role text NOT NULL, revoked boolean NOT NULL DEFAULT false, expires_at timestamptz NOT NULL DEFAULT now()+interval '45 days', created_at timestamptz NOT NULL DEFAULT now())`;
-  await sql`CREATE TABLE IF NOT EXISTS japan_sessions (token_hash text PRIMARY KEY, grant_id text REFERENCES japan_grants(id), expires_at timestamptz NOT NULL DEFAULT now()+interval '45 days')`;
+  await sql`CREATE TABLE IF NOT EXISTS japan_grants (id text PRIMARY KEY, token_hash text UNIQUE NOT NULL, name text NOT NULL, role text NOT NULL, revoked boolean NOT NULL DEFAULT false, expires_at timestamptz NOT NULL DEFAULT now()+interval '6 months', created_at timestamptz NOT NULL DEFAULT now())`;
+  await sql`CREATE TABLE IF NOT EXISTS japan_sessions (token_hash text PRIMARY KEY, grant_id text REFERENCES japan_grants(id), expires_at timestamptz NOT NULL DEFAULT now()+interval '6 months')`;
   const state=await readSeed();await sql`INSERT INTO japan_trip(id,state) VALUES ('family',${JSON.stringify(state)}::jsonb) ON CONFLICT(id) DO NOTHING`;
  })().catch(e=>{ready=undefined;throw e;});
  await ready;return sql;
@@ -48,14 +48,39 @@ export async function updateTrip(change,attempts=4){
  }
  throw last;
 }
+// How long a family link, a phone's session and the cookie that carries it all last: six months,
+// which outlasts the trip and the looking-back after it. A link in use never runs out on its own,
+// because every open of the app inside the last month of its life pushes it out another six; the
+// only way to lose access is to be revoked or to stay away for half a year.
+export const LINK_LIFE='6 months',LINK_SECONDS=182*86400,RENEW_WITHIN=150*86400000;
+export const cookieOf=req=>{const c=(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('japan_session='))?.slice(14);return c&&/^[a-f0-9]{64}$/.test(c)?c:null;};
 export async function session(req){
  if(localDemo())return {id:'preview',name:'Damien',role:'parent',demo:true};
- const cookie=(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('japan_session='))?.slice(14);
- if(!cookie||!/^[a-f0-9]{64}$/.test(cookie))throw new AppError('Open your private family invite link to join.',401);
+ const cookie=cookieOf(req);
+ if(!cookie)throw new AppError('Open your private family invite link to join.',401);
  // The sooner of the two expiries goes back with the user, so the app can say when this phone
  // will stop being let in, days ahead of it happening in the middle of the trip.
  const db=await database();const [u]=await db`SELECT g.id,g.name,g.role,LEAST(s.expires_at,g.expires_at) AS expires_at FROM japan_sessions s JOIN japan_grants g ON g.id=s.grant_id WHERE s.token_hash=${hash(cookie)} AND s.expires_at>now() AND g.expires_at>now() AND g.revoked=false`;
  if(!u)throw new AppError('This family link has expired or been revoked.',401);
  const {expires_at,...user}=u;return {...user,expiresAt:expires_at instanceof Date?expires_at.toISOString():expires_at?String(expires_at):null};
 }
-export function setCookie(res,value){res.setHeader('Set-Cookie',`japan_session=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${value?3888000:0}${process.env.VERCEL||process.env.APP_ORIGIN?.startsWith('https:')?'; Secure':''}`);}
+export function setCookie(res,value){res.setHeader('Set-Cookie',`japan_session=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${value?LINK_SECONDS:0}${process.env.VERCEL||process.env.APP_ORIGIN?.startsWith('https:')?'; Secure':''}`);}
+// This phone's session, and the link behind it, pushed out to a fresh six months. Called when the
+// app opens with less than five months left, so the writes happen about once a month per phone.
+export async function renewSession(req){
+ const cookie=cookieOf(req);if(localDemo()||!cookie)return null;
+ const db=await database();
+ const [r]=await db`UPDATE japan_sessions SET expires_at=now()+interval '6 months' WHERE token_hash=${hash(cookie)} RETURNING grant_id,expires_at`;
+ if(r)await db`UPDATE japan_grants SET expires_at=GREATEST(expires_at,now()+interval '6 months') WHERE id=${r.grant_id} AND revoked=false`;
+ return r?new Date(r.expires_at).toISOString():null;
+}
+// Every unrevoked link and every session, pushed out to six months from now, on a parent's say-so.
+// Another phone's cookie is renewed the next time that phone opens the app, so this is the half of
+// the job the database can do; the other half happens by itself.
+export async function renewAllLinks(){
+ if(localDemo())return new Date(Date.now()+LINK_SECONDS*1000).toISOString();
+ const db=await database();
+ await db`UPDATE japan_grants SET expires_at=now()+interval '6 months' WHERE revoked=false`;
+ const [r]=await db`UPDATE japan_sessions SET expires_at=now()+interval '6 months' RETURNING expires_at`;
+ return new Date(r?.expires_at||Date.now()+LINK_SECONDS*1000).toISOString();
+}

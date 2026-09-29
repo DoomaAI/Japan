@@ -9614,3 +9614,20 @@ test('the bottom bar wobbles to be rearranged, and More can mark what is already
  for(const id of bar.slice(1).filter(id=>inMenu.has(id)))assert.ok(all.includes(id),`${id} is listed to be marked`);
  assert.match(nav,/Shortcut on the bar/);assert.match(nav,/Widget on Home/);
 });
+
+test('a family link, its session and its cookie all last six months, and renew inside the last month',async()=>{
+ const {setCookie,LINK_SECONDS,RENEW_WITHIN,cookieOf}=await import('../server/store.mjs');
+ assert.ok(LINK_SECONDS>=180*86400,'six months of cookie');
+ assert.ok(RENEW_WITHIN>=120*86400000&&RENEW_WITHIN<LINK_SECONDS*1000,'renewed well before it runs out');
+ const headers={};const res={setHeader:(k,v)=>{headers[k]=v;}};
+ setCookie(res,'a'.repeat(64));
+ assert.match(headers['Set-Cookie'],new RegExp(`Max-Age=${LINK_SECONDS}(;|$)`));
+ assert.match(headers['Set-Cookie'],/HttpOnly; SameSite=Strict/);
+ setCookie(res,'');assert.match(headers['Set-Cookie'],/Max-Age=0/);
+ assert.equal(cookieOf({headers:{cookie:`other=1; japan_session=${'b'.repeat(64)}`}}),'b'.repeat(64));
+ assert.equal(cookieOf({headers:{cookie:'japan_session=short'}}),null);
+ const store=await readFile(new URL('../server/store.mjs',import.meta.url),'utf8'),handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.ok(!/45 days/.test(store)&&!/45 days/.test(handler),'nothing is left on the old 45-day life');
+ assert.match(handler,/INSERT INTO japan_sessions\(token_hash,grant_id,expires_at\)/,'a new session says its own life rather than trusting the table default');
+ assert.match(handler,/INSERT INTO japan_grants\(id,token_hash,name,role,expires_at\)/,'and so does a new invite');
+});

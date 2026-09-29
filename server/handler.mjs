@@ -7,7 +7,7 @@ import {Readable} from 'node:stream';
 import {get,head,del} from '@vercel/blob';
 import {handleUpload} from '@vercel/blob/client';
 import {AppError,applyOperation,MEMBERS,documentDetails,documentAssociation,ticketParent} from './model.mjs';
-import {database,readTrip,writeTrip,updateTrip,session,localDemo,hash,token,setCookie} from './store.mjs';
+import {database,readTrip,writeTrip,updateTrip,session,localDemo,hash,token,setCookie,cookieOf,renewSession,renewAllLinks,RENEW_WITHIN} from './store.mjs';
 import {visibleEnvelope,visibleTrip} from './visibility.mjs';
 import {readMenu,readPacket,menuReaderReady} from './menu.mjs';
 import {translatePhrase,translatorReady,translateTicketText,TICKET_FIELDS,TICKET_DIRECTIONS,ticketTranslationKey} from './translate.mjs';
@@ -65,10 +65,18 @@ export default async function handler(req,res){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
    if(!u)throw new AppError('This invite has expired or been revoked.',403);
-   const sid=token();await db`INSERT INTO japan_sessions(token_hash,grant_id) VALUES (${hash(sid)},${u.id})`;setCookie(res,sid);return json(res,{ok:true});
+   const sid=token();await db`INSERT INTO japan_sessions(token_hash,grant_id,expires_at) VALUES (${hash(sid)},${u.id},now()+interval '6 months')`;setCookie(res,sid);return json(res,{ok:true});
   }
   const user=await session(req);
+  // A phone inside the last month of its session is pushed out another six months, cookie and
+  // row together, on the read it makes anyway. Nobody has to notice a link running out.
+  if(route==='state'&&req.method==='GET'&&!user.demo&&user.expiresAt&&Date.parse(user.expiresAt)-Date.now()<RENEW_WITHIN){
+   const until=await renewSession(req);if(until){user.expiresAt=until;setCookie(res,cookieOf(req));}
+  }
   if(route==='session'&&req.method==='GET')return json(res,{user});
+  // Keep everyone signed in: every link and session runs from now for six months. The phones
+  // that are not this one pick up their fresh cookie the next time they open the app.
+  if(route==='renew-links'&&post){parent(user);const until=await renewAllLinks();if(!user.demo)setCookie(res,cookieOf(req));return json(res,{until});}
   if(route==='logout'&&post){if(!localDemo()){const c=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('japan_session='))?.slice(14);if(c){const db=await database();await db`DELETE FROM japan_sessions WHERE token_hash=${hash(c)}`;}}setCookie(res,'');return json(res,{ok:true});}
   if(route==='state'&&req.method==='GET')return json(res,visibleEnvelope(await readTrip(),user));
   // Where we each last said we were. Shared by tapping, never by the app on its own; read by the
@@ -371,7 +379,7 @@ export default async function handler(req,res){
   if(route==='invites'&&post){
    parent(user);if(localDemo())throw new AppError('Connect Neon to create real family invite links.',503);
    if(!validName(b.name,b.role))throw new AppError('Choose a family member and matching role.');
-   const db=await database(),raw=token(),id=randomUUID();await db`INSERT INTO japan_grants(id,token_hash,name,role) VALUES (${id},${hash(raw)},${b.name},${b.role})`;
+   const db=await database(),raw=token(),id=randomUUID();await db`INSERT INTO japan_grants(id,token_hash,name,role,expires_at) VALUES (${id},${hash(raw)},${b.name},${b.role},now()+interval '6 months')`;
    return json(res,{url:`${process.env.APP_ORIGIN}/#join=${raw}`,id});
   }
   if(route==='revoke'&&post){
