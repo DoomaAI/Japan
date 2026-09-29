@@ -127,11 +127,32 @@ Added 29 September 2026. The organiser offers options that each member selects f
 
 | Method | How it works | Suits |
 |---|---|---|
-| **First come, first served** | Places are confirmed in the order the server receives them. When an option is full, later sign-ups join its waitlist in order. | Casual activities; groups where speed is fair |
+| **First come, first served** (default) | Places are confirmed in the order the server receives them. When an option is full, later sign-ups join its waitlist in order. | Casual activities; groups where speed is fair |
 | **Organiser selects** | Members register interest, optionally ranked, with a short note. The organiser picks who gets each place before a set date; everyone else is waitlisted or told they were not selected. | Scarce or costly places; balancing across the group; skill or age limits |
 | **Ballot** (optional third) | Registrations close, then places are drawn at random, honouring rankings where given. | High demand where neither speed nor judgement is fair |
 
 For **organiser selects**, the selection screen shows each member's other allocations and how many first choices they have had, so places can be spread fairly. Selection notes stay with the organiser.
+
+#### Initial policy
+
+Decided 29 September 2026. These are the defaults a new sign-up starts with; the organiser can change any of them before sign-ups open.
+
+| Setting | Default | Why |
+|---|---|---|
+| Allocation method | First come, first served | Simplest to understand and run; no work for the organiser after opening |
+| Choice type | Pick one | Keeps places spread across the group |
+| Places per option | Set by the organiser; no default | Must match what is actually held with the supplier |
+| Minimum to run | None | |
+| Opening | When the organiser publishes, or at a set time if one is given | A set time is recommended when demand is likely to exceed places |
+| Closing | 48 hours before the activity | Leaves time to confirm numbers with the supplier |
+| Waitlist | On; an offered place is held for 12 hours | Offers stop at closing; after that the organiser fills gaps by hand |
+| Reserved places | None | |
+| Children | Need an adult confirmed on the same option | |
+| Deposit | Not required | Payment holds apply only when the organiser adds a deposit |
+| Names | Shown to members of the group | Waitlist positions stay private to each member |
+| Member cancellation | Allowed until closing; after closing, only through the organiser | |
+| Switching method | Not allowed once the first place is confirmed | Changing the rules mid-way is unfair to those who signed up under them. To change method, the organiser closes the sign-up and opens a new one, and everyone is told. |
+| Transfers | Not allowed | A released place goes through the waitlist, so the order stays fair |
 
 #### Member status
 
@@ -143,7 +164,8 @@ Each member's status on each option is one of: **interested**, **confirmed**, **
 - **Clashes:** a member cannot hold two options at the same time; picking the second asks which to keep.
 - **Waitlist promotion:** when a place frees up, the next person is offered it by push (#214) and email, with the hold time. An offer not taken in time passes down the list. Under organiser selects, the organiser can promote by hand instead.
 - **Payment holds:** where a deposit is required, a place is confirmed only once paid; an unpaid place is released after a set time and offered to the waitlist.
-- **Changes after opening:** the allocation method and place numbers cannot be reduced after sign-ups open without notice to everyone affected. Increasing places promotes from the waitlist automatically.
+- **Changes after opening:** the allocation method is locked once the first place is confirmed. Place numbers can be raised at any time, which promotes from the waitlist automatically; lowering them never removes a confirmed place and needs notice to everyone affected.
+- **No transfers:** a member cannot hand their place to someone else. A released place goes to the waitlist, or back to open if the waitlist is empty.
 - **Audit trail:** every sign-up, offer, selection and cancellation is timestamped, so any dispute over order or fairness can be answered.
 
 #### What exists in this app to build on
@@ -222,8 +244,6 @@ Each essential links to the shop or the official page and to the screen in the a
 - Polling cost: how often each watch is checked, and the cost per watch per month.
 - Pricing for groups: charge the organiser, each member, or a fee per trip?
 - Group size: design for a family of four to a group of about 20, or also for larger events such as weddings or company trips?
-- Sign-ups: which allocation method is the default, and can an organiser switch method after sign-ups open if demand is far higher than expected?
-- Sign-ups: are places transferable between members, or must a released place go back through the waitlist?
 
 ## Next step when picked up
 
