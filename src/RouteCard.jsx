@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket} from 'lucide-react';
-import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn,legCount,legDone,legsTicked} from './route-data.js';
+import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked} from './route-data.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
 // Follows the phone along the route while it is open and tracking is on. GPS fades underground,
 // so the last good fix is kept and its age shown rather than guessing.
@@ -40,9 +40,13 @@ function Tracker({legs,rides,track,status,onPress}){
  </div>}
  </>;
 }
-// Subway symbols are round on the signs; JR and private railways use a rounded square.
+// The line symbol as the operator draws it (see symbolStyle): a ring round a white centre, a
+// colour-filled shape, or JR East's framed square with the code on a black tab.
 function LineSymbol({code,line}){
- return <b className={`line-symbol${line.kind==='Subway'?' round':''}`} style={{background:line.colour,color:inkOn(line.colour)}} aria-hidden="true">{code}</b>;
+ const style=symbolStyle(line),colour=symbolColour(line,code);
+ if(style==='jre')return <b className="line-symbol jre" style={{borderColor:colour}} aria-hidden="true"><span>{code}</span></b>;
+ const [kind,shape]=style.split(' ');
+ return <b className={`line-symbol ${kind} ${shape}`} style={kind==='ring'?{borderColor:colour}:{background:colour,color:inkOn(colour)}} aria-hidden="true">{code}</b>;
 }
 const KIND_ICON={Subway:TrainFrontTunnel,Bus,Monorail:TramFront};
 // The tick beside one leg. Whoever may tick the stop may tick its legs; everyone else still sees

@@ -8904,6 +8904,14 @@ test('each ride shows the line symbol its signs carry',async()=>{
  assert.deepEqual(lineSymbols(legStops({line:'naraBus',from:'Kintetsu-Nara Station (stop 1)',to:'Todaiji Daibutsuden / Kasugataisha-mae'})),[]);
  assert.equal(inkOn('#FFD400'),'#1f1f1f');
  assert.equal(inkOn('#E5171F'),'#fff');
+ // Drawn as each operator describes its own: rings for Tokyo's subways, JR East's framed code.
+ const {LINES,symbolStyle,symbolColour}=await import('../src/route-data.js');
+ assert.equal(symbolStyle(LINES.marunouchi),'ring circle');
+ assert.equal(symbolStyle(LINES.oedo),'ring circle');
+ assert.equal(symbolStyle(LINES.yamanote),'jre');
+ assert.equal(symbolStyle(LINES.midosuji),'fill square');
+ for(const l of Object.values(LINES))if(l.stations.some(s=>s[2]))assert.ok(symbolStyle(l),l.name);
+ assert.deepEqual(['B','A'].map(c=>symbolColour(LINES.kintetsu,c)),['#E7A61A','#C22047']);
 });
 test('tracking at a change follows the ride still to come',async()=>{
  const {legStops,whereOnRoute}=await import('../src/route-data.js');
