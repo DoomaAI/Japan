@@ -6,7 +6,7 @@ const source=async f=>readFile(new URL(`../src/${f}`,import.meta.url),'utf8');
 test('a pronunciation line wraps inside its card rather than being styled as the tiny label',async()=>{
  const css=await source('style.css');
  assert.doesNotMatch(css,/\.say-phonics span\{/,'only the first span is the SAY label');
- assert.match(css,/\.say-phonics>span:first-child\{font-size:\.6rem/);
+ assert.match(css,/\.say-phonics>span:first-child\{font-size:\.75rem/);
  assert.match(css,/\.say-phonics>span\+span\{flex:1 1 auto;min-width:0\}/);
 });
 test('the weather list starts at today, with the days behind us folded above it',async()=>{
@@ -26,4 +26,15 @@ test('the phrase and fun fact of the day wait on the day in brief instead of ope
  assert.match(main,/phrase=\{day===dayOnTrip&&settingOn\(settings,'dailyPhrase'\)\?\{item:phraseQueue\(visibleState,user\.name,dayOnTrip\)\[0\],open:openPhrase,fresh:!phraseDone\}:null\}/,'the row names the phrase its sheet opens on');
  assert.match(brief,/className="briefing-phrase briefing-fact" onClick=\{fact\.open\}/);
  assert.match(brief,/\{phrase\?\.fresh&&<em className="briefing-new">New<\/em>\}/);
+});
+test('no text is set below 12px, outside game boards and the drawn day map',async()=>{
+ const exempt=['snake-cell','shogi-square','picross-cols','picross-rows','merge-tile','stable-cell','bingo-cell','.dm-','line-symbol','game-tile-stars'];
+ for(const f of ['style.css','stages.css','guide-theme.css']){
+  const css=await source(f);
+  for(const [,sel,body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)){
+   if(exempt.some(e=>sel.includes(e)))continue;
+   for(const [,v,u] of body.matchAll(/font-size:\s*(\.?\d*\.?\d+)(rem|px)(?![\w%])/g))
+    assert.ok((u==='rem'?Number(v)*16:Number(v))>=12,`${f}: ${sel.trim().slice(-60)} is ${v}${u}`);
+  }
+ }
 });
