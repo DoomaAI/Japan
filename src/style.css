@@ -596,22 +596,32 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .next-title .entry-type{vertical-align:-3px}
 .step-card h2 .entry-type{width:1.05em;height:1.05em;border-radius:.28em;vertical-align:-.1em;margin-right:.3em}
 
-/* The buttons under a stop, in each person's order. Press and hold one and the row wobbles like
-   the icons on an iPhone's home screen; while it does, a button follows the finger and the rest
-   shuffle out of its way. Nothing selects or pops up a menu under a held finger, and a wobbling
-   row does not scroll the page when a button is dragged. Without motion the row is outlined
-   instead, so it is still plain that it is waiting to be rearranged. */
-.card-links{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+/* Press and hold, then drag (wobble.js): the buttons under a stop and the shortcuts along the
+   bottom bar. Hold one and the row wobbles like the icons on an iPhone's home screen; while it
+   does, an item follows the finger and the rest shuffle out of its way. Nothing selects or pops
+   up a menu under a held finger, and a wobbling row does not scroll the page when an item is
+   dragged. Without motion the items are outlined instead, so it is still plain that the row is
+   waiting to be rearranged. */
+.card-links,.bottom-nav{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .card-link-slot{position:relative;display:inline-flex}
-.card-links.editing .card-link-slot{touch-action:none;cursor:grab;border-radius:10px}
-.card-link-slot.held{z-index:3;cursor:grabbing;box-shadow:0 6px 18px #0003}
-.card-links-editing{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:-.2rem 0 .7rem}
-.card-links-editing small{color:var(--muted);font-size:.72rem}
-.card-links-done{background:var(--ink);color:#fff;border-radius:20px;padding:.35rem .95rem;font-weight:600}
+[data-wobbling]{scroll-snap-type:none}
+[data-wobbling]>[data-link]{touch-action:none;cursor:grab;border-radius:10px}
+[data-wobbling]>.held{position:relative;z-index:3;cursor:grabbing;box-shadow:0 6px 18px #0003}
+.wobble-done{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:-.2rem 0 .7rem}
+.wobble-done small{color:var(--muted);font-size:.72rem}
+.wobble-done button{background:var(--ink);color:#fff;border-color:var(--ink);border-radius:20px;min-height:38px;padding:.35rem .95rem;font-weight:600}
+.bottom-nav .wobble-done{position:absolute;left:0;right:0;bottom:100%;margin:0;padding:.5rem 1rem;background:#fffefc;border-top:1px solid var(--border);box-shadow:0 -4px 20px #183f3210}
+.bottom-nav .wobble-done button{flex:0 0 auto;flex-direction:row;color:#fff;background:var(--ink);max-width:none;min-height:38px}
 @media(prefers-reduced-motion:no-preference){
-.card-links.editing .card-link-slot:not(.held){animation:card-wobble .26s ease-in-out infinite alternate}
-.card-links.editing .card-link-slot:nth-child(2n):not(.held){animation-delay:-.13s;animation-duration:.3s}
-.card-links.editing .card-link-slot:nth-child(3n):not(.held){animation-delay:-.07s}
-@keyframes card-wobble{from{transform:rotate(-2deg)}to{transform:rotate(2deg)}}
+[data-wobbling]>[data-link]:not(.held){animation:wobble .26s ease-in-out infinite alternate}
+[data-wobbling]>[data-link]:nth-child(2n):not(.held){animation-delay:-.13s;animation-duration:.3s}
+[data-wobbling]>[data-link]:nth-child(3n):not(.held){animation-delay:-.07s}
+@keyframes wobble{from{transform:rotate(-2deg)}to{transform:rotate(2deg)}}
 }
-@media(prefers-reduced-motion:reduce){.card-links.editing .card-link-slot{outline:1px dashed var(--border)}}
+@media(prefers-reduced-motion:reduce){[data-wobbling]>[data-link]{outline:1px dashed var(--border)}}
+
+/* More, with what is already one tap away marked: a shortcut on the bar, a widget on Home. */
+.more-where{min-height:40px;padding:.45rem .85rem;font-size:.82rem;border-radius:20px;margin:-.4rem 0 1rem}
+.more-where.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.more-tags{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.4rem}
+.more-row.more-elsewhere{opacity:.6}

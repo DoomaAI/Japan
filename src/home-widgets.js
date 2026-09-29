@@ -16,21 +16,24 @@ export const HOME_WIDGETS={
  needs:{label:'Before we head out',note:'What to carry out the door this morning'},
  links:{label:'Next fixed time and hotel',note:'The next time that cannot move, then tonight’s hotel'},
  running:{label:'Is everything running?',note:'Service status for today’s trains, and flight status on a flight day'},
- weather:{label:'Weather',note:'The day’s forecast, folded or open'},
- glance:{label:'The day at a glance',note:'A button to the day’s stops in order',off:true,action:true},
+ weather:{label:'Weather',note:'The day’s forecast, folded or open',page:'weather'},
+ glance:{label:'The day at a glance',note:'A button to the day’s stops in order',off:true,action:true,page:'glance'},
  adjust:{label:'Adjust the day',note:'Move the rest of the day on (parents only)',off:true,action:true},
  tired:{label:'We’re tired',note:'Ways to take the rest of the day easier',off:true,action:true},
- apps:{label:'Useful apps',note:'Maps, translation, trains and the rest',off:true,action:true},
- todos:{label:'To-dos for the day',note:'Things to do or buy that are on this day'},
- packing:{label:'Packing reminder',note:'What is still out of the case before a hotel move'},
+ apps:{label:'Useful apps',note:'Maps, translation, trains and the rest',off:true,action:true,page:'help'},
+ todos:{label:'To-dos for the day',note:'Things to do or buy that are on this day',page:'todo'},
+ packing:{label:'Packing reminder',note:'What is still out of the case before a hotel move',page:'packing'},
  tally:{label:'Day tally and tools',note:'How many are done, photos, voice notes and tickets'},
- finds:{label:'Shop finds',note:'Things we photographed in a shop on this day'},
- guide:{label:'This day in the guide',note:'The original guide pages for the day'}
+ finds:{label:'Shop finds',note:'Things we photographed in a shop on this day',page:'shortlist'},
+ guide:{label:'This day in the guide',note:'The original guide pages for the day',page:'guide'}
 };
 // The countdown starts put away and sits at the top once brought out, above the step card.
 // The day's buttons — the day at a glance, adjust the day, we're tired, useful apps — live on
 // Today, beside the stops they act on, so Home starts without them. Each can still be put on
 // Home as a widget of its own; side by side they share one grid rather than stacking.
+// The screen a widget is a slice of, where there is one, so More can say which screens are
+// already on Home.
+export const homePages=prefs=>new Set(homeShown(prefs).map(id=>HOME_WIDGETS[id].page).filter(Boolean));
 export const HOME_OFF=Object.keys(HOME_WIDGETS).filter(id=>HOME_WIDGETS[id].off);
 // Older phones stored the four as one 'actions' widget; wherever it sat, the four sit instead.
 const LEGACY={actions:Object.keys(HOME_WIDGETS).filter(id=>HOME_WIDGETS[id].action)};

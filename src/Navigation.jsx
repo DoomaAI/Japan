@@ -1,6 +1,8 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,Clapperboard,ShieldAlert,Receipt,CreditCard,Medal} from 'lucide-react';
-import {PAGES,primaryNav,moreSections,navActive} from './nav-data.js';
+import {Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,Clapperboard,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid} from 'lucide-react';
+import {PAGES,primaryNav,moreSections,navActive,hiddenNav} from './nav-data.js';
+import {useWobble} from './wobble.js';
+import {homePages} from './home-widgets.js';
 import {swipeVertical} from './swipe.js';
 const ICONS={today:House,days:CalendarDays,glance:CalendarCheck,tickets:Ticket,food:UtensilsCrossed,money:Coins,ledger:Receipt,paying:CreditCard,hunts:Medal,noticed:Eye,challenges:Trophy,games:Dices,photos:Camera,
  diary:NotebookPen,highlights:Clapperboard,places:MapPin,meeting:Users,safety:ShieldAlert,help:LifeBuoy,options:Inbox,parks:FerrisWheel,weather:CloudSun,todo:ListChecks,packing:Luggage,trackers:Radar,memorymap:MapIcon,
@@ -12,8 +14,14 @@ const ICONS={today:House,days:CalendarDays,glance:CalendarCheck,tickets:Ticket,f
 // the whole screen came down with it — the one screen that reaches every other screen.
 export const iconFor=id=>ICONS[id]||Circle;
 const SLACK=8;
-export function BottomNav({tab,user,go,unread,prefs}){
- const strip=useRef(null);
+export function BottomNav({tab,user,go,unread,prefs,setPrefs}){
+ const bar=primaryNav(user,prefs);
+ const moreOn=navActive(tab,'more',user,prefs);
+ const pinned=bar[0],shortcuts=bar.slice(1);
+ // Press and hold a shortcut and they wobble, to be dragged into a new order like the icons on
+ // a home screen. Home and More are pinned, so only the shortcuts between them move.
+ const w=useWobble({ids:shortcuts,onMove:next=>setPrefs?.({bar:[pinned,...next],hidden:hiddenNav(user,prefs)})});
+ const strip=w.row;
  // The shortcuts swipe sideways, like the days along the top. Home and More do not travel
  // with them: Home is pinned to the start of the bar and More to the end, because they are the
  // way back and the way to every other screen, and a way out that can be swiped off the edge
@@ -79,21 +87,20 @@ export function BottomNav({tab,user,go,unread,prefs}){
  // they are the two a thumb resting there can do without looking. The More button does the
  // same thing for anybody who would rather press something.
  const drag=useRef(null);
- const bar=primaryNav(user,prefs);
- const moreOn=navActive(tab,'more',user,prefs);
- const pinned=bar[0],shortcuts=bar.slice(1);
  const tab_=(id,extra)=>{
   const Icon=iconFor(id),active=navActive(tab,id,user,prefs);
-  return <button key={id} className={[extra,active&&'active'].filter(Boolean).join(' ')||undefined} aria-current={active?'page':undefined} onClick={()=>go(id)}>
+  const {held,...item}=extra?{}:w.item(id);
+  return <button key={id} className={[extra,active&&'active',held&&'held'].filter(Boolean).join(' ')||undefined} aria-current={active?'page':undefined} onClick={()=>go(id)} {...item}>
    <Icon size={22}/><span>{PAGES[id].label}</span>
   </button>;
  };
  return <nav className="bottom-nav" aria-label="Main navigation" ref={nav}
   style={drop?{transform:`translate(-50%,${drop}px)`}:undefined}
-  onTouchStart={e=>{drag.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
+  onTouchStart={e=>{drag.current=w.editing?null:{x:e.touches[0].clientX,y:e.touches[0].clientY};}}
   onTouchEnd={e=>{
+   // A shortcut dragged about while the bar wobbles is not a swipe to open the menu.
    const from=drag.current;drag.current=null;
-   if(!from)return;
+   if(!from||w.editing)return;
    const way=swipeVertical(from,{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY});
    if(way===1&&!moreOn)go('more');
    else if(way===-1&&moreOn)go(bar[0]);
@@ -103,24 +110,38 @@ export function BottomNav({tab,user,go,unread,prefs}){
   <button type="button" className="nav-grip" aria-label={moreOn?'Close the menu':'Open the whole menu'}
    onClick={()=>go(moreOn?bar[0]:'more')}><ChevronUp size={14}/></button>
   {tab_(pinned,'nav-home')}
-  <div className="nav-tabs" data-swipe={swipe||undefined} ref={strip}>
-   {shortcuts.map(id=>tab_(id))}
+  <div className="nav-tabs" data-swipe={swipe||undefined} data-wobbling={w.editing||undefined} {...w.rowProps}>
+   {w.order.map(id=>tab_(id))}
   </div>
   <button className={`nav-more${moreOn?' active':''}`} aria-current={moreOn?'page':undefined} onClick={()=>go('more')}>
    <MoreHorizontal size={22}/><span>More</span>
    {unread&&<i aria-hidden="true"/>}
   </button>
+  {w.editing&&<div ref={w.bar} className="wobble-done" role="status">
+   <small>Drag the shortcuts into the order you want. Home and More stay at the ends.</small>
+   <button type="button" onClick={w.finish}>Done</button>
+  </div>}
  </nav>;
 }
-export function MorePage({user,tab,go,children,prefs}){
+// More lists every screen the bar does not. A button at the top brings the bar's own screens in
+// too and marks which are a shortcut on the bar along the bottom or a widget on Home, so it is
+// plain what is already one tap away; it is off to begin with, so the list reads as it always has.
+export function MorePage({user,tab,go,children,prefs,home}){
+ const [where,setWhere]=useState(false);
+ const onBar=new Set(primaryNav(user,prefs)),onHome=homePages(home);
  return <>
   <p className="eyebrow">EVERYTHING FOR OUR TRIP</p>
   <h1>More</h1>
-  {moreSections(user,prefs).map(([title,ids])=><section className="more-section" key={title}>
+  <button type="button" className={`more-where${where?' on':''}`} aria-pressed={where} onClick={()=>setWhere(!where)}>
+   <LayoutGrid size={16}/>{where?'Hide what is on my bar and Home':'Show what is on my bar and Home'}
+  </button>
+  {moreSections(user,prefs,where).map(([title,ids])=><section className="more-section" key={title}>
    <h2>{title}</h2>
-   {ids.map(id=>{const Icon=iconFor(id);return <button className={`more-row${tab===id?' current':''}`} key={id} onClick={()=>go(id)}>
+   {ids.map(id=>{const Icon=iconFor(id),bar=onBar.has(id),widget=onHome.has(id);
+    return <button className={`more-row${tab===id?' current':''}${where&&!bar&&!widget?' more-elsewhere':''}`} key={id} onClick={()=>go(id)}>
     <span className="more-icon"><Icon size={20}/></span>
-    <span><strong>{PAGES[id].label}</strong><small>{PAGES[id].note}</small></span>
+    <span><strong>{PAGES[id].label}</strong><small>{PAGES[id].note}</small>
+     {where&&(bar||widget)&&<span className="more-tags">{bar&&<span className="tag">Shortcut on the bar</span>}{widget&&<span className="tag">Widget on Home</span>}</span>}</span>
     <ChevronRight size={18}/>
    </button>;})}
   </section>)}

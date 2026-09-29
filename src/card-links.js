@@ -7,18 +7,21 @@
 // Some buttons only turn up on some stops (the park map on a park day, the sumo card on sumo
 // day, I spy on a train) or when a feature is switched on. They still have a place in the order,
 // so they come back where they were put the next time they apply.
+//
+// Untouched, the day's own buttons lead, then the tickets and the guide page — the two opened at
+// the door — then everything else, with Share last.
 export const CARD_LINKS={
  park:{label:'Rides & park map',note:'On a theme park day'},
  sumo:{label:'Sumo card',note:'On sumo day'},
  eyespy:{label:'Window I spy',note:'On a train'},
- website:{label:'Website',note:'The place’s own website'},
  tickets:{label:'Tickets',note:'Bookings and documents for the stop'},
+ guide:{label:'Guide page',note:'The stop’s page in the original guide'},
+ website:{label:'Website',note:'The place’s own website'},
+ ask:{label:'Ask a question',note:'Ask about the stop, when it is switched on'},
+ nearby:{label:'Nearby',note:'Food, toilets and shops near the stop'},
  photos:{label:'Photos',note:'Photos taken at the stop'},
  voice:{label:'Voice note',note:'Record or play a voice note'},
- ask:{label:'Ask a question',note:'Ask about the stop, when it is switched on'},
- guide:{label:'Guide page',note:'The stop’s page in the original guide'},
  remind:{label:'Remind me',note:'A calendar reminder or phone alarm'},
- nearby:{label:'Nearby',note:'Food, toilets and shops near the stop'},
  share:{label:'Share',note:'Send the stop to someone'}
 };
 export const LINKS_DEFAULT=Object.keys(CARD_LINKS);
