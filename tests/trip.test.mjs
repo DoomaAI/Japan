@@ -8708,8 +8708,6 @@ const splitTrip=()=>{
  }
  return {trip:applyOperation(trip,{type:'groupMode',group:'tokyo-reset',mode:'split'},parent),day};
 };
-});
-
 test('a split keeps every lane on the day, each person sees their own, and everyone meets back up',async()=>{
  const {daySplits,stepsFor,laneOf,splitWarnings}=await import('../src/split.js');
  const {trip,day}=splitTrip();
@@ -10586,6 +10584,8 @@ test('the palette is named once, the fonts carry their own weights, and night is
  assert.match(await read('Settings.jsx'),/<Appearance\/>/);
  assert.match(await read('main.jsx'),/applyTheme\(readTheme\(\)\);\ncreateRoot/);
  assert.ok(stages.includes('var(--paper)'),'the third sheet uses the names too');
+});
+
 test('suggestions and places near here are dealt with what pleases the most of us first, and say how far',async()=>{
  const {partyFit,rankByParty,travelText}=await import('../src/trip-features.js');
  const {normaliseSuggestion}=await import('../server/suggest.mjs');
