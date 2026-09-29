@@ -37,7 +37,7 @@ Compared against TripIt Pro, Wanderlog, Google Maps/Travel, Polarsteps, the Japa
 
 ## Not planned
 
-- Booking, price alerts and deals. They are outside what a private family app is for.
+- Booking, price alerts and deals. They are outside what a private family app is for. A commercial version with fare, condition and event watches is logged separately in [commercialisation.md](commercialisation.md).
 - Route optimisation. The trip is already fixed, and the reschedule tool covers what is left.
 
 ## Highlights video design
