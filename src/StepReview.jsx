@@ -1,7 +1,7 @@
 import React,{useRef,useState} from 'react';
 import {Star,Pencil,Check,X} from 'lucide-react';
 import Dictate from './Dictate.jsx';
-import {STEP_STARS,starText,stepRatings,stepThoughts,stepAverage,stepRated} from './trip-features.js';
+import {STEP_STARS,starText,stepRatings,stepThoughts,stepAverage,stepRated,dayRatingsFor} from './trip-features.js';
 // Stars, and what we actually thought. Kept per person so nobody's average washes out somebody
 // else's — Nate giving the deer five and Lauren giving them two is the interesting bit, and an
 // average that hides it is worth less than the two numbers.
@@ -88,4 +88,17 @@ export default function StepReview({state,user,step,mutate,busy,compact}){
    {thoughts[name]&&<p>{thoughts[name].text}</p>}
   </div>)}
  </section>;
+}
+// The day as a whole, in your own stars. Shown in the evening and again in the diary, so it can
+// be given at bedtime or picked up afterwards; everyone else's stars sit beside it, read-only.
+export function DayRate({state,user,day,mutate,busy,label='How was the day?'}){
+ const ratings=dayRatingsFor(state,day),mine=ratings[user.name]||0;
+ const others=state.members.filter(n=>n!==user.name&&ratings[n]);
+ return <div className="day-rate">
+  <div className="review-mine"><span>{label}</span>
+   <Stars value={mine} disabled={busy} label={`Your rating for the whole day, ${day}`}
+    onPick={rating=>mutate({type:'dayRating',day,person:user.name,rating})}/></div>
+  {others.map(name=><div className="review-mine" key={name}><span>{name}</span>
+   <ReadStars value={ratings[name]} label={`${name} gave the day ${starText(ratings[name])} of ${STEP_STARS}`}/></div>)}
+ </div>;
 }
