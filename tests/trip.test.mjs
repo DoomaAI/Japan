@@ -94,6 +94,24 @@ test('reorder moves only active steps and preserves all target times and alterna
  assert.throws(()=>applyOperation(seed,{type:'reorder',day,ids:ids.slice(1)},parent),/Reload/);
  assert.throws(()=>applyOperation(seed,{type:'reorder',day,ids},child),e=>e.status===403);
 });
+test('a stop dropped on a new line can be undone from the toast, back to the order it had',async()=>{
+ const tl=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
+ assert.match(tl,/ids\.splice\(at,0,id\);moved\(id,ids\);/,'a drag-drop goes through the undoable move');
+ assert.match(tl,/const was=\(allSteps\|\|steps\)\.map\(s=>s\.id\)/,'the whole day’s order is kept, hidden stops included');
+ assert.match(tl,/undo:async\(\)=>\{if\(await mutate\(\{type:'reorder',day:today\.date,ids:was\}\)\)/);
+ // The handle is the handle all the way across: the tap zones of the buttons beside it grow
+ // only outward, so a thumb on its right half no longer lands on Move up or Options.
+ const theme=await readFile(new URL('../src/guide-theme.css',import.meta.url),'utf8');
+ assert.match(theme,/\.reorder-tools \.drag-handle::after\{inset:-8px 0 -8px -10px\}/);
+ assert.match(theme,/\.reorder-tools button\[aria-label\^="Move "\]::after\{inset:-8px 0 0\}/);
+ assert.match(theme,/\.reorder-tools \.to-options::after,\.reorder-tools \.remove-stop::after\{inset:0 0 -8px\}/);
+ // Put back exactly: the same reorder operation, handed the order from before, restores it.
+ const day=seed.days[0].date,before=activeSteps(seed,day).map(s=>s.id);
+ const after=applyOperation(seed,{type:'reorder',day,ids:[...before.slice(1),before[0]]},parent);
+ const back=applyOperation(after,{type:'reorder',day,ids:before},parent);
+ assert.deepEqual(activeSteps(back,day).map(s=>s.id),before);
+});
+
 test('a stop added from a gap in the day timeline lands in that gap and survives a reorder',()=>{
  const day='2026-10-02',active=activeSteps(seed,day),target=active[1];
  const state=applyOperation(seed,{type:'add',step:{title:'Coffee before the train',day,order:target.order-0.5}},parent);

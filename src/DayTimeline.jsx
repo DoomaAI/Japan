@@ -50,8 +50,16 @@ export default function DayTimeline({steps,allSteps,splits=[],lens,setLens,curre
  const gapAt=(y,lifted)=>{for(const row of list.current?.querySelectorAll('[data-step-id]')||[]){if(row===lifted)continue;const r=row.getBoundingClientRect();if(y<r.top+r.height/2)return row.dataset.stepId;}return END;};
  // The two lines either side of the stop being carried would leave it where it is.
  const still=(d,gap)=>gap===d.id||gap===(steps[d.i+1]?.id??END);
- const place=(id,before)=>{const shown=steps.map(s=>s.id).filter(x=>x!==id),ids=(allSteps||steps).map(s=>s.id).filter(x=>x!==id);if(!shown.length)return;const at=before===END?ids.indexOf(shown.at(-1))+1:ids.indexOf(before);if(at<0)return;ids.splice(at,0,id);mutate({type:'reorder',day:today.date,ids});};
- const lift=d=>{d.lifted=true;setHeld(d.id);navigator.vibrate?.(12);};
+ const place=(id,before)=>{const shown=steps.map(s=>s.id).filter(x=>x!==id),ids=(allSteps||steps).map(s=>s.id).filter(x=>x!==id);if(!shown.length)return;const at=before===END?ids.indexOf(shown.at(-1))+1:ids.indexOf(before);if(at<0)return;ids.splice(at,0,id);moved(id,ids);};
+ // A drop is undone from the toast, as taking a stop off is. The plan is the whole family's and a
+ // row let go on the wrong line is easy to miss; the order it had goes back as it was, and if
+ // the day has changed since, the server refuses it rather than scrambling the newer order.
+ const moved=async(id,ids)=>{
+  const was=(allSteps||steps).map(s=>s.id),title=steps.find(s=>s.id===id)?.title||'Stop';
+  if(!await mutate({type:'reorder',day:today.date,ids}))return;
+  notice({text:`Moved ${title}.`,undo:async()=>{if(await mutate({type:'reorder',day:today.date,ids:was}))notice(`${title} is back where it was.`);}});
+ };
+ const lift=d=>{d.lifted=true;setHeld(d.id);try{navigator.vibrate?.(12);}catch{}};
  const letGo=()=>{clearTimeout(drag.current?.timer);drag.current=null;setTarget(null);setHeld(null);};
  const grab=(s,i)=>e=>{if(e.button>0)return;e.currentTarget.setPointerCapture?.(e.pointerId);const d={id:s.id,i,x:e.clientX,y:e.clientY,scroll:window.scrollY,row:e.currentTarget.closest('[data-step-id]'),gap:null,lifted:false};drag.current=d;if(e.pointerType==='mouse')lift(d);else d.timer=setTimeout(()=>{if(drag.current===d)lift(d);},HOLD);};
  const carry=e=>{const d=drag.current;if(!d)return;
