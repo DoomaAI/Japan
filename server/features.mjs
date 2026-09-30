@@ -14,6 +14,7 @@ import {CAPSULE_MAX} from '../src/capsule-data.js';
 import {LOCAL_EXPERIENCES,cleanLocalCheck} from '../src/local-data.js';
 import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
 import {NOTE_STATUS,acceptedLine,applyDraft,cleanDraft} from '../src/day-check.js';
+import {movesOf} from '../src/move-data.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
@@ -154,6 +155,15 @@ export function extraOperation(state,op,user,fail,now){
  }
  // A parent's answer to one of tomorrow's check notes. Accepting one about a stop puts it in
  // that stop's own notes, so it travels with the stop offline; dismissing it only hides it.
+ // Whether we are sending the cases ahead on a move. The card guesses from the plan; a parent
+ // settles it, and the label and the overnight bag come and go with the answer.
+ if(op.type==='moveForwarding'){
+  if(!parent)fail('A parent can make this change.',403);
+  const move=movesOf(state).find(m=>m.date===op.date);if(!move)fail('That is not a hotel move.',404);
+  if(typeof op.forwarding!=='boolean')fail('Say whether the bags are being forwarded.');
+  state.moves={...(state.moves||{}),[op.date]:{...(state.moves?.[op.date]||{}),forwarding:op.forwarding}};
+  return {summary:null,important:false,title:`${move.from} to ${move.to}: ${op.forwarding?'forwarding the bags':'taking the bags'}`};
+ }
  if(op.type==='dayCheckNote'){
   if(!parent)fail('A parent can make this change.',403);
   dayCheck(op.day);

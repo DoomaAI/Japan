@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {AlertCircle,ArrowRight,CalendarX,Check,Clock,CloudRain,ExternalLink,Info,LifeBuoy,MapPin,RefreshCw,Repeat,TrainFront,X} from 'lucide-react';
+import {AlertCircle,ArrowRight,CalendarX,Check,Clock,CloudRain,ExternalLink,Info,LifeBuoy,MapPin,Plus,RefreshCw,Repeat,TrainFront,X} from 'lucide-react';
 import {NOTE_KINDS,PLAN_B_REASONS,REST_KINDS,dayCheckOf,planBOf,draftPreview} from './day-check.js';
 const KIND_ICON={closed:CalendarX,holiday:CalendarX,hours:Clock,transport:TrainFront,weather:CloudRain,swap:Repeat,other:Info};
 const label=(list,id)=>list.find(([k])=>k===id)?.[1]||'';
@@ -24,6 +24,20 @@ export default function DayCheck({state,user,day,config,online=true,request,muta
   catch(e){setError(e.message||'The check did not work. Try again in a moment.');}
   finally{setWorking('');}
  }
+ // One of our own ideas or missed stops, put onto this day by a parent the way the board or the
+ // Options list would put it there: an idea through the board, a parked stop through Options, and
+ // a stop an earlier day missed moved across and set back to be done.
+ const addable=p=>{
+  if(!parent||!p.from||!mutate)return null;
+  const onDay=p.from.kind==='idea'?state.steps.some(s=>s.id===state.proposals?.find(x=>x.id===p.from.id)?.stepId):state.steps.find(s=>s.id===p.from.id)?.day===day;
+  if(onDay)return {done:true};
+  return {run:async()=>{
+   const ok=p.from.kind==='idea'?await mutate({type:'proposalSchedule',id:p.from.id,day,time:null})
+    :p.from.kind==='options'?await mutate({type:'schedule',id:p.from.id,day,time:null})
+    :await mutate({type:'patch',id:p.from.id,patch:{day,time:null,group:'',option:''}})&&(state.steps.find(s=>s.id===p.from.id)?.status==='skipped'?await mutate({type:'status',id:p.from.id,status:'todo'}):true);
+   if(ok)notice?.(`${p.from.title} is on ${dayLabel(day)}.`);
+  }};
+ };
  if(!check&&!planB&&!(parent&&ready))return null;
  return <section className="day-check" aria-label="Checked the night before">
   <div className="day-check-head"><p className="eyebrow">CHECKED THE NIGHT BEFORE</p>
@@ -45,7 +59,8 @@ export default function DayCheck({state,user,day,config,online=true,request,muta
     {check.notes.filter(n=>n.status==='dismissed').map(n=><div key={n.id} className="list-row"><span>{n.title}</span><button type="button" className="linkish" disabled={busy} onClick={()=>mutate({type:'dayCheckNote',day,id:n.id,status:'open'})}>Bring back</button></div>)}</details>}
   </>:<p>Not checked yet. {ready?'It runs by itself each evening in Japan for the next day.':''}</p>}
   {planB&&(planB.stops.length>0||planB.rest.length>0)&&<details className="plan-b"><summary><LifeBuoy size={16}/>Plan B for the day ({planB.stops.length+planB.rest.length})</summary>
-   {planB.stops.length>0&&<><h4>Instead of a stop</h4>{planB.stops.map((p,i)=><PlanBPlace key={i} place={p} lead={`${label(PLAN_B_REASONS,p.reason)} · instead of ${stepTitle(p.stepId)||'a stop'}`}/>)}</>}
+   {planB.stops.some(p=>p.stepId)&&<><h4>Instead of a stop</h4>{planB.stops.filter(p=>p.stepId).map((p,i)=><PlanBPlace key={i} place={p} lead={`${label(PLAN_B_REASONS,p.reason)} · instead of ${stepTitle(p.stepId)||'a stop'}`} add={addable(p)}/>)}</>}
+   {planB.stops.some(p=>!p.stepId)&&<><h4>From our own list, if there is time</h4>{planB.stops.filter(p=>!p.stepId).map((p,i)=><PlanBPlace key={i} place={p} lead={label(PLAN_B_REASONS,p.reason)} add={addable(p)}/>)}</>}
    {planB.rest.length>0&&<><h4>Somewhere to sit down</h4>{planB.rest.map((p,i)=><PlanBPlace key={i} place={p} lead={label(REST_KINDS,p.kind)}/>)}</>}
    <small>Made {when(planB.at)} and kept on this phone. Opening hours are not checked; look before you walk over.</small>
   </details>}
@@ -56,13 +71,18 @@ export default function DayCheck({state,user,day,config,online=true,request,muta
   </div>}
  </section>;
 }
-function PlanBPlace({place,lead}){
+const FROM={idea:'From the planning board',options:'From Options',missed:'Missed earlier'};
+function PlanBPlace({place,lead,add}){
+ const [busy,setBusy]=useState(false);
  return <div className="plan-b-place">
   <small>{lead}{place.walkMinutes!=null?` · about ${place.walkMinutes} min away`:''}</small>
+  {place.from&&<span className="tag plan-b-from">{FROM[place.from.kind]}{place.from.kind==='missed'&&place.from.day?` · ${dayLabel(place.from.day)}`:''}</span>}
   <strong>{place.title}</strong>{place.japanese&&<span lang="ja">{place.japanese}</span>}
   {place.area&&<span><MapPin size={13}/>{place.area}</span>}
   {place.why&&<p>{place.why}</p>}
   {place.mapUrl&&<a href={place.mapUrl} target="_blank" rel="noopener noreferrer">Map <ExternalLink size={12}/></a>}
+  {add?.done&&<small><Check size={13}/> On this day</small>}
+  {add?.run&&<button type="button" disabled={busy} onClick={async()=>{setBusy(true);try{await add.run();}finally{setBusy(false);}}}><Plus size={15}/>Add to this day</button>}
  </div>;
 }
 // A stop's own fallbacks, on its card, so "it's raining, what now" is answered where it is asked.

@@ -13,8 +13,10 @@ import {AppError} from './model.mjs';
 import {updateTrip} from './store.mjs';
 import {seenHosts,checkedLink} from './links.mjs';
 import {weatherLine} from './ask.mjs';
+import {movesOf,cleanMoveCheck,forwardingPlanned} from '../src/move-data.js';
+import {stayFor} from '../src/stay-data.js';
 import {activeSteps,japanDate} from '../src/timing.js';
-import {NOTE_KIND_IDS,PLAN_B_REASONS,REST_KINDS,cleanDayCheck,cleanPlanB,keepChecks} from '../src/day-check.js';
+import {NOTE_KIND_IDS,PLAN_B_REASONS,REST_KINDS,cleanDayCheck,cleanPlanB,keepChecks,spareIdeas} from '../src/day-check.js';
 export const tomorrowReady=()=>!!process.env.ANTHROPIC_API_KEY;
 const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 const SEARCH={type:'web_search_20260209',name:'web_search',user_location:{type:'approximate',country:'JP',timezone:'Asia/Tokyo'}};
@@ -40,8 +42,9 @@ const PLANB={
  strict:true,
  input_schema:{type:'object',additionalProperties:false,required:['stops','rest'],properties:{
   stops:{type:'array',description:'For the outdoor or weather-exposed stops, and any likely to be shut or full: one alternative near each, indoors where rain is the risk.',items:{
-   type:'object',additionalProperties:false,required:['stepId','kind','title','area','japanese','why','walkMinutes'],properties:{
-    stepId:{type:'string',description:'The id in square brackets of the stop this replaces, exactly as given.'},
+   type:'object',additionalProperties:false,required:['stepId','fromIdea','kind','title','area','japanese','why','walkMinutes'],properties:{
+    stepId:{type:'string',description:'The id in square brackets of the stop this replaces, exactly as given. Empty for an idea that fits in if there is time.'},
+    fromIdea:{type:'string',description:'When this is one of their own ideas or missed stops, its reference in square brackets exactly as given (idea:… or stop:…). Otherwise empty.'},
     kind:{type:'string',enum:PLAN_B_REASONS.map(([id])=>id)},
     title:{type:'string',description:'The place as a sign outside reads it.'},
     area:{type:'string',description:'The district and nearest station, enough to find it.'},
@@ -76,6 +79,8 @@ const PLANB_SYSTEM=`You make tomorrow's Plan B for one family, the night before,
 
 You are given tomorrow's stops, each with an id in square brackets, and the forecast. For each stop that is outdoors, weather-exposed, or likely to be shut or full, name the nearest good alternative — indoors if rain is the risk — that a five-year-old will manage. Then name two to four places near the day's route to sit down when a five-year-old has had enough: department-store kids' floors, indoor playgrounds, a café with room, a shady park.
 
+They also have their own list: ideas on their planning board that no day has taken yet, stops put back in Options, and stops an earlier day skipped or never got to. Each has a reference in square brackets. Where one of those is near tomorrow's route and would work as a fallback, prefer it to a new place and give its reference in fromIdea — it is something they already wanted. Where one is near enough to fit in on a good day, add it with kind "spare", an empty stepId and its reference. Leave out any that are far from tomorrow's city or route.
+
 Rules:
 - Real places you have seen in a search, near the stop they replace. A short walk or one stop on a train, not across the city.
 - Indoor stops that will not be affected need no alternative. Leave them out rather than padding.
@@ -83,6 +88,45 @@ Rules:
 - Japanese names only where you have seen them. Empty rather than guessed.
 
 Search as needed, then call record_plan_b exactly once.`;
+const MOVE={
+ name:'record_move',
+ description:'Record what you found about the two hotels for this move, once, at the end.',
+ strict:true,
+ input_schema:{type:'object',additionalProperties:false,required:['forwardingCutoff','forwardingWhere','forwardingArrives','forwardingCost','checkOut','bagDrop','checkIn','earlyCheckIn','notes','sources'],properties:{
+  forwardingCutoff:{type:'string',description:'The latest time, HH:MM 24-hour, the hotel they are leaving takes bags for delivery by the move day. Empty if not published.'},
+  forwardingWhere:{type:'string',description:'Where to hand the bags in (front desk, bell desk, a Yamato counter in the lobby) and which carrier. One line.'},
+  forwardingArrives:{type:'string',description:'Whether bags sent the evening before arrive at the next hotel by check-in, and anything that changes that (distance, a resort hotel delivered to the park desk). One line.'},
+  forwardingCost:{type:'string',description:'The usual price per suitcase for this distance, said as the estimate it is. Empty if unknown.'},
+  checkOut:{type:'string',description:'Check-out time of the hotel they are leaving, HH:MM. Empty if not found.'},
+  bagDrop:{type:'string',description:'Whether the next hotel holds bags before check-in, and where. One line.'},
+  checkIn:{type:'string',description:'Check-in time of the next hotel, HH:MM. Empty if not found.'},
+  earlyCheckIn:{type:'string',description:'Whether early check-in can be asked for or bought, and how. One line.'},
+  notes:{type:'string',description:'Anything else that decides the morning: a shuttle, a luggage service from the park, a desk that closes. Two sentences at most.'},
+  sources:{type:'array',items:source,description:'The pages you actually opened, best first.'}}}
+};
+const MOVE_SYSTEM=`You are the concierge for one family's hotel move in Japan. ${FAMILY}
+
+You are given the hotel they are leaving and the one they are going to, with the dates. Search the two hotels' own pages first, then the carrier (Yamato Transport's TA-Q-BIN, Sagawa) and the resort's pages, for:
+- luggage forwarding from the hotel they are leaving: where it is done, the cut-off for delivery by the move day, and whether it arrives by check-in at the next hotel;
+- check-out time at the one they leave, check-in time at the next;
+- whether the next hotel holds bags before check-in, and early check-in.
+
+Only what the pages say. A time you could not find is left empty, never guessed. Search, then call record_move exactly once.`;
+export async function moveDay(state,date,now=new Date()){
+ const move=movesOf(state).find(m=>m.date===date);if(!move)throw new AppError('That is not a hotel move.',404);
+ const from=stayFor(state,new Date(Date.parse(`${date}T12:00:00Z`)-86400000).toISOString().slice(0,10)),to=stayFor(state,date);
+ const ask=`The move: ${date}.
+Leaving: ${move.from}${from?.address?`, ${from.address}`:''}${from?.japanese?` (${from.japanese})`:''} — ${from?.city||''}.
+Going to: ${move.to}${to?.address?`, ${to.address}`:''}${to?.japanese?` (${to.japanese})`:''} — ${to?.city||''}.
+The plan has check-out ${from?.checkOut||'not set'} and check-in ${to?.checkIn||'not set'}. ${forwardingPlanned(state,move)?'They plan to forward the cases the evening before.':'They have not said whether they will forward the cases.'}`;
+ try{
+  const {input,hosts,searches}=await run(MOVE_SYSTEM,MOVE,ask,5);
+  const {value,error}=cleanMoveCheck({...input,sources:(input.sources||[]).map(s=>({title:s?.title,url:checkedLink(s?.url,hosts)}))});
+  if(error)throw new AppError(error,502);
+  return {check:value,at:now.toISOString(),searches};
+ }catch(e){throw apiError(e);}
+}
+export const saveMove=(date,found)=>updateTrip(state=>({...state,moves:{...(state.moves||{}),[date]:{...(state.moves?.[date]||{}),check:found.check,at:found.at}}}));
 // Tomorrow as the model reads it: the city, the hotel, the weather, and every stop with its id so
 // a note can point at one. Booked stops say so, because a booking is what the check protects.
 export function dayBrief(state,day){
@@ -138,7 +182,9 @@ export async function checkDay(state,day,now=new Date()){
 export async function planBDay(state,day,now=new Date()){
  const brief=dayBrief(state,day);if(!brief)throw new AppError('Choose a trip day.');
  try{
-  const {input,searches}=await run(PLANB_SYSTEM,PLANB,`Make the Plan B for this day.\n\n${brief}`,4);
+  const spare=spareIdeas(state,day);
+  const list=spare.length?`\n\nTheir own list, not on any day yet or missed:\n${spare.map(x=>`  [${x.ref}] ${[x.title,x.place,x.note].filter(Boolean).join(' · ')}`).join('\n')}`:'';
+  const {input,searches}=await run(PLANB_SYSTEM,PLANB,`Make the Plan B for this day.\n\n${brief}${list}`,4);
   return {planB:cleanPlanB(input,state,day,now.toISOString()),searches};
  }catch(e){throw apiError(e);}
 }
@@ -148,9 +194,13 @@ export const saveCheck=(day,check)=>updateTrip(state=>({...state,dayChecks:keepC
 export const savePlanB=(day,planB)=>updateTrip(state=>({...state,planB:keepChecks({...state.planB,[day]:cleanPlanB({stops:planB.stops.map(s=>({...s,kind:s.reason})),rest:planB.rest},state,day,planB.at)})}));
 // Both parts for one day, side by side. Either may fail without losing the other; what failed is
 // reported rather than thrown, because the scheduler only needs to know it ran.
-export async function nightly(state,day,parts=['check','planb'],{onCheck}={}){
+// A move tomorrow is looked up the night before, once: hotels' forwarding rules do not change
+// overnight, and a parent can look again by hand.
+export const moveTomorrow=(state,day)=>movesOf(state).some(m=>m.date===day)&&!state.moves?.[day]?.check;
+export async function nightly(state,day,parts=['check','planb',...(moveTomorrow(state,day)?['move']:[])],{onCheck}={}){
  const out={day};
  await Promise.all([
+  parts.includes('move')&&moveDay(state,day).then(async found=>{await saveMove(day,found);out.move={searches:found.searches};}).catch(e=>{out.moveError=e.message;}),
   parts.includes('check')&&checkDay(state,day).then(async({check,searches})=>{await saveCheck(day,check);out.check={notes:check.notes.length,act:check.notes.filter(n=>n.act).length,searches};await onCheck?.(check);}).catch(e=>{out.checkError=e.message;}),
   parts.includes('planb')&&planBDay(state,day).then(async({planB,searches})=>{await savePlanB(day,planB);out.planB={stops:planB.stops.length,rest:planB.rest.length,searches};}).catch(e=>{out.planBError=e.message;})
  ]);

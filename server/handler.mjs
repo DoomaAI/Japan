@@ -413,10 +413,11 @@ export default async function handler(req,res){
    parent(user);if(!tomorrowReady())throw new AppError('The check is not switched on. Add an Anthropic API key to the deployment.',503);
    const {state}=await readTrip();
    if(!state.days.some(d=>d.date===b.day))throw new AppError('Choose a trip day.');
-   const parts=['check','planb'].filter(p=>!Array.isArray(b.parts)||b.parts.includes(p));
+   const parts=['check','planb','move'].filter(p=>Array.isArray(b.parts)?b.parts.includes(p):p!=='move');
    if(!parts.length)throw new AppError('Choose what to check.');
    const result=await nightly(state,b.day,parts);
-   if(result.checkError&&result.planBError)throw new AppError(result.checkError,502);
+   const failed=parts.map(p=>result[{check:'checkError',planb:'planBError',move:'moveError'}[p]]).filter(Boolean);
+   if(failed.length===parts.length)throw new AppError(failed[0],502);
    return json(res,{...result,...visibleEnvelope(await readTrip(),user)});
   }
   if(route==='ask'&&post){

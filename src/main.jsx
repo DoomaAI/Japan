@@ -100,6 +100,7 @@ import './guide-theme.css';
 import './travel-guide.css';
 // Tomorrow's check and Plan B are read with no signal, on the stop card and the day, so they are in the shell.
 import DayCheck,{StopPlanB} from './DayCheck.jsx';
+import HotelMove from './HotelMove.jsx';
 // The map library is only fetched when the map is opened, so every other screen stays as quick.
 const MemoryMap=lazy(()=>import('./MemoryMap.jsx'));
 const WeatherPage=lazy(()=>import('./WeatherPage.jsx'));
@@ -688,6 +689,7 @@ function App(){
   weather:<Weather state={visibleState} day={day} now={now} mutate={mutate} busy={busy} online={online} notice={notice} dayLabel={fmtDay} go={go}/>,
   running:<Running state={visibleState} day={day}/>,
   packing:<PackingNudge state={visibleState} user={user} day={day} go={go}/>,
+  move:<HotelMove state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} accept={accept} notice={notice} busy={busy} go={go}/>,
   todos:<DayTodos state={visibleState} user={user} day={day} mutate={mutate} busy={busy} go={go}/>,
   finds:<DayFinds state={visibleState} day={day} go={go}/>,
   local:<LikeALocalCard state={visibleState} today={japanDate(now)} day={day} go={go}/>

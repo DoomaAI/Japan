@@ -7,6 +7,7 @@
 import {showLocationDetails} from './locations.js';
 export const STAY_FIELDS=[
  ['reference','Confirmation number',80],
+ ['guest','Name on the booking',80],
  ['phone','Front desk phone',40],
  ['checkIn','Check-in from (HH:MM)',5],
  ['checkOut','Check-out by (HH:MM)',5],
@@ -48,7 +49,7 @@ export function stayFor(state,date){
   night:night||stay.nights.length,total:stay.nights.length,checkingOut:!night,
   checkIn:saved.checkIn||inStop?.time||'',checkOut:saved.checkOut||outStop?.time||'',
   checkInStop:inStop,checkOutStop:outStop,
-  reference:saved.reference||inStop?.bookingReference||'',notes:saved.notes||'',
+  reference:saved.reference||inStop?.bookingReference||'',guest:saved.guest||'',notes:saved.notes||'',
   phone:where.phone,address:where.address,japanese:where.japanese,japaneseAddress:where.japaneseAddress,
   place,moving:stay.from===date,leaving:!night||stay.nights.at(-1)===date,
   by:saved.by||null,at:saved.at||null

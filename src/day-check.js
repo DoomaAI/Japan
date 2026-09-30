@@ -66,7 +66,30 @@ export function acceptedLine(note,day){
 // A fallback per stop, made the night before and kept in the trip, so it is there in a basement
 // with no signal: somewhere indoors near it for rain or a closed door, and somewhere nearby to sit
 // down with a five-year-old who has had enough.
-export const PLAN_B_REASONS=[['rain','If it rains'],['closed','If it is shut or full'],['tired','If we are done in']];
+export const PLAN_B_REASONS=[['rain','If it rains'],['closed','If it is shut or full'],['spare','If there is time'],['tired','If we are done in']];
+// What Plan B may reach for besides new places: the ideas on the board no day has taken yet, the
+// stops put back in Options, and the stops an earlier day skipped or never got to. When one of
+// them is near tomorrow's route it is a better fallback than a stranger's recommendation — it is
+// something one of us already wanted. Each is named by a reference the model copies back exactly.
+export const MAX_SPARE=24;
+export function spareIdeas(state,day){
+ const out=[];
+ for(const p of state?.proposals||[]){
+  if(p.parked||(state.steps||[]).some(s=>s.id===p.stepId))continue;
+  out.push({ref:`idea:${p.id}`,kind:'idea',id:p.id,title:p.title,place:p.place||'',note:p.availability||''});
+ }
+ for(const s of state?.steps||[])if(s.day===null&&!['done','started'].includes(s.status))out.push({ref:`stop:${s.id}`,kind:'options',id:s.id,title:s.title,place:s.place||'',note:'in Options'});
+ const missed=[];
+ for(const d of state?.days||[]){
+  if(d.date>=day)break;
+  for(const s of activeSteps(state,d.date))if(['todo','skipped'].includes(s.status)&&!s.locked&&!s.bookingTime&&s.kind!=='fixed')
+   missed.push({ref:`stop:${s.id}`,kind:'missed',id:s.id,title:s.title,place:s.place||'',note:`${s.status==='skipped'?'skipped':'not done'} on ${d.date} in ${d.city}`,day:d.date,skipped:s.status==='skipped'});
+ }
+ // Skipped first, then the most recent: the stops we meant to do and did not are the ones missed.
+ missed.sort((a,b)=>(b.skipped-a.skipped)||b.day.localeCompare(a.day));
+ return [...out,...missed].slice(0,MAX_SPARE);
+}
+const spareFor=(state,day,ref)=>typeof ref==='string'&&ref?spareIdeas(state,day).find(x=>x.ref===ref)||null:null;
 export const REST_KINDS=[['kids-floor','Department-store kids’ floor'],['playground','Indoor playground'],['cafe','Café with space'],['park','Park with shade'],['other','Somewhere to sit']];
 export const MAX_PLAN_B=12,MAX_REST=4;
 function cleanPlace(p,kinds){
@@ -81,10 +104,15 @@ export function cleanPlanB(found,state,day,now=new Date().toISOString()){
  const onDay=activeSteps(state,day).filter(s=>s.status!=='skipped');
  const stops=[],used=new Set();
  for(const raw of Array.isArray(found?.stops)?found.stops:[]){
-  const step=onDay.find(s=>s.id===raw?.stepId);if(!step)continue;
+  // A fallback either stands in for a stop on the day, or is one of our own ideas or missed
+  // stops that fits in if there is time; anything pointing at neither is dropped.
+  const step=onDay.find(s=>s.id===raw?.stepId)||null;
+  const spare=spareFor(state,day,raw?.fromIdea??(raw?.from?`${raw.from.kind==='idea'?'idea':'stop'}:${raw.from.id}`:''));
+  if(!step&&!spare)continue;
   const place=cleanPlace(raw,PLAN_B_REASONS);if(!place)continue;
-  const key=`${step.id}|${place.kind}`;if(used.has(key))continue;used.add(key);
-  stops.push({...place,stepId:step.id,reason:place.kind});
+  if(!step)place.kind='spare';
+  const key=`${step?.id||spare.ref}|${place.kind}`;if(used.has(key))continue;used.add(key);
+  stops.push({...place,stepId:step?.id||null,reason:place.kind,...(spare?{from:{kind:spare.kind,id:spare.id,title:spare.title,...(spare.day?{day:spare.day}:{})}}:{})});
   if(stops.length>=MAX_PLAN_B)break;
  }
  for(const s of stops)delete s.kind;

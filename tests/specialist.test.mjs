@@ -141,6 +141,7 @@ test('the check keeps a source only when its site came back in the search, and r
     check?{type:'tool_use',id:'c1',name:'record_check',input:{summary:'One thing',notes:[
      {kind:'hours',stepId:'2026-10-02-03',title:'Last entry 16:30',detail:'Closes at 17:00.',act:false,sources:[{title:'Kahaku',url:'https://www.kahaku.go.jp/english/visit/'},{title:'Invented',url:'https://made-up.example/'}]},
      {kind:'closed',stepId:'2026-10-02-04',title:'Only an invented source',detail:'',act:true,sources:[{title:'Invented',url:'https://made-up.example/'}]}]}}
+    :r.tools.some(t=>t.name==='record_move')?{type:'tool_use',id:'c3',name:'record_move',input:{forwardingCutoff:'18:00',forwardingWhere:'Bell desk, Yamato',forwardingArrives:'Next day by 15:00',forwardingCost:'About ¥2,500 a case',checkOut:'11:00',bagDrop:'The Hilton holds bags from 07:00',checkIn:'15:00',earlyCheckIn:'On request',notes:'',sources:[{title:'Kahaku',url:'https://www.kahaku.go.jp/x'},{title:'Invented',url:'https://made-up.example/'}]}}
     :{type:'tool_use',id:'c2',name:'record_plan_b',input:{stops:[],rest:[{kind:'playground',title:'Kids floor',area:'Ueno',japanese:'',why:'',walkMinutes:4}]}}]}));
  });});
  await new Promise(r=>upstream.listen(0,'127.0.0.1',r));
@@ -154,6 +155,11 @@ test('the check keeps a source only when its site came back in the search, and r
   assert.deepEqual(check.notes[0].sources.map(s=>s.url),['https://www.kahaku.go.jp/english/visit/']);
   const {planB}=await planBDay(state,'2026-10-02');
   assert.equal(planB.rest[0].title,'Kids floor');
+  const {moveDay}=await import('../server/tomorrow.mjs');
+  const moved=await moveDay(state,'2026-10-01');
+  assert.equal(moved.check.forwardingCutoff,'18:00');assert.deepEqual(moved.check.sources.map(s=>s.url),['https://www.kahaku.go.jp/x']);
+  assert.match(seen.at(-1).messages[0].content,/Leaving: Fantasy Springs Hotel[\s\S]*Going to: Hilton Tokyo/);
+  await assert.rejects(moveDay(state,'2026-10-03'),/not a hotel move/);
   const [first]=seen;
   assert.equal(first.tools.find(t=>t.name==='web_search').max_uses,6);
   assert.deepEqual(first.output_config,{effort:'low'},'kept quick: the function has sixty seconds for both');
@@ -184,4 +190,63 @@ test('the nightly route needs the cron secret, and the day is checked on the day
  const page=await readFile(new URL('../src/DayCheck.jsx',import.meta.url),'utf8');
  assert.match(page,/request\('day-check',\{day,parts\}\)/);
  assert.match(page,/mutate\(\{type:'dayCheckNote',day,id:n\.id,status:'accepted'\}\)/);
+});
+
+test('Plan B reaches for our own unscheduled ideas, stops in Options and stops missed earlier',async()=>{
+ const {spareIdeas}=await import('../src/day-check.js');
+ let state=fresh();
+ state=applyOperation(state,{type:'proposalAdd',title:'Ghibli shop at Tokyo Station',place:'Tokyo',cost:0},parent);
+ const idea=state.proposals.at(-1);
+ state=applyOperation(state,{type:'backlog',id:'2026-10-03-10'},parent);
+ state=applyOperation(state,{type:'status',id:'2026-10-02-05',status:'skipped'},parent);
+ const spare=spareIdeas(state,'2026-10-04');
+ assert.ok(spare.some(x=>x.ref===`idea:${idea.id}`&&x.kind==='idea'));
+ assert.ok(spare.some(x=>x.ref==='stop:2026-10-03-10'&&x.kind==='options'));
+ const missed=spare.find(x=>x.ref==='stop:2026-10-02-05');
+ assert.equal(missed.kind,'missed');assert.match(missed.note,/skipped on 2026-10-02/);
+ assert.ok(!spare.some(x=>x.ref==='stop:2026-10-03-17'),'a booked stop is never offered as a spare');
+ assert.ok(spare.findIndex(x=>x.kind==='missed')>spare.findIndex(x=>x.kind==='options'));
+ const plan=cleanPlanB({stops:[
+  {stepId:'',fromIdea:`idea:${idea.id}`,kind:'rain',title:'Ghibli shop',area:'Tokyo Station',japanese:'',why:'Indoors and one we wanted.',walkMinutes:10},
+  {stepId:'2026-10-04-02',fromIdea:'stop:2026-10-02-05',kind:'rain',title:'Games, gachapon and toys',area:'Akihabara',japanese:'',why:'Missed on Friday.',walkMinutes:15},
+  {stepId:'',fromIdea:'idea:made-up',kind:'spare',title:'Nothing',area:'',japanese:'',why:'',walkMinutes:1}],rest:[]},state,'2026-10-04');
+ assert.equal(plan.stops.length,state.steps.some(s=>s.id==='2026-10-04-02'&&s.day==='2026-10-04')?2:1);
+ assert.deepEqual(plan.stops[0].from,{kind:'idea',id:idea.id,title:'Ghibli shop at Tokyo Station'});
+ assert.equal(plan.stops[0].stepId,null);assert.equal(plan.stops[0].reason,'spare','an idea with no stop to stand in for is a spare');
+ const page=await readFile(new URL('../src/DayCheck.jsx',import.meta.url),'utf8');
+ assert.match(page,/mutate\(\{type:'proposalSchedule',id:p\.from\.id,day,time:null\}\)/,'an idea goes on the day through the board');
+ assert.match(page,/mutate\(\{type:'schedule',id:p\.from\.id,day,time:null\}\)/,'a stop in Options through Options');
+});
+
+test('the hotel-move concierge shows the evening before and the morning of a move, with the label in Japanese',async()=>{
+ const {movesOf,moveCard,forwardingPlanned,cleanMoveCheck}=await import('../src/move-data.js');
+ let state=fresh();
+ assert.deepEqual(movesOf(state).map(m=>m.date),['2026-09-24','2026-09-29','2026-10-01']);
+ assert.equal(moveCard(state,'2026-10-03'),null,'nothing on an ordinary day');
+ const eve=moveCard(state,'2026-09-30');
+ assert.equal(eve.phase,'eve');assert.equal(eve.move.from,'Fantasy Springs Hotel');assert.equal(eve.move.to,'Hilton Tokyo');
+ assert.ok(forwardingPlanned(state,movesOf(state)[1]),'the plan’s “Forward luggage” stop says we forward to Fantasy Springs');
+ state=applyOperation(state,{type:'moveForwarding',date:'2026-10-01',forwarding:true},parent);
+ assert.throws(()=>applyOperation(state,{type:'moveForwarding',date:'2026-10-01',forwarding:false},child),/parent/);
+ assert.throws(()=>applyOperation(state,{type:'moveForwarding',date:'2026-10-03',forwarding:true},parent),/not a hotel move/);
+ state=applyOperation(state,{type:'stayEdit',hotel:'Hilton Tokyo',patch:{guest:'PASFIELD Damien'}},parent);
+ const card=moveCard(state,'2026-09-30');
+ assert.equal(card.steps[0].id,'forward');
+ const label=Object.fromEntries(card.label.map(f=>[f.box,f.value]));
+ assert.equal(label['宿泊者名'],'PASFIELD Damien 様　（10月1日 チェックイン）');
+ assert.equal(label['お届け予定日'],'10月1日');
+ assert.equal(label['品名'],'衣類（スーツケース）');
+ assert.ok(card.bag.length>=6);
+ const morning=moveCard(state,'2026-10-01');
+ assert.equal(morning.phase,'morning');assert.match(morning.steps.find(s=>s.id==='checkout').text,/Fantasy Springs Hotel by 07:00/);
+ assert.match(cleanMoveCheck({}).error,/nothing/);
+ assert.deepEqual(cleanMoveCheck({forwardingCutoff:'6pm',checkIn:'15:00',notes:'x',sources:[{title:'a',url:'http://a.jp'}]}).value,
+  {forwardingCutoff:'',forwardingWhere:'',forwardingArrives:'',forwardingCost:'',checkOut:'',bagDrop:'',checkIn:'15:00',earlyCheckIn:'',notes:'x',sources:[]});
+ const {moveTomorrow}=await import('../server/tomorrow.mjs');
+ assert.equal(moveTomorrow(state,'2026-10-01'),true,'the night before a move, the lookup rides along with the check');
+ assert.equal(moveTomorrow(state,'2026-10-02'),false);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/move:<HotelMove state=\{visibleState\}/);
+ const {HOME_WIDGETS}=await import('../src/home-widgets.js');
+ assert.equal(Object.keys(HOME_WIDGETS)[Object.keys(HOME_WIDGETS).indexOf('stay')+1],'move','next to tonight’s stay');
 });
