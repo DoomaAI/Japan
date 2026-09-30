@@ -1387,7 +1387,16 @@ export function extraOperation(state,op,user,fail,now){
    }else fail('Unknown note action.');
   }
   return {summary:null,important:false,private:true};
- }else if(op.type==='readinessSet'){
+ }else if(op.type==='stageSet'){
+ // The stage tracker: how far along the way to a booking the family is, nought to five. Anyone
+ // going to the stop may move it, the same as ticking the stop.
+ const target=state.steps.find(s=>s.id===op.id);if(!target)fail('Activity not found.',404);
+ if(!parent&&!target.participants.includes(user.name))fail('This activity is assigned to other family members.',403);
+ if(!Number.isInteger(op.reached)||op.reached<0||op.reached>5)fail('A stage from nought to five.');
+ let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+ state.stages={...(state.stages||{}),[op.id]:{reached:op.reached,by:user.name,at}};
+ return {summary:null,important:false,title:target.title};
+}else if(op.type==='readinessSet'){
  // How each of us is at breakfast, one to five. Your own, or a parent for anyone: Nate is five.
  dayCheck(op.day);if(!op.day)fail('Choose a day.');
  if(!state.members.includes(op.person))fail('Choose a family member.');

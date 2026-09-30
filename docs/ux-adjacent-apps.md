@@ -16,7 +16,7 @@ Three audiences, three moments. An idea was kept only if it serves one of them.
 
 | # | Idea | Borrowed from | What it does here | Build | When |
 |---|---|---|---|---|---|
-| 01 | Stage tracker for the next fixed time | Domino's, Uber Eats | The leave-by line becomes five stages: Packed · Left the hotel · On the train · Walking · At the gate. Stages tick from the phone's position where it can (the route card already watches it) and by a tap where it cannot | M | This trip |
+| 01 | Stage tracker for the next fixed time | Domino's, Uber Eats | The leave-by line becomes five stages: Packed · Left the hotel · On the train · Walking · At the gate. Stages tick from the phone's position where it can (the route card already watches it) and by a tap where it cannot | M | Done 30 Sept: five dots under the next fixed booking |
 | 02 | Check In when the family splits | iMessage Check In, Find My | One tap: "Back at the hotel by 4:30". The other parent's phone shows the ETA, is told on arrival, and is told again if arrival is late and the phone has gone quiet | M | Done 30 Sept: Check in on the dashboard, a card on the others' Home |
 | 03 | Queue and toilet reports | Waze | A one-tap report pinned to where the phone is: queue 40 min, toilets clean, sold out. Shows on the other phones' Today for two hours, then goes into the diary | S | Done 30 Sept: Report button under the stop, From the family on Home |
 | 04 | Kudos from home | Strava | A tap on a photo or a ticked stop from the follow-along link: a clap, a heart, a "wow". Nothing to type. The boys see who clapped at breakfast | S | Done 30 Sept: on the follow-along link, tallied on the photo and the day |

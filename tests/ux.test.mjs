@@ -435,3 +435,25 @@ test('runway: at this pace the budget lasts, or runs out on a weekday; round-ups
  assert.equal(keepsakeFund(t),60);assert.equal(purse(t,'Nate','2026-10-02').roundUps,60);
  assert.equal(purse(t,'Nate','2026-10-02').spent,400,'the purse gave up the round-up too');
 });
+test('the stage tracker: five stages to the booking that cannot move, tapped or reached by position, a move day its own five',async()=>{
+ const {applyOperation}=await import('../server/model.mjs');
+ const {stagesFor,stageReached,stageFromPosition,stageWords,STAGES_DAY,STAGES_MOVE}=await import('../src/stage-data.js');
+ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url),'utf8'));
+ assert.deepEqual(STAGES_DAY.map(s=>s.label),['Packed','Left the hotel','On the train','Walking','At the gate']);
+ assert.deepEqual(STAGES_MOVE.map(s=>s.label),['Packed','Checked out','Bags at the desk','On the Shinkansen','Checked in']);
+ const disney=seed.steps.find(s=>s.day==='2026-10-01'),tokyo=seed.steps.find(s=>s.day==='2026-10-03');
+ assert.equal(stagesFor(seed,disney),STAGES_MOVE,'the day we change hotel');assert.equal(stagesFor(seed,tokyo),STAGES_DAY);
+ const nate={name:'Nate',role:'child'};
+ const mine=seed.steps.find(s=>s.day==='2026-10-03'&&s.participants?.includes('Nate'));
+ let s=applyOperation(seed,{type:'stageSet',id:mine.id,reached:3},nate);
+ assert.equal(stageReached(s,mine.id),3);assert.equal(stageWords(STAGES_DAY,3),'On the train · next: walking');
+ assert.throws(()=>applyOperation(seed,{type:'stageSet',id:mine.id,reached:6},nate),/nought to five/);
+ const theirs=seed.steps.find(x=>x.day==='2026-10-03'&&x.participants?.length&&!x.participants.includes('Nate'));
+ if(theirs)assert.throws(()=>applyOperation(seed,{type:'stageSet',id:theirs.id,reached:1},nate),/other family members/);
+ assert.equal(stageFromPosition(seed,tokyo,null),null);
+ const pinned={...tokyo,pin:{lat:35.68,lng:139.76}};
+ assert.equal(stageFromPosition(seed,pinned,{lat:35.6801,lng:139.7601}),5,'at the gate');
+ const main=await source('main.jsx'),home=await source('HomeFeatures.jsx');
+ assert.match(main,/'stageSet','shopLog'\]/,'works with no signal');
+ assert.match(home,/<StageTracker state=\{state\} step=\{fixed\}/,'under the next fixed booking');
+});
