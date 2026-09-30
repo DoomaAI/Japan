@@ -786,4 +786,7 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 @media(max-height:640px){.opening .opening-countdown strong{font-size:2.6rem}.opening-fact{min-height:0}.opening-fact-text{-webkit-line-clamp:3}}
 
 /* The reading and awareness dials in Settings: one block each, the picker under its heading. */
-.setting-dial{margin:.75rem 0}.setting-dial .section-heading small{color:var(--muted,inherit)}
+.setting-dial{margin:.75rem 0}.setting-dial .section-heading small{color:var(--muted)}
+/* The strip while a parent's phone is a boy's: his name, and the way back for a parent. */
+.handed-banner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem;margin:0 0 .75rem;padding:.5rem .75rem;border-radius:12px;background:var(--tint);border:1px solid var(--tint-border)}
+.handed-banner>span{display:inline-flex;align-items:center;gap:.35rem}.handed-banner form{align-items:center;gap:.4rem}.handed-banner input{width:5.5rem}

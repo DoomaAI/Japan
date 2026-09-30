@@ -16,7 +16,7 @@ import {HOME_WIDGETS,homeOrder,cleanHome,moveWidget,toggleWidget,emptyHome} from
 // Nothing put away is lost. Everything hidden is listed at the bottom of this screen with a
 // button to bring it back, and this screen cannot be hidden itself — nor can Home, which is
 // the way back from wherever a bad arrangement leaves you.
-export default function Personalise({user,prefs,setPrefs,home,setHome}){
+export default function Personalise({user,prefs,setPrefs,home,setHome,held=[]}){
  const bar=primaryNav(user,prefs),hidden=hiddenNav(user,prefs);
  const save=next=>setPrefs(cleanNav(next,user));
  const hide=id=>{if(!FIXED.includes(id))save({bar:bar.filter(x=>x!==id),hidden:[...hidden,id]});};
@@ -26,7 +26,7 @@ export default function Personalise({user,prefs,setPrefs,home,setHome}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR WAY</p><h1>Customise</h1>
   <p>This is your phone only. Nobody else's menu changes, and nothing here changes the trip.</p>
-  <HomeWidgets home={home} setHome={setHome}/>
+  <HomeWidgets home={home} setHome={setHome} held={held}/>
   <BarShortcuts user={user} prefs={prefs} setPrefs={setPrefs}/>
   <h2>Put away what you never open</h2>
   <p>A screen you put away disappears from the bar and from More. It is still here, at the
@@ -95,9 +95,10 @@ export function BarShortcuts({user,prefs,setPrefs}){
 // Home is a column of widgets, and this is where they are put in order or put away. The same
 // arrows as the bar, for the same reasons, plus an eye: a widget put away is still listed here,
 // greyed, so there is never anything to go looking for to bring it back.
-function HomeWidgets({home,setHome}){
+function HomeWidgets({home,setHome,held=[]}){
  if(!setHome)return null;
- const {hidden}=cleanHome(home),order=homeOrder(home);
+ // A widget the awareness dial holds back on this phone is not offered to arrange either.
+ const {hidden}=cleanHome(home),order=homeOrder(home).filter(id=>!held.includes(id));
  return <>
   <h2>Your Home screen</h2>
   <p>Home shows these, top to bottom, under the day and its dates. Move them into the order you

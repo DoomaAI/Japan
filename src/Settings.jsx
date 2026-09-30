@@ -8,6 +8,7 @@ import {CARD_LINKS,linkOrder,stepLink} from './card-links.js';
 import {DEEP_LINKS,deepLinkUrl} from './deep-links.js';
 import {THEMES,readTheme,saveTheme,applyTheme,LOOKS,LOOK_CHOICES,readLook,saveLook,applyLook} from './theme.js';
 import {READING,AWARENESS,childLevels,defaultReading,defaultAwareness,readingLabel,awarenessLabel,isChild} from './child-levels.js';
+import {HandOver} from './HandOver.jsx';
 const ICONS={dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
@@ -160,7 +161,7 @@ export function ChildLevels({state,mutate,busy}){
   <p><small>Held on the trip, so {boys.join(' and ')}’s own phones follow it the next time they refresh. Nothing already ticked, rated or written is touched.</small></p>
  </section>;
 }
-export default function Settings({user,state,mutate,busy,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice,config}){
+export default function Settings({user,state,mutate,busy,hand,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice,config}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR CHOICE</p>
   <h1>Settings</h1>
@@ -180,6 +181,7 @@ export default function Settings({user,state,mutate,busy,settings,change,navPref
    {SETTINGS.filter(s=>s.group==='route').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
   {user?.role==='parent'&&state&&mutate&&<ChildLevels state={state} mutate={mutate} busy={busy}/>}
+  {user?.role==='parent'&&state&&hand&&<HandOver state={state} user={user} hand={hand}/>}
   {request&&<Notifications config={config} request={request} notice={notice} user={user}/>}
   {user?.role==='parent'&&request&&<TripCalendar request={request} notice={notice}/>}
   {user?.role==='parent'&&request&&<FollowLink request={request} notice={notice}/>}

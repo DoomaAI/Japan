@@ -937,6 +937,16 @@ export function purse(state,person,today){
  return {topUps,allowance,paidIn,spent,planned,roundUps,left:paidIn-spent,after:paidIn-spent-planned,
   items:items.length,bought:bought.length,waiting:items.length-bought.length};
 }
+// The purse in words rather than a number, for the boy whose awareness dial says he is always
+// with a grown-up: what it will stretch to, not how much is in it.
+export function purseInWords(left){
+ const yen=Number(left)||0;
+ if(yen<=0)return 'Nothing left in the purse today';
+ if(yen<500)return 'Enough for a snack';
+ if(yen<2000)return 'Enough for a small toy';
+ if(yen<5000)return 'Enough for a proper treat';
+ return 'Enough for something big';
+}
 // The same purse as a money box rather than a bar, for the boy who cannot read the bar yet.
 // `level` is how full the box is now, `after` is where it lands once everything still on the list
 // is bought, `promised` is the height of the list itself and `shortfall` is the part of it there

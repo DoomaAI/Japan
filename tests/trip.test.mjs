@@ -1929,7 +1929,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  for(const id of HOME_DEFAULT)assert.match(main,new RegExp(`\\n  ${id}:`),`${id} is drawn`);
  assert.match(main,/localStorage\.setItem\(`japan\.home\.\$\{user\.name\}`/);
  assert.match(main,/onClick=\{\(\)=>go\('personalise'\)\}>Customise Home<\/Button>/);
- assert.match(screen,/<HomeWidgets home=\{home\} setHome=\{setHome\}\/>/);
+ assert.match(screen,/<HomeWidgets home=\{home\} setHome=\{setHome\} held=\{held\}\/>/);
  assert.match(screen,/setHome\(emptyHome\(\)\)/);
 });
 
@@ -10946,4 +10946,38 @@ test('what each boy is ready for is two dials a parent sets, starting from his a
  assert.match(main,/setHeldBack\(state&&user\?heldBack\(state,user\.name\):\[\]\)/);
  assert.match(main,/<ThankYouNote[^>]*young=\{help\.young\}/);
  assert.match(main,/factAloudFor\(speak,visibleState,user\.name\)/);
+});
+test('a parent’s phone can be handed to one of the boys until the code takes it back, held-back widgets leave Customise, and the youngest purse is in words',async()=>{
+ const {handedUser,validCode,codeMatches,CODE_LENGTH}=await import('../src/hand-over.js');
+ const {purseInWords}=await import('../src/trip-features.js');
+ const members=['Damien','Lauren','Nate','Boston'];
+ const dad={name:'Damien',role:'parent'},nate={name:'Nate',role:'child'};
+ // Handed over, the phone reads as the boy in the child role, and says whose it really is.
+ assert.deepEqual(handedUser(dad,{name:'Nate',code:'1234'},members),{name:'Damien',role:'child',handed:true,heldBy:'Damien',name:'Nate'});
+ // Only a parent's phone, only to somebody on the trip, only with a real code.
+ assert.deepEqual(handedUser(nate,{name:'Boston',code:'1234'},members),nate,'a boy’s link cannot become his brother’s');
+ assert.deepEqual(handedUser(dad,{name:'Grandma',code:'1234'},members),dad);
+ assert.deepEqual(handedUser(dad,{name:'Nate',code:'12'},members),dad);
+ assert.deepEqual(handedUser(dad,null,members),dad);
+ assert.equal(handedUser(undefined,{name:'Nate',code:'1234'},members),undefined,'nothing to hand over before the phone is signed in');
+ assert.equal(CODE_LENGTH,4);
+ assert.ok(validCode('0420')&&!validCode('42')&&!validCode('abcd')&&!validCode(1234));
+ assert.ok(codeMatches({name:'Nate',code:'1234'},'1234')&&!codeMatches({name:'Nate',code:'1234'},'4321')&&!codeMatches(null,'1234'));
+ // The purse in words, for a boy always with a grown-up: what it stretches to, not a number.
+ assert.equal(purseInWords(0),'Nothing left in the purse today');assert.equal(purseInWords(-200),'Nothing left in the purse today');
+ assert.equal(purseInWords(300),'Enough for a snack');assert.equal(purseInWords(1500),'Enough for a small toy');
+ assert.equal(purseInWords(4000),'Enough for a proper treat');assert.equal(purseInWords(9000),'Enough for something big');
+ // Where it lands on the screens.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/user=handedUser\(envelope\?\.user,handed,state\?\.members\)/,'the whole app reads the handed user');
+ assert.match(main,/<HandedBanner user=\{user\} handed=\{handed\} takeBack=\{takeBack\}\/>\n\s*<main>/,'the strip sits with the other status strips, above the page');
+ assert.match(main,/hand=\{parent\?handTo:null\}/,'only a parent can hand it over');
+ assert.match(main,/<Personalise[^>]*held=\{heldBack\(visibleState,user\.name\)\}/);
+ const personalise=await readFile(new URL('../src/Personalise.jsx',import.meta.url),'utf8');
+ assert.match(personalise,/order=homeOrder\(home\)\.filter\(id=>!held\.includes\(id\)\)/,'a held-back widget is not offered to arrange');
+ const spending=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ assert.match(spending,/const inWords=!parent&&childLevels\(state,person\)\.awareness==='with'/);
+ assert.match(spending,/\{inWords\n\s*\?<strong className="purse-headline purse-words">\{purseInWords\(money\.left\)\}<\/strong>/);
+ const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
+ assert.match(settings,/user\?\.role==='parent'&&state&&hand&&<HandOver/);
 });

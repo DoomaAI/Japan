@@ -3,7 +3,8 @@ import HowThisWorks from './HowThisWorks.jsx';
 import {MascotBadge} from './Mascot.jsx';
 import PurseCat from './PurseCat.jsx';
 import {PiggyBank,Plus,Trash2,ShoppingBag,ListChecks,CalendarDays,Check,AlertCircle,Wallet,X,HandCoins,ThumbsUp,Eye,UserCog} from 'lucide-react';
-import {BOYS,purse,spendItemsFor,topUpsFor,allowanceFor,allowanceDays,spendCost,buyTodosFor,requestsFor,requestedFor,openRequests,yenPerAud,yenToAud,roundUpOn} from './trip-features.js';
+import {childLevels} from './child-levels.js';
+import {BOYS,purse,purseInWords,spendItemsFor,topUpsFor,allowanceFor,allowanceDays,spendCost,buyTodosFor,requestsFor,requestedFor,openRequests,yenPerAud,yenToAud,roundUpOn} from './trip-features.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {japanClock,japanDate} from './timing.js';
 const yen=n=>`¥${Math.round(n||0).toLocaleString('en-AU')}`;
@@ -132,6 +133,9 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
  // standing in takes them away rather than a second flag having to be checked beside every one.
  const standing=grownUp&&standIn,parent=grownUp&&!standing;
  const rate=yenPerAud(state),mine=grownUp||person===user.name;
+ // A boy whose awareness dial says he is always with a grown-up gets the purse in words, not
+ // in yen; a parent's own view keeps the numbers, and standing in shows what he sees.
+ const inWords=!parent&&childLevels(state,person).awareness==='with';
  const money=purse(state,person,today),items=spendItemsFor(state,person);
  const plan=allowanceFor(state,person),days=allowanceDays(state,person,today);
  const tops=topUpsFor(state,person),waiting=buyTodosFor(state,person);
@@ -176,8 +180,10 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
 
  <section className="purse-card">
   <p className="eyebrow">{person.toUpperCase()}’S PURSE</p>
-  <strong className="purse-headline">{yen(money.left)} left</strong>
-  <small>{dollars(money.left,rate)} at $1 = {yen(Math.round(rate))} · {yen(money.paidIn)} in, {yen(money.spent)} spent</small>
+  {inWords
+   ?<strong className="purse-headline purse-words">{purseInWords(money.left)}</strong>
+   :<><strong className="purse-headline">{yen(money.left)} left</strong>
+  <small>{dollars(money.left,rate)} at $1 = {yen(Math.round(rate))} · {yen(money.paidIn)} in, {yen(money.spent)} spent</small></>}
   <PurseCat money={money} person={person} inText={yen(money.paidIn)} outText={yen(money.spent)} leftText={yen(money.left)}/>
   <PurseMeter total={money.paidIn} spent={money.spent} planned={money.planned}/>
   <div className="purse-key">
