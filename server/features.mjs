@@ -21,7 +21,8 @@ import {findRule} from '../src/booking-window-data.js';
 import {findShopItem,SHOP_VERDICTS,SHOP_NOTE_MAX} from '../src/shop-data.js';
 import {cleanStay} from '../src/stay-data.js';
 import {PREDICTION_MAX,findPrediction,predictionPhase} from '../src/prediction-data.js';
-import {japanDate} from '../src/timing.js';
+import {japanDate,japanClock} from '../src/timing.js';
+import {CHECKIN_AHEAD_HOURS} from '../src/checkin-data.js';
 import {findSquare,validCard} from '../src/bingo-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
 const MAX_PROPOSALS=300;
@@ -1379,7 +1380,31 @@ export function extraOperation(state,op,user,fail,now){
    }else fail('Unknown note action.');
   }
   return {summary:null,important:false,private:true};
- }else if(op.type==='runningLate'){
+ }else if(typeof op.type==='string'&&op.type.startsWith('checkIn')){
+ // Check In: "back at the hotel by 4:30". Anyone starts one for themselves; a parent, or whoever
+ // started it, ends it. Starting a new one closes that person's last, so there is one at a time.
+ const list=state.checkIns;
+ if(op.type==='checkInStart'){
+  requireText(op.label,120,'destination');if(!op.label.trim())fail('Say where you are heading.');
+  if(op.stepId&&!state.steps.some(s=>s.id===op.stepId))fail('Activity not found.',404);
+  if(op.hotel!=null)requireText(op.hotel,200,'hotel');
+  const due=Date.parse(op.due),at=Date.parse(now);
+  if(!Number.isFinite(due)||due<at-60000||due>at+CHECKIN_AHEAD_HOURS*3600000)fail('Choose a time in the next twelve hours.');
+  for(const c of list)if(c.from===user.name&&!c.closedAt&&!c.arrivedAt){c.closedAt=now;c.closedBy=user.name;}
+  const item={id:randomUUID(),from:user.name,label:op.label.trim(),stepId:op.stepId||null,hotel:op.hotel||null,day:japanDate(new Date(now)),due:new Date(due).toISOString(),startedAt:now,arrivedAt:null,closedAt:null,closedBy:null};
+  state.checkIns=[...list,item].slice(-30);
+  return {summary:`${user.name} is heading to ${item.label}, back by ${japanClock(new Date(due))}`,important:true,title:'Check In'};
+ }
+ const c=list.find(c=>c.id===op.id);if(!c||c.closedAt)fail('That check-in is over.',404);
+ if(!parent&&c.from!==user.name)fail('Only whoever started it, or a parent, can end it.',403);
+ if(op.type==='checkInArrive'){
+  if(c.arrivedAt)return {summary:null,important:false,title:'Check In'};
+  c.arrivedAt=now;
+  return {summary:`${c.from} arrived at ${c.label}`,important:true,title:'Check In'};
+ }
+ if(op.type==='checkInCancel'){c.closedAt=now;c.closedBy=user.name;return {summary:null,important:false,title:'Check In'};}
+ fail('Unknown check-in change.');
+}else if(op.type==='runningLate'){
   dayCheck(op.day);if(!op.day||!Number.isInteger(op.delay)||op.delay<1||op.delay>240)fail('Enter a delay of 1–240 minutes.');
   const plan=delayForDay(state,op.day,op.delay);
   for(const c of plan.changes)state.steps.find(s=>s.id===c.id).time=c.time;
