@@ -390,3 +390,22 @@ test('kudos from home: a clap, a heart or a wow from the follow-along link, one 
  assert.match(page,/localStorage\.getItem\('japan\.follow\.name'\)/,'a first name typed once');
  assert.doesNotMatch(page,/<textarea/,'still nothing to type into');
 });
+test('readiness at breakfast: one to five each, a parent for anyone, and under three the easier day is offered first',async()=>{
+ const {applyOperation}=await import('../server/model.mjs');
+ const {lowest,readinessOf,answered,LOW_READINESS,READINESS}=await import('../src/readiness-data.js');
+ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url),'utf8'));
+ const nate={name:'Nate',role:'child'},mum={name:'Lauren',role:'parent'};
+ assert.equal(READINESS.length,5);assert.equal(LOW_READINESS,3);
+ let s=applyOperation(seed,{type:'readinessSet',day:'2026-10-02',person:'Nate',level:2},nate);
+ assert.equal(readinessOf(s,'2026-10-02','Nate'),2);
+ assert.throws(()=>applyOperation(seed,{type:'readinessSet',day:'2026-10-02',person:'Boston',level:4},nate),/a parent can say for the others/);
+ assert.throws(()=>applyOperation(seed,{type:'readinessSet',day:'2026-10-02',person:'Nate',level:6},nate),/one to five/);
+ s=applyOperation(s,{type:'readinessSet',day:'2026-10-02',person:'Boston',level:4},mum);
+ assert.deepEqual(answered(s,'2026-10-02',seed.members),['Nate','Boston']);
+ assert.deepEqual(lowest(s,'2026-10-02'),{person:'Nate',level:2});
+ s=applyOperation(s,{type:'readinessSet',day:'2026-10-02',person:'Nate',level:3},mum);
+ assert.equal(lowest(s,'2026-10-02'),null,'three is fine');
+ const brief=await source('Briefing.jsx');
+ assert.match(brief,/open\?\.\(\{type:'tired'\}\)/,'the easier day is one tap away');
+ assert.match(brief,/mutate\(\{type:'readinessSet',day,person:p,level:r\.level\}\)/);
+});

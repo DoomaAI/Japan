@@ -578,7 +578,7 @@ function App(){
   bookingwindows:<BookingWindowsCard state={visibleState} now={now} go={go}/>,
   runup:<RunUp state={visibleState} today={japanDate(now)} go={go}/>,
   onthisday:<OnThisDay state={visibleState} today={japanDate(now)} dayLabel={fmtDay} go={go}/>,
-  briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go}/>,
+  briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go} user={user} mutate={mutate} busy={busy} open={setModal}/>,
   todaysjapan:<TodaysJapan state={visibleState} day={day} phrase={day===dayOnTrip&&settingOn(settings,'dailyPhrase')?{item:phraseQueue(visibleState,user.name,dayOnTrip)[0],open:openPhrase,fresh:!phraseDone}:null} fact={day===dayOnTrip&&todaysFact&&settingOn(settings,'dailyFact')?{...(factQueue(visibleState,user.name,dayOnTrip)[0]||todaysFact),open:openFact,fresh:!factDone}:null} go={go}/>,
   needs:<MorningChecklist key={day} state={visibleState} day={day} today={japanDate(now)}/>,
   step:<>

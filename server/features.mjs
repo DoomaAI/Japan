@@ -23,6 +23,7 @@ import {cleanStay} from '../src/stay-data.js';
 import {PREDICTION_MAX,findPrediction,predictionPhase} from '../src/prediction-data.js';
 import {japanDate,japanClock} from '../src/timing.js';
 import {CHECKIN_AHEAD_HOURS} from '../src/checkin-data.js';
+import {READINESS} from '../src/readiness-data.js';
 import {findSquare,validCard} from '../src/bingo-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
 const MAX_PROPOSALS=300;
@@ -1380,7 +1381,15 @@ export function extraOperation(state,op,user,fail,now){
    }else fail('Unknown note action.');
   }
   return {summary:null,important:false,private:true};
- }else if(typeof op.type==='string'&&op.type.startsWith('checkIn')){
+ }else if(op.type==='readinessSet'){
+ // How each of us is at breakfast, one to five. Your own, or a parent for anyone: Nate is five.
+ dayCheck(op.day);if(!op.day)fail('Choose a day.');
+ if(!state.members.includes(op.person))fail('Choose a family member.');
+ if(!parent&&op.person!==user.name)fail('Say how you are; a parent can say for the others.',403);
+ if(!READINESS.some(r=>r.level===op.level))fail('Pick a face from one to five.');
+ state.readiness={...(state.readiness||{}),[op.day]:{...((state.readiness||{})[op.day]||{}),[op.person]:{level:op.level,at:now,by:user.name}}};
+ return {summary:null,important:false,title:`${op.person} at breakfast`};
+}else if(typeof op.type==='string'&&op.type.startsWith('checkIn')){
  // Check In: "back at the hotel by 4:30". Anyone starts one for themselves; a parent, or whoever
  // started it, ends it. Starting a new one closes that person's last, so there is one at a time.
  const list=state.checkIns;
