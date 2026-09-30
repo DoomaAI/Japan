@@ -60,6 +60,7 @@ import DayMap from './DayMap.jsx';
 import BookingWindows,{BookingWindowsCard} from './BookingWindows.jsx';
 import FollowAlong from './FollowAlong.jsx';
 import FollowFrame from './FollowFrame.jsx';
+import InvitationPage from './InvitationPage.jsx';
 import Safety,{LostCards} from './Safety.jsx';
 import MorningChecklist from './Morning.jsx';
 import StayCard from './StayCard.jsx';
@@ -116,6 +117,8 @@ const Lost=lazy(()=>import('./Lost.jsx'));
 const Nightstand=lazy(()=>import('./Nightstand.jsx'));
 const NextTime=lazy(()=>import('./NextTime.jsx'));
 const Capsule=lazy(()=>import('./Capsule.jsx'));
+const Guests=lazy(()=>import('./Guests.jsx'));
+const InvitationEditor=lazy(()=>import('./InvitationEditor.jsx'));
 const ShowTell=lazy(()=>import('./ShowTell.jsx'));
 const AskTrip=lazy(()=>import('./AskTrip.jsx'));
 const Ledger=lazy(()=>import('./Ledger.jsx'));
@@ -774,6 +777,8 @@ function App(){
   {tab==='nightstand'&&<Nightstand state={visibleState} now={now} go={go}/>}
   {tab==='nexttime'&&<NextTime state={visibleState} go={go} notice={notice}/>}
   {tab==='capsule'&&<Capsule state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy}/>}
+  {tab==='guests'&&<Guests state={visibleState} user={user} mutate={mutate} busy={busy} go={go}/>}
+  {tab==='invitation'&&parent&&<InvitationEditor state={visibleState} mutate={mutate} busy={busy} request={request} notice={notice}/>}
   {tab==='showtell'&&<ShowTell state={visibleState} user={user}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}
   {tab==='personalise'&&<Personalise user={user} prefs={navPrefs} setPrefs={saveNav} home={homePrefs} setHome={saveHome} held={heldBack(visibleState,user.name)}/>}
@@ -991,10 +996,12 @@ class Boundary extends React.Component{
 // A follower's link opens the read-only page and nothing else: no session is asked for, and
 // none of the app behind it is started.
 const followKey=new URLSearchParams(location.search).get('follow'),frameMode=new URLSearchParams(location.search).get('frame')==='1';
+// An invitation link opens the public invitation page the same way: no session is asked for.
+const inviteKey=new URLSearchParams(location.search).get('invite');
 // The phone's look (its own or the destination's) and its light or dark go on the page before anything is drawn.
 applyLook(readLook());
 applyTheme(readTheme());
-createRoot(document.getElementById('root')).render(<Boundary>{followKey?(frameMode?<FollowFrame followKey={followKey}/>:<FollowAlong followKey={followKey}/>):<App/>}</Boundary>);
+createRoot(document.getElementById('root')).render(<Boundary>{inviteKey?<InvitationPage inviteKey={inviteKey}/>:followKey?(frameMode?<FollowFrame followKey={followKey}/>:<FollowAlong followKey={followKey}/>):<App/>}</Boundary>);
 
 // The one screen a stranger sees: whose plan this is, what they will be able to do, and a box
 // for their name. No email, no password; the name is the account, as it is for the family.

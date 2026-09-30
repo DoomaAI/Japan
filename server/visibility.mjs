@@ -2,6 +2,7 @@ import {thankYouForDay,thankYouList,THANK_YOU_FROM,THANK_YOU_FOR} from '../src/t
 import {japanDate} from '../src/timing.js';
 import {visiblePredictions} from '../src/prediction-data.js';
 import {visibleCapsule} from '../src/capsule-data.js';
+import {visibleRsvps,guestSummary} from '../src/rsvp-data.js';
 // The daily notes are private between Damien and the person each one is for. Damien sees
 // every list; Lauren, Nate and Boston each receive only their own note for the current Japan
 // day, and never anyone else's. Redaction happens here, at the response boundary, so the note text
@@ -31,8 +32,13 @@ export function visibleTrip(state,user,now=new Date()){
  // The calendar key opens the trip's calendar to anyone holding it, so no phone is sent it as
  // part of the plan; a parent gets it from the one route that hands out the subscription link.
  // The follow-along key is the same kind of thing, and a parent is handed it the same way.
- const {calendarKey,followKey,...rest}=state;
+ // The invitation key is the same again: the public link's key, handed to a parent by one route.
+ const {calendarKey,followKey,inviteKey,...rest}=state;
  state=hideExpenses(hideTrackerLinks(hideInbox(hideUnthrownHands(rest,user),user),user),user);
+ // The answers to the invitation: a guest gets their own whole, the others' status only when the
+ // organiser shares names, and the counts either way, worked out here so they are right without
+ // the records behind them (src/rsvp-data.js).
+ if(user?.role!=='parent'&&state.rsvps)state={...state,rsvps:visibleRsvps(state,user),rsvpCounts:guestSummary(state).counts};
  // Sealed predictions are sealed at the boundary too: the others' answers are not sent until
  // the trip is over, only that they have answered.
  if(state.predictions)state={...state,predictions:visiblePredictions(state,user?.name,japanDate(now))};

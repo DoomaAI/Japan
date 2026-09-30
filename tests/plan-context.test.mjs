@@ -11,12 +11,12 @@ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url
 const dinner=JSON.parse(await readFile(new URL('./fixtures/dinner.json',import.meta.url)));
 const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'};
 
-test('the family trip reads as a trip in Japan with nothing switched off',()=>{
+test('the family trip reads as a trip in Japan with nothing it had switched off',()=>{
  const state=ensureFeatures(seed);
  assert.deepEqual(state.plan,{...DEFAULT_PLAN,title:'Japan 2026'});
  assert.equal(planContext(state).members.length,4);
- assert.deepEqual(modulesOff(state),[]);
- for(const id of Object.keys(PAGES))assert.equal(moduleOn(state,id),true,id);
+ assert.deepEqual(modulesOff(state),['guests','invitation']);
+ for(const id of Object.keys(PAGES))assert.equal(moduleOn(state,id),!['guests','invitation'].includes(id),id);
 });
 test('a plan saved before the record existed is upgraded without changing what it shows',()=>{
  const {plan,...older}=ensureFeatures(seed);
