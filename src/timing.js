@@ -1,5 +1,28 @@
-export const japanDate=(date=new Date())=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
-export const japanClock=(date=new Date())=>new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit',hour12:false}).format(date);
+// The plan's own clock. Every date and time in the app is the plan's local one: the day a stop
+// is on, the clock on the top bar, the leave-by minute. That used to be Japan, written into
+// each call; now it is whatever time zone the plan record names (src/plan-context.js), set once
+// when the plan is read on the server or arrives on the phone. The names japanDate and
+// japanClock stay, because sixty files say them; planDate and planClock are the same functions.
+let zone='Asia/Tokyo';
+export const planZone=()=>zone;
+export const setPlanZone=z=>{zone=z||'Asia/Tokyo';};
+export const japanDate=(date=new Date())=>new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
+export const japanClock=(date=new Date())=>new Intl.DateTimeFormat('en-GB',{timeZone:zone,hour:'2-digit',minute:'2-digit',hour12:false}).format(date);
+export const planDate=japanDate,planClock=japanClock;
+// The instant a plan-local day and clock time name, worked out from the zone's offset at that
+// moment rather than a fixed +09:00, so a dinner in Sydney lands in the calendar at the right
+// hour on either side of daylight saving.
+export function zoneOffsetMinutes(date,z=zone){
+ const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:z,hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(date).filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));
+ const asUtc=Date.UTC(parts.year,parts.month-1,parts.day,parts.hour%24,parts.minute,parts.second);
+ return Math.round((asUtc-Math.floor(date.getTime()/1000)*1000)/60000);
+}
+export function zonedInstant(day,time,z=zone){
+ const [y,m,d]=day.split('-').map(Number),[h,mi]=(time||'00:00').split(':').map(Number);
+ const guess=Date.UTC(y,m-1,d,h,mi);
+ const first=new Date(guess-zoneOffsetMinutes(new Date(guess),z)*60000);
+ return new Date(guess-zoneOffsetMinutes(first,z)*60000);
+}
 export const minutes=t=>t?Number(t.slice(0,2))*60+Number(t.slice(3)):null;
 export const asClock=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
 // A group is either alternatives, where only the chosen option is on the day, or a split, where
@@ -30,7 +53,7 @@ const icsEsc=s=>String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace
 const icsFold=line=>{const out=[];let s=line;while(s.length>72){out.push(s.slice(0,72));s=' '+s.slice(72);}out.push(s);return out.join('\r\n');};
 export function calendarEvent(step){
  if(!step.time)return null;
- const start=new Date(`${step.day}T${step.time}:00+09:00`),end=new Date(+start+Math.max(step.duration||30,5)*60000);
+ const start=zonedInstant(step.day,step.time),end=new Date(+start+Math.max(step.duration||30,5)*60000);
  return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Pasfield//Japan Trip//EN','BEGIN:VEVENT',`UID:${step.id}@pasfield-japan`,`DTSTAMP:${icsStamp(new Date())}`,`DTSTART:${icsStamp(start)}`,`DTEND:${icsStamp(end)}`,`SUMMARY:${icsEsc(step.title)}`,`LOCATION:${icsEsc(step.place)}`,`DESCRIPTION:${icsEsc(step.notes)}`,`URL:${location.origin}/?day=${step.day}&step=${step.id}`,'BEGIN:VALARM','TRIGGER:-PT15M','ACTION:DISPLAY','DESCRIPTION:Trip reminder','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
 }
 // The whole trip as one calendar a phone subscribes to once: a line across each day saying where
@@ -40,13 +63,13 @@ export function calendarEvent(step){
 // on the lock screen with the app closed. Booking references stay out of it; a calendar is shared
 // more casually than the app is. The phone asks for a fresh copy about once an hour.
 export function calendarFeed(state,origin=''){
- const now=icsStamp(new Date()),lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Pasfield//Japan Trip//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Japan 2026','X-WR-TIMEZONE:Asia/Tokyo','REFRESH-INTERVAL;VALUE=DURATION:PT1H','X-PUBLISHED-TTL:PT1H'];
+ const now=icsStamp(new Date()),lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Pasfield//Japan Trip//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH',`X-WR-CALNAME:${icsEsc(state.plan?.title||state.tripName||'Our plan')}`,`X-WR-TIMEZONE:${zone}`,'REFRESH-INTERVAL;VALUE=DURATION:PT1H','X-PUBLISHED-TTL:PT1H'];
  for(const d of state.days){
   const after=new Date(`${d.date}T00:00:00Z`);after.setUTCDate(after.getUTCDate()+1);
   lines.push('BEGIN:VEVENT',`UID:day-${d.date}@pasfield-japan`,`DTSTAMP:${now}`,`DTSTART;VALUE=DATE:${d.date.replace(/-/g,'')}`,`DTEND;VALUE=DATE:${after.toISOString().slice(0,10).replace(/-/g,'')}`,`SUMMARY:${icsEsc(`${d.title} · ${d.city}`)}`,`LOCATION:${icsEsc(d.hotel)}`,`URL:${origin}/?day=${d.date}`,'TRANSP:TRANSPARENT','END:VEVENT');
   for(const s of activeSteps(state,d.date)){
    if(!s.locked||!s.time||s.status==='skipped')continue;
-   const start=new Date(`${s.day}T${s.time}:00+09:00`),end=new Date(+start+Math.max(s.duration||30,5)*60000),lead=(s.travelMinutes??20)+(s.arrivalBuffer??15);
+   const start=zonedInstant(s.day,s.time),end=new Date(+start+Math.max(s.duration||30,5)*60000),lead=(s.travelMinutes??20)+(s.arrivalBuffer??15);
    lines.push('BEGIN:VEVENT',`UID:${s.id}@pasfield-japan`,`DTSTAMP:${now}`,`DTSTART:${icsStamp(start)}`,`DTEND:${icsStamp(end)}`,`SUMMARY:${icsEsc(s.title)}`,`LOCATION:${icsEsc(s.place)}`,
     `DESCRIPTION:${icsEsc(`Fixed booking. Leave by ${japanClock(new Date(+start-lead*60000))}.${s.notes?`\n${s.notes}`:''}`)}`,`URL:${origin}/?day=${s.day}&step=${s.id}`,
     'BEGIN:VALARM',`TRIGGER:-PT${lead}M`,'ACTION:DISPLAY',`DESCRIPTION:${icsEsc(`Leave now for ${s.title}`)}`,'END:VALARM',
@@ -77,7 +100,7 @@ export const spanWords=m=>{const n=Math.round(Math.abs(m)),h=Math.floor(n/60),r=
 // A step with no target time has nothing to be ahead or behind of, so it says nothing at all.
 export function scheduleVariance(step,at=new Date()){
  if(!step?.time||!step?.day)return null;
- const target=new Date(`${step.day}T${step.time}:00+09:00`).getTime()+Math.max(step.duration||0,0)*60000;
+ const target=zonedInstant(step.day,step.time).getTime()+Math.max(step.duration||0,0)*60000;
  const when=at instanceof Date?at:new Date(at);
  if(!Number.isFinite(when.getTime()))return null;
  const delta=Math.round((when.getTime()-target)/60000);
@@ -90,7 +113,7 @@ export function scheduleVariance(step,at=new Date()){
 export function stayPlan(step,at=new Date()){
  const when=at instanceof Date?at:new Date(at),duration=Math.max(step?.duration||0,0);
  if(!duration||!Number.isFinite(when.getTime()))return {minutes:0,until:null,text:'No length set for this stop — move on whenever you’re ready.'};
- const targeted=step?.day&&step?.time?new Date(`${step.day}T${step.time}:00+09:00`).getTime():null;
+ const targeted=step?.day&&step?.time?zonedInstant(step.day,step.time).getTime():null;
  const until=new Date(Math.max(targeted??when.getTime(),when.getTime())+duration*60000);
  return {minutes:duration,until:japanClock(until),text:`We plan to stay about ${spanWords(duration)}, moving on around ${japanClock(until)}.`};
 }
@@ -98,7 +121,7 @@ export function stayPlan(step,at=new Date()){
 // day it sits on, in Japan time, which is the only reading of "14:20" that means anything to a
 // family standing in Kyoto — whatever the phone showing it is set to.
 export const doneClock=step=>step?.completedAt?japanClock(new Date(step.completedAt)):'';
-export const doneStamp=(step,clock)=>new Date(`${step?.day}T${clock}:00+09:00`);
+export const doneStamp=(step,clock)=>zonedInstant(step?.day,clock);
 // A day is behind us when every stop on it has been settled — ticked off, or deliberately
 // skipped, which is just as decided. A day with nothing on it is not finished, it is empty, and
 // a day with one stop left is still a day we are in the middle of.

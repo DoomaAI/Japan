@@ -10,6 +10,8 @@ import {THEMES,readTheme,saveTheme,applyTheme,LOOKS,LOOK_CHOICES,readLook,saveLo
 import {READING,AWARENESS,childLevels,defaultReading,defaultAwareness,readingLabel,awarenessLabel,isChild} from './child-levels.js';
 import {HandOver} from './HandOver.jsx';
 import {frameUrl} from './frame-data.js';
+import {PLAN_TYPES,planOf,modulesOff,validTimeZone} from './plan-context.js';
+import {PAGES} from './nav-data.js';
 const ICONS={dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
@@ -115,6 +117,28 @@ function DeepLinks({notice}){
   <p><small>The address only opens on a phone already signed in to the trip; on any other phone it shows the front door.</small></p>
  </section>;
 }
+// What kind of plan this is, and where. The record behind every date, every price and the menu
+// itself (src/plan-context.js). A parent can rename the plan, move its clock, or call it a
+// dinner rather than a trip, and the pages a dinner has no use for leave the menu on every phone
+// at the next refresh. The list under the picker says exactly which, before the change is made,
+// because the fear that stops somebody changing a thing is not knowing what goes with it.
+function ThisPlan({state,mutate,busy}){
+ const plan=planOf(state);
+ const [title,setTitle]=useState(plan.title),[zone,setZone]=useState(plan.timeZone),[type,setType]=useState(plan.type);
+ const off=modulesOff({...plan,type}).map(id=>PAGES[id]?.label||id);
+ const dirty=title!==plan.title||zone!==plan.timeZone||type!==plan.type,zoneOk=validTimeZone(zone);
+ const save=async()=>{const patch={};if(title!==plan.title)patch.title=title.trim();if(zone!==plan.timeZone)patch.timeZone=zone.trim();if(type!==plan.type)patch.type=type;await mutate({type:'planSettings',patch});};
+ return <section className="settings-section">
+  <h2>This plan</h2>
+  <label>Name<input value={title} maxLength={120} onChange={e=>setTitle(e.target.value)}/></label>
+  <label>Kind of plan<select value={type} onChange={e=>setType(e.target.value)}>{PLAN_TYPES.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}</select></label>
+  <p><small>{PLAN_TYPES.find(t=>t.id===type)?.note}.{off.length?` Not offered on a ${PLAN_TYPES.find(t=>t.id===type)?.label.toLowerCase()}: ${off.join(', ')}.`:' Every page is on.'}</small></p>
+  <label>Time zone<input value={zone} placeholder="Asia/Tokyo" onChange={e=>setZone(e.target.value)}/></label>
+  {!zoneOk&&<p className="callout">Use a time zone name such as Australia/Sydney or Asia/Tokyo.</p>}
+  <p><small>{plan.currency} prices, {plan.homeCurrency} at home · {plan.country}, from {plan.homeCountry} · {plan.destinationLanguage} spoken there, {plan.language} in the app. These come with the plan for now; the commercial build lets an organiser set them.</small></p>
+  <button type="button" className="primary" disabled={busy||!dirty||!zoneOk} onClick={save}>Save plan settings</button>
+ </section>;
+}
 // Light or dark, chosen here rather than left to the phone, because midday at a ramen counter
 // and midnight in a hotel room want different things and the phone only knows the clock.
 function Appearance(){
@@ -184,6 +208,7 @@ export default function Settings({user,state,mutate,busy,hand,settings,change,na
    <h2>Route cards</h2>
    {SETTINGS.filter(s=>s.group==='route').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
+  {user?.role==='parent'&&state&&mutate&&<ThisPlan state={state} mutate={mutate} busy={busy}/>}
   {user?.role==='parent'&&state&&mutate&&<ChildLevels state={state} mutate={mutate} busy={busy}/>}
   {user?.role==='parent'&&state&&hand&&<HandOver state={state} user={user} hand={hand}/>}
   {request&&<Notifications config={config} request={request} notice={notice} user={user}/>}

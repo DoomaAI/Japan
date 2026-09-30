@@ -30,6 +30,8 @@ import {CHECKIN_AHEAD_HOURS} from '../src/checkin-data.js';
 import {READINESS} from '../src/readiness-data.js';
 import {findSquare,validCard} from '../src/bingo-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
+import {validPlanPatch,applyPlanPatch,planType} from '../src/plan-context.js';
+import {PAGES} from '../src/nav-data.js';
 const MAX_PROPOSALS=300;
 // A shortlist is a list you can still read. Past a couple of hundred finds it is an archive of
 // shops, and the answer to that is to decide on some rather than to keep adding.
@@ -38,6 +40,17 @@ const https=v=>{try{return new URL(v).protocol==='https:';}catch{return false;}}
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
 export function extraOperation(state,op,user,fail,now){
  const parent=user.role==='parent',dayOK=day=>day===null||state.days.some(d=>d.date===day);
+ // The plan record (src/plan-context.js): what kind of plan this is, its clock, its money and
+ // its languages, and which modules the organiser has switched against the type's defaults.
+ // One operation, parents only, every field checked, and the change written to the history
+ // like any other, because switching the passports page off is something the others should see.
+ if(op.type==='planSettings'){
+  if(!parent)fail('A parent can change the plan settings.',403);
+  const problem=validPlanPatch(op.patch,Object.keys(PAGES));if(problem)fail(problem);
+  state.plan=applyPlanPatch(state.plan,op.patch);
+  const changed=Object.keys(op.patch);
+  return {summary:null,important:false,title:changed.includes('type')?`This is now ${planType(state.plan.type).label.toLowerCase()==='trip'?'a trip':`a ${planType(state.plan.type).label.toLowerCase()}`}: ${state.plan.title||'untitled'}`:`Plan settings: ${changed.join(', ')} · ${state.plan.title||'untitled'}`};
+ }
  const requireText=(v,max,label)=>{if(!string(v,max))fail(`Invalid ${label}.`);};
  const dayCheck=day=>{if(!dayOK(day))fail('Choose a trip day or Whole trip.');};
  // What somebody cannot eat, for the card handed to a waiter. A parent writes it; every allergen

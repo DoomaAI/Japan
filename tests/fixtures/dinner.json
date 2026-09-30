@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "tripName": "Dinner at Chin Chin",
+  "plan": {
+    "type": "outing",
+    "title": "Dinner at Chin Chin",
+    "timeZone": "Australia/Sydney",
+    "country": "AU",
+    "currency": "AUD",
+    "homeCountry": "AU",
+    "homeCurrency": "AUD",
+    "locale": "en-AU",
+    "language": "en",
+    "destinationLanguage": "en",
+    "dialCode": "61",
+    "modules": {}
+  },
+  "mapUrl": "",
+  "mapEmbed": "",
+  "days": [
+    {"date": "2026-11-13", "title": "Friday dinner", "city": "Sydney", "hotel": "", "pages": [1]}
+  ],
+  "steps": [
+    {"id": "drinks", "day": "2026-11-13", "title": "Drinks at the Lord Nelson", "time": "18:00", "originalTime": "18:00", "duration": 60, "place": "19 Kent St, Millers Point", "japanese": "", "kind": "flexible", "locked": false, "page": 1, "notes": "", "group": "", "option": "", "status": "todo", "participants": ["Sam", "Priya", "Jordan", "Alex", "Mei", "Tom"], "bookingTime": null, "review": false, "order": 10},
+    {"id": "dinner", "day": "2026-11-13", "title": "Dinner at Chin Chin", "time": "19:30", "originalTime": "19:30", "duration": 120, "place": "69 Commonwealth St, Surry Hills", "japanese": "", "kind": "fixed", "locked": true, "page": 1, "notes": "Table for six under Sam", "group": "", "option": "", "status": "todo", "participants": ["Sam", "Priya", "Jordan", "Alex", "Mei", "Tom"], "bookingTime": "19:30", "review": false, "order": 20}
+  ],
+  "choices": {},
+  "documents": [],
+  "history": [],
+  "members": ["Sam", "Priya", "Jordan", "Alex", "Mei", "Tom"],
+  "notices": []
+}
