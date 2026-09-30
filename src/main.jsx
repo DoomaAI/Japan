@@ -32,7 +32,7 @@ import {factSeenBy,factsSeenBy,factQueue} from './trip-features.js';
 import {PHRASES} from './phrases.js';
 import {readSettings,writeSetting,settingOn} from './settings.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
-import {primaryNav,moreIds,PAGES,cleanNav,emptyNav,setAvailable,isAvailable,setHeldBack} from './nav-data.js';
+import {primaryNav,moreIds,PAGES,cleanNav,emptyNav,setAvailable,isAvailable,setHeldBack,setPlan} from './nav-data.js';
 import {homeShown,homeRuns,emptyHome,cleanHome} from './home-widgets.js';
 import {linkOrder,emptyLinks,cleanLinks} from './card-links.js';
 import StopButtons from './StopButtons.jsx';
@@ -85,7 +85,7 @@ import React,{useEffect,useMemo,useRef,useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
 import {Radio,MessageCircleQuestion,Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Archive,ArchiveRestore,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
-import {activeSteps,dayProgress,dayBehind,tripCountdown,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent,scheduleVariance,stayPlan,spanWords} from './timing.js';
+import {activeSteps,dayProgress,dayBehind,tripCountdown,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent,scheduleVariance,stayPlan,spanWords,setPlanZone,planZone,zonedInstant} from './timing.js';
 import {todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,ticketList,isArchived,attachmentsOf,documentSteps,documentStepList,documentServesStep} from './trip-features.js';
 import {armPlayback} from './speech.js';
 import {PhraseAudio} from './PhraseAudio.jsx';
@@ -139,7 +139,7 @@ const Games=lazy(()=>import('./Games.jsx'));
 
 const API='/api/';
 const APPS={maps:['Google Maps','https://maps.google.com/'],translate:['Google Translate','https://translate.google.com/?sl=en&tl=ja&op=translate'],qantas:['Qantas','https://www.qantas.com/au/en/qantas-app.html'],disney:['Tokyo Disney Resort','https://www.tokyodisneyresort.jp/en/tdr/app.html'],usj:['Universal Studios Japan','https://www.usj.co.jp/web/en/us/service-guide/theme-park-services/official-app'],japan:['Visit Japan Web','https://www.vjw.digital.go.jp/']};
-const fmtDay=(d,opts={weekday:'short',day:'numeric',month:'short'})=>new Intl.DateTimeFormat('en-AU',{...opts,timeZone:'Asia/Tokyo'}).format(new Date(d+'T12:00:00+09:00'));
+const fmtDay=(d,opts={weekday:'short',day:'numeric',month:'short'})=>new Intl.DateTimeFormat('en-AU',{...opts,timeZone:planZone()}).format(zonedInstant(d,'12:00'));
 const isMapLink=place=>{try{const u=new URL(place);return u.protocol==='https:'&&(['maps.app.goo.gl','maps.google.com'].includes(u.hostname)||(u.hostname==='www.google.com'&&u.pathname.startsWith('/maps')));}catch{return false;}};
 const directions=(place,mode='transit')=>isMapLink(place)?place:'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(place)+'&travelmode='+mode;
 const maps=place=>isMapLink(place)?place:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(place);
@@ -250,7 +250,11 @@ function App(){
  // Every envelope accepted here came over the network a moment ago, so accepting one is also the
  // proof that the phone is back in touch: the Offline line clears on its own, without waiting for
  // the browser to notice, and the bar can say when the plan was last confirmed.
- function accept(e){e={...e,state:ensureFeatures(e.state)};envRef.current=e;setEnvelope(e);setOnline(true);setSyncedAt(Date.now());localStorage.setItem('japan.snapshot',JSON.stringify({...e,savedAt:Date.now()}));}
+ // The plan record decides the clock every date is worked out in, which pages the menu offers
+ // and which look the page wears; it is adopted the moment a plan arrives, from the network or
+ // from the copy kept on the phone, before anything reads a date.
+ function adopt(s){setPlanZone(s.plan?.timeZone);setPlan(s.plan);applyLook(readLook(),s.plan?.country);return s;}
+ function accept(e){e={...e,state:adopt(ensureFeatures(e.state))};envRef.current=e;setEnvelope(e);setOnline(true);setSyncedAt(Date.now());localStorage.setItem('japan.snapshot',JSON.stringify({...e,savedAt:Date.now()}));}
  function saveQueue(q){queueRef.current=q;setQueue(q);localStorage.setItem('japan.queue',JSON.stringify(q));}
  // The browser's own Back, and the swipe from the edge of the screen, walk back through the
  // screens the way they look as if they should. Every move between pages, days and stops is an
@@ -280,7 +284,7 @@ function App(){
    const e=await request('state');if(stop)return;accept(e);
    land(e.state);arrive(e.state);
    if(new URLSearchParams(location.search).has('page'))setTab('guide');
-  }catch(e){const cache=stored('japan.snapshot',null);if(!e.status&&cache&&Date.now()-cache.savedAt<45*86400000){const s=ensureFeatures(cache.state);setEnvelope({...cache,state:s});setOnline(false);land(s);arrive(s);}else setError(e.message);}finally{if(!stop)setLoading(false);}})();
+  }catch(e){const cache=stored('japan.snapshot',null);if(!e.status&&cache&&Date.now()-cache.savedAt<45*86400000){const s=adopt(ensureFeatures(cache.state));setEnvelope({...cache,state:s});setOnline(false);land(s);arrive(s);}else setError(e.message);}finally{if(!stop)setLoading(false);}})();
   // The day the phone opened on is checked against the plan once it is here, and a stop that was
   // restored from the phone rather than the address is let go of if it has since been finished.
   // A Shortcut, Siri or the Action button asked for something on the way in: do it once the

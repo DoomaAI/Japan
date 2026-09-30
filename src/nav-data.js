@@ -1,3 +1,4 @@
+import {moduleOn} from './plan-context.js';
 // One registry drives both the bottom bar and the More screen, so every page is reachable
 // from exactly one place and nothing can be orphaned when a new page is added.
 export const PAGES={
@@ -108,7 +109,14 @@ export const setHeldBack=ids=>{held=new Set(ids||[]);};
 export const isHeldBack=id=>held.has(id);
 // The parents' screens: forwarded email, their money, and the family's passports.
 export const PARENT_PAGES=['inbox','ledger','paying','vault'];
-const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(!PARENT_PAGES.includes(id)||user?.role==='parent')&&isAvailable(id)&&!isHeldBack(id);
+// And what kind of plan this is (plan-context.js): a dinner has no packing list and no
+// passports page, a wedding has no missions. The app hands the plan record over when the plan
+// arrives, and the type's switches and the organiser's own take the page out of the bar, More,
+// favourites and search alike. A plan with no record is the family trip, which switches off nothing.
+let plan=null;
+export const setPlan=next=>{plan=next||null;};
+export const isModuleOn=id=>!plan||moduleOn(plan,id);
+const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(!PARENT_PAGES.includes(id)||user?.role==='parent')&&isAvailable(id)&&!isHeldBack(id)&&isModuleOn(id);
 export const pagesFor=user=>Object.keys(PAGES).filter(id=>allowed(id,user));
 // The handful of pages wanted in a hurry, in one row at the top of More, above the long list:
 // the ones reached for with a child crying, a waiter waiting or the sky darkening. Nothing

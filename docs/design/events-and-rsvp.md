@@ -1,6 +1,11 @@
 # Design note: any gathering, not only a trip
 
-Status: not built. A brainstorm and a first specification for the commercial version, logged so it can be picked up. Nothing here is for the family trip.
+Status: a brainstorm and a first specification for the commercial version, being built in the order at the end. Nothing here changes what the family trip shows.
+
+- **Built:**
+  - Step 1, the plan type and plan context: `src/plan-context.js` (types, the record, module switches, the checks), the plan record on every state through `ensureFeatures`, the `planSettings` operation, the clock in `src/timing.js` reading the plan's time zone and the calendar computing instants from it, the menu in `src/nav-data.js` dropping a type's modules, the look reading the plan's country, and **This plan** under Settings for a parent. The second fixture, a dinner for six in Sydney, is `tests/fixtures/dinner.json`, run by `tests/plan-context.test.mjs`.
+- **Not built:** steps 2 to 10 below.
+- **Still written in after step 1:** the yen helpers and `¥` formatting (the record carries the currency; nothing reads it yet), `en-AU` dates on the phone, the `+09:00` offsets in about twenty files outside `timing.js`, the family names in `MEMBERS`, `BOYS` and the thank-you notes (step 2), the Japan wording in the AI prompts (layer 4) and the destination content (layer 5).
 
 Date: 30 September 2026 (trip day 10 of 16).
 

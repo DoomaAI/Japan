@@ -94,6 +94,10 @@ The original 72-page guide was designed once, from the plan as it stood before w
 Status: Done. Whole trip, from today on, or one day; toggles for original artwork, sketch maps and the front/back pages. Checked in headless Chromium: 20 sheets, 38 A4 pages for the whole trip.
 
 Not yet done, for a later pass: per-day banner crops that avoid the original's baked-in titles; editorial pages (food, matcha, shopping, etiquette) generated from the hunts, food list and shortlist; page numbers in a running footer (browser print support for these is uneven, Safari especially); a server-side PDF so the file can be sent without a browser print dialog.
+## Any gathering, not only a trip — logged 30 September 2026
+
+The design note [docs/design/events-and-rsvp.md](design/events-and-rsvp.md) (#293) sets out plan types, invitations, RSVP by household, sign-ups, seating, vendors and run sheets, and a ten-step build order that brings tenancy forward. Step 1, the plan type and plan context, is built: every state now carries a plan record (type, time zone, country, currencies, languages, module switches) that the clock, the calendar, the menu and the look read, with a second test fixture that is a dinner in Sydney. The family trip is type Trip and switches off nothing.
+
 ## Outstanding after the 29 September session — logged 30 September 2026
 
 Nineteen PRs merged on 29 September (#211–#261, this session's share). Four things could not be finished from the cloud session and are yours to do; none is code.
