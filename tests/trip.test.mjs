@@ -12,7 +12,7 @@ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url
 const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'},child_=child;
 
 test('every day, activity and alternative is linked to a real guide page',()=>{
- assert.equal(seed.days.length,16);assert.equal(seed.steps.length,246);assert.equal(new Set(seed.steps.map(s=>s.id)).size,246);
+ assert.equal(seed.days.length,16);assert.equal(seed.steps.length,251);assert.equal(new Set(seed.steps.map(s=>s.id)).size,251);
  for(const s of seed.steps){assert.ok(seed.days.some(d=>d.date===s.day));assert.ok(s.page>=1&&s.page<=72);assert.equal(Boolean(s.group),Boolean(s.option));}
  for(const [g,o]of Object.entries(seed.choices))assert.ok(seed.steps.some(s=>s.group===g&&s.option===o));
 });
@@ -916,7 +916,7 @@ test('every stop in the plan has Japanese to show, even where the catalogue leav
 test('address matches preserve exact branches and leave ambiguous areas or station entrances alone',async()=>{
  const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
  const {resolveLocation,destinationFor,locationsForPage}=await import('../src/locations.js');const state={...seed,locations};
- assert.equal(seed.steps.filter(s=>resolveLocation(state,s)).length,195);
+ assert.equal(seed.steps.filter(s=>resolveLocation(state,s)).length,199);
  const harry=resolveLocation(state,'HARRY Harajuku Terrace');assert.match(harry.name,/Terrace/);assert.doesNotMatch(harry.name,/Station Front/);
  assert.equal(resolveLocation(state,'Harajuku Tokyo'),null);assert.equal(resolveLocation(state,'Tokyo Station Yaesu entrance'),null);
  assert.equal(resolveLocation(state,'THE MATCHA TOKYO Omotesando').name,'THE MATCHA TOKYO Omotesando');
@@ -9132,12 +9132,12 @@ test('a stop that named several places is split once into its own stops, keeping
   old.steps=old.steps.filter(s=>!s.id.startsWith(`${id}-`));
   Object.assign(first,{title:plan.title,duration:30});
  }
- assert.equal(old.steps.length,237);
+ assert.equal(old.steps.length,242);
  const bridge=old.steps.find(s=>s.id==='2026-09-26-06');
  Object.assign(bridge,{status:'done',completedAt:'2026-09-26T01:00:00.000Z',time:'10:00'});
  const hachiko=old.steps.find(s=>s.id==='2026-09-22-13');hachiko.title='Hachiko only';
  const state=upgraded(old);
- assert.equal(state.steps.length,237+8);
+ assert.equal(state.steps.length,242+8);
  const day=activeSteps(state,'2026-09-26').map(s=>[s.title,s.time,s.status]);
  assert.deepEqual(day.filter(([t])=>['Togetsukyo Bridge','% Arabica'].includes(t)),[['Togetsukyo Bridge','10:00','done'],['% Arabica','10:20','done']]);
  // A stop the family renamed is theirs now, and a second read does not split again.
@@ -9700,6 +9700,33 @@ test('28 September has a time on every stop, from the guide, and the live trip p
  assert.equal(timesSeeded({timesSeed:1,steps:[{...rik.steps[0],notes:'Get two'}]}).steps[0].notes,'Get two');
  const moved={...out,steps:[{...out.steps[0],time:'10:30'}]};
  assert.equal(timesSeeded(moved).steps[0].time,'10:30','and it only ever runs once');
+});
+test('30 September follows the family\'s own Disneyland plan, and the live trip picks it up once',async()=>{
+ const {DISNEY_PLAN,disneySeeded,DISNEY_SEED}=await import('../src/disney-day.js');
+ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url),'utf8'));
+ const day=seed.steps.filter(s=>s.day==='2026-09-30').sort((a,b)=>a.order-b.order);
+ const at=title=>day.find(s=>s.title===title)?.time;
+ assert.equal(at('Happy Entry: into the park'),'08:45');assert.equal(at('Peter Pan\'s Flight'),'09:00');assert.equal(at('Pooh\'s Hunny Hunt'),'09:45');
+ assert.equal(at('Big Thunder Mountain'),'13:00');assert.equal(at('Splash Mountain'),'14:00');assert.equal(at('Night High Halloween'),'20:50');
+ assert.ok(!day.some(s=>s.group),'no more choosing between Big Thunder and Splash');assert.equal(seed.choices['disney-afternoon'],undefined);
+ // The live trip, as the guide import left it: untouched stops take the plan, a renamed one stays, progress stays.
+ const live={choices:{'disney-afternoon':'Big Thunder first'},bin:[],steps:[
+  {id:'2026-09-30-05',day:'2026-09-30',title:'Pooh\'s Hunny Hunt',time:'09:00',originalTime:'09:00',duration:30,status:'done',order:40,group:'',option:'',page:49},
+  {id:'2026-09-30-12',day:'2026-09-30',title:'Big Thunder Mountain — DPA target',time:'13:30',duration:30,status:'todo',order:110,group:'disney-afternoon',option:'Big Thunder first',page:49},
+  {id:'2026-09-30-14',day:'2026-09-30',title:'Splash Mountain first',time:'14:00',duration:30,status:'todo',order:130,group:'disney-afternoon',option:'Splash first / skip Big Thunder',page:49},
+  {id:'2026-09-30-15',day:'2026-09-30',title:'Haunted Mansion, then churros',time:'15:00',duration:30,status:'todo',order:140,group:'',option:'',page:49},
+ ]};
+ const out=disneySeeded(live),get=id=>out.steps.find(s=>s.id===id);
+ assert.deepEqual([get('2026-09-30-05').time,get('2026-09-30-05').status],['09:45','done']);
+ assert.deepEqual([get('2026-09-30-12').title,get('2026-09-30-12').time,get('2026-09-30-12').group],['Big Thunder Mountain','13:00','']);
+ assert.equal(get('2026-09-30-15').title,'Haunted Mansion, then churros','a stop the family renamed is theirs');
+ assert.equal(get('2026-09-30-14'),undefined);assert.equal(out.bin[0].item.title,'Splash Mountain first','the alternative can be put back');
+ assert.equal(out.choices['disney-afternoon'],undefined);
+ for(const p of DISNEY_PLAN.filter(p=>!p.was))assert.equal(get(p.id).title,p.title,`${p.title} is added`);
+ assert.equal(out.disneySeed,DISNEY_SEED);
+ const moved={...out,steps:out.steps.map(s=>s.id==='2026-09-30-12'?{...s,time:'13:15'}:s)};
+ assert.deepEqual(disneySeeded(moved),moved,'and it only ever runs once');
+ assert.equal(disneySeeded(out).steps.length,out.steps.length);
 });
 test('a stop reached by several legs is ticked leg by leg, and the last leg ticks the stop',async()=>{
  const {legCount,legsTicked}=await import('../src/route-data.js');
@@ -10637,6 +10664,32 @@ test('one line under each title, and the rest of the why behind How this works',
  assert.match(css,/\.how-this-works summary\{[^}]*min-height:40px/,'the fold is a proper tap target');
 });
 
+test('a look is chosen by the person or left to the destination, and there is one look so far',async()=>{
+ const {LOOKS,LOOK_CHOICES,BY_COUNTRY,COUNTRY_LOOKS,TRIP_COUNTRY,readLook,saveLook,resolveLook,applyLook}=await import('../src/theme.js');
+ const store=(saved={})=>({getItem:k=>saved[k]??null,setItem:(k,v)=>{saved[k]=v;},saved});
+ // Left to the destination until someone chooses, however it was stored, and when storage is refused.
+ assert.equal(readLook(store()),BY_COUNTRY);
+ assert.equal(readLook(store({'japan.look':'"guide"'})),'guide');
+ assert.equal(readLook(store({'japan.look':'neon'})),BY_COUNTRY);
+ assert.equal(readLook({getItem(){throw new Error('no');}}),BY_COUNTRY);
+ const st=store();assert.equal(saveLook('guide',st),'guide');assert.equal(st.saved['japan.look'],'guide');assert.equal(saveLook('nope',st),BY_COUNTRY);
+ // The person's choice wins; otherwise the destination's; a country with none of its own gets the first look.
+ assert.equal(resolveLook('guide','IT'),'guide');
+ assert.equal(resolveLook(BY_COUNTRY,'jp'),COUNTRY_LOOKS.JP);
+ assert.equal(resolveLook(BY_COUNTRY,'IT'),LOOKS[0][0]);
+ assert.equal(resolveLook('gone',null),LOOKS[0][0],'a look that has been retired falls back rather than leaving the page bare');
+ assert.equal(TRIP_COUNTRY,'JP');
+ for(const look of Object.values(COUNTRY_LOOKS))assert.ok(LOOKS.some(([id])=>id===look),`${look} is a real look`);
+ assert.deepEqual(LOOK_CHOICES.map(([id])=>id),[BY_COUNTRY,...LOOKS.map(([id])=>id)]);
+ const doc={documentElement:{dataset:{}}};
+ assert.equal(applyLook(BY_COUNTRY,'JP',doc),'guide');assert.equal(doc.documentElement.dataset.look,'guide');
+ assert.equal(applyLook(BY_COUNTRY,'JP',null),'guide','no document, nothing to do');
+ const read=async f=>readFile(new URL(`../src/${f}`,import.meta.url),'utf8');
+ // Put on the page before the first paint, and no picker in Settings while there is nothing to pick.
+ assert.match(await read('main.jsx'),/applyLook\(readLook\(\)\);\napplyTheme\(readTheme\(\)\);/);
+ assert.match(await read('Settings.jsx'),/\{LOOKS\.length>1&&<div className="segmented theme-picker" role="radiogroup" aria-label="Look">/);
+});
+
 test('the palette is named once, the fonts carry their own weights, and night is a choice',async()=>{
  const {THEMES,readTheme,saveTheme,isDark,applyTheme,THEME_COLOUR}=await import('../src/theme.js');
  const store=(saved={})=>({getItem:k=>saved[k]??null,setItem:(k,v)=>{saved[k]=v;},saved});
@@ -10816,7 +10869,9 @@ test('nothing tappable is under 40px, past days still read, and a press shows',a
  assert.match(sweep,/\.timeline \.timeline-tick input,\.timeline-tick input\{width:40px;height:40px;min-height:40px\}/);
  // Where it cannot, the hit area is widened around the same drawing.
  assert.match(sweep,/\.timeline button\[aria-label\^="Move "\]::after,\.to-options::after,\.remove-stop::after,\.drag-handle::after\{content:'';position:absolute;inset:-8px -10px/);
- assert.match(sweep,/\.timeline-insert::after\{content:'';position:absolute;inset:-12px 0/);
+ assert.match(sweep,/\.timeline-insert::before\{content:'';position:absolute;inset:-12px 0/);
+ // The hit area must not take the dashed line's pseudo-element, or the line is dragged up into the stop above.
+ assert.doesNotMatch(sweep,/\.timeline-insert::after\{/);
  assert.match(sweep,/\.callout button::after\{content:'';position:absolute;inset:-10px -4px\}/,'a button inside a sentence keeps its line but gains a finger’s worth of room');
  assert.match(sweep,/\.nav-grip::after\{content:'';position:absolute;inset:-14px -8px/);
  // Past days on the strip are dimmed, not faded out.

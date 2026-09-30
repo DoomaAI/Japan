@@ -13,6 +13,7 @@ import {readMenu,readPacket,menuReaderReady} from './menu.mjs';
 import {translatePhrase,translatorReady,translateTicketText,TICKET_FIELDS,TICKET_DIRECTIONS,ticketTranslationKey} from './translate.mjs';
 import {researchPlace,researchReady} from './research.mjs';
 import {researchPayMethod} from './pay-research.mjs';
+import {checkLocal} from './local-check.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {findEvents,eventsReady} from './events.mjs';
 import {askTrip,askReady} from './ask.mjs';
@@ -297,6 +298,12 @@ export default async function handler(req,res){
   if(route==='research'&&post){
    parent(user);const {state}=await readTrip();
    return json(res,await researchPlace(b,state));
+  }
+  // A Like a local card checked against the web for our dates. Nothing is saved here: the phone
+  // saves what came back through the localCheck mutation, so every phone reads it offline.
+  if(route==='local-check'&&post){
+   parent(user);const {state}=await readTrip();
+   return json(res,await checkLocal(b,state));
   }
   // Suggestions read the travel party and the plan and hand back ideas. Nothing is added to the
   // board here: each one is put up, and voted on, by a person.

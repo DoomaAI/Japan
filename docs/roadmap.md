@@ -99,6 +99,7 @@ Nineteen PRs merged on 29 September (#211–#261, this session's share). Four th
 | 10. Trip recap and photobook | Done (#200, #202) | Our trip story and the Photobook |
 | 11. Follow-along link for family at home | Done (#204) | Built as a keyed read-only link rather than an invite role; see the plan above |
 | 12. App Store and Google Play apps (commercial) | Parked 29 September 2026; after the trip | Decided: commercial, published by I'm In Ventures Pty Ltd on organisation accounts, cloud builds. First action: D-U-N-S number, company domain and email. Full log in [native-apps.md](native-apps.md) |
+| 13. Choose your own look, or dress the trip by country | Queued 30 September 2026; after the trip, with the commercial build | Seam built: `LOOKS`, `COUNTRY_LOOKS` and `applyLook()` in `src/theme.js`, default *Match the destination*, Settings picker hidden until a second look exists. Next: design a second look (a CSS block under `:root[data-look=…]`), then read the country from the trip context (layer 1) instead of `TRIP_COUNTRY`. Log in [commercialisation.md](commercialisation.md#looks-chosen-by-the-person-or-by-the-destination) |
 
 **Built but not yet checked on a real phone or with the live API:** the card fee lookup (needs `ANTHROPIC_API_KEY`), and every screen added in #149–#152, which has only been tried in a desktop browser at phone width.
 

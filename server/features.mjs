@@ -8,6 +8,7 @@ const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {PRIORITIES,validPriorities} from '../src/decide-data.js';
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_FOR,normaliseThankYou,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {IC_MAX,RECEIPT_TYPES} from '../src/ledger-data.js';
+import {LOCAL_EXPERIENCES,cleanLocalCheck} from '../src/local-data.js';
 import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
@@ -1326,6 +1327,16 @@ export function extraOperation(state,op,user,fail,now){
   next.by=user.name;next.at=now;
   state.shopLog={...(state.shopLog||{}),[op.id]:next};
   return {summary:null,important:false,title:item.title};
+ }else if(op.type==='localCheck'){
+  // What a check of a Like a local card against the web found, saved for every phone. A parent
+  // runs the check (it spends a lookup); the route hands the findings back and this keeps them,
+  // cleaned to the one shape the trip stores, with who checked and when.
+  if(!parent)fail('A parent can make this change.',403);
+  const item=LOCAL_EXPERIENCES.find(e=>e.id===op.id);
+  if(!item)fail('That card is not one of ours.',404);
+  const {value,error}=cleanLocalCheck(op.check);if(error)fail(error);
+  state.localChecks={...(state.localChecks||{}),[op.id]:{...value,by:user.name,at:now}};
+  return {summary:`${user.name} checked ${item.title} on the web${value.changed?': something differs from the card':''}.`,important:value.changed,title:item.title};
  }else if(op.type==='stayEdit'){
   // What a hotel's own app would know and the plan cannot: the confirmation number, the front
   // desk's phone, agreed check-in and check-out times, a note. A parent's, kept per hotel.

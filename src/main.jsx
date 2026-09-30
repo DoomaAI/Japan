@@ -12,6 +12,7 @@ import {ThankYouNote,ThankYouEditor} from './ThankYou.jsx';
 import TicketViewer from './TicketViewer.jsx';
 import GuideBook,{LAST_PAGE} from './GuideBook.jsx';
 import GuideReader from './GuideReader.jsx';
+import Opening from './Opening.jsx';
 import TicketTranslate from './TicketTranslate.jsx';
 import FileTranslate from './FileTranslate.jsx';
 import DocumentThumb from './DocumentThumb.jsx';
@@ -21,7 +22,7 @@ import Phrasebook,{PhraseOfDay} from './Phrasebook.jsx';
 import {phraseForDay} from './phrasebook-data.js';
 import {phraseSeenBy,phraseQueue} from './trip-features.js';
 import {deepLinkAction,withoutDeepLink} from './deep-links.js';
-import {readTheme,applyTheme} from './theme.js';
+import {readTheme,applyTheme,readLook,applyLook} from './theme.js';
 import FunFacts,{FactOfDay,CardFacts,factAloudFor} from './FunFacts.jsx';
 import {factForDay,factsForStep} from './fact-data.js';
 import {factSeenBy,factsSeenBy,factQueue} from './trip-features.js';
@@ -49,6 +50,7 @@ import OnThisDay from './OnThisDay.jsx';
 import RunUp from './RunUp.jsx';
 import DailyJapan from './DailyJapan.jsx';
 import TodaysJapan from './TodaysJapan.jsx';
+import LikeALocalCard from './LikeALocalCard.jsx';
 import TravelGuide from './TravelGuide.jsx';
 import DayMap from './DayMap.jsx';
 import BookingWindows,{BookingWindowsCard} from './BookingWindows.jsx';
@@ -101,6 +103,7 @@ const Stamps=lazy(()=>import('./Stamps.jsx'));
 const Leaderboard=lazy(()=>import('./Leaderboard.jsx'));
 const TripShop=lazy(()=>import('./TripShop.jsx'));
 const Apps=lazy(()=>import('./Apps.jsx'));
+const LikeALocal=lazy(()=>import('./LikeALocal.jsx'));
 const Arrival=lazy(()=>import('./Arrival.jsx'));
 const AskTrip=lazy(()=>import('./AskTrip.jsx'));
 const Ledger=lazy(()=>import('./Ledger.jsx'));
@@ -132,11 +135,6 @@ const maps=place=>isMapLink(place)?place:'https://www.google.com/maps/search/?ap
 // The Days screen's book opens on the cover the offline shell keeps, so it is there with no signal.
 const coverSource=n=>n===1?'/cover.jpg':`/api/guide?page=${n}`;
 const stored=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
-// The opening screen says how long until we fly while the trip is still on its way from the server.
-// The dates come from the copy kept on this phone at the last sync, so a first open has none and
-// shows nothing, and it is the same count the Home countdown gives once the trip is in.
-function OpeningCountdown(){const c=tripCountdown(stored('japan.snapshot',null)?.state?.days);if(!c)return null;
- return <p className={`opening-countdown ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span>{c.days===1?'day to go':'days to go'}</span></>:c.phase==='during'?<><strong>{`Day ${c.day}`}</strong><span>{`of ${c.total} days in Japan`}</span></>:<span>{c.text}</span>}</p>;}
 // Nothing waits forever on a train: a read gets twenty seconds and a save or an answer fifty,
 // which is inside the minute the server allows itself. A request that runs out of time, or one
 // that never connects, comes back as a plain sentence with no status, which is what the callers
@@ -557,7 +555,7 @@ function App(){
   if(navigator.onLine&&!state.thankYou.seen?.[note.day])await mutate({type:'thankYouSeen',day:note.day});
   setModal(null);
  }
- if(loading)return <main className="entry"><div className="brand-mark">日</div><h1>Japan 2026</h1><OpeningCountdown/><p>Opening your family trip…</p></main>;
+ if(loading)return <Opening days={stored('japan.snapshot',null)?.state?.days}/>;
  if(!state)return <main className="entry"><img className="entry-photo" src="/cover.jpg" alt="Pasfield family Japan Travel Guide 2026 cover"/><div className="brand-mark">日</div><p className="eyebrow">THE PASFIELD FAMILY</p><h1>Japan, together.</h1><p>Open your private family link to join the trip. No email or password needed.</p>{error&&<p className="callout">{error}</p>}<p>The private parent link is prepared when the app is deployed. No setup key is required.</p></main>;
  // A screen about one day opens the same way wherever you are: which day it is, and the strip
  // of dates to move along. Written once here rather than on each screen, because the strip has
@@ -660,7 +658,8 @@ function App(){
   running:<Running state={visibleState} day={day}/>,
   packing:<PackingNudge state={visibleState} user={user} day={day} go={go}/>,
   todos:<DayTodos state={visibleState} user={user} day={day} mutate={mutate} busy={busy} go={go}/>,
-  finds:<DayFinds state={visibleState} day={day} go={go}/>
+  finds:<DayFinds state={visibleState} day={day} go={go}/>,
+  local:<LikeALocalCard state={visibleState} today={japanDate(now)} day={day} go={go}/>
  };
  // One place decides what a phrase sounds like, so every SayIt on every screen offers the
  // family's own recording where there is one without being handed props down five levels.
@@ -712,6 +711,7 @@ function App(){
   {tab==='windows'&&<BookingWindows state={visibleState} user={user} now={now} mutate={mutate} busy={busy} go={go}/>}
   {tab==='shop'&&<TripShop state={visibleState} user={user} today={japanDate(now)} go={go} mutate={mutate} busy={busy}/>}
   {tab==='apps'&&<Apps state={visibleState} today={japanDate(now)} dayLabel={fmtDay}/>}
+  {tab==='local'&&<LikeALocal state={visibleState} user={user} today={japanDate(now)} dayLabel={fmtDay} mutate={mutate} busy={busy} notice={notice} go={go} request={request} config={config} online={online}/>}
   {tab==='vault'&&<Vault state={visibleState} user={user} request={request} notice={notice} online={online}/>}
   {tab==='arrival'&&<Arrival homeFirst={japanDate(now)>=(state.days[0]?.date||'')}/>}
   {tab==='predictions'&&<Predictions state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy}/>}
@@ -958,7 +958,8 @@ class Boundary extends React.Component{
 // A follower's link opens the read-only page and nothing else: no session is asked for, and
 // none of the app behind it is started.
 const followKey=new URLSearchParams(location.search).get('follow');
-// The phone's choice of light or dark is put on the page before anything is drawn.
+// The phone's look (its own or the destination's) and its light or dark go on the page before anything is drawn.
+applyLook(readLook());
 applyTheme(readTheme());
 createRoot(document.getElementById('root')).render(<Boundary>{followKey?<FollowAlong followKey={followKey}/>:<App/>}</Boundary>);
 
