@@ -19,7 +19,7 @@ export function followView(state,today){
     id:s.id,title:String(s.title||''),stars:avg(stepRatings(state,s.id)),kudos:kudosFor(state,'stop',s.id).names,
     said:Object.entries(stepThoughts(state,s.id)).map(([person,t])=>({person,text:String(t?.text||'')})).filter(x=>x.text)}));
    return {date:d.date,number:all.indexOf(d)+1,title:String(d.title||''),city:String(d.city||''),
-    photos:photosFor(state,d.date).filter(p=>p.pathname).map(p=>({id:p.id,by:photoOwner(p),best:p.id===winner,kudos:kudosFor(state,'photo',p.id).names})),
+    photos:photosFor(state,d.date).filter(p=>p.pathname).map(p=>({id:p.id,by:photoOwner(p),best:p.id===winner,frame:!!p.frame,kudos:kudosFor(state,'photo',p.id).names})),
     stops,diary:String(state.journal?.[d.date]||''),
     noticed:noticedFor(state,{day:d.date}).map(n=>({by:n.by,text:String(n.text||'')}))};
   }).reverse()

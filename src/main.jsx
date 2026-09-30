@@ -58,6 +58,7 @@ import TravelGuide from './TravelGuide.jsx';
 import DayMap from './DayMap.jsx';
 import BookingWindows,{BookingWindowsCard} from './BookingWindows.jsx';
 import FollowAlong from './FollowAlong.jsx';
+import FollowFrame from './FollowFrame.jsx';
 import Safety,{LostCards} from './Safety.jsx';
 import MorningChecklist from './Morning.jsx';
 import StayCard from './StayCard.jsx';
@@ -977,11 +978,11 @@ class Boundary extends React.Component{
 }
 // A follower's link opens the read-only page and nothing else: no session is asked for, and
 // none of the app behind it is started.
-const followKey=new URLSearchParams(location.search).get('follow');
+const followKey=new URLSearchParams(location.search).get('follow'),frameMode=new URLSearchParams(location.search).get('frame')==='1';
 // The phone's look (its own or the destination's) and its light or dark go on the page before anything is drawn.
 applyLook(readLook());
 applyTheme(readTheme());
-createRoot(document.getElementById('root')).render(<Boundary>{followKey?<FollowAlong followKey={followKey}/>:<App/>}</Boundary>);
+createRoot(document.getElementById('root')).render(<Boundary>{followKey?(frameMode?<FollowFrame followKey={followKey}/>:<FollowAlong followKey={followKey}/>):<App/>}</Boundary>);
 
 function ShowLocation({state,step,notice,maps}){
  const {english,japanese,japaneseAddress,address,phone,copyText}=showLocationDetails(state,step);

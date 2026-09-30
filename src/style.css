@@ -802,3 +802,12 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .nightstand{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75rem;text-align:center;padding:1rem;border-radius:16px;background:var(--ink);color:var(--paper);transition:opacity .4s}
 .nightstand.dim{opacity:.35}.nightstand-clock{font-size:clamp(4rem,22vw,8rem);line-height:1;font-variant-numeric:tabular-nums}.nightstand-lines p{margin:.25rem 0;display:flex;align-items:center;justify-content:center;gap:.4rem;flex-wrap:wrap}.nightstand small{color:var(--paper);opacity:.7}
 .next-time{margin-top:.5rem}.next-time .chips{margin:.4rem 0}.next-time-line{display:flex;align-items:center;gap:.3rem;color:var(--muted);margin:.2rem 0 0}
+/* The frame: the follow link on a screen in a living room. */
+.frame{position:fixed;inset:0;margin:0;padding:0;background:rgb(0,0,0);display:flex;align-items:center;justify-content:center;overflow:hidden;transition:opacity .6s}
+.frame.dim{opacity:.25}.frame>img{width:100%;height:100%;object-fit:contain;animation:frame-in .8s ease}
+@keyframes frame-in{from{opacity:0}to{opacity:1}}
+.frame-caption{position:absolute;left:1rem;bottom:1rem;right:6rem;display:flex;flex-direction:column;gap:.2rem;color:rgb(255,255,255);text-shadow:0 1px 4px rgba(0,0,0,.8)}.frame-caption strong{font-size:1.1rem}.frame-caption span{opacity:.85}
+.frame-clock{position:absolute;right:1rem;bottom:1rem;color:rgb(255,255,255);font-size:1.4rem;font-variant-numeric:tabular-nums;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+.frame-clap{position:absolute;top:1rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:rgb(255,255,255);padding:.4rem .8rem;border-radius:999px}
+.frame-hint{position:absolute;top:1rem;right:1rem;color:rgb(255,255,255);opacity:.5}.frame-ask{position:absolute;inset:auto 1rem 5rem 1rem;background:var(--paper);color:var(--ink);padding:1rem;border-radius:12px}
+.frame-empty{color:rgb(255,255,255);flex-direction:column;gap:.5rem;text-align:center;padding:1rem}

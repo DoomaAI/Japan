@@ -115,6 +115,8 @@ Nineteen PRs merged on 29 September (#211–#261, this session's share). Four th
 - [ ] Decide per phone whether to keep an offline copy (only on a phone with a passcode only that parent uses), then check it opens in airplane mode.
 - [ ] After the trip: consider whether to keep the documents for the next trip or delete them.
 
+**The frame** (the follow link in frame mode) uses the follow key itself. A key per frame, so one frame can be withdrawn without breaking a grandparent's phone link, and email-to-frame delivery for Aura, Nixplay and Skylight frames, are logged for the commercial version in [commercialisation.md](commercialisation.md) terms; the latter needs outbound email, which the inbound forwarding module does not provide.
+
 **What the boys are ready for** is built on `claude/child-levels` (the reading and awareness dials in Settings, read by the facts, the notes, the phrasebook, the missions, Home's widgets, the menus and the model's brief) and not yet tried on a phone. Left for a later pass:
 
 - [ ] The purse for a boy at *With a grown-up*: a picture and "enough for a snack" rather than a yen balance. Today the number shows whatever the dial says.

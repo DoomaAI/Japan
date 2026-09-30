@@ -428,6 +428,13 @@ export function extraOperation(state,op,user,fail,now){
   const votes={...(state.photoVotes[op.day]||{})};
   if(op.id===null)delete votes[op.person];else votes[op.person]=op.id;
   state.photoVotes={...state.photoVotes,[op.day]:votes};
+ }else if(op.type==='photoFrame'){
+  // What goes on the grandparents' frame is a parent's choice, photo by photo.
+  if(!parent)fail('A parent chooses what goes on the frame.',403);
+  const entry=state.photos.find(p=>p.id===op.id);if(!entry)fail('Photo not found.',404);
+  if(typeof op.on!=='boolean')fail('On the frame, or not.');
+  entry.frame=op.on;
+  return {summary:null,important:false,title:op.on?'On the frame':'Off the frame'};
  }else if(op.type==='photoRemove'){
   const entry=state.photos.find(p=>p.id===op.id);if(!entry)fail('Photo not found.',404);
   // Yours to remove if it is your photo or you are the one who put it on.

@@ -1,7 +1,7 @@
 import React,{useState,useRef} from 'react';
 import {photoPosition} from './exif-gps.js';
 import {upload} from '@vercel/blob/client';
-import {Camera,Trophy,Trash2,Check,Sparkles,Users,AlertCircle} from 'lucide-react';
+import {Camera,Trophy,Trash2,Check,Sparkles,Users,AlertCircle,Tv} from 'lucide-react';
 import {shrinkPhoto} from './MenuReader.jsx';
 import {kudosFor,kudosLine} from './kudos-data.js';
 import {ageOf} from './child-levels.js';
@@ -105,6 +105,7 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
       {!whole&&<button type="button" className={myVote===p.id?'primary':''} disabled={busy}
        onClick={()=>mutate({type:'photoVote',person:user.name,day,id:myVote===p.id?null:p.id})}>
        {myVote===p.id?<><Check size={14}/> My vote</>:'Vote for this'}{count?` · ${count}`:''}</button>}
+      {parent&&<button type="button" className={p.frame?'primary':''} aria-pressed={!!p.frame} disabled={busy} onClick={()=>mutate({type:'photoFrame',id:p.id,on:!p.frame})}><Tv size={14}/> {p.frame?'On the frame':'Put on the frame'}</button>}
       {parent&&<label className="photo-assign">Whose?
        <select value={owner} disabled={busy} onChange={e=>mutate({type:'photoAssign',id:p.id,person:e.target.value})}>
         {state.members.map(name=><option key={name}>{name}</option>)}</select></label>}

@@ -11024,3 +11024,44 @@ test('next time: the lesson on a stop, per person, in one list and in what the m
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/\{tab==='nexttime'&&<NextTime state=\{visibleState\} go=\{go\} notice=\{notice\}\/>\}/);
 });
+test('the frame: the follow-along link on a screen in a living room, showing what a parent chose',async()=>{
+ const {frameSet,frameCaption,nextIndex,nightHour,frameUrl,FRAME_KEEP,FRAME_SECONDS}=await import('../src/frame-data.js');
+ const {followView}=await import('../src/follow-data.js');
+ let state=upgraded(structuredClone(seed));
+ const day=seed.days[1].date,day2=seed.days[2].date;
+ const shot=(id,d,by)=>({id,day:d,by,for:by,pathname:`p/${id}.jpg`,type:'image/jpeg',at:'2026-09-22T02:00:00.000Z'});
+ state.photos=[shot('a',day,'Nate'),shot('b',day,'Boston'),shot('c',day2,'Lauren'),shot('d',day2,'Damien')];
+ // Nothing chosen: the frame is empty even though the follow page shows every photo.
+ assert.equal(followView(state,day2).days[0].photos.length,2);
+ assert.deepEqual(frameSet(followView(state,day2)),[]);
+ // A parent puts one on; a boy cannot; the photo of the day is on by itself.
+ state=applyOperation(state,{type:'photoFrame',id:'b',on:true},parent);
+ assert.throws(()=>applyOperation(state,{type:'photoFrame',id:'a',on:true},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'photoFrame',id:'nope',on:true},parent),e=>e.status===404);
+ assert.throws(()=>applyOperation(state,{type:'photoFrame',id:'a',on:'yes'},parent));
+ state=applyOperation(state,{type:'photoVote',person:'Damien',day:day2,id:'c'},parent);
+ const view=followView(state,day2);
+ assert.deepEqual(view.days.map(d=>d.photos.map(p=>[p.id,p.best,p.frame])),[[['c',true,false],['d',false,false]],[['a',false,false],['b',false,true]],[]]);
+ const set=frameSet(view);
+ assert.deepEqual(set.map(p=>[p.id,p.best,p.number]),[['c',true,3],['b',false,2]],'newest day first, the photo of the day leading');
+ assert.equal(frameCaption(set[0]),`Day 3 of ${seed.days.length} · ${seed.days[2].city} · ${seed.days[2].title}`);
+ // Taken off again.
+ state=applyOperation(state,{type:'photoFrame',id:'b',on:false},parent);
+ assert.deepEqual(frameSet(followView(state,day2)).map(p=>p.id),['c']);
+ // The frame never sends more than it can keep, cycles round, and dims at night in its own clock.
+ assert.ok(FRAME_KEEP>=12&&FRAME_SECONDS>=10);
+ assert.equal(nextIndex(2,3),0);assert.equal(nextIndex(0,3),1);assert.equal(nextIndex(5,0),0);
+ assert.ok(nightHour(22)&&nightHour(3)&&!nightHour(9)&&!nightHour(21));
+ assert.equal(frameUrl('https://x.test/?follow=abc'),'https://x.test/?follow=abc&frame=1');assert.equal(frameUrl(''),'');
+ // Where it lands: the mount, the photo toggle, the Settings link.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/frameMode=new URLSearchParams\(location\.search\)\.get\('frame'\)==='1'/);
+ assert.match(main,/followKey\?\(frameMode\?<FollowFrame followKey=\{followKey\}\/>:<FollowAlong followKey=\{followKey\}\/>\):<App\/>/);
+ const photos=await readFile(new URL('../src/PhotoDay.jsx',import.meta.url),'utf8');
+ assert.match(photos,/\{parent&&<button[^>]*onClick=\{\(\)=>mutate\(\{type:'photoFrame',id:p\.id,on:!p\.frame\}\)\}>/,'a parent’s toggle on each photo');
+ const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
+ assert.match(settings,/navigator\.clipboard\.writeText\(frameUrl\(url\)\)/);
+ const frame=await readFile(new URL('../src/FollowFrame.jsx',import.meta.url),'utf8');
+ assert.match(frame,/navigator\.wakeLock\?\.request\('screen'\)/);
+ assert.match(frame,/target:'photo',id:shot\.id,emoji:'👏'/,'a tap claps');
+});
