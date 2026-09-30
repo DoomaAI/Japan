@@ -454,6 +454,6 @@ test('the stage tracker: five stages to the booking that cannot move, tapped or 
  const pinned={...tokyo,pin:{lat:35.68,lng:139.76}};
  assert.equal(stageFromPosition(seed,pinned,{lat:35.6801,lng:139.7601}),5,'at the gate');
  const main=await source('main.jsx'),home=await source('HomeFeatures.jsx');
- assert.match(main,/'stageSet','shopLog'\]/,'works with no signal');
+ assert.match(main,/OFFLINE_OPS=\['status','legStatus','stageSet'/,'works with no signal');
  assert.match(home,/<StageTracker state=\{state\} step=\{fixed\}/,'under the next fixed booking');
 });
