@@ -10,6 +10,7 @@ import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,is
 import {IC_MAX,RECEIPT_TYPES} from '../src/ledger-data.js';
 import {isChild,validReading,validAwareness} from '../src/child-levels.js';
 import {MAX_NEXT_TIME} from '../src/next-time.js';
+import {CAPSULE_MAX} from '../src/capsule-data.js';
 import {LOCAL_EXPERIENCES,cleanLocalCheck} from '../src/local-data.js';
 import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
@@ -276,6 +277,15 @@ export function extraOperation(state,op,user,fail,now){
   }
   state.party={...current,priorities};
   return {summary:null,important:false,title:`What matters to ${op.name}`};
+ }else if(op.type==='capsuleWrite'){
+  // A note to the family a year on: your own, or a parent for a boy; a blank takes it back.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Write your own.',403);
+  const text=(op.text??'').trim();requireText(text,CAPSULE_MAX,'your note');
+  const all={...(state.capsule||{})};
+  if(text)all[op.person]={text,at:now,by:user.name};else delete all[op.person];
+  state.capsule=all;
+  return {summary:null,important:false,title:'Open next year'};
  }else if(op.type==='childLevels'){
   // What a boy is ready for: how the words reach him, and how much of the trip's machinery he
   // sees. A parent's to set, and a blank puts a dial back to its age's default. Kept on the

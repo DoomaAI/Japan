@@ -459,7 +459,7 @@ test('keepsakes say whether the trip has given them enough to be made from',asyn
  assert.deepEqual(m,{characters:1,photos:1,days:2,stamps:2});
  assert.equal(keepsakeReady(KEEPSAKES.find(k=>k.id==='shirts'),m).ready,true);
  assert.deepEqual(keepsakeReady(KEEPSAKES.find(k=>k.id==='book'),m),{have:1,need:6,ready:false});
- for(const k of KEEPSAKES){assert.ok(['before','after'].includes(k.when));assert.ok(k.from in m,`${k.id} is made from something counted`);assert.equal(k.provider,null,'no print provider chosen yet');}
+ for(const k of KEEPSAKES){assert.ok(['before','during','after'].includes(k.when));assert.ok(k.from in m,`${k.id} is made from something counted`);assert.equal(k.provider,null,'no print provider chosen yet');}
  assert.deepEqual(keepsakeMaterial({}),{characters:0,photos:0,days:0,stamps:0});
 });
 test('the trip shop log keeps what was sorted and whether it was worth it, for the next trip',async()=>{

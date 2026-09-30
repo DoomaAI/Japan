@@ -18,6 +18,8 @@ export const PAGES={
  memorymap:{label:'Memory map',note:'Photos, voice notes and stars where they happened, and where the family last was'},
  noticed:{label:'Things we noticed',note:'The little moments, said out loud and tagged to where they happened or what they were about'},
  nexttime:{label:'Next time',note:'What we would do differently, written on the stop while it was fresh, in one list for the next plan'},
+ capsule:{label:'Open next year',note:'A note from each of us to the family a year on, sealed until the anniversary of the last day'},
+ showtell:{label:'Show and tell',note:'One page per boy for the first day back at school: his photos, missions, a noticing, a phrase, read aloud first'},
  diary:{label:'Diary',note:'Completed stops, discoveries and photos'},
  recap:{label:'Our trip story',note:'The trip in swipeable cards: the numbers, the places, our best bits and everyone’s favourite'},
  book:{label:'Photobook',note:'A page for each day, with the photo of the day, the stops we loved and the diary, to print'},
@@ -82,10 +84,10 @@ export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','meeting','safety','lost','help','apps']],
  ['Money',['money','paying','ledger','shopping','shortlist','shop']],
  ['The plan',['glance','days','todo','packing','trackers','windows','arrival','flyinghome','homefront','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
- ['Looking back',['noticed','nexttime','photos','memorymap','diary','recap','book']],
+ ['Looking back',['noticed','nexttime','photos','memorymap','diary','recap','book','capsule']],
  ['Housekeeping',['updates','bin','search','guide']],
  ['Just for you',['nightstand','personalise','settings','thanks']],
- ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot']]
+ ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot','showtell']]
 ];
 // Some screens only exist where the deployment can do the thing they are about. Forwarded email
 // needs a mail provider connected to it; until there is one the screen would be a page about a

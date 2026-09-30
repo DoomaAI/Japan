@@ -67,6 +67,8 @@ export const PAGE_RULES={
  lost:'Lost something. If we leave something on a train or in a park, this page has the Japanese words to show someone, the phone number for the right desk, and how the police help find it. Most things in Japan come back.',
  nightstand:'Nightstand. The phone by the bed at night. It shows the time, what we do first tomorrow and when we leave, and what the weather will be. It stays on and goes dim after ten o’clock.',
  nexttime:'Next time. The things we would do differently if we came back, like getting to a place earlier. Anyone can write one under a stop, and they are all here in one list.',
+ capsule:'Open next year. A note from each of us to the family a year from now. It stays locked until then, even from Mum and Dad.',
+ showtell:'Show and tell. Your page for the first day back at school: your photos, your missions, something you noticed and a Japanese phrase. The phone can read it to you first.',
  safety:'Safety. What to do if something goes wrong. There are phone numbers for help, and your own card to show a grown up if you get lost. It has your name and our phone numbers on it, written in Japanese.',
  paying:'Which card. This is for Mum and Dad. It helps them choose the card that costs the least to use in Japan, and when to use cash.',
  hunts:'The hunts. Every time we try a matcha, or get a gachapon, or eat a bowl of ramen, put it in here. Then everybody gives it stars, and the best one goes to the top. You can make your own list too, and drag your list into order with your favourite at the top.',

@@ -114,6 +114,8 @@ const FlyingHome=lazy(()=>import('./FlyingHome.jsx'));
 const Lost=lazy(()=>import('./Lost.jsx'));
 const Nightstand=lazy(()=>import('./Nightstand.jsx'));
 const NextTime=lazy(()=>import('./NextTime.jsx'));
+const Capsule=lazy(()=>import('./Capsule.jsx'));
+const ShowTell=lazy(()=>import('./ShowTell.jsx'));
 const AskTrip=lazy(()=>import('./AskTrip.jsx'));
 const Ledger=lazy(()=>import('./Ledger.jsx'));
 const MediaGallery=lazy(()=>import('./MediaGallery.jsx'));
@@ -763,6 +765,8 @@ function App(){
   {tab==='lost'&&<Lost state={visibleState} user={user} day={day} go={go} notice={notice}/>}
   {tab==='nightstand'&&<Nightstand state={visibleState} now={now} go={go}/>}
   {tab==='nexttime'&&<NextTime state={visibleState} go={go} notice={notice}/>}
+  {tab==='capsule'&&<Capsule state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy}/>}
+  {tab==='showtell'&&<ShowTell state={visibleState} user={user}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}
   {tab==='personalise'&&<Personalise user={user} prefs={navPrefs} setPrefs={saveNav} home={homePrefs} setHome={saveHome} held={heldBack(visibleState,user.name)}/>}
   {tab==='more'&&<MorePage user={user} tab={tab} go={navGo} prefs={navPrefs} home={homePrefs}><div className="row wrap"><Button icon={ImageIcon} onClick={()=>setModal({type:'media'})}>Family gallery</Button><Button icon={Mic} onClick={()=>setModal({type:'voice'})}>Voice notes</Button><Button icon={Download} onClick={()=>setModal({type:'offline'})}>Offline readiness</Button>{parent&&<Button icon={Plus} onClick={()=>setModal({type:'capture'})}>Quick capture</Button>}</div></MorePage>}

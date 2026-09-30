@@ -1,10 +1,11 @@
 import React,{useState,useRef} from 'react';
 import {photoPosition} from './exif-gps.js';
 import {upload} from '@vercel/blob/client';
-import {Camera,Trophy,Trash2,Check,Sparkles,Users,AlertCircle,Tv} from 'lucide-react';
+import {Camera,Trophy,Trash2,Check,Sparkles,Users,AlertCircle,Tv,Mail} from 'lucide-react';
 import {shrinkPhoto} from './MenuReader.jsx';
 import {kudosFor,kudosLine} from './kudos-data.js';
 import {ageOf} from './child-levels.js';
+import {postcardText} from './postcard-data.js';
 import {photosFor,photosOf,photoOwner,photoCounts,photoVotesFor,photoOfTheDay,BOYS} from './trip-features.js';
 export const photoUrl=p=>`/api/photo?id=${encodeURIComponent(p.id)}`;
 // The photo coach is told how old the photographer is, from the travel party.
@@ -17,6 +18,17 @@ export const photoUrl=p=>`/api/photo?id=${encodeURIComponent(p.id)}`;
 // everything of theirs across the whole trip, which is the one place to look for it — the same
 // screen rather than another entry in a menu that already has twenty-two.
 export default function PhotoDay({state,user,day,config,busy,setBusy,request,accept,mutate,notice,dayLabel,person='',setPerson}){
+ // A real postcard: the card's words from the day and what the boy said, with the photo, to
+ // whichever app on the phone prints and posts, or to Messages. No provider is built in.
+ async function sendPostcard(p){
+  const card=postcardText(state,p);
+  try{
+   let files=[];
+   try{const r=await fetch(photoUrl(p));if(r.ok){const b=await r.blob();files=[new File([b],`postcard-${p.id}.jpg`,{type:b.type||'image/jpeg'})];}}catch{}
+   if(navigator.share&&(!files.length||navigator.canShare?.({files}))){await navigator.share({title:card.title,text:card.text,...(files.length?{files}:{})});return;}
+   await navigator.clipboard.writeText(card.text);notice('The postcard words are copied. Paste them into a postcard app with the photo.');
+  }catch(e){if(e?.name!=='AbortError')notice('Could not open the share sheet. The words are: '+card.text);}
+ }
  const [working,setWorking]=useState(''),[preview,setPreview]=useState(null);
  // A photo that did not go up stays offered, with the file still in hand, so a dropped signal
  // is one tap to try again rather than choosing the photo all over again.
@@ -105,6 +117,7 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
       {!whole&&<button type="button" className={myVote===p.id?'primary':''} disabled={busy}
        onClick={()=>mutate({type:'photoVote',person:user.name,day,id:myVote===p.id?null:p.id})}>
        {myVote===p.id?<><Check size={14}/> My vote</>:'Vote for this'}{count?` · ${count}`:''}</button>}
+      {parent&&<button type="button" disabled={busy} onClick={()=>sendPostcard(p)}><Mail size={14}/> Postcard</button>}
       {parent&&<button type="button" className={p.frame?'primary':''} aria-pressed={!!p.frame} disabled={busy} onClick={()=>mutate({type:'photoFrame',id:p.id,on:!p.frame})}><Tv size={14}/> {p.frame?'On the frame':'Put on the frame'}</button>}
       {parent&&<label className="photo-assign">Whose?
        <select value={owner} disabled={busy} onChange={e=>mutate({type:'photoAssign',id:p.id,person:e.target.value})}>

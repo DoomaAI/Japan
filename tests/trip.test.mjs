@@ -2362,11 +2362,11 @@ test('saving a voice note trusts storage, not the phone, for what the file is',a
  const day=seed.days[0].date,step=seed.steps.find(s=>s.day===day);
  const body={pathname:`voice/${nate.id}/abc.webm`,day,stepId:step.id,title:'  The bamboo  ',seconds:'42.4'};
  const checked=checkVoiceNote(state,body,nate);
- assert.deepEqual(checked,{pathname:body.pathname,day,stepId:step.id,title:'The bamboo',seconds:42});
+ assert.deepEqual(checked,{pathname:body.pathname,day,stepId:step.id,title:'The bamboo',seconds:42,kind:'voice'});
  const blob={contentType:'audio/webm',size:120000};
  const saved=addVoiceNote(state,checked,nate,blob,'2026-09-21T03:00:00.000Z');
  assert.equal(saved.voiceNotes.length,1);
- assert.deepEqual({...saved.voiceNotes[0],id:'x'},{id:'x',by:'Nate',pathname:body.pathname,day,stepId:step.id,title:'The bamboo',seconds:42,type:'audio/webm',size:120000,at:'2026-09-21T03:00:00.000Z'});
+ assert.deepEqual({...saved.voiceNotes[0],id:'x'},{id:'x',by:'Nate',pathname:body.pathname,day,stepId:step.id,title:'The bamboo',seconds:42,kind:'voice',type:'audio/webm',size:120000,at:'2026-09-21T03:00:00.000Z'});
  // A second save of the same recording is the same note, not a duplicate.
  assert.equal(addVoiceNote(saved,checked,nate,blob),saved);
  // A phone claiming a photo is a voice note gets nowhere: the type comes from storage.
@@ -10627,7 +10627,7 @@ test('More is leaner: money on one shelf, memories on their own, housekeeping ap
  assert.deepEqual(section('Money'),['money','paying','ledger','shopping','shortlist','shop']);
  assert.ok(section('For the boys').includes('spending'));
  // Looking back is memories only; the app's own housekeeping is not among the photos.
- assert.deepEqual(section('Looking back'),['noticed','nexttime','photos','memorymap','diary','recap','book']);
+ assert.deepEqual(section('Looking back'),['noticed','nexttime','photos','memorymap','diary','recap','book','capsule']);
  assert.deepEqual(section('Housekeeping'),['updates','bin','search','guide']);
  // Nothing is listed twice, and every page not on the bar is somewhere.
  const all=MORE_SECTIONS.flatMap(([,ids])=>ids);
@@ -11064,4 +11064,82 @@ test('the frame: the follow-along link on a screen in a living room, showing wha
  const frame=await readFile(new URL('../src/FollowFrame.jsx',import.meta.url),'utf8');
  assert.match(frame,/navigator\.wakeLock\?\.request\('screen'\)/);
  assert.match(frame,/target:'photo',id:shot\.id,emoji:'👏'/,'a tap claps');
+});
+test('after the trip: notes to open next year, the show-and-tell page, sound postcards and the postcard seam',async()=>{
+ const {CAPSULE_MAX,capsuleOpens,capsuleIsOpen,capsuleWritable,capsuleFor,capsuleSealed,visibleCapsule,daysUntilOpen}=await import('../src/capsule-data.js');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ const {showTellFor,showTellSpeech}=await import('../src/show-tell.js');
+ const {checkVoiceNote,SOUND_MAX_SECONDS}=await import('../server/voice.mjs');
+ const {postcardText}=await import('../src/postcard-data.js');
+ const {KEEPSAKES}=await import('../src/shop-data.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ let state=upgraded(structuredClone(seed));
+ const last=seed.days.at(-1).date,third=seed.days.at(-3).date;
+ // Open next year: a year after the last day; writing on the last three days and after.
+ assert.equal(capsuleOpens(state),'2027-10-06');
+ assert.equal(capsuleWritable(state,'2026-10-03'),false);assert.equal(capsuleWritable(state,third),true);assert.equal(capsuleWritable(state,'2027-03-01'),true);assert.equal(capsuleWritable(state,'2027-10-06'),false);
+ assert.equal(daysUntilOpen(state,last),365);assert.equal(capsuleIsOpen(state,'2027-10-05'),false);assert.equal(capsuleIsOpen(state,'2027-10-06'),true);
+ assert.equal(capsuleOpens({days:[]}),null);
+ // Each writes their own; a parent for a boy; sealed from the others at the boundary until the day.
+ state=applyOperation(state,{type:'capsuleWrite',person:'Nate',text:'I hope we go back for the deer.'},child);
+ state=applyOperation(state,{type:'capsuleWrite',person:'Damien',text:'Remember how tired and happy we were.'},parent);
+ state=applyOperation(state,{type:'capsuleWrite',person:'Boston',text:'Trains.'},parent);
+ assert.throws(()=>applyOperation(state,{type:'capsuleWrite',person:'Damien',text:'x'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'capsuleWrite',person:'Nate',text:'x'.repeat(CAPSULE_MAX+1)},parent));
+ assert.deepEqual(capsuleSealed(state).sort(),['Boston','Damien','Nate']);
+ assert.equal(capsuleFor(state,'Nate').by,'Nate');assert.equal(capsuleFor(state,'Boston').by,'Damien');
+ const toNate=visibleTrip(state,child,new Date('2026-10-05T03:00:00Z'));
+ assert.equal(toNate.capsule.Nate.text,'I hope we go back for the deer.');
+ assert.deepEqual(toNate.capsule.Damien,{sealed:true,at:state.capsule.Damien.at},'a brother’s is sealed');
+ assert.equal(visibleTrip(state,parent,new Date('2026-10-05T03:00:00Z')).capsule.Nate.sealed,true,'sealed from a parent too');
+ assert.equal(visibleTrip(state,child,new Date('2027-10-06T03:00:00Z')).capsule.Damien.text,'Remember how tired and happy we were.','open on the day');
+ assert.deepEqual(visibleCapsule({capsule:{}},'Nate','2026-01-01'),{});
+ state=applyOperation(state,{type:'capsuleWrite',person:'Boston',text:''},parent);
+ assert.equal(capsuleFor(state,'Boston'),null,'a blank takes it back');
+ // Show and tell: out of what is there, in a child's register, with the phone reading it first.
+ let st=applyOperation(state,{type:'stepRating',id:state.steps[4].id,person:'Nate',rating:5},child);
+ st=applyOperation(st,{type:'stepRating',id:state.steps[6].id,person:'Nate',rating:3},child);
+ st=applyOperation(st,{type:'noticedAdd',person:'Nate',text:'the trains bow when they leave',day:seed.days[2].date},child);
+ st=applyOperation(st,{type:'phraseSeen',person:'Nate',day:seed.days[2].date,phraseIds:['thanks']},child);
+ const mission=st.challenges.find(c=>c.participants.includes('Nate'));
+ st=applyOperation(st,{type:'challengeStatus',id:mission.id,person:'Nate',done:true},child);
+ const pack=showTellFor(st,'Nate');
+ assert.equal(pack.favourite.title,state.steps[4].title);assert.equal(pack.missions[0].title,mission.title);assert.equal(pack.noticed.text,'the trains bow when they leave');assert.equal(pack.phrase.id,'thanks');
+ assert.equal(pack.days,16);assert.ok(pack.cities.length>=3);
+ const speech=showTellSpeech(pack);
+ assert.match(speech,/^In the holidays I went to Japan for 16 days\. We went to .* and .*\. My favourite thing was .*\. I did 1 mission, like .*\. I noticed the trains bow when they leave\. I can say .* in Japanese: .*Thank you for listening\.$/);
+ assert.equal(showTellSpeech(null),'');
+ assert.deepEqual(showTellFor(state,'Boston').missions,[]);
+ // A sound postcard is a voice note on a stop, short by definition.
+ const nate={name:'Nate',role:'child',id:'grant-nate'};
+ const body={pathname:'voice/grant-nate/a.webm',day:seed.days[2].date,stepId:state.steps.find(s=>s.day===seed.days[2].date).id,seconds:10};
+ assert.equal(checkVoiceNote(state,body,nate).kind,'voice');
+ assert.equal(checkVoiceNote(state,{...body,kind:'sound'},nate).kind,'sound');
+ assert.throws(()=>checkVoiceNote(state,{...body,kind:'sound',seconds:SOUND_MAX_SECONDS+1},nate),/seconds at most/);
+ assert.throws(()=>checkVoiceNote(state,{...body,kind:'song'},nate));
+ // The postcard: the day, the city and what the boy said, for the share sheet; the provider is a keepsake with none chosen.
+ const photo={id:'ph',day:seed.days[2].date,by:'Nate',for:'Nate',pathname:'p/ph.jpg'};
+ const withVoice={...st,voiceNotes:[{id:'v',day:seed.days[2].date,by:'Nate',transcript:'The deer bowed and then it ate my map.'}]};
+ const card=postcardText(withVoice,photo);
+ assert.equal(card.title,'A postcard from Nate');
+ assert.match(card.text,/^Dear Grandma and Grandpa,\nDay 3 of 16 in .*\nNate says: “The deer bowed and then it ate my map\.”\nLove from all of us\.$/);
+ assert.match(postcardText(st,photo).text,/\nA photo by Nate\.\n/,'nothing said: the photo speaks');
+ const keep=KEEPSAKES.find(k=>k.id==='postcard');
+ assert.ok(keep&&keep.provider===null&&keep.when==='during'&&keep.buy.length>=1);
+ // Their places in the app.
+ assert.ok(PAGES.capsule?.label&&PAGE_RULES.capsule&&PAGES.showtell?.label&&PAGE_RULES.showtell);
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Looking back')[1].includes('capsule'));
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='For the boys')[1].includes('showtell'));
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/\{tab==='capsule'&&<Capsule state=\{visibleState\} user=\{user\} today=\{japanDate\(now\)\} mutate=\{mutate\} busy=\{busy\}\/>\}/);
+ assert.match(main,/\{tab==='showtell'&&<ShowTell state=\{visibleState\} user=\{user\}\/>\}/);
+ const photos=await readFile(new URL('../src/PhotoDay.jsx',import.meta.url),'utf8');
+ assert.match(photos,/onClick=\{\(\)=>sendPostcard\(p\)\}/);assert.match(photos,/navigator\.share\(\{title:card\.title,text:card\.text/);
+ const voice=await readFile(new URL('../src/VoiceNotes.jsx',import.meta.url),'utf8');
+ assert.match(voice,/kind:sound\?'sound':'voice'/);assert.match(voice,/if\(elapsed>=\(sound\?SOUND_SECONDS:MAX_SECONDS\)\)stop\(\);/);
+ const map=await readFile(new URL('../src/MemoryMap.jsx',import.meta.url),'utf8');
+ assert.match(map,/v\.kind==='sound'\?<Volume2 size=\{15\}\/>:<Mic size=\{15\}\/>/);
+ const tonight=await readFile(new URL('../src/Tonight.jsx',import.meta.url),'utf8');
+ assert.match(tonight,/capsuleWritable\(state,today\)&&!capsuleFor\(state,user\.name\)\?\.text&&/,'the last days invite the note');
 });

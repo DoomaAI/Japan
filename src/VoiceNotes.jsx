@@ -1,12 +1,14 @@
 import React,{useState,useRef,useEffect} from 'react';
 import {upload} from '@vercel/blob/client';
-import {Mic, Square, Trash2, Play, Pencil, Check} from 'lucide-react';
+import {Mic, Square, Trash2, Play, Pencil, Check,Volume2} from 'lucide-react';
 import Dictate from './Dictate.jsx';
 import {dictationEngine,dictationProblem,heardSoFar,joinSpoken,DICTATE_LANG} from './dictation.js';
 import {voiceNotesFor,voiceLength} from './trip-features.js';
 import {savePending,listPending,dropPending} from './pending-store.js';
 export const voiceUrl=note=>`/api/voice?id=${encodeURIComponent(note.id)}`;
 const MAX_SECONDS=300;
+// A sound postcard: the place itself for a few seconds, on a stop. Short by definition.
+const SOUND_SECONDS=12;
 // Safari records mp4, everything else webm/opus. Ask for what the phone actually supports
 // rather than assuming, because an unsupported type makes MediaRecorder throw.
 export function recorderType(){
@@ -36,6 +38,7 @@ export function VoiceWords({note,user,mutate,busy}){
 export default function VoiceNotes({state,user,day,step,config,busy,setBusy,request,accept,mutate,notice,dayLabel,transcribe=false}){
  const initialDay=step?.day||day||state.days[0].date;
  const [noteDay,setNoteDay]=useState(initialDay),[stepId,setStepId]=useState(step?.id||'');
+ const [sound,setSound]=useState(false);
  const [recording,setRecording]=useState(false),[seconds,setSeconds]=useState(0);
  const [clip,setClip]=useState(null),[label,setLabel]=useState(''),[uploaded,setUploaded]=useState(null),[progress,setProgress]=useState(0);
  const [waiting,setWaiting]=useState([]),[sending,setSending]=useState(false);
@@ -90,7 +93,7 @@ export default function VoiceNotes({state,user,day,step,config,busy,setBusy,requ
    setWords('');setWordsProblem('');startWords();
    timer.current=setInterval(()=>{
     const elapsed=Math.round((Date.now()-started.current)/1000);setSeconds(elapsed);
-    if(elapsed>=MAX_SECONDS)stop();
+    if(elapsed>=(sound?SOUND_SECONDS:MAX_SECONDS))stop();
    },500);
   }catch(e){notice(e?.name==='NotAllowedError'?'The phone would not give the app the microphone. Allow microphone access for this site and try again.':'The microphone could not be started: '+(e.message||'unknown error'));}
  }
@@ -98,7 +101,7 @@ export default function VoiceNotes({state,user,day,step,config,busy,setBusy,requ
  // Uploading needs signal. Holding on to the recording does not, so a note made in a tunnel
  // is kept on the phone — through the app being closed — and goes up when there is signal.
  async function hold(reason){
-  const entry={id:crypto.randomUUID(),blob:clip.blob,seconds:clip.seconds,day:noteDay,stepId:stepId||null,title:label,transcript:words.trim(),at:new Date().toISOString()};
+  const entry={id:crypto.randomUUID(),blob:clip.blob,seconds:clip.seconds,day:noteDay,stepId:stepId||null,title:label,transcript:words.trim(),kind:sound?'sound':'voice',at:new Date().toISOString()};
   try{
    await savePending(entry);
    setWaiting(w=>[...w,entry]);
@@ -115,7 +118,7 @@ export default function VoiceNotes({state,user,day,step,config,busy,setBusy,requ
    const blob=uploaded||await upload(`voice/${user.id}/${crypto.randomUUID()}.${(clip.blob.type.includes('mp4')||clip.blob.type.includes('aac'))?'m4a':'webm'}`,clip.blob,
     {access:'private',contentType:clip.blob.type.split(';')[0],handleUploadUrl:'/api/upload',onUploadProgress:p=>setProgress(p.percentage)});
    setUploaded(blob);
-   accept(await request('voice',{pathname:blob.pathname,day:noteDay,stepId:stepId||null,seconds:clip.seconds,title:label,transcript:words.trim()}));
+   accept(await request('voice',{pathname:blob.pathname,day:noteDay,stepId:stepId||null,seconds:clip.seconds,title:label,transcript:words.trim(),kind:sound?'sound':'voice'}));
    URL.revokeObjectURL(clip.url);setClip(null);setLabel('');setWords('');setUploaded(null);setProgress(0);
    notice('Voice note saved for the family.');
   }catch(e){
@@ -134,7 +137,7 @@ export default function VoiceNotes({state,user,day,step,config,busy,setBusy,requ
     try{
      const blob=await upload(`voice/${user.id}/${crypto.randomUUID()}.${(entry.blob.type.includes('mp4')||entry.blob.type.includes('aac'))?'m4a':'webm'}`,entry.blob,
       {access:'private',contentType:entry.blob.type.split(';')[0],handleUploadUrl:'/api/upload'});
-     accept(await request('voice',{pathname:blob.pathname,day:entry.day,stepId:entry.stepId,seconds:entry.seconds,title:entry.title,transcript:entry.transcript||''}));
+     accept(await request('voice',{pathname:blob.pathname,day:entry.day,stepId:entry.stepId,seconds:entry.seconds,title:entry.title,transcript:entry.transcript||'',kind:entry.kind||'voice'}));
      await dropPending(entry.id);setWaiting(w=>w.filter(x=>x.id!==entry.id));sent++;
     }catch(e){
      // A note the server will never take is dropped rather than retried forever; anything
@@ -162,6 +165,7 @@ export default function VoiceNotes({state,user,day,step,config,busy,setBusy,requ
      {daySteps.map(s=><option key={s.id} value={s.id}>{s.time?`${s.time} · `:''}{s.title}</option>)}
     </select></label>
    </div>
+   {stepId&&!recording&&!clip&&<label className="chip sound-toggle"><input type="checkbox" checked={sound} onChange={e=>{setSound(e.target.checked);if(e.target.checked&&!label)setLabel(`The sound of ${stepTitle(stepId)}`);}}/><Volume2 size={14}/> Sound postcard: {SOUND_SECONDS} seconds of the place itself, for the memory map</label>}
    {!clip&&<div className="row wrap">
     {!recording
      ?<button type="button" className="primary" disabled={busy||!supported} onClick={start}><Mic size={16}/> Record</button>
@@ -171,14 +175,14 @@ export default function VoiceNotes({state,user,day,step,config,busy,setBusy,requ
    {recording&&transcribe&&(words||hearing)&&<p className="voice-live" aria-live="polite">{words} <i>{hearing}</i></p>}
    {wordsProblem&&<small className="hear-problem">{wordsProblem}</small>}
    {!supported&&<p className="callout">This browser will not record audio. On an iPhone use Safari, and allow the microphone when it asks.</p>}
-   {recording&&<p><small>Up to five minutes; it stops itself at five.</small></p>}
+   {recording&&<p><small>{sound?`${SOUND_SECONDS} seconds, then it stops itself: hold the phone up and say nothing.`:'Up to five minutes; it stops itself at five.'}</small></p>}
    {clip&&<div className="voice-pending">
     <audio controls src={clip.url} preload="metadata"/>
     <label>Label (optional)<input value={label} maxLength={200} onChange={e=>setLabel(e.target.value)} placeholder="What Nate said about the deer"/></label>
     {(transcribe||words)&&<><label>What was said{transcribe?' (written down by the phone — check it)':''}<textarea rows={3} maxLength={VOICE_WORDS} value={words} onChange={e=>setWords(e.target.value)} placeholder="Nothing was written down. Type the words, or say them again below."/></label>
      <Dictate onText={heard=>setWords(w=>joinSpoken(w,heard).slice(0,VOICE_WORDS))} label="Say it" what="the words of the recording"/></>}
     <div className="row wrap">
-     <button type="button" className="primary" disabled={busy||!config?.uploads} onClick={save}>{busy?`Saving ${Math.round(progress)}%…`:uploaded?'Retry saving':`Save ${voiceLength(clip.seconds)} note`}</button>
+     <button type="button" className="primary" disabled={busy||!config?.uploads} onClick={save}>{busy?`Saving ${Math.round(progress)}%…`:uploaded?'Retry saving':`Save ${voiceLength(clip.seconds)} ${sound?'sound':'note'}`}</button>
      <button type="button" onClick={()=>{URL.revokeObjectURL(clip.url);setClip(null);setUploaded(null);setWords('');setWordsProblem('');}} disabled={busy}>Discard</button>
     </div>
     <small>Not saved until you tap the button. Once saved it is kept on this phone even with no signal, and goes up to the family when there is some.</small>
@@ -193,7 +197,7 @@ export default function VoiceNotes({state,user,day,step,config,busy,setBusy,requ
   </div>}
   <h3>{notes.length?`${notes.length} voice note${notes.length===1?'':'s'}`:'No voice notes yet'}</h3>
   {notes.map(v=><article className="voice-note" key={v.id}>
-   <div className="voice-head"><strong>{v.by}</strong><small>{dayLabel(v.day)}{v.stepId?` · ${stepTitle(v.stepId)}`:''} · {voiceLength(v.seconds)}</small></div>
+   <div className="voice-head"><strong>{v.kind==='sound'&&<Volume2 size={14}/>} {v.by}</strong><small>{dayLabel(v.day)}{v.stepId?` · ${stepTitle(v.stepId)}`:''} · {voiceLength(v.seconds)}</small></div>
    {v.title&&<p>{v.title}</p>}
    <audio controls preload="none" src={voiceUrl(v)}/>
    <VoiceWords note={v} user={user} mutate={mutate} busy={busy}/>

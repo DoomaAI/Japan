@@ -811,3 +811,9 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .frame-clap{position:absolute;top:1rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:rgb(255,255,255);padding:.4rem .8rem;border-radius:999px}
 .frame-hint{position:absolute;top:1rem;right:1rem;color:rgb(255,255,255);opacity:.5}.frame-ask{position:absolute;inset:auto 1rem 5rem 1rem;background:var(--paper);color:var(--ink);padding:1rem;border-radius:12px}
 .frame-empty{color:rgb(255,255,255);flex-direction:column;gap:.5rem;text-align:center;padding:1rem}
+/* Show and tell: one page a boy, and printable on its own. */
+.show-tell{border:1px solid var(--border);border-radius:14px;padding:1rem;margin:.75rem 0}.show-tell-speech{font-size:1.15rem;line-height:1.5}
+.show-tell-photos{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin:.6rem 0}.show-tell-photos img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px}
+.show-tell-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}.show-tell-grid section{border-top:1px solid var(--border);padding-top:.4rem}.show-tell-grid h3{display:flex;align-items:center;gap:.3rem;font-size:.95rem;margin:0 0 .2rem}.show-tell-grid ul{margin:0;padding-left:1rem}
+@media print{body.print-showtell *{visibility:hidden}body.print-showtell .show-tell,body.print-showtell .show-tell *{visibility:visible}body.print-showtell .show-tell{position:absolute;left:0;top:0;width:100%;border:0;margin:0}body.print-showtell .show-tell button{display:none}}
+.sound-toggle{display:inline-flex;align-items:center;gap:.4rem;margin:.3rem 0}
