@@ -29,12 +29,13 @@ export default function BigSteps({legs,step,canTick,busy,onTick,onClose}){
  const move=d=>setAt(i=>Math.max(0,Math.min(n-1,i+d)));
  useEffect(()=>{let lock=null;navigator.wakeLock?.request('screen').then(l=>{lock=l;}).catch(()=>{});return()=>{lock?.release().catch(()=>{});};},[]);
  useEffect(()=>{const k=e=>{if(e.key==='Escape')onClose();else if(e.key==='ArrowRight')move(1);else if(e.key==='ArrowLeft')move(-1);};window.addEventListener('keydown',k);return()=>window.removeEventListener('keydown',k);},[n]);
- const tap=e=>{if(e.target.closest('button'))return;const x=e.clientX??e.changedTouches?.[0]?.clientX;const w=window.innerWidth;if(x==null)return;move(x>w/2?1:-1);};
+ // One pointer path for a finger and a mouse alike: a short press is a tap on one half of the
+ // screen, a long sideways drag is a swipe. A press on a button is the button's.
+ const press=e=>{if(e.target.closest('button'))return;touch.current={x:e.clientX,y:e.clientY};};
+ const lift=e=>{const t=touch.current;touch.current=null;if(!t||e.target.closest('button'))return;const dx=e.clientX-t.x,dy=e.clientY-t.y;
+  if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy))move(dx<0?1:-1);else if(Math.abs(dx)<12&&Math.abs(dy)<12)move(e.clientX>window.innerWidth/2?1:-1);};
  const done=legDone(step,s.leg);
- return <div className="big-steps" role="dialog" aria-modal="true" aria-label={`${step.title}: step by step`}
-  onTouchStart={e=>{touch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
-  onTouchEnd={e=>{const t=touch.current;touch.current=null;if(!t||e.target.closest('button'))return;const dx=e.changedTouches[0].clientX-t.x,dy=e.changedTouches[0].clientY-t.y;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy))move(dx<0?1:-1);else if(Math.abs(dx)<10&&Math.abs(dy)<10)tap(e);}}
-  onClick={e=>{if(e.detail===0||('ontouchstart'in window))return;tap(e);}}>
+ return <div className="big-steps" role="dialog" aria-modal="true" aria-label={`${step.title}: step by step`} onPointerDown={press} onPointerUp={lift}>
   <header><div><small>{step.title}</small><strong>Step {at+1} of {n}{done?' · done':''}</strong></div><button type="button" aria-label="Close" onClick={onClose}><X/></button></header>
   <div className={`big-step is-${s.kind}`} key={at}>
    <p className="big-step-kind">{s.kind==='walk'?<Footprints size={28}/>:<TrainFront size={28}/>}{s.title}</p>

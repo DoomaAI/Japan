@@ -23,7 +23,8 @@ export const dueClock=c=>japanClock(new Date(c.due));
 // meeting point. Anything else is typed.
 export function checkInDestinations(state,day){
  const today=(state.days||[]).find(d=>d.date===day),out=[];
- for(const s of activeSteps(state,day).filter(s=>!['done','skipped'].includes(s.status)))out.push({key:`step:${s.id}`,label:s.title,stepId:s.id});
+ // The next few stops still to do, not the whole day: the sheet is tapped in a hurry.
+ for(const s of activeSteps(state,day).filter(s=>!['done','skipped'].includes(s.status)).slice(0,6))out.push({key:`step:${s.id}`,label:s.title,stepId:s.id});
  if(today?.hotel)out.push({key:'hotel',label:today.hotel,hotel:today.hotel});
  const m=state.meetings?.[day];if(m?.place)out.push({key:'meeting',label:`Meeting point · ${m.place}`});
  return out;

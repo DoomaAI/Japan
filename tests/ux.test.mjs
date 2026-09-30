@@ -330,7 +330,7 @@ test('big steps: a route as one thing per screen, a walk one screen and a ride t
  const {bigSteps}=await import('../src/BigSteps.jsx').catch(()=>null)||{};
  const route=await source('route-data.js'),big=await source('BigSteps.jsx'),card=await source('RouteCard.jsx');
  assert.match(big,/navigator\.wakeLock\?\.request\('screen'\)/,'the screen stays awake');
- assert.match(big,/move\(x>w\/2\?1:-1\)/,'the right half is next, the left is back');
+ assert.match(big,/move\(e\.clientX>window\.innerWidth\/2\?1:-1\)/,'the right half is next, the left is back');
  assert.match(big,/read\(`big-\$\{at\}`,s\.say,'en-AU'\)/,'each step can be read aloud');
  assert.match(big,/className="big-step-ja" lang="ja"/,'the station’s Japanese, large');
  assert.match(card,/<BigStepsButton onClick=\{\(\)=>setBig\(true\)\}\/>/,'opened from the route card');
@@ -349,6 +349,7 @@ test('today’s puzzle: the same on every phone from the date, Wordle marks, a s
  assert.ok(daySeed('2026-10-02')>0);
  const k=katakanaPuzzle('2026-10-02',11);
  assert.ok(k.length>=3&&k.length<=5);assert.ok(k.keys.length<=16&&Array.from(k.word).every(c=>k.keys.includes(c)),'every kana of the word is on the keys');
+ assert.ok(k.keys.every(c=>typeof c==='string'&&c.length===1)&&new Set(k.keys).size===k.keys.length,'sixteen real kana, no blanks and no repeats');
  assert.notEqual(katakanaPuzzle('2026-10-02',11).word,katakanaPuzzle('2026-10-03',12).word,'a new word each day');
  assert.deepEqual(markGuess('コーヒー','コーラー'),['hit','hit','miss','hit']);
  assert.deepEqual(markGuess('アイス','スイア'),['near','hit','near']);
@@ -471,6 +472,9 @@ test('halfway there: from the middle of the trip, the numbers so far on one squa
  assert.deepEqual(lines[0],['eyebrow','Day 10 of 16 · so far']);
  assert.equal(lines.at(-1)[0],'foot');
  assert.ok(lines.some(([k])=>k==='stat'));
+ const {wrapLine}=await import('../src/halfway-data.js');
+ assert.deepEqual(wrapLine(t=>t.length*10,'Tokyo Kyoto Osaka Nara',120,2),['Tokyo Kyoto','Osaka Nara']);
+ assert.deepEqual(wrapLine(t=>t.length*10,'Tokyo Kyoto Osaka Nara Disney',120,2),['Tokyo Kyoto','Osaka…'],'at most two lines, the last ended with an ellipsis');
  const main=await source('main.jsx'),widgets=await source('home-widgets.js'),page=await source('HalfwayCard.jsx');
  assert.match(main,/halfway:<HalfwayLine state=\{visibleState\}/);assert.match(widgets,/halfway:\{label:'Halfway there'/);
  assert.match(page,/navigator\.canShare\?\.\(\{files:\[file\]\}\)/,'the square goes to the share sheet as a picture');

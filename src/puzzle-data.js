@@ -16,7 +16,7 @@ export const puzzleKey=day=>`puzzle-${day}`;
 export function katakanaPuzzle(day,index){
  const words=LOANWORDS.filter(w=>{const n=chars(w.ja).length;return n>=3&&n<=5;});
  const order=shuffled(words,7919),word=order[index%order.length];
- const letters=chars(word.ja),extra=shuffled(KATAKANA.map(k=>k[0]).filter(k=>!letters.includes(k)),daySeed(day)).slice(0,Math.max(0,16-new Set(letters).size));
+ const letters=chars(word.ja),extra=shuffled(KATAKANA.map(k=>k.kana).filter(k=>k&&!letters.includes(k)),daySeed(day)).slice(0,Math.max(0,16-new Set(letters).size));
  return {kind:'katakana',tries:KATAKANA_TRIES,word:word.ja,romaji:word.romaji,en:word.en,where:word.where,length:letters.length,keys:shuffled([...new Set(letters),...extra],daySeed(day)+1)};
 }
 // Wordle's marks: a hit is the right kana in the right place, a near one is in the word

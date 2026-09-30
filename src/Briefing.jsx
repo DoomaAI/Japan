@@ -10,7 +10,7 @@ export default function Briefing({state,day,today,clock,go,user,mutate,busy,open
  const [installed]=useStored('japan.apps.installed',{});
  // Readiness: the faces fold to one line once everyone has answered, and open again on a tap.
  const members=state.members||[],parent=user?.role==='parent',[changing,setChanging]=useState(false);
- const done=answered(state,day,members),low=lowest(state,day),asking=day===today&&(changing||done.length<members.length);
+ const done=answered(state,day,members),low=lowest(state,day),asking=day===today&&(changing||(parent?done.length<members.length:!done.includes(user?.name)));
  const b=dayBriefing(state,day);if(!b)return null;
  const apps=b.apps.filter(a=>!installed[a.id]);
  const span=b.starts&&b.ends&&b.starts!==b.ends?`${b.starts}–${b.ends}`:b.starts||'';
@@ -24,7 +24,8 @@ export default function Briefing({state,day,today,clock,go,user,mutate,busy,open
   {day===today&&user&&<div className="readiness">
    {asking?<>
     <p className="readiness-ask">How is everyone this morning?</p>
-    {members.map(p=>{const mine=readinessOf(state,day,p),can=parent||p===user.name;return <div key={p} className="readiness-row"><span>{p}</span><div role="radiogroup" aria-label={`${p}: one to five`}>{READINESS.map(r=><button type="button" key={r.level} role="radio" aria-checked={mine===r.level} aria-label={`${r.word}, ${r.level} of 5`} className={mine===r.level?'is-on':''} disabled={busy||!can} onClick={()=>mutate({type:'readinessSet',day,person:p,level:r.level})}>{r.face}</button>)}</div></div>;})}
+    {members.filter(p=>parent||p===user.name).map(p=>{const mine=readinessOf(state,day,p),can=true;return <div key={p} className="readiness-row"><span>{p}</span><div role="radiogroup" aria-label={`${p}: one to five`}>{READINESS.map(r=><button type="button" key={r.level} role="radio" aria-checked={mine===r.level} aria-label={`${r.word}, ${r.level} of 5`} className={mine===r.level?'is-on':''} disabled={busy||!can} onClick={()=>mutate({type:'readinessSet',day,person:p,level:r.level})}>{r.face}</button>)}</div></div>;})}
+    {!parent&&done.filter(p=>p!==user.name).length>0&&<p className="readiness-others">{done.filter(p=>p!==user.name).map(p=>`${p} ${faceOf(readinessOf(state,day,p))}`).join(' · ')}</p>}
     {changing&&<button type="button" className="linkish" onClick={()=>setChanging(false)}>Done</button>}
    </>:<button type="button" className="readiness-line" onClick={()=>setChanging(true)}>{members.map(p=><span key={p}>{p} {faceOf(readinessOf(state,day,p))}</span>)}</button>}
    {low&&<div className="readiness-low"><p><b>{low.person} is at {low.level} of 5</b>, so the easier version of today is ready before anyone needs it.</p><div className="row wrap"><button type="button" onClick={()=>open?.({type:'tired'})}>Take it easier</button>{parent&&<button type="button" onClick={()=>open?.({type:'reschedule'})}>Adjust the day</button>}</div></div>}
