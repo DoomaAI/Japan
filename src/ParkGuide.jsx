@@ -66,6 +66,8 @@ export default function ParkGuide({state,user,speak,openPage,park:initial,mutate
      ?BOYS.map(n=>{const check=heightCheck(ride,n,heights);return <span key={n} className={`ride-height${check.ok===true?' ok':check.ok===false?' no':''}`}>{check.ok===true?<Check size={14}/>:check.ok===false?'✕ ':null}{check.ok===null?`${ride.height}cm minimum`:check.label}</span>;})
      :<span className="ride-height ok"><Check size={14}/>No height limit</span>}</div>
     <div className="row wrap">
+     {parent&&(()=>{const all=state.members.every(n=>ridden[n]);return <button className={`rider${all?' on':''}`} disabled={busy} aria-pressed={all}
+       onClick={async()=>{for(const n of state.members)if(!!ridden[n]===all)await mutate({type:'parkRide',rideId:ride.id,person:n,done:!all});}}>{all&&<Check size={14}/>}All</button>;})()}
      {state.members.map(n=><button key={n} className={`rider${ridden[n]?' on':''}`} disabled={busy||(!parent&&n!==user.name)} aria-pressed={!!ridden[n]}
        onClick={()=>mutate({type:'parkRide',rideId:ride.id,person:n,done:!ridden[n]})}>{ridden[n]&&<Check size={14}/>}{n}</button>)}
      <a href={mapSearch(ride,park)} target="_blank" rel="noopener noreferrer"><MapPin size={14}/>Maps</a>
