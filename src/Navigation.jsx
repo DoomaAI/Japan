@@ -1,9 +1,10 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Printer,Smartphone,BookLock,PlaneLanding,AlarmClock,MailQuestion,BookImage,Stamp,Crown,GalleryHorizontalEnd,History,Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid,ChevronDown,Star,Check,Store,Footprints,DoorOpen,PlaneTakeoff,SearchX,Repeat,Hourglass,GraduationCap} from 'lucide-react';
-import {PAGES,primaryNav,moreSections,navActive,hiddenNav,favourites,toggleFavourite,FAV_MAX} from './nav-data.js';
+import {Printer,Smartphone,BookLock,PlaneLanding,AlarmClock,MailQuestion,BookImage,Stamp,Crown,GalleryHorizontalEnd,History,Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid,ChevronDown,Star,Check,Plus,Minus,Store,Footprints,DoorOpen,PlaneTakeoff,SearchX,Repeat,Hourglass,GraduationCap} from 'lucide-react';
+import {PAGES,primaryNav,moreSections,navActive,hiddenNav,favourites,toggleFavourite,dropFavourite,FAV_MAX} from './nav-data.js';
 import {useStored} from './stored.js';
 import {isOpen,setOpen} from './fold.js';
 import {useWobble} from './wobble.js';
+import {useFavWobble} from './fav-wobble.js';
 import {homePages} from './home-widgets.js';
 import {swipeVertical} from './swipe.js';
 const ICONS={today:House,guests:Users,invitation:Mail,bin:History,allergy:Wheat,days:CalendarDays,glance:CalendarCheck,tickets:Ticket,food:UtensilsCrossed,money:Coins,ledger:Receipt,paying:CreditCard,hunts:Medal,local:Footprints,noticed:Eye,nexttime:Repeat,capsule:Hourglass,showtell:GraduationCap,challenges:Trophy,games:Dices,photos:Camera,
@@ -127,12 +128,17 @@ export function BottomNav({tab,user,go,unread,prefs,setPrefs}){
 }
 // More lists every screen the bar does not, as cards in folding sections so the whole menu fits
 // on one screen with everything shut. Favourites sit on top: the Right now six to begin with,
-// then whatever this person stars. A button marks which cards are already a shortcut on the bar
+// then whatever this person adds. Hold any card and the page wobbles like an iPhone's home
+// screen (fav-wobble.js): favourites are dragged into a new order, cards are dragged up out of a
+// section to join them or out of the row to leave it, and a badge on each card does the same
+// for anybody who would rather tap. A button marks which cards are already a shortcut on the bar
 // or a widget on Home, so it is plain what is one tap away; it is off to begin with.
 export function MorePage({user,tab,go,children,prefs,home}){
- const [where,setWhere]=useState(false),[editing,setEditing]=useState(false);
+ const [where,setWhere]=useState(false);
  const [saved,setSaved]=useStored('japan.more.favourites',null);
  const favs=favourites(user,saved),starred=new Set(favs);
+ const w=useFavWobble({favs,onChange:next=>setSaved(favourites(user,next))});
+ const editing=w.editing,shown=w.order,full=favs.length>=FAV_MAX;
  const onBar=new Set(primaryNav(user,prefs)),onHome=homePages(home);
  const sections=moreSections(user,prefs,where);
  // Every section starts folded. The one holding the screen you came from opens on its own,
@@ -141,29 +147,34 @@ export function MorePage({user,tab,go,children,prefs,home}){
  const fold=title=>setOpenState(o=>({...o,[title]:setOpen(`more.${title}`,!o[title])}));
  const star=id=>setSaved(favourites(user,toggleFavourite(user,saved,id)));
  const card=(id,inFavs)=>{
-  const Icon=iconFor(id),bar=onBar.has(id),widget=onHome.has(id),on=starred.has(id);
-  return <div className="more-card-wrap" key={id}>
+  const Icon=iconFor(id),bar=onBar.has(id),widget=onHome.has(id),on=starred.has(id),lifted=w.ghost?.id===id;
+  return <div className={`more-card-wrap${lifted?' lifting':''}`} key={id} {...w.item(id,inFavs)}>
    <button type="button" className={`right-now-tile${tab===id?' current':''}${where&&!inFavs&&!bar&&!widget?' more-elsewhere':''}`} title={PAGES[id].note} onClick={()=>go(id)}>
     <Icon size={22}/><span>{PAGES[id].label}</span>
     {where&&!inFavs&&(bar||widget)&&<span className="more-tags">{bar&&<span className="tag">Bar</span>}{widget&&<span className="tag">Home</span>}</span>}
    </button>
-   {editing&&<button type="button" className={`more-star${on?' on':''}`} aria-pressed={on}
-    aria-label={on?`Take ${PAGES[id].label} out of favourites`:`Add ${PAGES[id].label} to favourites`}
-    disabled={!on&&favs.length>=FAV_MAX} onClick={()=>star(id)}><Star size={15}/></button>}
+   {editing&&(inFavs
+    ?<button type="button" className="more-badge minus" aria-label={`Take ${PAGES[id].label} out of favourites`}
+      onClick={()=>setSaved(favourites(user,dropFavourite(favs,id,null)))}><Minus size={14}/></button>
+    :<button type="button" className={`more-badge${on?' on':''}`} aria-pressed={on}
+      aria-label={on?`Take ${PAGES[id].label} out of favourites`:`Add ${PAGES[id].label} to favourites`}
+      disabled={!on&&full} onClick={()=>star(id)}>{on?<Check size={14}/>:<Plus size={14}/>}</button>)}
   </div>;
  };
- return <>
+ const Ghost=w.ghost&&iconFor(w.ghost.id);
+ return <div className="more-page" data-editing={editing||undefined} {...w.pageProps}>
   <p className="eyebrow">EVERYTHING FOR OUR TRIP</p>
   <h1>More</h1>
   <div className="more-fav-head">
    <h2>Favourites</h2>
-   <button type="button" className={`more-edit${editing?' on':''}`} aria-pressed={editing} onClick={()=>setEditing(!editing)}>
-    {editing?<><Check size={15}/>Done</>:<><Star size={15}/>Choose favourites</>}
+   <button type="button" className={`more-edit${editing?' on':''}`} aria-pressed={editing} onClick={()=>editing?w.finish():w.start()}>
+    {editing?<><Check size={15}/>Done</>:<><Star size={15}/>Edit</>}
    </button>
   </div>
-  {editing&&<p className="more-hint">Tap a star to add or remove a card. Up to {FAV_MAX}.</p>}
-  {favs.length?<nav className="right-now" aria-label="Favourites">{favs.map(id=>card(id,true))}</nav>
-   :<p className="more-hint">No favourites yet. Choose favourites, then star the cards you want up here.</p>}
+  {editing?<p className="more-hint">Drag to reorder. Drag a card up from below to add it, or out of the row to remove it.</p>
+   :shown.length>0&&<p className="more-hint">Press and hold any card to rearrange your favourites.</p>}
+  {shown.length||editing?<nav ref={w.row} className={`right-now${shown.length?'':' more-drop'}`} aria-label="Favourites" data-wobbling={editing||undefined}>{shown.length?shown.map(id=>card(id,true)):<span>Drag a card here</span>}</nav>
+   :<p className="more-hint">No favourites yet. Press and hold any card below, then drag it up here.</p>}
   <button type="button" className={`more-where${where?' on':''}`} aria-pressed={where} onClick={()=>setWhere(!where)}>
    <LayoutGrid size={16}/>{where?'Hide what is on my bar and Home':'Show what is on my bar and Home'}
   </button>
@@ -172,8 +183,15 @@ export function MorePage({user,tab,go,children,prefs,home}){
     <h2><button type="button" className="more-fold" aria-expanded={!shut} onClick={()=>fold(title)}>
      <span>{title}</span><small>{ids.length}</small><ChevronDown size={18}/>
     </button></h2>
-    {!shut&&<div className="right-now more-grid">{ids.map(id=>card(id,false))}</div>}
+    {!shut&&<div className="right-now more-grid" data-wobbling={editing||undefined}>{ids.map(id=>card(id,false))}</div>}
    </section>;})}
+  {editing&&<div className="wobble-done more-done" role="status">
+   <small>{full?`Favourites are full at ${FAV_MAX}. Remove one to add another.`:`${favs.length} of ${FAV_MAX} favourites`}</small>
+   <button type="button" onClick={w.finish}>Done</button>
+  </div>}
+  {Ghost&&<div className={`more-ghost${w.ghost.leaving?' leaving':''}${w.ghost.full?' full':''}`} style={{left:w.ghost.x,top:w.ghost.y}} aria-hidden="true">
+   <Ghost size={22}/><span>{PAGES[w.ghost.id].label}</span>{w.ghost.leaving&&<i><Minus size={12}/></i>}
+  </div>}
   {children}
- </>;
+ </div>;
 }

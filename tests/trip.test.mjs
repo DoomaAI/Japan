@@ -10106,7 +10106,7 @@ test('More opens on a Favourites row, and Safety on the two numbers that dial',a
  assert.deepEqual(rightNow({name:'Nate',role:'child'}),RIGHT_NOW,'a child gets the same row');
  assert.ok(rightNow({name:'Damien',role:'parent'}).includes('safety')&&rightNow({name:'Damien',role:'parent'}).includes('allergy'));
  const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8'),safety=await readFile(new URL('../src/Safety.jsx',import.meta.url),'utf8');
- assert.match(nav,/<nav className="right-now" aria-label="Favourites">\{favs\.map/,'the row is rendered from the saved favourites');
+ assert.match(nav,/aria-label="Favourites" data-wobbling=\{editing\|\|undefined\}>\{shown\.length\?shown\.map/,'the row is rendered from the saved favourites, or the order being dragged');
  assert.ok(nav.indexOf('aria-label="Favourites"')<nav.indexOf('className={`more-where'),'and it comes before everything else on More');
  assert.match(safety,/className="call-row"/);assert.ok(safety.indexOf('call-row')<safety.indexOf('Everything on this page works'),'the numbers come before the first sentence');
  assert.match(safety,/\['police','ambulance'\]\.includes\(e\.id\)/,'110 and 119, from the same list the page already keeps');
@@ -10134,6 +10134,31 @@ test('favourites start as Right now, are starred in and out, and are cleaned on 
  assert.match(nav,/setOpen\(`more\.\$\{title\}`,!o\[title\]\)/);
  assert.match(nav,/aria-expanded=\{!shut\}/);
  assert.match(nav,/const shut=!\(open\[title\]\?\?false\)&&!editing/,'choosing favourites opens every section so any card can be starred');
+});
+
+test('favourites are edited like a home screen: hold to wobble, drag to reorder, drag in to add and out to remove',async()=>{
+ const {dropFavourite,FAV_MAX}=await import('../src/nav-data.js');
+ // Along the row a favourite takes the place of the one it is dropped on, either way.
+ assert.deepEqual(dropFavourite(['a','b','c','d'],'a','c'),['b','c','a','d']);
+ assert.deepEqual(dropFavourite(['a','b','c','d'],'d','b'),['a','d','b','c']);
+ assert.deepEqual(dropFavourite(['a','b'],'a','a'),['a','b'],'dropped where it was, nothing moves');
+ // Up from a section a card joins where it is let go, or at the end on the row's empty space.
+ assert.deepEqual(dropFavourite(['a','b','c'],'x','b'),['a','x','b','c']);
+ assert.deepEqual(dropFavourite(['a','b','c'],'x',undefined),['a','b','c','x']);
+ assert.deepEqual(dropFavourite(['a','b','c'],'a',undefined),['b','c','a']);
+ // Out of the row it leaves; a full row turns a new card away but still reorders.
+ assert.deepEqual(dropFavourite(['a','b','c'],'b',null),['a','c']);
+ const full=Array.from({length:FAV_MAX},(_,i)=>`p${i}`);
+ assert.deepEqual(dropFavourite(full,'x','p0'),full);
+ assert.deepEqual(dropFavourite(full,'p1','p0').slice(0,2),['p1','p0']);
+ const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
+ const fw=await readFile(new URL('../src/fav-wobble.js',import.meta.url),'utf8');
+ assert.match(nav,/useFavWobble\(\{favs,onChange:next=>setSaved\(favourites\(user,next\)\)\}\)/,'a drop is cleaned and kept like a star');
+ assert.match(nav,/\{\.\.\.w\.item\(id,inFavs\)\}/,'every card, in the row or a section, can be picked up');
+ // A held card does not scroll the page, and a tap on a wobbling card does not open it.
+ assert.match(fw,/touch\?\.addEventListener\('touchmove',still,\{passive:false\}\)/,'on the element the finger landed on, which a favourite dragged out of the row leaves behind');
+ assert.match(fw,/onClickCapture:e=>\{if\(editing\|\|eat\.current\)/);
+ assert.match(fw,/if\(d&&d\.list\.join\(\)!==d\.base\.join\(\)\)onChange\(d\.list\)/,'saved once, on the drop');
 });
 
 test('nothing taken off a list is gone for thirty days, and comes back exactly as it was',async()=>{

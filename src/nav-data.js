@@ -141,6 +141,19 @@ export const toggleFavourite=(user,saved,id)=>{
  const now=favourites(user,saved);
  return now.includes(id)?now.filter(x=>x!==id):now.length<FAV_MAX?[...now,id]:now;
 };
+// Where a card dragged about on More lands in the row. Onto another favourite it takes that
+// one's place, whether it was already in the row or has come up from a section; onto the row's
+// empty end it goes last; dropped anywhere else (null) it leaves the row. A new card is turned
+// away once the row is full, the same cap as starring.
+export const dropFavourite=(list,id,onto)=>{
+ const had=list.includes(id),rest=list.filter(x=>x!==id);
+ if(onto===null)return rest;
+ if(!had&&list.length>=FAV_MAX)return [...list];
+ const at=onto===id?list.indexOf(id):onto===undefined?rest.length:list.indexOf(onto);
+ if(at<0)return [...rest,id];
+ rest.splice(at,0,id);
+ return rest;
+};
 // The menu, as this person has arranged it. Four of us carry the same app and want different
 // things out of it: Lauren lives on tickets and the plan, Boston on his missions and his money,
 // and Nate opens three screens in the whole trip. So the bar is theirs to set — which screens
