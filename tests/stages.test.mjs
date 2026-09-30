@@ -664,3 +664,49 @@ test('home while we’re away: the house list and the first day home go onto the
  const briefing=await readFile(new URL('../src/Briefing.jsx',import.meta.url),'utf8');
  assert.match(briefing,/\{b\.clocks&&<button[^>]*onClick=\{\(\)=>go\('homefront'\)\}>/,'the day in brief carries the note');
 });
+test('flying home: what we bought is read off our own lists and set against the passenger card, the allowance and the scales',async()=>{
+ const {classify,boughtItems,declareGroups,dutyFree,weightOf,weightBudget,ADULT_AUD,CHILD_AUD,ALLOWANCE_KG,DEFAULT_KG}=await import('../src/flying-home.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const {applyOperation}=await import('../server/model.mjs');
+ const {yenPerAud}=await import('../src/trip-features.js');
+ const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'};
+ // The words on the card.
+ assert.equal(classify('Matcha KitKats for school'),'food');assert.equal(classify('Kokeshi doll'),'wood');
+ assert.equal(classify('Bonito flakes'),'animal');assert.equal(classify('Bonsai seeds'),'plants');assert.equal(classify('Pokémon plush'),null);assert.equal(classify(''),null);
+ // Only what was actually bought counts, from all three lists.
+ let state=upgraded(seed);
+ assert.deepEqual(boughtItems(state),[]);
+ state=applyOperation(state,{type:'shoppingAdd',title:'Matcha KitKats',quantity:4,budget:600,person:'Family'},parent);
+ state=applyOperation(state,{type:'shoppingAdd',title:'Kokeshi doll',budget:3500,person:'Lauren'},parent);
+ state=applyOperation(state,{type:'shoppingAdd',title:'Not bought yet',budget:9999},parent);
+ const [kitkats,kokeshi]=state.shopping;
+ state=applyOperation(state,{type:'shoppingStatus',id:kitkats.id,done:true},parent);
+ state=applyOperation(state,{type:'shoppingStatus',id:kokeshi.id,done:true},parent);
+ state=applyOperation(state,{type:'shortlistAdd',title:'Bottle of sake',price:2800,person:'Damien'},parent);
+ state=applyOperation(state,{type:'shortlistStatus',id:state.shortlist.at(-1).id,status:'bought'},parent);
+ state=applyOperation(state,{type:'shortlistAdd',title:'Tetsubin teapot',price:12000},parent);
+ const bought=boughtItems(state);
+ assert.deepEqual(bought.map(i=>[i.title,i.qty,i.yen,i.declare,i.kg]),[['Matcha KitKats',4,600,'food',1],['Kokeshi doll',1,3500,'wood',0.8],['Bottle of sake',1,2800,'food',1.4]]);
+ const {groups,unsure,any}=declareGroups(state);
+ assert.ok(any);assert.deepEqual(groups.map(g=>[g.id,g.items.length]),[['food',2],['wood',1]]);assert.deepEqual(unsure,[]);
+ // The allowance: two adults and two boys, pooled, in dollars at the trip's own rate.
+ const duty=dutyFree(state),rate=yenPerAud(state);
+ assert.equal(duty.allowance,2*ADULT_AUD+2*CHILD_AUD);assert.equal(duty.yen,4*600+3500+2800);assert.equal(duty.aud,Math.round(duty.yen/rate*100)/100);assert.equal(duty.over,0);assert.equal(duty.counted,3);
+ // The scales: guessed weights, the room typed in, and the heaviest things to post if it does not fit.
+ assert.equal(weightOf('Bottle of sake'),1.4);assert.equal(weightOf('Something odd'),DEFAULT_KG);
+ const w=weightBudget(state,2);
+ assert.equal(w.added,3.2);assert.equal(w.over,1.2);assert.deepEqual(w.post.map(i=>i.title),['Bottle of sake']);assert.equal(w.allowanceEach,ALLOWANCE_KG);
+ assert.equal(weightBudget(state,null).over,null);assert.equal(weightBudget(state,10).over,0);
+ // A boy's purse counts too, at what the till took, and is his.
+ let purse=applyOperation(state,{type:'spendAdd',person:'Nate',title:'Pokémon plush',estimate:1500},child);
+ purse=applyOperation(purse,{type:'spendBought',id:purse.spending.items.at(-1).id,done:true,spent:1800},child);
+ assert.deepEqual(boughtItems(purse).at(-1),{id:`purse-${purse.spending.items.at(-1).id}`,title:'Pokémon plush',qty:1,yen:1800,who:'Nate',source:'purse',taxFree:false,declare:null,kg:0.5});
+ assert.deepEqual(declareGroups(purse).unsure.map(i=>i.title),['Pokémon plush'],'a thing the words cannot place is listed to look at');
+ assert.equal(dutyFree(purse).yen,duty.yen+1800);
+ // Its place in the app.
+ assert.ok(PAGES.flyinghome?.label&&PAGE_RULES.flyinghome);
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('flyinghome'));
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/\{tab==='flyinghome'&&<FlyingHome state=\{visibleState\} go=\{go\}\/>\}/);
+});
