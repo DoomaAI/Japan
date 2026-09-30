@@ -707,12 +707,28 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .more-grid{margin:.5rem 0 .4rem}
 .more-card-wrap{position:relative;display:flex}
 .more-card-wrap>.right-now-tile{flex:1;width:100%}
-.more-star{position:absolute;top:4px;right:4px;display:grid;place-items:center;width:30px;height:30px;min-height:30px;padding:0;border-radius:50%;background:var(--paper);color:var(--tint-border)}
-.more-star.on{color:var(--amber)}.more-star.on svg{fill:currentColor}
-.more-star:disabled{opacity:.35}
 .right-now-tile .more-tags{display:flex;gap:.2rem;flex-wrap:wrap;justify-content:center}
 .right-now-tile .more-tags .tag{font-size:.75rem;padding:.05rem .35rem}
 .right-now-tile.more-elsewhere{opacity:.6}
+/* More, being edited (fav-wobble.js): every card wobbles, a badge in its corner adds or removes
+   it, and the card being dragged is a ghost under the finger while the card it came from waits,
+   dimmed, where it was — or where it will land, if that is in the row. The page still scrolls
+   under a quick swipe, so the cards keep the page's own touch handling rather than wobble.js's. */
+.more-page[data-editing] .more-card-wrap{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.more-page [data-wobbling]>[data-link]{touch-action:manipulation;border-radius:14px}
+.more-page .right-now-tile{-webkit-touch-callout:none}
+.more-card-wrap.lifting{opacity:.3}
+.more-card-wrap.lifting>.right-now-tile{border-style:dashed}
+.more-badge{position:absolute;top:-6px;left:-6px;z-index:2;display:grid;place-items:center;width:26px;height:26px;min-height:26px;padding:0;border-radius:50%;background:var(--ink);border-color:var(--ink);color:var(--paper);box-shadow:0 2px 6px #0003}
+.more-badge.minus{background:var(--muted);border-color:var(--muted)}
+.more-badge.on{background:var(--green);border-color:var(--green)}
+.more-badge:disabled{opacity:.3}
+.right-now.more-drop{display:grid;place-items:center;grid-template-columns:1fr;min-height:72px;border:2px dashed var(--border);border-radius:14px;color:var(--muted);font-size:.85rem}
+.more-done{position:sticky;bottom:calc(90px + env(safe-area-inset-bottom));z-index:6;margin:.8rem 0;padding:.55rem .6rem .55rem .9rem;background:var(--cream);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 30px #0002}
+.more-ghost{position:fixed;z-index:60;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.35rem;width:104px;min-height:72px;padding:.6rem .4rem;background:var(--paper);border:1px solid var(--border);border-radius:14px;font-weight:600;font-size:.82rem;line-height:1.15;text-align:center;transform:translate(-50%,-50%) scale(1.1);box-shadow:0 12px 30px #0003;transition:opacity .15s}
+.more-ghost svg{color:var(--accent)}
+.more-ghost.leaving,.more-ghost.full{opacity:.7}
+.more-ghost i{position:absolute;top:-6px;left:-6px;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--paper)}
 .booked-via{display:inline-flex;align-items:center;gap:.3rem;font-weight:600;color:var(--ink);text-decoration:none;border:1px solid var(--border);border-radius:999px;padding:.15rem .6rem;background:var(--paper)}a.booked-via{text-decoration:underline;text-underline-offset:2px}.booked-via.button{border-radius:8px;padding:.5rem .8rem;text-decoration:none}
 .food-rate{margin:.2rem 0 .8rem;padding:.7rem .9rem}
 .food-rate .food-people{margin:.7rem 0 0}
