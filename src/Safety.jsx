@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {Phone} from 'lucide-react';
+import {Phone,SearchX} from 'lucide-react';
 import SayIt from './SayIt.jsx';
 import {PHRASES} from './phrases.js';
 import {EMERGENCY,CONSULAR,SAFETY_LINKS,DISASTER,lostCard,lostCardNames} from './safety-data.js';
@@ -44,6 +44,7 @@ export default function Safety({state,user,day,go}){
   <h2>Say it</h2>
   {['help','ambulance','police','hospital','separated'].map(k=><SayIt key={k} phrase={PHRASES[k]}/>)}
   <LostCards state={state} user={user} day={day}/>
+  {go&&<p><button type="button" onClick={()=>go('lost')}><SearchX size={16}/> Lost something? The words, the desks, the kōban and the claim</button></p>}
   <h2>Australian government</h2>
   <ul>{CONSULAR.map(c=><li key={c.id}><strong>{c.title}</strong><br/><a href={tel(c.number)}>{c.number}</a><br/><small>{c.address}</small></li>)}</ul>
   <h2>Travel insurance</h2>

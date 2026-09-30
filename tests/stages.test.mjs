@@ -710,3 +710,41 @@ test('flying home: what we bought is read off our own lists and set against the 
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/\{tab==='flyinghome'&&<FlyingHome state=\{visibleState\} go=\{go\}\/>\}/);
 });
+test('lost something: the Japanese to hand over, the right desk for the day’s lines and parks, the kōban and the claim',async()=>{
+ const {ITEMS,COLOURS,DESKS,desksFor,deskFor,lostDraft,KOBAN,CLAIM,claimSummary}=await import('../src/lost-data.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const state=upgraded(seed);
+ // The words: big Japanese first, the colour on the thing, the number to ring back.
+ const d=lostDraft({item:'wallet',colour:'red',where:'on the JR Yamanote Line',when:'this morning',phone:'+61 400 000 000'});
+ assert.deepEqual(d.ja,['すみません、落とし物をしました。','this morning、on the JR Yamanote Lineで赤い財布をなくしました。','見つかったら、この番号に連絡してください：+61 400 000 000']);
+ assert.equal(d.en[1],'this morning, I lost a red wallet on the JR Yamanote Line.');
+ assert.equal(lostDraft({item:'umbrella'}).en[1],'I lost an umbrella.');assert.equal(lostDraft({item:'glasses',colour:'black'}).en[1],'I lost black glasses.');assert.equal(lostDraft({item:'other'}).en[1],'I lost something.');
+ assert.match(d.text,/^すみません/);
+ assert.equal(lostDraft().ja.length,2,'nothing said, nothing padded');
+ assert.equal(lostDraft({item:'nonsense'}).ja[1],'忘れ物をなくしました。','an unknown thing is still a lost thing');
+ assert.ok(ITEMS.every(([id,en,ja])=>id&&en&&ja)&&COLOURS[0][0]==='');
+ // The desks: every operator on the route cards has one, with a page to check the number on.
+ const {LINES}=await import('../src/route-data.js');
+ for(const op of new Set(Object.values(LINES).map(l=>l.operator).filter(Boolean)))assert.ok(DESKS.some(x=>x.operator===op&&!x.for),`a desk for ${op}`);
+ for(const x of DESKS)assert.ok(x.title&&(x.url||x.note),x.id);
+ // A Kyoto day rides Kyoto's subway and JR West; the Disney day names the resort line and the parks; a flight day names Haneda.
+ assert.deepEqual(desksFor(state,'2026-09-26').today.map(x=>x.operator),['Kyoto Municipal Subway','JR West']);
+ const disney=desksFor(state,'2026-09-30').today.map(x=>x.id);
+ assert.ok(disney.includes('disney'),disney.join());
+ assert.ok(desksFor(state,'2026-10-06').today.some(x=>x.id==='haneda'));
+ assert.equal(desksFor(state,'2026-09-26').rest.length+desksFor(state,'2026-09-26').today.length,DESKS.length,'nothing is lost between the two lists');
+ assert.equal(desksFor({days:[],steps:[]},'2026-09-26').today.length,0);
+ assert.equal(deskFor('metro').phone,'0120-104-767');
+ // The kōban and the claim.
+ assert.ok(KOBAN.length>=4&&CLAIM.length>=4);
+ assert.match(claimSummary({draft:d,day:'2026-09-23',stepTitle:'Shibuya crossing',report:'R-123',policy:'POL-9'}),/^Lost-property claim\nDate: 2026-09-23 · Shibuya crossing\nItem: this morning, I lost a red wallet on the JR Yamanote Line\.\nPolice report number: R-123\nPolicy: POL-9$/);
+ assert.match(claimSummary({draft:d}),/\(add from the kōban slip\)/);
+ // Its place in the app: under Out and about beside Safety, and a button on Safety itself.
+ assert.ok(PAGES.lost?.label&&PAGE_RULES.lost);
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Out and about')[1].includes('lost'));
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/\{tab==='lost'&&<Lost state=\{visibleState\} user=\{user\} day=\{day\} go=\{go\} notice=\{notice\}\/>\}/);
+ const safety=await readFile(new URL('../src/Safety.jsx',import.meta.url),'utf8');
+ assert.match(safety,/onClick=\{\(\)=>go\('lost'\)\}/);
+});

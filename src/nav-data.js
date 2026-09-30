@@ -24,6 +24,7 @@ export const PAGES={
  meeting:{label:'Meeting card',note:'If we get separated'},
  allergy:{label:'Allergy card',note:'What each of us cannot eat, in Japanese, to show the waiter'},
  safety:{label:'Safety & emergencies',note:'Emergency numbers, the boys\u2019 lost cards, the embassy, earthquakes and typhoons'},
+ lost:{label:'Lost something',note:'The Japanese to hand over, the right desk for today’s trains and parks, the kōban report and what the insurer asks for'},
  phrases:{label:'Phrases',note:'Greetings and travel Japanese, with how to say it'},
  stamps:{label:'Stamp book',note:'Stamps for the places, sights, rides and trains we have done, and everyone’s milestones'},
  leaderboard:{label:'Leaderboard',note:'Who has tried the most foods, ridden the most rides and taken the most photos'},
@@ -76,7 +77,7 @@ export const PRIMARY={
 // memories now; the app's own housekeeping (updates, the bin, search, the original guide) has
 // a shelf of its own rather than sitting among the photos.
 export const MORE_SECTIONS=[
- ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','meeting','safety','help','apps']],
+ ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','meeting','safety','lost','help','apps']],
  ['Money',['money','paying','ledger','shopping','shortlist','shop']],
  ['The plan',['glance','days','todo','packing','trackers','windows','arrival','flyinghome','homefront','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
  ['Looking back',['noticed','photos','memorymap','diary','recap','book']],
