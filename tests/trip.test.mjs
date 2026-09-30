@@ -9962,6 +9962,8 @@ test('every stop in the plan reads as a sort of stop, and a parent can set it by
  assert.equal(by('mipig café'),'cafe');
  assert.equal(by('Check in and settle in'),'hotel');
  assert.equal(by('Chuo-dori shopping and snacks'),'shopping');
+ assert.equal(guessEntryType({title:'Buy DPA for Pooh\'s Hunny Hunt'}),'admin');
+ assert.equal(guessEntryType({title:'Pooh\'s Hunny Hunt'}),'entertainment');
  for(const s of seed.steps)assert.notEqual(guessEntryType(s),'other',s.title);
  const s=seed.steps.find(s=>s.title==='Tonkatsu Maisen lunch');
  const edited=applyOperation(seed,{type:'patch',id:s.id,patch:{category:'sightseeing'}},parent).steps.find(x=>x.id===s.id);
