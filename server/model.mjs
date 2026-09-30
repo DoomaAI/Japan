@@ -8,6 +8,8 @@ import {legCount,tickLeg} from '../src/route-data.js';
 import {ENTRY_TYPE_IDS} from '../src/entry-types.js';
 import {guessPlatform} from '../src/booked-via.js';
 import {BIN_KINDS,binEntries,binTitle} from '../src/bin-data.js';
+// The family, kept only as the fallback the AI modules name when a state has no members list.
+// Every membership check reads state.members and the records in src/people.js.
 export const MEMBERS = ['Damien','Lauren','Nate','Boston'];
 // Where a forwarded email can be filed. A ticket is the default; the rest put it where the
 // family would have put it themselves had they typed it in.
@@ -67,7 +69,7 @@ export function validatePatch(p,state){
   if(k==='kind'&&!['fixed','flexible','optional','review'].includes(v))throw new AppError('Invalid activity type.');
   if(k==='category'&&v!==''&&!ENTRY_TYPE_IDS.includes(v))throw new AppError('Choose a sort of stop from the list.');
   if(k==='review'&&typeof v!=='boolean')throw new AppError('Invalid review flag.');
-  if(k==='participants'&&(!Array.isArray(v)||!v.length||v.some(n=>!MEMBERS.includes(n))))throw new AppError('Choose family members.');
+  if(k==='participants'&&(!Array.isArray(v)||!v.length||v.some(n=>!state.members.includes(n))))throw new AppError('Choose people who are in the plan.');
  }
  return p;
 }
@@ -78,7 +80,7 @@ function addStep(state,p){
  if(!p.title||p.day===undefined)throw new AppError('Add a name and choose a day or Options.');
  if(p.day===null&&(p.time||p.bookingTime||p.locked))throw new AppError('Options have no fixed date or time.');
  if(!!p.group!==!!p.option)throw new AppError('Add both an option group and option name, or leave both blank.');
- const step={id:randomUUID(),originalTime:p.time??null,time:null,duration:30,notes:'',place:'',japanese:'',page:1,kind:'flexible',group:'',option:'',participants:MEMBERS,order:Math.max(0,...state.steps.filter(s=>s.day===p.day).map(s=>s.order))+10,...p,locked:p.locked??(p.kind==='fixed'),status:'todo',bookingTime:p.bookingTime??(p.kind==='fixed'?p.time:null)};
+ const step={id:randomUUID(),originalTime:p.time??null,time:null,duration:30,notes:'',place:'',japanese:'',page:1,kind:'flexible',group:'',option:'',participants:[...state.members],order:Math.max(0,...state.steps.filter(s=>s.day===p.day).map(s=>s.order))+10,...p,locked:p.locked??(p.kind==='fixed'),status:'todo',bookingTime:p.bookingTime??(p.kind==='fixed'?p.time:null)};
  state.steps.push(step);
  if(p.group&&!state.choices[p.group])state.choices[p.group]=p.option;
  return step;
@@ -206,13 +208,13 @@ export function applyOperation(input,op,user){
  }else if(op.type==='documentLink'||op.type==='documentNote'){
   if(!text(op.title,250)||!op.title.trim()||(op.type==='documentLink'&&!safeLink(op.url)))throw new AppError('Add a title and a valid HTTPS link if linking a document.');
   if(op.stepId&&!state.steps.some(s=>s.id===op.stepId))throw new AppError('Activity not found.');
-  if(op.person&&!MEMBERS.includes(op.person)&&op.person!=='Family')throw new AppError('Invalid family member.');
+  if(op.person&&!state.members.includes(op.person)&&op.person!=='Family')throw new AppError('Choose someone who is in the plan.');
   state.documents.push({id:randomUUID(),title:op.title,...documentDetails(op),...documentAssociation(op,state),...(op.type==='documentLink'?{url:op.url}:{}),person:op.person||'Family',type:op.type==='documentLink'?'link':'note',createdAt:now});
  }else if(op.type==='editDocument'){
   const doc=state.documents.find(d=>d.id===op.id);if(!doc)throw new AppError('Document not found.',404);
   if(!text(op.title,250)||!op.title.trim())throw new AppError('Add a title.');
   if(op.stepId&&!state.steps.some(s=>s.id===op.stepId))throw new AppError('Activity not found.');
-  if(op.person&&!MEMBERS.includes(op.person)&&op.person!=='Family')throw new AppError('Invalid family member.');
+  if(op.person&&!state.members.includes(op.person)&&op.person!=='Family')throw new AppError('Choose someone who is in the plan.');
   Object.assign(doc,{title:op.title,...documentDetails(op),...documentAssociation(op,state),person:op.person||'Family'});
   const root=ticketParent(doc.parentDocumentId,state);
   if(root)Object.assign(doc,{category:root.category,stepId:root.stepId,stepIds:documentSteps(root),day:root.day});
@@ -224,7 +226,7 @@ export function applyOperation(input,op,user){
   const item=(state.inbox||[]).find(i=>i.id===op.id);
   if(!item)throw new AppError('That email is no longer in the inbox.',404);
   if(!text(op.title,250)||!op.title.trim())throw new AppError('Add a title for this booking.');
-  if(op.person&&!MEMBERS.includes(op.person)&&op.person!=='Family')throw new AppError('Invalid family member.');
+  if(op.person&&!state.members.includes(op.person)&&op.person!=='Family')throw new AppError('Choose someone who is in the plan.');
   if(op.category==='memory')throw new AppError('Forwarded email is filed as a booking, not a photo.');
   const destination=op.destination||'ticket',title=op.title.trim();
   if(!INBOX_DESTINATIONS.includes(destination))throw new AppError('Choose where this email goes.');

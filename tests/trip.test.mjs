@@ -10041,7 +10041,7 @@ test('a family link, its session and its cookie all last six months, and renew i
  const store=await readFile(new URL('../server/store.mjs',import.meta.url),'utf8'),handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
  assert.ok(!/45 days/.test(store)&&!/45 days/.test(handler),'nothing is left on the old 45-day life');
  assert.match(handler,/INSERT INTO japan_sessions\(token_hash,grant_id,expires_at\)/,'a new session says its own life rather than trusting the table default');
- assert.match(handler,/INSERT INTO japan_grants\(id,token_hash,name,role,expires_at\)/,'and so does a new invite');
+ for(const insert of handler.match(/INSERT INTO japan_grants\([^)]*\)/g))assert.match(insert,/expires_at\)/,'and so does every new invite: '+insert);
 });
 
 test('the subscribable calendar carries a line per day and every fixed booking with a leave-by alarm',async()=>{

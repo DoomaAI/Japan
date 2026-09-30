@@ -5,7 +5,6 @@
 import {database,localDemo} from './store.mjs';
 import {AppError} from './model.mjs';
 import {CHECKIN_PLACES,CHECKIN_HOURS,roundedPosition,validPosition,canSeeCheckin} from '../src/memory-map.js';
-const PARENTS=['Damien','Lauren'];
 let demo=new Map(),ready;
 async function db(){
  const sql=await database();
@@ -30,7 +29,9 @@ export async function shareCheckin(user,body,now=new Date()){
  const sql=await db();
  await sql`INSERT INTO japan_checkins(name,lat,lng,at) VALUES (${user.name},${p.lat},${p.lng},${at}) ON CONFLICT(name) DO UPDATE SET lat=excluded.lat,lng=excluded.lng,at=excluded.at`;
 }
-export async function listCheckins(user,now=new Date()){
+// Who may see whom is decided by the plan's records (src/people.js): a parent sees everyone, and
+// everyone sees the parents and themselves. The handler passes the plan's parents in.
+export async function listCheckins(user,now=new Date(),parents=[]){
  let rows;
  if(localDemo()){
   for(const [k,c] of demo)if(now-new Date(c.at)>=CHECKIN_HOURS*3600000)demo.delete(k);
@@ -39,6 +40,6 @@ export async function listCheckins(user,now=new Date()){
   const sql=await db();
   rows=(await sql`SELECT name,lat,lng,at FROM japan_checkins`).map(r=>({name:r.name,lat:r.lat,lng:r.lng,at:new Date(r.at).toISOString()}));
  }
- return rows.filter(c=>canSeeCheckin(user,c,PARENTS));
+ return rows.filter(c=>canSeeCheckin(user,c,parents));
 }
 export const resetDemoCheckins=()=>{demo=new Map();};
