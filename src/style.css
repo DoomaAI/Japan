@@ -784,3 +784,6 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
  .opening-fact-timer{animation:opening-timer 8s linear forwards}@keyframes opening-timer{to{transform:scaleX(1)}}
  .opening-train{animation:opening-ride 3.2s cubic-bezier(.45,0,.55,1) infinite}@keyframes opening-ride{0%{left:-8%;opacity:0}10%{opacity:1}90%{opacity:1}100%{left:100%;opacity:0}}}
 @media(max-height:640px){.opening .opening-countdown strong{font-size:2.6rem}.opening-fact{min-height:0}.opening-fact-text{-webkit-line-clamp:3}}
+
+/* The reading and awareness dials in Settings: one block each, the picker under its heading. */
+.setting-dial{margin:.75rem 0}.setting-dial .section-heading small{color:var(--muted,inherit)}

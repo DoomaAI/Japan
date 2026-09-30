@@ -79,3 +79,13 @@ test('Project: stops a person is not on are marked “not you” on the plan sen
  assert.ok(brief.split('\n').some(l=>l.includes(split.title)&&l.includes('not you')));
  assert.doesNotMatch(tripBrief(state,{day:split.day,now:new Date(`${split.day}T01:00:00Z`)}),/not you/);
 });
+test('Project: a child’s page says how the words should reach him and how much of the trip to mention, from the dials a parent set',async()=>{
+ const {applyOperation}=await import('../server/model.mjs');
+ let state=trip();
+ assert.match(parts(state,'Nate').personal,/- Nate cannot read yet: everything Nate sees is read aloud.*Nate is always with a grown-up/);
+ assert.match(parts(state,'Boston').personal,/- Boston reads alone.*Boston can be told how the day goes/);
+ assert.doesNotMatch(parts(state,'Damien').personal,/read aloud|grown-up|trusted with/);
+ state=applyOperation(state,{type:'childLevels',name:'Nate',reading:'sounding',awareness:'trusted'},{name:'Damien',role:'parent'});
+ assert.match(parts(state,'Nate').personal,/Nate is sounding words out.*Nate can be trusted with the plan and its timings; money, bookings and going anywhere alone are still a parent’s/);
+ assert.ok(isChild(state,'Nate'));
+});

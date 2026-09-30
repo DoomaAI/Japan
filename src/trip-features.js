@@ -1,3 +1,4 @@
+import {isChild,defaultReading,ageOf} from './child-levels.js';
 import {activeSteps,minutes,asClock,japanDate,japanClock} from './timing.js';
 import {stepsFor} from './split.js';
 import {expressSeeded} from './park-data.js';
@@ -1121,7 +1122,7 @@ export const eventDays=(state,{start,end,near,from=''})=>(state.days||[])
  .filter(d=>d.date>=start&&d.date<=end&&d.date>=from&&dayAreas(d).some(a=>near.includes(a))).map(d=>d.date).sort();
 export const EMPTY_PARTY={people:{},pace:'steady',budget:null,notes:''};
 export const party=state=>({...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}});
-export const personProfile=(state,name)=>({age:null,interests:[],likes:[],loves:'',avoid:'',dietary:'',notes:'',...(party(state).people[name]||{})});
+export const personProfile=(state,name)=>({age:null,interests:[],likes:[],loves:'',avoid:'',dietary:'',notes:'',reading:null,awareness:null,...(party(state).people[name]||{})});
 // Things a person likes in their own words — ramen, Pokémon, Lego, jazz bars — kept as short
 // tags next to the fixed list, because the fixed list cannot know that Boston means Shinkansen
 // and not trams. Case is kept as typed; duplicates are caught regardless of case.
@@ -1165,6 +1166,9 @@ export function partyBrief(state){
   if(me.avoid)bits.push(`would rather avoid ${me.avoid}`);
   if(me.dietary)bits.push(`food: ${me.dietary}`);
   if(me.notes)bits.push(me.notes);
+  // A boy who is still read to should be suggested things that can be said to him, not read by him.
+  const reading=isChild(state,name)?{none:'not reading yet',sounding:'sounding words out'}[me.reading||defaultReading(ageOf(state,name))]:'';
+  if(reading)bits.push(reading);
   return `${name}${me.age?`, ${me.age}`:''} — ${bits.length?bits.join('; '):'nothing said yet'}`;
  });
  lines.push(`Pace: ${paceLabel(p.pace)}`);

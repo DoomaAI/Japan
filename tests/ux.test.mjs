@@ -290,7 +290,7 @@ test('a report is a noticing with a kind on it: one tap, two hours on the others
  assert.equal(freshReports(next,{day:'2026-09-30',now:new Date(at+3*3600000)}).length,0,'then it is just a memory');
  assert.equal(freshReports(next,{day:'2026-10-01',now:new Date(at+60000)}).length,0,'on the day it was said');
  const main=await source('main.jsx'),widgets=await source('home-widgets.js'),links=await source('card-links.js');
- assert.match(main,/report:<button onClick=\{\(\)=>setModal\(\{type:'report',step:current\}\)\}/,'a Report button under the stop');
+ assert.match(main,/report:awarenessAllows\(visibleState,user\.name,'report'\)&&<button onClick=\{\(\)=>setModal\(\{type:'report',step:current\}\)\}/,'a Report button under the stop, for a phone whose awareness dial allows one');
  assert.match(main,/reports:<Reports state=\{visibleState\}/,'a Home widget of the last two hours');
  assert.match(widgets,/reports:\{label:'Reports from the family'/);
  assert.match(links,/report:\{label:'Report'/);

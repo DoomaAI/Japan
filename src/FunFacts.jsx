@@ -5,6 +5,7 @@ import {japanDate} from './timing.js';
 import {dayLabel,SILENT_HINT,useReadAloud,ReadAloudButton} from './AdventurePages.jsx';
 import {searchText,factQueue,factLogFor,factsSeenBy} from './trip-features.js';
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
+import {readingHelp,readTo} from './child-levels.js';
 import {YOUNG_RATE} from './speech.js';
 import SoundCheck from './SoundCheck.jsx';
 // The day's fun fact, and as many more as anyone wants to swipe through. Everything actually
@@ -52,8 +53,8 @@ export function FactOfDay({queue,dateLabel,heading,busy,dismiss,openPage,young})
 // The whole collection, the ones tied to today, and everything this person has already met.
 export default function FunFacts({state,user,day,mutate,busy,openPage}){
  const [extra,setExtra]=useState(null),[open,setOpen]=useState(false),[q,setQ]=useState('');
- const {supported:canRead,reading,read,problem}=useReadAloud(),young=user?.name==='Nate';
- const aloud=canRead?{reading,read,rate:young?YOUNG_RATE:undefined}:null;
+ const {supported:canRead,reading,read,problem}=useReadAloud(),{young,rate}=readingHelp(state,user?.name),helped=readTo(state).filter(n=>n!==user?.name);
+ const aloud=canRead?{reading,read,rate}:null;
  const total=ALL_FACTS().length,log=factLogFor(state,user.name),seen=factsSeenBy(state,user.name);
  const queue=factQueue(state,user.name,day).filter(f=>!seen[f.id]);
  const todays=factsForDay(state.days,day);
@@ -65,7 +66,7 @@ export default function FunFacts({state,user,day,mutate,busy,openPage}){
  }
  const when=at=>{const d=new Date(at);return Number.isFinite(d.getTime())?dayLabel(japanDate(d)):'';};
  return <>
-  {canRead&&<p>{young?'Tap Read to me on any fact and the phone will read it to you. Nothing on this page has to be read.':'Tap Read to me on any fact and the phone will read it out — handy for Nate, who cannot read one yet.'} {SILENT_HINT}</p>}
+  {canRead&&<p>{young?'Tap Read to me on any fact and the phone will read it to you. Nothing on this page has to be read.':'Tap Read to me on any fact and the phone will read it out'+(helped.length?` — handy for ${helped.join(' and ')}, who cannot read one yet.`:'.')} {SILENT_HINT}</p>}
   {problem&&<p className="callout">{problem}</p>}
   {/* The phrasebook had the only copy of this, and the facts are where "I pressed it and
       nothing happened" actually gets said. It is the same two-button test either way. */}
@@ -103,9 +104,9 @@ export default function FunFacts({state,user,day,mutate,busy,openPage}){
  </>;
 }
 // The read-aloud a card's facts get: the one speaking voice that screen is already holding,
-// at the speed the person in front of it reads. Nate is five, so his is a story's pace, and a
+// at the speed the person in front of it reads. A boy still read to gets a story's pace, and a
 // browser with no speech in it gets no button rather than one that does nothing.
-export const factAloudFor=(speech,person)=>speech?.supported?{reading:speech.reading,read:speech.read,rate:person==='Nate'?YOUNG_RATE:undefined}:null;
+export const factAloudFor=(speech,state,person)=>speech?.supported?{reading:speech.reading,read:speech.read,rate:readingHelp(state,person).rate}:null;
 // The fact where the thing actually is. A card that names something the guide has a fact about
 // carries it on the card itself — the activity on the day, the place on the map, the dish on
 // the food list — so it is there while somebody is standing in front of the thing rather than
