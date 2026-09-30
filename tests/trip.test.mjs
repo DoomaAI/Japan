@@ -10627,7 +10627,7 @@ test('More is leaner: money on one shelf, memories on their own, housekeeping ap
  assert.deepEqual(section('Money'),['money','paying','ledger','shopping','shortlist','shop']);
  assert.ok(section('For the boys').includes('spending'));
  // Looking back is memories only; the app's own housekeeping is not among the photos.
- assert.deepEqual(section('Looking back'),['noticed','photos','memorymap','diary','recap','book']);
+ assert.deepEqual(section('Looking back'),['noticed','nexttime','photos','memorymap','diary','recap','book']);
  assert.deepEqual(section('Housekeeping'),['updates','bin','search','guide']);
  // Nothing is listed twice, and every page not on the bar is somewhere.
  const all=MORE_SECTIONS.flatMap(([,ids])=>ids);
@@ -10980,4 +10980,47 @@ test('a parent’s phone can be handed to one of the boys until the code takes i
  assert.match(spending,/\{inWords\n\s*\?<strong className="purse-headline purse-words">\{purseInWords\(money\.left\)\}<\/strong>/);
  const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
  assert.match(settings,/user\?\.role==='parent'&&state&&hand&&<HandOver/);
+});
+test('next time: the lesson on a stop, per person, in one list and in what the model is told',async()=>{
+ const {NEXT_TIME_CHIPS,nextTimeFor,nextTimeNotes,nextTimeBrief,nextTimeText,MAX_NEXT_TIME}=await import('../src/next-time.js');
+ const {partyBrief}=await import('../src/trip-features.js');
+ const {tripProject}=await import('../src/trip-project.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ let state=upgraded(structuredClone(seed));
+ const deer=state.steps.find(s=>/deer|nara/i.test(s.title))||state.steps[3],ramen=state.steps[5];
+ assert.deepEqual(nextTimeFor(state,deer.id),{});assert.deepEqual(nextTimeNotes(state),[]);assert.equal(nextTimeBrief(state),'');
+ // A chip from a boy, a line from a parent, on two stops.
+ state=applyOperation(state,{type:'stepNextTime',id:deer.id,person:'Nate',text:NEXT_TIME_CHIPS[0]},child);
+ state=applyOperation(state,{type:'stepNextTime',id:deer.id,person:'Damien',text:'Come at opening; the deer are calmer.'},parent);
+ state=applyOperation(state,{type:'stepNextTime',id:ramen.id,person:'Damien',text:'Once was enough'},parent);
+ assert.equal(nextTimeFor(state,deer.id).Nate.text,NEXT_TIME_CHIPS[0]);
+ assert.ok(nextTimeFor(state,deer.id).Damien.at);
+ const notes=nextTimeNotes(state);
+ assert.equal(notes.length,3);
+ assert.ok(notes.every(n=>n.title&&n.day&&n.person&&n.text));
+ assert.deepEqual([...notes].map(n=>n.day),[...notes].map(n=>n.day).sort(),'by day');
+ // Taken back with a blank; nobody writes another's; the length has a lid; a boy cannot write a parent's.
+ state=applyOperation(state,{type:'stepNextTime',id:ramen.id,person:'Damien',text:''},parent);
+ assert.equal(nextTimeNotes(state).length,2);
+ assert.throws(()=>applyOperation(state,{type:'stepNextTime',id:deer.id,person:'Damien',text:'x'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'stepNextTime',id:deer.id,person:'Nate',text:'x'.repeat(MAX_NEXT_TIME+1)},parent));
+ assert.throws(()=>applyOperation(state,{type:'stepNextTime',id:'nope',person:'Nate',text:'x'},parent),e=>e.status===404);
+ // Stars and thoughts are untouched beside it.
+ state=applyOperation(state,{type:'stepThought',id:deer.id,person:'Nate',thought:'They bowed.'},child);
+ assert.equal(nextTimeFor(state,deer.id).Nate.text,NEXT_TIME_CHIPS[0]);
+ // The model reads them: the party brief for suggestions, the project's rated list for Ask.
+ assert.match(partyBrief(state),/Lessons the family wrote on stops, for next time:\n- /);assert.match(partyBrief(state),/: Book the early slot \(Nate\)/);
+ assert.match(nextTimeBrief(state),/Come at opening; the deer are calmer\. \(Damien\)/);
+ const project=tripProject(state,'Damien');
+ assert.match(`${project.personal}\n${project.shared}`,/Next time: Come at opening; the deer are calmer\./);
+ assert.match(nextTimeText(state),/ — Book the early slot \(Nate\)/);
+ // Its place in the app, and on the stop.
+ assert.ok(PAGES.nexttime?.label&&PAGE_RULES.nexttime);
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Looking back')[1].includes('nexttime'));
+ const review=await readFile(new URL('../src/StepReview.jsx',import.meta.url),'utf8');
+ assert.match(review,/onClick=\{\(\)=>saveNext\(myNext===c\?'':c\)\}/,'the same chip again takes it back');
+ assert.match(review,/maxLength=\{MAX_NEXT_TIME\}/);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/\{tab==='nexttime'&&<NextTime state=\{visibleState\} go=\{go\} notice=\{notice\}\/>\}/);
 });

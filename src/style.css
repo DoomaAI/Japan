@@ -801,3 +801,4 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .price-sense{display:block;color:var(--green-deep)}
 .nightstand{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75rem;text-align:center;padding:1rem;border-radius:16px;background:var(--ink);color:var(--paper);transition:opacity .4s}
 .nightstand.dim{opacity:.35}.nightstand-clock{font-size:clamp(4rem,22vw,8rem);line-height:1;font-variant-numeric:tabular-nums}.nightstand-lines p{margin:.25rem 0;display:flex;align-items:center;justify-content:center;gap:.4rem;flex-wrap:wrap}.nightstand small{color:var(--paper);opacity:.7}
+.next-time{margin-top:.5rem}.next-time .chips{margin:.4rem 0}.next-time-line{display:flex;align-items:center;gap:.3rem;color:var(--muted);margin:.2rem 0 0}

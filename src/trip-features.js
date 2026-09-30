@@ -1,4 +1,5 @@
 import {isChild,defaultReading,ageOf} from './child-levels.js';
+import {nextTimeBrief} from './next-time.js';
 import {activeSteps,minutes,asClock,japanDate,japanClock} from './timing.js';
 import {stepsFor} from './split.js';
 import {expressSeeded} from './park-data.js';
@@ -1184,6 +1185,8 @@ export function partyBrief(state){
  lines.push(`Pace: ${paceLabel(p.pace)}`);
  if(p.budget)lines.push(`Rough budget: ¥${p.budget.toLocaleString('en-AU')} a day for all of them`);
  if(p.notes)lines.push(`Worth knowing: ${p.notes}`);
+ // What the family wrote on stops for next time, so a suggestion carries the lesson.
+ const lessons=nextTimeBrief(state);if(lessons)lines.push(lessons);
  return lines.join('\n');
 }
 // The planning board. Before anything is on a day, anyone in the family can put a place, a meal

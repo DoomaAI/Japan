@@ -9,6 +9,7 @@ import {PRIORITIES,validPriorities} from '../src/decide-data.js';
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_FOR,normaliseThankYou,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {IC_MAX,RECEIPT_TYPES} from '../src/ledger-data.js';
 import {isChild,validReading,validAwareness} from '../src/child-levels.js';
+import {MAX_NEXT_TIME} from '../src/next-time.js';
 import {LOCAL_EXPERIENCES,cleanLocalCheck} from '../src/local-data.js';
 import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
@@ -1151,7 +1152,7 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:found.title};
   }
   fail('Unknown spending action.');
- }else if(op.type==='stepRating'||op.type==='stepThought'){
+ }else if(op.type==='stepRating'||op.type==='stepThought'||op.type==='stepNextTime'){
   // Four opinions about a thing that has happened. Kept per person, because an average is only
   // worth reading if you can see whose stars made it. Not the step's own notes, which are the plan.
   const step=state.steps.find(s=>s.id===op.id);if(!step)fail('Activity not found.',404);
@@ -1164,6 +1165,12 @@ export function extraOperation(state,op,user,fail,now){
    const ratings={...(entry.ratings||{})};
    if(op.rating)ratings[op.person]=op.rating;else delete ratings[op.person];
    entry.ratings=ratings;
+  }else if(op.type==='stepNextTime'){
+   // The lesson for next time, per person; a blank takes it back.
+   const text=(op.text??'').trim();requireText(text,MAX_NEXT_TIME,'next time');
+   const nextTime={...(entry.nextTime||{})};
+   if(text)nextTime[op.person]={text,at};else delete nextTime[op.person];
+   entry.nextTime=nextTime;
   }else{
    const text=(op.thought??'').trim();requireText(text,2000,'what you thought');
    const thoughts={...(entry.thoughts||{})};

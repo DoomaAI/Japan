@@ -17,6 +17,7 @@ export const PAGES={
  photos:{label:'Photos',note:'Everyone\u2019s photos, whose is whose, and the daily vote'},
  memorymap:{label:'Memory map',note:'Photos, voice notes and stars where they happened, and where the family last was'},
  noticed:{label:'Things we noticed',note:'The little moments, said out loud and tagged to where they happened or what they were about'},
+ nexttime:{label:'Next time',note:'What we would do differently, written on the stop while it was fresh, in one list for the next plan'},
  diary:{label:'Diary',note:'Completed stops, discoveries and photos'},
  recap:{label:'Our trip story',note:'The trip in swipeable cards: the numbers, the places, our best bits and everyone’s favourite'},
  book:{label:'Photobook',note:'A page for each day, with the photo of the day, the stops we loved and the diary, to print'},
@@ -81,7 +82,7 @@ export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','meeting','safety','lost','help','apps']],
  ['Money',['money','paying','ledger','shopping','shortlist','shop']],
  ['The plan',['glance','days','todo','packing','trackers','windows','arrival','flyinghome','homefront','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
- ['Looking back',['noticed','photos','memorymap','diary','recap','book']],
+ ['Looking back',['noticed','nexttime','photos','memorymap','diary','recap','book']],
  ['Housekeeping',['updates','bin','search','guide']],
  ['Just for you',['nightstand','personalise','settings','thanks']],
  ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot']]

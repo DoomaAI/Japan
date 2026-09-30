@@ -23,8 +23,8 @@ function ratingsBy(state,name){
  const out=[];
  for(const [id,entry] of Object.entries(state.stepReviews||{})){
   const step=(state.steps||[]).find(s=>s.id===id);if(!step)continue;
-  const rating=entry.ratings?.[name],thought=entry.thoughts?.[name]?.text;
-  if(rating||thought)out.push({title:step.title,day:step.day,rating:rating||null,thought:thought||''});
+  const rating=entry.ratings?.[name],thought=entry.thoughts?.[name]?.text,nextTime=entry.nextTime?.[name]?.text;
+  if(rating||thought||nextTime)out.push({title:step.title,day:step.day,rating:rating||null,thought:thought||'',nextTime:nextTime||''});
  }
  return out.sort((a,b)=>(b.rating??0)-(a.rating??0)||a.day.localeCompare(b.day));
 }
@@ -73,7 +73,7 @@ function profiles(state,person){
   if(weights)out.push(`- What matters when choosing: ${PRIORITIES.map(([id,label])=>`${label}: ${(PRIORITY_LEVELS.find(([n])=>n===weights[id])||[,'—'])[1]}`).join('; ')}`);
   if(rated.length){
    out.push('- Rated so far:');
-   for(const r of rated.slice(0,15))out.push(`  - ${r.title}${r.rating?` — ${r.rating}★`:''}${r.thought?`: “${cut(r.thought,200)}”`:''}`);
+   for(const r of rated.slice(0,15))out.push(`  - ${r.title}${r.rating?` — ${r.rating}★`:''}${r.thought?`: “${cut(r.thought,200)}”`:''}${r.nextTime?` Next time: ${cut(r.nextTime,120)}`:''}`);
   }
  }
  const likes=partyLikes(state).filter(l=>l.who.length>1);
