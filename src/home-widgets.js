@@ -35,6 +35,7 @@ export const HOME_WIDGETS={
  packing:{label:'Packing reminder',note:'What is still out of the case before a hotel move',page:'packing'},
  tally:{label:'Day tally and tools',note:'How many are done, photos, voice notes and tickets'},
  finds:{label:'Shop finds',note:'Things we photographed in a shop on this day',page:'shortlist'},
+ puzzle:{label:'Today’s puzzle',note:'One puzzle a day, the same on every phone: katakana, a photo, or a price',page:'games'},
  tonight:{label:'Tonight',note:'From five in the evening: star the best bits, vote for the photo of the day, leave a voice note'},
  guide:{label:'This day in the guide',note:'The original guide pages for the day',page:'guide'}
 };

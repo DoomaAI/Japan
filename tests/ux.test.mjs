@@ -341,3 +341,25 @@ test('big steps: a route as one thing per screen, a walk one screen and a ride t
  assert.match(src,/out\.push\(\{leg:k,kind:'board'/);assert.match(src,/out\.push\(\{leg:k,kind:'off'/);
  assert.match(route,/export function legStops/);
 });
+test('today’s puzzle: the same on every phone from the date, Wordle marks, a score against the day, a grid to share',async()=>{
+ const {puzzleFor,katakanaPuzzle,markGuess,puzzleScore,shareGrid,stopPuzzle,pricePuzzle,daySeed}=await import('../src/puzzle-data.js');
+ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url),'utf8'));
+ const a=puzzleFor(seed,'2026-10-02'),b=puzzleFor(seed,'2026-10-02');
+ assert.deepEqual(a,b,'the same puzzle on every phone');
+ assert.ok(daySeed('2026-10-02')>0);
+ const k=katakanaPuzzle('2026-10-02',11);
+ assert.ok(k.length>=3&&k.length<=5);assert.ok(k.keys.length<=16&&Array.from(k.word).every(c=>k.keys.includes(c)),'every kana of the word is on the keys');
+ assert.notEqual(katakanaPuzzle('2026-10-02',11).word,katakanaPuzzle('2026-10-03',12).word,'a new word each day');
+ assert.deepEqual(markGuess('コーヒー','コーラー'),['hit','hit','miss','hit']);
+ assert.deepEqual(markGuess('アイス','スイア'),['near','hit','near']);
+ assert.deepEqual(markGuess('ケーキ','キキー'),['near','miss','near'],'a doubled kana counts once');
+ assert.equal(puzzleScore(6,1,true),7);assert.equal(puzzleScore(6,6,true),2);assert.equal(puzzleScore(6,6,false),1);assert.equal(puzzleScore(3,3,true),2);
+ assert.equal(stopPuzzle(seed,'2026-10-02'),null,'no photo on a stop yet, no stop puzzle');
+ assert.equal(pricePuzzle(seed,'2026-10-02'),null,'nothing bought yet, no price puzzle');
+ assert.equal(a.kind,'katakana','so today hands over to the katakana');
+ const grid=shareGrid({dayNumber:12,tries:6},[{marks:['hit','near','miss']},{marks:['hit','hit','hit']}],true);
+ assert.equal(grid,'Japan puzzle · Day 12 · 2/6\n🟩🟨⬜\n🟩🟩🟩');
+ assert.doesNotMatch(grid,/[ァ-ヶ]/,'no letters in what is shared');
+ const main=await source('main.jsx'),games=await source('Games.jsx');
+ assert.match(main,/puzzle:<PuzzleLine state=\{visibleState\}/);assert.match(games,/\{id:'daily',title:'Today’s puzzle'/);
+});

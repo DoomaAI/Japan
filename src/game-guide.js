@@ -12,6 +12,20 @@
 // 2. Short sentences, ordinary words, and what to DO rather than what it is. Everything here
 //    is meant to be read aloud to a five-year-old by whoever is holding the phone.
 export const GAME_GUIDES={
+ daily:{
+  objective:'Solve the one puzzle everybody gets today. It is the same puzzle on every phone, so you can compare how many goes it took.',
+  setup:[
+   'Open it from Home or from the games. There is one a day and it changes at midnight in Japan.',
+   'Some days it is a word in katakana, the Japanese letters used on signs and menus. Some days it is one of our own photos. Some days it is something one of us bought.'
+  ],
+  rules:[
+   'For a word: tap the letters to spell your guess, then press the arrow. A green square is the right letter in the right place. A yellow square is a letter that is in the word, but somewhere else. A grey square is not in the word. You get six goes.',
+   'For a photo: it starts zoomed right in, and zooms out a little with every wrong guess. Pick which of the stops it was taken at. You get three goes.',
+   'For a price: pick what it cost from the four prices. A wrong one tells you higher or lower. You get two goes.',
+   'Your guesses stay on your phone if you put it down. Your score goes on the day once you finish.'
+  ],
+  win:'You have finished when you get it, or when the goes run out. Fewer goes is a better score. Share the squares if you like: they show how you went without giving the answer away.'
+ },
  match:{
   objective:'Turn over every pair of cards. One card of a pair is a Japanese letter. The other is the sound it makes, written in our letters.',
   setup:[
