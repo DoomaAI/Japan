@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useRef,useState,useCallback} from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import {Clapperboard,Map as MapIcon,Users,LocateFixed,EyeOff,RefreshCw,Star,Camera,Mic,MapPinOff,Download} from 'lucide-react';
+import {Clapperboard,Map as MapIcon,Users,LocateFixed,EyeOff,RefreshCw,Star,Camera,Mic,MapPinOff,Download,Volume2} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import {MascotBadge} from './Mascot.jsx';
 import {memoryPoints,dayRoute,placeCoords,checkinAge,ageText,CHECKIN_HOURS,CHECKIN_PLACES} from './memory-map.js';
@@ -43,7 +43,7 @@ function Memory({point,state}){
    <div><strong>{n}</strong>{ratings[n]&&<span className="mm-stars" aria-label={`${ratings[n]} of 5 stars`}>{Array.from({length:5},(_,i)=><Star key={i} size={14} fill={i<ratings[n]?'currentColor':'none'}/>)}</span>}
     {thoughts[n]&&<p>{thoughts[n].text}</p>}</div>
   </div>)}
-  {voice.map(v=><div className="mm-voice" key={v.id}><Mic size={15}/><span>{v.title||`${v.by}’s voice note`}</span><audio controls preload="none" src={voiceUrl(v)}/>{v.transcript&&<p className="voice-words">“{v.transcript}”</p>}</div>)}
+  {voice.map(v=><div className="mm-voice" key={v.id}>{v.kind==='sound'?<Volume2 size={15}/>:<Mic size={15}/>}<span>{v.title||`${v.by}’s voice note`}</span><audio controls preload="none" src={voiceUrl(v)}/>{v.transcript&&<p className="voice-words">“{v.transcript}”</p>}</div>)}
   {point.kind==='stop'&&!point.count&&<p><small>Done, with nothing kept from it yet.</small></p>}
  </section>;
 }

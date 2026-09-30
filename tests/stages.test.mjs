@@ -151,7 +151,7 @@ test('following along sends only the allow-list: days so far, photos, stars, wor
  assert.equal(v.days.length,9,'only the days that have begun');assert.equal(v.days[0].number,9,'newest first');
  const d=v.days.find(x=>x.date===day);
  // Kudos from home is on the list on purpose: who clapped, and with which of the three, and nothing else.
- assert.deepEqual(d.photos,[{id:'p1',by:'Nate',best:true,kudos:{}}]);
+ assert.deepEqual(d.photos,[{id:'p1',by:'Nate',best:true,frame:false,kudos:{}}]);
  assert.deepEqual(d.stops,[{id:meiji.id,title:meiji.title,stars:4.5,kudos:{},said:[{person:'Nate',text:'Huge gate'}]}]);
  assert.equal(d.diary,'A day in the forest.');
  const text=JSON.stringify(v);
@@ -459,7 +459,7 @@ test('keepsakes say whether the trip has given them enough to be made from',asyn
  assert.deepEqual(m,{characters:1,photos:1,days:2,stamps:2});
  assert.equal(keepsakeReady(KEEPSAKES.find(k=>k.id==='shirts'),m).ready,true);
  assert.deepEqual(keepsakeReady(KEEPSAKES.find(k=>k.id==='book'),m),{have:1,need:6,ready:false});
- for(const k of KEEPSAKES){assert.ok(['before','after'].includes(k.when));assert.ok(k.from in m,`${k.id} is made from something counted`);assert.equal(k.provider,null,'no print provider chosen yet');}
+ for(const k of KEEPSAKES){assert.ok(['before','during','after'].includes(k.when));assert.ok(k.from in m,`${k.id} is made from something counted`);assert.equal(k.provider,null,'no print provider chosen yet');}
  assert.deepEqual(keepsakeMaterial({}),{characters:0,photos:0,days:0,stamps:0});
 });
 test('the trip shop log keeps what was sorted and whether it was worth it, for the next trip',async()=>{
@@ -625,4 +625,164 @@ test('like a local: a parent checks a card against the web, and what comes back 
  assert.match(page,/user\?\.role==='parent'&&!!config\?\.research&&online/,'offered to a parent with the key and a signal');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/<LikeALocal [^\n]*request=\{request\} config=\{config\} online=\{online\}/);
+});
+test('home while we’re away: the house list and the first day home go onto the to-do list, and the clocks-change note is worked out from the zones',async()=>{
+ const {zoneOffset,homeAhead,clockShift,clockNotice,AWAY_LIST,LANDING_LIST,onTodoList,HOME_ZONE}=await import('../src/home-front.js');
+ const {dayBriefing}=await import('../src/briefing-data.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const {applyOperation}=await import('../server/model.mjs');
+ const state=upgraded(seed);
+ // Sydney is an hour ahead of Tokyo in September and two ahead once daylight saving starts.
+ assert.equal(zoneOffset(new Date('2026-09-21T03:00:00Z'),'Asia/Tokyo'),9);
+ assert.equal(zoneOffset(new Date('2026-09-21T03:00:00Z'),HOME_ZONE),10);
+ assert.equal(homeAhead('2026-09-21'),1);assert.equal(homeAhead('2026-10-05'),2);
+ assert.equal(homeAhead('2026-09-21',HOME_ZONE,'Australia/Perth'),2,'any pair of zones');
+ // This trip crosses the first Sunday of October; a March trip, or a family in Brisbane, does not.
+ assert.deepEqual(clockShift(seed.days),{day:'2026-10-04',before:1,after:2,home:HOME_ZONE,away:'Asia/Tokyo'});
+ assert.equal(clockShift(seed.days,'Australia/Brisbane'),null);
+ assert.equal(clockShift(seed.days.slice(0,5)),null);
+ assert.equal(clockShift([]),null);
+ // Nothing until the day before; a heads-up then; the new gap from the day itself on.
+ assert.equal(clockNotice(state,'2026-09-30'),null);
+ assert.match(clockNotice(state,'2026-10-03').text,/^Clocks at home change tomorrow, Sunday 4 October: from then on home is 2 hours ahead of here, not one hour\./);
+ assert.match(clockNotice(state,'2026-10-04').text,/^Clocks at home changed today: home is now 2 hours ahead of here, not one hour\./);
+ assert.match(clockNotice(state,'2026-10-06').text,/changed on Sunday 4 October: home is now 2 hours ahead/);
+ assert.equal(dayBriefing(state,'2026-10-05').clocks.when,'since');assert.equal(dayBriefing(state,'2026-09-25').clocks,null);
+ // The lists: a line goes onto the family to-do list once, and the page then says so.
+ assert.ok(AWAY_LIST.length>=6&&LANDING_LIST.length>=6);
+ for(const item of [...AWAY_LIST,...LANDING_LIST])assert.ok(item.id&&item.title&&item.note,item.id);
+ assert.equal(onTodoList(state,LANDING_LIST[0]),null);
+ const parent={name:'Damien',role:'parent'};
+ const next=applyOperation(state,{type:'todoAdd',title:LANDING_LIST[0].title,kind:'do',day:'2026-10-06',person:'Family',notes:LANDING_LIST[0].note},parent);
+ assert.equal(onTodoList(next,LANDING_LIST[0]).day,'2026-10-06');
+ // Its place in the app.
+ assert.ok(PAGES.homefront?.label&&PAGE_RULES.homefront);
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('homefront'));
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/\{tab==='homefront'&&<HomeFront state=\{visibleState\} mutate=\{mutate\} busy=\{busy\} go=\{go\}\/>\}/);
+ const briefing=await readFile(new URL('../src/Briefing.jsx',import.meta.url),'utf8');
+ assert.match(briefing,/\{b\.clocks&&<button[^>]*onClick=\{\(\)=>go\('homefront'\)\}>/,'the day in brief carries the note');
+});
+test('flying home: what we bought is read off our own lists and set against the passenger card, the allowance and the scales',async()=>{
+ const {classify,boughtItems,declareGroups,dutyFree,weightOf,weightBudget,ADULT_AUD,CHILD_AUD,ALLOWANCE_KG,DEFAULT_KG}=await import('../src/flying-home.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const {applyOperation}=await import('../server/model.mjs');
+ const {yenPerAud}=await import('../src/trip-features.js');
+ const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'};
+ // The words on the card.
+ assert.equal(classify('Matcha KitKats for school'),'food');assert.equal(classify('Kokeshi doll'),'wood');
+ assert.equal(classify('Bonito flakes'),'animal');assert.equal(classify('Bonsai seeds'),'plants');assert.equal(classify('Pokémon plush'),null);assert.equal(classify(''),null);
+ // Only what was actually bought counts, from all three lists.
+ let state=upgraded(seed);
+ assert.deepEqual(boughtItems(state),[]);
+ state=applyOperation(state,{type:'shoppingAdd',title:'Matcha KitKats',quantity:4,budget:600,person:'Family'},parent);
+ state=applyOperation(state,{type:'shoppingAdd',title:'Kokeshi doll',budget:3500,person:'Lauren'},parent);
+ state=applyOperation(state,{type:'shoppingAdd',title:'Not bought yet',budget:9999},parent);
+ const [kitkats,kokeshi]=state.shopping;
+ state=applyOperation(state,{type:'shoppingStatus',id:kitkats.id,done:true},parent);
+ state=applyOperation(state,{type:'shoppingStatus',id:kokeshi.id,done:true},parent);
+ state=applyOperation(state,{type:'shortlistAdd',title:'Bottle of sake',price:2800,person:'Damien'},parent);
+ state=applyOperation(state,{type:'shortlistStatus',id:state.shortlist.at(-1).id,status:'bought'},parent);
+ state=applyOperation(state,{type:'shortlistAdd',title:'Tetsubin teapot',price:12000},parent);
+ const bought=boughtItems(state);
+ assert.deepEqual(bought.map(i=>[i.title,i.qty,i.yen,i.declare,i.kg]),[['Matcha KitKats',4,600,'food',1],['Kokeshi doll',1,3500,'wood',0.8],['Bottle of sake',1,2800,'food',1.4]]);
+ const {groups,unsure,any}=declareGroups(state);
+ assert.ok(any);assert.deepEqual(groups.map(g=>[g.id,g.items.length]),[['food',2],['wood',1]]);assert.deepEqual(unsure,[]);
+ // The allowance: two adults and two boys, pooled, in dollars at the trip's own rate.
+ const duty=dutyFree(state),rate=yenPerAud(state);
+ assert.equal(duty.allowance,2*ADULT_AUD+2*CHILD_AUD);assert.equal(duty.yen,4*600+3500+2800);assert.equal(duty.aud,Math.round(duty.yen/rate*100)/100);assert.equal(duty.over,0);assert.equal(duty.counted,3);
+ // The scales: guessed weights, the room typed in, and the heaviest things to post if it does not fit.
+ assert.equal(weightOf('Bottle of sake'),1.4);assert.equal(weightOf('Something odd'),DEFAULT_KG);
+ const w=weightBudget(state,2);
+ assert.equal(w.added,3.2);assert.equal(w.over,1.2);assert.deepEqual(w.post.map(i=>i.title),['Bottle of sake']);assert.equal(w.allowanceEach,ALLOWANCE_KG);
+ assert.equal(weightBudget(state,null).over,null);assert.equal(weightBudget(state,10).over,0);
+ // A boy's purse counts too, at what the till took, and is his.
+ let purse=applyOperation(state,{type:'spendAdd',person:'Nate',title:'Pokémon plush',estimate:1500},child);
+ purse=applyOperation(purse,{type:'spendBought',id:purse.spending.items.at(-1).id,done:true,spent:1800},child);
+ assert.deepEqual(boughtItems(purse).at(-1),{id:`purse-${purse.spending.items.at(-1).id}`,title:'Pokémon plush',qty:1,yen:1800,who:'Nate',source:'purse',taxFree:false,declare:null,kg:0.5});
+ assert.deepEqual(declareGroups(purse).unsure.map(i=>i.title),['Pokémon plush'],'a thing the words cannot place is listed to look at');
+ assert.equal(dutyFree(purse).yen,duty.yen+1800);
+ // Its place in the app.
+ assert.ok(PAGES.flyinghome?.label&&PAGE_RULES.flyinghome);
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('flyinghome'));
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/\{tab==='flyinghome'&&<FlyingHome state=\{visibleState\} go=\{go\}\/>\}/);
+});
+test('lost something: the Japanese to hand over, the right desk for the day’s lines and parks, the kōban and the claim',async()=>{
+ const {ITEMS,COLOURS,DESKS,desksFor,deskFor,lostDraft,KOBAN,CLAIM,claimSummary}=await import('../src/lost-data.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const state=upgraded(seed);
+ // The words: big Japanese first, the colour on the thing, the number to ring back.
+ const d=lostDraft({item:'wallet',colour:'red',where:'on the JR Yamanote Line',when:'this morning',phone:'+61 400 000 000'});
+ assert.deepEqual(d.ja,['すみません、落とし物をしました。','this morning、on the JR Yamanote Lineで赤い財布をなくしました。','見つかったら、この番号に連絡してください：+61 400 000 000']);
+ assert.equal(d.en[1],'this morning, I lost a red wallet on the JR Yamanote Line.');
+ assert.equal(lostDraft({item:'umbrella'}).en[1],'I lost an umbrella.');assert.equal(lostDraft({item:'glasses',colour:'black'}).en[1],'I lost black glasses.');assert.equal(lostDraft({item:'other'}).en[1],'I lost something.');
+ assert.match(d.text,/^すみません/);
+ assert.equal(lostDraft().ja.length,2,'nothing said, nothing padded');
+ assert.equal(lostDraft({item:'nonsense'}).ja[1],'忘れ物をなくしました。','an unknown thing is still a lost thing');
+ assert.ok(ITEMS.every(([id,en,ja])=>id&&en&&ja)&&COLOURS[0][0]==='');
+ // The desks: every operator on the route cards has one, with a page to check the number on.
+ const {LINES}=await import('../src/route-data.js');
+ for(const op of new Set(Object.values(LINES).map(l=>l.operator).filter(Boolean)))assert.ok(DESKS.some(x=>x.operator===op&&!x.for),`a desk for ${op}`);
+ for(const x of DESKS)assert.ok(x.title&&(x.url||x.note),x.id);
+ // A Kyoto day rides Kyoto's subway and JR West; the Disney day names the resort line and the parks; a flight day names Haneda.
+ assert.deepEqual(desksFor(state,'2026-09-26').today.map(x=>x.operator),['Kyoto Municipal Subway','JR West']);
+ const disney=desksFor(state,'2026-09-30').today.map(x=>x.id);
+ assert.ok(disney.includes('disney'),disney.join());
+ assert.ok(desksFor(state,'2026-10-06').today.some(x=>x.id==='haneda'));
+ assert.equal(desksFor(state,'2026-09-26').rest.length+desksFor(state,'2026-09-26').today.length,DESKS.length,'nothing is lost between the two lists');
+ assert.equal(desksFor({days:[],steps:[]},'2026-09-26').today.length,0);
+ assert.equal(deskFor('metro').phone,'0120-104-767');
+ // The kōban and the claim.
+ assert.ok(KOBAN.length>=4&&CLAIM.length>=4);
+ assert.match(claimSummary({draft:d,day:'2026-09-23',stepTitle:'Shibuya crossing',report:'R-123',policy:'POL-9'}),/^Lost-property claim\nDate: 2026-09-23 · Shibuya crossing\nItem: this morning, I lost a red wallet on the JR Yamanote Line\.\nPolice report number: R-123\nPolicy: POL-9$/);
+ assert.match(claimSummary({draft:d}),/\(add from the kōban slip\)/);
+ // Its place in the app: under Out and about beside Safety, and a button on Safety itself.
+ assert.ok(PAGES.lost?.label&&PAGE_RULES.lost);
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Out and about')[1].includes('lost'));
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/\{tab==='lost'&&<Lost state=\{visibleState\} user=\{user\} day=\{day\} go=\{go\} notice=\{notice\}\/>\}/);
+ const safety=await readFile(new URL('../src/Safety.jsx',import.meta.url),'utf8');
+ assert.match(safety,/onClick=\{\(\)=>go\('lost'\)\}/);
+});
+test('the checkout sweep, the nightstand and price sense',async()=>{
+ const {SWEEP,toggleSweep,sweepWords}=await import('../src/sweep-data.js');
+ const {priceSense,HOME_PRICES}=await import('../src/price-sense.js');
+ const {alarmFor}=await import('../src/Nightstand.jsx').catch(()=>({alarmFor:null}));
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ // The sweep: the same hiding places in every room, ticked one at a time.
+ assert.ok(SWEEP.length>=8&&SWEEP.every(s=>s.id&&s.title&&s.note));
+ let ids=[];ids=toggleSweep(ids,'charger');ids=toggleSweep(ids,'safe');assert.deepEqual(ids,['charger','safe']);
+ assert.deepEqual(toggleSweep(ids,'safe'),['charger']);
+ assert.equal(sweepWords([]),'Once round the room before the bags go');
+ assert.equal(sweepWords(['charger']),`${SWEEP.length-1} of ${SWEEP.length} still to look in`);
+ assert.equal(sweepWords(SWEEP.map(s=>s.id)),'Room swept. Nothing left behind.');
+ // Price sense: what the same thing costs at home, from the words, and nothing for a thing it cannot place.
+ const rate=100;
+ assert.deepEqual(priceSense('Bowl of ramen at Ichiran',1200,rate),{home:20,here:12,what:'a bowl of ramen',verdict:'cheaper here',line:'About $12 here; at home a bowl of ramen is about $20 — cheaper here.'});
+ assert.equal(priceSense('Lego Shinkansen set',9000,rate).verdict,'dearer here');
+ assert.equal(priceSense('Matcha KitKats',350,rate).verdict,'about the same');
+ assert.equal(priceSense('A mysterious thing',1000,rate),null);
+ assert.equal(priceSense('ramen',null,rate),null);assert.equal(priceSense('ramen',0,rate),null);assert.equal(priceSense('',500,rate),null);
+ assert.ok(HOME_PRICES.every(([aud,what,words])=>aud>0&&what&&words.length));
+ // The nightstand's alarm is an hour before leaving.
+ if(alarmFor){assert.equal(alarmFor(new Date('2026-09-25T08:30:00+09:00')).toISOString(),'2026-09-24T22:30:00.000Z');assert.equal(alarmFor(null),null);}
+ // Where they land.
+ const packing=await readFile(new URL('../src/Packing.jsx',import.meta.url),'utf8');
+ assert.match(packing,/\{next\.date===day&&<CheckoutSweep key=\{day\} day=\{day\}\/>\}/,'the sweep opens under the nudge on the move day itself');
+ const spending=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ assert.match(spending,/priceSense\(item\.title,bought\?spendCost\(item\):item\.estimate,rate\)/,'the line reads the real price once bought');
+ const tonight=await readFile(new URL('../src/Tonight.jsx',import.meta.url),'utf8');
+ assert.match(tonight,/onClick=\{\(\)=>go\('nightstand'\)\}/);
+ assert.ok(PAGES.nightstand?.label&&PAGE_RULES.nightstand);
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Just for you')[1].includes('nightstand'));
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/\{tab==='nightstand'&&<Nightstand state=\{visibleState\} now=\{now\} go=\{go\}\/>\}/);
+ const night=await readFile(new URL('../src/Nightstand.jsx',import.meta.url),'utf8');
+ assert.match(night,/navigator\.wakeLock\?\.request\('screen'\)/,'the screen stays awake');
+ assert.match(night,/const late=hour>=22\|\|hour<6,dim=late&&!bright;/,'dim after ten, a tap brightens');
 });

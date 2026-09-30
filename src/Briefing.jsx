@@ -1,5 +1,5 @@
 import React from 'react';
-import {ChevronRight,LockKeyhole,BedDouble,PlaneTakeoff,Smartphone} from 'lucide-react';
+import {ChevronRight,LockKeyhole,BedDouble,PlaneTakeoff,Smartphone,Clock} from 'lucide-react';
 import {useStored} from './stored.js';
 import {dayBriefing,briefingGreeting} from './briefing-data.js';
 import {READINESS,readinessOf,lowest,answered,faceOf} from './readiness-data.js';
@@ -32,6 +32,7 @@ export default function Briefing({state,day,today,clock,go,user,mutate,busy,open
   </div>}
   {b.fixed.length>0&&<ul className="briefing-fixed">{b.fixed.map(f=><li key={f.id}><LockKeyhole size={14}/><b>{f.time}</b> {f.title}</li>)}</ul>}
   {(b.moving||b.last)&&<p className="briefing-note"><BedDouble size={15}/>{b.last?'Last day: everything comes home with us.':`Hotel move today, to ${b.hotel}.`}</p>}
+  {b.clocks&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('homefront')}><Clock size={15}/>{b.clocks.text}</button>}
   {b.declaration&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('arrival')}><PlaneTakeoff size={15}/>Australia Travel Declaration: fill it in for each of us, within 72 hours of the flight home.</button>}
   {apps.map(a=><button type="button" key={a.id} className="briefing-note briefing-link" onClick={()=>go('apps')}><Smartphone size={15}/>{a.today?'Needed today':'Tomorrow'}: {a.name}. Not on this phone yet; set it up now.</button>)}
  </section>;

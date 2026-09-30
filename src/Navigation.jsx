@@ -1,15 +1,15 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Printer,Smartphone,BookLock,PlaneLanding,AlarmClock,MailQuestion,BookImage,Stamp,Crown,GalleryHorizontalEnd,History,Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid,ChevronDown,Star,Check,Store,Footprints} from 'lucide-react';
+import {Printer,Smartphone,BookLock,PlaneLanding,AlarmClock,MailQuestion,BookImage,Stamp,Crown,GalleryHorizontalEnd,History,Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid,ChevronDown,Star,Check,Store,Footprints,DoorOpen,PlaneTakeoff,SearchX,Repeat,Hourglass,GraduationCap} from 'lucide-react';
 import {PAGES,primaryNav,moreSections,navActive,hiddenNav,favourites,toggleFavourite,FAV_MAX} from './nav-data.js';
 import {useStored} from './stored.js';
 import {isOpen,setOpen} from './fold.js';
 import {useWobble} from './wobble.js';
 import {homePages} from './home-widgets.js';
 import {swipeVertical} from './swipe.js';
-const ICONS={today:House,bin:History,allergy:Wheat,days:CalendarDays,glance:CalendarCheck,tickets:Ticket,food:UtensilsCrossed,money:Coins,ledger:Receipt,paying:CreditCard,hunts:Medal,local:Footprints,noticed:Eye,challenges:Trophy,games:Dices,photos:Camera,
- diary:NotebookPen,places:MapPin,meeting:Users,safety:ShieldAlert,help:LifeBuoy,options:Inbox,parks:FerrisWheel,weather:CloudSun,todo:ListChecks,packing:Luggage,shop:Store,trackers:Radar,memorymap:MapIcon,
+const ICONS={today:House,bin:History,allergy:Wheat,days:CalendarDays,glance:CalendarCheck,tickets:Ticket,food:UtensilsCrossed,money:Coins,ledger:Receipt,paying:CreditCard,hunts:Medal,local:Footprints,noticed:Eye,nexttime:Repeat,capsule:Hourglass,showtell:GraduationCap,challenges:Trophy,games:Dices,photos:Camera,
+ diary:NotebookPen,places:MapPin,meeting:Users,safety:ShieldAlert,lost:SearchX,help:LifeBuoy,options:Inbox,parks:FerrisWheel,weather:CloudSun,nightstand:AlarmClock,todo:ListChecks,packing:Luggage,shop:Store,trackers:Radar,memorymap:MapIcon,
  planning:ClipboardList,inbox:Mail,ask:MessageCircleQuestion,
- shopping:ShoppingBag,shortlist:CameraIcon,spending:PiggyBank,phrases:MessageSquare,facts:Lightbulb,stamps:Stamp,arrival:PlaneLanding,vault:BookLock,apps:Smartphone,windows:AlarmClock,predictions:MailQuestion,book:BookImage,printguide:Printer,recap:GalleryHorizontalEnd,leaderboard:Crown,guide:BookOpen,updates:Bell,search:Search,thanks:Heart,mascot:Sparkles,
+ shopping:ShoppingBag,shortlist:CameraIcon,spending:PiggyBank,phrases:MessageSquare,facts:Lightbulb,stamps:Stamp,arrival:PlaneLanding,homefront:DoorOpen,flyinghome:PlaneTakeoff,vault:BookLock,apps:Smartphone,windows:AlarmClock,predictions:MailQuestion,book:BookImage,printguide:Printer,recap:GalleryHorizontalEnd,leaderboard:Crown,guide:BookOpen,updates:Bell,search:Search,thanks:Heart,mascot:Sparkles,
  personalise:SlidersHorizontal,settings:Settings};
 // A page with no icon of its own still gets a row. The bug this fixes: weather, the to-do list,
 // the planning board and forwarded email had no entry here, so More rendered <undefined/> and

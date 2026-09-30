@@ -10,6 +10,8 @@ import Shortlist,{DayFinds} from './Shortlist.jsx';
 import {NextUp,RunningLate,OfflineReadiness,Updates} from './HomeFeatures.jsx';
 import {ThankYouNote,ThankYouEditor} from './ThankYou.jsx';
 import {readingHelp,awarenessAllows,heldBack} from './child-levels.js';
+import {handedUser,readHanded,writeHanded} from './hand-over.js';
+import {HandedBanner} from './HandOver.jsx';
 import TicketViewer from './TicketViewer.jsx';
 import GuideBook,{LAST_PAGE} from './GuideBook.jsx';
 import GuideReader from './GuideReader.jsx';
@@ -56,6 +58,7 @@ import TravelGuide from './TravelGuide.jsx';
 import DayMap from './DayMap.jsx';
 import BookingWindows,{BookingWindowsCard} from './BookingWindows.jsx';
 import FollowAlong from './FollowAlong.jsx';
+import FollowFrame from './FollowFrame.jsx';
 import Safety,{LostCards} from './Safety.jsx';
 import MorningChecklist from './Morning.jsx';
 import StayCard from './StayCard.jsx';
@@ -106,6 +109,13 @@ const TripShop=lazy(()=>import('./TripShop.jsx'));
 const Apps=lazy(()=>import('./Apps.jsx'));
 const LikeALocal=lazy(()=>import('./LikeALocal.jsx'));
 const Arrival=lazy(()=>import('./Arrival.jsx'));
+const HomeFront=lazy(()=>import('./HomeFront.jsx'));
+const FlyingHome=lazy(()=>import('./FlyingHome.jsx'));
+const Lost=lazy(()=>import('./Lost.jsx'));
+const Nightstand=lazy(()=>import('./Nightstand.jsx'));
+const NextTime=lazy(()=>import('./NextTime.jsx'));
+const Capsule=lazy(()=>import('./Capsule.jsx'));
+const ShowTell=lazy(()=>import('./ShowTell.jsx'));
 const AskTrip=lazy(()=>import('./AskTrip.jsx'));
 const Ledger=lazy(()=>import('./Ledger.jsx'));
 const MediaGallery=lazy(()=>import('./MediaGallery.jsx'));
@@ -192,7 +202,11 @@ function App(){
  // never talk over each other.
  const speak=useReadAloud();
  const [guidePage,setGuidePage]=useState(Number(new URLSearchParams(location.search).get('page'))||1),[reading,setReading]=useState(false),[coverPage,setCoverPage]=useState(1),[guideIndex,setGuideIndex]=useState([]),[query,setQuery]=useState(''),[saved,setSaved]=useState(stored('japan.saved',[])),[clockShortcut,setClockShortcut]=useState(localStorage.getItem('japan.shortcut')||'');
- const state=envelope?.state,user=envelope?.user,parent=user?.role==='parent',help=readingHelp(state||{},user?.name);
+ // A parent's phone handed to one of the boys is his until the code takes it back (hand-over.js).
+ const [handed,setHanded]=useState(readHanded);
+ const handTo=h=>{writeHanded(h);setHanded(h);setTab('challenges');};
+ const takeBack=()=>{writeHanded(null);setHanded(null);setTab('today');};
+ const state=envelope?.state,user=handedUser(envelope?.user,handed,state?.members),parent=user?.role==='parent',help=readingHelp(state||{},user?.name);
  // The menu can only offer what this deployment can do. Anything already waiting keeps the
  // screen reachable too, so email that arrived before a key was removed is never stranded
  // behind a menu item that has gone.
@@ -678,6 +692,7 @@ function App(){
   <div className={`syncbar${tab==='today'&&online&&!user.demo&&!queue.length?' quiet':''}`}>{!online?<><WifiOff size={14}/> Offline · saved on this phone</>:user.demo?<><AlertCircle size={14}/> Local preview · family sharing needs setup</>:queue.length?<><Clock size={14}/>{queue.length} update{queue.length!==1?'s':''} waiting to sync</>:<><Cloud size={14}/> Shared family plan <span>Signed in as {user.name}</span></>}{!user.demo&&<button type="button" className="sync-now" disabled={syncing} onClick={syncNow}>{syncing?'Syncing…':'Sync now'}{syncedAt&&!syncing&&<small>{japanClock(new Date(syncedAt))}</small>}</button>}</div>
   {user.expiresAt&&new Date(user.expiresAt)-now<14*86400000&&<div className="expiry-note"><AlertCircle size={14}/><span>Your link to the family plan ends {fmtDay(japanDate(new Date(user.expiresAt)))}. {parent?'Make a fresh link in Family settings before then.':'Ask a parent for a fresh link before then.'}</span></div>}
   {conflict&&<div className="conflict"><strong>The family changed the plan while you were offline.</strong><p>Your {queue.length} progress update(s) are still saved. Review them against the latest itinerary.</p><div className="row"><Button onClick={()=>setModal({type:'pending'})}>Review updates</Button><Button onClick={()=>{if(confirm(`Throw away ${queue.length} unsynced update${queue.length===1?'':'s'}? They cannot be brought back.`)){saveQueue([]);setConflict(false);}}}>Discard my pending updates</Button></div></div>}
+  <HandedBanner user={user} handed={handed} takeBack={takeBack}/>
   <main>
   {/* The pages opened now and then load when they are opened, so the shell that has to be
       on screen at a station stays small; every chunk is still put in the offline shell by
@@ -717,6 +732,8 @@ function App(){
   {tab==='local'&&<LikeALocal state={visibleState} user={user} today={japanDate(now)} dayLabel={fmtDay} mutate={mutate} busy={busy} notice={notice} go={go} request={request} config={config} online={online}/>}
   {tab==='vault'&&<Vault state={visibleState} user={user} request={request} notice={notice} online={online}/>}
   {tab==='arrival'&&<Arrival homeFirst={japanDate(now)>=(state.days[0]?.date||'')}/>}
+  {tab==='homefront'&&<HomeFront state={visibleState} mutate={mutate} busy={busy} go={go}/>}
+  {tab==='flyinghome'&&<FlyingHome state={visibleState} go={go}/>}
   {tab==='predictions'&&<Predictions state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy}/>}
   {tab==='book'&&<Photobook state={visibleState} dayLabel={fmtDay}/>}
   {tab==='printguide'&&<TravelGuide state={visibleState} today={japanDate(now)} dayLabel={fmtDay}/>}
@@ -729,7 +746,7 @@ function App(){
   {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><div className="row wrap page-links"><button onClick={()=>go('allergy')}><AlertCircle size={16}/>Allergy card</button><button onClick={()=>go('hunts')}><ListChecks size={16}/>Hunts & lists</button></div><FoodList state={visibleState} user={user} speak={speak} openPage={openPage} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal}/></>}
   {tab==='thanks'&&user.name===THANK_YOU_FROM&&<ThankYouEditor state={state} mutate={mutate} busy={busy}/>}
-  {tab==='settings'&&<Settings config={config} state={visibleState} mutate={mutate} busy={busy} user={user} settings={settings} change={changeSetting} request={request} notice={notice} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
+  {tab==='settings'&&<Settings config={config} state={visibleState} mutate={mutate} busy={busy} hand={parent?handTo:null} user={user} settings={settings} change={changeSetting} request={request} notice={notice} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
   {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go} day={day} remove={removeThen} request={request} online={online&&!!config?.capture} sayFirst={sayFirst} clearSayFirst={()=>setSayFirst(null)}/>}
@@ -745,8 +762,13 @@ function App(){
   {tab==='paying'&&parent&&<WhichCard state={visibleState} user={user} config={config} request={request} mutate={mutate} busy={busy} notice={notice} remove={removeThen}/>}
   {tab==='ledger'&&parent&&<Ledger state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen} config={config} online={online} notice={notice}/>}
   {tab==='safety'&&<Safety state={visibleState} user={user} day={day} go={go}/>}
+  {tab==='lost'&&<Lost state={visibleState} user={user} day={day} go={go} notice={notice}/>}
+  {tab==='nightstand'&&<Nightstand state={visibleState} now={now} go={go}/>}
+  {tab==='nexttime'&&<NextTime state={visibleState} go={go} notice={notice}/>}
+  {tab==='capsule'&&<Capsule state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy}/>}
+  {tab==='showtell'&&<ShowTell state={visibleState} user={user}/>}
   {tab==='diary'&&<Diary key={day} state={visibleState} user={user} day={day} mutate={mutate} busy={busy} open={setModal} notice={notice}/>}
-  {tab==='personalise'&&<Personalise user={user} prefs={navPrefs} setPrefs={saveNav} home={homePrefs} setHome={saveHome}/>}
+  {tab==='personalise'&&<Personalise user={user} prefs={navPrefs} setPrefs={saveNav} home={homePrefs} setHome={saveHome} held={heldBack(visibleState,user.name)}/>}
   {tab==='more'&&<MorePage user={user} tab={tab} go={navGo} prefs={navPrefs} home={homePrefs}><div className="row wrap"><Button icon={ImageIcon} onClick={()=>setModal({type:'media'})}>Family gallery</Button><Button icon={Mic} onClick={()=>setModal({type:'voice'})}>Voice notes</Button><Button icon={Download} onClick={()=>setModal({type:'offline'})}>Offline readiness</Button>{parent&&<Button icon={Plus} onClick={()=>setModal({type:'capture'})}>Quick capture</Button>}</div></MorePage>}
   {tab==='tickets'&&<><p className="eyebrow">STAYS, TICKETS AND BOOKINGS</p><h1>Wallet</h1><CodeReader state={state} parent={parent} online={online} mutate={mutate}/><CodePrompt state={state} parent={parent} busy={busy} mutate={mutate} notice={notice} onShow={doc=>setModal({type:'tickets',initialSearch:doc.title})}/><NextPasses state={state} date={state.days.some(d=>d.date===japanDate(now))?japanDate(now):day} selectStep={selectStep} user={user} busy={busy} mutate={mutate} notice={notice}/><StayCard state={visibleState} day={state.days.some(d=>d.date===japanDate(now))?japanDate(now):day} parent={parent} busy={busy} mutate={mutate} notice={notice} directions={directions} onShow={place=>setModal({type:'show',step:{...place,title:place.place}})} onTickets={hotel=>setModal({type:'tickets',initialSearch:hotel})}/>{parent&&isAvailable('inbox')&&inboxWaiting(state)>0&&<p className="inbox-badge"><Inbox size={16}/>{inboxWaiting(state)} forwarded email{inboxWaiting(state)===1?'':'s'} waiting to be filed.<button onClick={()=>go('inbox')}>Open them</button></p>}{parent&&<DocumentReader config={config} busy={busy} setBusy={setBusy} request={request} notice={notice} mutate={mutate}/>}<Tickets state={state} user={user} config={config} busy={busy} setBusy={setBusy} accept={accept} mutate={mutate} notice={notice} saved={saved} saveOffline={saveOffline} selectStep={selectStep}/></>}
   {tab==='options'&&<><p className="eyebrow">NO DATE NEEDED</p><h1>Options & ideas</h1><p>Notes, places to try and anything we missed. Add an idea to a day when it fits.</p><div className="row wrap"><Button icon={ThumbsUp} onClick={()=>go('planning')}>Planning board · vote on ideas</Button></div>{parent&&<Button className="primary" icon={Plus} onClick={()=>setModal({type:'edit',step:null,backlog:true})}>Add an idea or note</Button>}<label className="search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search our ideas"/></label><div className="place-grid">{state.steps.filter(s=>s.day===null&&`${s.title} ${s.place} ${s.notes}`.toLowerCase().includes(query.toLowerCase())).map(s=><div className="option-card" key={s.id}><h2>{s.title}</h2>{s.backlogFrom?.day&&<small>Saved from {fmtDay(s.backlogFrom.day)}</small>}<p>{s.place}</p><p>{s.notes}</p>{phoneLinks(s.phone)&&<ContactRow phone={phoneLinks(s.phone)} title={s.title}/>}<div className="row wrap">{s.website&&<Link className="button" href={s.website}>Website</Link>}<BookedVia step={s} button/>{s.place&&<Link className="button" href={maps(s.place)}>Maps</Link>}<Button icon={Ticket} onClick={()=>setModal({type:'tickets',step:s})}>Files</Button>{parent&&<><Button onClick={()=>setModal({type:'edit',step:s})}>Edit</Button><Button className="primary" onClick={()=>setModal({type:'schedule',step:s})}>Add to a day</Button><Button className="danger" icon={Trash2} onClick={()=>setModal({type:'remove',step:s})}>Remove</Button></>}</div></div>)}</div>{!state.steps.some(s=>s.day===null)&&<div className="empty"><Inbox/><h2>A place for possibilities</h2><p>Add a café, a note or a saved stop here. No time or day required.</p></div>}</>}
@@ -960,11 +982,11 @@ class Boundary extends React.Component{
 }
 // A follower's link opens the read-only page and nothing else: no session is asked for, and
 // none of the app behind it is started.
-const followKey=new URLSearchParams(location.search).get('follow');
+const followKey=new URLSearchParams(location.search).get('follow'),frameMode=new URLSearchParams(location.search).get('frame')==='1';
 // The phone's look (its own or the destination's) and its light or dark go on the page before anything is drawn.
 applyLook(readLook());
 applyTheme(readTheme());
-createRoot(document.getElementById('root')).render(<Boundary>{followKey?<FollowAlong followKey={followKey}/>:<App/>}</Boundary>);
+createRoot(document.getElementById('root')).render(<Boundary>{followKey?(frameMode?<FollowFrame followKey={followKey}/>:<FollowAlong followKey={followKey}/>):<App/>}</Boundary>);
 
 function ShowLocation({state,step,notice,maps}){
  const {english,japanese,japaneseAddress,address,phone,copyText}=showLocationDetails(state,step);

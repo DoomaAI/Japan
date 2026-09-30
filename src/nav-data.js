@@ -17,6 +17,9 @@ export const PAGES={
  photos:{label:'Photos',note:'Everyone\u2019s photos, whose is whose, and the daily vote'},
  memorymap:{label:'Memory map',note:'Photos, voice notes and stars where they happened, and where the family last was'},
  noticed:{label:'Things we noticed',note:'The little moments, said out loud and tagged to where they happened or what they were about'},
+ nexttime:{label:'Next time',note:'What we would do differently, written on the stop while it was fresh, in one list for the next plan'},
+ capsule:{label:'Open next year',note:'A note from each of us to the family a year on, sealed until the anniversary of the last day'},
+ showtell:{label:'Show and tell',note:'One page per boy for the first day back at school: his photos, missions, a noticing, a phrase, read aloud first'},
  diary:{label:'Diary',note:'Completed stops, discoveries and photos'},
  recap:{label:'Our trip story',note:'The trip in swipeable cards: the numbers, the places, our best bits and everyone’s favourite'},
  book:{label:'Photobook',note:'A page for each day, with the photo of the day, the stops we loved and the diary, to print'},
@@ -24,6 +27,7 @@ export const PAGES={
  meeting:{label:'Meeting card',note:'If we get separated'},
  allergy:{label:'Allergy card',note:'What each of us cannot eat, in Japanese, to show the waiter'},
  safety:{label:'Safety & emergencies',note:'Emergency numbers, the boys\u2019 lost cards, the embassy, earthquakes and typhoons'},
+ lost:{label:'Lost something',note:'The Japanese to hand over, the right desk for today’s trains and parks, the kōban report and what the insurer asks for'},
  phrases:{label:'Phrases',note:'Greetings and travel Japanese, with how to say it'},
  stamps:{label:'Stamp book',note:'Stamps for the places, sights, rides and trains we have done, and everyone’s milestones'},
  leaderboard:{label:'Leaderboard',note:'Who has tried the most foods, ridden the most rides and taken the most photos'},
@@ -33,6 +37,8 @@ export const PAGES={
  apps:{label:'Apps to download',note:'The local apps worth having for trains, taxis, the parks and alerts, and what to set up in each'},
  vault:{label:'Passports & visas',note:'Passport details, photos of each page, visas and insurance, encrypted, for Mum and Dad only'},
  arrival:{label:'Arrival paperwork',note:'Visit Japan Web for landing in Japan, and the Australia Travel Declaration for home'},
+ flyinghome:{label:'Flying home',note:'What we bought against the passenger card, the duty-free allowance and the scales, read off our own lists'},
+ homefront:{label:'Home while we’re away',note:'The house while we are gone and the first day back, one tap onto the to-do list, and the clocks-change note'},
  windows:{label:'Booking windows',note:'When the bookings that sell out open, in Japan and home time, with calendar alerts'},
  predictions:{label:'Sealed predictions',note:'Guess how the trip will go; the answers stay sealed until we are home'},
  planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, and voting on them'},
@@ -43,6 +49,7 @@ export const PAGES={
  packing:{label:'Packing list',note:'What goes in the case, with suggestions for the weather and the days ahead'},
  spending:{label:'Spending money',note:'What the boys have, what they bought and what is left'},
  weather:{label:'Weather',note:'Every day and every hour, with the graphs'},
+ nightstand:{label:'Nightstand',note:'The phone by the bed: the clock, tomorrow’s first fixed time and leave-by, the forecast and the alarm, dim after ten'},
  parks:{label:'Theme park rides',note:'Checklists, height limits and park maps'},
  shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need'},
  shortlist:{label:'Purchase shortlist',note:'Things we have seen in a shop, photographed, priced and still to decide on'},
@@ -74,13 +81,13 @@ export const PRIMARY={
 // memories now; the app's own housekeeping (updates, the bin, search, the original guide) has
 // a shelf of its own rather than sitting among the photos.
 export const MORE_SECTIONS=[
- ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','meeting','safety','help','apps']],
+ ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','meeting','safety','lost','help','apps']],
  ['Money',['money','paying','ledger','shopping','shortlist','shop']],
- ['The plan',['glance','days','todo','packing','trackers','windows','arrival','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
- ['Looking back',['noticed','photos','memorymap','diary','recap','book']],
+ ['The plan',['glance','days','todo','packing','trackers','windows','arrival','flyinghome','homefront','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
+ ['Looking back',['noticed','nexttime','photos','memorymap','diary','recap','book','capsule']],
  ['Housekeeping',['updates','bin','search','guide']],
- ['Just for you',['personalise','settings','thanks']],
- ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot']]
+ ['Just for you',['nightstand','personalise','settings','thanks']],
+ ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot','showtell']]
 ];
 // Some screens only exist where the deployment can do the thing they are about. Forwarded email
 // needs a mail provider connected to it; until there is one the screen would be a page about a

@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import HowThisWorks from './HowThisWorks.jsx';
-import {MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap} from 'lucide-react';
+import {MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
 import {BarShortcuts} from './Personalise.jsx';
@@ -8,6 +8,8 @@ import {CARD_LINKS,linkOrder,stepLink} from './card-links.js';
 import {DEEP_LINKS,deepLinkUrl} from './deep-links.js';
 import {THEMES,readTheme,saveTheme,applyTheme,LOOKS,LOOK_CHOICES,readLook,saveLook,applyLook} from './theme.js';
 import {READING,AWARENESS,childLevels,defaultReading,defaultAwareness,readingLabel,awarenessLabel,isChild} from './child-levels.js';
+import {HandOver} from './HandOver.jsx';
+import {frameUrl} from './frame-data.js';
 const ICONS={dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
@@ -91,6 +93,9 @@ function FollowLink({request,notice}){
   </div>
   {link&&<textarea readOnly value={link} rows={2}/>}
   <p><small>Anyone holding the link can see the photos, so send it only to people you would show them to.</small></p>
+  <h3><Tv size={16}/> The frame</h3>
+  <p>The same link with <code>frame=1</code> on the end, opened on an old iPad on a stand, a laptop or a TV browser: one photo at a time, filling the screen, with the day and the city in a corner. The photo of the day is on it; put any other photo on from the Photos page. It keeps the screen awake, dims after ten at night, and a tap on the photo claps.</p>
+  <div className="row wrap"><button type="button" disabled={busy} onClick={async()=>{setBusy(true);try{const url=link||(await request('follow-link',{})).url;setLink(url);await navigator.clipboard.writeText(frameUrl(url));notice('Frame link copied. Open it on the frame and add it to the home screen or bookmarks.');}catch(e){notice(e.message);}finally{setBusy(false);}}}><Copy size={16}/> Copy the frame link</button></div>
  </section>;
 }
 // The addresses a Shortcut can open. iOS gives a web app no widget and no share-sheet entry,
@@ -160,7 +165,7 @@ export function ChildLevels({state,mutate,busy}){
   <p><small>Held on the trip, so {boys.join(' and ')}’s own phones follow it the next time they refresh. Nothing already ticked, rated or written is touched.</small></p>
  </section>;
 }
-export default function Settings({user,state,mutate,busy,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice,config}){
+export default function Settings({user,state,mutate,busy,hand,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice,config}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR CHOICE</p>
   <h1>Settings</h1>
@@ -180,6 +185,7 @@ export default function Settings({user,state,mutate,busy,settings,change,navPref
    {SETTINGS.filter(s=>s.group==='route').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
   {user?.role==='parent'&&state&&mutate&&<ChildLevels state={state} mutate={mutate} busy={busy}/>}
+  {user?.role==='parent'&&state&&hand&&<HandOver state={state} user={user} hand={hand}/>}
   {request&&<Notifications config={config} request={request} notice={notice} user={user}/>}
   {user?.role==='parent'&&request&&<TripCalendar request={request} notice={notice}/>}
   {user?.role==='parent'&&request&&<FollowLink request={request} notice={notice}/>}

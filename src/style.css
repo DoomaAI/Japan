@@ -786,4 +786,34 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 @media(max-height:640px){.opening .opening-countdown strong{font-size:2.6rem}.opening-fact{min-height:0}.opening-fact-text{-webkit-line-clamp:3}}
 
 /* The reading and awareness dials in Settings: one block each, the picker under its heading. */
-.setting-dial{margin:.75rem 0}.setting-dial .section-heading small{color:var(--muted,inherit)}
+.setting-dial{margin:.75rem 0}.setting-dial .section-heading small{color:var(--muted)}
+/* The strip while a parent's phone is a boy's: his name, and the way back for a parent. */
+.handed-banner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem;margin:0 0 .75rem;padding:.5rem .75rem;border-radius:12px;background:var(--tint);border:1px solid var(--tint-border)}
+.handed-banner>span{display:inline-flex;align-items:center;gap:.35rem}.handed-banner form{align-items:center;gap:.4rem}.handed-banner input{width:5.5rem}
+/* Home while we're away: a line per job, the note under it, and the way onto the to-do list. */
+.home-front{list-style:none;margin:0;padding:0}.home-front li{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--border)}.home-front li>span:first-child{display:flex;flex-direction:column;gap:.15rem;min-width:0}.home-front li>span:first-child small{color:var(--muted)}.home-front button,.home-front .tag{flex:0 0 auto}
+.home-front-group{margin:.5rem 0 .9rem}.home-front-group p{margin:0 0 .35rem}
+.lost-desks{list-style:none;margin:0;padding:0}.lost-desk{display:flex;flex-direction:column;gap:.2rem;padding:.6rem 0;border-bottom:1px solid var(--border)}.lost-desk small{color:var(--muted)}
+/* The checkout sweep under the packing nudge, and the nightstand. */
+.sweep-list{list-style:none;margin:.5rem 0 0;padding:0}.sweep-list li button{display:flex;align-items:center;gap:.6rem;width:100%;text-align:left;padding:.45rem 0;background:none;border:0;border-bottom:1px solid var(--border);color:inherit}
+.sweep-list li button>span:last-child{display:flex;flex-direction:column;min-width:0}.sweep-list small{color:var(--muted)}
+.sweep-tick{flex:0 0 auto;width:1.4rem;height:1.4rem;border-radius:50%;border:2px solid var(--border);display:inline-flex;align-items:center;justify-content:center}.sweep-tick.on{background:var(--green);border-color:var(--green);color:var(--paper)}
+.price-sense{display:block;color:var(--green-deep)}
+.nightstand{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75rem;text-align:center;padding:1rem;border-radius:16px;background:var(--ink);color:var(--paper);transition:opacity .4s}
+.nightstand.dim{opacity:.35}.nightstand-clock{font-size:clamp(4rem,22vw,8rem);line-height:1;font-variant-numeric:tabular-nums}.nightstand-lines p{margin:.25rem 0;display:flex;align-items:center;justify-content:center;gap:.4rem;flex-wrap:wrap}.nightstand small{color:var(--paper);opacity:.7}
+.next-time{margin-top:.5rem}.next-time .chips{margin:.4rem 0}.next-time-line{display:flex;align-items:center;gap:.3rem;color:var(--muted);margin:.2rem 0 0}
+/* The frame: the follow link on a screen in a living room. */
+.frame{position:fixed;inset:0;margin:0;padding:0;background:rgb(0,0,0);display:flex;align-items:center;justify-content:center;overflow:hidden;transition:opacity .6s}
+.frame.dim{opacity:.25}.frame>img{width:100%;height:100%;object-fit:contain;animation:frame-in .8s ease}
+@keyframes frame-in{from{opacity:0}to{opacity:1}}
+.frame-caption{position:absolute;left:1rem;bottom:1rem;right:6rem;display:flex;flex-direction:column;gap:.2rem;color:rgb(255,255,255);text-shadow:0 1px 4px rgba(0,0,0,.8)}.frame-caption strong{font-size:1.1rem}.frame-caption span{opacity:.85}
+.frame-clock{position:absolute;right:1rem;bottom:1rem;color:rgb(255,255,255);font-size:1.4rem;font-variant-numeric:tabular-nums;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+.frame-clap{position:absolute;top:1rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:rgb(255,255,255);padding:.4rem .8rem;border-radius:999px}
+.frame-hint{position:absolute;top:1rem;right:1rem;color:rgb(255,255,255);opacity:.5}.frame-ask{position:absolute;inset:auto 1rem 5rem 1rem;background:var(--paper);color:var(--ink);padding:1rem;border-radius:12px}
+.frame-empty{color:rgb(255,255,255);flex-direction:column;gap:.5rem;text-align:center;padding:1rem}
+/* Show and tell: one page a boy, and printable on its own. */
+.show-tell{border:1px solid var(--border);border-radius:14px;padding:1rem;margin:.75rem 0}.show-tell-speech{font-size:1.15rem;line-height:1.5}
+.show-tell-photos{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin:.6rem 0}.show-tell-photos img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px}
+.show-tell-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}.show-tell-grid section{border-top:1px solid var(--border);padding-top:.4rem}.show-tell-grid h3{display:flex;align-items:center;gap:.3rem;font-size:.95rem;margin:0 0 .2rem}.show-tell-grid ul{margin:0;padding-left:1rem}
+@media print{body.print-showtell *{visibility:hidden}body.print-showtell .show-tell,body.print-showtell .show-tell *{visibility:visible}body.print-showtell .show-tell{position:absolute;left:0;top:0;width:100%;border:0;margin:0}body.print-showtell .show-tell button{display:none}}
+.sound-toggle{display:inline-flex;align-items:center;gap:.4rem;margin:.3rem 0}

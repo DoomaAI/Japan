@@ -40,7 +40,7 @@ export default function TripShop({state,user,today,go,mutate,busy}){
   {item.page&&<button type="button" className="hunt-link" onClick={()=>go(item.page)}>What it is made from <ArrowRight size={14}/></button>}
   {logRow(item,'Ordered')}
  </li>;};
- const before=KEEPSAKES.filter(k=>k.when==='before'),after=KEEPSAKES.filter(k=>k.when==='after');
+ const before=KEEPSAKES.filter(k=>k.when==='before'),during=KEEPSAKES.filter(k=>k.when==='during'),after=KEEPSAKES.filter(k=>k.when==='after');
  return <>
   <p className="eyebrow">BEFORE WE GO, AND ONCE WE ARE HOME</p><h1>Trip shop</h1>
   <p>The essentials to sort before the flight, and keepsakes made out of our own trip.</p>
@@ -51,6 +51,7 @@ export default function TripShop({state,user,today,go,mutate,busy}){
    <p className="shop-tally">{logged.sorted} of {logged.total} sorted{logged.notes?` · ${logged.notes} note${logged.notes===1?'':'s'} for next time`:''}</p>
    <ol className="shop-list">{ESSENTIALS.map(essential)}</ol></section>
   <section className="arrival-part"><h2>Keepsakes to make before we go</h2><ul className="shop-list">{before.map(keepsake)}</ul></section>
+  {!!during.length&&<section className="arrival-part"><h2>Keepsakes to send while we are away</h2><ul className="shop-list">{during.map(keepsake)}</ul></section>}
   <section className="arrival-part"><h2>Keepsakes for when we are home</h2>
    {keepsakeFund(state)>0&&<p className="shop-fund">🪙 <b>The round-up fund: ¥{keepsakeFund(state).toLocaleString('en')}</b> so far, from the boys’ buys rounded up to the next ¥100{BOYS.filter(b=>keepsakeFund(state,b)>0).map(b=>` · ${b} ¥${keepsakeFund(state,b).toLocaleString('en')}`).join('')}. Towards one of these.</p>}
    <ul className="shop-list">{after.map(keepsake)}</ul></section>

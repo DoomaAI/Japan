@@ -1,4 +1,5 @@
 import {isChild,defaultReading,ageOf} from './child-levels.js';
+import {nextTimeBrief} from './next-time.js';
 import {activeSteps,minutes,asClock,japanDate,japanClock} from './timing.js';
 import {stepsFor} from './split.js';
 import {expressSeeded} from './park-data.js';
@@ -944,6 +945,16 @@ export function purse(state,person,today){
  return {topUps,allowance,paidIn,spent,planned,roundUps,left:paidIn-spent,after:paidIn-spent-planned,
   items:items.length,bought:bought.length,waiting:items.length-bought.length};
 }
+// The purse in words rather than a number, for the boy whose awareness dial says he is always
+// with a grown-up: what it will stretch to, not how much is in it.
+export function purseInWords(left){
+ const yen=Number(left)||0;
+ if(yen<=0)return 'Nothing left in the purse today';
+ if(yen<500)return 'Enough for a snack';
+ if(yen<2000)return 'Enough for a small toy';
+ if(yen<5000)return 'Enough for a proper treat';
+ return 'Enough for something big';
+}
 // The same purse as a money box rather than a bar, for the boy who cannot read the bar yet.
 // `level` is how full the box is now, `after` is where it lands once everything still on the list
 // is bought, `promised` is the height of the list itself and `shortfall` is the part of it there
@@ -1181,6 +1192,8 @@ export function partyBrief(state){
  lines.push(`Pace: ${paceLabel(p.pace)}`);
  if(p.budget)lines.push(`Rough budget: ¥${p.budget.toLocaleString('en-AU')} a day for all of them`);
  if(p.notes)lines.push(`Worth knowing: ${p.notes}`);
+ // What the family wrote on stops for next time, so a suggestion carries the lesson.
+ const lessons=nextTimeBrief(state);if(lessons)lines.push(lessons);
  return lines.join('\n');
 }
 // The planning board. Before anything is on a day, anyone in the family can put a place, a meal

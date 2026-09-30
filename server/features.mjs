@@ -9,6 +9,8 @@ import {PRIORITIES,validPriorities} from '../src/decide-data.js';
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_FOR,normaliseThankYou,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {IC_MAX,RECEIPT_TYPES} from '../src/ledger-data.js';
 import {isChild,validReading,validAwareness} from '../src/child-levels.js';
+import {MAX_NEXT_TIME} from '../src/next-time.js';
+import {CAPSULE_MAX} from '../src/capsule-data.js';
 import {LOCAL_EXPERIENCES,cleanLocalCheck} from '../src/local-data.js';
 import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
@@ -275,6 +277,15 @@ export function extraOperation(state,op,user,fail,now){
   }
   state.party={...current,priorities};
   return {summary:null,important:false,title:`What matters to ${op.name}`};
+ }else if(op.type==='capsuleWrite'){
+  // A note to the family a year on: your own, or a parent for a boy; a blank takes it back.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Write your own.',403);
+  const text=(op.text??'').trim();requireText(text,CAPSULE_MAX,'your note');
+  const all={...(state.capsule||{})};
+  if(text)all[op.person]={text,at:now,by:user.name};else delete all[op.person];
+  state.capsule=all;
+  return {summary:null,important:false,title:'Open next year'};
  }else if(op.type==='childLevels'){
   // What a boy is ready for: how the words reach him, and how much of the trip's machinery he
   // sees. A parent's to set, and a blank puts a dial back to its age's default. Kept on the
@@ -427,6 +438,13 @@ export function extraOperation(state,op,user,fail,now){
   const votes={...(state.photoVotes[op.day]||{})};
   if(op.id===null)delete votes[op.person];else votes[op.person]=op.id;
   state.photoVotes={...state.photoVotes,[op.day]:votes};
+ }else if(op.type==='photoFrame'){
+  // What goes on the grandparents' frame is a parent's choice, photo by photo.
+  if(!parent)fail('A parent chooses what goes on the frame.',403);
+  const entry=state.photos.find(p=>p.id===op.id);if(!entry)fail('Photo not found.',404);
+  if(typeof op.on!=='boolean')fail('On the frame, or not.');
+  entry.frame=op.on;
+  return {summary:null,important:false,title:op.on?'On the frame':'Off the frame'};
  }else if(op.type==='photoRemove'){
   const entry=state.photos.find(p=>p.id===op.id);if(!entry)fail('Photo not found.',404);
   // Yours to remove if it is your photo or you are the one who put it on.
@@ -1151,7 +1169,7 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:found.title};
   }
   fail('Unknown spending action.');
- }else if(op.type==='stepRating'||op.type==='stepThought'){
+ }else if(op.type==='stepRating'||op.type==='stepThought'||op.type==='stepNextTime'){
   // Four opinions about a thing that has happened. Kept per person, because an average is only
   // worth reading if you can see whose stars made it. Not the step's own notes, which are the plan.
   const step=state.steps.find(s=>s.id===op.id);if(!step)fail('Activity not found.',404);
@@ -1164,6 +1182,12 @@ export function extraOperation(state,op,user,fail,now){
    const ratings={...(entry.ratings||{})};
    if(op.rating)ratings[op.person]=op.rating;else delete ratings[op.person];
    entry.ratings=ratings;
+  }else if(op.type==='stepNextTime'){
+   // The lesson for next time, per person; a blank takes it back.
+   const text=(op.text??'').trim();requireText(text,MAX_NEXT_TIME,'next time');
+   const nextTime={...(entry.nextTime||{})};
+   if(text)nextTime[op.person]={text,at};else delete nextTime[op.person];
+   entry.nextTime=nextTime;
   }else{
    const text=(op.thought??'').trim();requireText(text,2000,'what you thought');
    const thoughts={...(entry.thoughts||{})};

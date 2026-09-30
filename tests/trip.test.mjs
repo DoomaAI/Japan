@@ -1929,7 +1929,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  for(const id of HOME_DEFAULT)assert.match(main,new RegExp(`\\n  ${id}:`),`${id} is drawn`);
  assert.match(main,/localStorage\.setItem\(`japan\.home\.\$\{user\.name\}`/);
  assert.match(main,/onClick=\{\(\)=>go\('personalise'\)\}>Customise Home<\/Button>/);
- assert.match(screen,/<HomeWidgets home=\{home\} setHome=\{setHome\}\/>/);
+ assert.match(screen,/<HomeWidgets home=\{home\} setHome=\{setHome\} held=\{held\}\/>/);
  assert.match(screen,/setHome\(emptyHome\(\)\)/);
 });
 
@@ -2362,11 +2362,11 @@ test('saving a voice note trusts storage, not the phone, for what the file is',a
  const day=seed.days[0].date,step=seed.steps.find(s=>s.day===day);
  const body={pathname:`voice/${nate.id}/abc.webm`,day,stepId:step.id,title:'  The bamboo  ',seconds:'42.4'};
  const checked=checkVoiceNote(state,body,nate);
- assert.deepEqual(checked,{pathname:body.pathname,day,stepId:step.id,title:'The bamboo',seconds:42});
+ assert.deepEqual(checked,{pathname:body.pathname,day,stepId:step.id,title:'The bamboo',seconds:42,kind:'voice'});
  const blob={contentType:'audio/webm',size:120000};
  const saved=addVoiceNote(state,checked,nate,blob,'2026-09-21T03:00:00.000Z');
  assert.equal(saved.voiceNotes.length,1);
- assert.deepEqual({...saved.voiceNotes[0],id:'x'},{id:'x',by:'Nate',pathname:body.pathname,day,stepId:step.id,title:'The bamboo',seconds:42,type:'audio/webm',size:120000,at:'2026-09-21T03:00:00.000Z'});
+ assert.deepEqual({...saved.voiceNotes[0],id:'x'},{id:'x',by:'Nate',pathname:body.pathname,day,stepId:step.id,title:'The bamboo',seconds:42,kind:'voice',type:'audio/webm',size:120000,at:'2026-09-21T03:00:00.000Z'});
  // A second save of the same recording is the same note, not a duplicate.
  assert.equal(addVoiceNote(saved,checked,nate,blob),saved);
  // A phone claiming a photo is a voice note gets nowhere: the type comes from storage.
@@ -10658,7 +10658,7 @@ test('More is leaner: money on one shelf, memories on their own, housekeeping ap
  assert.deepEqual(section('Money'),['money','paying','ledger','shopping','shortlist','shop']);
  assert.ok(section('For the boys').includes('spending'));
  // Looking back is memories only; the app's own housekeeping is not among the photos.
- assert.deepEqual(section('Looking back'),['noticed','photos','memorymap','diary','recap','book']);
+ assert.deepEqual(section('Looking back'),['noticed','nexttime','photos','memorymap','diary','recap','book','capsule']);
  assert.deepEqual(section('Housekeeping'),['updates','bin','search','guide']);
  // Nothing is listed twice, and every page not on the bar is somewhere.
  const all=MORE_SECTIONS.flatMap(([,ids])=>ids);
@@ -10977,4 +10977,200 @@ test('what each boy is ready for is two dials a parent sets, starting from his a
  assert.match(main,/setHeldBack\(state&&user\?heldBack\(state,user\.name\):\[\]\)/);
  assert.match(main,/<ThankYouNote[^>]*young=\{help\.young\}/);
  assert.match(main,/factAloudFor\(speak,visibleState,user\.name\)/);
+});
+test('a parent’s phone can be handed to one of the boys until the code takes it back, held-back widgets leave Customise, and the youngest purse is in words',async()=>{
+ const {handedUser,validCode,codeMatches,CODE_LENGTH}=await import('../src/hand-over.js');
+ const {purseInWords}=await import('../src/trip-features.js');
+ const members=['Damien','Lauren','Nate','Boston'];
+ const dad={name:'Damien',role:'parent'},nate={name:'Nate',role:'child'};
+ // Handed over, the phone reads as the boy in the child role, and says whose it really is.
+ assert.deepEqual(handedUser(dad,{name:'Nate',code:'1234'},members),{name:'Damien',role:'child',handed:true,heldBy:'Damien',name:'Nate'});
+ // Only a parent's phone, only to somebody on the trip, only with a real code.
+ assert.deepEqual(handedUser(nate,{name:'Boston',code:'1234'},members),nate,'a boy’s link cannot become his brother’s');
+ assert.deepEqual(handedUser(dad,{name:'Grandma',code:'1234'},members),dad);
+ assert.deepEqual(handedUser(dad,{name:'Nate',code:'12'},members),dad);
+ assert.deepEqual(handedUser(dad,null,members),dad);
+ assert.equal(handedUser(undefined,{name:'Nate',code:'1234'},members),undefined,'nothing to hand over before the phone is signed in');
+ assert.equal(CODE_LENGTH,4);
+ assert.ok(validCode('0420')&&!validCode('42')&&!validCode('abcd')&&!validCode(1234));
+ assert.ok(codeMatches({name:'Nate',code:'1234'},'1234')&&!codeMatches({name:'Nate',code:'1234'},'4321')&&!codeMatches(null,'1234'));
+ // The purse in words, for a boy always with a grown-up: what it stretches to, not a number.
+ assert.equal(purseInWords(0),'Nothing left in the purse today');assert.equal(purseInWords(-200),'Nothing left in the purse today');
+ assert.equal(purseInWords(300),'Enough for a snack');assert.equal(purseInWords(1500),'Enough for a small toy');
+ assert.equal(purseInWords(4000),'Enough for a proper treat');assert.equal(purseInWords(9000),'Enough for something big');
+ // Where it lands on the screens.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/user=handedUser\(envelope\?\.user,handed,state\?\.members\)/,'the whole app reads the handed user');
+ assert.match(main,/<HandedBanner user=\{user\} handed=\{handed\} takeBack=\{takeBack\}\/>\n\s*<main>/,'the strip sits with the other status strips, above the page');
+ assert.match(main,/hand=\{parent\?handTo:null\}/,'only a parent can hand it over');
+ assert.match(main,/<Personalise[^>]*held=\{heldBack\(visibleState,user\.name\)\}/);
+ const personalise=await readFile(new URL('../src/Personalise.jsx',import.meta.url),'utf8');
+ assert.match(personalise,/order=homeOrder\(home\)\.filter\(id=>!held\.includes\(id\)\)/,'a held-back widget is not offered to arrange');
+ const spending=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ assert.match(spending,/const inWords=!parent&&childLevels\(state,person\)\.awareness==='with'/);
+ assert.match(spending,/\{inWords\n\s*\?<strong className="purse-headline purse-words">\{purseInWords\(money\.left\)\}<\/strong>/);
+ const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
+ assert.match(settings,/user\?\.role==='parent'&&state&&hand&&<HandOver/);
+});
+test('next time: the lesson on a stop, per person, in one list and in what the model is told',async()=>{
+ const {NEXT_TIME_CHIPS,nextTimeFor,nextTimeNotes,nextTimeBrief,nextTimeText,MAX_NEXT_TIME}=await import('../src/next-time.js');
+ const {partyBrief}=await import('../src/trip-features.js');
+ const {tripProject}=await import('../src/trip-project.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ let state=upgraded(structuredClone(seed));
+ const deer=state.steps.find(s=>/deer|nara/i.test(s.title))||state.steps[3],ramen=state.steps[5];
+ assert.deepEqual(nextTimeFor(state,deer.id),{});assert.deepEqual(nextTimeNotes(state),[]);assert.equal(nextTimeBrief(state),'');
+ // A chip from a boy, a line from a parent, on two stops.
+ state=applyOperation(state,{type:'stepNextTime',id:deer.id,person:'Nate',text:NEXT_TIME_CHIPS[0]},child);
+ state=applyOperation(state,{type:'stepNextTime',id:deer.id,person:'Damien',text:'Come at opening; the deer are calmer.'},parent);
+ state=applyOperation(state,{type:'stepNextTime',id:ramen.id,person:'Damien',text:'Once was enough'},parent);
+ assert.equal(nextTimeFor(state,deer.id).Nate.text,NEXT_TIME_CHIPS[0]);
+ assert.ok(nextTimeFor(state,deer.id).Damien.at);
+ const notes=nextTimeNotes(state);
+ assert.equal(notes.length,3);
+ assert.ok(notes.every(n=>n.title&&n.day&&n.person&&n.text));
+ assert.deepEqual([...notes].map(n=>n.day),[...notes].map(n=>n.day).sort(),'by day');
+ // Taken back with a blank; nobody writes another's; the length has a lid; a boy cannot write a parent's.
+ state=applyOperation(state,{type:'stepNextTime',id:ramen.id,person:'Damien',text:''},parent);
+ assert.equal(nextTimeNotes(state).length,2);
+ assert.throws(()=>applyOperation(state,{type:'stepNextTime',id:deer.id,person:'Damien',text:'x'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'stepNextTime',id:deer.id,person:'Nate',text:'x'.repeat(MAX_NEXT_TIME+1)},parent));
+ assert.throws(()=>applyOperation(state,{type:'stepNextTime',id:'nope',person:'Nate',text:'x'},parent),e=>e.status===404);
+ // Stars and thoughts are untouched beside it.
+ state=applyOperation(state,{type:'stepThought',id:deer.id,person:'Nate',thought:'They bowed.'},child);
+ assert.equal(nextTimeFor(state,deer.id).Nate.text,NEXT_TIME_CHIPS[0]);
+ // The model reads them: the party brief for suggestions, the project's rated list for Ask.
+ assert.match(partyBrief(state),/Lessons the family wrote on stops, for next time:\n- /);assert.match(partyBrief(state),/: Book the early slot \(Nate\)/);
+ assert.match(nextTimeBrief(state),/Come at opening; the deer are calmer\. \(Damien\)/);
+ const project=tripProject(state,'Damien');
+ assert.match(`${project.personal}\n${project.shared}`,/Next time: Come at opening; the deer are calmer\./);
+ assert.match(nextTimeText(state),/ — Book the early slot \(Nate\)/);
+ // Its place in the app, and on the stop.
+ assert.ok(PAGES.nexttime?.label&&PAGE_RULES.nexttime);
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Looking back')[1].includes('nexttime'));
+ const review=await readFile(new URL('../src/StepReview.jsx',import.meta.url),'utf8');
+ assert.match(review,/onClick=\{\(\)=>saveNext\(myNext===c\?'':c\)\}/,'the same chip again takes it back');
+ assert.match(review,/maxLength=\{MAX_NEXT_TIME\}/);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/\{tab==='nexttime'&&<NextTime state=\{visibleState\} go=\{go\} notice=\{notice\}\/>\}/);
+});
+test('the frame: the follow-along link on a screen in a living room, showing what a parent chose',async()=>{
+ const {frameSet,frameCaption,nextIndex,nightHour,frameUrl,FRAME_KEEP,FRAME_SECONDS}=await import('../src/frame-data.js');
+ const {followView}=await import('../src/follow-data.js');
+ let state=upgraded(structuredClone(seed));
+ const day=seed.days[1].date,day2=seed.days[2].date;
+ const shot=(id,d,by)=>({id,day:d,by,for:by,pathname:`p/${id}.jpg`,type:'image/jpeg',at:'2026-09-22T02:00:00.000Z'});
+ state.photos=[shot('a',day,'Nate'),shot('b',day,'Boston'),shot('c',day2,'Lauren'),shot('d',day2,'Damien')];
+ // Nothing chosen: the frame is empty even though the follow page shows every photo.
+ assert.equal(followView(state,day2).days[0].photos.length,2);
+ assert.deepEqual(frameSet(followView(state,day2)),[]);
+ // A parent puts one on; a boy cannot; the photo of the day is on by itself.
+ state=applyOperation(state,{type:'photoFrame',id:'b',on:true},parent);
+ assert.throws(()=>applyOperation(state,{type:'photoFrame',id:'a',on:true},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'photoFrame',id:'nope',on:true},parent),e=>e.status===404);
+ assert.throws(()=>applyOperation(state,{type:'photoFrame',id:'a',on:'yes'},parent));
+ state=applyOperation(state,{type:'photoVote',person:'Damien',day:day2,id:'c'},parent);
+ const view=followView(state,day2);
+ assert.deepEqual(view.days.map(d=>d.photos.map(p=>[p.id,p.best,p.frame])),[[['c',true,false],['d',false,false]],[['a',false,false],['b',false,true]],[]]);
+ const set=frameSet(view);
+ assert.deepEqual(set.map(p=>[p.id,p.best,p.number]),[['c',true,3],['b',false,2]],'newest day first, the photo of the day leading');
+ assert.equal(frameCaption(set[0]),`Day 3 of ${seed.days.length} · ${seed.days[2].city} · ${seed.days[2].title}`);
+ // Taken off again.
+ state=applyOperation(state,{type:'photoFrame',id:'b',on:false},parent);
+ assert.deepEqual(frameSet(followView(state,day2)).map(p=>p.id),['c']);
+ // The frame never sends more than it can keep, cycles round, and dims at night in its own clock.
+ assert.ok(FRAME_KEEP>=12&&FRAME_SECONDS>=10);
+ assert.equal(nextIndex(2,3),0);assert.equal(nextIndex(0,3),1);assert.equal(nextIndex(5,0),0);
+ assert.ok(nightHour(22)&&nightHour(3)&&!nightHour(9)&&!nightHour(21));
+ assert.equal(frameUrl('https://x.test/?follow=abc'),'https://x.test/?follow=abc&frame=1');assert.equal(frameUrl(''),'');
+ // Where it lands: the mount, the photo toggle, the Settings link.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/frameMode=new URLSearchParams\(location\.search\)\.get\('frame'\)==='1'/);
+ assert.match(main,/followKey\?\(frameMode\?<FollowFrame followKey=\{followKey\}\/>:<FollowAlong followKey=\{followKey\}\/>\):<App\/>/);
+ const photos=await readFile(new URL('../src/PhotoDay.jsx',import.meta.url),'utf8');
+ assert.match(photos,/\{parent&&<button[^>]*onClick=\{\(\)=>mutate\(\{type:'photoFrame',id:p\.id,on:!p\.frame\}\)\}>/,'a parent’s toggle on each photo');
+ const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
+ assert.match(settings,/navigator\.clipboard\.writeText\(frameUrl\(url\)\)/);
+ const frame=await readFile(new URL('../src/FollowFrame.jsx',import.meta.url),'utf8');
+ assert.match(frame,/navigator\.wakeLock\?\.request\('screen'\)/);
+ assert.match(frame,/target:'photo',id:shot\.id,emoji:'👏'/,'a tap claps');
+});
+test('after the trip: notes to open next year, the show-and-tell page, sound postcards and the postcard seam',async()=>{
+ const {CAPSULE_MAX,capsuleOpens,capsuleIsOpen,capsuleWritable,capsuleFor,capsuleSealed,visibleCapsule,daysUntilOpen}=await import('../src/capsule-data.js');
+ const {visibleTrip}=await import('../server/visibility.mjs');
+ const {showTellFor,showTellSpeech}=await import('../src/show-tell.js');
+ const {checkVoiceNote,SOUND_MAX_SECONDS}=await import('../server/voice.mjs');
+ const {postcardText}=await import('../src/postcard-data.js');
+ const {KEEPSAKES}=await import('../src/shop-data.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ let state=upgraded(structuredClone(seed));
+ const last=seed.days.at(-1).date,third=seed.days.at(-3).date;
+ // Open next year: a year after the last day; writing on the last three days and after.
+ assert.equal(capsuleOpens(state),'2027-10-06');
+ assert.equal(capsuleWritable(state,'2026-10-03'),false);assert.equal(capsuleWritable(state,third),true);assert.equal(capsuleWritable(state,'2027-03-01'),true);assert.equal(capsuleWritable(state,'2027-10-06'),false);
+ assert.equal(daysUntilOpen(state,last),365);assert.equal(capsuleIsOpen(state,'2027-10-05'),false);assert.equal(capsuleIsOpen(state,'2027-10-06'),true);
+ assert.equal(capsuleOpens({days:[]}),null);
+ // Each writes their own; a parent for a boy; sealed from the others at the boundary until the day.
+ state=applyOperation(state,{type:'capsuleWrite',person:'Nate',text:'I hope we go back for the deer.'},child);
+ state=applyOperation(state,{type:'capsuleWrite',person:'Damien',text:'Remember how tired and happy we were.'},parent);
+ state=applyOperation(state,{type:'capsuleWrite',person:'Boston',text:'Trains.'},parent);
+ assert.throws(()=>applyOperation(state,{type:'capsuleWrite',person:'Damien',text:'x'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'capsuleWrite',person:'Nate',text:'x'.repeat(CAPSULE_MAX+1)},parent));
+ assert.deepEqual(capsuleSealed(state).sort(),['Boston','Damien','Nate']);
+ assert.equal(capsuleFor(state,'Nate').by,'Nate');assert.equal(capsuleFor(state,'Boston').by,'Damien');
+ const toNate=visibleTrip(state,child,new Date('2026-10-05T03:00:00Z'));
+ assert.equal(toNate.capsule.Nate.text,'I hope we go back for the deer.');
+ assert.deepEqual(toNate.capsule.Damien,{sealed:true,at:state.capsule.Damien.at},'a brother’s is sealed');
+ assert.equal(visibleTrip(state,parent,new Date('2026-10-05T03:00:00Z')).capsule.Nate.sealed,true,'sealed from a parent too');
+ assert.equal(visibleTrip(state,child,new Date('2027-10-06T03:00:00Z')).capsule.Damien.text,'Remember how tired and happy we were.','open on the day');
+ assert.deepEqual(visibleCapsule({capsule:{}},'Nate','2026-01-01'),{});
+ state=applyOperation(state,{type:'capsuleWrite',person:'Boston',text:''},parent);
+ assert.equal(capsuleFor(state,'Boston'),null,'a blank takes it back');
+ // Show and tell: out of what is there, in a child's register, with the phone reading it first.
+ let st=applyOperation(state,{type:'stepRating',id:state.steps[4].id,person:'Nate',rating:5},child);
+ st=applyOperation(st,{type:'stepRating',id:state.steps[6].id,person:'Nate',rating:3},child);
+ st=applyOperation(st,{type:'noticedAdd',person:'Nate',text:'the trains bow when they leave',day:seed.days[2].date},child);
+ st=applyOperation(st,{type:'phraseSeen',person:'Nate',day:seed.days[2].date,phraseIds:['thanks']},child);
+ const mission=st.challenges.find(c=>c.participants.includes('Nate'));
+ st=applyOperation(st,{type:'challengeStatus',id:mission.id,person:'Nate',done:true},child);
+ const pack=showTellFor(st,'Nate');
+ assert.equal(pack.favourite.title,state.steps[4].title);assert.equal(pack.missions[0].title,mission.title);assert.equal(pack.noticed.text,'the trains bow when they leave');assert.equal(pack.phrase.id,'thanks');
+ assert.equal(pack.days,16);assert.ok(pack.cities.length>=3);
+ const speech=showTellSpeech(pack);
+ assert.match(speech,/^In the holidays I went to Japan for 16 days\. We went to .* and .*\. My favourite thing was .*\. I did 1 mission, like .*\. I noticed the trains bow when they leave\. I can say .* in Japanese: .*Thank you for listening\.$/);
+ assert.equal(showTellSpeech(null),'');
+ assert.deepEqual(showTellFor(state,'Boston').missions,[]);
+ // A sound postcard is a voice note on a stop, short by definition.
+ const nate={name:'Nate',role:'child',id:'grant-nate'};
+ const body={pathname:'voice/grant-nate/a.webm',day:seed.days[2].date,stepId:state.steps.find(s=>s.day===seed.days[2].date).id,seconds:10};
+ assert.equal(checkVoiceNote(state,body,nate).kind,'voice');
+ assert.equal(checkVoiceNote(state,{...body,kind:'sound'},nate).kind,'sound');
+ assert.throws(()=>checkVoiceNote(state,{...body,kind:'sound',seconds:SOUND_MAX_SECONDS+1},nate),/seconds at most/);
+ assert.throws(()=>checkVoiceNote(state,{...body,kind:'song'},nate));
+ // The postcard: the day, the city and what the boy said, for the share sheet; the provider is a keepsake with none chosen.
+ const photo={id:'ph',day:seed.days[2].date,by:'Nate',for:'Nate',pathname:'p/ph.jpg'};
+ const withVoice={...st,voiceNotes:[{id:'v',day:seed.days[2].date,by:'Nate',transcript:'The deer bowed and then it ate my map.'}]};
+ const card=postcardText(withVoice,photo);
+ assert.equal(card.title,'A postcard from Nate');
+ assert.match(card.text,/^Dear Grandma and Grandpa,\nDay 3 of 16 in .*\nNate says: “The deer bowed and then it ate my map\.”\nLove from all of us\.$/);
+ assert.match(postcardText(st,photo).text,/\nA photo by Nate\.\n/,'nothing said: the photo speaks');
+ const keep=KEEPSAKES.find(k=>k.id==='postcard');
+ assert.ok(keep&&keep.provider===null&&keep.when==='during'&&keep.buy.length>=1);
+ // Their places in the app.
+ assert.ok(PAGES.capsule?.label&&PAGE_RULES.capsule&&PAGES.showtell?.label&&PAGE_RULES.showtell);
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Looking back')[1].includes('capsule'));
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='For the boys')[1].includes('showtell'));
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/\{tab==='capsule'&&<Capsule state=\{visibleState\} user=\{user\} today=\{japanDate\(now\)\} mutate=\{mutate\} busy=\{busy\}\/>\}/);
+ assert.match(main,/\{tab==='showtell'&&<ShowTell state=\{visibleState\} user=\{user\}\/>\}/);
+ const photos=await readFile(new URL('../src/PhotoDay.jsx',import.meta.url),'utf8');
+ assert.match(photos,/onClick=\{\(\)=>sendPostcard\(p\)\}/);assert.match(photos,/navigator\.share\(\{title:card\.title,text:card\.text/);
+ const voice=await readFile(new URL('../src/VoiceNotes.jsx',import.meta.url),'utf8');
+ assert.match(voice,/kind:sound\?'sound':'voice'/);assert.match(voice,/if\(elapsed>=\(sound\?SOUND_SECONDS:MAX_SECONDS\)\)stop\(\);/);
+ const map=await readFile(new URL('../src/MemoryMap.jsx',import.meta.url),'utf8');
+ assert.match(map,/v\.kind==='sound'\?<Volume2 size=\{15\}\/>:<Mic size=\{15\}\/>/);
+ const tonight=await readFile(new URL('../src/Tonight.jsx',import.meta.url),'utf8');
+ assert.match(tonight,/capsuleWritable\(state,today\)&&!capsuleFor\(state,user\.name\)\?\.text&&/,'the last days invite the note');
 });

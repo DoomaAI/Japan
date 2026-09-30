@@ -115,6 +115,16 @@ Nineteen PRs merged on 29 September (#211–#261, this session's share). Four th
 - [ ] Decide per phone whether to keep an offline copy (only on a phone with a passcode only that parent uses), then check it opens in airplane mode.
 - [ ] After the trip: consider whether to keep the documents for the next trip or delete them.
 
+**Built on `claude/road-features`, 30 September 2026, none tried on a phone:** hand this phone to a boy, held-back widgets out of Customise, the youngest purse in words; Home while we're away and the clocks-change note; Flying home (the card, the allowance, the scales); Lost something; the checkout sweep, the nightstand and price sense; Next time; the frame; Open next year, Show and tell, sound postcards and the postcard seam. Left from that pass:
+
+- [ ] Sound postcards on the memory map replay and in the highlights render plan: they are marked on the map's point cards only.
+- [ ] The postcard's print-and-post provider: TouchNote and Australia Post are linked as places to assess; nothing is integrated, the share sheet does the sending.
+- [ ] Show and tell has no stamp-book line: the stamp accessor is not exposed as a list.
+- [ ] Flying home reads prices from the lists; the family ledger's shopping category is not counted, so a thing paid for and never written on a list is missed.
+- [ ] On a phone: the frame on an iPad and a TV browser (wake lock, dimming, the clap), the nightstand's wake lock, the sound postcard's twelve-second stop, the checkout sweep on a move day, and the hand-over strip.
+
+**The frame** (the follow link in frame mode) uses the follow key itself. A key per frame, so one frame can be withdrawn without breaking a grandparent's phone link, and email-to-frame delivery for Aura, Nixplay and Skylight frames, are logged for the commercial version in [commercialisation.md](commercialisation.md) terms; the latter needs outbound email, which the inbound forwarding module does not provide.
+
 **What the boys are ready for** is built on `claude/child-levels` (the reading and awareness dials in Settings, read by the facts, the notes, the phrasebook, the missions, Home's widgets, the menus and the model's brief) and not yet tried on a phone. Left for a later pass:
 
 - [ ] The purse for a boy at *With a grown-up*: a picture and "enough for a snack" rather than a yen balance. Today the number shows whatever the dial says.
