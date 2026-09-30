@@ -704,7 +704,7 @@ function App(){
   {tab==='windows'&&<BookingWindows state={visibleState} user={user} now={now} mutate={mutate} busy={busy} go={go}/>}
   {tab==='shop'&&<TripShop state={visibleState} user={user} today={japanDate(now)} go={go} mutate={mutate} busy={busy}/>}
   {tab==='apps'&&<Apps state={visibleState} today={japanDate(now)} dayLabel={fmtDay}/>}
-  {tab==='local'&&<LikeALocal state={visibleState} user={user} today={japanDate(now)} dayLabel={fmtDay} mutate={mutate} busy={busy} notice={notice} go={go}/>}
+  {tab==='local'&&<LikeALocal state={visibleState} user={user} today={japanDate(now)} dayLabel={fmtDay} mutate={mutate} busy={busy} notice={notice} go={go} request={request} config={config} online={online}/>}
   {tab==='vault'&&<Vault state={visibleState} user={user} request={request} notice={notice} online={online}/>}
   {tab==='arrival'&&<Arrival homeFirst={japanDate(now)>=(state.days[0]?.date||'')}/>}
   {tab==='predictions'&&<Predictions state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy}/>}

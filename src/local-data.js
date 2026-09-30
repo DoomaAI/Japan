@@ -229,8 +229,24 @@ export function searchLocal(query){
  return LOCAL_EXPERIENCES.filter(e=>[e.title,e.ja,e.say,e.area,e.where,e.why,e.how,LOCAL_KIND_LABEL(e.kind),...(e.tags||[])].join(' ').toLowerCase().includes(q))
   .map(e=>({type:'Like a local',id:e.id,title:e.title,detail:`${e.area} · ${e.why}`}));
 }
+// What a check against the web brings back and the trip keeps, per card, for every phone: is it
+// open on our dates, any closure, the price now, whether that differs from the card, two or
+// three sentences to read on the day, what still to confirm, and the pages it came from. The
+// same cleaning runs on the server (on what the model returned) and on the mutation that saves
+// it, so nothing longer or stranger than this shape is ever stored.
+export const CHECK_FIELDS=[['summary',1000],['open',300],['closed',300],['price',300],['differences',600],['checkFirst',600]];
+const httpsOnly=v=>{try{const u=new URL(String(v||''));return u.protocol==='https:'?u.href.slice(0,500):'';}catch{return '';}};
+export function cleanLocalCheck(check){
+ if(!check||typeof check!=='object')return {error:'Nothing to save.'};
+ const value={};
+ for(const [key,max] of CHECK_FIELDS)value[key]=String(check[key]??'').replace(/\s+/g,' ').trim().slice(0,max);
+ if(!value.summary)return {error:'The check said nothing.'};
+ value.changed=check.changed===true;
+ value.sources=(Array.isArray(check.sources)?check.sources:[]).map(s=>({title:String(s?.title??'').trim().slice(0,200),url:httpsOnly(s?.url)})).filter(s=>s.url).slice(0,8);
+ return {value};
+}
 // One line each for Ask, by base, so a question about a free afternoon can reach for the tram or
-// the bathhouse before reaching for the web.
+// the bathhouse before reaching for the web. A checked card carries what the check found.
 // Only the bases this trip visits; a trip that goes nowhere listed here gets nothing, so another
 // family's project is not told about Tokyo.
 export function localBrief(state){
@@ -241,7 +257,10 @@ export function localBrief(state){
  for(const area of areas){
   const dates=localDays(state,{area});
   out.push('',`## ${area} (${dates[0]} to ${dates.at(-1)})`);
-  for(const e of LOCAL_EXPERIENCES.filter(e=>e.area===area))out.push(`- ${e.title} (${e.ja}) — ${LOCAL_KIND_LABEL(e.kind)} · ${e.cost}${e.when?` · ${e.when}`:''}${e.weekdays?' · weekends only':''}${e.boys==='care'?' · the boys need a hand':''}`);
+  for(const e of LOCAL_EXPERIENCES.filter(e=>e.area===area)){
+   const c=state?.localChecks?.[e.id];
+   out.push(`- ${e.title} (${e.ja}) — ${LOCAL_KIND_LABEL(e.kind)} · ${e.cost}${e.when?` · ${e.when}`:''}${e.weekdays?' · weekends only':''}${e.boys==='care'?' · the boys need a hand':''}${c?` · checked on the web ${String(c.at||'').slice(0,10)}: ${c.summary}${c.changed&&c.differences?` Differs from the card: ${c.differences}`:''}`:''}`);
+  }
  }
  return out.join('\n');
 }
