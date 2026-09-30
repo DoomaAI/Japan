@@ -529,3 +529,99 @@ test('apps to download: an app a stop was booked through is suggested for that s
  assert.deepEqual(appReminders(booked).find(r=>r.id==='klook').day,'2026-09-25','the evening before');
  assert.ok(!appReminders(booked)[0].apps.some(a=>a.id==='klook'),'and not in the week-before list');
 });
+test('like a local: every experience is for a base on the trip, finds its days, and is wired in',async()=>{
+ const local=await import('../src/local-data.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const {HOME_WIDGETS}=await import('../src/home-widgets.js');
+ const {PROPOSAL_KINDS,tripAreas,proposalDraft}=await import('../src/trip-features.js');
+ const state=upgraded(seed),areas=tripAreas(state),kinds=local.LOCAL_KINDS.map(([k])=>k);
+ const ids=new Set();
+ for(const e of local.LOCAL_EXPERIENCES){
+  assert.ok(!ids.has(e.id),`${e.id} is unique`);ids.add(e.id);
+  assert.ok(areas.includes(e.area),`${e.id} is for a base we visit (${e.area})`);
+  assert.ok(kinds.includes(e.kind),`${e.id} has a kind`);
+  assert.ok(e.title&&e.where&&e.why&&e.how&&e.cost,`${e.id} says where, why, how and what it costs`);
+  assert.match(e.ja,/[぀-ヿ一-鿿]/,`${e.id} has a Japanese name to point at`);
+  assert.ok(['yes','care'].includes(e.boys),`${e.id} says whether it works with the boys`);
+  assert.ok(local.LOCAL_KIND_ICON[e.kind],`${e.kind} has an icon`);
+  const draft=proposalDraft(local.localDraft(e));
+  assert.ok(PROPOSAL_KINDS.some(([k])=>k===draft.category),`${e.id} lands on a real board category`);
+  assert.ok(draft.tags.includes('like a local')&&draft.notes.includes(e.how),`${e.id} keeps its why and how on the board`);
+  assert.match(local.localMapUrl(e),/^https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=/);
+ }
+ assert.ok(local.LOCAL_EXPERIENCES.filter(e=>e.area==='Tokyo').length>=10,'Tokyo, where six days remain, has the most');
+ // Days: a Kyoto one is only on the Kyoto days, a Tokyo one counts the Disney days, a weekend
+ // market waits for the weekend we are in Tokyo.
+ const byId=id=>local.LOCAL_EXPERIENCES.find(e=>e.id===id);
+ assert.deepEqual(local.localDays(state,byId('kamodelta')),['2026-09-24','2026-09-26','2026-09-27']);
+ assert.deepEqual(local.localDays(state,byId('fleamarket')),['2026-10-03','2026-10-04'],'Saturday and Sunday in Tokyo; the Kyoto weekend does not count');
+ assert.ok(local.localDays(state,byId('sento')).includes('2026-09-30'),'a Disney day is within Tokyo’s reach');
+ const oct2=Object.fromEntries(local.localExperiences(state,'2026-10-02').map(e=>[e.id,e]));
+ assert.equal(oct2.kamodelta.done,true,'Kyoto is behind us');assert.equal(oct2.kamodelta.here,false);
+ assert.equal(oct2.sento.here,true);assert.equal(oct2.sento.done,false);
+ assert.equal(oct2.fleamarket.next,'2026-10-03');assert.equal(oct2.fleamarket.done,false);
+ const oct5=Object.fromEntries(local.localExperiences(state,'2026-10-05').map(e=>[e.id,e]));
+ assert.equal(oct5.fleamarket.done,true,'the last weekend has gone');assert.equal(oct5.sento.done,false);
+ assert.deepEqual(local.localAreaOrder(state,'2026-10-02'),{here:['Tokyo'],ahead:[],behind:['Kyoto','Osaka','Nara']});
+ assert.deepEqual(local.localAreaOrder(state,'2026-09-27'),{here:['Nara','Kyoto'],ahead:['Osaka','Tokyo'],behind:[]});
+ // Home: only where we are, the market leading on its days, and the rest turned over day by day.
+ const sat=local.localPicks(state,'2026-10-03'),fri=local.localPicks(state,'2026-10-02'),sun=local.localPicks(state,'2026-10-04');
+ assert.equal(sat[0].id,'fleamarket');assert.equal(fri[0].id,'fleamarket','the day before too');assert.equal(sun[0].id,'fleamarket');
+ assert.ok(sat.length<=3&&sat.every(e=>e.area==='Tokyo'));
+ assert.notDeepEqual(fri.slice(1).map(e=>e.id),local.localPicks(state,'2026-10-05').slice(1).map(e=>e.id),'not the same three all week');
+ assert.deepEqual(local.localPicks(state,'2026-09-20'),[],'nothing before the trip');
+ assert.deepEqual(local.localPicks(state,'2026-09-25').map(e=>e.area),local.localPicks(state,'2026-09-25').map(()=>'Osaka'),'the USJ day is an Osaka day');
+ // Search, Ask and the shell.
+ assert.ok(local.searchLocal('tram').some(h=>h.id==='toden'&&h.type==='Like a local'));
+ assert.ok(local.searchLocal('銭湯').some(h=>h.id==='sento'),'found by the Japanese too');
+ assert.deepEqual(local.searchLocal(''),[]);
+ const brief=local.localBrief(state);
+ assert.match(brief,/^# Like a local/);assert.match(brief,/## Tokyo \(2026-09-21 to 2026-10-06\)/);assert.match(brief,/weekends only/);
+ const {tripProject}=await import('../src/trip-project.js');
+ assert.match(tripProject(state).shared,/# Like a local/,'Ask is told about them');
+ assert.equal(local.localBrief(upgraded({members:['Ana'],days:[{date:'2027-05-01',title:'Rome',city:'Rome'}],steps:[],choices:{},documents:[],history:[],notices:[]})),'','another trip is told nothing about Tokyo');
+ assert.ok(PAGES.local?.label&&PAGE_RULES.local,'a page and a spoken rule');
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Out and about')[1].includes('local'));
+ assert.equal(HOME_WIDGETS.local?.page,'local','the Home card points at the page');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/tab==='local'&&<LikeALocal /);assert.match(main,/local:<LikeALocalCard /);
+ const search=await readFile(new URL('../src/PracticalPages.jsx',import.meta.url),'utf8');
+ assert.match(search,/'Like a local':'local'/,'a search hit opens the page');
+});
+test('like a local: a parent checks a card against the web, and what comes back is saved for everyone, cleaned',async()=>{
+ const {cleanLocalCheck,localBrief}=await import('../src/local-data.js');
+ const {normaliseLocalCheck}=await import('../server/local-check.mjs');
+ const {applyOperation}=await import('../server/model.mjs');
+ const state=upgraded(seed);
+ assert.deepEqual(state.localChecks,{},'starts empty');
+ const found={found:true,open:' 9:00–20:30 daily ',closed:'',price:'Free',changed:false,differences:'',summary:'Open every day to 8:30 pm and free.  The lift is on the ground floor.',checkFirst:'',
+  sources:[{title:'Bunkyo City',url:'https://www.city.bunkyo.lg.jp/x'},{title:'bad',url:'http://insecure.example'},{title:'junk',url:'not a url'}]};
+ const clean=normaliseLocalCheck(found);
+ assert.equal(clean.open,'9:00–20:30 daily');assert.equal(clean.summary,'Open every day to 8:30 pm and free. The lift is on the ground floor.');
+ assert.deepEqual(clean.sources.map(s=>s.url),['https://www.city.bunkyo.lg.jp/x'],'only https sources survive');
+ assert.equal(clean.changed,false);
+ assert.equal(cleanLocalCheck({summary:'x'.repeat(2000)}).value.summary.length,1000,'cut to length');
+ assert.ok(cleanLocalCheck({summary:''}).error,'a check that said nothing is refused');
+ assert.ok(cleanLocalCheck(null).error);
+ const lauren={name:'Lauren',role:'parent'},nate={name:'Nate',role:'child'};
+ const after=applyOperation(state,{type:'localCheck',id:'bunkyo',check:found},lauren);
+ assert.equal(after.localChecks.bunkyo.by,'Lauren');assert.ok(after.localChecks.bunkyo.at);assert.equal(after.localChecks.bunkyo.open,'9:00–20:30 daily');
+ assert.throws(()=>applyOperation(state,{type:'localCheck',id:'bunkyo',check:found},nate),/parent/);
+ assert.throws(()=>applyOperation(state,{type:'localCheck',id:'nowhere',check:found},lauren),/not one of ours/);
+ assert.throws(()=>applyOperation(state,{type:'localCheck',id:'bunkyo',check:{summary:''}},lauren),/said nothing/);
+ const changed=applyOperation(after,{type:'localCheck',id:'toymuseum',check:{...found,changed:true,differences:'Now ¥1,200 an adult.',price:'¥1,200 / ¥900'}},lauren);
+ assert.match(changed.alerts[0].summary,/Lauren checked Tokyo Toy Museum, in an old school on the web: something differs from the card/,'a difference is a family alert');
+ assert.equal(after.alerts.length,state.alerts.length,'a check that agrees with the card is not');
+ assert.equal(changed.history[0].title,'Tokyo Toy Museum, in an old school');
+ assert.match(localBrief(changed),/Tokyo Toy Museum.*checked on the web \d{4}-\d{2}-\d{2}: .*Differs from the card: Now ¥1,200 an adult\./,'Ask reads the check');
+ const handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.match(handler,/route==='local-check'&&post\)\{\s*parent\(user\)/,'the route is a parent’s');
+ const server=await readFile(new URL('../server/local-check.mjs',import.meta.url),'utf8');
+ assert.match(server,/web_search_20260209/);assert.match(server,/record_check/);assert.match(server,/user_location:\{type:'approximate',country:'JP'/,'asked from Japan');
+ const page=await readFile(new URL('../src/LikeALocal.jsx',import.meta.url),'utf8');
+ assert.match(page,/request\('local-check',\{id:e\.id,today\}\)/);assert.match(page,/mutate\(\{type:'localCheck',id:e\.id,check:found\}\)/,'saved through the ordinary mutation');
+ assert.match(page,/user\?\.role==='parent'&&!!config\?\.research&&online/,'offered to a parent with the key and a signal');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/<LikeALocal [^\n]*request=\{request\} config=\{config\} online=\{online\}/);
+});
