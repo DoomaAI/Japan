@@ -12,6 +12,7 @@ import {ThankYouNote,ThankYouEditor} from './ThankYou.jsx';
 import TicketViewer from './TicketViewer.jsx';
 import GuideBook,{LAST_PAGE} from './GuideBook.jsx';
 import GuideReader from './GuideReader.jsx';
+import Opening from './Opening.jsx';
 import TicketTranslate from './TicketTranslate.jsx';
 import FileTranslate from './FileTranslate.jsx';
 import DocumentThumb from './DocumentThumb.jsx';
@@ -126,11 +127,6 @@ const maps=place=>isMapLink(place)?place:'https://www.google.com/maps/search/?ap
 // The Days screen's book opens on the cover the offline shell keeps, so it is there with no signal.
 const coverSource=n=>n===1?'/cover.jpg':`/api/guide?page=${n}`;
 const stored=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
-// The opening screen says how long until we fly while the trip is still on its way from the server.
-// The dates come from the copy kept on this phone at the last sync, so a first open has none and
-// shows nothing, and it is the same count the Home countdown gives once the trip is in.
-function OpeningCountdown(){const c=tripCountdown(stored('japan.snapshot',null)?.state?.days);if(!c)return null;
- return <p className={`opening-countdown ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span>{c.days===1?'day to go':'days to go'}</span></>:c.phase==='during'?<><strong>{`Day ${c.day}`}</strong><span>{`of ${c.total} days in Japan`}</span></>:<span>{c.text}</span>}</p>;}
 // Nothing waits forever on a train: a read gets twenty seconds and a save or an answer fifty,
 // which is inside the minute the server allows itself. A request that runs out of time, or one
 // that never connects, comes back as a plain sentence with no status, which is what the callers
@@ -551,7 +547,7 @@ function App(){
   if(navigator.onLine&&!state.thankYou.seen?.[note.day])await mutate({type:'thankYouSeen',day:note.day});
   setModal(null);
  }
- if(loading)return <main className="entry"><div className="brand-mark">日</div><h1>Japan 2026</h1><OpeningCountdown/><p>Opening your family trip…</p></main>;
+ if(loading)return <Opening days={stored('japan.snapshot',null)?.state?.days}/>;
  if(!state)return <main className="entry"><img className="entry-photo" src="/cover.jpg" alt="Pasfield family Japan Travel Guide 2026 cover"/><div className="brand-mark">日</div><p className="eyebrow">THE PASFIELD FAMILY</p><h1>Japan, together.</h1><p>Open your private family link to join the trip. No email or password needed.</p>{error&&<p className="callout">{error}</p>}<p>The private parent link is prepared when the app is deployed. No setup key is required.</p></main>;
  // A screen about one day opens the same way wherever you are: which day it is, and the strip
  // of dates to move along. Written once here rather than on each screen, because the strip has
