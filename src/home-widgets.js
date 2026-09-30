@@ -18,6 +18,8 @@ export const HOME_WIDGETS={
  briefing:{label:'The day in brief',note:'Which day it is, the stops, fixed times, weather, a hotel move and any app to set up'},
  todaysjapan:{label:'Phrase and fun fact of the day',note:'On the trip: the day’s phrase to say and fact to read, folded to one line or open'},
  step:{label:'The step we are on',note:'The current stop, swipe for the rest of the day'},
+ checkin:{label:'Check In',note:'Somebody is on their way back: where to, by when, how far off, and when they get there'},
+ reports:{label:'Reports from the family',note:'What the other phones said in the last two hours: the queue, the toilets, sold out'},
  codes:{label:'Codes found',note:'Parents: a ticket’s QR code has been read; add it to the Wallet, or leave it out'},
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},
  needs:{label:'Before we head out',note:'A tick for each thing to carry out the door, fresh each morning, with a streak'},
@@ -33,6 +35,9 @@ export const HOME_WIDGETS={
  packing:{label:'Packing reminder',note:'What is still out of the case before a hotel move',page:'packing'},
  tally:{label:'Day tally and tools',note:'How many are done, photos, voice notes and tickets'},
  finds:{label:'Shop finds',note:'Things we photographed in a shop on this day',page:'shortlist'},
+ local:{label:'Like a local',note:'Two or three things the locals do where we are today, one tap to read or put on the board',page:'local'},
+ halfway:{label:'Halfway there',note:'From the middle of the trip: the numbers so far on one square, to share',page:'recap'},
+ puzzle:{label:'Today’s puzzle',note:'One puzzle a day, the same on every phone: katakana, a photo, or a price',page:'games'},
  tonight:{label:'Tonight',note:'From five in the evening: star the best bits, vote for the photo of the day, leave a voice note'},
  guide:{label:'This day in the guide',note:'The original guide pages for the day',page:'guide'}
 };

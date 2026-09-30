@@ -5,6 +5,7 @@ import {balanceBetween,settlements,icCards,icBalance,icLow,IC_MAX,RECEIPT_TYPES,
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenses,expenseSummary,expensesCsv,expenseCategoryLabel,payMethodLabel,yenToAud,rateIsSet} from './trip-features.js';
 import {yen,aud,rateText} from './Currency.jsx';
 import {dayLabel} from './AdventurePages.jsx';
+import Runway from './Runway.jsx';
 import {japanDate} from './timing.js';
 // What Damien and Lauren spend, in yen as the receipt says, with dollars at the shared rate.
 // Adding one works with no signal, because a payment happens at a till, not near a router.
@@ -100,6 +101,7 @@ export default function Ledger({state,user,mutate,busy,remove,config,online=true
    {one&&<div><small>{dayLabel(day)}</small><strong>{yen(one.total)}</strong><span>{aud(one.aud)}</span>
     {one.budget&&<small className={one.overBudget>0?'over':''}>{one.overBudget>0?`${yen(one.overBudget)} over`:`${yen(-one.overBudget)} left`} of {yen(one.budget)}</small>}</div>}
   </div>
+  <Runway state={state} user={user}/>
   <BalanceCard state={state} mutate={mutate} busy={busy}/>
   {!form&&<div className="row wrap"><button className="primary" onClick={()=>setForm({})}><Plus size={16}/> Add a payment</button>
    <button disabled={!all.count} onClick={()=>download('japan-family-spending.csv',expensesCsv(state),'text/csv')}><Download size={16}/> Spreadsheet</button></div>}

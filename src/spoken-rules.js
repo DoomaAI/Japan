@@ -8,6 +8,7 @@
 // game has one, and a test keeps it that way, because the one Nate presses is always the one
 // nobody remembered to write.
 export const GAME_RULES={
+ daily:'Today’s puzzle. Everyone gets the same puzzle today. Some days it is a word written in Japanese letters, and you tap the letters to spell it. A green square means that letter is right. A yellow square means it is in the word somewhere else. Some days it is one of our photos, zoomed in close, and you say which place it was. Some days it is something one of you bought, and you say what it cost. When you finish, you can send your squares to Grandma without telling her the answer.',
  match:'Match the letters. Tap a Japanese letter, and then tap the sound it makes. If they go together they stay turned over. If they do not, they flip back, so try to remember where they were. Find all of them.',
  decode:'Read the sign. A Japanese word comes up, and you sound it out. Then tap which English word you think it is. Get it right and your run goes up by one. Get it wrong and you start your run again.',
  karuta:'Karuta. All the cards are face up. The reader says one of them out loud, and you find that card and tap it as fast as you can. If you tap the wrong one it costs you points, so look before you tap. Take all the cards to finish.',
@@ -51,6 +52,7 @@ export const PAGE_RULES={
  stamps:'Stamp book. In Japan, stations and temples have a stamp you can press into a book. These are our stamps. Every time we finish a place, a sight, a ride or a train, it gets a red stamp. Your own stamps come when you try five foods, or ten, or twenty five.',
  leaderboard:'Leaderboard. Who has tried the most foods, been on the most rides and taken the most photos. The one at the top of each list gets a crown. If two people have the same number, they share the place.',
  shop:'Trip shop. These are the things Mum and Dad buy before a trip, like plugs and money. There are also things we can make from our trip. We could have shirts with our own characters on them, and a real photobook.',
+ local:'Like a local. The things people who live here do, that visitors miss: a bathhouse, a tram, a food hall under a shop, a Sunday market. Read one, and if you like it, press Put it on the board, and the family can vote on it.',
  apps:'Apps to download. The apps Mum and Dad put on their phones for Japan: for trains, for taxis, for reading signs and menus, and for the theme parks. There is even one that warns us about earthquakes.',
  vault:'Passports and visas. Where Mum and Dad keep the details of everyone’s passport, locked up safe. Only their phones can open it.',
  arrival:'Arrival paperwork. The forms Mum and Dad fill in so we can get into Japan, and back into Australia. Each of us gets a special square code on the phone to show at the airport.',

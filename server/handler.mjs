@@ -13,6 +13,7 @@ import {readMenu,readPacket,menuReaderReady} from './menu.mjs';
 import {translatePhrase,translatorReady,translateTicketText,TICKET_FIELDS,TICKET_DIRECTIONS,ticketTranslationKey} from './translate.mjs';
 import {researchPlace,researchReady} from './research.mjs';
 import {researchPayMethod} from './pay-research.mjs';
+import {checkLocal} from './local-check.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {findEvents,eventsReady} from './events.mjs';
 import {askTrip,askReady} from './ask.mjs';
@@ -27,6 +28,7 @@ import {parseKml,matchPlacemarks,myMapKmlUrl,roundedPosition,validPosition,PHOTO
 import {calendarFeed,japanDate} from '../src/timing.js';
 import {RECEIPT_TYPES} from '../src/ledger-data.js';
 import {followView,followPhoto} from '../src/follow-data.js';
+import {applyKudos} from '../src/kudos-data.js';
 import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange} from './push.mjs';
 import {vaultReady,listVault,saveVault,addVaultFile,readVaultFile,vaultView} from './vault.mjs';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
@@ -89,6 +91,17 @@ export default async function handler(req,res){
    if(!result||!result.stream)throw new AppError('Photo unavailable.',404);
    res.setHeader('Content-Type',shot.type);res.setHeader('Content-Disposition','inline');res.setHeader('Cache-Control','private, max-age=3600');
    const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
+  }
+  // Kudos from home: a follower's clap, heart or wow on a photo or a stop, let in on the same
+  // key as the follow-along view and nothing else. It can add or take back one reaction under a
+  // first name; it cannot write a word. The trip's revision moves, so the phones see it on their
+  // next refresh, and the follower gets the view back with theirs in it.
+  if(route==='follow-react'&&post){
+   const key=String(b.key||''),trip=await readTrip();
+   if(!trip.state.followKey||!/^[a-f0-9]{64}$/.test(key)||hash(key)!==hash(trip.state.followKey))throw new AppError('This follow-along link is not valid any more.',403);
+   if(!applyKudos(trip.state,b))throw new AppError('That one could not be given.');
+   await updateTrip(state=>applyKudos(state,b));
+   return json(res,followView((await readTrip()).state,japanDate()));
   }
   // The push tick: sends whatever fell due since the last one. Called every few minutes by a
   // scheduler holding the cron secret, as a bearer token (Vercel Cron sends it that way) or ?key=.
@@ -285,6 +298,12 @@ export default async function handler(req,res){
   if(route==='research'&&post){
    parent(user);const {state}=await readTrip();
    return json(res,await researchPlace(b,state));
+  }
+  // A Like a local card checked against the web for our dates. Nothing is saved here: the phone
+  // saves what came back through the localCheck mutation, so every phone reads it offline.
+  if(route==='local-check'&&post){
+   parent(user);const {state}=await readTrip();
+   return json(res,await checkLocal(b,state));
   }
   // Suggestions read the travel party and the plan and hand back ideas. Nothing is added to the
   // board here: each one is put up, and voted on, by a person.

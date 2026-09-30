@@ -459,7 +459,7 @@ export function seededChallenges(state){
 }
 export function ensureFeatures(input){
  const state=disneySeeded(timesSeeded(notesSeeded(splitSeeded({...input,...expressSeeded(input)}))));
- return {...state,allergies:state.allergies||{},bin:state.bin||[],settlements:state.settlements||[],icCards:state.icCards||{},askThread:state.askThread||[],mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},bingo:state.bingo??{},shopLog:state.shopLog??{},stays:state.stays??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},noticed:state.noticed??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},predictions:state.predictions??{},bookingWindows:state.bookingWindows??[],mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:normaliseThankYou(state.thankYou)};
+ return {...state,allergies:state.allergies||{},checkIns:state.checkIns||[],readiness:state.readiness||{},stages:state.stages||{},bin:state.bin||[],settlements:state.settlements||[],icCards:state.icCards||{},askThread:state.askThread||[],mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},bingo:state.bingo??{},shopLog:state.shopLog??{},stays:state.stays??{},localChecks:state.localChecks??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},noticed:state.noticed??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},predictions:state.predictions??{},bookingWindows:state.bookingWindows??[],mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:normaliseThankYou(state.thankYou)};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -895,6 +895,12 @@ export const unallocatedTodos=state=>todosFor(state,null);
 // so a phone that has been in a pocket since Kyoto shows the right balance the moment it is
 // opened, with no signal and nothing to catch up on.
 export const EMPTY_PURSE={allowance:{},topUps:[],items:[],requests:[]};
+// Round-ups, the way the banking apps do them: with it on, every buy rounds up to the next ¥100
+// and the difference goes into a keepsake fund rather than back into the purse. Only a buy with
+// a real price rounds; a guess does not.
+export const roundUpOn=(state,person)=>!!spending(state).roundUp?.[person];
+export const roundUpOf=item=>Number.isFinite(item?.spent)&&item.spent>0?(100-item.spent%100)%100:0;
+export const keepsakeFund=(state,person=null)=>spending(state).items.filter(i=>i.boughtAt&&(!person||i.person===person)&&roundUpOn(state,i.person)).reduce((sum,i)=>sum+roundUpOf(i),0);
 export const spending=state=>({...EMPTY_PURSE,...(state.spending||{})});
 export const allowanceFor=(state,person)=>spending(state).allowance[person]||null;
 // Newest first: a top-up is a thing that just happened, and the one you want to see is the last.
@@ -923,10 +929,11 @@ export function purse(state,person,today){
  const items=spendItemsFor(state,person),bought=items.filter(i=>i.boughtAt);
  const topUps=topUpsFor(state,person).reduce((sum,t)=>sum+(t.yen||0),0);
  const allowance=allowancePaid(state,person,today);
- const spent=bought.reduce((sum,i)=>sum+spendCost(i),0);
+ const roundUps=roundUpOn(state,person)?bought.reduce((sum,i)=>sum+roundUpOf(i),0):0;
+ const spent=bought.reduce((sum,i)=>sum+spendCost(i),0)+roundUps;
  const planned=items.filter(i=>!i.boughtAt).reduce((sum,i)=>sum+(i.estimate||0),0);
  const paidIn=topUps+allowance;
- return {topUps,allowance,paidIn,spent,planned,left:paidIn-spent,after:paidIn-spent-planned,
+ return {topUps,allowance,paidIn,spent,planned,roundUps,left:paidIn-spent,after:paidIn-spent-planned,
   items:items.length,bought:bought.length,waiting:items.length-bought.length};
 }
 // The same purse as a money box rather than a bar, for the boy who cannot read the bar yet.
@@ -1384,6 +1391,7 @@ export function pendingProgress(state,queue){
    if(o.day){const e={...(next.factSeen[o.day]||{})};e[o.person]=e[o.person]||o.at;next.factSeen={...next.factSeen,[o.day]:e};}
    if(o.factIds?.length){const log={...(next.factLog[o.person]||{})};for(const id of o.factIds)log[id]=log[id]||o.at;next.factLog={...next.factLog,[o.person]:log};}
   }
+  if(o.type==='stageSet')next.stages={...(next.stages||{}),[o.id]:{reached:o.reached,by:o.by||'',at:o.at,pending:true}};
   if(o.type==='gameScore'){
    const mine={...(next.games.scores[o.person]||{})};
    mine[o.game]=Math.max(mine[o.game]||0,o.score);

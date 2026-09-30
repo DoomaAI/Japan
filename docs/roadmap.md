@@ -21,6 +21,10 @@ Benchmarked against Marriott Bonvoy, Hilton Honors, World of Hyatt, IHG One Rewa
 | — | Apple Wallet passes for stays and tickets | Not built: needs an Apple Developer pass-type certificate and a server-side `.pkpass` signer. What it is for, what it needs and why not this trip: [commercialisation.md](commercialisation.md#apple-wallet-and-google-wallet-passes) |
 | — | First-run onboarding for a new family | Not built: the app is set up for one family. Logged for the commercial version in commercialisation.md terms |
 
+## UX review against apps outside travel — logged 30 September 2026
+
+The other direction from the review above: eighteen mechanics borrowed from apps nobody compares a trip app to (Domino's, iMessage Check In, Strava, Duolingo, Spotify, Up, Apple Fitness, Kitchen Stories, BeReal, Wordle, Kahoot, Waze, WHOOP, Raycast and others), each judged on whether it serves the boys, the grandparents on the follow-along link, or a parent under pressure. Nine are for the seven days left, starting with queue reports and Check In for the Disney days and a big-step mode for Haneda; the rest wait for after the trip. The full list, how each lands in what is built, and what was left out and why: [ux-adjacent-apps.md](ux-adjacent-apps.md).
+
 ## What a Japan specialist would still add — logged 30 September 2026
 
 The app already holds most of a specialist agent's knowledge: route cards to the platform and exit, booking windows, tax-free rules, card fees, safety, the phrasebook and the menu reader. What it does not yet do is behave like one — watch the trip overnight, call before a problem lands, act on our behalf with our say-so, and adjust the rest of the trip from how each day went. Written on day 10 of 16 (Disney today, Tokyo from 1 October), so the first table is what still pays off this trip and the second is for the next trip or the commercial version. Actual booking stays outside the app by design; everything here stops at drafting and handing off.
@@ -123,6 +127,7 @@ Nineteen PRs merged on 29 September (#211–#261, this session's share). Four th
 | 10. Trip recap and photobook | Done (#200, #202) | Our trip story and the Photobook |
 | 11. Follow-along link for family at home | Done (#204) | Built as a keyed read-only link rather than an invite role; see the plan above |
 | 12. App Store and Google Play apps (commercial) | Parked 29 September 2026; after the trip | Decided: commercial, published by I'm In Ventures Pty Ltd on organisation accounts, cloud builds. First action: D-U-N-S number, company domain and email. Full log in [native-apps.md](native-apps.md) |
+| 13. Choose your own look, or dress the trip by country | Queued 30 September 2026; after the trip, with the commercial build | Seam built: `LOOKS`, `COUNTRY_LOOKS` and `applyLook()` in `src/theme.js`, default *Match the destination*, Settings picker hidden until a second look exists. Next: design a second look (a CSS block under `:root[data-look=…]`), then read the country from the trip context (layer 1) instead of `TRIP_COUNTRY`. Log in [commercialisation.md](commercialisation.md#looks-chosen-by-the-person-or-by-the-destination) |
 
 **Built but not yet checked on a real phone or with the live API:** the card fee lookup (needs `ANTHROPIC_API_KEY`), and every screen added in #149–#152, which has only been tried in a desktop browser at phone width.
 

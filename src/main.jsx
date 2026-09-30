@@ -12,6 +12,7 @@ import {ThankYouNote,ThankYouEditor} from './ThankYou.jsx';
 import TicketViewer from './TicketViewer.jsx';
 import GuideBook,{LAST_PAGE} from './GuideBook.jsx';
 import GuideReader from './GuideReader.jsx';
+import Opening from './Opening.jsx';
 import TicketTranslate from './TicketTranslate.jsx';
 import FileTranslate from './FileTranslate.jsx';
 import DocumentThumb from './DocumentThumb.jsx';
@@ -21,7 +22,7 @@ import Phrasebook,{PhraseOfDay} from './Phrasebook.jsx';
 import {phraseForDay} from './phrasebook-data.js';
 import {phraseSeenBy,phraseQueue} from './trip-features.js';
 import {deepLinkAction,withoutDeepLink} from './deep-links.js';
-import {readTheme,applyTheme} from './theme.js';
+import {readTheme,applyTheme,readLook,applyLook} from './theme.js';
 import FunFacts,{FactOfDay,CardFacts,factAloudFor} from './FunFacts.jsx';
 import {factForDay,factsForStep} from './fact-data.js';
 import {factSeenBy,factsSeenBy,factQueue} from './trip-features.js';
@@ -32,6 +33,12 @@ import {primaryNav,moreIds,PAGES,cleanNav,emptyNav,setAvailable,isAvailable} fro
 import {homeShown,homeRuns,emptyHome,cleanHome} from './home-widgets.js';
 import {linkOrder,emptyLinks,cleanLinks} from './card-links.js';
 import StopButtons from './StopButtons.jsx';
+import Reports from './Reports.jsx';
+import {dayKudos,kudosLine,giversLine} from './kudos-data.js';
+import DailyPuzzle,{PuzzleLine} from './DailyPuzzle.jsx';
+import HalfwayCard,{HalfwayLine} from './HalfwayCard.jsx';
+import {CheckInCard,CheckInSheet} from './CheckIn.jsx';
+import ReportSheet from './ReportSheet.jsx';
 import {pageRule} from './spoken-rules.js';
 import FoodList,{FoodCard} from './FoodList.jsx';
 import {parkForDay} from './park-data.js';
@@ -43,6 +50,7 @@ import OnThisDay from './OnThisDay.jsx';
 import RunUp from './RunUp.jsx';
 import DailyJapan from './DailyJapan.jsx';
 import TodaysJapan from './TodaysJapan.jsx';
+import LikeALocalCard from './LikeALocalCard.jsx';
 import TravelGuide from './TravelGuide.jsx';
 import DayMap from './DayMap.jsx';
 import BookingWindows,{BookingWindowsCard} from './BookingWindows.jsx';
@@ -72,7 +80,7 @@ import {MascotBadge} from './Mascot.jsx';
 import React,{useEffect,useMemo,useRef,useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
-import {MessageCircleQuestion,Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Archive,ArchiveRestore,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
+import {Radio,MessageCircleQuestion,Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Archive,ArchiveRestore,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
 import {activeSteps,dayProgress,dayBehind,tripCountdown,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent,scheduleVariance,stayPlan,spanWords} from './timing.js';
 import {todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,ticketList,isArchived,attachmentsOf,documentSteps,documentStepList,documentServesStep} from './trip-features.js';
 import {armPlayback} from './speech.js';
@@ -95,6 +103,7 @@ const Stamps=lazy(()=>import('./Stamps.jsx'));
 const Leaderboard=lazy(()=>import('./Leaderboard.jsx'));
 const TripShop=lazy(()=>import('./TripShop.jsx'));
 const Apps=lazy(()=>import('./Apps.jsx'));
+const LikeALocal=lazy(()=>import('./LikeALocal.jsx'));
 const Arrival=lazy(()=>import('./Arrival.jsx'));
 const AskTrip=lazy(()=>import('./AskTrip.jsx'));
 const Ledger=lazy(()=>import('./Ledger.jsx'));
@@ -126,11 +135,6 @@ const maps=place=>isMapLink(place)?place:'https://www.google.com/maps/search/?ap
 // The Days screen's book opens on the cover the offline shell keeps, so it is there with no signal.
 const coverSource=n=>n===1?'/cover.jpg':`/api/guide?page=${n}`;
 const stored=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
-// The opening screen says how long until we fly while the trip is still on its way from the server.
-// The dates come from the copy kept on this phone at the last sync, so a first open has none and
-// shows nothing, and it is the same count the Home countdown gives once the trip is in.
-function OpeningCountdown(){const c=tripCountdown(stored('japan.snapshot',null)?.state?.days);if(!c)return null;
- return <p className={`opening-countdown ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span>{c.days===1?'day to go':'days to go'}</span></>:c.phase==='during'?<><strong>{`Day ${c.day}`}</strong><span>{`of ${c.total} days in Japan`}</span></>:<span>{c.text}</span>}</p>;}
 // Nothing waits forever on a train: a read gets twenty seconds and a save or an answer fifty,
 // which is inside the minute the server allows itself. A request that runs out of time, or one
 // that never connects, comes back as a plain sentence with no status, which is what the callers
@@ -156,7 +160,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // What is missing is deliberate: anything that reshapes the plan needs the latest revision
 // to be safe, a stale exchange rate or forecast overwriting a fresh one is worse than not
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
-const OFFLINE_OPS=['status','legStatus','challengeStatus','challengeSkip','eyeSpy','bingoTick','bingoCard','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
+const OFFLINE_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','bingoCard','parkRide','foodTried','foodRating','phraseSeen','factSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove','voiceNoteWords',
  'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntPick','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','bookingWindowBooked','shopLog'];
 // Where the app opens. The address wins, then the place this phone was last looking — unless
@@ -551,7 +555,7 @@ function App(){
   if(navigator.onLine&&!state.thankYou.seen?.[note.day])await mutate({type:'thankYouSeen',day:note.day});
   setModal(null);
  }
- if(loading)return <main className="entry"><div className="brand-mark">日</div><h1>Japan 2026</h1><OpeningCountdown/><p>Opening your family trip…</p></main>;
+ if(loading)return <Opening days={stored('japan.snapshot',null)?.state?.days}/>;
  if(!state)return <main className="entry"><img className="entry-photo" src="/cover.jpg" alt="Pasfield family Japan Travel Guide 2026 cover"/><div className="brand-mark">日</div><p className="eyebrow">THE PASFIELD FAMILY</p><h1>Japan, together.</h1><p>Open your private family link to join the trip. No email or password needed.</p>{error&&<p className="callout">{error}</p>}<p>The private parent link is prepared when the app is deployed. No setup key is required.</p></main>;
  // A screen about one day opens the same way wherever you are: which day it is, and the strip
  // of dates to move along. Written once here rather than on each screen, because the strip has
@@ -563,6 +567,10 @@ function App(){
  // have put away. Each one is written here once and drawn by id, so the arrangement lives in
  // one list on the phone rather than in the shape of this screen.
  const homeWidgets=tab==='today'&&{
+  checkin:<CheckInCard state={visibleState} user={user} now={now} request={request} mutate={mutate} busy={busy} go={go}/>,
+  halfway:<HalfwayLine state={visibleState} open={()=>setModal({type:'halfway'})}/>,
+  puzzle:<PuzzleLine state={visibleState} user={user} open={()=>setModal({type:'puzzle'})}/>,
+  reports:<Reports state={visibleState} user={user} day={day} now={now} selectStep={selectStep}/>,
   codes:<CodePrompt state={state} parent={parent} busy={busy} mutate={mutate} notice={notice} onShow={doc=>setModal({type:'tickets',initialSearch:doc.title})}/>,
   countdown:(c=>c&&<section className={`countdown-card ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span><b>{c.days===1?'day to go':'days to go'}</b><small>{c.days===1?'Tomorrow we fly to Japan!':`Until Day 1 · ${fmtDay(state.days[0].date)}`}</small></span></>:c.phase==='during'?<><strong>{c.day}</strong><span><b>{c.text}</b><small>{c.sub}</small></span></>:<><Check size={28}/><span><b>{c.text}</b><small>All {c.total} days of Japan behind us</small></span></>}</section>)(tripCountdown(state.days,todayJapan)),
   tonight:<Tonight state={visibleState} user={user} day={day} today={japanDate(now)} clock={japanClock(now)} mutate={mutate} busy={busy} openVoice={()=>setModal({type:'voice',day})} go={go}/>,
@@ -570,7 +578,7 @@ function App(){
   bookingwindows:<BookingWindowsCard state={visibleState} now={now} go={go}/>,
   runup:<RunUp state={visibleState} today={japanDate(now)} go={go}/>,
   onthisday:<OnThisDay state={visibleState} today={japanDate(now)} dayLabel={fmtDay} go={go}/>,
-  briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go}/>,
+  briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go} user={user} mutate={mutate} busy={busy} open={setModal}/>,
   todaysjapan:<TodaysJapan state={visibleState} day={day} phrase={day===dayOnTrip&&settingOn(settings,'dailyPhrase')?{item:phraseQueue(visibleState,user.name,dayOnTrip)[0],open:openPhrase,fresh:!phraseDone}:null} fact={day===dayOnTrip&&todaysFact&&settingOn(settings,'dailyFact')?{...(factQueue(visibleState,user.name,dayOnTrip)[0]||todaysFact),open:openFact,fresh:!factDone}:null} go={go}/>,
   needs:<MorningChecklist key={day} state={visibleState} day={day} today={japanDate(now)}/>,
   step:<>
@@ -620,6 +628,7 @@ function App(){
      guide:<button onClick={()=>openPage(current.page)}><BookOpen size={15}/>Guide p.{current.page}</button>,
      remind:<button onClick={()=>setModal({type:'alarm',step:current})}><Bell size={15}/>Remind me</button>,
      nearby:<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={15}/>Nearby</button>,
+     report:<button onClick={()=>setModal({type:'report',step:current})}><Radio size={15}/>Report</button>,
      share:<button aria-label="Share this stop" onClick={()=>shareStep(current)}><Share2 size={15}/>Share</button>
     }}/>
     {current.status==='done'&&<StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>}
@@ -642,14 +651,15 @@ function App(){
   adjust:parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>,
   tired:<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button>,
   apps:<Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button>,
-  nextup:<NextUp state={visibleState} day={day} person={lens||null} after={current?.id||null} now={now} selectStep={selectStep} open={setModal} go={go} parent={parent}/>,
-  tally:<div className="day-tools"><span><CheckCircle2 size={16}/>{done} of {steps.length} completed</span><div><Button icon={ImageIcon} onClick={()=>setModal({type:'media',day})}>Photos</Button><Button icon={Mic} onClick={()=>setModal({type:'voice',day})}>Voice</Button><Button icon={Ticket} onClick={()=>setModal({type:'tickets'})}>Tickets</Button>{config?.nearby&&<Button icon={Compass} onClick={()=>setModal({type:'nearby'})}>Near here</Button>}{parent&&<Button icon={Plus} onClick={()=>setModal({type:'edit',step:null})}>Add</Button>}</div></div>,
+  nextup:<NextUp state={visibleState} day={day} person={lens||null} after={current?.id||null} now={now} selectStep={selectStep} open={setModal} go={go} user={user} mutate={mutate} busy={busy} parent={parent}/>,
+  tally:<div className="day-tools"><span><CheckCircle2 size={16}/>{done} of {steps.length} completed{dayKudos(visibleState,day).total>0&&<small className="day-kudos">{kudosLine(dayKudos(visibleState,day))} from home · {giversLine(dayKudos(visibleState,day))}</small>}</span><div><Button icon={ImageIcon} onClick={()=>setModal({type:'media',day})}>Photos</Button><Button icon={Mic} onClick={()=>setModal({type:'voice',day})}>Voice</Button><Button icon={Ticket} onClick={()=>setModal({type:'tickets'})}>Tickets</Button>{config?.nearby&&<Button icon={Compass} onClick={()=>setModal({type:'nearby'})}>Near here</Button>}{parent&&<Button icon={Plus} onClick={()=>setModal({type:'edit',step:null})}>Add</Button>}</div></div>,
   guide:!!today?.pages?.length&&<section className="day-guide" aria-label="Original guide pages for this day"><div className="section-heading"><div><p className="eyebrow">YOUR ORIGINAL TRAVEL GUIDE</p><h2>This day in the guide</h2></div><Button icon={BookOpen} onClick={()=>openPage(today.pages[0])}>Read guide</Button></div><p>Swipe through the pages · tap any page to read it in full.</p><div className="day-guide-pages" key={day}>{today.pages.map(p=><button key={p} className="day-guide-page" onClick={()=>openPage(p)} aria-label={`Read original guide page ${p}`}><img src={`/api/guide?page=${p}`} alt={`Original travel guide page ${p}`} loading="lazy"/><span>Page {p}<ChevronRight size={16}/></span></button>)}</div></section>,
   weather:<Weather state={visibleState} day={day} now={now} mutate={mutate} busy={busy} online={online} notice={notice} dayLabel={fmtDay} go={go}/>,
   running:<Running state={visibleState} day={day}/>,
   packing:<PackingNudge state={visibleState} user={user} day={day} go={go}/>,
   todos:<DayTodos state={visibleState} user={user} day={day} mutate={mutate} busy={busy} go={go}/>,
-  finds:<DayFinds state={visibleState} day={day} go={go}/>
+  finds:<DayFinds state={visibleState} day={day} go={go}/>,
+  local:<LikeALocalCard state={visibleState} today={japanDate(now)} day={day} go={go}/>
  };
  // One place decides what a phrase sounds like, so every SayIt on every screen offers the
  // family's own recording where there is one without being handed props down five levels.
@@ -701,6 +711,7 @@ function App(){
   {tab==='windows'&&<BookingWindows state={visibleState} user={user} now={now} mutate={mutate} busy={busy} go={go}/>}
   {tab==='shop'&&<TripShop state={visibleState} user={user} today={japanDate(now)} go={go} mutate={mutate} busy={busy}/>}
   {tab==='apps'&&<Apps state={visibleState} today={japanDate(now)} dayLabel={fmtDay}/>}
+  {tab==='local'&&<LikeALocal state={visibleState} user={user} today={japanDate(now)} dayLabel={fmtDay} mutate={mutate} busy={busy} notice={notice} go={go} request={request} config={config} online={online}/>}
   {tab==='vault'&&<Vault state={visibleState} user={user} request={request} notice={notice} online={online}/>}
   {tab==='arrival'&&<Arrival homeFirst={japanDate(now)>=(state.days[0]?.date||'')}/>}
   {tab==='predictions'&&<Predictions state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy}/>}
@@ -755,10 +766,14 @@ function App(){
   <BottomNav tab={tab} user={user} go={navGo} prefs={navPrefs} setPrefs={saveNav} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
   {toast&&!modal&&toastBar}
-  {modal&&<Dialog title={{edit:modal.step?'Edit stop':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Japan bingo',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo','ask'].includes(modal.type)}>
+  {modal&&<Dialog title={{edit:modal.step?'Edit stop':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',report:'Tell the other phones',checkin:'Check In',puzzle:'Today’s puzzle',halfway:'Halfway there',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Japan bingo',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo','ask'].includes(modal.type)}>
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} mode={modal.mode} wishlist={modal.wishlist} need={modal.need} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)} available={!!config?.nearby}/>}
    {modal.type==='ask'&&<AskTrip state={visibleState} user={user} day={modal.step?.day||day} step={modal.step} config={config} online={online} request={request} mutate={mutate} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
+   {modal.type==='halfway'&&<HalfwayCard state={visibleState} notice={notice} go={id=>{setModal(null);go(id);}}/>}
+   {modal.type==='puzzle'&&<DailyPuzzle state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice}/>}
+   {modal.type==='checkin'&&<CheckInSheet state={visibleState} user={user} day={day} now={now} mutate={mutate} busy={busy} close={()=>setModal(null)} notice={notice}/>}
+   {modal.type==='report'&&<ReportSheet step={modal.step} user={user} mutate={mutate} busy={busy} close={()=>setModal(null)} notice={notice}/>}
    {modal.type==='voice'&&<VoiceNotes state={visibleState} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay} transcribe={settingOn(settings,'transcribeVoice')}/>}
    {modal.type==='foodcard'&&<FoodCard item={modal.item} notice={notice}/>}
    {modal.type==='park'&&<ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={modal.park} mutate={mutate} busy={busy} open={setModal}/>}
@@ -943,7 +958,8 @@ class Boundary extends React.Component{
 // A follower's link opens the read-only page and nothing else: no session is asked for, and
 // none of the app behind it is started.
 const followKey=new URLSearchParams(location.search).get('follow');
-// The phone's choice of light or dark is put on the page before anything is drawn.
+// The phone's look (its own or the destination's) and its light or dark go on the page before anything is drawn.
+applyLook(readLook());
 applyTheme(readTheme());
 createRoot(document.getElementById('root')).render(<Boundary>{followKey?<FollowAlong followKey={followKey}/>:<App/>}</Boundary>);
 

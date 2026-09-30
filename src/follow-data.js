@@ -6,6 +6,7 @@
 import {activeSteps} from './timing.js';
 import {photosFor,photoOfTheDay,stepRatings,stepThoughts,photoOwner} from './trip-features.js';
 import {noticedFor} from './noticed-data.js';
+import {kudosFor} from './kudos-data.js';
 const avg=o=>{const v=Object.values(o).filter(Number.isFinite);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*10)/10:null;};
 export function followView(state,today){
  const all=state.days||[],days=all.filter(d=>d.date<=today);
@@ -15,10 +16,10 @@ export function followView(state,today){
   days:days.map((d,i)=>{
    const winner=photoOfTheDay(state,d.date)?.winners?.[0]?.id||null;
    const stops=activeSteps(state,d.date).filter(s=>s.status==='done').map(s=>({
-    id:s.id,title:String(s.title||''),stars:avg(stepRatings(state,s.id)),
+    id:s.id,title:String(s.title||''),stars:avg(stepRatings(state,s.id)),kudos:kudosFor(state,'stop',s.id).names,
     said:Object.entries(stepThoughts(state,s.id)).map(([person,t])=>({person,text:String(t?.text||'')})).filter(x=>x.text)}));
    return {date:d.date,number:all.indexOf(d)+1,title:String(d.title||''),city:String(d.city||''),
-    photos:photosFor(state,d.date).filter(p=>p.pathname).map(p=>({id:p.id,by:photoOwner(p),best:p.id===winner})),
+    photos:photosFor(state,d.date).filter(p=>p.pathname).map(p=>({id:p.id,by:photoOwner(p),best:p.id===winner,kudos:kudosFor(state,'photo',p.id).names})),
     stops,diary:String(state.journal?.[d.date]||''),
     noticed:noticedFor(state,{day:d.date}).map(n=>({by:n.by,text:String(n.text||'')}))};
   }).reverse()

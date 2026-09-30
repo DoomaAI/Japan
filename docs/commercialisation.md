@@ -235,6 +235,26 @@ Each essential links to the shop or the official page and to the screen in the a
 - The pack on the run-up countdown and in push reminders.
 - Ordering a keepsake from the app.
 
+## Looks: chosen by the person or by the destination
+
+Queued 30 September 2026 (roadmap backlog item 13). Light and dark is already a per-phone choice; this is the other half: which palette and type the trip is dressed in. Today there is one look, the printed guide's, which suits Japan and nothing else.
+
+### Seam built
+
+| Seam | Where | What it allows later |
+|---|---|---|
+| `LOOKS` | `src/theme.js` | The list of looks. A new look is one line here and one CSS block under `:root[data-look=<id>]` redefining the palette names already declared in `style.css` and `guide-theme.css`. |
+| `COUNTRY_LOOKS`, `TRIP_COUNTRY` | `src/theme.js` | Country (ISO 3166) to its look. The default choice is *Match the destination*, so a trip to Italy opens in Italy's look; a country with none of its own gets the first look. `TRIP_COUNTRY` is a constant until the trip context (build order layer 1) supplies it. |
+| `readLook()`, `saveLook()`, `resolveLook()`, `applyLook()` | `src/theme.js`, `src/main.jsx` | The person's own choice, kept on the phone like light and dark, wins over the destination's. Applied as `data-look` on the page before the first paint. A retired look falls back rather than leaving the page bare. |
+| Look picker | `src/Settings.jsx` | Under Appearance, hidden while `LOOKS` has one entry; it appears by itself once there is a second. |
+
+### Not built yet
+
+- A second look, and its night values alongside the existing `data-theme=dark` block.
+- The country from the trip context, and per leg once a trip spans several countries (layer 8).
+- A per-client look (logo, colours, fonts) for white label (layer 6); the same `data-look` hook carries it, set by the client rather than the person.
+- Whether the choice follows the person across phones (kept with their profile) rather than staying on one phone.
+
 ## Open questions
 
 - Scope: Japan only at first, or any destination?
