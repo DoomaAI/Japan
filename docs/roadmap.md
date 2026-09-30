@@ -1,5 +1,7 @@
 # Roadmap: gaps against commercial travel apps
 
+**The pipeline is GitHub Issues labelled `pipeline`** ([issues](https://github.com/DoomaAI/Japan/issues?q=is%3Aissue+is%3Aopen+label%3Apipeline)), one per item, opened 30 September 2026 from the items left after #279 and #282: the Vercel provisioning failure (#284), the on-phone checks (#285), sound postcards on the replay (#286), the postcard provider (#287), a key per frame and email-to-frame (#288), the ledger on Flying home (#289), the stamp-book line on Show and tell (#290), gentle facts and the suggested dial bump (#291). This file stays the record of what was decided and why; the issues are what is next.
+
 Compared against TripIt Pro, Wanderlog, Google Maps/Travel, Polarsteps, the Japan Official Travel App (JNTO), NAVITIME Japan Travel, Japan Transit Planner, Safety tips, Splitwise, Trail Wallet and TravelSpend. Written on 27 September 2026, day 7 of 16, so the order puts what helps during the rest of the trip first.
 
 
