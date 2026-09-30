@@ -33,6 +33,7 @@ import {homeShown,homeRuns,emptyHome,cleanHome} from './home-widgets.js';
 import {linkOrder,emptyLinks,cleanLinks} from './card-links.js';
 import StopButtons from './StopButtons.jsx';
 import Reports from './Reports.jsx';
+import {dayKudos,kudosLine,giversLine} from './kudos-data.js';
 import DailyPuzzle,{PuzzleLine} from './DailyPuzzle.jsx';
 import {CheckInCard,CheckInSheet} from './CheckIn.jsx';
 import ReportSheet from './ReportSheet.jsx';
@@ -651,7 +652,7 @@ function App(){
   tired:<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button>,
   apps:<Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button>,
   nextup:<NextUp state={visibleState} day={day} person={lens||null} after={current?.id||null} now={now} selectStep={selectStep} open={setModal} go={go} parent={parent}/>,
-  tally:<div className="day-tools"><span><CheckCircle2 size={16}/>{done} of {steps.length} completed</span><div><Button icon={ImageIcon} onClick={()=>setModal({type:'media',day})}>Photos</Button><Button icon={Mic} onClick={()=>setModal({type:'voice',day})}>Voice</Button><Button icon={Ticket} onClick={()=>setModal({type:'tickets'})}>Tickets</Button>{config?.nearby&&<Button icon={Compass} onClick={()=>setModal({type:'nearby'})}>Near here</Button>}{parent&&<Button icon={Plus} onClick={()=>setModal({type:'edit',step:null})}>Add</Button>}</div></div>,
+  tally:<div className="day-tools"><span><CheckCircle2 size={16}/>{done} of {steps.length} completed{dayKudos(visibleState,day).total>0&&<small className="day-kudos">{kudosLine(dayKudos(visibleState,day))} from home · {giversLine(dayKudos(visibleState,day))}</small>}</span><div><Button icon={ImageIcon} onClick={()=>setModal({type:'media',day})}>Photos</Button><Button icon={Mic} onClick={()=>setModal({type:'voice',day})}>Voice</Button><Button icon={Ticket} onClick={()=>setModal({type:'tickets'})}>Tickets</Button>{config?.nearby&&<Button icon={Compass} onClick={()=>setModal({type:'nearby'})}>Near here</Button>}{parent&&<Button icon={Plus} onClick={()=>setModal({type:'edit',step:null})}>Add</Button>}</div></div>,
   guide:!!today?.pages?.length&&<section className="day-guide" aria-label="Original guide pages for this day"><div className="section-heading"><div><p className="eyebrow">YOUR ORIGINAL TRAVEL GUIDE</p><h2>This day in the guide</h2></div><Button icon={BookOpen} onClick={()=>openPage(today.pages[0])}>Read guide</Button></div><p>Swipe through the pages · tap any page to read it in full.</p><div className="day-guide-pages" key={day}>{today.pages.map(p=><button key={p} className="day-guide-page" onClick={()=>openPage(p)} aria-label={`Read original guide page ${p}`}><img src={`/api/guide?page=${p}`} alt={`Original travel guide page ${p}`} loading="lazy"/><span>Page {p}<ChevronRight size={16}/></span></button>)}</div></section>,
   weather:<Weather state={visibleState} day={day} now={now} mutate={mutate} busy={busy} online={online} notice={notice} dayLabel={fmtDay} go={go}/>,
   running:<Running state={visibleState} day={day}/>,

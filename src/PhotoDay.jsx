@@ -3,6 +3,7 @@ import {photoPosition} from './exif-gps.js';
 import {upload} from '@vercel/blob/client';
 import {Camera,Trophy,Trash2,Check,Sparkles,Users,AlertCircle} from 'lucide-react';
 import {shrinkPhoto} from './MenuReader.jsx';
+import {kudosFor,kudosLine} from './kudos-data.js';
 import {photosFor,photosOf,photoOwner,photoCounts,photoVotesFor,photoOfTheDay,BOYS} from './trip-features.js';
 export const photoUrl=p=>`/api/photo?id=${encodeURIComponent(p.id)}`;
 const AGES={Nate:5,Boston:8};
@@ -93,6 +94,7 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
      <strong>{owner}{p.feedback?.title?` · ${p.feedback.title}`:''}</strong>
      {whole&&<small>{dayLabel(p.day)}</small>}
      {p.by!==owner&&<small>Added by {p.by}</small>}
+     {kudosFor(state,'photo',p.id).total>0&&<small className="photo-kudos">{kudosLine(kudosFor(state,'photo',p.id))} · from {Object.keys(kudosFor(state,'photo',p.id).names).join(', ')}</small>}
      {p.feedback&&<>
       {!!p.feedback.good?.length&&<ul>{p.feedback.good.map((g,i)=><li key={i}>{g}</li>)}</ul>}
       {p.feedback.tip&&<p className="photo-tip"><Sparkles size={13}/> {p.feedback.tip}</p>}

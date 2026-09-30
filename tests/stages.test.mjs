@@ -150,8 +150,9 @@ test('following along sends only the allow-list: days so far, photos, stars, wor
  const v=followView(state,'2026-09-29');
  assert.equal(v.days.length,9,'only the days that have begun');assert.equal(v.days[0].number,9,'newest first');
  const d=v.days.find(x=>x.date===day);
- assert.deepEqual(d.photos,[{id:'p1',by:'Nate',best:true}]);
- assert.deepEqual(d.stops,[{id:meiji.id,title:meiji.title,stars:4.5,said:[{person:'Nate',text:'Huge gate'}]}]);
+ // Kudos from home is on the list on purpose: who clapped, and with which of the three, and nothing else.
+ assert.deepEqual(d.photos,[{id:'p1',by:'Nate',best:true,kudos:{}}]);
+ assert.deepEqual(d.stops,[{id:meiji.id,title:meiji.title,stars:4.5,kudos:{},said:[{person:'Nate',text:'Huge gate'}]}]);
  assert.equal(d.diary,'A day in the forest.');
  const text=JSON.stringify(v);
  for(const secret of ['ABC123','03-1234-5678','+61','35.67','35.6','pathname','hotel','Hilton','Kanra','5000','Fantasy Springs'])assert.ok(!text.includes(secret),`${secret} must not reach a follower`);
