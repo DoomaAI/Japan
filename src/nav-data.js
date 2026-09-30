@@ -33,6 +33,7 @@ export const PAGES={
  apps:{label:'Apps to download',note:'The local apps worth having for trains, taxis, the parks and alerts, and what to set up in each'},
  vault:{label:'Passports & visas',note:'Passport details, photos of each page, visas and insurance, encrypted, for Mum and Dad only'},
  arrival:{label:'Arrival paperwork',note:'Visit Japan Web for landing in Japan, and the Australia Travel Declaration for home'},
+ homefront:{label:'Home while we’re away',note:'The house while we are gone and the first day back, one tap onto the to-do list, and the clocks-change note'},
  windows:{label:'Booking windows',note:'When the bookings that sell out open, in Japan and home time, with calendar alerts'},
  predictions:{label:'Sealed predictions',note:'Guess how the trip will go; the answers stay sealed until we are home'},
  planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, and voting on them'},
@@ -76,7 +77,7 @@ export const PRIMARY={
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','meeting','safety','help','apps']],
  ['Money',['money','paying','ledger','shopping','shortlist','shop']],
- ['The plan',['glance','days','todo','packing','trackers','windows','arrival','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
+ ['The plan',['glance','days','todo','packing','trackers','windows','arrival','homefront','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
  ['Looking back',['noticed','photos','memorymap','diary','recap','book']],
  ['Housekeeping',['updates','bin','search','guide']],
  ['Just for you',['personalise','settings','thanks']],

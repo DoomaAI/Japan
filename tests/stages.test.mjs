@@ -626,3 +626,41 @@ test('like a local: a parent checks a card against the web, and what comes back 
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/<LikeALocal [^\n]*request=\{request\} config=\{config\} online=\{online\}/);
 });
+test('home while we’re away: the house list and the first day home go onto the to-do list, and the clocks-change note is worked out from the zones',async()=>{
+ const {zoneOffset,homeAhead,clockShift,clockNotice,AWAY_LIST,LANDING_LIST,onTodoList,HOME_ZONE}=await import('../src/home-front.js');
+ const {dayBriefing}=await import('../src/briefing-data.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const {applyOperation}=await import('../server/model.mjs');
+ const state=upgraded(seed);
+ // Sydney is an hour ahead of Tokyo in September and two ahead once daylight saving starts.
+ assert.equal(zoneOffset(new Date('2026-09-21T03:00:00Z'),'Asia/Tokyo'),9);
+ assert.equal(zoneOffset(new Date('2026-09-21T03:00:00Z'),HOME_ZONE),10);
+ assert.equal(homeAhead('2026-09-21'),1);assert.equal(homeAhead('2026-10-05'),2);
+ assert.equal(homeAhead('2026-09-21',HOME_ZONE,'Australia/Perth'),2,'any pair of zones');
+ // This trip crosses the first Sunday of October; a March trip, or a family in Brisbane, does not.
+ assert.deepEqual(clockShift(seed.days),{day:'2026-10-04',before:1,after:2,home:HOME_ZONE,away:'Asia/Tokyo'});
+ assert.equal(clockShift(seed.days,'Australia/Brisbane'),null);
+ assert.equal(clockShift(seed.days.slice(0,5)),null);
+ assert.equal(clockShift([]),null);
+ // Nothing until the day before; a heads-up then; the new gap from the day itself on.
+ assert.equal(clockNotice(state,'2026-09-30'),null);
+ assert.match(clockNotice(state,'2026-10-03').text,/^Clocks at home change tomorrow, Sunday 4 October: from then on home is 2 hours ahead of here, not one hour\./);
+ assert.match(clockNotice(state,'2026-10-04').text,/^Clocks at home changed today: home is now 2 hours ahead of here, not one hour\./);
+ assert.match(clockNotice(state,'2026-10-06').text,/changed on Sunday 4 October: home is now 2 hours ahead/);
+ assert.equal(dayBriefing(state,'2026-10-05').clocks.when,'since');assert.equal(dayBriefing(state,'2026-09-25').clocks,null);
+ // The lists: a line goes onto the family to-do list once, and the page then says so.
+ assert.ok(AWAY_LIST.length>=6&&LANDING_LIST.length>=6);
+ for(const item of [...AWAY_LIST,...LANDING_LIST])assert.ok(item.id&&item.title&&item.note,item.id);
+ assert.equal(onTodoList(state,LANDING_LIST[0]),null);
+ const parent={name:'Damien',role:'parent'};
+ const next=applyOperation(state,{type:'todoAdd',title:LANDING_LIST[0].title,kind:'do',day:'2026-10-06',person:'Family',notes:LANDING_LIST[0].note},parent);
+ assert.equal(onTodoList(next,LANDING_LIST[0]).day,'2026-10-06');
+ // Its place in the app.
+ assert.ok(PAGES.homefront?.label&&PAGE_RULES.homefront);
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('homefront'));
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/\{tab==='homefront'&&<HomeFront state=\{visibleState\} mutate=\{mutate\} busy=\{busy\} go=\{go\}\/>\}/);
+ const briefing=await readFile(new URL('../src/Briefing.jsx',import.meta.url),'utf8');
+ assert.match(briefing,/\{b\.clocks&&<button[^>]*onClick=\{\(\)=>go\('homefront'\)\}>/,'the day in brief carries the note');
+});

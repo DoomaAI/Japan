@@ -55,6 +55,7 @@ export const PAGE_RULES={
  local:'Like a local. The things people who live here do, that visitors miss: a bathhouse, a tram, a food hall under a shop, a Sunday market. Read one, and if you like it, press Put it on the board, and the family can vote on it.',
  apps:'Apps to download. The apps Mum and Dad put on their phones for Japan: for trains, for taxis, for reading signs and menus, and for the theme parks. There is even one that warns us about earthquakes.',
  vault:'Passports and visas. Where Mum and Dad keep the details of everyone’s passport, locked up safe. Only their phones can open it.',
+ homefront:'Home while we are away. The jobs for our house while we are in Japan, like the bins and the mail, and the jobs for the first day back, like milk and the washing. Mum and Dad put them on the to-do list.',
  arrival:'Arrival paperwork. The forms Mum and Dad fill in so we can get into Japan, and back into Australia. Each of us gets a special square code on the phone to show at the airport.',
  windows:'Booking windows. Some things in Japan sell out in minutes, like special cafes and Disney restaurants. This page says exactly when each booking opens, so Mum and Dad are ready at the right minute.',
  predictions:'Sealed predictions. Before we go, guess things about the trip, like the best food or if we will see Mount Fuji. Nobody can see your guesses until we get home. Then we open them all together and see who was right.',

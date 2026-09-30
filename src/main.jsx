@@ -108,6 +108,7 @@ const TripShop=lazy(()=>import('./TripShop.jsx'));
 const Apps=lazy(()=>import('./Apps.jsx'));
 const LikeALocal=lazy(()=>import('./LikeALocal.jsx'));
 const Arrival=lazy(()=>import('./Arrival.jsx'));
+const HomeFront=lazy(()=>import('./HomeFront.jsx'));
 const AskTrip=lazy(()=>import('./AskTrip.jsx'));
 const Ledger=lazy(()=>import('./Ledger.jsx'));
 const MediaGallery=lazy(()=>import('./MediaGallery.jsx'));
@@ -724,6 +725,7 @@ function App(){
   {tab==='local'&&<LikeALocal state={visibleState} user={user} today={japanDate(now)} dayLabel={fmtDay} mutate={mutate} busy={busy} notice={notice} go={go} request={request} config={config} online={online}/>}
   {tab==='vault'&&<Vault state={visibleState} user={user} request={request} notice={notice} online={online}/>}
   {tab==='arrival'&&<Arrival homeFirst={japanDate(now)>=(state.days[0]?.date||'')}/>}
+  {tab==='homefront'&&<HomeFront state={visibleState} mutate={mutate} busy={busy} go={go}/>}
   {tab==='predictions'&&<Predictions state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy}/>}
   {tab==='book'&&<Photobook state={visibleState} dayLabel={fmtDay}/>}
   {tab==='printguide'&&<TravelGuide state={visibleState} today={japanDate(now)} dayLabel={fmtDay}/>}
