@@ -265,3 +265,33 @@ test('a parent says whose each code is, and a code sent out of the app is record
  assert.match(gate,/if\(e\?\.name!=='AbortError'\)/,'a cancelled share is not recorded as sent');
  assert.match(gate,/const doc=state\.documents\.find\(d=>d\.id===opened\.id\)\|\|opened;/,'what changes on the ticket shows straight away');
 });
+// The review against apps outside travel (docs/ux-adjacent-apps.md): each mechanic borrowed is
+// pinned here as it is built.
+test('a report is a noticing with a kind on it: one tap, two hours on the others’ Home, then a memory',async()=>{
+ const {reportFields,reportText,freshReports,REPORT_KINDS,REPORT_HOURS}=await import('../src/report-data.js');
+ const {noticedFields}=await import('../src/noticed-data.js');
+ const {applyOperation}=await import('../server/model.mjs');
+ assert.equal(REPORT_HOURS,2);
+ assert.deepEqual(REPORT_KINDS.map(k=>k.id),['queue','toilets','soldout','rain','tip']);
+ assert.deepEqual(reportFields({kind:'queue',minutes:40}),{kind:'queue',minutes:40});
+ assert.deepEqual(reportFields({kind:'toilets',minutes:40}),{kind:'toilets',minutes:null},'minutes only mean something on a queue');
+ assert.equal(reportFields({kind:'police'}),null);
+ assert.equal(reportText('queue',40),'Queue about 40 min');
+ assert.equal(noticedFields({text:'x',report:{kind:'rain'}}).report.kind,'rain');
+ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url),'utf8'));
+ const step=seed.steps.find(s=>s.day==='2026-09-30'),child={name:'Nate',role:'child'};
+ const next=applyOperation(seed,{type:'noticedAdd',text:'Queue about 40 min',stepId:step.id,report:{kind:'queue',minutes:40}},child);
+ const n=next.noticed.at(-1);
+ assert.deepEqual(n.report,{kind:'queue',minutes:40});assert.equal(n.by,'Nate');
+ assert.throws(()=>applyOperation(seed,{type:'noticedAdd',text:'x',stepId:step.id,report:{kind:'police'}},child),/not a report we know/);
+ assert.throws(()=>applyOperation(seed,{type:'noticedAdd',text:'x',stepId:step.id,report:{kind:'queue',minutes:5000}},child),/not a report we know/);
+ const at=new Date(n.at).getTime();
+ assert.equal(freshReports(next,{day:'2026-09-30',now:new Date(at+60*60000)}).length,1,'shown for two hours');
+ assert.equal(freshReports(next,{day:'2026-09-30',now:new Date(at+3*3600000)}).length,0,'then it is just a memory');
+ assert.equal(freshReports(next,{day:'2026-10-01',now:new Date(at+60000)}).length,0,'on the day it was said');
+ const main=await source('main.jsx'),widgets=await source('home-widgets.js'),links=await source('card-links.js');
+ assert.match(main,/report:<button onClick=\{\(\)=>setModal\(\{type:'report',step:current\}\)\}/,'a Report button under the stop');
+ assert.match(main,/reports:<Reports state=\{visibleState\}/,'a Home widget of the last two hours');
+ assert.match(widgets,/reports:\{label:'Reports from the family'/);
+ assert.match(links,/report:\{label:'Report'/);
+});

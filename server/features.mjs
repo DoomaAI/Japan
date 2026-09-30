@@ -15,6 +15,7 @@ import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advic
 import {HUNTS,MAX_CUSTOM_HUNTS,MAX_HUNT_ENTRIES,huntEntryFields} from '../src/hunt-data.js';
 import {allergenById} from '../src/allergy-data.js';
 import {MAX_NOTICED,NOTICED_TEXT,noticedFields} from '../src/noticed-data.js';
+import {findReportKind} from '../src/report-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {findRule} from '../src/booking-window-data.js';
 import {findShopItem,SHOP_VERDICTS,SHOP_NOTE_MAX} from '../src/shop-data.js';
@@ -696,6 +697,9 @@ export function extraOperation(state,op,user,fail,now){
   if(op.stepId&&!state.steps.some(s=>s.id===op.stepId))fail('Activity not found.',404);
   if(op.locationId&&!(state.locations||[]).some(l=>l.id===op.locationId))fail('Choose a place from the map list.');
   if(!validPin(op.pin??null))fail('That position could not be read.');
+  // A report is a noticing with a kind on it; the kind has to be one of ours, and the minutes
+  // only mean something on a queue.
+  if(op.report!=null&&(typeof op.report!=='object'||!findReportKind(op.report.kind)||(op.report.minutes!=null&&!(Number.isInteger(op.report.minutes)&&op.report.minutes>0&&op.report.minutes<=600))))fail('That is not a report we know.');
   if(op.item!=null){
    const kinds={hunt:()=>(state.hunts?.entries||[]).some(e=>e.id===op.item.id),find:()=>(state.shortlist||[]).some(f=>f.id===op.item.id),voice:()=>(state.voiceNotes||[]).some(v=>v.id===op.item.id)};
    if(typeof op.item!=='object'||!kinds[op.item.kind]||typeof op.item.id!=='string'||!kinds[op.item.kind]())fail('That item is no longer on its list.');

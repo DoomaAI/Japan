@@ -6,6 +6,12 @@ A private iPhone Home Screen web app, prepared for a new GitHub repository and V
 
 The production frontend builds and the automated model/API checks pass. No GitHub repository, Vercel deployment, Neon database or Blob store has been created or connected yet. Live family sharing and uploads must be checked after those connections are made. The internal browser preview was blocked by the browser environment (`ERR_BLOCKED_BY_CLIENT`), so visual, touch, iPhone installation, calendar import, alarm Shortcut and offline browser checks remain outstanding. Do not treat this as a deployed or fully device-tested release.
 
+## Changed on the road, 30 September 2026
+
+Borrowed from apps outside travel, from the review in [docs/ux-adjacent-apps.md](docs/ux-adjacent-apps.md), for the seven days left.
+
+- **Report, one tap.** A **Report** button under the stop (Waze’s one-thumb reports): **Queue** (then about how long), **Toilets**, **Sold out**, **Rain cover** or **Worth it**. Nothing is typed; the phone’s position goes on it when it can be read in a few seconds, and the report is pinned to the stop either way. The other phones see it on Home under **From the family** for two hours, newest first, with who said it and a tap through to the stop; after that it is a thing we noticed, on the Noticed page and in the diary like anything else said on the day. Works with no signal and syncs later. Anyone can send one, the boys included.
+
 ## Changed on the road, 29 September 2026
 
 - **Whose code, and sending one.** On a ticket with several codes a parent can say whose each one is (**Whose is this one?** under the code), and each phone then opens on its own person's code. **Send this code** (parents) first says plainly that sending hands the ticket over, since usually only the first scan gets in, then opens the phone's share sheet with the code as a picture (the ticket's name, whose it is and the reference underneath) for Messages, WhatsApp, AirDrop or email. On a phone that cannot share a picture it is saved instead. Each send is kept on the code ("Sent by Lauren, 2 Oct") for everyone to see; a cancelled share is not counted.

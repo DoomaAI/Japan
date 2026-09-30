@@ -9890,7 +9890,7 @@ test('the buttons under each stop come in each person’s own order, rearranged 
  const {mergeVisible}=await import('../src/wobble.js');
  // Untouched, the day's own buttons lead and Share ends the row.
  assert.deepEqual(linkOrder(emptyLinks()),LINKS_DEFAULT);
- assert.deepEqual(LINKS_DEFAULT,['park','sumo','eyespy','tickets','guide','website','ask','nearby','photos','voice','remind','share']);
+ assert.deepEqual(LINKS_DEFAULT,['park','sumo','eyespy','tickets','guide','website','ask','nearby','report','photos','voice','remind','share']);
  for(const id of LINKS_DEFAULT)assert.ok(CARD_LINKS[id].label&&CARD_LINKS[id].note,id);
  // Dragged onto another, a button takes its place and the rest shuffle along, either way.
  assert.deepEqual(dropLink(['a','b','c','d'],'a','c'),['b','c','a','d']);
