@@ -4857,6 +4857,35 @@ test('we rate the whole day, at bedtime or afterwards, each of us for ourselves'
  assert.ok(list.includes('dayRating'),'a day rated on a train with no signal should survive');
 });
 
+test('we say why we rated the day that way, each of us for ourselves',async()=>{
+ const {ensureFeatures,dayThoughtsFor,dayRatingsFor,diaryDays,pendingProgress}=await import('../src/trip-features.js');
+ const today=japanDate(new Date()),days=seed.days.map(d=>d.date);
+ const past=days.filter(d=>d<=today).at(-1),future=days.find(d=>d>today);
+ if(!past)return;
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'dayRating',day:past,person:'Nate',rating:5},child);
+ state=applyOperation(state,{type:'dayThought',day:past,person:'Nate',thought:'  The deer bowed back.  '},child);
+ state=applyOperation(state,{type:'dayThought',day:past,person:'Lauren',thought:'Too much walking.'},parent);
+ assert.equal(dayThoughtsFor(state,past).Nate.text,'The deer bowed back.','trimmed');
+ assert.ok(dayThoughtsFor(state,past).Nate.at,'and when he said it');
+ assert.equal(dayThoughtsFor(state,past).Lauren.text,'Too much walking.');
+ // Independent of the stars: clearing one does not delete the other.
+ const noStars=applyOperation(state,{type:'dayRating',day:past,person:'Nate',rating:0},child);
+ assert.equal(dayThoughtsFor(noStars,past).Nate.text,'The deer bowed back.');
+ assert.equal(dayRatingsFor(applyOperation(state,{type:'dayThought',day:past,person:'Nate',thought:'  '},child),past).Nate,5);
+ assert.deepEqual(Object.keys(dayThoughtsFor(applyOperation(state,{type:'dayThought',day:past,person:'Nate',thought:''},child),past)),['Lauren']);
+ assert.throws(()=>applyOperation(state,{type:'dayThought',day:past,person:'Boston',thought:'x'},child),e=>e.status===403);
+ for(const bad of [{thought:'x'.repeat(2001)},{thought:7},{day:'2099-01-01',thought:'x'},{person:'Grandma',thought:'x'}])
+  assert.throws(()=>applyOperation(state,{type:'dayThought',day:past,person:'Nate',...bad},parent),`${JSON.stringify(bad).slice(0,40)} should be refused`);
+ if(future)assert.throws(()=>applyOperation(state,{type:'dayThought',day:future,person:'Nate',thought:'x'},child),/not happened/);
+ assert.equal(diaryDays(state,past)[0].why.Lauren.text,'Too much walking.');
+ const preview=pendingProgress(state,[{operation:{type:'dayThought',operationId:'t1',day:past,person:'Boston',thought:'Best ice cream.',at:'2026-09-20T02:00:00.000Z'}}]);
+ assert.equal(dayThoughtsFor(preview,past).Boston.text,'Best ice cream.');
+ assert.equal(dayThoughtsFor(state,past).Boston,undefined,'the shared trip is untouched until it syncs');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ assert.ok(list.includes('dayThought'),'a reason given on a train with no signal should survive');
+});
+
 test('the forecast comes back by the hour, and the graph is drawn from checked numbers',async()=>{
  const {forecastUrl,parseHourly,parseForecast,daySummary,hoursFor,hoursAhead,hourLabel,pointFor}=await import('../src/weather-data.js');
  const {ensureFeatures}=await import('../src/trip-features.js');

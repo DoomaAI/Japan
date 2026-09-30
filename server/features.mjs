@@ -1208,6 +1208,17 @@ export function extraOperation(state,op,user,fail,now){
   if(op.rating)mine[op.person]=op.rating;else delete mine[op.person];
   state.dayRatings={...state.dayRatings,[op.day]:mine};
   return {summary:null,important:false,title:op.day};
+ }else if(op.type==='dayThought'){
+  // Why the day got the stars it did, in their own words. Same rules as the stars.
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Say it for yourself.',403);
+  if(!op.day||!state.days.some(d=>d.date===op.day))fail('Choose a trip day.');
+  if(op.day>japanDate(new Date(now)))fail('That day has not happened yet.');
+  const text=(op.thought??'').trim();requireText(text,2000,'what you thought');
+  const mine={...(state.dayThoughts[op.day]||{})};
+  if(text)mine[op.person]={text,at:now};else delete mine[op.person];
+  state.dayThoughts={...state.dayThoughts,[op.day]:mine};
+  return {summary:null,important:false,title:op.day};
  }else if(typeof op.type==='string'&&op.type.startsWith('sumo')){
   // The day's card, kept in the trip. The arena is a basement full of phones, so what one
   // person fetched has to still be on screen for everyone when the signal is not.
