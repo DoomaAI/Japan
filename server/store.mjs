@@ -25,6 +25,13 @@ export async function database(){
   await sql`CREATE TABLE IF NOT EXISTS japan_trip (id text PRIMARY KEY, state jsonb NOT NULL, revision integer NOT NULL DEFAULT 1)`;
   await sql`CREATE TABLE IF NOT EXISTS japan_grants (id text PRIMARY KEY, token_hash text UNIQUE NOT NULL, name text NOT NULL, role text NOT NULL, revoked boolean NOT NULL DEFAULT false, expires_at timestamptz NOT NULL DEFAULT now()+interval '6 months', created_at timestamptz NOT NULL DEFAULT now())`;
   await sql`CREATE TABLE IF NOT EXISTS japan_sessions (token_hash text PRIMARY KEY, grant_id text REFERENCES japan_grants(id), expires_at timestamptz NOT NULL DEFAULT now()+interval '6 months')`;
+  // Links anyone can join with (src/people.js): a link's kind, the household it puts a joiner
+  // in, how many may use it, how many have, and for a joiner's own link, which open link made it.
+  await sql`ALTER TABLE japan_grants ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'personal'`;
+  await sql`ALTER TABLE japan_grants ADD COLUMN IF NOT EXISTS household text NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE japan_grants ADD COLUMN IF NOT EXISTS max_uses integer`;
+  await sql`ALTER TABLE japan_grants ADD COLUMN IF NOT EXISTS uses integer NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE japan_grants ADD COLUMN IF NOT EXISTS via text`;
   const state=await readSeed();await sql`INSERT INTO japan_trip(id,state) VALUES ('family',${JSON.stringify(state)}::jsonb) ON CONFLICT(id) DO NOTHING`;
  })().catch(e=>{ready=undefined;throw e;});
  await ready;return sql;
@@ -64,7 +71,7 @@ export async function session(req){
  if(!cookie)throw new AppError('Open your private family invite link to join.',401);
  // The sooner of the two expiries goes back with the user, so the app can say when this phone
  // will stop being let in, days ahead of it happening in the middle of the trip.
- const db=await database();const [u]=await db`SELECT g.id,g.name,g.role,LEAST(s.expires_at,g.expires_at) AS expires_at FROM japan_sessions s JOIN japan_grants g ON g.id=s.grant_id WHERE s.token_hash=${hash(cookie)} AND s.expires_at>now() AND g.expires_at>now() AND g.revoked=false`;
+ const db=await database();const [u]=await db`SELECT g.id,g.name,g.role,LEAST(s.expires_at,g.expires_at) AS expires_at FROM japan_sessions s JOIN japan_grants g ON g.id=s.grant_id WHERE s.token_hash=${hash(cookie)} AND s.expires_at>now() AND g.expires_at>now() AND g.revoked=false AND g.kind='personal'`;
  if(!u)throw new AppError('This family link has expired or been revoked.',401);
  const {expires_at,...user}=u;return {...user,expiresAt:expires_at instanceof Date?expires_at.toISOString():expires_at?String(expires_at):null};
 }

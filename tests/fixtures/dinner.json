@@ -28,5 +28,13 @@
   "documents": [],
   "history": [],
   "members": ["Sam", "Priya", "Jordan", "Alex", "Mei", "Tom"],
+  "people": {
+    "Sam": {"role": "parent", "household": "", "joinedAt": "2026-10-01T09:00:00.000Z", "via": "owner"},
+    "Priya": {"role": "child", "household": "", "joinedAt": "2026-10-01T09:05:00.000Z", "via": "link"},
+    "Jordan": {"role": "child", "household": "Jordan and Alex", "joinedAt": "2026-10-01T09:06:00.000Z", "via": "link"},
+    "Alex": {"role": "child", "household": "Jordan and Alex", "joinedAt": "2026-10-01T09:06:00.000Z", "via": "link"},
+    "Mei": {"role": "child", "household": "", "joinedAt": "2026-10-01T09:10:00.000Z", "via": "link"},
+    "Tom": {"role": "child", "household": "", "joinedAt": "2026-10-01T09:12:00.000Z", "via": "link"}
+  },
   "notices": []
 }

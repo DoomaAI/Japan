@@ -6,9 +6,11 @@ import {randomUUID} from 'node:crypto';
 import {Readable} from 'node:stream';
 import {get,head,del} from '@vercel/blob';
 import {handleUpload} from '@vercel/blob/client';
-import {AppError,applyOperation,MEMBERS,documentDetails,documentAssociation,ticketParent} from './model.mjs';
+import {AppError,applyOperation,documentDetails,documentAssociation,ticketParent} from './model.mjs';
 import {database,readTrip,writeTrip,updateTrip,session,localDemo,hash,token,setCookie,cookieOf,renewSession,renewAllLinks,RENEW_WITHIN} from './store.mjs';
 import {visibleEnvelope,visibleTrip} from './visibility.mjs';
+import {roleOf,joinMember,cleanName,MEMBER_ROLES,householdProblem,parentsOf} from '../src/people.js';
+import {planOf} from '../src/plan-context.js';
 import {readMenu,readPacket,menuReaderReady} from './menu.mjs';
 import {translatePhrase,translatorReady,translateTicketText,TICKET_FIELDS,TICKET_DIRECTIONS,ticketTranslationKey} from './translate.mjs';
 import {researchPlace,researchReady} from './research.mjs';
@@ -40,7 +42,9 @@ async function body(req,max=1000000){if(req.body&&typeof req.body==='object')ret
 const parent=u=>{if(u.role!=='parent')throw new AppError('A parent can do this.',403);};
 // A drawing each is fine; a hundred each is somebody holding the shutter down.
 const DRAWING_LIMIT=60;
-const validName=(name,role)=>MEMBERS.includes(name)&&(['Damien','Lauren'].includes(name)?role==='parent':role==='child');
+// A personal link is for someone already in the plan, with the role their record gives them.
+const validName=(state,name,role)=>state.members.includes(name)&&roleOf(state,name)===role;
+const OPEN_MAX_USES=500;
 function checkOrigin(req){
  const origin=req.headers.origin;
  if(localDemo()){if(origin&&new URL(origin).host!==req.headers.host)throw new AppError('Request origin is not allowed.',403);return;}
@@ -114,9 +118,25 @@ export default async function handler(req,res){
   if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
-   const db=await database();const [u]=await db`SELECT id FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
+   const db=await database();const [u]=await db`SELECT id,kind,role,household,max_uses,uses FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
    if(!u)throw new AppError('This invite has expired or been revoked.',403);
-   const sid=token();await db`INSERT INTO japan_sessions(token_hash,grant_id,expires_at) VALUES (${hash(sid)},${u.id},now()+interval '6 months')`;setCookie(res,sid);return json(res,{ok:true});
+   let grantId=u.id;
+   // A link anyone can join with makes a person: they say their name, the name goes on the plan
+   // with the link's role and household, and a link of their own is made for that name (its
+   // token held by nobody, so a lost phone is answered with a fresh personal link from a parent).
+   // The session is on their own link, never on the open one, which is only ever a way in.
+   if(u.kind==='open'){
+    if(b.name===undefined){const plan=planOf((await readTrip()).state);return json(res,{ok:false,open:true,role:u.role,household:u.household||'',plan:{title:plan.title,type:plan.type}});}
+    const name=cleanName(b.name),now=new Date().toISOString();
+    if(u.max_uses!==null&&u.uses>=u.max_uses)throw new AppError('This link has been used as many times as it allows. Ask for a new one.',403);
+    let problem=null;
+    await updateTrip(state=>{problem=joinMember(state,{name,role:u.role,household:u.household||'',via:u.id,now});if(problem)return null;state.history=[{id:randomUUID(),at:now,by:name,type:'join',title:`${name} joined the plan`},...(state.history||[])].slice(0,200);return state;});
+    if(problem)throw new AppError(problem);
+    const [used]=await db`UPDATE japan_grants SET uses=uses+1 WHERE id=${u.id} AND revoked=false AND (max_uses IS NULL OR uses<max_uses) RETURNING id`;
+    if(!used)throw new AppError('This link has been used as many times as it allows. Ask for a new one.',403);
+    grantId=randomUUID();await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,household,via,expires_at) VALUES (${grantId},${hash(token())},${name},${u.role},'personal',${u.household||''},${u.id},now()+interval '6 months')`;
+   }
+   const sid=token();await db`INSERT INTO japan_sessions(token_hash,grant_id,expires_at) VALUES (${hash(sid)},${grantId},now()+interval '6 months')`;setCookie(res,sid);return json(res,{ok:true});
   }
   const user=await session(req);
   // A phone inside the last month of its session is pushed out another six months, cookie and
@@ -155,8 +175,8 @@ export default async function handler(req,res){
   if(route==='state'&&req.method==='GET')return json(res,visibleEnvelope(await readTrip(),user));
   // Where we each last said we were. Shared by tapping, never by the app on its own; read by the
   // map, which only ever gets the ones this person is allowed to see.
-  if(route==='checkins'&&req.method==='GET')return json(res,{checkins:await listCheckins(user)});
-  if(route==='checkin'&&post){await shareCheckin(user,b);return json(res,{checkins:await listCheckins(user)});}
+  if(route==='checkins'&&req.method==='GET')return json(res,{checkins:await listCheckins(user,new Date(),parentsOf((await readTrip()).state))});
+  if(route==='checkin'&&post){await shareCheckin(user,b);return json(res,{checkins:await listCheckins(user,new Date(),parentsOf((await readTrip()).state))});}
   // Coordinates for our places, from the family My Map. The map's own KML export is read once,
   // on a parent's say-so, and each pin is matched to a place by name; nothing is guessed.
   if(route==='map-coordinates'&&post){
@@ -469,13 +489,23 @@ export default async function handler(req,res){
    const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
   }
   if(route==='invites'&&req.method==='GET'){
-   parent(user);if(localDemo())return json(res,{invites:[]});const db=await database();return json(res,{invites:await db`SELECT id,name,role,revoked,expires_at FROM japan_grants ORDER BY created_at`});
+   parent(user);if(localDemo())return json(res,{invites:[]});const db=await database();return json(res,{invites:await db`SELECT id,name,role,kind,household,max_uses,uses,revoked,expires_at FROM japan_grants ORDER BY created_at`});
   }
   if(route==='invites'&&post){
-   parent(user);if(localDemo())throw new AppError('Connect Neon to create real family invite links.',503);
-   if(!validName(b.name,b.role))throw new AppError('Choose a family member and matching role.');
-   const db=await database(),raw=token(),id=randomUUID();await db`INSERT INTO japan_grants(id,token_hash,name,role,expires_at) VALUES (${id},${hash(raw)},${b.name},${b.role},now()+interval '6 months')`;
-   return json(res,{url:`${process.env.APP_ORIGIN}/#join=${raw}`,id});
+   parent(user);if(localDemo())throw new AppError('Connect Neon to create real invite links.',503);
+   const db=await database(),raw=token(),id=randomUUID();
+   if(b.kind==='open'){
+    // A link anyone can join with: a role for whoever arrives, a household to put them in if the
+    // link is one family's, and how many may use it.
+    if(!MEMBER_ROLES.includes(b.role))throw new AppError('Choose what people who join with this link can do.');
+    const household=b.household===undefined?'':b.household;if(householdProblem(household))throw new AppError(householdProblem(household));
+    const max=b.maxUses===undefined||b.maxUses===null?null:b.maxUses;if(max!==null&&(!Number.isInteger(max)||max<1||max>OPEN_MAX_USES))throw new AppError(`Allow between 1 and ${OPEN_MAX_USES} uses, or leave it open.`);
+    await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,household,max_uses,expires_at) VALUES (${id},${hash(raw)},'',${b.role},'open',${household},${max},now()+interval '6 months')`;
+    return json(res,{url:`${process.env.APP_ORIGIN}/#join=${raw}`,id,kind:'open'});
+   }
+   if(!validName((await readTrip()).state,b.name,b.role))throw new AppError('Choose someone in the plan, with the role they have.');
+   await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,expires_at) VALUES (${id},${hash(raw)},${b.name},${b.role},'personal',now()+interval '6 months')`;
+   return json(res,{url:`${process.env.APP_ORIGIN}/#join=${raw}`,id,kind:'personal'});
   }
   if(route==='revoke'&&post){
    parent(user);if(b.id===user.id||b.id==='owner')throw new AppError('Keep the owner access. Revoke another invite instead.');
@@ -548,7 +578,7 @@ export default async function handler(req,res){
    if(typeof b.pathname!=='string'||!b.pathname.startsWith(`tickets/${user.id}/`)||b.pathname.includes('..'))throw new AppError('Invalid attachment.');
    if(!b.title||typeof b.title!=='string'||b.title.length>250)throw new AppError('Add a document title.');
    for(const id of (Array.isArray(b.stepIds)?b.stepIds:[b.stepId]).filter(Boolean))if(!current.state.steps.some(s=>s.id===id))throw new AppError('Activity not found.');
-   if(b.person&&!['Family',...MEMBERS].includes(b.person))throw new AppError('Choose a family member.');
+   if(b.person&&!['Family',...current.state.members].includes(b.person))throw new AppError('Choose someone who is in the plan.');
    const root=ticketParent(b.parentDocumentId,current.state);
    const details=documentDetails(root?{...b,category:root.category}:b),association=documentAssociation(root||b,current.state);
    const blob=await head(b.pathname);
