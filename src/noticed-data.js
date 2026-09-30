@@ -4,6 +4,7 @@
 // nobody has a free hand. Each one can be tagged to where it happened (a stop, a place off our
 // map, or where the phone was standing) and to a thing it was about (a hunt find or a shop find).
 import {huntState,findHunt} from './hunt-data.js';
+import {reportFields} from './report-data.js';
 export const MAX_NOTICED=1000,NOTICED_TEXT=2000;
 // What a noticing can be about, other than a place: something already on one of our lists, or a
 // voice note somebody recorded on a stop or a day. Stored as `kind:id`, so it can say which list
@@ -34,7 +35,7 @@ export function noticedFields(o){
  const pin=o.pin&&Number.isFinite(o.pin.lat)&&Number.isFinite(o.pin.lng)?{lat:o.pin.lat,lng:o.pin.lng}:null;
  const item=o.item&&NOTICED_ITEM_KINDS.includes(o.item.kind)&&typeof o.item.id==='string'?{kind:o.item.kind,id:o.item.id}:null;
  return {text:String(o.text||'').trim(),day:o.stepId?null:(o.day??null),stepId:o.stepId||null,locationId:o.locationId||null,pin,item,
-  spoken:!!o.spoken};
+  spoken:!!o.spoken,report:reportFields(o.report)};
 }
 // Where it happened, the same way a hunt find says it: the stop, else the place, else the day.
 export function noticedWhere(state,n){

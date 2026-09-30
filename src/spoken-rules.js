@@ -8,6 +8,7 @@
 // game has one, and a test keeps it that way, because the one Nate presses is always the one
 // nobody remembered to write.
 export const GAME_RULES={
+ daily:'Today’s puzzle. Everyone gets the same puzzle today. Some days it is a word written in Japanese letters, and you tap the letters to spell it. A green square means that letter is right. A yellow square means it is in the word somewhere else. Some days it is one of our photos, zoomed in close, and you say which place it was. Some days it is something one of you bought, and you say what it cost. When you finish, you can send your squares to Grandma without telling her the answer.',
  match:'Match the letters. Tap a Japanese letter, and then tap the sound it makes. If they go together they stay turned over. If they do not, they flip back, so try to remember where they were. Find all of them.',
  decode:'Read the sign. A Japanese word comes up, and you sound it out. Then tap which English word you think it is. Get it right and your run goes up by one. Get it wrong and you start your run again.',
  karuta:'Karuta. All the cards are face up. The reader says one of them out loud, and you find that card and tap it as fast as you can. If you tap the wrong one it costs you points, so look before you tap. Take all the cards to finish.',

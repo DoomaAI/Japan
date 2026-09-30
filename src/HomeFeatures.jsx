@@ -5,6 +5,7 @@ import React,{useEffect,useState} from 'react';
 import {nextSummary,delayForDay,offlineManifest,isArchived,documentServesStep} from './trip-features.js';
 import {japanClock,japanDate,spanWords} from './timing.js';
 import EntryIcon from './EntryIcon.jsx';
+import StageTracker from './StageTracker.jsx';
 import {dayLabel} from './AdventurePages.jsx';
 // The dashboard is the one block on the day that is read in a second and then in the way: the
 // next stop, when to leave for the booking that cannot move, and a drawer of everything else.
@@ -12,7 +13,7 @@ import {dayLabel} from './AdventurePages.jsx';
 // to miss — and the rest of it waits behind the fold, remembered per phone rather than sprung
 // open on every reload.
 export const FOLD_ID='dashboard';
-export function NextUp({state,day,person=null,after=null,now,selectStep,open,go,parent}){
+export function NextUp({state,day,person=null,after=null,now,selectStep,open,go,parent,user,mutate,busy}){
  const {current,fixed,departure}=nextSummary(state,day,person,after),tickets=state.documents.filter(d=>documentServesStep(d,fixed?.id)&&d.category!=='memory'&&!isArchived(d));
  const remaining=departure?Math.round((departure-now)/60000):null;
  const [shown,setShown]=useState(()=>isOpen(FOLD_ID,undefined,false));
@@ -37,10 +38,11 @@ export function NextUp({state,day,person=null,after=null,now,selectStep,open,go,
    <span className="eyebrow"><LockKeyhole size={12}/>Next fixed booking</span>
    <button className="next-title" onClick={()=>selectStep(fixed)}>{fixed.time} · {fixed.title}</button>
    <span className="departure-leave">{leaveBy}</span>
+   {isToday&&user&&mutate&&<StageTracker state={state} step={fixed} user={user} mutate={mutate} busy={busy} canTick={parent||fixed.participants?.includes(user.name)}/>}
    {shown&&<small>Estimate: {fixed.travelMinutes??20} min travel + {fixed.arrivalBuffer??15} min early arrival. Check live directions.</small>}
    <div className="departure-links"><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinationFor(state,fixed))}&travelmode=transit`} target="_blank" rel="noreferrer">Directions</a><button onClick={()=>open({type:'tickets',step:fixed})}>{tickets.length?`Tickets (${tickets.length})`:'Tickets'}</button>{parent&&shown&&<button onClick={()=>open({type:'edit',step:fixed})}>Edit estimate</button>}</div>
   </div>}
-  {shown&&<div className="dashboard-actions"><button onClick={()=>open({type:'offline'})}>Offline readiness</button><button onClick={()=>go('meeting')}>Meeting card</button>{parent&&<><button onClick={()=>open({type:'late'})}>We’re running late</button><button onClick={()=>open({type:'capture'})}>Quick capture</button></>}<button onClick={()=>go('challenges')}>Boys’ missions</button><button onClick={()=>go('spending')}>Spending money</button><button onClick={()=>go('shopping')}>Shopping list</button></div>}
+  {shown&&<div className="dashboard-actions"><button onClick={()=>open({type:'checkin'})}>Check in</button><button onClick={()=>open({type:'offline'})}>Offline readiness</button><button onClick={()=>go('meeting')}>Meeting card</button>{parent&&<><button onClick={()=>open({type:'late'})}>We’re running late</button><button onClick={()=>open({type:'capture'})}>Quick capture</button></>}<button onClick={()=>go('challenges')}>Boys’ missions</button><button onClick={()=>go('spending')}>Spending money</button><button onClick={()=>go('shopping')}>Shopping list</button></div>}
  </section>;
 }
 export function RunningLate({state,day,mutate,busy,close}){

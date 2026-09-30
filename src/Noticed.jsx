@@ -1,3 +1,4 @@
+import {findReportKind} from './report-data.js';
 import React,{useState} from 'react';
 import HowThisWorks from './HowThisWorks.jsx';
 import {Mic,Square,Pencil,Trash2,MapPin,LocateFixed,X,Tag,Check} from 'lucide-react';
@@ -65,8 +66,8 @@ function NoticedForm({state,user,editing,preset,mutate,busy,done}){
 function Noticing({state,user,n,mutate,busy,onEdit}){
  const w=noticedWhere(state,n),item=noticedItem(state,n),mine=user.role==='parent'||n.by===user.name;
  const bits=[n.by,w.day&&dayLabel(w.day),w.label].filter(Boolean);
- return <li className="noticed-item">
-  <p>{n.text}</p>
+ return <li className={`noticed-item${n.report?' report':''}`}>
+  <p>{n.report&&<span className="noticed-report" aria-hidden="true">{findReportKind(n.report.kind)?.icon}</span>}{n.text}</p>
   <small>{bits.join(' · ')}{n.spoken?' · said out loud':''}{n.pending?' · waiting to sync':''}
    {n.pin&&<> · <MapPin size={12}/> pinned</>}{w.mapUrl&&<> · <a href={w.mapUrl} target="_blank" rel="noopener noreferrer">map</a></>}</small>
   {item?.kind==='voice'?<><VoicePlayer voice={item.voice}/><VoiceWords note={item.voice} user={user} mutate={mutate} busy={busy}/></>:item&&<span className="tag"><Tag size={12}/>{item.label}</span>}

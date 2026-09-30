@@ -2,6 +2,7 @@ import React,{useState} from 'react';
 import {RefreshCw,Check,AlertCircle,ArrowLeftRight,ChevronDown} from 'lucide-react';
 import {yenPerAud,rateIsSet,yenToAud,audToYen,DEFAULT_YEN_PER_AUD} from './trip-features.js';
 import {japanClock,japanDate} from './timing.js';
+import Runway from './Runway.jsx';
 // European Central Bank reference rates, free and no key. Strictly optional: the converter
 // works from the saved rate alone, so if this is unreachable nothing breaks.
 const RATE_SOURCE='https://api.frankfurter.dev/v1/latest?base=AUD&symbols=JPY';
@@ -44,6 +45,7 @@ export default function Currency({state,user,mutate,busy,notice}){
     <input id="convert-amount" value={amount} inputMode="decimal" onChange={e=>setAmount(e.target.value)} placeholder={from==='JPY'?'1000':'20'}/></label>
    <p className="converted"><ArrowLeftRight size={18}/><strong>{converted}</strong></p>
   </section>
+  <Runway state={state} user={user}/>
   {!set&&<p className="callout"><AlertCircle size={18}/><span><strong>Using an estimate of {rateText(DEFAULT_YEN_PER_AUD)} to the dollar.</strong> {parent?'Set the real rate below.':'Ask Damien or Lauren to set the real rate.'}</span></p>}
   <section className={`rate-card${open?' open':''}`}>
    <div className="rate-line">

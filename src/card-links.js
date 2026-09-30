@@ -19,6 +19,7 @@ export const CARD_LINKS={
  website:{label:'Website',note:'The place’s own website'},
  ask:{label:'Ask a question',note:'Ask about the stop, when it is switched on'},
  nearby:{label:'Nearby',note:'Food, toilets and shops near the stop'},
+ report:{label:'Report',note:'Tell the other phones: the queue, the toilets, sold out'},
  photos:{label:'Photos',note:'Photos taken at the stop'},
  voice:{label:'Voice note',note:'Record or play a voice note'},
  remind:{label:'Remind me',note:'A calendar reminder or phone alarm'},

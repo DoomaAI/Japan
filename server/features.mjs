@@ -16,12 +16,15 @@ import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advic
 import {HUNTS,MAX_CUSTOM_HUNTS,MAX_HUNT_ENTRIES,huntEntryFields} from '../src/hunt-data.js';
 import {allergenById} from '../src/allergy-data.js';
 import {MAX_NOTICED,NOTICED_TEXT,noticedFields} from '../src/noticed-data.js';
+import {findReportKind} from '../src/report-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {findRule} from '../src/booking-window-data.js';
 import {findShopItem,SHOP_VERDICTS,SHOP_NOTE_MAX} from '../src/shop-data.js';
 import {cleanStay} from '../src/stay-data.js';
 import {PREDICTION_MAX,findPrediction,predictionPhase} from '../src/prediction-data.js';
-import {japanDate} from '../src/timing.js';
+import {japanDate,japanClock} from '../src/timing.js';
+import {CHECKIN_AHEAD_HOURS} from '../src/checkin-data.js';
+import {READINESS} from '../src/readiness-data.js';
 import {findSquare,validCard} from '../src/bingo-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
 const MAX_PROPOSALS=300;
@@ -697,6 +700,9 @@ export function extraOperation(state,op,user,fail,now){
   if(op.stepId&&!state.steps.some(s=>s.id===op.stepId))fail('Activity not found.',404);
   if(op.locationId&&!(state.locations||[]).some(l=>l.id===op.locationId))fail('Choose a place from the map list.');
   if(!validPin(op.pin??null))fail('That position could not be read.');
+  // A report is a noticing with a kind on it; the kind has to be one of ours, and the minutes
+  // only mean something on a queue.
+  if(op.report!=null&&(typeof op.report!=='object'||!findReportKind(op.report.kind)||(op.report.minutes!=null&&!(Number.isInteger(op.report.minutes)&&op.report.minutes>0&&op.report.minutes<=600))))fail('That is not a report we know.');
   if(op.item!=null){
    const kinds={hunt:()=>(state.hunts?.entries||[]).some(e=>e.id===op.item.id),find:()=>(state.shortlist||[]).some(f=>f.id===op.item.id),voice:()=>(state.voiceNotes||[]).some(v=>v.id===op.item.id)};
    if(typeof op.item!=='object'||!kinds[op.item.kind]||typeof op.item.id!=='string'||!kinds[op.item.kind]())fail('That item is no longer on its list.');
@@ -997,6 +1003,12 @@ export function extraOperation(state,op,user,fail,now){
   const boy=person=>{if(!BOYS.includes(person))fail('Spending money belongs to Nate and Boston.');
    if(!parent&&person!==user.name)fail('That is somebody else\u2019s spending money.',403);};
   const item=()=>{const found=purse.items.find(i=>i.id===op.id);if(!found)fail('That is no longer on the spending list.',404);boy(found.person);return found;};
+  if(op.type==='spendRoundUp'){
+   if(!parent)fail('A parent switches round-ups on.',403);
+   boy(op.person);if(typeof op.on!=='boolean')fail('On or off.');
+   purse.roundUp={...(purse.roundUp||{}),[op.person]:op.on};
+   return {summary:null,important:false,title:`${op.person}’s round-ups ${op.on?'on':'off'}`};
+  }
   if(op.type==='spendAllowance'){
    if(!parent)fail('A parent sets how much a day.',403);
    boy(op.person);
@@ -1386,7 +1398,48 @@ export function extraOperation(state,op,user,fail,now){
    }else fail('Unknown note action.');
   }
   return {summary:null,important:false,private:true};
- }else if(op.type==='runningLate'){
+ }else if(op.type==='stageSet'){
+ // The stage tracker: how far along the way to a booking the family is, nought to five. Anyone
+ // going to the stop may move it, the same as ticking the stop.
+ const target=state.steps.find(s=>s.id===op.id);if(!target)fail('Activity not found.',404);
+ if(!parent&&!target.participants.includes(user.name))fail('This activity is assigned to other family members.',403);
+ if(!Number.isInteger(op.reached)||op.reached<0||op.reached>5)fail('A stage from nought to five.');
+ let at=now;if(op.at){if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail('Invalid time.');at=new Date(op.at).toISOString();}
+ state.stages={...(state.stages||{}),[op.id]:{reached:op.reached,by:user.name,at}};
+ return {summary:null,important:false,title:target.title};
+}else if(op.type==='readinessSet'){
+ // How each of us is at breakfast, one to five. Your own, or a parent for anyone: Nate is five.
+ dayCheck(op.day);if(!op.day)fail('Choose a day.');
+ if(!state.members.includes(op.person))fail('Choose a family member.');
+ if(!parent&&op.person!==user.name)fail('Say how you are; a parent can say for the others.',403);
+ if(!READINESS.some(r=>r.level===op.level))fail('Pick a face from one to five.');
+ state.readiness={...(state.readiness||{}),[op.day]:{...((state.readiness||{})[op.day]||{}),[op.person]:{level:op.level,at:now,by:user.name}}};
+ return {summary:null,important:false,title:`${op.person} at breakfast`};
+}else if(typeof op.type==='string'&&op.type.startsWith('checkIn')){
+ // Check In: "back at the hotel by 4:30". Anyone starts one for themselves; a parent, or whoever
+ // started it, ends it. Starting a new one closes that person's last, so there is one at a time.
+ const list=state.checkIns;
+ if(op.type==='checkInStart'){
+  requireText(op.label,120,'destination');if(!op.label.trim())fail('Say where you are heading.');
+  if(op.stepId&&!state.steps.some(s=>s.id===op.stepId))fail('Activity not found.',404);
+  if(op.hotel!=null)requireText(op.hotel,200,'hotel');
+  const due=Date.parse(op.due),at=Date.parse(now);
+  if(!Number.isFinite(due)||due<at-60000||due>at+CHECKIN_AHEAD_HOURS*3600000)fail('Choose a time in the next twelve hours.');
+  for(const c of list)if(c.from===user.name&&!c.closedAt&&!c.arrivedAt){c.closedAt=now;c.closedBy=user.name;}
+  const item={id:randomUUID(),from:user.name,label:op.label.trim(),stepId:op.stepId||null,hotel:op.hotel||null,day:japanDate(new Date(now)),due:new Date(due).toISOString(),startedAt:now,arrivedAt:null,closedAt:null,closedBy:null};
+  state.checkIns=[...list,item].slice(-30);
+  return {summary:`${user.name} is heading to ${item.label}, back by ${japanClock(new Date(due))}`,important:true,title:'Check In'};
+ }
+ const c=list.find(c=>c.id===op.id);if(!c||c.closedAt)fail('That check-in is over.',404);
+ if(!parent&&c.from!==user.name)fail('Only whoever started it, or a parent, can end it.',403);
+ if(op.type==='checkInArrive'){
+  if(c.arrivedAt)return {summary:null,important:false,title:'Check In'};
+  c.arrivedAt=now;
+  return {summary:`${c.from} arrived at ${c.label}`,important:true,title:'Check In'};
+ }
+ if(op.type==='checkInCancel'){c.closedAt=now;c.closedBy=user.name;return {summary:null,important:false,title:'Check In'};}
+ fail('Unknown check-in change.');
+}else if(op.type==='runningLate'){
   dayCheck(op.day);if(!op.day||!Number.isInteger(op.delay)||op.delay<1||op.delay>240)fail('Enter a delay of 1–240 minutes.');
   const plan=delayForDay(state,op.day,op.delay);
   for(const c of plan.changes)state.steps.find(s=>s.id===c.id).time=c.time;

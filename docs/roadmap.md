@@ -21,6 +21,10 @@ Benchmarked against Marriott Bonvoy, Hilton Honors, World of Hyatt, IHG One Rewa
 | — | Apple Wallet passes for stays and tickets | Not built: needs an Apple Developer pass-type certificate and a server-side `.pkpass` signer. What it is for, what it needs and why not this trip: [commercialisation.md](commercialisation.md#apple-wallet-and-google-wallet-passes) |
 | — | First-run onboarding for a new family | Not built: the app is set up for one family. Logged for the commercial version in commercialisation.md terms |
 
+## UX review against apps outside travel — logged 30 September 2026
+
+The other direction from the review above: eighteen mechanics borrowed from apps nobody compares a trip app to (Domino's, iMessage Check In, Strava, Duolingo, Spotify, Up, Apple Fitness, Kitchen Stories, BeReal, Wordle, Kahoot, Waze, WHOOP, Raycast and others), each judged on whether it serves the boys, the grandparents on the follow-along link, or a parent under pressure. Nine are for the seven days left, starting with queue reports and Check In for the Disney days and a big-step mode for Haneda; the rest wait for after the trip. The full list, how each lands in what is built, and what was left out and why: [ux-adjacent-apps.md](ux-adjacent-apps.md).
+
 ## Before, during and after — logged 29 September 2026
 
 The trip has a before, a during and an after, and each should give the family a reason to open the app. Built in this order, one pull request each: the trip is under way, so the in-trip items come first, then the recap, then the before-the-trip items that pay off on the next trip.

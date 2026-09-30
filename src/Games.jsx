@@ -1,3 +1,4 @@
+import DailyPuzzle from './DailyPuzzle.jsx';
 import React,{useState,useMemo,useEffect,useRef} from 'react';
 import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Check,X,Wifi,WifiOff,ChevronLeft,ChevronRight} from 'lucide-react';
@@ -899,6 +900,7 @@ const ORIGINS={
  modern:{tag:'Japanese',what:'Japanese, and modern.'}
 };
 const GAMES=[
+ {id:'daily',title:'Today’s puzzle',ease:1,icon:'🧩',needs:'The same puzzle on every phone today; the score counts for the day.',Component:DailyPuzzle},
  {id:'match',title:'Match the letters',ease:1,icon:'🔤',needs:OFFLINE,Component:KanaMatch},
  {id:'decode',title:'Read the sign',ease:2,icon:'🪧',needs:OFFLINE,Component:Decoder},
  {id:'karuta',title:'Karuta',ease:2,icon:'🃏',ja:'かるた',origin:'traditional',needs:OFFLINE,Component:Karuta,
