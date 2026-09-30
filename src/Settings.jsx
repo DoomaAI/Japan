@@ -6,7 +6,7 @@ import Notifications from './Notifications.jsx';
 import {BarShortcuts} from './Personalise.jsx';
 import {CARD_LINKS,linkOrder,stepLink} from './card-links.js';
 import {DEEP_LINKS,deepLinkUrl} from './deep-links.js';
-import {THEMES,readTheme,saveTheme,applyTheme} from './theme.js';
+import {THEMES,readTheme,saveTheme,applyTheme,LOOKS,LOOK_CHOICES,readLook,saveLook,applyLook} from './theme.js';
 const ICONS={dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
@@ -114,9 +114,13 @@ function DeepLinks({notice}){
 function Appearance(){
  const [theme,setTheme]=useState(readTheme);
  const pick=id=>{setTheme(saveTheme(id));applyTheme(id);};
+ const [look,setLook]=useState(readLook);
+ const pickLook=id=>{setLook(saveLook(id));applyLook(id);};
  return <section className="settings-section">
   <h2>Appearance</h2>
   <div className="segmented theme-picker" role="radiogroup" aria-label="Appearance">{THEMES.map(([id,label])=><button type="button" key={id} role="radio" aria-checked={theme===id} className={theme===id?'selected':''} onClick={()=>pick(id)}>{label}</button>)}</div>
+  {/* Hidden until there is a second look to choose between. */}
+  {LOOKS.length>1&&<div className="segmented theme-picker" role="radiogroup" aria-label="Look">{LOOK_CHOICES.map(([id,label])=><button type="button" key={id} role="radio" aria-checked={look===id} className={look===id?'selected':''} onClick={()=>pickLook(id)}>{label}</button>)}</div>}
   <p><small>Photos and the original guide stay as they are; everything else takes the darker colours. Match the phone follows the phone’s own light and dark schedule.</small></p>
  </section>;
 }
