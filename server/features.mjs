@@ -1002,6 +1002,12 @@ export function extraOperation(state,op,user,fail,now){
   const boy=person=>{if(!BOYS.includes(person))fail('Spending money belongs to Nate and Boston.');
    if(!parent&&person!==user.name)fail('That is somebody else\u2019s spending money.',403);};
   const item=()=>{const found=purse.items.find(i=>i.id===op.id);if(!found)fail('That is no longer on the spending list.',404);boy(found.person);return found;};
+  if(op.type==='spendRoundUp'){
+   if(!parent)fail('A parent switches round-ups on.',403);
+   boy(op.person);if(typeof op.on!=='boolean')fail('On or off.');
+   purse.roundUp={...(purse.roundUp||{}),[op.person]:op.on};
+   return {summary:null,important:false,title:`${op.person}’s round-ups ${op.on?'on':'off'}`};
+  }
   if(op.type==='spendAllowance'){
    if(!parent)fail('A parent sets how much a day.',403);
    boy(op.person);

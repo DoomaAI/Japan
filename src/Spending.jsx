@@ -3,7 +3,7 @@ import HowThisWorks from './HowThisWorks.jsx';
 import {MascotBadge} from './Mascot.jsx';
 import PurseCat from './PurseCat.jsx';
 import {PiggyBank,Plus,Trash2,ShoppingBag,ListChecks,CalendarDays,Check,AlertCircle,Wallet,X,HandCoins,ThumbsUp,Eye,UserCog} from 'lucide-react';
-import {BOYS,purse,spendItemsFor,topUpsFor,allowanceFor,allowanceDays,spendCost,buyTodosFor,requestsFor,requestedFor,openRequests,yenPerAud,yenToAud} from './trip-features.js';
+import {BOYS,purse,spendItemsFor,topUpsFor,allowanceFor,allowanceDays,spendCost,buyTodosFor,requestsFor,requestedFor,openRequests,yenPerAud,yenToAud,roundUpOn} from './trip-features.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {japanClock,japanDate} from './timing.js';
 const yen=n=>`¥${Math.round(n||0).toLocaleString('en-AU')}`;
@@ -192,6 +192,7 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
   </p>}
   {!money.paidIn&&<p className="callout"><AlertCircle size={18}/><span><strong>Nothing has gone in yet.</strong> {parent?'Put some in below, or set an amount a day.':'Ask Mum or Dad to put some in.'}</span></p>}
   {wanted>0&&<p className="purse-after asked"><HandCoins size={18}/>{both(wanted,rate)} asked for and waiting on an answer. It is not in the purse until a parent says yes.</p>}
+  {(roundUpOn(state,person)||parent)&&<p className="purse-roundup"><span>{roundUpOn(state,person)?<>Round-ups on: every buy rounds up to the next ¥100, and the difference, <b>{yen(money.roundUps)}</b> so far, goes into the keepsake fund on the Trip shop.</>:'Round-ups: every buy rounds up to the next ¥100 into a keepsake fund.'}</span>{parent&&<button type="button" disabled={busy} onClick={()=>mutate({type:'spendRoundUp',person,on:!roundUpOn(state,person)})}>{roundUpOn(state,person)?'Turn off':'Turn on'}</button>}</p>}
   <small>{plan
    ?`${yen(plan.yenPerDay)} a day from ${dayLabel(plan.from)}${plan.to?` to ${dayLabel(plan.to)}`:' to the end of the trip'} · ${days} day${days===1?'':'s'} paid so far, ${yen(money.allowance)}. Money put in by hand adds ${yen(money.topUps)}.`
    :`No amount a day is set. Everything in this purse (${yen(money.topUps)}) was put in by hand.`}</small>

@@ -894,6 +894,12 @@ export const unallocatedTodos=state=>todosFor(state,null);
 // so a phone that has been in a pocket since Kyoto shows the right balance the moment it is
 // opened, with no signal and nothing to catch up on.
 export const EMPTY_PURSE={allowance:{},topUps:[],items:[],requests:[]};
+// Round-ups, the way the banking apps do them: with it on, every buy rounds up to the next ¥100
+// and the difference goes into a keepsake fund rather than back into the purse. Only a buy with
+// a real price rounds; a guess does not.
+export const roundUpOn=(state,person)=>!!spending(state).roundUp?.[person];
+export const roundUpOf=item=>Number.isFinite(item?.spent)&&item.spent>0?(100-item.spent%100)%100:0;
+export const keepsakeFund=(state,person=null)=>spending(state).items.filter(i=>i.boughtAt&&(!person||i.person===person)&&roundUpOn(state,i.person)).reduce((sum,i)=>sum+roundUpOf(i),0);
 export const spending=state=>({...EMPTY_PURSE,...(state.spending||{})});
 export const allowanceFor=(state,person)=>spending(state).allowance[person]||null;
 // Newest first: a top-up is a thing that just happened, and the one you want to see is the last.
@@ -922,10 +928,11 @@ export function purse(state,person,today){
  const items=spendItemsFor(state,person),bought=items.filter(i=>i.boughtAt);
  const topUps=topUpsFor(state,person).reduce((sum,t)=>sum+(t.yen||0),0);
  const allowance=allowancePaid(state,person,today);
- const spent=bought.reduce((sum,i)=>sum+spendCost(i),0);
+ const roundUps=roundUpOn(state,person)?bought.reduce((sum,i)=>sum+roundUpOf(i),0):0;
+ const spent=bought.reduce((sum,i)=>sum+spendCost(i),0)+roundUps;
  const planned=items.filter(i=>!i.boughtAt).reduce((sum,i)=>sum+(i.estimate||0),0);
  const paidIn=topUps+allowance;
- return {topUps,allowance,paidIn,spent,planned,left:paidIn-spent,after:paidIn-spent-planned,
+ return {topUps,allowance,paidIn,spent,planned,roundUps,left:paidIn-spent,after:paidIn-spent-planned,
   items:items.length,bought:bought.length,waiting:items.length-bought.length};
 }
 // The same purse as a money box rather than a bar, for the boy who cannot read the bar yet.

@@ -409,3 +409,29 @@ test('readiness at breakfast: one to five each, a parent for anyone, and under t
  assert.match(brief,/open\?\.\(\{type:'tired'\}\)/,'the easier day is one tap away');
  assert.match(brief,/mutate\(\{type:'readinessSet',day,person:p,level:r\.level\}\)/);
 });
+test('runway: at this pace the budget lasts, or runs out on a weekday; round-ups go to the keepsake fund',async()=>{
+ const {runway,spendPace,biggestCategory}=await import('../src/runway-data.js');
+ const {purse,keepsakeFund,roundUpOf}=await import('../src/trip-features.js');
+ const {applyOperation}=await import('../server/model.mjs');
+ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url),'utf8'));
+ assert.equal(runway(seed,'2026-10-02'),null,'nothing spent, nothing to say');
+ const spend=(day,yen,category='food')=>({id:`${day}-${yen}`,title:'x',day,yen,category,paidBy:'Damien',method:'card',createdAt:day});
+ const s={...seed,expenses:[spend('2026-09-28',30000),spend('2026-09-29',40000),spend('2026-09-30',50000,'activities'),spend('2026-10-01',60000)],party:{...(seed.party||{}),budget:40000}};
+ assert.deepEqual(spendPace(s,'2026-10-02'),{yenPerDay:50000,days:3},'the last three days before today');
+ assert.equal(biggestCategory(s,'2026-10-02').id,'food');
+ const r=runway(s,'2026-10-02');
+ assert.equal(r.daysLeft,5);assert.equal(r.tone,'warm');assert.match(r.text,/runs out on \w+day, 1 day before we fly home/);
+ const fine=runway({...s,party:{budget:60000}},'2026-10-02');assert.equal(fine.tone,'calm');assert.match(fine.text,/lasts to the end/);
+ const noBudget=runway({...s,party:{}},'2026-10-02');assert.match(noBudget.text,/rest of the trip comes to about ¥250,000/);
+ // Round-ups: only a real price rounds, and the fund is what the purse gave up.
+ assert.equal(roundUpOf({spent:340}),60);assert.equal(roundUpOf({spent:500}),0);assert.equal(roundUpOf({estimate:340}),0);
+ const mum={name:'Lauren',role:'parent'},nate={name:'Nate',role:'child'};
+ let t=applyOperation(seed,{type:'spendAdd',person:'Nate',title:'Gachapon',estimate:300},nate);
+ const item=t.spending.items.at(-1);
+ t=applyOperation(t,{type:'spendBought',id:item.id,done:true,spent:340},nate);
+ assert.equal(keepsakeFund(t),0,'off until a parent turns it on');
+ assert.throws(()=>applyOperation(t,{type:'spendRoundUp',person:'Nate',on:true},nate),/A parent/);
+ t=applyOperation(t,{type:'spendRoundUp',person:'Nate',on:true},mum);
+ assert.equal(keepsakeFund(t),60);assert.equal(purse(t,'Nate','2026-10-02').roundUps,60);
+ assert.equal(purse(t,'Nate','2026-10-02').spent,400,'the purse gave up the round-up too');
+});
