@@ -33,6 +33,7 @@ import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/track
 import {validPlanPatch,applyPlanPatch,planType} from '../src/plan-context.js';
 import {PAGES} from '../src/nav-data.js';
 import {joinMember,changeRole,changeHousehold,cleanName,roleLabel} from '../src/people.js';
+import {invitationProblem,invitationOf,applyRsvp,STATUS_IDS} from '../src/rsvp-data.js';
 const MAX_PROPOSALS=300;
 // A shortlist is a list you can still read. Past a couple of hundred finds it is an archive of
 // shops, and the answer to that is to decide on some rather than to keep adding.
@@ -41,6 +42,23 @@ const https=v=>{try{return new URL(v).protocol==='https:';}catch{return false;}}
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
 export function extraOperation(state,op,user,fail,now){
  const parent=user.role==='parent',dayOK=day=>day===null||state.days.some(d=>d.date===day);
+ // The invitation (src/rsvp-data.js): what guests read at the link and what they are asked. A
+ // parent's to write and to publish; publishing is a change everyone should see in the history.
+ if(op.type==='invitationEdit'){
+  if(!parent)fail('A parent writes the invitation.',403);
+  const problem=invitationProblem(op.patch,state);if(problem)fail(problem);
+  const before=invitationOf(state);state.invitation={...before,...op.patch};
+  const went=op.patch.published===true&&!before.published,pulled=op.patch.published===false&&before.published;
+  return {summary:went?'The invitation is out':null,important:went,title:went?'The invitation went out':pulled?'The invitation was taken down':`Invitation: ${Object.keys(op.patch).join(', ')}`};
+ }
+ // An answer to it: your own, or a parent's for anyone, after the RSVP date included.
+ if(op.type==='rsvpSet'){
+  const name=op.name||user.name;
+  if(!parent&&name!==user.name)fail('Answer for yourself; a parent can answer for someone else.',403);
+  const problem=applyRsvp(state,{name,answer:op.answer,by:user.name,now,override:parent});if(problem)fail(problem);
+  const status=op.answer.status,word={in:'is in',maybe:'is a maybe',out:'can’t make it'}[status];
+  return {summary:null,important:false,title:`${name} ${word}${name!==user.name?` (answered by ${user.name})`:''}`};
+ }
  // People (src/people.js). A parent adds someone by name, without a link: a child too young for a
  // phone, a guest who will only ever be answered for. And changes what anyone is, or which
  // household they belong to. Each is written to the history like any other change.

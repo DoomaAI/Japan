@@ -11,6 +11,7 @@ import {database,readTrip,writeTrip,updateTrip,session,localDemo,hash,token,setC
 import {visibleEnvelope,visibleTrip} from './visibility.mjs';
 import {roleOf,joinMember,cleanName,MEMBER_ROLES,householdProblem,parentsOf} from '../src/people.js';
 import {planOf} from '../src/plan-context.js';
+import {invitationView,applyRsvp,invitationOf} from '../src/rsvp-data.js';
 import {readMenu,readPacket,menuReaderReady} from './menu.mjs';
 import {translatePhrase,translatorReady,translateTicketText,TICKET_FIELDS,TICKET_DIRECTIONS,ticketTranslationKey} from './translate.mjs';
 import {researchPlace,researchReady} from './research.mjs';
@@ -72,6 +73,38 @@ export default async function handler(req,res){
    if(!received.filed)return json(res,{ok:true,filed:false,reason:received.reason});
    await updateTrip(state=>addToInbox(state,received.item));
    return json(res,{ok:true,filed:true,id:received.item.id});
+  }
+  // The invitation at its public link: no session, no origin check for the read, an allow-list
+  // built in src/rsvp-data.js. The key is the plan's own, minted by a parent, withdrawn by one.
+  const inviteKeyOk=(state,key)=>!!state.inviteKey&&/^[a-f0-9]{64}$/.test(key)&&hash(key)===hash(state.inviteKey);
+  if(route==='invitation'&&req.method==='GET'){
+   const key=url.searchParams.get('key')||'',trip=await readTrip();
+   if(!inviteKeyOk(trip.state,key))throw new AppError('This invitation link is not valid any more.',403);
+   res.setHeader('Cache-Control','private, no-store');return json(res,invitationView(trip.state));
+  }
+  // An answer from the public link. The name is the account: a name not yet on the plan joins it
+  // as a guest and this phone is signed in as them; a name already on it answers for that person,
+  // as a parent may. Answers close on the RSVP day; after it the page says to ask the organiser.
+  if(route==='rsvp'&&post){
+   checkOrigin(req);
+   const key=String(b.key||''),first=await readTrip();
+   if(!inviteKeyOk(first.state,key))throw new AppError('This invitation link is not valid any more.',403);
+   if(!invitationOf(first.state).published)throw new AppError('The invitation is not out yet.',403);
+   const name=cleanName(b.name),now=new Date().toISOString();let problem=null,joined=false;
+   await updateTrip(state=>{
+    joined=false;
+    if(!state.members.includes(name)){problem=joinMember(state,{name,role:'child',via:'invitation',now});if(problem)return null;joined=true;}
+    problem=applyRsvp(state,{name,answer:b.answer,by:name,now});if(problem)return null;
+    state.history=[{id:randomUUID(),at:now,by:name,type:'rsvp',title:`${name} ${{in:'is in',maybe:'is a maybe',out:'can’t make it'}[b.answer.status]}${joined?' (joined from the invitation)':''}`},...(state.history||[])].slice(0,200);
+    return state;
+   });
+   if(problem)throw new AppError(problem);
+   if(joined&&!localDemo()){
+    const db=await database(),grantId=randomUUID();
+    await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,via,expires_at) VALUES (${grantId},${hash(token())},${name},'child','personal','invitation',now()+interval '6 months')`;
+    const sid=token();await db`INSERT INTO japan_sessions(token_hash,grant_id,expires_at) VALUES (${hash(sid)},${grantId},now()+interval '6 months')`;setCookie(res,sid);
+   }
+   return json(res,{ok:true,name,joined,view:invitationView((await readTrip()).state)});
   }
   if(post)checkOrigin(req);
   // The trip as a calendar, fetched by the phone's Calendar app with no cookie to show, so it is
@@ -167,6 +200,20 @@ export default async function handler(req,res){
    key??=(await readTrip()).state.followKey;
    const origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
    return json(res,{url:`${origin}/?follow=${key}`});
+  }
+  // The invitation link, made and withdrawn the same way. Withdrawing it does not take the
+  // invitation down; publishing is a separate switch on the invitation itself.
+  if(route==='invite-link'&&post){
+   parent(user);
+   if(b.stop){await updateTrip(state=>state.inviteKey?{...state,inviteKey:null}:null);return json(res,{url:null});}
+   let key;await updateTrip(state=>{if(state.inviteKey)return null;key=token();return {...state,inviteKey:key};});
+   key??=(await readTrip()).state.inviteKey;
+   const origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
+   return json(res,{url:`${origin}/?invite=${key}`});
+  }
+  if(route==='invite-link'&&req.method==='GET'){
+   parent(user);const key=(await readTrip()).state.inviteKey||null;const origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
+   return json(res,{url:key?`${origin}/?invite=${key}`:null});
   }
   // Turning notifications on and off on this phone, and which kinds it wants.
   if(route==='push-subscribe'&&post){if(!pushReady())throw new AppError('Notifications are not set up on the server yet.',503);return json(res,{prefs:await subscribe(user,b.subscription,b.prefs)});}

@@ -8,7 +8,7 @@
 //
 // A plan's type decides which modules are on by default. Types name the modules they switch
 // off rather than the ones they keep, so a page added to the app later is on everywhere until a
-// type says otherwise, and the family trip, type `trip`, switches off nothing at all. An organiser
+// type says otherwise, and the family trip, type `trip`, switches off nothing it had. An organiser
 // can override any module for their plan under `plan.modules`.
 // The pages that only make sense on a journey: days away, luggage, paperwork at the border,
 // the destination's own content and the boys' trip games. Every type other than a trip starts
@@ -26,8 +26,10 @@ export const PLAN_TYPES=[
   off:without(TRIP_ONLY,['days','allergy','capsule','book','recap','diary','printguide','thanks','shopping','windows'])},
  {id:'event',label:'Multi-day event',note:'An offsite, a reunion, a conference or a carnival over several days',
   off:without(TRIP_ONLY,['days','packing','printguide','food','allergy','diary','recap','book','windows'])},
+ // A trip switches off only the two pages that belong to an invitation, which a family away
+ // together has no use for; everything it had before plans had types, it keeps.
  {id:'trip',label:'Trip',note:'Days to weeks away: everything the app does',
-  off:[]}
+  off:['guests','invitation']}
 ];
 export const PLAN_TYPE_IDS=PLAN_TYPES.map(t=>t.id);
 export const planType=id=>PLAN_TYPES.find(t=>t.id===id)||PLAN_TYPES.at(-1);

@@ -42,6 +42,8 @@ export const PAGES={
  homefront:{label:'Home while we’re away',note:'The house while we are gone and the first day back, one tap onto the to-do list, and the clocks-change note'},
  windows:{label:'Booking windows',note:'When the bookings that sell out open, in Japan and home time, with calendar alerts'},
  predictions:{label:'Sealed predictions',note:'Guess how the trip will go; the answers stay sealed until we are home'},
+ guests:{label:'Who’s coming',note:'Your answer to the invitation, who is in, and what the organiser needs to know'},
+ invitation:{label:'Invitation',note:'What guests read at the link, the questions they are asked, and the link itself'},
  planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, and voting on them'},
  ask:{label:'Ask about our trip',note:'Better today or tomorrow? Ask, and get an answer out of our own plan'},
  todo:{label:'To-do list',note:'Things to do or buy, on the day we will do them'},
@@ -84,7 +86,7 @@ export const PRIMARY={
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','meeting','safety','lost','help','apps']],
  ['Money',['money','paying','ledger','shopping','shortlist','shop']],
- ['The plan',['glance','days','todo','packing','trackers','windows','arrival','flyinghome','homefront','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
+ ['The plan',['glance','days','guests','invitation','todo','packing','trackers','windows','arrival','flyinghome','homefront','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
  ['Looking back',['noticed','nexttime','photos','memorymap','diary','recap','book','capsule']],
  ['Housekeeping',['updates','bin','search','guide']],
  ['Just for you',['nightstand','personalise','settings','thanks']],
@@ -108,7 +110,7 @@ let held=new Set();
 export const setHeldBack=ids=>{held=new Set(ids||[]);};
 export const isHeldBack=id=>held.has(id);
 // The parents' screens: forwarded email, their money, and the family's passports.
-export const PARENT_PAGES=['inbox','ledger','paying','vault'];
+export const PARENT_PAGES=['inbox','ledger','paying','vault','invitation'];
 // And what kind of plan this is (plan-context.js): a dinner has no packing list and no
 // passports page, a wedding has no missions. The app hands the plan record over when the plan
 // arrives, and the type's switches and the organiser's own take the page out of the bar, More,

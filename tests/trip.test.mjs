@@ -1693,7 +1693,7 @@ test('the yen converter works from a shared rate, set by a parent',async()=>{
 });
 
 test('every screen is reachable exactly once, from the bar or from More',async()=>{
- const {PAGES,PRIMARY,MORE_SECTIONS,primaryNav,moreSections,moreIds,navActive,setAvailable}=await import('../src/nav-data.js');
+ const {PAGES,PRIMARY,MORE_SECTIONS,PARENT_PAGES,primaryNav,moreSections,moreIds,navActive,setAvailable}=await import('../src/nav-data.js');
  const damien={name:'Damien',role:'parent'},lauren={name:'Lauren',role:'parent'},nate={name:'Nate',role:'child'};
  // Forwarded email is only offered where a mail provider is connected to the deployment, and
  // asking about the trip only where there is a key to answer with. The rest of this is about a
@@ -1703,7 +1703,7 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   const bar=primaryNav(user),more=moreIds(user),all=[...bar,...more];
   // Nothing appears twice, and nothing is stranded.
   assert.equal(new Set(all).size,all.length,`${user.name} lists a page twice`);
-  const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(!['inbox','ledger','paying','vault'].includes(id)||user.role==='parent'));
+  const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(!PARENT_PAGES.includes(id)||user.role==='parent'));
   assert.deepEqual([...all].sort(),[...expected].sort(),`${user.name} cannot reach every page`);
   // The bar holds four, plus More: Home and Plan, and two for whoever it is.
   assert.equal(bar.length,4,user.name);
