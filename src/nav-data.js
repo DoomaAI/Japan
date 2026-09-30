@@ -46,6 +46,7 @@ export const PAGES={
  packing:{label:'Packing list',note:'What goes in the case, with suggestions for the weather and the days ahead'},
  spending:{label:'Spending money',note:'What the boys have, what they bought and what is left'},
  weather:{label:'Weather',note:'Every day and every hour, with the graphs'},
+ nightstand:{label:'Nightstand',note:'The phone by the bed: the clock, tomorrow’s first fixed time and leave-by, the forecast and the alarm, dim after ten'},
  parks:{label:'Theme park rides',note:'Checklists, height limits and park maps'},
  shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need'},
  shortlist:{label:'Purchase shortlist',note:'Things we have seen in a shop, photographed, priced and still to decide on'},
@@ -82,7 +83,7 @@ export const MORE_SECTIONS=[
  ['The plan',['glance','days','todo','packing','trackers','windows','arrival','flyinghome','homefront','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
  ['Looking back',['noticed','photos','memorymap','diary','recap','book']],
  ['Housekeeping',['updates','bin','search','guide']],
- ['Just for you',['personalise','settings','thanks']],
+ ['Just for you',['nightstand','personalise','settings','thanks']],
  ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot']]
 ];
 // Some screens only exist where the deployment can do the thing they are about. Forwarded email

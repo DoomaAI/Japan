@@ -4,6 +4,7 @@ import {MascotBadge} from './Mascot.jsx';
 import PurseCat from './PurseCat.jsx';
 import {PiggyBank,Plus,Trash2,ShoppingBag,ListChecks,CalendarDays,Check,AlertCircle,Wallet,X,HandCoins,ThumbsUp,Eye,UserCog} from 'lucide-react';
 import {childLevels} from './child-levels.js';
+import {priceSense} from './price-sense.js';
 import {BOYS,purse,purseInWords,spendItemsFor,topUpsFor,allowanceFor,allowanceDays,spendCost,buyTodosFor,requestsFor,requestedFor,openRequests,yenPerAud,yenToAud,roundUpOn} from './trip-features.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {japanClock,japanDate} from './timing.js';
@@ -56,6 +57,7 @@ function SpendRow({item,user,rate,mine,busy,mutate,onEdit}){
     {item.createdBy&&item.createdBy!==item.person?` · Written down by ${item.createdBy}`:''}
     {item.todoId?' · From the to-do list':''}
     {item.pending?' · Waiting to sync':''}</small>
+   {(sense=>sense&&<small className="price-sense">{sense.line}</small>)(priceSense(item.title,bought?spendCost(item):item.estimate,rate))}
    {item.notes&&<p>{item.notes}</p>}
    {asking&&!bought&&<form className="spend-actual" onSubmit={record}>
     <label>What did it actually cost, in yen?

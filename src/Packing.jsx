@@ -6,6 +6,8 @@ import {forwardedTrackers,linkState} from './trackers.js';
 import {japanDate,japanClock} from './timing.js';
 import GoingHome from './GoingHome.jsx';
 import {goingHomeSoon} from './going-home.js';
+import {SWEEP,readSweep,writeSweep,toggleSweep,sweepWords} from './sweep-data.js';
+import {DoorOpen,Check} from 'lucide-react';
 const SOURCE_ICONS={japan:MapPin,weather:CloudSun,activity:Compass,person:User,trip:CalendarDays};
 const fmt=date=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(date+'T12:00:00+09:00'));
 const whose=person=>person==='Family'?'All of us':`For ${person}`;
@@ -51,6 +53,15 @@ function PackRow({item,user,mutate,busy,onEdit,remove}){
 // itself: where we are going, and how much is still out of the case.
 // A forwarded suitcase with a tracker in it is the one bag we will want to find while it is not
 // with us, so a parent is reminded to share where it is on the same days as the pack-up.
+// Once round the room before the bags go: the same hiding places in every hotel, ticked on
+// this phone for that day only. Opens under the nudge on the move day itself.
+export function CheckoutSweep({day}){
+ const [ids,setIds]=useState(()=>readSweep(day));
+ const tick=id=>{const next=toggleSweep(ids,id);setIds(next);writeSweep(day,next);};
+ return <details className="callout sweep"><summary><DoorOpen size={18}/> <strong>Checkout sweep</strong> · {sweepWords(ids)}</summary>
+  <ul className="sweep-list">{SWEEP.map(s=>{const on=ids.includes(s.id);return <li key={s.id}><button type="button" aria-pressed={on} onClick={()=>tick(s.id)}><span className={`sweep-tick${on?' on':''}`}>{on&&<Check size={14} strokeWidth={3}/>}</span><span><strong>{s.title}</strong><small>{s.note}</small></span></button></li>;})}</ul>
+ </details>;
+}
 export function PackingNudge({state,user,day,go}){
  const next=nextPackUp(state,day),{left,total}=packingProgress(state);
  if(!next||!go)return null;
@@ -63,6 +74,7 @@ export function PackingNudge({state,user,day,go}){
   <Luggage size={18}/><span><strong>{next.date===day?'Packing up today':'Packing up tomorrow'}</strong> · {next.home?'going home':`to ${next.to}`}.
    {' '}{total?(left?`${left} of ${total} still to pack.`:'Everything is packed.'):'Open the packing list.'}</span>
  </button>
+ {next.date===day&&<CheckoutSweep key={day} day={day}/>}
  {!!forwarded.length&&<button className="callout pack-nudge" onClick={()=>go('trackers')}>
   <Radar size={18}/><span><strong>{forwarded.length===1?'A forwarded bag has a tracker':`${forwarded.length} forwarded bags have trackers`}</strong> · {unshared
    ?`share ${unshared===1?'its':'their'} location in Find My and paste the link, so it is to hand while the bag is away.`

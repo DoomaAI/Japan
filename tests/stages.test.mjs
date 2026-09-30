@@ -748,3 +748,41 @@ test('lost something: the Japanese to hand over, the right desk for the day’s 
  const safety=await readFile(new URL('../src/Safety.jsx',import.meta.url),'utf8');
  assert.match(safety,/onClick=\{\(\)=>go\('lost'\)\}/);
 });
+test('the checkout sweep, the nightstand and price sense',async()=>{
+ const {SWEEP,toggleSweep,sweepWords}=await import('../src/sweep-data.js');
+ const {priceSense,HOME_PRICES}=await import('../src/price-sense.js');
+ const {alarmFor}=await import('../src/Nightstand.jsx').catch(()=>({alarmFor:null}));
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ // The sweep: the same hiding places in every room, ticked one at a time.
+ assert.ok(SWEEP.length>=8&&SWEEP.every(s=>s.id&&s.title&&s.note));
+ let ids=[];ids=toggleSweep(ids,'charger');ids=toggleSweep(ids,'safe');assert.deepEqual(ids,['charger','safe']);
+ assert.deepEqual(toggleSweep(ids,'safe'),['charger']);
+ assert.equal(sweepWords([]),'Once round the room before the bags go');
+ assert.equal(sweepWords(['charger']),`${SWEEP.length-1} of ${SWEEP.length} still to look in`);
+ assert.equal(sweepWords(SWEEP.map(s=>s.id)),'Room swept. Nothing left behind.');
+ // Price sense: what the same thing costs at home, from the words, and nothing for a thing it cannot place.
+ const rate=100;
+ assert.deepEqual(priceSense('Bowl of ramen at Ichiran',1200,rate),{home:20,here:12,what:'a bowl of ramen',verdict:'cheaper here',line:'About $12 here; at home a bowl of ramen is about $20 — cheaper here.'});
+ assert.equal(priceSense('Lego Shinkansen set',9000,rate).verdict,'dearer here');
+ assert.equal(priceSense('Matcha KitKats',350,rate).verdict,'about the same');
+ assert.equal(priceSense('A mysterious thing',1000,rate),null);
+ assert.equal(priceSense('ramen',null,rate),null);assert.equal(priceSense('ramen',0,rate),null);assert.equal(priceSense('',500,rate),null);
+ assert.ok(HOME_PRICES.every(([aud,what,words])=>aud>0&&what&&words.length));
+ // The nightstand's alarm is an hour before leaving.
+ if(alarmFor){assert.equal(alarmFor(new Date('2026-09-25T08:30:00+09:00')).toISOString(),'2026-09-24T22:30:00.000Z');assert.equal(alarmFor(null),null);}
+ // Where they land.
+ const packing=await readFile(new URL('../src/Packing.jsx',import.meta.url),'utf8');
+ assert.match(packing,/\{next\.date===day&&<CheckoutSweep key=\{day\} day=\{day\}\/>\}/,'the sweep opens under the nudge on the move day itself');
+ const spending=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ assert.match(spending,/priceSense\(item\.title,bought\?spendCost\(item\):item\.estimate,rate\)/,'the line reads the real price once bought');
+ const tonight=await readFile(new URL('../src/Tonight.jsx',import.meta.url),'utf8');
+ assert.match(tonight,/onClick=\{\(\)=>go\('nightstand'\)\}/);
+ assert.ok(PAGES.nightstand?.label&&PAGE_RULES.nightstand);
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Just for you')[1].includes('nightstand'));
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/\{tab==='nightstand'&&<Nightstand state=\{visibleState\} now=\{now\} go=\{go\}\/>\}/);
+ const night=await readFile(new URL('../src/Nightstand.jsx',import.meta.url),'utf8');
+ assert.match(night,/navigator\.wakeLock\?\.request\('screen'\)/,'the screen stays awake');
+ assert.match(night,/const late=hour>=22\|\|hour<6,dim=late&&!bright;/,'dim after ten, a tap brightens');
+});

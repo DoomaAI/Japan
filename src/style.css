@@ -794,3 +794,10 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .home-front{list-style:none;margin:0;padding:0}.home-front li{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--border)}.home-front li>span:first-child{display:flex;flex-direction:column;gap:.15rem;min-width:0}.home-front li>span:first-child small{color:var(--muted)}.home-front button,.home-front .tag{flex:0 0 auto}
 .home-front-group{margin:.5rem 0 .9rem}.home-front-group p{margin:0 0 .35rem}
 .lost-desks{list-style:none;margin:0;padding:0}.lost-desk{display:flex;flex-direction:column;gap:.2rem;padding:.6rem 0;border-bottom:1px solid var(--border)}.lost-desk small{color:var(--muted)}
+/* The checkout sweep under the packing nudge, and the nightstand. */
+.sweep-list{list-style:none;margin:.5rem 0 0;padding:0}.sweep-list li button{display:flex;align-items:center;gap:.6rem;width:100%;text-align:left;padding:.45rem 0;background:none;border:0;border-bottom:1px solid var(--border);color:inherit}
+.sweep-list li button>span:last-child{display:flex;flex-direction:column;min-width:0}.sweep-list small{color:var(--muted)}
+.sweep-tick{flex:0 0 auto;width:1.4rem;height:1.4rem;border-radius:50%;border:2px solid var(--border);display:inline-flex;align-items:center;justify-content:center}.sweep-tick.on{background:var(--green);border-color:var(--green);color:var(--paper)}
+.price-sense{display:block;color:var(--green-deep)}
+.nightstand{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75rem;text-align:center;padding:1rem;border-radius:16px;background:var(--ink);color:var(--paper);transition:opacity .4s}
+.nightstand.dim{opacity:.35}.nightstand-clock{font-size:clamp(4rem,22vw,8rem);line-height:1;font-variant-numeric:tabular-nums}.nightstand-lines p{margin:.25rem 0;display:flex;align-items:center;justify-content:center;gap:.4rem;flex-wrap:wrap}.nightstand small{color:var(--paper);opacity:.7}

@@ -7,7 +7,7 @@ import {useWobble} from './wobble.js';
 import {homePages} from './home-widgets.js';
 import {swipeVertical} from './swipe.js';
 const ICONS={today:House,bin:History,allergy:Wheat,days:CalendarDays,glance:CalendarCheck,tickets:Ticket,food:UtensilsCrossed,money:Coins,ledger:Receipt,paying:CreditCard,hunts:Medal,local:Footprints,noticed:Eye,challenges:Trophy,games:Dices,photos:Camera,
- diary:NotebookPen,places:MapPin,meeting:Users,safety:ShieldAlert,lost:SearchX,help:LifeBuoy,options:Inbox,parks:FerrisWheel,weather:CloudSun,todo:ListChecks,packing:Luggage,shop:Store,trackers:Radar,memorymap:MapIcon,
+ diary:NotebookPen,places:MapPin,meeting:Users,safety:ShieldAlert,lost:SearchX,help:LifeBuoy,options:Inbox,parks:FerrisWheel,weather:CloudSun,nightstand:AlarmClock,todo:ListChecks,packing:Luggage,shop:Store,trackers:Radar,memorymap:MapIcon,
  planning:ClipboardList,inbox:Mail,ask:MessageCircleQuestion,
  shopping:ShoppingBag,shortlist:CameraIcon,spending:PiggyBank,phrases:MessageSquare,facts:Lightbulb,stamps:Stamp,arrival:PlaneLanding,homefront:DoorOpen,flyinghome:PlaneTakeoff,vault:BookLock,apps:Smartphone,windows:AlarmClock,predictions:MailQuestion,book:BookImage,printguide:Printer,recap:GalleryHorizontalEnd,leaderboard:Crown,guide:BookOpen,updates:Bell,search:Search,thanks:Heart,mascot:Sparkles,
  personalise:SlidersHorizontal,settings:Settings};
