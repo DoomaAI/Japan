@@ -32,7 +32,8 @@ import {calendarFeed,japanDate} from '../src/timing.js';
 import {RECEIPT_TYPES} from '../src/ledger-data.js';
 import {followView,followPhoto} from '../src/follow-data.js';
 import {applyKudos} from '../src/kudos-data.js';
-import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange} from './push.mjs';
+import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange,tellTomorrow} from './push.mjs';
+import {tomorrowReady,tomorrowOf,nightly} from './tomorrow.mjs';
 import {vaultReady,listVault,saveVault,addVaultFile,readVaultFile,vaultView} from './vault.mjs';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
 // A photo's own position, if the phone read one out of it, kept to about ten metres. Anything
@@ -148,7 +149,18 @@ export default async function handler(req,res){
    if(!pushReady())return json(res,{ok:true,ready:false,sent:[]});
    return json(res,{ok:true,ready:true,sent:await tick((await readTrip()).state)});
   }
-  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
+  // Tomorrow's check and Plan B, run in the Japan evening by the scheduler (vercel.json crons,
+  // which send the cron secret as a bearer token). It checks whichever trip day is tomorrow in
+  // Japan and writes what it finds onto that day; outside the trip there is nothing to check.
+  if(route==='tomorrow-check'&&(req.method==='GET'||post)){
+   const secret=process.env.CRON_SECRET||'',given=(req.headers.authorization||'').replace(/^Bearer /,'')||url.searchParams.get('key')||'';
+   if(!secret||secret.length<16||hash(given)!==hash(secret))throw new AppError('Not allowed.',403);
+   if(!tomorrowReady())return json(res,{ok:true,ready:false});
+   const {state}=await readTrip(),day=tomorrowOf(state);
+   if(!day)return json(res,{ok:true,ready:true,day:null});
+   return json(res,{ok:true,ready:true,...await nightly(state,day,undefined,{onCheck:check=>tellTomorrow(check,parentsOf(state)).catch(()=>0)})});
+  }
+  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),tomorrow:tomorrowReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id,kind,role,household,max_uses,uses FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -394,6 +406,18 @@ export default async function handler(req,res){
   if(route==='capture'&&post){
    const {state}=await readTrip();
    return json(res,await parseCapture(b,visibleTrip(state,user)));
+  }
+  // The same check run by hand, by a parent, for any trip day: "check tomorrow now" when the
+  // scheduler has not run, or again after the plan changed. Either part or both.
+  if(route==='day-check'&&post){
+   parent(user);if(!tomorrowReady())throw new AppError('The check is not switched on. Add an Anthropic API key to the deployment.',503);
+   const {state}=await readTrip();
+   if(!state.days.some(d=>d.date===b.day))throw new AppError('Choose a trip day.');
+   const parts=['check','planb'].filter(p=>!Array.isArray(b.parts)||b.parts.includes(p));
+   if(!parts.length)throw new AppError('Choose what to check.');
+   const result=await nightly(state,b.day,parts);
+   if(result.checkError&&result.planBError)throw new AppError(result.checkError,502);
+   return json(res,{...result,...visibleEnvelope(await readTrip(),user)});
   }
   if(route==='ask'&&post){
    const {state}=await readTrip();

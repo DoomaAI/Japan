@@ -98,6 +98,8 @@ import './style.css';
 import './stages.css';
 import './guide-theme.css';
 import './travel-guide.css';
+// Tomorrow's check and Plan B are read with no signal, on the stop card and the day, so they are in the shell.
+import DayCheck,{StopPlanB} from './DayCheck.jsx';
 // The map library is only fetched when the map is opened, so every other screen stays as quick.
 const MemoryMap=lazy(()=>import('./MemoryMap.jsx'));
 const WeatherPage=lazy(()=>import('./WeatherPage.jsx'));
@@ -660,6 +662,7 @@ function App(){
      share:<button aria-label="Share this stop" onClick={()=>shareStep(current)}><Share2 size={15}/>Share</button>
     }}/>
     {current.status==='done'&&<StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>}
+    <StopPlanB state={visibleState} step={current}/>
     <details className="step-more" key={current.id}>
      <summary><span className="step-more-label">More about this stop</span><span className="step-more-lead">{current.notes||resolveLocation(state,current)?.address||current.participants.join(', ')}</span><ChevronDown size={17}/></summary>
      {current.notes&&<p className="step-notes">{current.notes}</p>}
@@ -724,6 +727,7 @@ function App(){
    {dayStrip(d=>go('glance',d))}
    {/* The day's own buttons sit here, over the stops they change, rather than on Home. */}
    <div className="home-actions day-actions">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
+   <DayCheck state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} accept={accept} notice={notice} selectStep={selectStep} busy={busy}/>
    <DayTimeline steps={steps} allSteps={allSteps} splits={splits} lens={lens} setLens={follow} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/>
    <DayMap key={day} state={visibleState} day={day} selectStep={selectStep}/>
   </>}

@@ -275,7 +275,7 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  // Home no longer splits into two columns, so the step card has the screen to itself and the
  // timeline is not rendered twice.
  assert.equal((main.match(/<DayTimeline /g)||[]).length,1,'the timeline is rendered once, on its own screen');
- assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayTimeline /,'it opens with the day it is about, then the day\u2019s buttons');
+ assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayCheck [^\n]*\/>\s*<DayTimeline /,'it opens with the day it is about, then the day\u2019s buttons, then what was checked the night before');
  assert.doesNotMatch(main,/today-layout/,'Home is one column now');
  assert.doesNotMatch(css,/today-layout/,'and the grid that made two of them is gone with it');
  // Choosing a day on the day at a glance stays on the day at a glance. selectDay goes Home, so
@@ -8262,12 +8262,13 @@ test('a question about the trip is answered out of the plan, and cannot change a
   assert.equal(search.user_location.country,'JP');
   const record=seen.tools.find(t=>t.name==='record_answer');
   assert.equal(record.strict,true);
-  assert.deepEqual(record.input_schema.required.sort(),['answer','because','checkFirst','days','sources','verdict']);
+  assert.deepEqual(record.input_schema.required.sort(),['answer','because','checkFirst','days','draft','sources','verdict']);
   const [rules,shared,project]=seen.system;
   // The shared part of the project, then the personal part, each cached for an hour.
   assert.deepEqual(shared.cache_control,{type:'ephemeral',ttl:'1h'});
   assert.match(shared.text,/# Saved places/);
-  assert.match(rules.text,/cannot change their plan, move an activity, book anything/);
+  assert.match(rules.text,/cannot change their plan yourself, book anything/);
+  assert.match(rules.text,/put that change in "draft"/,'a change can come back only as a draft');
   assert.match(rules.text,/Never invent a web address/);
   // Damien's own project, built from the trip as it stands, rides behind the rules and is cached.
   assert.deepEqual(project.cache_control,{type:'ephemeral',ttl:'1h'});
@@ -8369,7 +8370,8 @@ test('a question about the trip is answered out of the plan, and cannot change a
  const screen=await readFile(new URL('../src/AskTrip.jsx',import.meta.url),'utf8');
  // The one line that has to be on the screen rather than only in the prompt: a box that answers
  // questions looks like a box that does things, and nobody should find that out by asking it to.
- assert.match(screen,/It cannot move a stop, change a booking or tell anybody anything/);
+ assert.match(screen,/It never moves a stop, changes a booking or tells anybody anything by itself: when the answer is to move a stop, it hands back the move as a draft/);
+ assert.match(screen,/mutate\(\{type:'askDraftApply',itemId:item\.id,changes:item\.draft\.changes\}\)/,'a draft is applied through the ordinary mutation, by a tap');
 });
 
 test('the questions offered first are built out of the day in front of them',async()=>{

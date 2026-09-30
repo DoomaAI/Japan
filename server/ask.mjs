@@ -2,6 +2,7 @@ import {AppError,MEMBERS} from './model.mjs';
 import {proposals,proposalPlacement,todos} from '../src/trip-features.js';
 import {tripProject,notOn} from '../src/trip-project.js';
 import {activeSteps,japanDate,japanClock} from '../src/timing.js';
+import {cleanDraft,DRAFT_ACTION_IDS} from '../src/day-check.js';
 import {describe,forecastFor,hoursFor,daySummary,forecastAge,ageLabel} from '../src/weather-data.js';
 export const askReady=()=>!!process.env.ANTHROPIC_API_KEY;
 // One question, asked out loud on the day, so it is short on purpose. Anything longer than this
@@ -25,13 +26,20 @@ const RECORD={
  strict:true,
  input_schema:{
   type:'object',additionalProperties:false,
-  required:['verdict','answer','because','days','checkFirst','sources'],
+  required:['verdict','answer','because','days','checkFirst','sources','draft'],
   properties:{
    verdict:{type:'string',description:'The answer itself, in one line, said plainly. "Do it tomorrow morning." Empty only when the question has no answer of that shape.'},
    answer:{type:'string',description:'Two to five sentences saying it properly, naming the activities and days you are reasoning from.'},
    because:{type:'array',items:{type:'string'},description:'The reasons, strongest first, each a short line that stands on its own.'},
    days:{type:'array',items:{type:'string'},description:'The trip dates the answer turns on, as YYYY-MM-DD, so the app can offer a button to them. Empty if none.'},
    checkFirst:{type:'string',description:'What they must confirm themselves before relying on this, and where. Empty if there is genuinely nothing.'},
+   draft:{type:'object',additionalProperties:false,required:['summary','changes'],description:'When your answer is to move, skip or put aside particular stops, the change itself, for a parent to look over and apply. Empty changes when the answer is not a change to the plan.',properties:{
+    summary:{type:'string',description:'The change in one line: "Fushimi Inari to Thursday morning, the garden to Friday".'},
+    changes:{type:'array',items:{type:'object',additionalProperties:false,required:['stepId','action','day','time'],properties:{
+     stepId:{type:'string',description:'The id in square brackets of the stop, exactly as given in the plan.'},
+     action:{type:'string',enum:DRAFT_ACTION_IDS,description:'move to another day or time; skip it; later puts it back in Options, off every day.'},
+     day:{type:'string',description:'For move: the trip date it goes to, YYYY-MM-DD. Otherwise empty.'},
+     time:{type:'string',description:'For move: the new time, HH:MM, 24-hour. Empty for no set time.'}}}}}},
    sources:{type:'array',description:'Only pages you actually opened, best first.',items:{
     type:'object',additionalProperties:false,required:['title','url'],
     properties:{title:{type:'string'},url:{type:'string'}}}}}}
@@ -52,7 +60,9 @@ How to answer:
 - Anything you could not settle — hours on a public holiday, whether tickets are left, what time the last train actually goes — goes in "checkFirst" with where to check it. Leave it empty rather than padding it.
 - If the question is not about the trip at all, answer it anyway, briefly, and leave "days" empty.
 
-What you cannot do: you cannot change their plan, move an activity, book anything or send anything to anybody. You are reading and answering only, and the app says so on the screen. Never claim you have done any of it, and never say a place is open, a price is current or a ticket is available as a settled fact.
+What you cannot do: you cannot change their plan yourself, book anything or send anything to anybody. Never claim you have done any of it, and never say a place is open, a price is current or a ticket is available as a settled fact.
+
+What you can do: when your answer is to move a stop to another day or time, skip one, or put one back in Options, put that change in "draft" as well as saying it. A parent sees it as a draft and applies it in one tap, or does not. The stops written out in full have their id in square brackets; use it exactly. Only stops that are not booked, not locked and not already under way or done can go in a draft. Keep a draft to what the answer actually recommends, and leave its changes empty when the answer is not a change to the plan. If a boy is asking, leave the changes empty.
 
 Never invent a web address. Only list a page you actually opened.
 
@@ -62,7 +72,7 @@ const https=v=>{try{return new URL(v).protocol==='https:'?new URL(v):null;}catch
 const clock=h=>`${String(h).padStart(2,'0')}:00`;
 // The forecast as one clause on the end of the day's own line, because that is how it is read:
 // nobody wants a weather report, they want to know whether this is the day for the garden.
-function weatherLine(state,date){
+export function weatherLine(state,date){
  const day=forecastFor(state,date);
  if(!day)return '';
  const shape=daySummary(hoursFor(state,date));
@@ -71,6 +81,8 @@ function weatherLine(state,date){
 }
 function stepLine(step,detail,person){
  const bits=[step.time||'no set time',step.title];
+ // A stop written out in full carries its id, so a draft change can name it exactly.
+ if(detail)bits.unshift(`[${step.id}]`);
  if(step.place)bits.push(step.place);
  if(step.duration)bits.push(`${step.duration} min`);
  if(step.locked)bits.push(`booked${step.bookingTime?` for ${step.bookingTime}`:''}`);
@@ -123,8 +135,11 @@ export function tripBrief(state,{day,step,person=null,now=new Date()}={}){
 // Nothing a model returns is trusted here either: every line is cut to the length the screen can
 // draw, a date it names has to be a real trip day, and a link has to be one it actually opened
 // and an HTTPS one. Anything else is dropped rather than tidied into something that looks checked.
-export function normaliseAnswer(found,state){
- return {
+export function normaliseAnswer(found,state,user=null){
+ // A draft is a parent's to apply, so only a parent is handed one; the boys get the answer.
+ const draft=user?.role==='parent'?cleanDraft({summary:found?.draft?.summary,changes:(Array.isArray(found?.draft?.changes)?found.draft.changes:[])
+  .map(c=>({...c,time:c?.time===''?null:c?.time}))},state):null;
+ return {...(draft?{draft}:{}),
   verdict:clamp(found?.verdict,240),
   answer:clamp(found?.answer,4000),
   because:(Array.isArray(found?.because)?found.because:[]).map(line=>clamp(line,400)).filter(Boolean).slice(0,6),
@@ -193,7 +208,7 @@ Their question: ${asked}`;
  if(message.stop_reason==='refusal')throw new AppError('That one was declined. Try asking it another way.',422);
  const call=message.content.find(b=>b.type==='tool_use'&&b.name==='record_answer');
  if(!call?.input)throw new AppError(message.stop_reason==='max_tokens'?'The answer ran long and did not finish. Ask it in smaller pieces.':'Nothing came back. Try asking it another way.',502);
- const answer=normaliseAnswer(call.input,state);
+ const answer=normaliseAnswer(call.input,state,user);
  if(!answer.answer&&!answer.verdict)throw new AppError('Nothing usable came back. Try asking it another way.',502);
  return {...answer,question:asked,about:day||null,step:step?.id||null,
   usage:{input:message.usage?.input_tokens??0,output:message.usage?.output_tokens??0,cacheRead:message.usage?.cache_read_input_tokens??0,cacheWrite:message.usage?.cache_creation_input_tokens??0,searches:message.usage?.server_tool_use?.web_search_requests??0}};

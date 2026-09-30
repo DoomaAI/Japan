@@ -13,6 +13,7 @@ import {MAX_NEXT_TIME} from '../src/next-time.js';
 import {CAPSULE_MAX} from '../src/capsule-data.js';
 import {LOCAL_EXPERIENCES,cleanLocalCheck} from '../src/local-data.js';
 import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
+import {NOTE_STATUS,acceptedLine,applyDraft,cleanDraft} from '../src/day-check.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
@@ -127,6 +128,11 @@ export function extraOperation(state,op,user,fail,now){
    checkFirst:cut(it.checkFirst,800),
    sources:(Array.isArray(it.sources)?it.sources:[]).map(x=>({title:cut(x?.title,200),url:https(x?.url)||''})).filter(x=>x.url).slice(0,6),
    about:it.about||null,step:it.step||null,searches:Number.isInteger(it.searches)&&it.searches>=0?it.searches:0};
+  // A draft change rides along with the answer it came with, cleaned against the plan as it is
+  // now; one already applied keeps who applied it, so the other parent's card says so too.
+  const draft=it.draft?cleanDraft({summary:it.draft.summary,changes:(it.draft.changes||[]).map(c=>({...c,stepId:c.id}))},state):null;
+  const prior=(state.askThread||[]).find(x=>x.id===it.id)?.draft;
+  if(prior?.appliedAt)item.draft=prior;else if(draft)item.draft=draft;
   state.askThread=[item,...(state.askThread||[]).filter(x=>x.id!==item.id)].slice(0,SHARED_KEEP);
   return {summary:null,important:false,title:item.question};
  }
@@ -135,6 +141,32 @@ export function extraOperation(state,op,user,fail,now){
   const ids=Array.isArray(op.ids)?op.ids.map(String):[];if(!ids.length)fail('Nothing to clear.');
   state.askThread=(state.askThread||[]).filter(x=>!ids.includes(x.id));
   return {summary:null,important:false,title:`${ids.length} question${ids.length>1?'s':''} cleared`};
+ }
+ // A draft change from Ask, applied by a parent in one tap. Every stop is checked again here
+ // against the plan as it stands, and the whole draft goes through or none of it does.
+ if(op.type==='askDraftApply'){
+  if(!parent)fail('A parent can make this change.',403);
+  const {changes,summary,error}=applyDraft(state,op.changes);if(error)fail(error,409);
+  if(op.itemId!==undefined&&op.itemId!==null){
+   state.askThread=(state.askThread||[]).map(x=>x.id===String(op.itemId)?{...x,draft:{summary:x.draft?.summary||'',changes,appliedAt:now,appliedBy:user.name}}:x);
+  }
+  return {summary:`From Ask: ${summary}`,important:true,title:'A suggested change applied'};
+ }
+ // A parent's answer to one of tomorrow's check notes. Accepting one about a stop puts it in
+ // that stop's own notes, so it travels with the stop offline; dismissing it only hides it.
+ if(op.type==='dayCheckNote'){
+  if(!parent)fail('A parent can make this change.',403);
+  dayCheck(op.day);
+  const check=state.dayChecks?.[op.day];const note=check?.notes?.find(n=>n.id===op.id);
+  if(!note)fail('That note is no longer on the day.',404);
+  if(!NOTE_STATUS.includes(op.status))fail('Accept or dismiss it.');
+  if(op.status==='accepted'&&note.status!=='accepted'&&note.stepId){
+   const step=state.steps.find(s=>s.id===note.stepId);
+   if(step){const line=acceptedLine(note,op.day);if(!String(step.notes||'').includes(line))step.notes=[step.notes,line].filter(Boolean).join('\n\n').slice(-4000);}
+  }
+  const next={...note,status:op.status,...(op.status==='open'?{decidedBy:null,decidedAt:null}:{decidedBy:user.name,decidedAt:now})};
+  state.dayChecks={...state.dayChecks,[op.day]:{...check,notes:check.notes.map(n=>n.id===note.id?next:n)}};
+  return {summary:null,important:false,title:note.title};
  }
  if(op.type==='allergySet'){
   if(!parent)fail('A parent keeps the allergy cards.',403);
