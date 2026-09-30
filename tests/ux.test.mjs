@@ -326,3 +326,18 @@ test('Check In: back at the hotel by 4:30, one open per person, arrived or amber
  assert.match(home,/open\(\{type:'checkin'\}\)\}>Check in</,'started from the dashboard');
  assert.match(main,/checkin:<CheckInCard state=\{visibleState\}/);
 });
+test('big steps: a route as one thing per screen, a walk one screen and a ride two, read aloud and awake',async()=>{
+ const {bigSteps}=await import('../src/BigSteps.jsx').catch(()=>null)||{};
+ const route=await source('route-data.js'),big=await source('BigSteps.jsx'),card=await source('RouteCard.jsx');
+ assert.match(big,/navigator\.wakeLock\?\.request\('screen'\)/,'the screen stays awake');
+ assert.match(big,/move\(x>w\/2\?1:-1\)/,'the right half is next, the left is back');
+ assert.match(big,/read\(`big-\$\{at\}`,s\.say,'en-AU'\)/,'each step can be read aloud');
+ assert.match(big,/className="big-step-ja" lang="ja"/,'the station’s Japanese, large');
+ assert.match(card,/<BigStepsButton onClick=\{\(\)=>setBig\(true\)\}\/>/,'opened from the route card');
+ assert.match(card,/<BigSteps legs=\{legs\} step=\{step\} canTick=\{canTick&&ticks>0\}/);
+ // The derivation is pure: a walk is one screen, a ride is board and get off.
+ const src=big.replace(/^import .*$/mg,'').replace(/export default function BigSteps[\s\S]*$/,'');
+ assert.match(src,/if\(leg\.mode==='walk'\)\{out\.push\(\{leg:k,kind:'walk'/);
+ assert.match(src,/out\.push\(\{leg:k,kind:'board'/);assert.match(src,/out\.push\(\{leg:k,kind:'off'/);
+ assert.match(route,/export function legStops/);
+});

@@ -3,6 +3,7 @@ import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,
 import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked,legToDo,legStrip} from './route-data.js';
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
+import BigSteps,{BigStepsButton} from './BigSteps.jsx';
 // Follows the phone along the route while it is open and tracking is on. GPS fades underground,
 // so the last good fix is kept and its age shown rather than guessing.
 function useTracking(rides){
@@ -89,7 +90,7 @@ export default function RouteCard({legs,step,canTick,busy,onTick,lookOpen=false}
  // the strip, or an arrow key while the card has focus. It opens on the leg the family is up
  // to, ticking a leg off turns to the next, and a tracked ride pulls the card to where the
  // phone is. A drag that began on a button or the tick is a press, not a turn.
- const paged=legs.length>1,[index,setIndex]=useState(()=>legToDo(step,legs.length)),touch=useRef(null);
+ const paged=legs.length>1,[index,setIndex]=useState(()=>legToDo(step,legs.length)),touch=useRef(null),[big,setBig]=useState(false);
  const go=k=>setIndex(i=>stepIndex(i,k-i,legs.length)),move=d=>setIndex(i=>stepIndex(i,d,legs.length));
  useEffect(()=>{if(where&&where.i>=0){const k=legs.findIndex((l,j)=>l.mode==='ride'&&rideAt[j]===where.i);if(k>=0)setIndex(k);}},[where&&where.i]);
  const tick=(k,label)=>ticks?<LegTick step={step} k={k} label={label} canTick={canTick} busy={busy} onTick={(leg,done)=>{onTick(leg,done);if(done&&leg===index)move(1);}}/>:null,doneClass=k=>ticks>0&&legDone(step,k)?' leg-done':'';
@@ -119,7 +120,8 @@ export default function RouteCard({legs,step,canTick,busy,onTick,lookOpen=false}
    </div>;
  };
  return <section className="route-card" aria-label="Route">
-  <p className="eyebrow">ROUTE</p>
+  <div className="route-card-head"><p className="eyebrow">ROUTE</p><BigStepsButton onClick={()=>setBig(true)}/></div>
+  {big&&<BigSteps legs={legs} step={step} canTick={canTick&&ticks>0} busy={busy} onTick={onTick} onClose={()=>setBig(false)}/>}
   {ticks>0&&<p className="route-progress"><CheckCircle2 size={15}/><span>{step.status==='done'?<><b>Every leg is done.</b> This stop is complete.</>:<><b>{legsTicked(step)} of {ticks} legs done.</b> Tick each leg as you finish it; the last one ticks off the whole stop.</>}</span></p>}
   {fares&&<p className="route-fares"><Ticket size={15}/><span><b>Fare: adult {yen(fares.adult)} · child {yen(fares.child)} each,</b> as {fares.rides.length} separate tickets, one per company: {fares.rides.map(r=>`${r.operator} ${yen(r.yen[0])} / ${yen(r.yen[1])}`).join(' + ')}. An IC card covers them all: tap out at one company's gates and in again at the next, and each part is charged.{legs.some(l=>l.options)?' Seat tickets on the options below are extra.':''}</span></p>}
   {priced&&<p className="route-fares"><Baby size={15}/><span><b>Under 6 (not yet at school): free.</b> Up to two ride free with each paying adult or child, no ticket; walk through the wide gate with a parent. Only a child aged 6 or over pays the child fare.</span></p>}
