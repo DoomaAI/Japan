@@ -5,6 +5,7 @@ import {japanDate} from './timing.js';
 import {dayLabel,SILENT_HINT} from './AdventurePages.jsx';
 import {MENU_WORDS,SAY_TIP} from './food-data.js';
 import {searchText,phraseLogFor,phrasesSeenBy,phraseQueue,ourPhrases} from './trip-features.js';
+import {readingHelp} from './child-levels.js';
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
 import SoundOut,{MouthKey} from './SoundOut.jsx';
 import SayIt from './SayIt.jsx';
@@ -159,9 +160,9 @@ export default function Phrasebook({state,user,day,mutate,busy,request,notice,co
  const [query,setQuery]=useState(''),[section,setSection]=useState('');
  // Which way you like to go through them is a preference, so the phone remembers it. The
  // list stays the default: it is what search and the section filter are for.
- // Nate starts on his own, because a list of fifty-three written phrases is no use to
+ // A boy still read to starts on the picture cards, because a list of written phrases is no use to
  // somebody who cannot read one. Anybody can change it, and the phone remembers.
- const suits=user?.name==='Nate'?'nate':'list';
+ const suits=state&&user&&readingHelp(state,user.name).young?'nate':'list';
  const [mode,setMode]=useState(()=>{try{return localStorage.getItem('japan.phrasemode')||suits;}catch{return suits;}});
  const choose=next=>{setMode(next);try{localStorage.setItem('japan.phrasemode',next);}catch{}};
  const q=searchText(query);
@@ -185,7 +186,7 @@ export default function Phrasebook({state,user,day,mutate,busy,request,notice,co
   <div className="segmented game-picker phrase-modes">
    <button className={mode==='list'?'selected':''} onClick={()=>choose('list')}><List size={15}/> As a list</button>
    <button className={mode==='swipe'?'selected':''} onClick={()=>choose('swipe')}><Layers size={15}/> One at a time</button>
-   <button className={mode==='nate'?'selected':''} onClick={()=>choose('nate')}><Baby size={15}/> For Nate</button>
+   <button className={mode==='nate'?'selected':''} onClick={()=>choose('nate')}><Baby size={15}/> With pictures</button>
   </div>
   {mode==='nate'&&<><p>Pictures rather than words. Tap a mouth to hear that piece on its own, then the big button for the whole thing. Nothing on this card has to be read.</p><MouthKey/></>}
   <div className="document-filters">

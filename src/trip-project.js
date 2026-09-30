@@ -2,6 +2,7 @@ import {BOYS,party,personProfile,interestLabel,paceLabel,partyInterests,partyLik
 import {allergyOf,allergenById} from './allergy-data.js';
 import {PRIORITIES,PRIORITY_LEVELS} from './decide-data.js';
 import {localBrief} from './local-data.js';
+import {isChild,levelsBrief} from './child-levels.js';
 // Each person's project: everything Claude knows about the trip besides the day-by-day plan,
 // built live from the trip as it stands every time somebody asks, and centred on whoever is
 // asking. Nothing is exported or kept: change a profile, rate a stop or save a place and the
@@ -15,8 +16,8 @@ const list=values=>values.filter(Boolean).join(', ');
 const cut=(value,max)=>{const s=line(value);return s.length>max?`${s.slice(0,max-1)}…`:s;};
 const dayLabel=date=>new Date(`${date}T12:00:00Z`).toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
 const cities=state=>[...new Set((state.days||[]).map(d=>d.city).filter(Boolean))];
-// A profile's age decides it; until one is given, the trip's own list of children does.
-export const isChild=(state,name)=>{const age=personProfile(state,name).age;return age!==null&&age!==undefined&&age!==''?Number(age)<13:BOYS.includes(name);};
+// Who counts as a child, and what each is ready for, live in child-levels.js.
+export {isChild};
 // Whose stars went where, per person, best first — what each of them has actually enjoyed so far.
 function ratingsBy(state,name){
  const out=[];
@@ -37,6 +38,8 @@ function whose(state,person){
  out.push(`- Stops marked “not you” in the plan are ones ${person} is not on; do not plan around ${person} being there.`);
  out.push('- On days shared with the others, a suggestion must still work for everyone there; say who else it suits.');
  if(child)out.push('- Anything to do with money, bookings or going somewhere alone: say to ask a parent.');
+ // How the words should reach a child, and how much of the trip's machinery to mention, from the dials a parent set.
+ if(child)out.push(`- ${levelsBrief(state,person)}`);
  return out.join('\n');
 }
 function overview(state){

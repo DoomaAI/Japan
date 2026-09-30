@@ -94,9 +94,14 @@ export const MORE_SECTIONS=[
 let available={inbox:false,ask:false};
 export const setAvailable=next=>{available={...available,...next};};
 export const isAvailable=id=>!(id in available)||available[id];
+// Screens a child is not ready for yet, from the awareness dial a parent set (child-levels.js):
+// out of the bar, More, favourites and search alike, and back the moment the dial moves.
+let held=new Set();
+export const setHeldBack=ids=>{held=new Set(ids||[]);};
+export const isHeldBack=id=>held.has(id);
 // The parents' screens: forwarded email, their money, and the family's passports.
 export const PARENT_PAGES=['inbox','ledger','paying','vault'];
-const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(!PARENT_PAGES.includes(id)||user?.role==='parent')&&isAvailable(id);
+const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(!PARENT_PAGES.includes(id)||user?.role==='parent')&&isAvailable(id)&&!isHeldBack(id);
 export const pagesFor=user=>Object.keys(PAGES).filter(id=>allowed(id,user));
 // The handful of pages wanted in a hurry, in one row at the top of More, above the long list:
 // the ones reached for with a child crying, a waiter waiting or the sky darkening. Nothing

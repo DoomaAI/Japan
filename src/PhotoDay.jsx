@@ -4,9 +4,10 @@ import {upload} from '@vercel/blob/client';
 import {Camera,Trophy,Trash2,Check,Sparkles,Users,AlertCircle} from 'lucide-react';
 import {shrinkPhoto} from './MenuReader.jsx';
 import {kudosFor,kudosLine} from './kudos-data.js';
+import {ageOf} from './child-levels.js';
 import {photosFor,photosOf,photoOwner,photoCounts,photoVotesFor,photoOfTheDay,BOYS} from './trip-features.js';
 export const photoUrl=p=>`/api/photo?id=${encodeURIComponent(p.id)}`;
-const AGES={Nate:5,Boston:8};
+// The photo coach is told how old the photographer is, from the travel party.
 // The boys' own photographs: take one, hear what was good about it and one thing to try, and
 // then everybody votes for the day's best. The feedback talks to the child, and the vote is
 // the family's rather than the app's — nobody wants a computer choosing between brothers.
@@ -41,7 +42,7 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
    let feedback=null;
    if(config?.photoCoach){
     setWorking('Having a look at it…');
-    try{feedback=await request('photo-feedback',{image:shot.image,mediaType:shot.mediaType,age:AGES[belongsTo]||10});}
+    try{feedback=await request('photo-feedback',{image:shot.image,mediaType:shot.mediaType,age:ageOf(state,belongsTo)||10});}
     catch(e){notice(`${e.message} The photo is still going up.`);}
    }
    setWorking('Saving it for the family…');
@@ -98,7 +99,7 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
      {p.feedback&&<>
       {!!p.feedback.good?.length&&<ul>{p.feedback.good.map((g,i)=><li key={i}>{g}</li>)}</ul>}
       {p.feedback.tip&&<p className="photo-tip"><Sparkles size={13}/> {p.feedback.tip}</p>}
-      {p.feedback.score&&<small>{p.feedback.score}/10 for a {AGES[owner]||'young'}-year-old photographer</small>}
+      {p.feedback.score&&<small>{p.feedback.score}/10 for a {ageOf(state,owner)||'young'}-year-old photographer</small>}
      </>}
      <div className="row wrap">
       {!whole&&<button type="button" className={myVote===p.id?'primary':''} disabled={busy}

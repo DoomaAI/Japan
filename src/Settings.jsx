@@ -7,6 +7,7 @@ import {BarShortcuts} from './Personalise.jsx';
 import {CARD_LINKS,linkOrder,stepLink} from './card-links.js';
 import {DEEP_LINKS,deepLinkUrl} from './deep-links.js';
 import {THEMES,readTheme,saveTheme,applyTheme,LOOKS,LOOK_CHOICES,readLook,saveLook,applyLook} from './theme.js';
+import {READING,AWARENESS,childLevels,defaultReading,defaultAwareness,readingLabel,awarenessLabel,isChild} from './child-levels.js';
 const ICONS={dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
@@ -124,7 +125,42 @@ function Appearance(){
   <p><small>Photos and the original guide stay as they are; everything else takes the darker colours. Match the phone follows the phone’s own light and dark schedule.</small></p>
  </section>;
 }
-export default function Settings({user,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice,config}){
+// What each of the boys is ready for: two dials a parent sets, each starting from the age on
+// his travel-party profile. Reading decides how the words reach him — read aloud at a story's
+// pace, sounded out, or read on his own — and awareness decides how much of the trip's
+// machinery his phone shows: the leave-by clock, the reports, the check-in, the emergency page,
+// Ask. They are separate because they do not move together, and either can be moved any
+// evening, so a boy who reads the kana puzzle by himself on Tuesday gets the pages to match on
+// Wednesday. Kept on the trip, not the phone, so his link and a parent's phone standing in for
+// him agree.
+function Dial({name,label,levels,value,isDefault,age,fallback,save,busy}){
+ const current=levels.find(([id])=>id===value)||levels.at(-1);
+ return <div className="setting-dial">
+  <div className="section-heading"><strong>{label}</strong>{age!==null&&<small>{isDefault?`From ${name}’s age, ${age}`:`Set by hand · from age ${age} it would be ${fallback}`}</small>}</div>
+  <div className="segmented theme-picker" role="radiogroup" aria-label={`${label} for ${name}`}>{levels.map(([id,text])=><button type="button" key={id} role="radio" aria-checked={value===id} className={value===id?'selected':''} disabled={busy} onClick={()=>save(id)}>{text}</button>)}</div>
+  <p><small>{current[2]}</small></p>
+  {!isDefault&&age!==null&&<button type="button" disabled={busy} onClick={()=>save('')}><RotateCcw size={16}/> Back to the age default</button>}
+ </div>;
+}
+export function ChildLevels({state,mutate,busy}){
+ const boys=(state?.members||[]).filter(n=>isChild(state,n));
+ if(!boys.length)return null;
+ return <section className="settings-section">
+  <h2>What the boys are ready for</h2>
+  <p>Two dials for each of them, starting from the age on his profile. <strong>Reading</strong> is how the words reach him; <strong>awareness</strong> is how much of the trip’s workings his phone shows. Move either any time.</p>
+  {boys.map(name=>{
+   const l=childLevels(state,name);
+   const save=field=>value=>mutate({type:'childLevels',name,[field]:value});
+   return <div className="party-person" key={name}>
+    <h3>{name}{l.age!==null?` · ${l.age}`:''}</h3>
+    {l.age===null&&<p className="callout">Give {name} an age under Who we are, on the Planning board, and both dials start from it.</p>}
+    <Dial name={name} label="Reading" levels={READING} value={l.reading} isDefault={!l.readingSet} age={l.age} fallback={readingLabel(defaultReading(l.age))} save={save('reading')} busy={busy}/>
+    <Dial name={name} label="Awareness" levels={AWARENESS} value={l.awareness} isDefault={!l.awarenessSet} age={l.age} fallback={awarenessLabel(defaultAwareness(l.age))} save={save('awareness')} busy={busy}/>
+   </div>;})}
+  <p><small>Held on the trip, so {boys.join(' and ')}’s own phones follow it the next time they refresh. Nothing already ticked, rated or written is touched.</small></p>
+ </section>;
+}
+export default function Settings({user,state,mutate,busy,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice,config}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR CHOICE</p>
   <h1>Settings</h1>
@@ -143,6 +179,7 @@ export default function Settings({user,settings,change,navPrefs,setNavPrefs,link
    <h2>Route cards</h2>
    {SETTINGS.filter(s=>s.group==='route').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
+  {user?.role==='parent'&&state&&mutate&&<ChildLevels state={state} mutate={mutate} busy={busy}/>}
   {request&&<Notifications config={config} request={request} notice={notice} user={user}/>}
   {user?.role==='parent'&&request&&<TripCalendar request={request} notice={notice}/>}
   {user?.role==='parent'&&request&&<FollowLink request={request} notice={notice}/>}

@@ -1,6 +1,7 @@
 import React,{useState} from 'react';
 import {Heart,ArrowUp,ArrowDown,Plus,Trash2,Check} from 'lucide-react';
 import {thankYouNotes,thankYouSchedule,thankYouSpares,thankYouList,noteReadState,THANK_YOU_FROM,THANK_YOU_FOR,BOYS} from './trip-features.js';
+import {readTo} from './child-levels.js';
 import {japanClock,japanDate} from './timing.js';
 import {YOUNG_RATE} from './speech.js';
 import {dayLabel,useReadAloud,ReadAloudButton} from './AdventurePages.jsx';
@@ -10,10 +11,10 @@ function ReadStatus({day,seen,today}){
  const status=noteReadState(day,seen,today);
  return <span className={`thank-you-status${status.read?' read':''}`}>{status.read&&<Check size={15}/>}{readLabel(status)}</span>;
 }
-// The boys know him as Dad, and Nate is five: his note can be read out to him.
+// The boys know him as Dad, and a boy still read to hears his note at a story's pace.
 const signedBy=to=>BOYS.includes(to)?'Dad':THANK_YOU_FROM;
-export function ThankYouNote({note,to,seenAt,busy,dismiss}){
- const {supported:canRead,reading,read}=useReadAloud(),young=to==='Nate';
+export function ThankYouNote({note,to,seenAt,busy,dismiss,young=false}){
+ const {supported:canRead,reading,read}=useReadAloud();
  return <div className="thank-you-note">
   <p className="eyebrow">FOR {to.toUpperCase()} · {dayLabel(note.day)}</p>
   <Heart size={26} aria-hidden="true"/>
@@ -44,7 +45,7 @@ export function ThankYouEditor({state,mutate,busy}){
   <p className="eyebrow">JUST BETWEEN YOU AND {to.toUpperCase()}</p>
   <h1>Daily notes</h1>
   <div className="segmented" role="tablist" aria-label="Whose notes">{THANK_YOU_FOR.map(n=><button key={n} role="tab" aria-selected={to===n} className={to===n?'selected':''} onClick={()=>{setTo(n);setEdit(null);}}>{n}</button>)}</div>
-  <p>One note pops up for {to} on each day of the trip. {to} sees only that day’s note, never this list, and nobody else sees {to}’s notes at all. They stay out of Family updates and the change history.{BOYS.includes(to)&&` The boys’ notes are signed from Dad, and there is a Read to me button${to==='Nate'?', read slowly for Nate':''}.`}</p>
+  <p>One note pops up for {to} on each day of the trip. {to} sees only that day’s note, never this list, and nobody else sees {to}’s notes at all. They stay out of Family updates and the change history.{BOYS.includes(to)&&` The boys’ notes are signed from Dad, and there is a Read to me button${readTo(state).includes(to)?`, read slowly for ${to}`:''}.`}</p>
   <p className="callout"><Heart size={18}/>Reorder the list to change which day gets which note. Pin a note to a specific day, amend the wording, or write a new one.</p>
   <h2>The schedule</h2>
   {!!delivered.length&&<p className="thank-you-tally"><Heart size={18}/><strong>{opened} of {delivered.length}</strong> {delivered.length===1?'note':'notes'} opened so far{unopened.length>0&&` · not opened: ${unopened.map(d=>dayLabel(d)).join(', ')}`}</p>}

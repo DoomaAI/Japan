@@ -1923,7 +1923,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  // Side by side they share one grid; apart, each is its own.
  assert.deepEqual(homeRuns(['step','tired','apps','weather','glance']),['step',['tired','apps'],'weather',['glance']]);
  // Home draws them by id, the day heading and strip stay put, and the phone keeps the choice.
- assert.match(main,/\{dayStrip\(selectDay\)\}\s*\{homeRuns\(homeShown\(homePrefs\)\)\.map\(run=>/);
+ assert.match(main,/\{dayStrip\(selectDay\)\}\s*\{homeRuns\(homeShown\(homePrefs\)\.filter\(id=>awarenessAllows\(visibleState,user\.name,id\)\)\)\.map\(run=>/);
  // Today carries the day's buttons above its stops.
  assert.match(main,/\{dayStrip\(d=>go\('glance',d\)\)\}[\s\S]{0,200}<div className="home-actions day-actions">[\s\S]*?We’re tired[\s\S]*?Useful apps[\s\S]*?<DayTimeline/);
  for(const id of HOME_DEFAULT)assert.match(main,new RegExp(`\\n  ${id}:`),`${id} is drawn`);
@@ -2232,11 +2232,13 @@ test('every fun fact can be read aloud, and Nate gets it slower and first',async
  assert.equal(facts.match(/<ReadAloudButton/g)?.length,2,'the pop-up and the row both offer it');
  assert.match(facts,/const \{supported:canRead,reading,read,problem\}=useReadAloud\(\)/,'and it says so when the phone stays silent');
  assert.match(facts,/what="fact"/);
- // Nate is the reason it exists, so he gets the slower voice and a button he cannot miss.
- assert.match(facts,/young=user\?\.name==='Nate'/);
+ // A boy still read to is the reason it exists, so he gets the slower voice and a button he
+ // cannot miss — from the reading dial a parent set, not from his name.
+ assert.match(facts,/\{young,rate\}=readingHelp\(state,user\?\.name\)/);
+ assert.doesNotMatch(facts,/==='Nate'/,'nobody is named in the code');
  assert.match(facts,/rate=\{young\?YOUNG_RATE:undefined\}/);
  assert.match(facts,/className=\{young\?'young':''\}/);
- assert.match(main,/<FactOfDay[^>]*young=\{user\.name==='Nate'\}/,'the pop-up is told whose phone it is on');
+ assert.match(main,/<FactOfDay[^>]*young=\{help\.young\}/,'the pop-up is told whose phone it is on');
  // The missions the button started on keep the wording they had.
  const adventure=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
  assert.match(adventure,/what='mission'/,'missions keep their own label by default');
@@ -6676,7 +6678,7 @@ test('the phrases can be gone through one at a time, over exactly what the list 
  assert.match(source,/localStorage\.getItem\('japan\.phrasemode'\)/);
  // The list is still the default for everyone who can read one; Nate is the exception, and
  // he is the reason the exception exists.
- assert.match(source,/const suits=user\?\.name==='Nate'\?'nate':'list'/);
+ assert.match(source,/const suits=state&&user&&readingHelp\(state,user\.name\)\.young\?'nate':'list'/,'a boy still read to starts on the picture cards');
  // The deck is built from the same filtered sections the list renders, so a search cannot
  // show one set and swipe through another.
  assert.match(source,/const deck=\[\s*\.\.\.sections\.flatMap/);
@@ -7031,7 +7033,7 @@ test('every phrase has a picture of what it means, so it can be found without re
  // The daily pop-up is where he actually meets a phrase, so it carries the picture too.
  assert.match(page,/\{phrase\.icon&&<span className="phrase-picture small"/);
  // And he starts on his own mode rather than on a list of fifty-three written phrases.
- assert.match(page,/const suits=user\?\.name==='Nate'\?'nate':'list'/);
+ assert.match(page,/const suits=state&&user&&readingHelp\(state,user\.name\)\.young\?'nate':'list'/);
  assert.match(page,/localStorage\.getItem\('japan\.phrasemode'\)\|\|suits/,'and anybody can change it');
 });
 
@@ -10880,4 +10882,68 @@ test('nothing tappable is under 40px, past days still read, and a press shows',a
  assert.match(sweep,/button:not\(:disabled\):active,\.button:active,\.chip:active,summary:active\{filter:brightness\(\.9\)\}/);
  assert.match(sweep,/@media \(prefers-reduced-motion:reduce\)\{button:active,\.button:active,\.chip:active\{transform:none/);
  assert.match(sweep,/\.primary:not\(:disabled\):active\{background:var\(--green\)/,'a dark button darkens the other way rather than washing out');
+});
+test('what each boy is ready for is two dials a parent sets, starting from his age, and nothing in the code is named after him',async()=>{
+ const {childLevels,readingHelp,awarenessAllows,heldBack,levelsBrief,isChild,ageOf,READING,AWARENESS}=await import('../src/child-levels.js');
+ const {personProfile,partyBrief}=await import('../src/trip-features.js');
+ const {YOUNG_RATE}=await import('../src/speech.js');
+ let state=upgraded(structuredClone(seed));
+ // Before any profile is filled in, the trip's own boys are the boys, at the ages they were.
+ assert.equal(ageOf(state,'Nate'),5);assert.equal(ageOf(state,'Boston'),8);assert.equal(ageOf(state,'Damien'),null);
+ assert.ok(isChild(state,'Nate')&&!isChild(state,'Damien'));
+ assert.deepEqual(childLevels(state,'Nate'),{child:true,age:5,reading:'none',awareness:'with',readingSet:false,awarenessSet:false});
+ assert.deepEqual(childLevels(state,'Boston'),{child:true,age:8,reading:'reads',awareness:'told',readingSet:false,awarenessSet:false});
+ assert.equal(childLevels(state,'Damien').awareness,'grownup');
+ // How the words reach him: a boy still read to gets the story pace and the picture pages.
+ assert.deepEqual(readingHelp(state,'Nate'),{reading:'none',young:true,pictures:true,rate:YOUNG_RATE});
+ assert.deepEqual(readingHelp(state,'Boston'),{reading:'reads',young:false,pictures:false,rate:undefined});
+ assert.equal(readingHelp(state,'Lauren').young,false);
+ // How much of the trip's machinery his phone shows.
+ assert.deepEqual(heldBack(state,'Nate').sort(),['ask','checkin','links','nextup','report','reports','running','safety','weather']);
+ assert.deepEqual(heldBack(state,'Boston').sort(),['ask','links','nextup','report','running']);
+ assert.deepEqual(heldBack(state,'Damien'),[]);
+ assert.ok(awarenessAllows(state,'Nate','step')&&awarenessAllows(state,'Nate','meeting'),'his own things and the meeting card are never held back');
+ // The age on the profile moves the defaults; a parent's hand moves them further.
+ state=applyOperation(state,{type:'partyPerson',name:'Nate',age:7,interests:['trains']},parent);
+ assert.deepEqual([childLevels(state,'Nate').reading,childLevels(state,'Nate').awareness],['sounding','told']);
+ state=applyOperation(state,{type:'childLevels',name:'Nate',reading:'reads',awareness:'trusted'},parent);
+ assert.deepEqual(childLevels(state,'Nate'),{child:true,age:7,reading:'reads',awareness:'trusted',readingSet:true,awarenessSet:true});
+ assert.deepEqual(heldBack(state,'Nate'),[]);
+ assert.equal(personProfile(state,'Nate').by,'Damien');
+ // Filling in the rest of his profile leaves the dials where they were; one dial at a time can move.
+ state=applyOperation(state,{type:'partyPerson',name:'Nate',interests:['trains','animals'],likes:['ramen']},child);
+ assert.deepEqual([personProfile(state,'Nate').reading,personProfile(state,'Nate').awareness,personProfile(state,'Nate').interests],['reads','trusted',['trains','animals']]);
+ state=applyOperation(state,{type:'childLevels',name:'Nate',awareness:'with'},parent);
+ assert.deepEqual([childLevels(state,'Nate').reading,childLevels(state,'Nate').awareness],['reads','with']);
+ // A blank puts a dial back to the age's default.
+ state=applyOperation(state,{type:'childLevels',name:'Nate',reading:'',awareness:null},parent);
+ assert.deepEqual(childLevels(state,'Nate'),{child:true,age:7,reading:'sounding',awareness:'told',readingSet:false,awarenessSet:false});
+ // A parent's to set, for a child, from the list.
+ assert.throws(()=>applyOperation(state,{type:'childLevels',name:'Nate',reading:'reads'},child),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'childLevels',name:'Damien',reading:'none'},parent),/children/);
+ assert.throws(()=>applyOperation(state,{type:'childLevels',name:'Grandma',reading:'none'},parent),/family member/);
+ assert.throws(()=>applyOperation(state,{type:'childLevels',name:'Nate',reading:'fluent'},parent),/reading level/);
+ assert.throws(()=>applyOperation(state,{type:'childLevels',name:'Nate',awareness:'adult'},parent),/awareness level/);
+ assert.ok(!state.alerts.some(a=>/ready for/i.test(a.summary||'')),'not a change to the plan, so not in the family feed');
+ assert.equal(READING.length,3);assert.equal(AWARENESS.length,3);
+ // What the model is told, so a fact for one boy is two spoken sentences and his brother's can carry a why.
+ assert.match(levelsBrief(state,'Nate'),/^Nate is sounding words out: .* Nate can be told how the day goes/);
+ assert.match(levelsBrief(upgraded(structuredClone(seed)),'Nate'),/cannot read yet.*always with a grown-up/);
+ assert.equal(levelsBrief(state,'Damien'),'');
+ assert.match(partyBrief(upgraded(structuredClone(seed))),/Nate — not reading yet/);
+ assert.doesNotMatch(partyBrief(upgraded(structuredClone(seed))),/Boston — .*reading/);
+ // The screens read the dials, not a name.
+ for(const f of ['FunFacts.jsx','ThankYou.jsx','Phrasebook.jsx','AdventurePages.jsx','PhotoDay.jsx','packing-data.js','main.jsx']){
+  const src=await readFile(new URL(`../src/${f}`,import.meta.url),'utf8');
+  assert.doesNotMatch(src,/==='Nate'|AGES\[/,`${f} decides by the dials`);
+ }
+ const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
+ assert.match(settings,/user\?\.role==='parent'&&state&&mutate&&<ChildLevels/,'a parent’s section in Settings');
+ assert.match(settings,/mutate\(\{type:'childLevels',name,\[field\]:value\}\)/);
+ const nav=await readFile(new URL('../src/nav-data.js',import.meta.url),'utf8');
+ assert.match(nav,/isAvailable\(id\)&&!isHeldBack\(id\)/,'a held-back screen is out of every menu');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/setHeldBack\(state&&user\?heldBack\(state,user\.name\):\[\]\)/);
+ assert.match(main,/<ThankYouNote[^>]*young=\{help\.young\}/);
+ assert.match(main,/factAloudFor\(speak,visibleState,user\.name\)/);
 });

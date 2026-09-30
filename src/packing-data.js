@@ -1,4 +1,5 @@
 import {BOYS,personProfile,packing} from './trip-features.js';
+import {ageOf} from './child-levels.js';
 import {forecastFor,describe} from './weather-data.js';
 import {japanDate} from './timing.js';
 // The packing list. What we actually pack is ours to write, tick and change; what it suggests is
@@ -194,7 +195,7 @@ export function allSuggestions(state,today=japanDate()){
    add({id:`stampbook-${name}`,title:'A notebook for station stamps',person:name,category:'kids',priority:'nice',
     note:'Most stations have a free rubber stamp to collect.'},'person',age);
   }
-  if(child&&(me.age===null?name==='Nate':me.age<=6)){
+  if(child&&ageOf(state,name)!==null&&ageOf(state,name)<=6){
    add({id:`spareset-${name}`,title:'A full spare set of clothes in the day bag',person:name,category:'daybag',priority:'recommended'},'person',age);
    add({id:`comfort-${name}`,title:'Favourite toy for bedtime',person:name,category:'kids',priority:'recommended'},'person',age);
    add({id:`stroller-${name}`,title:'A light folding stroller',person:name,category:'kids',priority:'nice',

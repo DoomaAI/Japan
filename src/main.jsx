@@ -9,6 +9,7 @@ import {Challenges,Shopping,SpeakRules,useReadAloud} from './AdventurePages.jsx'
 import Shortlist,{DayFinds} from './Shortlist.jsx';
 import {NextUp,RunningLate,OfflineReadiness,Updates} from './HomeFeatures.jsx';
 import {ThankYouNote,ThankYouEditor} from './ThankYou.jsx';
+import {readingHelp,awarenessAllows,heldBack} from './child-levels.js';
 import TicketViewer from './TicketViewer.jsx';
 import GuideBook,{LAST_PAGE} from './GuideBook.jsx';
 import GuideReader from './GuideReader.jsx';
@@ -29,7 +30,7 @@ import {factSeenBy,factsSeenBy,factQueue} from './trip-features.js';
 import {PHRASES} from './phrases.js';
 import {readSettings,writeSetting,settingOn} from './settings.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
-import {primaryNav,moreIds,PAGES,cleanNav,emptyNav,setAvailable,isAvailable} from './nav-data.js';
+import {primaryNav,moreIds,PAGES,cleanNav,emptyNav,setAvailable,isAvailable,setHeldBack} from './nav-data.js';
 import {homeShown,homeRuns,emptyHome,cleanHome} from './home-widgets.js';
 import {linkOrder,emptyLinks,cleanLinks} from './card-links.js';
 import StopButtons from './StopButtons.jsx';
@@ -191,11 +192,13 @@ function App(){
  // never talk over each other.
  const speak=useReadAloud();
  const [guidePage,setGuidePage]=useState(Number(new URLSearchParams(location.search).get('page'))||1),[reading,setReading]=useState(false),[coverPage,setCoverPage]=useState(1),[guideIndex,setGuideIndex]=useState([]),[query,setQuery]=useState(''),[saved,setSaved]=useState(stored('japan.saved',[])),[clockShortcut,setClockShortcut]=useState(localStorage.getItem('japan.shortcut')||'');
- const state=envelope?.state,user=envelope?.user,parent=user?.role==='parent';
+ const state=envelope?.state,user=envelope?.user,parent=user?.role==='parent',help=readingHelp(state||{},user?.name);
  // The menu can only offer what this deployment can do. Anything already waiting keeps the
  // screen reachable too, so email that arrived before a key was removed is never stranded
  // behind a menu item that has gone.
  setAvailable({inbox:!!config?.emailInbox||(state?inboxWaiting(state):0)>0,ask:!!config?.ask||hasAskHistory(user)||!!state?.askThread?.length});
+ // And what this person is not ready for yet, from the dials a parent set (child-levels.js).
+ setHeldBack(state&&user?heldBack(state,user.name):[]);
  // How this person has arranged their own menu. It lives on the phone beside the sumo rank and
  // the downloaded guide pages: it is about the phone in your hand rather than about the trip,
  // so it does not sync, does not need signal, and cannot be argued about. Loaded once the app
@@ -628,7 +631,7 @@ function App(){
      guide:<button onClick={()=>openPage(current.page)}><BookOpen size={15}/>Guide p.{current.page}</button>,
      remind:<button onClick={()=>setModal({type:'alarm',step:current})}><Bell size={15}/>Remind me</button>,
      nearby:<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={15}/>Nearby</button>,
-     report:<button onClick={()=>setModal({type:'report',step:current})}><Radio size={15}/>Report</button>,
+     report:awarenessAllows(visibleState,user.name,'report')&&<button onClick={()=>setModal({type:'report',step:current})}><Radio size={15}/>Report</button>,
      share:<button aria-label="Share this stop" onClick={()=>shareStep(current)}><Share2 size={15}/>Share</button>
     }}/>
     {current.status==='done'&&<StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>}
@@ -639,7 +642,7 @@ function App(){
      {resolveLocation(state,current)&&<small className="matched-address">{resolveLocation(state,current).address}{resolveLocation(state,current).japaneseAddress&&<span className="place-japanese" lang="ja">{resolveLocation(state,current).japaneseAddress}</span>}</small>}{stepPin(current)&&<small className="matched-address"><LocateFixed size={13}/> Pinned where we stood · {pinText(stepPin(current))} · directions come back here</small>}
      {phoneLinks(showLocationDetails(state,current).phone)&&<ContactRow phone={phoneLinks(showLocationDetails(state,current).phone)} title={current.title}/>}
      <div className="participants">{current.participants.map(p=><span key={p} className="person">{p}</span>)}</div>
-     <CardFacts facts={factsForStep(current)} openPage={openPage} aloud={factAloudFor(speak,user.name)}/>
+     <CardFacts facts={factsForStep(current)} openPage={openPage} aloud={factAloudFor(speak,visibleState,user.name)}/>
      {current.status!=='done'&&<StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>}
     </details>
    </article>:<div className="empty"><h2>A little room for discovery.</h2><p>Add your first stop for this day.</p></div>}
@@ -685,7 +688,7 @@ function App(){
   {tab==='today'&&<div className="home">
    {dayHeading}
    {dayStrip(selectDay)}
-   {homeRuns(homeShown(homePrefs)).map(run=>Array.isArray(run)?<div className="home-actions" key={run.join()}>{run.map(id=><React.Fragment key={id}>{homeWidgets[id]}</React.Fragment>)}</div>:<React.Fragment key={run}>{homeWidgets[run]}</React.Fragment>)}
+   {homeRuns(homeShown(homePrefs).filter(id=>awarenessAllows(visibleState,user.name,id))).map(run=>Array.isArray(run)?<div className="home-actions" key={run.join()}>{run.map(id=><React.Fragment key={id}>{homeWidgets[id]}</React.Fragment>)}</div>:<React.Fragment key={run}>{homeWidgets[run]}</React.Fragment>)}
    {!homeShown(homePrefs).length&&<div className="empty"><h2>Home is clear.</h2><p>Every widget is put away. Bring back the ones you want from Customise.</p></div>}
    <div className="home-customise"><Button icon={SlidersHorizontal} onClick={()=>go('personalise')}>Customise Home</Button></div>
   </div>}
@@ -726,7 +729,7 @@ function App(){
   {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><div className="row wrap page-links"><button onClick={()=>go('allergy')}><AlertCircle size={16}/>Allergy card</button><button onClick={()=>go('hunts')}><ListChecks size={16}/>Hunts & lists</button></div><FoodList state={visibleState} user={user} speak={speak} openPage={openPage} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal}/></>}
   {tab==='thanks'&&user.name===THANK_YOU_FROM&&<ThankYouEditor state={state} mutate={mutate} busy={busy}/>}
-  {tab==='settings'&&<Settings config={config} user={user} settings={settings} change={changeSetting} request={request} notice={notice} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
+  {tab==='settings'&&<Settings config={config} state={visibleState} mutate={mutate} busy={busy} user={user} settings={settings} change={changeSetting} request={request} notice={notice} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
   {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go} day={day} remove={removeThen} request={request} online={online&&!!config?.capture} sayFirst={sayFirst} clearSayFirst={()=>setSayFirst(null)}/>}
@@ -778,10 +781,10 @@ function App(){
    {modal.type==='foodcard'&&<FoodCard item={modal.item} notice={notice}/>}
    {modal.type==='park'&&<ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={modal.park} mutate={mutate} busy={busy} open={setModal}/>}
    {modal.type==='phrase'&&<PhraseOfDay queue={phraseQueue(visibleState,user.name,modal.day)} day={modal.day} dateLabel={fmtDay(modal.day)} busy={busy} dismiss={ids=>seePhrase(modal.day,ids)}/>}
-   {modal.type==='fact'&&<FactOfDay queue={factQueue(visibleState,user.name,modal.day)} dateLabel={fmtDay(modal.day)} busy={busy} young={user.name==='Nate'} dismiss={ids=>seeFact(modal.day,ids)} openPage={async(page,ids)=>{await seeFact(modal.day,ids);openPage(page);}}/>}
-   {modal.type==='stepfact'&&<FactOfDay queue={modal.facts} heading={`FUN FACT · ${modal.step.title.toUpperCase()}`} busy={busy} young={user.name==='Nate'} dismiss={()=>setModal(null)} openPage={page=>openPage(page)}/>}
+   {modal.type==='fact'&&<FactOfDay queue={factQueue(visibleState,user.name,modal.day)} dateLabel={fmtDay(modal.day)} busy={busy} young={help.young} dismiss={ids=>seeFact(modal.day,ids)} openPage={async(page,ids)=>{await seeFact(modal.day,ids);openPage(page);}}/>}
+   {modal.type==='stepfact'&&<FactOfDay queue={modal.facts} heading={`FUN FACT · ${modal.step.title.toUpperCase()}`} busy={busy} young={help.young} dismiss={()=>setModal(null)} openPage={page=>openPage(page)}/>}
    {modal.type==='eyespy'&&<Bingo state={visibleState} user={user} step={modal.step} mutate={mutate} busy={busy}/>}
-   {modal.type==='thankyou'&&<ThankYouNote note={modal.note} to={user.name} seenAt={state.thankYou.seen?.[modal.note.day]} busy={busy} dismiss={()=>readNote(modal.note)}/>}
+   {modal.type==='thankyou'&&<ThankYouNote note={modal.note} to={user.name} young={help.young} seenAt={state.thankYou.seen?.[modal.note.day]} busy={busy} dismiss={()=>readNote(modal.note)}/>}
    {modal.type==='late'&&<RunningLate state={state} day={day} mutate={mutate} busy={busy} close={()=>setModal(null)}/>}
    {modal.type==='offline'&&<OfflineReadiness state={state} day={day} notice={notice} refresh={refresh}/>}
    {modal.type==='capture'&&<QuickCapture state={state} day={day} user={user} mutate={mutate} busy={busy} setBusy={setBusy} request={request} accept={accept} config={config} notice={notice} close={()=>setModal(null)}/>}

@@ -8,6 +8,7 @@ const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {PRIORITIES,validPriorities} from '../src/decide-data.js';
 import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_FOR,normaliseThankYou,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
 import {IC_MAX,RECEIPT_TYPES} from '../src/ledger-data.js';
+import {isChild,validReading,validAwareness} from '../src/child-levels.js';
 import {LOCAL_EXPERIENCES,cleanLocalCheck} from '../src/local-data.js';
 import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
@@ -274,6 +275,19 @@ export function extraOperation(state,op,user,fail,now){
   }
   state.party={...current,priorities};
   return {summary:null,important:false,title:`What matters to ${op.name}`};
+ }else if(op.type==='childLevels'){
+  // What a boy is ready for: how the words reach him, and how much of the trip's machinery he
+  // sees. A parent's to set, and a blank puts a dial back to its age's default. Kept on the
+  // travel-party profile beside the age it starts from, so a second family gets sensible dials
+  // with nothing set at all.
+  if(!parent)fail('A parent sets what each of the children is ready for.',403);
+  if(!state.members.includes(op.name))fail('Choose a family member.');
+  if(!isChild(state,op.name))fail('Reading and awareness are set for the children.');
+  const current=party(state),me=personProfile(state,op.name);
+  const pick=(value,valid,label)=>value===undefined?me[label]:(value===null||value===''?null:(valid(value)?value:fail(`Choose a ${label} level from the list.`)));
+  const reading=pick(op.reading,validReading,'reading'),awareness=pick(op.awareness,validAwareness,'awareness');
+  state.party={...current,people:{...current.people,[op.name]:{...me,reading,awareness,by:user.name,at:now}}};
+  return {summary:null,important:false,title:`What ${op.name} is ready for`};
  }else if(op.type==='partyPerson'||op.type==='partyTrip'){
   // Who is going and what they are each after. Everyone keeps their own; a parent keeps the
   // ones the five-year-old will not be filling in himself, and the trip-wide pace and budget.
@@ -294,7 +308,8 @@ export function extraOperation(state,op,user,fail,now){
    if(values.likes.length>MAX_LIKES)fail(`Keep it to ${MAX_LIKES} likes.`);
    if(values.likes.some(t=>t.length>MAX_LIKE_LENGTH))fail(`Keep each like under ${MAX_LIKE_LENGTH} characters.`);
    for(const key of ['loves','avoid','dietary','notes'])requireText(values[key],500,key);
-   state.party={...current,people:{...current.people,[op.name]:{...values,by:user.name,at:now}}};
+   // The two dials a parent set stay where they are: this form does not carry them.
+   state.party={...current,people:{...current.people,[op.name]:{...values,reading:me.reading,awareness:me.awareness,by:user.name,at:now}}};
    return {summary:null,important:false,title:`${op.name}’s travel profile`};
   }
   if(!parent)fail('A parent sets the pace and the budget.',403);
