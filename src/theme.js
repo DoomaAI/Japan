@@ -28,3 +28,32 @@ export function applyTheme(theme,doc=typeof document==='undefined'?null:document
  for(const meta of metas)meta?.setAttribute('content',THEME_COLOUR[isDark(theme,prefersDark)?'dark':'light']);
  return theme;
 }
+// Which look, separate from light or dark: the palette and type a trip is dressed in. Today there
+// is one, the printed guide's, so there is nothing to pick yet; the seam is here so a second look
+// is a CSS block under :root[data-look=<id>] plus one line in LOOKS, and Settings grows a picker
+// on its own. A person can choose a look for their phone, or leave it to the destination, which
+// is the default: a trip to Italy should not open dressed as Japan. The destination is one
+// constant until the trip context (commercialisation build order, layer 1) supplies it.
+export const LOOKS=[['guide','The printed guide']];
+export const BY_COUNTRY='country';
+export const LOOK_CHOICES=[[BY_COUNTRY,'Match the destination'],...LOOKS];
+// ISO 3166 country to its look. A country with none of its own falls back to the first look.
+export const COUNTRY_LOOKS={JP:'guide'};
+export const TRIP_COUNTRY='JP';
+export const LOOK_KEY='japan.look';
+const lookChoice=v=>LOOK_CHOICES.some(([id])=>id===v);
+export function readLook(store=device()){
+ try{const v=String(store?.getItem(LOOK_KEY)??'').replace(/^"|"$/g,'');return lookChoice(v)?v:BY_COUNTRY;}catch{return BY_COUNTRY;}
+}
+export function saveLook(look,store=device()){
+ const id=lookChoice(look)?look:BY_COUNTRY;
+ try{store?.setItem(LOOK_KEY,id);}catch{}
+ return id;
+}
+// The look actually worn: the person's own choice if it still exists, otherwise the destination's.
+export const resolveLook=(choice,country=TRIP_COUNTRY)=>LOOKS.some(([id])=>id===choice)?choice:COUNTRY_LOOKS[String(country||'').toUpperCase()]||LOOKS[0][0];
+export function applyLook(choice,country=TRIP_COUNTRY,doc=typeof document==='undefined'?null:document){
+ const look=resolveLook(choice,country);
+ if(doc)doc.documentElement.dataset.look=look;
+ return look;
+}
