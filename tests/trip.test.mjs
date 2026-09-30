@@ -4826,6 +4826,37 @@ test('we rate an activity and say what we thought, each of us for ourselves',asy
  assert.match(source,/setSelected\(done\);updateUrl\(day,done\)/);
 });
 
+test('we rate the whole day, at bedtime or afterwards, each of us for ourselves',async()=>{
+ const {ensureFeatures,dayRatingsFor,dayVerdict,diaryDays,pendingProgress}=await import('../src/trip-features.js');
+ const today=japanDate(new Date()),days=seed.days.map(d=>d.date);
+ const past=days.filter(d=>d<=today).at(-1),future=days.find(d=>d>today);
+ if(!past)return;// before the trip opens there is no day to look back on
+ let state=applyOperation(ensureFeatures(structuredClone(seed)),{type:'dayRating',day:past,person:'Nate',rating:4.5},child);
+ state=applyOperation(state,{type:'dayRating',day:past,person:'Lauren',rating:3},parent);
+ assert.deepEqual(dayRatingsFor(state,past),{Nate:4.5,Lauren:3});
+ assert.equal(dayVerdict(state,past),3.8,'the day is the average of what each of us gave it');
+ assert.equal(dayVerdict(state,days.find(d=>d!==past)),null,'a day nobody rated has no score, rather than a zero');
+ // It is separate from the stops: rating the day leaves every activity unrated.
+ assert.deepEqual(state.stepReviews,{});
+ // Changing your mind replaces yours; nought takes it back without touching anyone else's.
+ assert.equal(dayRatingsFor(applyOperation(state,{type:'dayRating',day:past,person:'Nate',rating:2},child),past).Nate,2);
+ assert.deepEqual(dayRatingsFor(applyOperation(state,{type:'dayRating',day:past,person:'Nate',rating:0},child),past),{Lauren:3});
+ // Our own opinion, from 0.1 to 5, of a real day.
+ assert.throws(()=>applyOperation(state,{type:'dayRating',day:past,person:'Boston',rating:5},child),e=>e.status===403);
+ for(const bad of [{rating:6},{rating:2.35},{rating:-1},{rating:'4'},{rating:null},{rating:4,day:'2099-01-01'},{rating:4,person:'Grandma'}])
+  assert.throws(()=>applyOperation(state,{type:'dayRating',day:past,person:'Nate',...bad},parent),`${JSON.stringify(bad)} should be refused`);
+ if(future)assert.throws(()=>applyOperation(state,{type:'dayRating',day:future,person:'Nate',rating:4},child),/not happened/,'a day still to come has nothing to rate');
+ // The diary shows it, and stars given with no signal wait on the phone and show straight away.
+ const entry=diaryDays(state,past)[0];
+ assert.equal(entry.verdict,3.8);assert.deepEqual(entry.stars,{Nate:4.5,Lauren:3});
+ const preview=pendingProgress(state,[{operation:{type:'dayRating',operationId:'d1',day:past,person:'Boston',rating:5}}]);
+ assert.equal(dayRatingsFor(preview,past).Boston,5);
+ assert.equal(dayRatingsFor(state,past).Boston,undefined,'the shared trip is untouched until it syncs');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const list=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ assert.ok(list.includes('dayRating'),'a day rated on a train with no signal should survive');
+});
+
 test('the forecast comes back by the hour, and the graph is drawn from checked numbers',async()=>{
  const {forecastUrl,parseHourly,parseForecast,daySummary,hoursFor,hoursAhead,hourLabel,pointFor}=await import('../src/weather-data.js');
  const {ensureFeatures}=await import('../src/trip-features.js');

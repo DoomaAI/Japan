@@ -2,7 +2,7 @@ import React from 'react';
 import {Moon,Check,Mic,NotebookPen,AlarmClock} from 'lucide-react';
 import {tonightShows,tonightFor} from './tonight-data.js';
 import {capsuleWritable,capsuleFor} from './capsule-data.js';
-import {Stars} from './StepReview.jsx';
+import {Stars,DayRate} from './StepReview.jsx';
 import {photoUrl} from './PhotoDay.jsx';
 // The Tonight widget: the day wrapped up in three taps, shown from five in the evening, and on
 // any earlier day that still has something left to do.
@@ -15,6 +15,7 @@ export default function Tonight({state,user,day,today,clock,mutate,busy,openVoic
  return <section className={`tonight${t.complete?' complete':''}`} aria-label="Tonight">
   <div className="tonight-head"><Moon size={18}/><div><p className="eyebrow">{day===today?'Tonight':'Still to wrap up'}</p><strong>{t.complete?'Day wrapped. Sleep well.':`${t.finished} of ${t.total} done`}</strong></div></div>
   {!t.tasks.rate&&<div className="tonight-part"><h3>Star the best bits</h3>{t.toRate.map(s=><div className="tonight-rate" key={s.id}><span>{s.title}</span><Stars value={0} size={22} disabled={busy} label={`Rate ${s.title}`} onPick={v=>rate(s.id,v)}/></div>)}</div>}
+  <div className="tonight-part"><h3>How was the whole day?</h3><DayRate state={state} user={user} day={day} mutate={mutate} busy={busy} label="Your stars"/></div>
   {t.photos.length>0&&<div className="tonight-part"><h3>{t.vote?'Your photo of the day':'Vote for the photo of the day'}</h3><div className="tonight-photos">{t.photos.map(p=><button type="button" key={p.id} className={t.vote===p.id?'on':''} aria-pressed={t.vote===p.id} disabled={busy} onClick={()=>vote(p.id)}><img loading="lazy" src={photoUrl(p)} alt={p.feedback?.subject||'A photo from today'}/>{t.vote===p.id&&<Check size={18}/>}</button>)}</div></div>}
   {day===today&&go&&capsuleWritable(state,today)&&!capsuleFor(state,user.name)?.text&&<div className="tonight-part"><h3>A note to open next year</h3><button type="button" onClick={()=>go('capsule')}><NotebookPen size={17}/>Write yours</button></div>}
   {day===today&&go&&<div className="tonight-part"><button type="button" onClick={()=>go('nightstand')}><AlarmClock size={17}/>Put the phone on the nightstand</button></div>}
