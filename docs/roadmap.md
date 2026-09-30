@@ -21,6 +21,34 @@ Benchmarked against Marriott Bonvoy, Hilton Honors, World of Hyatt, IHG One Rewa
 | — | Apple Wallet passes for stays and tickets | Not built: needs an Apple Developer pass-type certificate and a server-side `.pkpass` signer. What it is for, what it needs and why not this trip: [commercialisation.md](commercialisation.md#apple-wallet-and-google-wallet-passes) |
 | — | First-run onboarding for a new family | Not built: the app is set up for one family. Logged for the commercial version in commercialisation.md terms |
 
+## What a Japan specialist would still add — logged 30 September 2026
+
+The app already holds most of a specialist agent's knowledge: route cards to the platform and exit, booking windows, tax-free rules, card fees, safety, the phrasebook and the menu reader. What it does not yet do is behave like one — watch the trip overnight, call before a problem lands, act on our behalf with our say-so, and adjust the rest of the trip from how each day went. Written on day 10 of 16 (Disney today, Tokyo from 1 October), so the first table is what still pays off this trip and the second is for the next trip or the commercial version. Actual booking stays outside the app by design; everything here stops at drafting and handing off.
+
+### This trip
+
+| # | Item | What it is | Builds on |
+|---|---|---|---|
+| 1 | Tomorrow's check | A nightly pass, run by a Vercel cron in Japan time, that reads tomorrow's stops and searches for what would derail them: closing days, national holidays, last-entry times, rail works, typhoon and heavy-rain warnings, a forecast-driven swap. Writes sourced notes onto the day for a parent to accept or dismiss. 5 October is a Monday, when many Tokyo museums close; early October is still typhoon season | `server/research.mjs` search budget and prompt shape; `src/push-data.js` for the moment |
+| 2 | Advice that becomes a draft change | Ask about our trip reads and cannot act. It should be able to return a proposed reschedule that a parent applies in one tap | The reschedule preview and its overlap checks; `server/ask.mjs` |
+| 3 | Dinner tonight | A 4 pm card near the evening stop: places that suit a family (kids welcome, non-smoking, no reservation needed, picture or English menu, cash-only flagged), a drafted Japanese reservation message, which channel the venue uses (TableCheck, Tabelog, phone only) and its cancellation rule | `server/nearby.mjs`, travel party food notes, the ticket translation |
+| 4 | Plan B per day | A fallback generated the night before and cached for no signal: the nearest indoor alternative to each stop for rain or a closed venue, and rest spots for a five-year-old's meltdown (department-store kids' floors, indoor playgrounds) | Suggestions, the day map, alternatives groups |
+| 5 | Hotel-move concierge | A card the day before and the morning of each move: checkout time, luggage-forwarding cutoff and counter, how to fill the label in Japanese, what goes in the overnight bag, bag-drop and early check-in at the next hotel. 1 October: Fantasy Springs to the Hilton | The pack-up reminder, Tonight's stay, tracker forwarding flag |
+| 6 | Live door-to-door timing | Route cards are hand-written and leave-by pushes use a fixed travel estimate. A live transit timetable would name the actual departure, and add a last-train warning for the Giants night on 3 October | `src/route-data.js`, the leave-by push kind; needs a transit API decision |
+
+### Next trip or commercial
+
+| # | Item | What it is |
+|---|---|---|
+| 7 | Insider notes per stop | Structured operational fields beyond fun facts: how the queue works (ticket machine first), payment accepted, stroller and toilet access, lockers, best hour to arrive, the common mistake. Researched once, reviewed by a parent, held offline |
+| 8 | Crowd and timing intelligence | Best-time-to-go per stop and, on park days, live wait times. The official Disney and USJ apps hold these; decide whether to integrate or keep linking out |
+| 9 | Etiquette keyed to stop type | Shrine, temple, onsen, train, restaurant and the Osaka-versus-Tokyo escalator side, on the stop card, with a boys' version wired into missions |
+| 10 | A guide that learns | Ratings, hunts and noticings feed back into the travel-party profile so suggestions weight what actually landed. Today the profile is static and each AI call is stateless beyond a four-exchange thread |
+| 11 | One persona across Ask, Nearby, Suggest and Tonight | A named guide with one voice and shared memory of what was rated, skipped and eaten. Prompt and context-pack work on the existing server modules |
+| 12 | Human escalation | A per-stay concierge card with drafted Japanese requests (restaurant booking, taxi, lost item), so the hotel books what a tourist cannot |
+
+Nothing here reaches a phone until the Vercel provisioning failure logged below is fixed.
+
 ## Before, during and after — logged 29 September 2026
 
 The trip has a before, a during and an after, and each should give the family a reason to open the app. Built in this order, one pull request each: the trip is under way, so the in-trip items come first, then the recap, then the before-the-trip items that pay off on the next trip.
