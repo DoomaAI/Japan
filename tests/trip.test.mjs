@@ -10664,6 +10664,32 @@ test('one line under each title, and the rest of the why behind How this works',
  assert.match(css,/\.how-this-works summary\{[^}]*min-height:40px/,'the fold is a proper tap target');
 });
 
+test('a look is chosen by the person or left to the destination, and there is one look so far',async()=>{
+ const {LOOKS,LOOK_CHOICES,BY_COUNTRY,COUNTRY_LOOKS,TRIP_COUNTRY,readLook,saveLook,resolveLook,applyLook}=await import('../src/theme.js');
+ const store=(saved={})=>({getItem:k=>saved[k]??null,setItem:(k,v)=>{saved[k]=v;},saved});
+ // Left to the destination until someone chooses, however it was stored, and when storage is refused.
+ assert.equal(readLook(store()),BY_COUNTRY);
+ assert.equal(readLook(store({'japan.look':'"guide"'})),'guide');
+ assert.equal(readLook(store({'japan.look':'neon'})),BY_COUNTRY);
+ assert.equal(readLook({getItem(){throw new Error('no');}}),BY_COUNTRY);
+ const st=store();assert.equal(saveLook('guide',st),'guide');assert.equal(st.saved['japan.look'],'guide');assert.equal(saveLook('nope',st),BY_COUNTRY);
+ // The person's choice wins; otherwise the destination's; a country with none of its own gets the first look.
+ assert.equal(resolveLook('guide','IT'),'guide');
+ assert.equal(resolveLook(BY_COUNTRY,'jp'),COUNTRY_LOOKS.JP);
+ assert.equal(resolveLook(BY_COUNTRY,'IT'),LOOKS[0][0]);
+ assert.equal(resolveLook('gone',null),LOOKS[0][0],'a look that has been retired falls back rather than leaving the page bare');
+ assert.equal(TRIP_COUNTRY,'JP');
+ for(const look of Object.values(COUNTRY_LOOKS))assert.ok(LOOKS.some(([id])=>id===look),`${look} is a real look`);
+ assert.deepEqual(LOOK_CHOICES.map(([id])=>id),[BY_COUNTRY,...LOOKS.map(([id])=>id)]);
+ const doc={documentElement:{dataset:{}}};
+ assert.equal(applyLook(BY_COUNTRY,'JP',doc),'guide');assert.equal(doc.documentElement.dataset.look,'guide');
+ assert.equal(applyLook(BY_COUNTRY,'JP',null),'guide','no document, nothing to do');
+ const read=async f=>readFile(new URL(`../src/${f}`,import.meta.url),'utf8');
+ // Put on the page before the first paint, and no picker in Settings while there is nothing to pick.
+ assert.match(await read('main.jsx'),/applyLook\(readLook\(\)\);\napplyTheme\(readTheme\(\)\);/);
+ assert.match(await read('Settings.jsx'),/\{LOOKS\.length>1&&<div className="segmented theme-picker" role="radiogroup" aria-label="Look">/);
+});
+
 test('the palette is named once, the fonts carry their own weights, and night is a choice',async()=>{
  const {THEMES,readTheme,saveTheme,isDark,applyTheme,THEME_COLOUR}=await import('../src/theme.js');
  const store=(saved={})=>({getItem:k=>saved[k]??null,setItem:(k,v)=>{saved[k]=v;},saved});

@@ -22,7 +22,7 @@ import Phrasebook,{PhraseOfDay} from './Phrasebook.jsx';
 import {phraseForDay} from './phrasebook-data.js';
 import {phraseSeenBy,phraseQueue} from './trip-features.js';
 import {deepLinkAction,withoutDeepLink} from './deep-links.js';
-import {readTheme,applyTheme} from './theme.js';
+import {readTheme,applyTheme,readLook,applyLook} from './theme.js';
 import FunFacts,{FactOfDay,CardFacts,factAloudFor} from './FunFacts.jsx';
 import {factForDay,factsForStep} from './fact-data.js';
 import {factSeenBy,factsSeenBy,factQueue} from './trip-features.js';
@@ -939,7 +939,8 @@ class Boundary extends React.Component{
 // A follower's link opens the read-only page and nothing else: no session is asked for, and
 // none of the app behind it is started.
 const followKey=new URLSearchParams(location.search).get('follow');
-// The phone's choice of light or dark is put on the page before anything is drawn.
+// The phone's look (its own or the destination's) and its light or dark go on the page before anything is drawn.
+applyLook(readLook());
 applyTheme(readTheme());
 createRoot(document.getElementById('root')).render(<Boundary>{followKey?<FollowAlong followKey={followKey}/>:<App/>}</Boundary>);
 
