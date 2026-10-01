@@ -133,3 +133,10 @@ ol.recap-top{counter-reset:n;display:grid;gap:.7rem}ol.recap-top li{counter-incr
 .local-item .spin{animation:local-spin 1s linear infinite}@keyframes local-spin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){.local-item .spin{animation:none}}
 
 .day-rate{display:flex;flex-direction:column;gap:.4rem;margin:.6rem 0}.tonight .day-rate .review-mine>span{color:var(--tint-border);font-weight:500}
+
+/* The day in brief: fold and put-away controls in its head, and the slim line that brings it back. */
+.briefing-head .eyebrow{flex:1}
+.briefing-tools{display:flex;gap:.15rem;margin-right:-.4rem}
+.briefing-tools .icon{min-width:36px;min-height:36px;padding:0;border:0;background:transparent;color:var(--muted)}
+.briefing.folded .briefing-stops{padding-bottom:0}
+.briefing-restore{display:flex;width:100%;align-items:center;gap:.4rem;justify-content:flex-start;border:1px dashed var(--border);border-radius:14px;background:transparent;color:var(--muted);font-size:.85rem;font-weight:500;padding:.55rem .9rem;min-height:0;margin:0 0 1.1rem}
