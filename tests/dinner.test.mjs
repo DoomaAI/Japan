@@ -54,3 +54,25 @@ test('dinner: a parent asks, the answer is kept on the day for every phone, and 
  const card=await src('src/DinnerTonight.jsx');assert.match(card,/japan\.dinner\.dismissed\./);assert.match(card,/title:`Dinner: \$\{o\.title\}`/);
  assert.match(await src('src/main.jsx'),/dinner:<DinnerTonight/);
 });
+test('dinner swipes: each of the family votes once per place, and the matches lead with what everyone wants',async()=>{
+ const {applyDinnerVote,dinnerMatches,myDinnerVotes,dinnerOptions}=await import('../src/dinner-data.js');
+ const o=t=>({title:t});
+ let state={members:['Damien','Lauren','Boston','Nate'],dinner:{d1:{groups:[{anchor:'last',label:'A',options:[o('Sushi'),o('Ramen')]},{anchor:'hotel',label:'H',options:[o('Buffet')]}]}}};
+ assert.deepEqual(dinnerOptions(state.dinner.d1).map(x=>x.key),['last:Sushi','last:Ramen','hotel:Buffet']);
+ const v=(name,key,vote)=>{const r=applyDinnerVote(state,{day:'d1',key,vote},name);assert.ok(!r.error,r.error);state=r.state;};
+ for(const n of state.members)v(n,'last:Sushi','yes');
+ v('Damien','hotel:Buffet','yes');v('Lauren','hotel:Buffet','yes');
+ v('Damien','last:Ramen','yes');v('Nate','last:Ramen','no');v('Nate','last:Ramen','yes');
+ const m=dinnerMatches(state.dinner.d1,state.members);
+ assert.equal(m[0].option.title,'Sushi');assert.ok(m[0].everyone);
+ assert.deepEqual(m.map(x=>x.option.title),['Sushi','Ramen','Buffet'],'a changed vote counts once; ties fall to fewer noes');
+ assert.deepEqual(m[1].waiting,['Lauren','Boston']);
+ assert.deepEqual(myDinnerVotes(state.dinner.d1,'Nate'),{'last:Sushi':'yes','last:Ramen':'yes'});
+ assert.match(applyDinnerVote(state,{day:'d1',key:'last:Pizza',vote:'yes'},'Nate').error,/not on the card/);
+ assert.match(applyDinnerVote(state,{day:'d1',key:'last:Sushi',vote:'yes'},'Stranger').error,/Only the family/);
+ assert.match(applyDinnerVote(state,{day:'d1',key:'last:Sushi',vote:'maybe'},'Nate').error,/yes or no/);
+ const reset=applyDinnerVote(state,{day:'d1',reset:true},'Nate').state;assert.deepEqual(myDinnerVotes(reset.dinner.d1,'Nate'),{});
+ assert.deepEqual(myDinnerVotes(reset.dinner.d1,'Boston'),{'last:Sushi':'yes'});
+ const h=await src('server/handler.mjs');assert.match(h,/route==='dinner-swipe'&&post\)\{\n\s*let problem=null;\n\s*const saved=await updateTrip/,'merged onto the latest trip, not refused on a revision');
+ const card=await src('src/DinnerTonight.jsx');assert.match(card,/<SuggestDeck items=\{toSwipe\}/);assert.match(card,/opts\.length>1&&!asList/,'only when there is more than one place');
+});
