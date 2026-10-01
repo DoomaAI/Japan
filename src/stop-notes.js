@@ -8,7 +8,8 @@ import {NOTES_BEFORE} from './stop-notes-history.js';
 // 2: fares, loop directions and exits checked against the operators' own pages.
 // 3: contradictions with the printed guide settled, each checked again.
 // 5: the bags picked up at the Fantasy Springs Hotel on the way out of DisneySea.
-export const NOTES_SEED=5;
+// 6: a taxi from Tokyo Station to the Hilton instead of the Marunouchi Line.
+export const NOTES_SEED=6;
 const PLANS={
  '2026-09-26-01':{title:'Leave Kanra for Arashiyama',was:'Gojo → Kyoto → JR Sagano Line. Check Maps for departures.',lines:[
   'Travel: about 40 min. 1 min walk to Gojo Exit 8, subway 2 min (Gojo K10 → Kyoto K11), about 10 min to change at Kyoto, then about 16 min on the JR Sagano Line to Saga-Arashiyama (JR-E08).',
@@ -96,9 +97,9 @@ const PLANS={
   'Travel: about 25 min, plus queues after the night show. Resort Line from Tokyo Disneyland Station to Bayside, 1 stop, about 4 min, then about 5 min on foot.',
   'Fare: adult ¥300 · child ¥150 each. Hotel guests do not get free passes; a 1-day Free Ticket is ¥700 / ¥350.',
  ]},
- '2026-10-01-14':{title:'Begin exit and journey to Hilton',was:'Resort Line → Maihama → Tokyo → Nishi-shinjuku. Check live routing.',lines:[
-  'Travel: about 95–110 min with the bag pickup. Out through the Fantasy Springs Entrance (open to all guests leaving since 15 September; be inside Fantasy Springs before 9 pm) to the Fantasy Springs Hotel to pick up our bags from the bell desk (about 15 min), about 5 min on foot to Bayside, Resort Line to Resort Gateway (about 8 min), 5 min on foot to JR Maihama, Keiyo Line to Tokyo (about 15 min), 15–20 min on foot to the Marunouchi Line, Marunouchi Line towards Ogikubo to Nishi-shinjuku M07 (about 20 min), then Exit C8 into Hiltopia, about 2 min.',
-  'Fare: adult ¥770 · child ¥390 each (Resort Line ¥300/¥150 + JR ¥260/¥130 + Metro ¥210/¥110).',
+ '2026-10-01-14':{title:'Begin exit and journey to Hilton',was:'Resort Line → Maihama → Tokyo → taxi to the Hilton. Check live routing.',lines:[
+  'Travel: about 90–105 min with the bag pickup. Out through the Fantasy Springs Entrance (open to all guests leaving since 15 September; be inside Fantasy Springs before 9 pm) to the Fantasy Springs Hotel to pick up our bags from the bell desk (about 15 min), about 5 min on foot to Bayside, Resort Line to Resort Gateway (about 8 min), 5 min on foot to JR Maihama, Keiyo Line to Tokyo (about 15 min), about 10 min on foot to the Yaesu South Exit taxi rank, then a taxi to Hilton Tokyo (about 30 min).',
+  'Fare: adult ¥560 · child ¥280 each (Resort Line ¥300/¥150 + JR ¥260/¥130), plus the taxi, about ¥4,000–5,000 per car.',
  ]},
  '2026-10-02-02':{title:'Head to Tsukiji',lines:[
   'Travel: about 35 min. Through Hiltopia to Nishi-shinjuku (M07), Marunouchi Line towards Ikebukuro to Ginza (M16), change to the Hibiya Line towards Kita-senju, 2 stops to Tsukiji (H11), Exit 1, 1 min to the market.',

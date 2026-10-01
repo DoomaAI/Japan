@@ -46,6 +46,8 @@ const walk=(text,minutes)=>({mode:'walk',text,minutes});
 // A stop made on the way rather than a stop of its own: collecting bags, a shop, a toilet break.
 // It is a leg like a walk or a ride, ticked as it is done, so the journey stays one card.
 const pause=(text,minutes,place)=>({mode:'stop',text,minutes,...(place?{place}:{})});
+// A taxi leg: fares are per car, so it adds nothing to the per-person train fares.
+const taxi=(text,minutes)=>({mode:'taxi',text,minutes});
 // Choices on the same ride, with time, fare and how to pay, so the family can pick on the day.
 const KINTETSU_OPTIONS=[
  {name:'Express',ja:'急行',minutes:45,yen:[760,380],fare:'adult ¥760 · child ¥380',how:'Tap an IC card (ICOCA, Suica, PASMO) at the Kintetsu gates, or buy a paper ticket from the fare machines. No seat reservation; sit anywhere free.'},
@@ -94,8 +96,8 @@ export const ROUTES={
   pause('Pick up the bags left at the Fantasy Springs Hotel after check-out this morning: the bell desk (luggage storage) in the lobby. Have the claim tags ready.',15,'Tokyo DisneySea Fantasy Springs Hotel'),
   walk('Fantasy Springs Hotel to Bayside Station.',5),
   ride('resort','Bayside','Resort Gateway',{yen:[300,150],towards:'any train; the loop runs one way',minutes:8,exit:'Across to JR Maihama.'}),
-  ride('keiyo','Maihama','Tokyo',{yen:[260,130],towards:'Tokyo (東京)',minutes:15,exit:'Follow signs for the Marunouchi Line (丸ノ内線), a long walk north through the station, 15–20 min.'}),
-  ride('marunouchi','Tokyo','Nishi-shinjuku',{yen:[210,110],towards:'Ogikubo (荻窪)',minutes:20,exit:'Exit C8, then up into the Hiltopia arcade under Hilton Tokyo, about 2 min.'})],
+  ride('keiyo','Maihama','Tokyo',{yen:[260,130],towards:'Tokyo (東京)',minutes:15,exit:'Follow signs for the Yaesu South Exit (八重洲南口) and the taxi rank (タクシー乗り場) just outside, about 10 min up from the Keiyo platforms.'}),
+  taxi('Tokyo Station, Yaesu South Exit rank, to Hilton Tokyo. Show the driver: ヒルトン東京（新宿区西新宿6-6-2）. About ¥4,000–5,000 per car; cards and IC cards are taken in most Tokyo taxis. A JPN Taxi (the tall black van) fits the four of us and the bags best.',30)],
  '2026-10-02-02':[walk('Hilton Tokyo through Hiltopia to Nishi-shinjuku, Exit C8.',5),
   ride('marunouchi','Nishi-shinjuku','Ginza',{yen:[210,110],through:true,towards:'Ikebukuro (池袋)',minutes:20,exit:'Follow the grey H signs to the Hibiya Line, about 3–4 min.'}),
   ride('hibiya','Ginza','Tsukiji',{sameTicket:true,towards:'Kita-senju (北千住)',minutes:3,exit:'Exit 1 (or 2), then about 1 min to the outer market. No-change alternative: Oedo Line from Tochomae (E28) to Tsukijishijo (E18), Exit A1, about the same time but ¥280.'})],
