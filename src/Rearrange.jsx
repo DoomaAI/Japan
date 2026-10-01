@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import {ArrowUp,ArrowDown,ArrowLeftRight,LockKeyhole,RotateCcw,Check} from 'lucide-react';
-import {dayBegun,withGroupMates,undoOrder} from './day-moves.js';
+import {dayBegun,withGroupMates,undoOrder,positionsOn} from './day-moves.js';
 // Moving more than one stop at a time. Whole days are swapped, or put in a new order; or some of a
 // day's stops are ticked and moved to another day, or traded for stops ticked there. The choices
 // are made with selects and tick boxes rather than by dragging, so a whole day can be moved
@@ -35,10 +35,10 @@ function WholeDays({state,day,busy,mutate,notice,dayLabel,close}){
  const shift=(i,by)=>{const j=i+by;if(j<0||j>=order.length)return;const next=[...order];[next[i],next[j]]=[next[j],next[i]];setOrder(next);};
  const place=(i,to)=>{const next=[...order],[d]=next.splice(i,1);next.splice(to,0,d);setOrder(next);};
  async function apply(){
-  const moveLocked=locked==='move';
+  const moveLocked=locked==='move',positions=positionsOn(state,moves.map(m=>m.to));
   if(!await mutate({type:'orderDays',order:proposed,moveLocked}))return;
   const back=undoOrder(dates,proposed);
-  notice({text:moves.length===2&&how==='swap'?`${byDate.get(a).title} and ${byDate.get(b).title} swapped days.`:`${moves.length} days moved.`,undo:async()=>{if(await mutate({type:'orderDays',order:back,moveLocked}))notice('The days are back where they were.');}});
+  notice({text:moves.length===2&&how==='swap'?`${byDate.get(a).title} and ${byDate.get(b).title} swapped days.`:`${moves.length} days moved.`,undo:async()=>{if(await mutate({type:'orderDays',order:back,moveLocked,positions}))notice('The days are back where they were.');}});
   close();
  }
  const option=d=><option key={d} value={d} disabled={dayBegun(state,d)}>{dayName(state,dayLabel,d)} · {byDate.get(d).title}{dayBegun(state,d)?' (begun)':''}</option>;
@@ -88,10 +88,11 @@ function SomeStops({state,day,busy,mutate,notice,dayLabel,close}){
  const pickTo=d=>{setTo(d);setBack([]);};
  async function apply(){
   const swapIds=action==='swap'?back:[];
+  const positions=positionsOn(state,[from,to]);
   if(!await mutate({type:'moveSteps',ids:picked,to,swapIds,moveLocked}))return;
   const what=going.length===1?going[0].title:`${going.length} stops`;
   notice({text:coming.length?`${what} swapped with ${coming.length===1?coming[0].title:`${coming.length} stops`} on ${dayLabel(to)}.`:`${what} moved to ${dayLabel(to)}.`,
-   undo:async()=>{if(await mutate({type:'moveSteps',ids:going.map(s=>s.id),to:from,swapIds:coming.map(s=>s.id),moveLocked}))notice('Back where they were.');}});
+   undo:async()=>{if(await mutate({type:'moveSteps',ids:going.map(s=>s.id),to:from,swapIds:coming.map(s=>s.id),moveLocked,positions}))notice('Back where they were.');}});
   close();
  }
  const daySelect=(value,set,skip)=><select value={value} onChange={e=>set(e.target.value)}>{dates.map(d=><option key={d} value={d} disabled={d===skip}>{dayName(state,dayLabel,d)} · {state.days.find(x=>x.date===d).title}</option>)}</select>;

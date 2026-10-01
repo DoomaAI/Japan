@@ -208,11 +208,11 @@ export function applyOperation(input,op,user){
   step.day=op.day;step.time=op.time||null;step.order=Math.max(0,...state.steps.filter(s=>s.day===op.day).map(s=>s.order))+10;
  }else if(op.type==='orderDays'){
   // Whole days traded or put in a new order; the dates and the hotels stay where they are.
-  const moves=orderDays(state,op.order,{moveLocked:op.moveLocked===true},fail);
+  const moves=orderDays(state,op.order,{moveLocked:op.moveLocked===true,positions:op.positions},fail);
   extra={summary:`Days rearranged: ${moves.map(m=>`${state.days.find(d=>d.date===m.to).title} → ${shortDate(m.to)}`).join('; ')}`,important:true,title:'Days rearranged'};
  }else if(op.type==='moveSteps'){
   // Stops picked off one day and moved to another, or traded for stops picked there.
-  const r=moveSteps(state,{ids:op.ids,to:op.to,swapIds:op.swapIds||[],moveLocked:op.moveLocked===true},fail);
+  const r=moveSteps(state,{ids:op.ids,to:op.to,swapIds:op.swapIds||[],moveLocked:op.moveLocked===true,positions:op.positions},fail);
   const names=list=>list.length===1?list[0].title:`${list.length} stops`;
   extra={summary:r.coming.length?`${names(r.going)} (${shortDate(r.from)}) swapped with ${names(r.coming)} (${shortDate(r.to)})`:`${names(r.going)} moved from ${shortDate(r.from)} to ${shortDate(r.to)}`,important:true,title:names(r.going)};
  }else if(op.type==='reorder'){

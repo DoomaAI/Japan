@@ -25,23 +25,39 @@ export function withGroupMates(state,ids){
  return state.steps.filter(s=>ids.includes(s.id)||(s.group&&groups.has(`${s.day}|${s.group}`)));
 }
 
-// Puts stops onto a date among the stops already there: a stop with a target time goes in before the
-// first stop due later than it, one without goes at the end, and the day is numbered afresh.
+// Puts stops onto a date among the stops already there. The stops arriving keep their own order
+// (a day moved whole is the same day, however it had been arranged); each one with a target time
+// goes in before the first stop already there that is due later, and the day is numbered afresh.
 export function placeOnDay(state,date,incoming){
  const coming=new Set(incoming.map(s=>s.id));
  const list=state.steps.filter(s=>s.day===date&&!coming.has(s.id)).sort((a,b)=>a.order-b.order);
+ let last=-1;
  for(const s of [...incoming].sort((a,b)=>a.order-b.order)){
   const t=minutes(s.time);
-  const at=t===null?-1:list.findIndex(x=>x.time&&minutes(x.time)>t);
-  list.splice(at<0?list.length:at,0,s);
+  const later=t===null?-1:list.findIndex(x=>!coming.has(x.id)&&x.time&&minutes(x.time)>t);
+  const at=Math.max(last+1,later<0?list.length:later);
+  list.splice(at,0,s);last=at;
  }
  for(const s of incoming)s.day=date;
  list.forEach((s,i)=>{s.order=(i+1)*10;});
 }
 
+// Where every stop on some days was, so an undo can put each one back on its day in its exact place
+// rather than slotting it in again by time.
+export const positionsOn=(state,dates)=>state.steps.filter(s=>dates.includes(s.day)).map(s=>({id:s.id,day:s.day,order:s.order}));
+export function restorePositions(state,positions,dates,fail){
+ if(positions===undefined)return;
+ if(!Array.isArray(positions)||positions.length>2000)fail('The plan changed. Reload before undoing.');
+ for(const p of positions){
+  const s=state.steps.find(x=>x.id===p?.id);
+  if(!s||!dates.includes(p.day)||!dates.includes(s.day)||!Number.isFinite(p.order)||Math.abs(p.order)>100000)fail('The plan changed. Reload before undoing.');
+ }
+ for(const p of positions)Object.assign(state.steps.find(x=>x.id===p.id),{day:p.day,order:p.order});
+}
+
 // Days in a new order: `order` lists every trip date, and the day now on order[i] moves to the i-th
 // date. A swap is the same thing with two dates traded.
-export function orderDays(state,order,{moveLocked=false}={},fail){
+export function orderDays(state,order,{moveLocked=false,positions}={},fail){
  const dates=state.days.map(d=>d.date);
  if(!Array.isArray(order)||order.length!==dates.length||new Set(order).size!==dates.length||order.some(d=>!dates.includes(d)))fail('The trip days changed. Reload before rearranging them.');
  const moves=dates.map((to,i)=>({from:order[i],to})).filter(m=>m.from!==m.to);
@@ -55,11 +71,12 @@ export function orderDays(state,order,{moveLocked=false}={},fail){
  // it is about to be swapped with.
  for(const list of travelling.values())for(const s of list)s.day=null;
  for(const m of moves)placeOnDay(state,m.to,travelling.get(m.from));
+ restorePositions(state,positions,moves.map(m=>m.to),fail);
  return moves;
 }
 
 // Stops picked from one day go to another; with `swapIds`, stops picked there come back the other way.
-export function moveSteps(state,{ids,to,swapIds=[],moveLocked=false},fail){
+export function moveSteps(state,{ids,to,swapIds=[],moveLocked=false,positions},fail){
  if(!Array.isArray(ids)||!ids.length||!Array.isArray(swapIds)||ids.length+swapIds.length>200)fail('Choose the stops to move.');
  if(!state.days.some(d=>d.date===to))fail('Choose a trip day to move them to.');
  const going=withGroupMates(state,ids),coming=withGroupMates(state,swapIds);
@@ -76,6 +93,7 @@ export function moveSteps(state,{ids,to,swapIds=[],moveLocked=false},fail){
  for(const s of all)s.day=null;
  placeOnDay(state,to,going);
  if(coming.length)placeOnDay(state,from[0],coming);
+ restorePositions(state,positions,[from[0],to],fail);
  return {from:from[0],to,going,coming};
 }
 
