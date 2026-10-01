@@ -1,9 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {readFileSync} from 'node:fs';
 import {applyOperation} from '../server/model.mjs';
 import {pendingProgress,proposalStepNotes,rankedProposals} from '../src/trip-features.js';
-import {splitRecommendations,matchProposal,recommenderList,recommendedProposals,placeKey} from '../src/recommend-data.js';
+import {splitRecommendations,matchProposal,recommenderList,recommendedProposals,placeKey,forwardedSender,handRecommendation,peekRecommendation,clearRecommendation} from '../src/recommend-data.js';
+import {deepLinkAction,withoutDeepLink,DEEP_LINKS} from '../src/deep-links.js';
+import {readRecommendations} from '../server/recommend.mjs';
 import {normaliseRecommendations} from '../server/recommend.mjs';
 const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url)));
 const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'};
@@ -69,4 +72,43 @@ test('a recommendation made with no signal shows on the board at once, merged th
 test('what the model reads out of a message is cut to size and checked',()=>{
  const items=normaliseRecommendations([{title:'  Katsu sando ',place:'Tokyo Station',category:'food',said:'x'.repeat(900)},{title:'',category:'food'},{title:'Odd',category:'bogus',said:''}]);
  assert.equal(items.length,2);assert.equal(items[0].title,'Katsu sando');assert.equal(items[0].said.length,500);assert.equal(items[1].category,'place');
+});
+
+test('each name says how the recommendation reached us, and a made-up channel is refused',()=>{
+ let state=applyOperation(seed,{type:'proposalRecommend',name:'Sue',via:'email',title:'Kiyomizu-dera'},parent);
+ assert.equal(state.proposals.at(-1).recommendedBy[0].via,'email');
+ state=applyOperation(state,{type:'proposalRecommend',name:'Sue',said:'And the sesame ice cream',title:'kiyomizu dera'},parent);
+ assert.equal(state.proposals.at(-1).recommendedBy[0].via,'message','the latest way she told us');
+ assert.throws(()=>applyOperation(seed,{type:'proposalRecommend',name:'Sue',via:'pigeon',title:'X'},parent),/how the recommendation reached us/);
+});
+test('a forwarded email is credited to whoever first sent it, not to the parent who forwarded it',()=>{
+ const gmail='Thought you would like these!\n\n---------- Forwarded message ---------\nFrom: Sue Pasfield <sue@example.com>\nDate: Mon\n\nNara: buy the crackers';
+ assert.equal(forwardedSender(gmail,'Damien <damien@example.com>'),'Sue Pasfield');
+ assert.equal(forwardedSender('Begin forwarded message:\n\nFrom: tom.b@work.example\nSubject: Japan'),'tom.b');
+ assert.equal(forwardedSender('Go to Nara','"Pop" <pop@example.com>'),'Pop','sent straight to the trip address');
+ assert.equal(forwardedSender('Go to Nara',''),'');
+});
+test('a tip shared from a phone opens the recommendations, from a Shortcut or from Android share',()=>{
+ const link=DEEP_LINKS.find(l=>l.id==='recommend');
+ assert.equal(link.path,'/?open=recommend&text=');
+ assert.deepEqual(deepLinkAction('?open=recommend&text=Ichiran%20-%20solo%20booths&from=Tom'),{type:'recommend',text:'Ichiran - solo booths',from:'Tom'});
+ assert.deepEqual(deepLinkAction('?share_title=Nara&share_text=Nara%20deer%20park&share_url=https%3A%2F%2Fnara.example'),{type:'recommend',text:'Nara\nNara deer park\nhttps://nara.example',from:''});
+ assert.equal(withoutDeepLink('?share_text=a&share_url=b&tab=planning'),'/?tab=planning');
+ const manifest=JSON.parse(readFileSync(new URL('../public/manifest.webmanifest',import.meta.url)));
+ assert.deepEqual(manifest.share_target.params,{title:'share_title',text:'share_text',url:'share_url'});
+});
+test('a hand-off to the panel survives being read twice and is gone once cleared',()=>{
+ handRecommendation({from:'Sue',text:'Nara',via:'email',inboxId:'i1'});
+ assert.equal(peekRecommendation().inboxId,'i1');assert.equal(peekRecommendation().via,'email');
+ clearRecommendation();assert.equal(peekRecommendation(),null);
+ assert.equal(handRecommendation({text:'x',via:'carrier pigeon'}).via,'message');
+});
+test('screenshots are checked before anything is sent to be read',async()=>{
+ const key=process.env.ANTHROPIC_API_KEY;process.env.ANTHROPIC_API_KEY='test';
+ try{
+  await assert.rejects(readRecommendations({text:''}),/Paste the message or add a screenshot/);
+  await assert.rejects(readRecommendations({images:Array.from({length:5},()=>({image:'AAAA',mediaType:'image/jpeg'}))}),/Up to 4/);
+  await assert.rejects(readRecommendations({images:[{image:'AAAA',mediaType:'image/gif'}]}),/JPEG, PNG or WebP/);
+  await assert.rejects(readRecommendations({images:[{image:'not base64!',mediaType:'image/png'}]}),/could not be read/);
+ }finally{if(key===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=key;}
 });

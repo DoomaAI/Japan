@@ -25,6 +25,7 @@ import Phrasebook,{PhraseOfDay} from './Phrasebook.jsx';
 import {phraseForDay} from './phrasebook-data.js';
 import {phraseSeenBy,phraseQueue} from './trip-features.js';
 import {deepLinkAction,withoutDeepLink} from './deep-links.js';
+import {handRecommendation} from './recommend-data.js';
 import {readTheme,applyTheme,readLook,applyLook} from './theme.js';
 import FunFacts,{FactOfDay,CardFacts,factAloudFor} from './FunFacts.jsx';
 import {factForDay,factsForStep,gentleFacts} from './fact-data.js';
@@ -314,6 +315,7 @@ function App(){
    else if(action.type==='todoSay'){setSayFirst({focus:true});setTab('todo');}
    else if(action.type==='nearby')setModal({type:'nearby',need:action.need});
    else if(action.type==='capture')setModal({type:'capture'});
+   else if(action.type==='recommend'){handRecommendation({text:action.text,from:action.from,via:'message'});setFocus(null);setTab('planning');}
    else if(action.type==='hotel'){const d=s.days.find(x=>x.date===nearestDay(s.days,japanDate()));if(d?.hotel)location.assign(directions(d.hotel));else setTab('help');}
   }
   function land(s){

@@ -1,5 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Mail,Paperclip,FileText,Languages,Ticket,Trash2,AlertCircle,ExternalLink} from 'lucide-react';
+import {Mail,Paperclip,FileText,Languages,Ticket,Trash2,AlertCircle,ExternalLink,MessageSquareQuote} from 'lucide-react';
+import {forwardedSender,handRecommendation} from './recommend-data.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {inboxItems,inboxTitle,inboxNotes,PROPOSAL_KINDS,TODO_KINDS} from './trip-features.js';
 const CATEGORIES=[['reservation','Reservation'],['ticket','Ticket'],['luggage','Luggage'],['other','Something else']];
@@ -81,7 +82,16 @@ function FileForm({item,state,busy,onFile}){
    <button type="button" onClick={()=>setOpen(false)} disabled={busy}>Cancel</button></div>
  </form>;
 }
-function InboxCard({item,state,config,busy,onFile,onDiscard}){
+// A friend's email of tips is not one thing to file but several ideas to vote on, so it goes to
+// the recommendations panel instead: the words in English, and the name of whoever first sent it
+// (a forward carries their From line; mail straight to the trip address is from them).
+function recommendFrom(item,config,go){
+ const english=item.reading?.language&&item.reading.language!=='English'&&item.reading.translation;
+ handRecommendation({text:english||item.text||(item.reading?.summary||[]).join('\n'),via:'email',inboxId:item.id,
+  from:forwardedSender(item.text,config?.emailInboxOpen?item.from:'')});
+ go('planning');
+}
+function InboxCard({item,state,config,busy,onFile,onDiscard,go}){
  return <article className="inbox-card">
   <header><strong>{item.subject||'(no subject)'}</strong><small>{item.from}{arrived(item)?` · ${arrived(item)}`:''}</small></header>
   <Reading item={item} enabled={!!config?.documentReader}/>
@@ -92,6 +102,7 @@ function InboxCard({item,state,config,busy,onFile,onDiscard}){
   {item.text&&<details><summary><FileText size={15}/> The email as it arrived</summary><pre>{item.text}</pre></details>}
   <div className="row wrap">
    <FileForm item={item} state={state} busy={busy} onFile={onFile}/>
+   {go&&(item.text||item.reading?.translation)&&<button disabled={busy} onClick={()=>recommendFrom(item,config,go)}><MessageSquareQuote size={16}/> Recommendations in this</button>}
    <button className="danger" disabled={busy}
     onClick={()=>{if(confirm('Throw this email away? Its attachments are deleted with it.'))onDiscard(item);}}><Trash2 size={16}/> Discard</button>
   </div>
@@ -121,10 +132,10 @@ export default function EmailInbox({state,config,busy,mutate,request,accept,noti
   {readFail&&<p className="callout"><AlertCircle size={18}/> {readFail}<button type="button" className="try-again" onClick={()=>{asked.current=null;setAttempt(a=>a+1);}}>Try again</button></p>}
   {config?.emailInbox&&config?.emailInboxOpen&&<p className="inbox-waiting"><Mail size={15}/> Anything sent to the trip address is accepted, whoever it says it is from. Spam is still turned away, and nothing reaches the trip until you file it.</p>}
   {!items.length
-   ?<div className="empty"><Mail size={26}/><h3>Nothing waiting</h3><p>Forward a booking confirmation to the trip address and it appears here, read into English, for you to file.</p></div>
+   ?<div className="empty"><Mail size={26}/><h3>Nothing waiting</h3><p>Forward a booking confirmation to the trip address and it appears here, read into English, for you to file. A friend’s email of tips works too: forward it, then choose Recommendations in this.</p></div>
    :<>
     <p>{items.length} email{items.length===1?'':'s'} waiting. Nothing here is on the itinerary until you file it.</p>
-    <div className="inbox-list">{items.map(item=><InboxCard key={item.id} item={item} state={state} config={config} busy={busy} onFile={file} onDiscard={discard}/>)}</div>
+    <div className="inbox-list">{items.map(item=><InboxCard key={item.id} item={item} state={state} config={config} busy={busy} onFile={file} onDiscard={discard} go={go}/>)}</div>
    </>}
   <p className="inbox-waiting"><Ticket size={15}/> Filed email lands in Tickets &amp; reservations, with the English kept in its notes so it reads with no signal. <button onClick={()=>go('tickets')}>Open Tickets</button></p>
  </>;

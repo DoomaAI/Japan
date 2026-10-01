@@ -1,24 +1,44 @@
-import React,{useState} from 'react';
-import {MessageSquareQuote,Plus,Sparkles,ListChecks,ChevronRight,AlertCircle,X} from 'lucide-react';
+import React,{useEffect,useRef,useState} from 'react';
+import {MessageSquareQuote,Plus,Sparkles,ListChecks,ChevronRight,AlertCircle,X,ClipboardPaste,Image as ImageIcon,Trash2} from 'lucide-react';
 import {PROPOSAL_KINDS} from './trip-features.js';
-import {splitRecommendations,matchProposal,recommenderList,recommendedProposals,recommenders,RECOMMEND_TEXT,RECOMMENDER_NAME} from './recommend-data.js';
-// Recommendations from friends and family, gathered in one place on the planning board. Paste
-// what somebody sent (a WhatsApp list, an email, a note from a phone call), say who it was from,
-// and tick through what it recommends. Each tick goes onto the board as an ordinary idea for the
-// family to vote on, or, when the place is already there, adds their name to that idea, so the
-// board shows one idea that three people told us about rather than three copies of it.
+import Dictate from './Dictate.jsx';
+import {shrinkPhoto} from './MenuReader.jsx';
+import {splitRecommendations,matchProposal,recommenderList,recommendedProposals,recommenders,peekRecommendation,clearRecommendation,
+ RECOMMEND_TEXT,RECOMMENDER_NAME,RECOMMEND_VIA,MAX_RECOMMEND_SHOTS} from './recommend-data.js';
+// Recommendations from friends and family, gathered in one place on the planning board. They
+// arrive however people send them: a WhatsApp list pasted or shared in, an email forwarded to the
+// trip address and sent on from the inbox, screenshots of a chat, or a phone call said aloud
+// afterwards. Say who it was from, tick through what it recommends, and each tick goes onto the
+// board as an ordinary idea for the family to vote on; a place already there gets their name
+// added, so the board shows one idea three people told us about rather than three copies of it.
 export default function Recommendations({state,user,mutate,busy,request,canRead,onOpen}){
- const ideas=state.proposals||[],people=recommenderList(ideas),top=recommendedProposals(ideas);
- const [adding,setAdding]=useState(false),[from,setFrom]=useState(''),[text,setText]=useState('');
- const [items,setItems]=useState(null),[reading,setReading]=useState(false),[error,setError]=useState(''),[saving,setSaving]=useState(false),[done,setDone]=useState('');
+ const ideas=state.proposals||[],people=recommenderList(ideas),top=recommendedProposals(ideas),parent=user.role==='parent';
+ // Something handed over from the inbox or the share sheet opens the form already filled in.
+ const [handed]=useState(()=>peekRecommendation());
+ const [adding,setAdding]=useState(!!handed),[from,setFrom]=useState(handed?.from||''),[text,setText]=useState(handed?.text||'');
+ const [via,setVia]=useState(handed?.via||'message'),[inboxId,setInboxId]=useState(handed?.inboxId||''),[shots,setShots]=useState([]);
+ const [items,setItems]=useState(null),[reading,setReading]=useState(false),[error,setError]=useState(''),[saving,setSaving]=useState(false),[done,setDone]=useState(null);
+ const picker=useRef(),card=useRef();
+ useEffect(()=>{if(!handed)return;clearRecommendation();card.current?.scrollIntoView?.({block:'start',behavior:'smooth'});},[]);
  function review(list){
   setItems(list.map((item,i)=>({...item,key:i,keep:true})));setError(list.length?'':'Nothing in that looked like a recommendation. Put one on each line, or add them below by hand.');
  }
  async function read(){
+  if(!navigator.onLine){setError('Reading it needs a connection. One per line works with no signal.');return;}
   setReading(true);setError('');
-  try{review((await request('recommend-read',{text,from})).items||[]);}
+  try{review((await request('recommend-read',{text,from,images:shots.length?shots.map(({image,mediaType})=>({image,mediaType})):undefined})).items||[]);}
   catch(e){setError(e.message||'That could not be read. Split it line by line instead.');}
   finally{setReading(false);}
+ }
+ async function paste(){
+  try{const clip=await navigator.clipboard.readText();if(clip?.trim())setText(t=>(t.trim()?`${t.trim()}\n`:'')+clip.trim().slice(0,RECOMMEND_TEXT));else setError('There is nothing copied to paste.');}
+  catch{setError('This phone would not hand over what was copied. Press and hold in the box and choose Paste.');}
+ }
+ async function addShots(files){
+  const room=MAX_RECOMMEND_SHOTS-shots.length,chosen=[...files||[]].slice(0,room);
+  if(files?.length>room)setError(`Up to ${MAX_RECOMMEND_SHOTS} screenshots at a time.`);
+  try{const shrunk=await Promise.all(chosen.map(f=>shrinkPhoto(f,2000,0.8)));setShots(s=>[...s,...shrunk]);setVia('screenshot');}
+  catch{setError('That picture could not be opened. Try a screenshot saved to Photos.');}
  }
  const edit=(key,patch)=>setItems(list=>list.map(i=>i.key===key?{...i,...patch}:i));
  async function save(){
@@ -29,39 +49,55 @@ export default function Recommendations({state,user,mutate,busy,request,canRead,
   for(const i of chosen){
    // Matched by name on the server against the board as it is then, not as this screen saw it.
    const match=matchProposal(ideas,i.title);
-   const ok=await mutate({type:'proposalRecommend',person:user.name,name,said:i.said,title:i.title.trim(),place:i.place,category:i.category});
+   const ok=await mutate({type:'proposalRecommend',person:user.name,name,said:i.said,via,title:i.title.trim(),place:i.place,category:i.category});
    if(!ok)break;
    if(match)joined++;else added++;
   }
   setSaving(false);
   if(added+joined===chosen.length){
-   setDone([added&&`${added} new idea${added===1?'':'s'}`,joined&&`${joined} already on the board`].filter(Boolean).join(' · ')+` from ${name}.`);
-   setItems(null);setText('');setAdding(false);
+   setDone({text:[added&&`${added} new idea${added===1?'':'s'}`,joined&&`${joined} already on the board`].filter(Boolean).join(' · ')+` from ${name}.`,inboxId});
+   setItems(null);setText('');setShots([]);setInboxId('');setAdding(false);
   }
  }
- const close=()=>{setAdding(false);setItems(null);setError('');};
- return <section className="feature-card recommend-card">
+ async function clearEmail(id){if(await mutate({type:'inboxDiscard',id}))setDone(d=>({...d,inboxId:''}));}
+ const close=()=>{setAdding(false);setItems(null);setError('');setShots([]);setInboxId('');};
+ const anything=text.trim()||shots.length;
+ return <section ref={card} className="feature-card recommend-card">
   <div className="section-heading"><div><span className="eyebrow">FROM FRIENDS & FAMILY</span><h2>Recommendations</h2></div><MessageSquareQuote size={22}/></div>
-  <p>{people.length?`${top.length} idea${top.length===1?'':'s'} from ${people.length} ${people.length===1?'person':'people'} who are not on the trip. Each one is on the board for a vote, with who said so.`:'Put every tip anyone has sent us in one place: paste their message and tick what goes on the board.'}</p>
-  {done&&<p className="callout">{done}</p>}
+  <p>{people.length?`${top.length} idea${top.length===1?'':'s'} from ${people.length} ${people.length===1?'person':'people'} who are not on the trip. Each one is on the board for a vote, with who said so.`:'Every tip anyone sends us, in one place: a text, an email, a screenshot or a phone call.'}</p>
+  {done&&<p className="callout">{done.text}{done.inboxId&&parent&&<> <button disabled={busy} onClick={()=>clearEmail(done.inboxId)}><Trash2 size={15}/>Clear the email from the inbox</button></>}</p>}
   {!!top.length&&<ol className="recommend-top">{top.slice(0,8).map(p=><li key={p.id}>
    <button className="recommend-link" onClick={()=>onOpen?.(p)}><strong>{p.title}</strong> <ChevronRight size={14}/></button>
    <small>{recommenders(p).map(r=>r.name).join(', ')}{recommenders(p).length>1?` · ${recommenders(p).length} recommendations`:''}</small>
   </li>)}</ol>}
   {!!people.length&&<div className="row wrap plan-tags">{people.map(r=><button className="tag" key={r.name} onClick={()=>onOpen?.({title:r.name})}>{r.name} · {r.ideas.length}</button>)}</div>}
-  {!adding&&<button className="primary" onClick={()=>{setAdding(true);setDone('');}}><Plus size={16}/>Add recommendations</button>}
+  {!adding&&<button className="primary" onClick={()=>{setAdding(true);setDone(null);}}><Plus size={16}/>Add recommendations</button>}
   {adding&&<div className="plan-form recommend-form">
-   <label>Who recommended it?<input value={from} onChange={e=>setFrom(e.target.value)} maxLength={RECOMMENDER_NAME} list="recommenders" placeholder="Aunty Sue, Tom from work…"/></label>
+   {inboxId&&<p className="inbox-waiting">From the forwarded email. Check who it was from: a forward usually says.</p>}
+   <div className="form-row">
+    <label>Who recommended it?<input value={from} onChange={e=>setFrom(e.target.value)} maxLength={RECOMMENDER_NAME} list="recommenders" placeholder="Aunty Sue, Tom from work…"/></label>
+    <label>How it reached us<select value={via} onChange={e=>setVia(e.target.value)}>{RECOMMEND_VIA.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
+   </div>
    <datalist id="recommenders">{people.map(r=><option key={r.name} value={r.name}/>)}</datalist>
    {!items&&<>
-    <label>What they sent<textarea value={text} onChange={e=>setText(e.target.value)} maxLength={RECOMMEND_TEXT} rows={7} placeholder={'Paste their message, or type one recommendation a line:\nIchiran Ramen - get the solo booth\nNishiki Market: go before 10'}/></label>
+    <label>What they said<textarea value={text} onChange={e=>setText(e.target.value)} maxLength={RECOMMEND_TEXT} rows={7}
+     placeholder={via==='call'?'What they told you, one thing a line, or tap Say it':'Paste their message, or type one recommendation a line:\nIchiran Ramen - get the solo booth\nNishiki Market: go before 10'}/></label>
     <div className="row wrap">
-     {canRead&&<button className="primary" disabled={reading||!text.trim()} onClick={read}><Sparkles size={16}/>{reading?'Reading it…':'Read it for me'}</button>}
+     {!!navigator.clipboard?.readText&&<button type="button" onClick={paste}><ClipboardPaste size={16}/>Paste</button>}
+     <Dictate onText={heard=>{setText(t=>(t.trim()?`${t.trim()}\n`:'')+heard);if(via==='message')setVia('call');}} label="Say it" what="what they recommended"/>
+     {canRead&&<><button type="button" disabled={shots.length>=MAX_RECOMMEND_SHOTS} onClick={()=>picker.current?.click()}><ImageIcon size={16}/>Screenshots</button>
+      <input ref={picker} type="file" accept="image/*" multiple hidden onChange={e=>{addShots(e.target.files);e.target.value='';}}/></>}
+    </div>
+    {!!shots.length&&<div className="recommend-shots">{shots.map((s,i)=><figure key={i}><img src={s.preview} alt={`Screenshot ${i+1}`}/>
+     <button type="button" aria-label={`Take screenshot ${i+1} out`} onClick={()=>setShots(list=>list.filter((_,j)=>j!==i))}><X size={14}/></button></figure>)}</div>}
+    <div className="row wrap">
+     {canRead&&<button className="primary" disabled={reading||!anything} onClick={read}><Sparkles size={16}/>{reading?'Reading it…':'Read it for me'}</button>}
      <button className={canRead?'':'primary'} disabled={reading||!text.trim()} onClick={()=>review(splitRecommendations(text))}><ListChecks size={16}/>One per line</button>
      <button onClick={()=>review([{title:'',said:'',place:'',category:'place'}])}>Type them in</button>
      <button onClick={close}>Cancel</button>
     </div>
-    {canRead&&<small>Read it for me picks the recommendations out of a chatty message and keeps their tips. It needs a connection and costs a cent or two. One per line works anywhere.</small>}
+    {canRead&&<small>Read it for me picks the recommendations out of a chatty message or screenshots of a chat, and keeps their tips. It needs a connection and costs a cent or two. One per line works anywhere.</small>}
+    <small>From a phone: share a message to the “Japan tip” Shortcut (set it up in Settings → Shortcuts), or on Android share it straight to Japan 2026. Forward an email to the trip address and open it from Forwarded email.</small>
    </>}
    {items&&<>
     <p><strong>Tick what goes on the board.</strong> Anything already there gets {from.trim()||'their'} name added instead of a second copy.</p>

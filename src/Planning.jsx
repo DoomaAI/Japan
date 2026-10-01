@@ -5,7 +5,7 @@ import {dayLabel} from './AdventurePages.jsx';
 import {TravelParty,PickedFor,Suggestions} from './PlanningParty.jsx';
 import ChooseTogether from './ChooseTogether.jsx';
 import Recommendations from './Recommendations.jsx';
-import {recommenders} from './recommend-data.js';
+import {recommenders,viaLabel} from './recommend-data.js';
 import {SETTINGS} from './decide-data.js';
 import {PROPOSAL_KINDS,PROPOSAL_TIMING,PROPOSAL_SORTS,PLACEMENT_LABEL,rankedProposals,proposalPlacement,proposalScore,proposalVoters,proposalMusts,yenPerAud,yenToAud} from './trip-features.js';
 const labelFor=(list,id,fallback)=>(list.find(([key])=>key===id)||fallback)[1];
@@ -118,7 +118,7 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
    <div className="section-heading"><div><span className="eyebrow">{kindLabel(p.category)}</span><h2>{p.title}</h2></div><span className={`plan-score ${score>0?'for':score<0?'against':''}`} aria-label={`${score} net votes`}>{score>0?'+':''}{score}</span></div>
    {p.place&&<p className="place-line"><MapPin size={16}/>{p.place}{p.japanese&&<small lang="ja"> · {p.japanese}</small>}</p>}
    {p.notes&&<p>{p.notes}</p>}
-   {recommenders(p).map(r=><blockquote key={r.name}><MessageSquareQuote size={14}/> <strong>{r.name}</strong>{r.said?`: ${r.said}`:' recommended this'}
+   {recommenders(p).map(r=><blockquote key={r.name}><MessageSquareQuote size={14}/> <strong>{r.name}</strong>{r.via&&viaLabel(r.via)?<small> · {viaLabel(r.via)}</small>:null}{r.said?`: ${r.said}`:' recommended this'}
     {(parent||r.by===user.name)&&<button className="recommend-link" aria-label={`Take ${r.name}'s recommendation off`} disabled={busy} onClick={()=>mutate({type:'proposalRecommend',id:p.id,person:user.name,name:r.name,remove:true})}> <X size={13}/></button>}</blockquote>)}
    <div className="plan-facts">
     <span><Clock size={15}/>{where.state==='scheduled'?`${dayLabel(where.day)}${where.time?` · ${where.time}`:' · any time'} · ${where.locked?'Locked':'Flexible'}`:timingLabel(p.timing)}</span>

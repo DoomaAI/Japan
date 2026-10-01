@@ -1462,8 +1462,8 @@ export function pendingProgress(state,queue){
   // A friend's recommendation is an addition too: onto the idea it matches, or a new one.
   if(o.type==='proposalRecommend'&&String(o.name||'').trim()){
    const hit=o.id?next.proposals.find(p=>p.id===o.id):o.remove?null:matchProposal(next.proposals,o.title);
-   if(hit)next.proposals=next.proposals.map(p=>p===hit?{...p,recommendedBy:withRecommender(p.recommendedBy,{name:o.name,said:o.said,at:o.at,by:o.person,remove:o.remove}),pending:!live}:p);
-   else if(!o.remove&&String(o.title||'').trim())next.proposals=[...next.proposals,{id:`pending-${o.operationId}`,...proposalDraft({...o,source:'recommended'}),recommendedBy:cleanRecommenders([{name:o.name,said:o.said,at:o.at,by:o.person}]),addedBy:o.person,createdAt:o.at,votes:{},musts:{},parked:false,stepId:null,pending:!live}];
+   if(hit)next.proposals=next.proposals.map(p=>p===hit?{...p,recommendedBy:withRecommender(p.recommendedBy,{name:o.name,said:o.said,via:o.via,at:o.at,by:o.person,remove:o.remove}),pending:!live}:p);
+   else if(!o.remove&&String(o.title||'').trim())next.proposals=[...next.proposals,{id:`pending-${o.operationId}`,...proposalDraft({...o,source:'recommended'}),recommendedBy:cleanRecommenders([{name:o.name,said:o.said,via:o.via,at:o.at,by:o.person}]),addedBy:o.person,createdAt:o.at,votes:{},musts:{},parked:false,stepId:null,pending:!live}];
   }
   if(o.type==='proposalVote'){const p=next.proposals.find(p=>p.id===o.id);if(p){const votes={...(p.votes||{})};if(o.vote===0)delete votes[o.person];else votes[o.person]=o.vote;p.votes=votes;p.pending=!live;}}
   if(o.type==='proposalMust'){const p=next.proposals.find(p=>p.id===o.id);if(p){const musts={...(p.musts||{})};if(o.must)musts[o.person]=musts[o.person]||o.at;else delete musts[o.person];p.musts=musts;p.pending=!live;}}
