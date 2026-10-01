@@ -144,7 +144,7 @@ Wrapping the app is the smaller part. Today the app holds **one trip for one fam
 
 ## Open questions
 
-- Product name, and whether the domain and trade mark are free.
+- Product name, and whether the domain and trade mark are free. Checks and order logged under [Launch requirements](commercialisation.md#launch-requirements-name-domain-legal-and-compliance).
 - Japan only at launch, or any destination?
 - Revenue: subscription, per-trip purchase, affiliate commission, or a mix? Options and per-trip costs are in the [monetisation section](commercialisation.md#monetisation); the leading option there is a per-trip pass sold by in-app purchase.
 - One codebase serving both the family's web app and the commercial apps, or fork once the family's trip is over? A single multi-trip codebase with the family's trip migrated in is the cleaner end state.

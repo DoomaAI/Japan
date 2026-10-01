@@ -514,6 +514,95 @@ Added 29 September 2026. What it would take to make the app work for any group, 
 - **The scanned guide** stays out of every module except this family's trip until it is licensed.
 - **Safety content drafted by AI** (emergency numbers, visa rules) for a new pack is reviewed by a person before it is shown.
 
+## Launch requirements: name, domain, legal and compliance
+
+Parked 1 October 2026; after the trip, with the commercial build. Nothing here is decided or bought. It gathers what a public launch by I'm In Ventures Pty Ltd normally needs, so none of it is found late. Store-specific items (D-U-N-S, developer accounts, privacy labels) are in [native-apps.md](native-apps.md); this section covers the rest and points there rather than repeating it.
+
+### Product name
+
+One name for the web app, both store listings and the trade mark. Not chosen.
+
+| Check | Where | Note |
+|---|---|---|
+| Trade mark clearance | IP Australia trade mark search; WIPO Global Brand Database for overseas markets | Classes 9 (apps), 39 (travel arranging), 42 (software as a service). A purely descriptive name ("Trip Planner") is hard to register and defend |
+| Business name | ASIC business names register | Register it as a business name of I'm In Ventures Pty Ltd if it differs from the company name |
+| Store listings | App Store (30 characters) and Google Play | Name must be free on both and match the trade mark |
+| Domain and handles | See below; Instagram, TikTok, X, LinkedIn | Secure at the same time as the domain |
+| Meaning in target markets | Japanese and any later destination languages | Check the name does not read badly in translation |
+| Open question | | Whether the product carries the company's "I'm In" name or has its own |
+
+Once chosen: file an Australian trade mark application (about A$330 per class online), and consider a Madrid Protocol extension to Japan, the US and the UK before launching there.
+
+### Domain names
+
+| Item | Note |
+|---|---|
+| Primary | `.com` and `.com.au` for the chosen name; `.com.au` needs an Australian presence, which the company's ACN gives |
+| Defensive | The `.au` direct name (auDA gives `.com.au` holders priority), `.app`, and common misspellings, redirected to the primary |
+| Company domain | Needed first, before the name is settled: Apple organisation enrolment requires a company website on its own domain and a company email ([native-apps.md](native-apps.md)) |
+| Set-up | Registrar with auto-renew and registry lock; DNS on Vercel; email on the domain with SPF, DKIM and DMARC; `apple-app-site-association` and `assetlinks.json` for app links |
+| Hosts | Marketing site on the root; the app on `app.` (or the root if there is no separate site); `api.` only if the API is licensed |
+
+### Legal documents
+
+| Document | What it covers | Basis |
+|---|---|---|
+| Privacy policy | What is collected (names, ages, photos, location, allergies, receipts), why, who it goes to, overseas recipients, access and correction, complaints | APP 1; App Store and Play require a public URL |
+| Collection notices | Shown at sign-up and when photos, location or allergy details are first collected | APP 5 |
+| Terms of use | Licence to use, accounts, acceptable use, user content, AI output not to be relied on for safety, visa or medical decisions, liability limits that survive consumer guarantees | ACL; unfair contract terms rules (penalties since November 2023) |
+| Subscription and refund terms | Trip pass price, renewal, cancellation and refunds; store-purchase refunds go through Apple and Google | ACL consumer guarantees and price representations |
+| End-user licence for the store apps | Apple's standard licence or our own | App Store Review Guidelines |
+| Affiliate and advertising disclosure | Where links earn commission; kept out of ratings and suggestions | ACL s 18 and s 29 |
+| AI disclosure | Which features use AI, that content goes to Anthropic for processing, and any automated decisions (such as sign-up allocation) | APP 8; the APP 1 automated-decision disclosure in force from 10 December 2026 |
+| Children | Accounts for minors only through a parent; what a child sees; consent | APPs; OAIC Children's Online Privacy Code (in development); Apple and Google family policies |
+| Cookie and analytics notice | Only if analytics or tracking is added | APPs; ePrivacy and GDPR if offered in Europe |
+| Business clients (white label) | Master services agreement, data processing agreement, service levels, acceptable use | Contract; clients' own privacy duties |
+| Marketing email | Consent, sender identity and unsubscribe | Spam Act 2003 |
+
+Have the documents drafted or reviewed by a lawyer before launch; generator templates miss the health-information and children's points.
+
+### Privacy and data protection
+
+- **Privacy Act 1988 and the APPs apply in practice.** The small-business exemption (turnover under A$3 million) should not be relied on: allergy details are health information, and business clients and the app stores expect compliance regardless.
+- **Notifiable Data Breaches scheme:** a written breach response plan, with assessment within 30 days and notice to the OAIC and those affected.
+- **Statutory tort for serious invasions of privacy** (in force since June 2025): another reason to keep location and photos tightly scoped.
+- **Overseas disclosure (APP 8):** Anthropic, Vercel and any US processor named in the policy; prefer Sydney regions (Vercel and Neon both offer them) for stored data.
+- **Retention and deletion:** a rule per data type, and an account-deletion path in the app (Apple and Google require one).
+- **Other jurisdictions:** GDPR and UK GDPR if sold to European or UK travellers (EU representative, lawful basis, data subject rights); Japan's APPI if Japanese users or agencies are signed.
+- **Privacy impact assessment** before launch, and again before sign-ups, payments or location sharing ship.
+
+### Security and ISO standards
+
+| Standard | What it is | When |
+|---|---|---|
+| ACSC Essential Eight | Australian baseline controls (patching, MFA, backups, admin privileges) | Before launch; low cost |
+| ISO/IEC 27001 | Certified information security management system | When a business client or tender asks for it. Allow 6–12 months and roughly A$30–80k for a first certification with an auditor |
+| ISO/IEC 27701 | Privacy extension to 27001 | With 27001; maps to the APPs and GDPR |
+| ISO/IEC 27017 and 27018 | Cloud security and personal data in public cloud | Added to the 27001 scope at little extra cost |
+| ISO/IEC 42001 | AI management system | Optional; useful for agencies and enterprise buyers asking how AI is governed |
+| SOC 2 Type II | US attestation, often accepted in place of 27001 | Only if selling to US businesses |
+| PCI DSS | Card data | Kept out of scope by taking payment only through Stripe or the app stores (self-assessment SAQ A) |
+| WCAG 2.2 AA | Accessibility | Before launch; Disability Discrimination Act 1992 and business clients' procurement |
+
+Before any certification, the groundwork is the same: an information security policy, risk register, access control, logging and monitoring, backups with restore tests, vendor assessments (Anthropic, Vercel, Neon, Stripe), incident response and a penetration test.
+
+### Company, tax and insurance
+
+- **IP ownership:** all code, designs and content assigned to I'm In Ventures Pty Ltd, including work by contractors and by this repository's contributors.
+- **Third-party rights:** the scanned guide and every data feed need a licence (already logged above); an open-source licence audit of dependencies.
+- **AI provider terms:** Anthropic's commercial terms and usage policy cover the intended use, including children as end users.
+- **GST:** register once turnover will pass A$75,000; prices shown GST-inclusive. Apple and Google collect GST on store sales; web sales are ours to report.
+- **Insurance:** professional indemnity, cyber, and public and product liability.
+- **Support and complaints:** a support address on the domain, a complaints process (APP 1 and ACL), and a contact for the stores' listings.
+
+### Order when picked up
+
+1. Shortlist names; run the trade mark, business name, domain and store checks together.
+2. Register the company domain and email first (the store accounts wait on them); the product domain once the name is cleared; file the trade mark.
+3. Lawyer drafts the privacy policy, terms, subscription terms and children's terms; privacy impact assessment alongside.
+4. Essential Eight controls, breach response plan, retention rules and account deletion before launch.
+5. ISO 27001 (with 27701 and 27017/27018) when the first business client asks.
+
 ## Next step when picked up
 
 A short design note (like `docs/design/maps-memories-tags.md`) covering the watch data model, the rating formula, the polling job, the group and poll model, and the sign-up model (options, places, allocation method, statuses and waitlist). Then build a prototype with one fare feed, Open-Meteo, the sumo calendar, and open polls built on the existing planning board votes. Before either, add a record of AI usage per call (tokens and searches) so the cost-per-trip figures above can be replaced with measured ones.
