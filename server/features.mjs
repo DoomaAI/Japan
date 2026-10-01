@@ -21,7 +21,7 @@ import {movesOf} from '../src/move-data.js';
 import {findEtiquette} from '../src/etiquette-data.js';
 import {INSIDER_FIELDS,INSIDER_STATUS,INSIDER_MAX} from '../src/insider-data.js';
 import {addStep,validatePatch,safeLink} from './model.mjs';
-import {PACK_CATEGORIES} from '../src/packing-data.js';
+import {PACK_CATEGORIES,BEFORE_WE_GO} from '../src/packing-data.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
 import {HUNTS,MAX_CUSTOM_HUNTS,MAX_HUNT_ENTRIES,huntEntryFields} from '../src/hunt-data.js';
 import {allergenById} from '../src/allergy-data.js';
@@ -1197,8 +1197,8 @@ export function extraOperation(state,op,user,fail,now){
   fail('Unknown to-do action.');
  }else if(typeof op.type==='string'&&op.type.startsWith('pack')){
   // The packing list. Anyone adds, ticks and turns a suggestion down, because the boys pack their
-  // own bags; changing or removing an item is for whoever added it, or a parent. Starting the
-  // next pack-up unticks the lot, and that is a parent's.
+  // own bags; changing or removing an item is for whoever added it, or a parent. The before-we-go
+  // lines are ticked by anyone too. Starting the next pack-up unticks the lot, and that is a parent's.
   const list=state.packing,found=()=>{const i=list.items.find(i=>i.id===op.id);if(!i)fail('That is no longer on the packing list.',404);return i;};
   const clean=o=>{
    if(!string(o?.title,200)||!o.title.trim())fail('Say what to pack.');
@@ -1244,9 +1244,18 @@ export function extraOperation(state,op,user,fail,now){
    list.dismissed=dismissed;
    return {summary:null,important:false,title:'Packing suggestion'};
   }
+  if(op.type==='packBefore'){
+   if(!BEFORE_WE_GO.some(b=>b.id===op.id))fail('That is not on the before-we-go list.');
+   if(typeof op.done!=='boolean')fail('Invalid tick.');
+   const before={...(list.before||{})};
+   if(op.done)before[op.id]={by:user.name,at:stamp()};else delete before[op.id];
+   list.before=before;
+   return {summary:null,important:false,title:BEFORE_WE_GO.find(b=>b.id===op.id).title};
+  }
   if(op.type==='packReset'){
    if(!parent)fail('A parent starts the next pack-up.',403);
    for(const item of list.items){item.packedAt=null;item.packedBy=null;}
+   list.before={};
    return {summary:null,important:false,title:'Packing list'};
   }
   fail('Unknown packing action.');
