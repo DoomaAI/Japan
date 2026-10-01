@@ -673,6 +673,7 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .morning-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;margin-bottom:.6rem}.morning-head .eyebrow{margin:0 0 .15rem}.morning-head strong{font-size:1.05rem}
 .morning-streak{display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .6rem;border-radius:999px;background:#fff3e0;color:#8a4b12;font-size:.8rem;font-weight:600;white-space:nowrap}
 .morning-chips .chip{min-height:40px;font-size:.9rem}.morning-chips .chip.on{background:var(--green);border-color:var(--green);color:var(--paper)}
+.morning-tools{display:flex;align-items:center;gap:.3rem}.morning-close{border:0;background:none;padding:.3rem;min-height:auto;color:var(--muted);border-radius:999px}
 .morning-why{margin:.6rem 0 0;color:var(--muted);font-size:.85rem}
 
 .likes-input .row{gap:.5rem;margin:.5rem 0}.likes-input .row input{flex:1;min-width:0}.likes-input small{display:block;margin:.4rem 0 .3rem;color:var(--muted)}.likes-input .chips{margin:.3rem 0}.likes-input button.chip{min-height:36px}.tag.like{background:#fbeaea;border-color:#ecc3c3}

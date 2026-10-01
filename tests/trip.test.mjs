@@ -10336,6 +10336,18 @@ test('before we head out is a list built for the day, ticked fresh each morning,
  assert.equal(streakWords(3,'2026-09-27'),'3 mornings in a row · one missed morning forgiven this week');
  assert.equal(streakWords(1),'First morning done');assert.equal(streakWords(4),'4 mornings in a row');assert.equal(streakWords(0),'');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // Closing it puts it away for that day only; the next morning has its own key and brings it back.
+ const {readClosed,writeClosed}=await import('../src/morning-data.js');
+ const store={},saved=globalThis.localStorage;
+ globalThis.localStorage={getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=String(v);}};
+ try{
+  assert.equal(readClosed('2026-10-01'),false);
+  writeClosed('2026-10-01');
+  assert.equal(readClosed('2026-10-01'),true,'closed for the rest of the day');
+  assert.equal(readClosed('2026-10-02'),false,'and back the next morning');
+ }finally{globalThis.localStorage=saved;}
+ const widget=await readFile(new URL('../src/Morning.jsx',import.meta.url),'utf8');
+ assert.match(widget,/if\(day!==today\|\|closed\)return null/,'a closed checklist draws nothing');
  assert.match(main,/needs:<MorningChecklist key=\{day\} state=\{visibleState\} day=\{day\} today=\{japanDate\(now\)\}\/>/,'the widget slot is the checklist');
 });
 test('the shopping list groups by the shop we will be standing in, or the day we will be there',async()=>{

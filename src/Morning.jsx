@@ -1,11 +1,12 @@
 import React,{useState} from 'react';
-import {Check,Flame,RotateCcw} from 'lucide-react';
-import {morningList,readTicks,writeTicks,readStreak,writeStreak,nextStreak,streakWords} from './morning-data.js';
+import {Check,Flame,RotateCcw,X} from 'lucide-react';
+import {morningList,readTicks,writeTicks,readStreak,writeStreak,nextStreak,streakWords,readClosed,writeClosed} from './morning-data.js';
 // The Before we head out widget: one tap per thing to carry, reset each morning by itself, and
 // a streak for finishing. It is only about today; other days have no morning to get ready for.
 export default function MorningChecklist({state,day,today}){
- const [ticks,setTicks]=useState(()=>readTicks(day)),[streak,setStreak]=useState(readStreak);
- if(day!==today)return null;
+ const [ticks,setTicks]=useState(()=>readTicks(day)),[streak,setStreak]=useState(readStreak),[closed,setClosed]=useState(()=>readClosed(day));
+ if(day!==today||closed)return null;
+ const close=()=>{writeClosed(day);setClosed(true);};
  const items=morningList(state,day),done=items.filter(i=>ticks.includes(i.id)).length,complete=items.length>0&&done===items.length;
  const toggle=id=>{
   const next=ticks.includes(id)?ticks.filter(x=>x!==id):[...ticks,id];
@@ -17,7 +18,10 @@ export default function MorningChecklist({state,day,today}){
  return <section className={`morning${complete?' complete':''}`}>
   <div className="morning-head">
    <div><h2 className="eyebrow">Before we head out</h2><strong>{complete?'Out the door.':`${done} of ${items.length} in the bag`}</strong></div>
-   {streakLine&&<span className="morning-streak"><Flame size={15}/>{streakLine}</span>}
+   <div className="morning-tools">
+    {streakLine&&<span className="morning-streak"><Flame size={15}/>{streakLine}</span>}
+    <button type="button" className="morning-close" aria-label="Hide for the rest of today" title="Hide for the rest of today" onClick={close}><X size={18}/></button>
+   </div>
   </div>
   {!complete&&<div className="chips morning-chips">{items.map(i=><button type="button" key={i.id} className={`chip${ticks.includes(i.id)?' on':''}`} aria-pressed={ticks.includes(i.id)} title={i.why||''} onClick={()=>toggle(i.id)}>{ticks.includes(i.id)?<Check size={14}/>:<span aria-hidden="true">{i.emoji}</span>}{i.label}</button>)}</div>}
   {!complete&&items.some(i=>i.why&&!['passports','ic'].includes(i.id))&&<p className="morning-why">{items.filter(i=>i.why&&!['passports','ic'].includes(i.id)).map(i=>`${i.emoji} ${i.why}`).join(' ')}</p>}
