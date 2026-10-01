@@ -50,21 +50,64 @@ export function matchProposal(proposals,title){
 }
 // Reading a pasted message without the model: one recommendation a line, bullets and numbers
 // taken off, and anything after a dash or a colon kept as what they said about it. Lines that
-// are plainly chat ("Hi!", "Have a great trip", a question) are left out. It is a starting list
-// for a person to tick through, not a judgement.
-const CHATTY=/^(hi|hey|hello|dear|thanks|thank you|cheers|love|xx+|have (a|an|the) |enjoy|let me know|hope|ps\b|p\.s\.|from\b|sent from)/i;
-export function splitRecommendations(text){
- const lines=String(text??'').slice(0,RECOMMEND_TEXT).split(/\r?\n|\s•\s|;\s+/);
+// are plainly chat ("Hi!", "Have a great trip", a question) are left out. Messages come in
+// groups, so the shape is read too:
+// - a heading naming one of our bases ("Kyoto:", "Day trips from Tokyo") puts what follows
+//   under that base, and one naming a kind ("Food:", "Shopping") gives what follows that kind;
+// - any other heading ("Nikko:") is a place in its own right, and the lines under it are part of it;
+// - an indented line, or a sub-bullet, is part of the line above it;
+// - a base or a journey time in the line itself ("Nara, 45 min from Kyoto") is picked up.
+// It is a starting list for a person to tick through, not a judgement.
+const CHATTY=/^(hi|hey|hello|dear|thanks|thank you|cheers|love|xx+|have (a|an|the) |enjoy|let me know|hope|ps\b|p\.s\.|from\b(?! (tokyo|kyoto|osaka|nara))|sent from)/i;
+const KIND_WORDS=[['food',/^(food|eat|eating|restaurants?|ramen|sushi|snacks?|drinks?|cafes?|coffee|bars?|where to eat)\b/i],
+ ['shopping',/^(shop|shops|shopping|souvenirs?|markets?)\b/i],['event',/^(events?|shows?|festivals?)\b/i],
+ ['activity',/^(things to do|activities|activity|kids|for the boys|for the kids)\b/i],['rest',/^(onsen|relax|rest)\b/i],['place',/^(sights?|see|places?|temples?|shrines?|museums?|day trips?)\b/i]];
+const TRAVEL=/(?:about |around |~|only |just )?\d+(?:[.,]\d+)?\s*(?:-\s*\d+\s*)?(?:min(?:ute)?s?|hrs?|hours?|h)\b(?:\s+(?:by|on|via)\s+[^,;.)]{2,40})?/i;
+const escape=v=>v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+export function splitRecommendations(text,areas=[]){
+ const rows=String(text??'').slice(0,RECOMMEND_TEXT).replace(/\s•\s/g,'\n- ').split(/\r?\n/);
+ const areaIn=v=>areas.find(a=>new RegExp(`\\b${escape(a)}\\b`,'i').test(v))||'';
  const out=[],seen=new Set();
- for(const raw of lines){
-  const line=raw.replace(/^\s*(?:[-*•·▪◦>]|\d{1,2}[.)]|[a-z][.)])\s*/i,'').trim();
-  if(line.length<3||line.length>300||CHATTY.test(line)||/\?\s*$/.test(line))continue;
-  const [, head, tail]=line.match(/^(.{2,120}?)\s+(?:[-–—:]|\.\.\.)\s+(.+)$/)||line.match(/^(.{2,120}?)\s*[:–—]\s*(.+)$/)||[null,line,''];
-  const title=clamp(head.replace(/[.!]+$/,''),250);
-  if(!title||title.split(' ').length>12)continue;
-  const key=placeKey(title);if(!key||seen.has(key))continue;seen.add(key);
-  out.push({title,said:clamp(tail,RECOMMENDER_SAID),place:'',category:'place'});
-  if(out.length>=MAX_RECOMMEND_ITEMS)break;
+ let base='',kind='',parent=null,parentIndent=-1;
+ for(const raw of rows){
+  if(!raw.trim()){parent=null;continue;}
+  const indent=raw.match(/^\s*/)[0].replace(/\t/g,'    ').length;
+  const sub=/^\s*[◦▪○‣–]\s/.test(raw)||(/^\s*[-*•·]\s/.test(raw)&&indent>=2);
+  const bullet=/^\s*(?:[-*•·▪◦○‣–>]|\d{1,2}[.)]|[a-z][.)])\s/i.test(raw);
+  for(const piece of raw.split(/;\s+/)){
+   const line=piece.replace(/^\s*(?:[-*•·▪◦○‣–>]|\d{1,2}[.)]|[a-z][.)])\s*/i,'').trim();
+   if(line.length<3||line.length>300||CHATTY.test(line)||/\?\s*$/.test(line))continue;
+   // A heading: a line on its own ending in a colon, or a short unbulleted line naming a base.
+   const heading=!bullet&&(/:\s*$/.test(line)||/^(day trips?|in|around|near|from|out of)\b/i.test(line)&&line.split(' ').length<=6);
+   if(heading){
+    const label=line.replace(/:\s*$/,'').trim(),area=areaIn(label),k=KIND_WORDS.find(([,re])=>re.test(label));
+    if(area||k){if(area)base=area;if(k)kind=k[0];if(area&&!k)kind='';parent=null;continue;}
+   }
+   const [, head, tail]=line.match(/^(.{2,120}?)\s+(?:[-–—:]|\.\.\.)\s+(.+)$/)||line.match(/^(.{2,120}?)\s*[:–—]\s*(.*)$/)||[null,line,''];
+   // A parenthesis in the name is a note about it: "Nara (day trip from Kyoto)".
+   let name=head,bracket=(head.match(/\(([^)]*)\)/)||[])[1]||'',where='';
+   name=name.replace(/\([^)]*\)/g,' ');
+   // "Nara, 45 min from Kyoto": what comes after the comma is about getting there, not the name.
+   const comma=name.match(/^([^,]{2,80}),\s*(.+)$/);
+   if(comma&&(TRAVEL.test(comma[2])||/\b(from|near|outside|day trip)\b/i.test(comma[2]))){name=comma[1];bracket=[bracket,comma[2]].filter(Boolean).join('. ');}
+   // "Ichiran Ramen in Osaka": the base is where it is, not part of its name.
+   const inArea=name.match(/^(.{2,}?)\s+(?:in|at)\s+([^,]+)$/i);
+   if(inArea&&areaIn(inArea[2])&&placeKey(inArea[2])===placeKey(areaIn(inArea[2]))){name=inArea[1];where=areaIn(inArea[2]);}
+   const title=clamp(name.replace(/[.!]+$/,''),250);
+   if(!title||title.split(' ').length>12)continue;
+   // A bracket that only says how far it is goes in Getting there, not in what they said twice.
+   const onlyTravel=bracket&&(bracket.match(TRAVEL)||[''])[0].trim()===bracket.trim();
+   const said=clamp([onlyTravel?'':bracket,tail].filter(Boolean).join('. '),RECOMMENDER_SAID);
+   const under=parent&&(sub||indent>parentIndent&&indent>0)?parent:null;
+   const own=where||areaIn(`${bracket} ${tail}`)||(areaIn(title)&&placeKey(title)!==placeKey(areaIn(title))?areaIn(title):'');
+   const travel=clamp((`${bracket} ${tail}`.match(TRAVEL)||[''])[0],120);
+   const key=placeKey(title);if(!key||seen.has(key))continue;seen.add(key);
+   const item={title,said,place:where,category:kind||'place',accessibleFrom:under?'':(own||base),travel,within:under?under.title:''};
+   out.push(item);
+   // A heading-style place ("Nikko:" with nothing after it), or a top-level line, can have parts.
+   if(!under){parent=item;parentIndent=indent;}
+   if(out.length>=MAX_RECOMMEND_ITEMS)return out;
+  }
  }
  return out;
 }

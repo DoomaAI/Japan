@@ -378,8 +378,8 @@ export default async function handler(req,res){
   // A friend's message read into separate recommendations. Reads nothing from the trip and
   // writes nothing: the list comes back to be ticked through and saved through mutate.
   if(route==='recommend-read'&&post){
-   parent(user);
-   return json(res,await readRecommendations(b));
+   parent(user);const {state}=await readTrip();
+   return json(res,await readRecommendations(b,state));
   }
   if(route==='research'&&post){
    parent(user);const {state}=await readTrip();

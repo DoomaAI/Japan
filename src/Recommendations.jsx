@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {MessageSquareQuote,Plus,Sparkles,ListChecks,ChevronRight,AlertCircle,X,ClipboardPaste,Image as ImageIcon,Trash2} from 'lucide-react';
-import {PROPOSAL_KINDS} from './trip-features.js';
+import {PROPOSAL_KINDS,tripAreas,ideasByBase} from './trip-features.js';
+import {japanDate} from './timing.js';
 import Dictate from './Dictate.jsx';
 import {shrinkPhoto} from './MenuReader.jsx';
 import {splitRecommendations,matchProposal,recommenderList,recommendedProposals,recommenders,peekRecommendation,clearRecommendation,
@@ -11,8 +12,27 @@ import {splitRecommendations,matchProposal,recommenderList,recommendedProposals,
 // afterwards. Say who it was from, tick through what it recommends, and each tick goes onto the
 // board as an ordinary idea for the family to vote on; a place already there gets their name
 // added, so the board shows one idea three people told us about rather than three copies of it.
+// One line in the summary: the idea, who told us, and how to get there.
+function Line({p,onOpen}){
+ const r=recommenders(p);
+ return <><button className="recommend-link" onClick={()=>onOpen?.(p)}><strong>{p.title}</strong> <ChevronRight size={14}/></button>
+  <small>{r.map(x=>x.name).join(', ')}{r.length>1?` · ${r.length} recommendations`:''}{p.travel?` · ${p.travel}`:''}</small></>;
+}
+// The list to tick through, grouped the way the board will group it: by base, with each place's
+// parts straight after it. The first of each base is marked so a heading can go above it.
+function reviewOrder(items){
+ const tops=items.filter(i=>!i.within),bases=[...new Set(tops.map(i=>i.accessibleFrom))].sort((a,b)=>(!a)-(!b));
+ const out=[];
+ for(const base of bases)tops.filter(i=>i.accessibleFrom===base).forEach((top,n)=>{
+  out.push({...top,first:n===0});
+  out.push(...items.filter(i=>i.within&&i.within===top.title));
+ });
+ // Parts whose place has been renamed or dropped still show, at the end, so nothing goes missing.
+ return [...out,...items.filter(i=>i.within&&!tops.some(t=>t.title===i.within))];
+}
 export default function Recommendations({state,user,mutate,busy,request,canRead,onOpen}){
  const ideas=state.proposals||[],people=recommenderList(ideas),top=recommendedProposals(ideas),parent=user.role==='parent';
+ const areas=tripAreas(state),groups=ideasByBase(state,top,japanDate());
  // Something handed over from the inbox or the share sheet opens the form already filled in.
  const [handed]=useState(()=>peekRecommendation());
  const [adding,setAdding]=useState(!!handed),[from,setFrom]=useState(handed?.from||''),[text,setText]=useState(handed?.text||'');
@@ -21,7 +41,7 @@ export default function Recommendations({state,user,mutate,busy,request,canRead,
  const picker=useRef(),card=useRef();
  useEffect(()=>{if(!handed)return;clearRecommendation();card.current?.scrollIntoView?.({block:'start',behavior:'smooth'});},[]);
  function review(list){
-  setItems(list.map((item,i)=>({...item,key:i,keep:true})));setError(list.length?'':'Nothing in that looked like a recommendation. Put one on each line, or add them below by hand.');
+  setItems(list.map((item,i)=>({within:'',accessibleFrom:'',travel:'',...item,key:i,keep:true})));setError(list.length?'':'Nothing in that looked like a recommendation. Put one on each line, or add them below by hand.');
  }
  async function read(){
   if(!navigator.onLine){setError('Reading it needs a connection. One per line works with no signal.');return;}
@@ -42,14 +62,20 @@ export default function Recommendations({state,user,mutate,busy,request,canRead,
  }
  const edit=(key,patch)=>setItems(list=>list.map(i=>i.key===key?{...i,...patch}:i));
  async function save(){
-  const name=from.trim(),chosen=items.filter(i=>i.keep&&i.title.trim());
+  const name=from.trim(),kept=items.filter(i=>i.keep&&i.title.trim());
+  // Places before the things in them, so "part of Nikko" finds Nikko already on the board. A part
+  // whose place was left unticked stands on its own, reached from wherever its place was.
+  const keptTitles=new Set(kept.filter(i=>!i.within).map(i=>i.title.trim()));
+  const chosen=[...kept.filter(i=>!i.within),...kept.filter(i=>i.within)].map(i=>i.within&&!keptTitles.has(i.within)&&!matchProposal(ideas,i.within)
+   ?{...i,within:'',accessibleFrom:i.accessibleFrom||items.find(x=>x.title===i.within)?.accessibleFrom||''}:i);
   if(!name){setError('Say who recommended these first.');return;}
   setSaving(true);setError('');let added=0,joined=0;
   // One at a time, so a second item matching the first lands on it rather than beside it.
   for(const i of chosen){
    // Matched by name on the server against the board as it is then, not as this screen saw it.
    const match=matchProposal(ideas,i.title);
-   const ok=await mutate({type:'proposalRecommend',person:user.name,name,said:i.said,via,title:i.title.trim(),place:i.place,category:i.category});
+   const ok=await mutate({type:'proposalRecommend',person:user.name,name,said:i.said,via,title:i.title.trim(),place:i.place,category:i.category,
+    within:i.within,accessibleFrom:i.within?'':i.accessibleFrom,travel:i.travel});
    if(!ok)break;
    if(match)joined++;else added++;
   }
@@ -66,10 +92,15 @@ export default function Recommendations({state,user,mutate,busy,request,canRead,
   <div className="section-heading"><div><span className="eyebrow">FROM FRIENDS & FAMILY</span><h2>Recommendations</h2></div><MessageSquareQuote size={22}/></div>
   <p>{people.length?`${top.length} idea${top.length===1?'':'s'} from ${people.length} ${people.length===1?'person':'people'} who are not on the trip. Each one is on the board for a vote, with who said so.`:'Every tip anyone sends us, in one place: a text, an email, a screenshot or a phone call.'}</p>
   {done&&<p className="callout">{done.text}{done.inboxId&&parent&&<> <button disabled={busy} onClick={()=>clearEmail(done.inboxId)}><Trash2 size={15}/>Clear the email from the inbox</button></>}</p>}
-  {!!top.length&&<ol className="recommend-top">{top.slice(0,8).map(p=><li key={p.id}>
-   <button className="recommend-link" onClick={()=>onOpen?.(p)}><strong>{p.title}</strong> <ChevronRight size={14}/></button>
-   <small>{recommenders(p).map(r=>r.name).join(', ')}{recommenders(p).length>1?` · ${recommenders(p).length} recommendations`:''}</small>
-  </li>)}</ol>}
+  {!!top.length&&<div className="recommend-groups">{groups.map(g=>{
+   const body=<ul className="recommend-top">{g.items.map(({idea,children})=><li key={idea.id}>
+    <Line p={idea} onOpen={onOpen}/>
+    {!!children.length&&<ul className="recommend-parts">{children.map(c=><li key={c.id}><Line p={c} onOpen={onOpen}/></li>)}</ul>}
+   </li>)}</ul>;
+   const label=g.base?`Accessible from ${g.base}`:'Not sure where';
+   return g.behind?<details key={g.base||'none'}><summary>{label} · behind us</summary>{body}</details>
+    :<div key={g.base||'none'}><h3>{label}</h3>{body}</div>;
+  })}</div>}
   {!!people.length&&<div className="row wrap plan-tags">{people.map(r=><button className="tag" key={r.name} onClick={()=>onOpen?.({title:r.name})}>{r.name} · {r.ideas.length}</button>)}</div>}
   {!adding&&<button className="primary" onClick={()=>{setAdding(true);setDone(null);}}><Plus size={16}/>Add recommendations</button>}
   {adding&&<div className="plan-form recommend-form">
@@ -92,7 +123,7 @@ export default function Recommendations({state,user,mutate,busy,request,canRead,
      <button type="button" aria-label={`Take screenshot ${i+1} out`} onClick={()=>setShots(list=>list.filter((_,j)=>j!==i))}><X size={14}/></button></figure>)}</div>}
     <div className="row wrap">
      {canRead&&<button className="primary" disabled={reading||!anything} onClick={read}><Sparkles size={16}/>{reading?'Reading it…':'Read it for me'}</button>}
-     <button className={canRead?'':'primary'} disabled={reading||!text.trim()} onClick={()=>review(splitRecommendations(text))}><ListChecks size={16}/>One per line</button>
+     <button className={canRead?'':'primary'} disabled={reading||!text.trim()} onClick={()=>review(splitRecommendations(text,areas))}><ListChecks size={16}/>One per line</button>
      <button onClick={()=>review([{title:'',said:'',place:'',category:'place'}])}>Type them in</button>
      <button onClick={close}>Cancel</button>
     </div>
@@ -101,7 +132,9 @@ export default function Recommendations({state,user,mutate,busy,request,canRead,
    </>}
    {items&&<>
     <p><strong>Tick what goes on the board.</strong> Anything already there gets {from.trim()||'their'} name added instead of a second copy.</p>
-    <ul className="recommend-items">{items.map(i=>{const match=i.title.trim()&&matchProposal(ideas,i.title);return <li key={i.key} className={i.keep?'':'off'}>
+    <ul className="recommend-items">{reviewOrder(items).map(i=>{const match=i.title.trim()&&matchProposal(ideas,i.title),tops=items.filter(x=>!x.within&&x.key!==i.key&&x.title.trim());
+     const heading=!i.within&&(i.first?<li className="recommend-heading" aria-hidden="true">{i.accessibleFrom?`Accessible from ${i.accessibleFrom}`:'Not sure where'}</li>:null);
+     return <React.Fragment key={i.key}>{heading}<li className={`${i.keep?'':'off'}${i.within?' part':''}`}>
      <input className="recommend-keep" type="checkbox" checked={i.keep} onChange={e=>edit(i.key,{keep:e.target.checked})} aria-label={`Put ${i.title||'this'} on the board`}/>
      <div>
       <input value={i.title} onChange={e=>edit(i.key,{title:e.target.value})} maxLength={250} placeholder="Place, dish or thing to do" aria-label="What they recommended"/>
@@ -110,11 +143,18 @@ export default function Recommendations({state,user,mutate,busy,request,canRead,
        <input value={i.place} onChange={e=>edit(i.key,{place:e.target.value})} maxLength={250} placeholder="Where (optional)" aria-label="Where"/>
       </div>
       <input value={i.said} onChange={e=>edit(i.key,{said:e.target.value})} maxLength={500} placeholder="What they said about it" aria-label="What they said"/>
-      <small>{match?`Already on the board as ${match.title}: adds ${from.trim()||'their'} name to it`:'New idea on the board'}</small>
+      <div className="form-row">
+       <select value={i.within} onChange={e=>edit(i.key,{within:e.target.value})} aria-label="Part of" disabled={items.some(x=>x.within===i.title&&x.key!==i.key)}>
+        <option value="">On its own</option>{tops.map(x=><option key={x.key} value={x.title}>Part of {x.title}</option>)}</select>
+       {!i.within&&<select value={i.accessibleFrom} onChange={e=>edit(i.key,{accessibleFrom:e.target.value})} aria-label="Accessible from">
+        <option value="">Not sure where</option>{areas.map(a=><option key={a} value={a}>From {a}</option>)}</select>}
+      </div>
+      {!i.within&&<input value={i.travel} onChange={e=>edit(i.key,{travel:e.target.value})} maxLength={120} placeholder="Getting there (optional): 2 hrs by train" aria-label="Getting there"/>}
+      <small>{match?`Already on the board as ${match.title}: adds ${from.trim()||'their'} name to it`:i.within?`New idea, part of ${i.within}`:'New idea on the board'}</small>
      </div>
-    </li>;})}</ul>
+    </li></React.Fragment>;})}</ul>
     <div className="row wrap">
-     <button onClick={()=>setItems(list=>[...list,{key:Date.now(),title:'',said:'',place:'',category:'place',keep:true}])}><Plus size={16}/>Another</button>
+     <button onClick={()=>setItems(list=>[...list,{key:Date.now(),title:'',said:'',place:'',category:'place',within:'',accessibleFrom:'',travel:'',keep:true}])}><Plus size={16}/>Another</button>
      <button className="primary" disabled={busy||saving||!items.some(i=>i.keep&&i.title.trim())} onClick={save}>{saving?'Adding…':`Add ${items.filter(i=>i.keep&&i.title.trim()).length} to the board`}</button>
      <button onClick={()=>setItems(null)}>Back</button>
      <button onClick={close}><X size={16}/>Cancel</button>

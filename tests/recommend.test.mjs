@@ -112,3 +112,59 @@ test('screenshots are checked before anything is sent to be read',async()=>{
   await assert.rejects(readRecommendations({images:[{image:'not base64!',mediaType:'image/png'}]}),/could not be read/);
  }finally{if(key===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=key;}
 });
+test('a pasted message keeps its groups: bases from headings, parts from indents, journeys from the line',()=>{
+ const areas=['Tokyo','Kyoto','Osaka','Nara'];
+ const items=splitRecommendations(`Day trips from Tokyo:
+- Nikko (2 hrs by train)
+  - Toshogu Shrine - the carvings
+  - Kegon Falls
+
+Kyoto:
+1. Nishiki Market
+   ◦ Tako tamago - octopus on a stick
+
+Food:
+- Ichiran Ramen in Osaka - solo booths
+Nara, 45 min from Kyoto - buy the crackers`,areas);
+ const by=t=>items.find(i=>i.title===t);
+ assert.deepEqual(items.map(i=>i.title),['Nikko','Toshogu Shrine','Kegon Falls','Nishiki Market','Tako tamago','Ichiran Ramen','Nara']);
+ assert.equal(by('Nikko').accessibleFrom,'Tokyo');assert.equal(by('Nikko').travel,'2 hrs by train');assert.equal(by('Nikko').said,'','the journey is not said twice');
+ assert.equal(by('Toshogu Shrine').within,'Nikko');assert.equal(by('Kegon Falls').within,'Nikko');
+ assert.equal(by('Tako tamago').within,'Nishiki Market');assert.equal(by('Nishiki Market').accessibleFrom,'Kyoto');
+ assert.equal(by('Ichiran Ramen').place,'Osaka');assert.equal(by('Ichiran Ramen').accessibleFrom,'Osaka');assert.equal(by('Ichiran Ramen').category,'food');
+ assert.equal(by('Nara').accessibleFrom,'Kyoto');assert.equal(by('Nara').travel,'45 min');
+});
+test('a part goes under its place on the board, one level deep, and is let go when the place goes',async()=>{
+ const {proposalChildren,proposalBase,ideasByBase}=await import('../src/trip-features.js');
+ let state=applyOperation(seed,{type:'proposalRecommend',name:'Sue',title:'Nikko',accessibleFrom:'Tokyo',travel:'2 hrs by train'},parent);
+ state=applyOperation(state,{type:'proposalRecommend',name:'Sue',title:'Kegon Falls',within:'nikko'},child);
+ const nikko=state.proposals.find(p=>p.title==='Nikko'),falls=state.proposals.find(p=>p.title==='Kegon Falls');
+ assert.equal(falls.parentId,nikko.id);assert.equal(proposalBase(state,falls),'Tokyo','reached the way its place is');
+ assert.deepEqual(proposalChildren(state,nikko).map(p=>p.title),['Kegon Falls']);
+ // Two levels, a loop and a base we are not staying in are all refused.
+ assert.throws(()=>applyOperation(state,{type:'proposalAdd',title:'The gift shop',parentId:falls.id},parent),/already part of another/);
+ assert.throws(()=>applyOperation(state,{type:'proposalEdit',id:nikko.id,title:'Nikko',parentId:falls.id},parent),/cannot go under another/);
+ assert.throws(()=>applyOperation(state,{type:'proposalAdd',title:'Hakone',accessibleFrom:'Hakone'},parent),/places we are staying/);
+ // Grouped by base, the falls sit under Nikko rather than beside it; Kyoto, finished on 27 September, is behind us.
+ state=applyOperation(state,{type:'proposalAdd',title:'Philosopher’s Path',accessibleFrom:'Kyoto'},parent);
+ const groups=ideasByBase(state,state.proposals,'2026-10-01');
+ assert.deepEqual(groups.map(g=>[g.base,g.behind]),[['Tokyo',false],['Kyoto',true]]);
+ assert.deepEqual(groups[0].items.map(i=>[i.idea.title,i.children.map(c=>c.title)]),[['Nikko',['Kegon Falls']]]);
+ // On a day, the parts and the journey go into the stop's notes.
+ state=applyOperation(state,{type:'proposalSchedule',id:nikko.id,day:'2026-10-03',time:null,kind:'flexible',locked:false},parent);
+ assert.match(state.steps.at(-1).notes,/While there: Kegon Falls/);assert.match(state.steps.at(-1).notes,/Getting there from Tokyo: 2 hrs by train/);
+ assert.throws(()=>applyOperation(seed,{type:'proposalAdd',title:'Tōdai-ji',parentId:'missing'},parent),/no longer on the planning board/);
+});
+test('removing a place lets its parts stand alone',()=>{
+ let state=applyOperation(seed,{type:'proposalAdd',title:'Nara park'},parent);
+ const id=state.proposals.at(-1).id;
+ state=applyOperation(state,{type:'proposalAdd',title:'Tōdai-ji',parentId:id},parent);
+ state=applyOperation(state,{type:'proposalRemove',id},parent);
+ assert.equal(state.proposals.find(p=>p.title==='Tōdai-ji').parentId,null);
+});
+test('what the model reads keeps a part only when its place is in the list, and only bases we stay in',()=>{
+ const items=normaliseRecommendations([{title:'Nikko',accessibleFrom:'Tokyo'},{title:'Kegon Falls',within:'Nikko',accessibleFrom:'Tokyo'},
+  {title:'Stray',within:'Nowhere'},{title:'Hakone',accessibleFrom:'Hakone'}],['Tokyo','Kyoto']);
+ assert.equal(items[1].within,'Nikko');assert.equal(items[1].accessibleFrom,'');
+ assert.equal(items[2].within,'');assert.equal(items[3].accessibleFrom,'');
+});
