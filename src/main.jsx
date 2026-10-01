@@ -27,7 +27,7 @@ import {phraseSeenBy,phraseQueue} from './trip-features.js';
 import {deepLinkAction,withoutDeepLink} from './deep-links.js';
 import {readTheme,applyTheme,readLook,applyLook} from './theme.js';
 import FunFacts,{FactOfDay,CardFacts,factAloudFor} from './FunFacts.jsx';
-import {factForDay,factsForStep} from './fact-data.js';
+import {factForDay,factsForStep,gentleFacts} from './fact-data.js';
 import {factSeenBy,factsSeenBy,factQueue} from './trip-features.js';
 import {PHRASES} from './phrases.js';
 import {readSettings,writeSetting,settingOn} from './settings.js';
@@ -573,7 +573,7 @@ function App(){
  // day, and like the facts on a card it is not logged, so it never uses up tomorrow's fact.
  // Never one already met, in a pop-up of the day or at an earlier stop — heading to Meiji
  // Jingu and the shrine itself share their facts, and the second stop gets only what is new.
- const stepFactFor=s=>factsForStep(s).filter(f=>!(todaysFact&&!factDone&&f.id===todaysFact.id)&&!factsSeenBy(state,user.name)[f.id]&&localStorage.getItem(`japan.stepfact.fact.${f.id}`)!=='seen');
+ const stepFactFor=s=>(gentleOnly(visibleState,user.name)?gentleFacts(factsForStep(s)):factsForStep(s)).filter(f=>!(todaysFact&&!factDone&&f.id===todaysFact.id)&&!factsSeenBy(state,user.name)[f.id]&&localStorage.getItem(`japan.stepfact.fact.${f.id}`)!=='seen');
  const startedWithFact=dayOnTrip&&user&&settingOn(settings,'dailyFact')?stepsFor(visibleState,dayOnTrip,user.name).find(s=>s.status==='started'&&s.participants?.includes(user.name)&&!stepFactShown.current.has(s.id)&&localStorage.getItem(`japan.stepfact.${s.id}`)!=='seen'&&stepFactFor(s).length):null;
  useEffect(()=>{
   if(!startedWithFact||modal)return;
@@ -675,7 +675,7 @@ function App(){
      {resolveLocation(state,current)&&<small className="matched-address">{resolveLocation(state,current).address}{resolveLocation(state,current).japaneseAddress&&<span className="place-japanese" lang="ja">{resolveLocation(state,current).japaneseAddress}</span>}</small>}{stepPin(current)&&<small className="matched-address"><LocateFixed size={13}/> Pinned where we stood · {pinText(stepPin(current))} · directions come back here</small>}
      {phoneLinks(showLocationDetails(state,current).phone)&&<ContactRow phone={phoneLinks(showLocationDetails(state,current).phone)} title={current.title}/>}
      <div className="participants">{current.participants.map(p=><span key={p} className="person">{p}</span>)}</div>
-     <CardFacts facts={factsForStep(current)} openPage={openPage} aloud={factAloudFor(speak,visibleState,user.name)}/>
+     <CardFacts gentle={gentleOnly(visibleState,user?.name)} facts={factsForStep(current)} openPage={openPage} aloud={factAloudFor(speak,visibleState,user.name)}/>
      {current.status!=='done'&&<StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>}
     </details>
    </article>:<div className="empty"><h2>A little room for discovery.</h2><p>Add your first stop for this day.</p></div>}

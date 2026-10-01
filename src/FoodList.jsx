@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import {gentleOnly} from './child-levels.js';
 import {Check,Languages,Plus,Trash2,Copy,AlertCircle,Compass} from 'lucide-react';
 import {FOOD,FOOD_KINDS,FOOD_KIND_LABEL,ORDERING,SAY_TIP} from './food-data.js';
 import SayIt from './SayIt.jsx';
@@ -70,7 +71,7 @@ export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,
     </div>
     {item.ja&&<SayIt phrase={{...item,en:''}}/>}
     {item.note&&<p>{item.note}</p>}
-    <CardFacts facts={factsForItem(item.en,item.romaji,item.note)} openPage={openPage} aloud={aloud}/>
+    <CardFacts gentle={gentleOnly(state,user?.name)} facts={factsForItem(item.en,item.romaji,item.note)} openPage={openPage} aloud={aloud}/>
     {item.variants?.length>0&&<details className="variants"><summary>{item.variants.length} kinds — chicken, pork, prawn, vegetable</summary>
      {item.variants.map(v=><div className="variant" key={v.ja}>
       <div><strong>{v.en}</strong><p className="japanese small" lang="ja">{v.ja}</p><small className="say-phonics"><span aria-hidden="true">say</span> {v.say}</small></div>

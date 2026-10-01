@@ -26,7 +26,7 @@ export const FACTS=[
  {id:'haneda',page:19,icon:'🛬',match:['haneda','airport'],title:'The close airport',
   text:'Tokyo has two big airports. Haneda sits right on Tokyo Bay, which is why the drive to the hotel is about eighteen minutes rather than the hour and a half from Narita.'},
  // Tue 22 Sept — Meiji Jingu, Shibuya Crossing, Hachiko, Shibuya Sky. Guide pages 20 and 22.
- {id:'hachiko',page:22,icon:'🐕',match:['hachiko'],title:'Hachikō waited for ten years',
+ {id:'hachiko',gentle:false,page:22,icon:'🐕',match:['hachiko'],title:'Hachikō waited for ten years',
   text:'Hachikō met his owner, Professor Ueno, at Shibuya Station every evening. The professor died in 1925 and never came — so Hachikō came back to the same spot almost every day until his own death in 1935. The statue stands where he waited.'},
  {id:'meiji-forest',page:20,icon:'🌳',match:['meiji jingu'],title:'The forest was planted by hand',
   text:'Meiji Jingu’s woods look ancient but are younger than the shrine’s neighbours. Around 100,000 trees were donated from every part of Japan and planted when the shrine opened in 1920, to grow into a forest in the middle of Tokyo.'},
@@ -138,7 +138,7 @@ export const FACTS=[
   text:'A silver coin mint stood on this spot in the Edo period: gin is silver, za is a guild or workshop. The coins went long ago, the name did not — and the district is still where Tokyo keeps its most expensive shopfronts.'},
  {id:'depachika',page:66,icon:'🍰',match:['depachika','isetan','ginza six','food hall'],title:'The best food is in the basement',
   text:'Depachika — depāto plus chika, department store basement — is a food hall the size of a supermarket, full of counters handing out samples. It is the cheapest way to eat extremely well in Ginza, and the sweets are wrapped like presents.'},
- {id:'tokyo-station',page:67,icon:'🧱',match:['tokyo station','marunouchi'],title:'The red brick front was rebuilt twice',
+ {id:'tokyo-station',gentle:false,page:67,icon:'🧱',match:['tokyo station','marunouchi'],title:'The red brick front was rebuilt twice',
   text:'Tokyo Station’s Marunouchi building opened in 1914, lost its domes to bombing in 1945, and spent five years being restored to the original design — reopening in 2012 with the domes back. It is the photo everyone takes.'},
  // Mon 5 Oct — one more Shibuya day. Guide pages 68 and 70.
  {id:'omurice',page:70,icon:'🍳',match:['omurice'],title:'Western food, invented in Japan',
@@ -161,7 +161,7 @@ export const FACTS=[
   text:'Public bins are genuinely rare in Japan, and the streets are still spotless. Everybody carries their rubbish until they get home or find a convenience store — which is why a small plastic bag lives in the day bag.'},
  {id:'slurp',page:4,icon:'🍜',anytime:true,match:['ramen','udon','soba','noodles'],title:'Slurping is allowed',
   text:'Pulling noodles in noisily cools them on the way to your mouth and is taken as a sign you are enjoying them. It is one of the very few places where a loud noise at the table is good manners.'},
- {id:'chopsticks',page:5,icon:'🥢',anytime:true,match:['chopsticks','white rice','sushi'],title:'Two things never to do with chopsticks',
+ {id:'chopsticks',gentle:false,page:5,icon:'🥢',anytime:true,match:['chopsticks','white rice','sushi'],title:'Two things never to do with chopsticks',
   text:'Never stand them upright in a bowl of rice, and never pass food from chopstick to chopstick. Both belong to a funeral, so both feel shocking at a dinner table. Lay them across the rest instead.'},
  {id:'shoes',page:4,icon:'👟',anytime:true,match:['shrine','temple','tea ceremony','kimono','tatami'],title:'Watch for the step',
   text:'Shoes come off wherever the floor changes level or material — a raised entryway, a tatami room, a temple hall, sometimes a fitting room. If there are slippers waiting, that is the signal. Socks without holes are a real consideration.'},
@@ -207,6 +207,10 @@ export const FACTS=[
 // every fact is written in plain English for the same reason, because Nate is five and
 // this is the only way he gets to have it at all.
 export const factAloud=fact=>`${fact.title}. ${fact.text}`;
+// `gentle:false` marks the few facts with something grim in them — a death, a bombing, a
+// funeral — that are held back from a child whose awareness dial says he is always with a
+// grown-up. Everyone else gets them as written.
+export const gentleFacts=list=>list.filter(f=>f.gentle!==false);
 export const ALL_FACTS=()=>FACTS;
 export const findFact=id=>FACTS.find(f=>f.id===id)||null;
 // The facts that belong to no single day — the guide's etiquette, food and money pages.

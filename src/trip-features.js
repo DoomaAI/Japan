@@ -1,4 +1,4 @@
-import {isChild,defaultReading,ageOf} from './child-levels.js';
+import {isChild,defaultReading,ageOf,gentleOnly} from './child-levels.js';
 import {nextTimeBrief} from './next-time.js';
 import {learnedBrief} from './taste-data.js';
 import {activeSteps,minutes,asClock,japanDate,japanClock,latestStart,windowText} from './timing.js';
@@ -12,7 +12,7 @@ import {disneySeeded} from './disney-day.js';
 import {disneySeaSeeded} from './disneysea-day.js';
 import {tickLeg} from './route-data.js';
 import {ORDERED_PHRASES,phraseForDay} from './phrasebook-data.js';
-import {ALL_FACTS,orderedFacts} from './fact-data.js';
+import {ALL_FACTS,orderedFacts,gentleFacts} from './fact-data.js';
 import {noticedFields,noticedWhere,noticedFor} from './noticed-data.js';
 import {planOf} from './plan-context.js';
 import {peopleOf} from './people.js';
@@ -268,7 +268,7 @@ export const factLogFor=(state,person)=>{
 // What to show next: the day's own facts first, because those are the ones about what is
 // actually coming up, then the rest of the book — and never one this person has already met.
 export function factQueue(state,person,day){
- const seen=factsSeenBy(state,person),ordered=orderedFacts(state.days,day);
+ const seen=factsSeenBy(state,person),all=orderedFacts(state.days,day),ordered=gentleOnly(state,person)?gentleFacts(all):all;
  const lead=ordered.find(f=>!seen[f.id])||ordered[0];
  return lead?[lead,...ordered.filter(f=>f.id!==lead.id&&!seen[f.id])]:[];
 }
