@@ -828,3 +828,52 @@ test('the checkout sweep, the nightstand and price sense',async()=>{
  assert.match(night,/navigator\.wakeLock\?\.request\('screen'\)/,'the screen stays awake');
  assert.match(night,/const late=hour>=22\|\|hour<6,dim=late&&!bright;/,'dim after ten, a tap brightens');
 });
+test('people to buy for: details, ideas by interest and trip day, and gifts on the list tied to them',async()=>{
+ const {applyOperation}=await import('../server/model.mjs');
+ const {GIFT}=await import('../src/shopping-groups.js');
+ const {giftIdeas,giftProgress,daysIn,cleanGuideIdea,giftBrief}=await import('../src/gift-data.js');
+ const {giftIdeasRequest}=await import('../server/gift-ideas.mjs');
+ const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'};
+ let state=upgraded(seed);
+ assert.deepEqual(state.giftPeople,[]);
+ state=applyOperation(state,{type:'giftPersonAdd',name:' Grandma ',relation:'Nan',age:'older',interests:['tea','crafts','nope'],likes:'cats',budget:5000},parent);
+ const nan=state.giftPeople[0];
+ assert.equal(nan.name,'Grandma');assert.deepEqual(nan.interests,['tea','crafts'],'unknown interests dropped');
+ assert.throws(()=>applyOperation(state,{type:'giftPersonAdd',name:''},parent),/Write their name/);
+ // A boy adds his own friend, and can change his own but not Grandma.
+ state=applyOperation(state,{type:'giftPersonAdd',name:'Ollie',age:'child',interests:['anime','drinks']},child);
+ const ollie=state.giftPeople[1];
+ assert.throws(()=>applyOperation(state,{type:'giftPersonEdit',id:nan.id,name:'Gran'},child),e=>e.status===403);
+ // Ideas: only cities still ahead, inside the budget, and never alcohol for a child.
+ assert.deepEqual(daysIn(state,'Kyoto','2026-10-01'),[]);assert.ok(daysIn(state,'Tokyo','2026-10-01').includes('2026-10-04'));
+ assert.ok(daysIn(state,'Kyoto','2026-09-20').includes('2026-09-27'),'Nara / Kyoto counts for Kyoto');
+ const late=giftIdeas(state,nan,'2026-10-01');
+ assert.ok(late.length>0);assert.ok(late.every(x=>x.anywhere||x.days.every(d=>d>='2026-10-01')));
+ assert.ok(!late.some(x=>x.title.startsWith('Kiyomizu-yaki')),'Kyoto is behind us');
+ assert.ok(late.every(x=>x.yen[0]<=5000));
+ assert.ok(giftIdeas(state,nan,'2026-09-20').some(x=>x.title.startsWith('Kiyomizu-yaki')),'before Kyoto it is offered');
+ assert.ok(late.some(x=>x.declare==='food'),'tea is flagged for customs');
+ assert.equal(late.find(x=>x.title.startsWith('Bamboo tea whisk'))?.declare,'wood','a whisk is bamboo, not tea');
+ assert.ok(!giftIdeas(state,ollie,'2026-10-01').some(x=>x.interest==='drinks'));
+ assert.ok(giftIdeas(state,{...nan,interests:[],age:''},'2026-10-01').length>0,'something for someone we know little about');
+ // On the shopping list: tied to the person, named as they are, and renamed with them.
+ const idea=late[0];
+ state=applyOperation(state,{type:'shoppingAdd',title:idea.title,person:GIFT,giftPersonId:nan.id,giftFor:'ignored',quantity:1,budget:3000},parent);
+ const gift=state.shopping.at(-1);assert.equal(gift.giftPersonId,nan.id);assert.equal(gift.giftFor,'Grandma');
+ assert.ok(!giftIdeas(state,nan,'2026-10-01').some(x=>x.title===idea.title),'an idea already on the list is not offered again');
+ assert.deepEqual([giftProgress(state,nan).planned,giftProgress(state,nan).done],[1,false]);
+ state=applyOperation(state,{type:'shoppingStatus',id:gift.id,done:true},parent);
+ assert.equal(giftProgress(state,nan).done,true);
+ state=applyOperation(state,{type:'giftPersonEdit',id:nan.id,name:'Nanna',interests:['tea']},parent);
+ assert.equal(state.shopping.at(-1).giftFor,'Nanna');
+ assert.throws(()=>applyOperation(state,{type:'shoppingAdd',title:'X',person:GIFT,giftPersonId:'gone',quantity:1},parent),/no longer on the list/);
+ // Removing someone goes to Recently deleted; their gift keeps the name.
+ state=applyOperation(state,{type:'giftPersonRemove',id:nan.id},parent);
+ assert.equal(state.giftPeople.length,1);assert.equal(state.bin[0].kind,'giftPerson');assert.equal(state.shopping.at(-1).giftFor,'Nanna');
+ // The guide's ideas are checked before they are kept.
+ assert.match(giftBrief(ollie),/Ollie, child\nInto: Anime/);
+ assert.throws(()=>giftIdeasRequest({personId:'gone'},state),/no longer on the list/);
+ const g=cleanGuideIdea({title:' Matcha set ',why:'tea lover',where:'Ippodo',area:'Marunouchi',day:'soon',yen:-5,website:'https://x.example'},()=>'');
+ assert.deepEqual([g.title,g.day,g.yen,g.website,g.declare],['Matcha set','',null,'','food']);
+ assert.equal(cleanGuideIdea({title:''}),null);
+});

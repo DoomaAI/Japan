@@ -958,6 +958,12 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .more-fav-line small{color:var(--muted);font-size:.78rem;line-height:1.3}
 .more-said{position:sticky;bottom:calc(96px + env(safe-area-inset-bottom));margin:.6rem auto 0;width:fit-content;max-width:100%;padding:0 .9rem;border-radius:18px;background:var(--ink);color:var(--paper);font-size:.82rem;line-height:2.2;text-align:center}
 .more-said:empty{display:none}
+.more-said .more-undo{display:inline-flex;align-items:center;gap:.25rem;min-height:32px;margin-left:.4rem;padding:0 .6rem;border-radius:16px;background:transparent;border:1px solid currentColor;color:inherit;font-size:.8rem}
+.more-arrange-hint{margin:0 0 1rem;color:var(--muted);font-size:.82rem}
+.more-card-wrap.arranging{flex-direction:column;gap:.25rem}
+.more-card-tools{display:flex;justify-content:space-between;gap:.2rem}
+.more-card-tools button{flex:1;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0;border-radius:10px}
+.more-card-tools button:disabled{opacity:.35}
 .more-card-wrap{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .fav-chip{display:inline-flex;align-items:stretch;min-height:36px;border:1px solid var(--accent);border-radius:18px;background:var(--paper);touch-action:none;overflow:hidden}
 .fav-chip.picked{box-shadow:0 0 0 2px var(--accent)}
@@ -980,6 +986,8 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 /* A button, or a row of them, set straight on a page, a section or a card keeps a clear gap from
    whatever follows it. :where() keeps this at no weight, so anything that sets its own margins wins. */
 :where(main,main section,main article)>:where(button:not([class]),button.primary,button.danger,a.button,.row.wrap):where(:not(:last-child)){margin-bottom:.9rem}
+.gift-people{margin-top:1.6rem}.gift-people h2 svg{vertical-align:-3px}.gift-asks small{display:block;margin-top:.25rem}.gift-tips ul{margin:.4rem 0 0;padding-left:1.1rem;font-size:.85rem}.gift-status{display:inline-flex;align-items:center;color:var(--muted);padding:0 .2rem}.finished .gift-status{color:var(--green)}.gift-idea a{display:inline-flex;gap:.25rem;align-items:center;font-size:.8rem;margin-top:.2rem}.gift-declare{color:var(--danger);font-weight:600}.gift-ask{display:flex;flex-wrap:wrap;gap:.6rem;align-items:flex-end;margin:.8rem 0}.gift-ask label{flex:1 1 14rem}.shop-more h3{font-size:.95rem;margin:1rem 0 .3rem;display:flex;gap:.3rem;align-items:center}
+.gift-form .chip{flex-direction:row;padding:.4rem .7rem;min-height:40px}.gift-form .chip input{width:16px;height:16px;flex:none}
 /* A Mark (Mark.jsx) carries an emoji and its line icon; the look decides which one shows. */
 .mark{display:inline-flex;align-items:center}.mark-line{display:none}
 .readiness-word{display:none}

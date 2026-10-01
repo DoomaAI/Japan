@@ -1835,7 +1835,7 @@ test('each phone arranges its own menu, and nothing put away is lost',async()=>{
  assert.equal(navActive('games','more',nate,mine),false,'a screen on the bar lights the bar');
  assert.equal(navActive('weather','more',nate,mine),true,'and everything else lights More');
  assert.ok(BAR_MIN>=3&&BAR_MAX<=12&&BAR_MIN<BAR_MAX);
- assert.deepEqual(cleanNav(undefined,nate),{bar:null,hidden:[]});
+ assert.deepEqual(cleanNav(undefined,nate),{bar:null,hidden:[],order:[]});
  // Home is always first on the bar: it is pinned to the left end, outside the strip that
  // scrolls, and a swipe down the bar lands on whatever is first.
  assert.deepEqual(primaryNav(lauren,{bar:['games','weather','places','food']}),
@@ -1889,7 +1889,7 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
  assert.match(nav,/moreSections\(user,prefs(,where)?\)/);
  // Both go through navGo, which sends Today to today's date on a trip day.
  assert.match(main,/<BottomNav tab=\{tab\} user=\{user\} go=\{navGo\} prefs=\{navPrefs\}/);
- assert.match(main,/<MorePage user=\{user\} tab=\{tab\} go=\{navGo\} prefs=\{navPrefs\} home=\{homePrefs\}>/);
+ assert.match(main,/<MorePage user=\{user\} tab=\{tab\} go=\{navGo\} prefs=\{navPrefs\} home=\{homePrefs\} setPrefs=\{saveNav\}>/);
  // Kept on the phone, per person, and cleaned on the way in as well as on the way out.
  assert.match(main,/localStorage\.setItem\(`japan\.nav\.\$\{user\.name\}`/);
  assert.match(main,/setNavPrefs\(cleanNav\(stored\(`japan\.nav\.\$\{user\.name\}`,emptyNav\(\)\),user\)\)/);
@@ -11908,4 +11908,32 @@ test('the top bar shows the sky now: this hour when saved, else the day, nothing
  assert.equal(daily.temp,22);assert.equal(daily.label,'Light rain');
  assert.equal(nowWeather(state,'2026-10-02','09:00'),null);
  assert.equal(nowWeather({days:[],weather:{hours:{[day]:[{h:21,temp:18,rain:0,code:0}]}}},day,'21:10').icon,'🌙✨');
+});
+
+test('More can be arranged and put away card by card, and its order survives the bar being changed',async()=>{
+ const {moreSections,moveInMore,hideInMore,hiddenNav,cleanNav,emptyNav,FIXED}=await import('../src/nav-data.js');
+ const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const damien={name:'Damien',role:'parent'};
+ const [title,ids]=moreSections(damien,null)[0];
+ // A card moves along its own section, and stays in it.
+ const moved=cleanNav(moveInMore(emptyNav(),ids,ids[2],-1),damien);
+ const after=moreSections(damien,moved).find(([t])=>t===title)[1];
+ assert.deepEqual(after.slice(0,3),[ids[0],ids[2],ids[1]]);
+ assert.deepEqual([...after].sort(),[...ids].sort(),'nothing gained or lost');
+ assert.equal(moveInMore(moved,after,after[0],-1),moved,'the first card cannot go earlier');
+ // Putting one away from More is the same put away as Customise, and Customise itself stays.
+ const away=cleanNav(hideInMore(moved,ids[0]),damien);
+ assert.ok(hiddenNav(damien,away).includes(ids[0]));
+ assert.ok(!moreSections(damien,away).flatMap(([,x])=>x).includes(ids[0]));
+ for(const id of FIXED)assert.equal(hideInMore(moved,id),moved,`${id} cannot be put away`);
+ // An order full of screens that are gone or not allowed is cleaned on the way in.
+ assert.deepEqual(cleanNav({order:['nope','vault',ids[1]]},{name:'Nate',role:'child'}).order.includes('nope'),false);
+ // The bar's own saves do not wipe the order, and the card still opens its screen.
+ assert.match(main,/cleanNav\(\{order:navPrefs\.order,\.\.\.next\},user\)/);
+ // Always there, with no mode to switch on, and holding an arrow is not holding the card.
+ assert.doesNotMatch(nav,/arranging\?/);
+ assert.match(nav,/<button type="button" \{\.\.\.holdProps\(id\)\}/);
+ assert.match(nav,/onClick=\{\(\)=>go\(id\)\}/);
+ assert.match(nav,/aria-label=\{`Put \$\{label\} away`\}/);
 });
