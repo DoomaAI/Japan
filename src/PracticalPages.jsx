@@ -9,8 +9,8 @@ import {PHRASES} from './phrases.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {Star} from 'lucide-react';
 import {DayRate} from './StepReview.jsx';
+import {download} from './browser.js';
 const linkToPlace=place=>`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}`;
-function download(name,data,type){const u=URL.createObjectURL(new Blob([data],{type})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
 export function MeetingCard({state,user,day,mutate,busy}){
  const [date,setDate]=useState(day),[edit,setEdit]=useState(false),[large,setLarge]=useState(false),d=state.days.find(d=>d.date===date),m=state.meetings[date],parent=user.role==='parent';
  async function save(e){e.preventDefault();const f=new FormData(e.currentTarget);if(await mutate({type:'meeting',day:date,...Object.fromEntries(['place','japanese','time','notes','hotelJapanese','hotelAddress'].map(k=>[k,f.get(k)])),contacts:{Damien:f.get('Damien'),Lauren:f.get('Lauren')}}))setEdit(false);}

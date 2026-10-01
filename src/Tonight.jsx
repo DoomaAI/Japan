@@ -3,7 +3,7 @@ import {Moon,Check,Mic,NotebookPen,AlarmClock,Inbox,Plus,ShieldAlert,ShieldCheck
 import {tonightShows,tonightFor,caughtUpAt,tomorrowCheck} from './tonight-data.js';
 import {capsuleWritable,capsuleFor} from './capsule-data.js';
 import {Stars,DayRate} from './StepReview.jsx';
-import {photoUrl} from './PhotoDay.jsx';
+import {photoUrl} from './api-urls.js';
 // The Tonight widget: the day wrapped up in three taps, shown from five in the evening, and on
 // any earlier day that still has something left to do. A parent catches up first: each stop
 // nobody ticked is either done after all, or goes back to Options to fit in another day.

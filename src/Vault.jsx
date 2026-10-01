@@ -4,17 +4,13 @@ import {Plus,Pencil,Trash2,Eye,EyeOff,Copy,Camera,FileText,ShieldCheck,Lock,Aler
 import {shrinkPhoto} from './MenuReader.jsx';
 import {VAULT_KINDS,VAULT_KIND_LABELS,VAULT_NUMBER_LABELS,VAULT_FIELDS,VAULT_FILE_MAX,VAULT_FILES_PER_DOC,maskNumber,expiryStatus,vaultByPerson,missingPassports,vaultFileUrl} from './vault-data.js';
 import {japanDate} from './timing.js';
+import {readDataUrl} from './browser.js';
 // Passports, visas and the rest, for Damien and Lauren only. Nothing here is in the trip the other
 // phones are sent: it comes from its own route, sealed on the server, and is only kept on this
 // phone if a parent asks for it to be, for a counter with no signal.
 const OFFLINE_FLAG='japan.vault-offline',CACHE='japan-private-v1';
 const offlineOn=()=>{try{return localStorage.getItem(OFFLINE_FLAG)==='1';}catch{return false;}};
-const readAsBase64=file=>new Promise((resolve,reject)=>{
- const reader=new FileReader();
- reader.onload=()=>{const s=String(reader.result);resolve(s.slice(s.indexOf(',')+1));};
- reader.onerror=()=>reject(new Error('That file could not be opened.'));
- reader.readAsDataURL(file);
-});
+const readAsBase64=async file=>{const s=await readDataUrl(file);return s.slice(s.indexOf(',')+1);};
 const fmtDate=d=>d?new Date(`${d}T00:00:00Z`).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):'';
 // The copy on this phone: the list itself and every photo, in the same private store as saved
 // tickets, so Sign out and clear this phone takes it with everything else.

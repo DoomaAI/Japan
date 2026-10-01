@@ -6,7 +6,7 @@ import {attachmentsOf,documentThumbnail} from './trip-features.js';
 import {nextPasses} from './wallet-data.js';
 import {codesFor} from './wallet-codes.js';
 import GateCode from './GateCode.jsx';
-const fmt=d=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(d+'T12:00:00+09:00'));
+import {shortDay as fmt} from './format.js';
 const KIND={ticket:'Ticket',reservation:'Reservation',luggage:'Luggage tag',other:'Booking'};
 // The next passes, the first one large: what it is for, when, the reference, and a button that
 // opens it full screen for the gate, with a reminder to turn the brightness up for the scanner.

@@ -2,7 +2,7 @@ import React,{useEffect,useRef} from 'react';
 import {X,ArrowLeft,ArrowRight,ChevronLeft,ChevronRight,Film,Image as ImageIcon} from 'lucide-react';
 import {attachmentReel,isDrawable} from './trip-features.js';
 import ZoomImage from './ZoomImage.jsx';
-const fileUrl=d=>`/api/document?id=${encodeURIComponent(d.id)}`;
+import {documentUrl as fileUrl} from './api-urls.js';
 // The whole Tickets page reads as one strip rather than one booking at a time: swiping past the
 // last photo of a ticket carries on into the next ticket instead of stopping dead. Tickets are
 // still a unit, so the arrows along the bottom jump a whole booking at a time for the times when

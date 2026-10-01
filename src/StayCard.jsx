@@ -3,7 +3,7 @@ import {BedDouble,Navigation,Languages,Phone,Copy,Pencil,Ticket,LogIn,LogOut} fr
 import {stayFor,STAY_FIELDS} from './stay-data.js';
 import {phoneLinks} from './trip-features.js';
 import ConciergeDesk from './ConciergeDesk.jsx';
-const fmt=d=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(d+'T12:00:00+09:00'));
+import {shortDay as fmt} from './format.js';
 // Tonight's stay as a hotel app shows one: the hotel, which night, when we can get in and when we
 // must be out, the confirmation number, and the three things you want at the kerb — directions,
 // the taxi card, and the front desk's number.

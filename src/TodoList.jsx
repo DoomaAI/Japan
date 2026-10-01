@@ -3,10 +3,9 @@ import HowThisWorks from './HowThisWorks.jsx';
 import {ListChecks,ShoppingBag,Plus,Trash2,CalendarDays,ChevronRight,Inbox,PiggyBank,Sparkles} from 'lucide-react';
 import Dictate from './Dictate.jsx';
 import {parseCaptureLocally,CAPTURE_MAX} from './capture-data.js';
-import {japanDate} from './timing.js';
+import {japanDate,japanClock} from './timing.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {TODO_KINDS,todos,todosFor,todoProgress,unallocatedTodos,BOYS,spending} from './trip-features.js';
-import {japanClock} from './timing.js';
 const KindIcon=({kind,...props})=>kind==='buy'?<ShoppingBag {...props}/>:<ListChecks {...props}/>;
 // One row, used on the day panel and on the full list, so a job looks the same wherever it is
 // ticked off. Anyone can tick; the wording and the bin are a parent's.

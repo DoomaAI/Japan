@@ -5,7 +5,7 @@ import {puzzleFor,markGuess,puzzleScore,puzzleKey,puzzleResults,shareGrid} from 
 import {japanDate} from './timing.js';
 import {dayLabel} from './AdventurePages.jsx';
 import WinBurst from './Win.jsx';
-const fileUrl=d=>`/api/document?id=${encodeURIComponent(d.id)}`;
+import {documentUrl as fileUrl} from './api-urls.js';
 // The one puzzle everyone does today. Guesses stay on the phone until it is solved; the score
 // goes into the trip against the day, so the others can see who has done it without seeing how.
 async function shareText(text){

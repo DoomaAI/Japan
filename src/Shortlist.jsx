@@ -11,8 +11,8 @@ import {locationDirections} from './locations.js';
 import {dayLabel} from './AdventurePages.jsx';
 import {allHunts,huntForShortlist,shortlistToHunt} from './hunt-data.js';
 import {japanClock} from './timing.js';
+import {yen} from './format.js';
 export const shortlistPhotoUrl=s=>`/api/shortlist?id=${encodeURIComponent(s.id)}`;
-const yen=n=>`¥${Math.round(n||0).toLocaleString('en-AU')}`;
 // Both figures, the way every other price in the app is shown: yen is what the ticket says while
 // you are standing in front of it, dollars is what decides whether it comes home.
 const both=(n,rate)=>`${yen(n)} · ≈$${yenToAud(n||0,rate).toFixed(2)}`;

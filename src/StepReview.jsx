@@ -1,9 +1,8 @@
 import React,{useRef,useState} from 'react';
-import {Star,Pencil,Check,X} from 'lucide-react';
+import {Star,Pencil,Check,X,Repeat} from 'lucide-react';
 import Dictate from './Dictate.jsx';
 import {STEP_STARS,starText,stepRatings,stepThoughts,stepAverage,stepRated,dayRatingsFor,dayThoughtsFor} from './trip-features.js';
 import {NEXT_TIME_CHIPS,nextTimeFor,MAX_NEXT_TIME} from './next-time.js';
-import {Repeat} from 'lucide-react';
 // Stars, and what we actually thought. Kept per person so nobody's average washes out somebody
 // else's — Nate giving the deer five and Lauren giving them two is the interesting bit, and an
 // average that hides it is worth less than the two numbers.

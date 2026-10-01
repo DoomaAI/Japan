@@ -9,7 +9,7 @@ import {BOYS,purse,purseInWords,spendItemsFor,topUpsFor,allowanceFor,allowanceDa
 import {dayLabel} from './AdventurePages.jsx';
 import {japanClock,japanDate} from './timing.js';
 import MoneyPictures from './MoneyPictures.jsx';
-const yen=n=>`¥${Math.round(n||0).toLocaleString('en-AU')}`;
+import {yen} from './format.js';
 const dollars=(n,rate)=>`$${yenToAud(Math.abs(n||0),rate).toFixed(2)}`;
 // Both figures, always: a boy thinks in yen while he is standing in the shop and in dollars when
 // he works out whether it was worth it.

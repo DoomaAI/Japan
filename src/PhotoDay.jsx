@@ -8,7 +8,7 @@ import {kudosFor,kudosLine} from './kudos-data.js';
 import {ageOf} from './child-levels.js';
 import {postcardText} from './postcard-data.js';
 import {photosFor,photosOf,photoOwner,photoCounts,photoVotesFor,photoOfTheDay,BOYS} from './trip-features.js';
-export const photoUrl=p=>`/api/photo?id=${encodeURIComponent(p.id)}`;
+import {photoUrl} from './api-urls.js';
 // The photo coach is told how old the photographer is, from the travel party.
 // The boys' own photographs: take one, hear what was good about it and one thing to try, and
 // then everybody votes for the day's best. The feedback talks to the child, and the vote is

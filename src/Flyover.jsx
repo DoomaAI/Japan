@@ -1,9 +1,10 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {Play,Pause,Video,X,Square} from 'lucide-react';
 import {replayFrames,frameSound} from './memory-map.js';
-import {createMixer,voiceUrl} from './sound-mix.js';
+import {createMixer} from './sound-mix.js';
 import {photoOfTheDay} from './trip-features.js';
 import {flightPlan,cameraAt,offsetKm,project,recordingType,DAY_PAUSE} from './flyover-data.js';
+import {voiceUrl} from './api-urls.js';
 const W=1080,H=1080,photoUrl=p=>`/api/photo?id=${encodeURIComponent(p.id)}`;
 const dayLabel=d=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(`${d}T12:00:00+09:00`));
 // The flyover, drawn frame by frame on a square canvas: the ground at a slant, the route drawn as
@@ -26,7 +27,7 @@ export default function Flyover({state,close,notice}){
    const c=clock.current;if(c.last!=null&&playing)c.t=Math.min(plan.duration,c.t+(now-c.last)/1000);c.last=now;
    draw(canvas.current,c.t);setT(c.t);
    const cam=cameraAt(plan,c.t);
-   if(cam&&playing&&cam.index!==lastLeg.current){lastLeg.current=cam.index;const v=frameSound(state,cam.leg.to);if(v){mixer.current??=createMixer();mixer.current?.play(voiceUrl(v.id));}}
+   if(cam&&playing&&cam.index!==lastLeg.current){lastLeg.current=cam.index;const v=frameSound(state,cam.leg.to);if(v){mixer.current??=createMixer();mixer.current?.play(voiceUrl(v));}}
    if(c.t>=plan.duration&&rec.current?.state==='recording')rec.current.stop();
    raf=requestAnimationFrame(tick);};
   raf=requestAnimationFrame(tick);return()=>cancelAnimationFrame(raf);

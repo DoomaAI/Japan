@@ -6,11 +6,12 @@
 //
 // The whole skill is in the throw. Once it leaves your hand you are a spectator, which is why
 // this is a game of one swipe and then watching — anything else would be a different game.
+import {rng} from './random.js';
+export {rng};
 export const RING=100,TICK=40,EDGE=RING/2;
 // The cloth sag. Without it two tops can spin in their own corners for a minute and nothing
 // happens; with it they always find each other, which is what the barrel is for.
 export const SAG=0.008;
-export const rng=seed=>{let n=seed>>>0||1;return()=>{n^=n<<13;n>>>=0;n^=n>>17;n^=n<<5;n>>>=0;return n/4294967296;};};
 // Three tops, and the trade is the real one every child works out with a file: a heavy one
 // outlasts anything but cannot shift it, and a light one with a sharp edge will flip a top
 // twice its weight clean out of the ring before running down itself. Weight decides who

@@ -5,6 +5,7 @@
 // know (the confirmation number, the front desk's phone, an agreed late check-out) under
 // state.stays, keyed by the hotel's name as the days carry it.
 import {showLocationDetails} from './locations.js';
+import {addDays as addDay} from './timing.js';
 export const STAY_FIELDS=[
  ['reference','Confirmation number',80],
  ['guest','Name on the booking',80],
@@ -14,7 +15,6 @@ export const STAY_FIELDS=[
  ['notes','Notes (breakfast, wifi, room)',600]
 ];
 export const CLOCK=/^([01]\d|2[0-3]):[0-5]\d$/;
-const addDay=(date,n)=>{const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 const said=/check[\s-]?in/i,out=/check[\s-]?out/i;
 // Every stay in the trip, in order: a hotel and the nights we sleep there. The night of a day is
 // the hotel that day carries; we check out on the morning after the last one.

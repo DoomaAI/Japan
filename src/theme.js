@@ -3,9 +3,9 @@
 // dark phone never flashes white, and degrades to light when storage is refused. Dark is a
 // choice rather than automatic because the app is read at a ramen counter at midday as often
 // as in a hotel room at night, and the phone's own setting does not know which.
+import {localStore as device} from './browser.js';
 export const THEMES=[['light','Light'],['dark','Dark'],['auto','Match the phone']];
 export const THEME_KEY='japan.theme';
-const device=()=>{try{return typeof localStorage==='undefined'?null:localStorage;}catch{return null;}};
 export function readTheme(store=device()){
  // Stored plain, but read tolerantly: a copy written through the JSON-backed hook is the same choice in quotes.
  try{const v=String(store?.getItem(THEME_KEY)??'').replace(/^"|"$/g,'');return THEMES.some(([id])=>id===v)?v:'light';}catch{return 'light';}

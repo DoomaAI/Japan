@@ -7,6 +7,8 @@
 // dawdle over the first few, rattle through the rest, and somebody is caught mid-step. So the
 // tempo here is not a metronome: each syllable gets its own length, and the last few can come
 // much faster than the first.
+import {rng} from './random.js';
+export {rng};
 export const CHANT=['だ','る','ま','さ','ん','が','こ','ろ','ん','だ'];
 export const CHANT_SAY='daruma-san ga koronda';
 export const TRACK=100,TICK=60;
@@ -32,7 +34,6 @@ export const LEVELS=[
 ];
 export const levelById=id=>LEVELS.find(l=>l.id===id)||LEVELS[0];
 // The same xorshift the rest of the app shuffles with, so a chant can be replayed in a test.
-export const rng=seed=>{let n=seed>>>0||1;return()=>{n^=n<<13;n>>>=0;n^=n>>17;n^=n<<5;n>>>=0;return n/4294967296;};};
 // One chant. It leans slower at the start and quicker at the end, the way a child does it,
 // and the swing on top of that is what makes one chant different from the last.
 export function chantTempo(level,rand){

@@ -2,7 +2,7 @@ import React from 'react';
 import {ChevronRight} from 'lucide-react';
 import {anniversary} from './anniversary-data.js';
 import {capsuleOpens,capsuleSealed} from './capsule-data.js';
-import {photoUrl} from './PhotoDay.jsx';
+import {photoUrl} from './api-urls.js';
 // The On this day widget: a day of the trip brought back on its anniversary, and nothing on any
 // other day, so it costs Home nothing the rest of the year.
 export default function OnThisDay({state,today,dayLabel,go}){

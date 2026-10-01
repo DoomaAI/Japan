@@ -6,12 +6,12 @@ import {useDictation} from './Dictate.jsx';
 import {joinSpoken} from './dictation.js';
 import {AnchorSelect,anchorValue,readAnchor} from './Shortlist.jsx';
 import {askPhoneWhereItIs} from './geo.js';
-import {PIN_PLACES,pinText} from './trip-features.js';
+import {PIN_PLACES,pinText,voiceLength} from './trip-features.js';
 import {noticedFeed,noticedWhere,noticedItem,noticedItems,itemKey,readItem,voiceTitle,NOTICED_TEXT} from './noticed-data.js';
-import {voiceUrl,VoiceWords} from './VoiceNotes.jsx';
-import {voiceLength} from './trip-features.js';
+import {VoiceWords} from './VoiceNotes.jsx';
 import {dayLabel} from './AdventurePages.jsx';
 import {japanDate} from './timing.js';
+import {voiceUrl} from './api-urls.js';
 // Things we noticed. The page is a microphone first: tap, say it, and the words land in the box
 // to read back and save. Nothing is saved until it is read — the same rule as every other box
 // in the app that can be spoken into. Where the phone cannot turn talking into words, the box

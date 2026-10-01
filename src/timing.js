@@ -23,6 +23,8 @@ export function zonedInstant(day,time,z=zone){
  const first=new Date(guess-zoneOffsetMinutes(new Date(guess),z)*60000);
  return new Date(guess-zoneOffsetMinutes(first,z)*60000);
 }
+// A plan date moved on (or back) by whole days, at midday UTC so no zone can tip it over.
+export const addDays=(date,n)=>{const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 export const minutes=t=>t?Number(t.slice(0,2))*60+Number(t.slice(3)):null;
 export const asClock=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
 // A timed entry: a booked time that opens a window rather than naming a minute. A Vacation

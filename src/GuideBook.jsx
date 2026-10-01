@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {swipeDelta,leafProgress} from './swipe.js';
 import {panLimit,spreadOf,stepPage,LAST_PAGE} from './guide-lens.js';
+import {reducedMotion as still} from './browser.js';
 // The guide is a book, so a page turns like one: it lifts off its spine under the finger and
 // swings over, showing the next page underneath as it goes. Let go early and it falls back; go
 // far enough, or flick, and it finishes the turn by itself. The buttons and arrow keys turn it
@@ -10,7 +11,6 @@ import {panLimit,spreadOf,stepPage,LAST_PAGE} from './guide-lens.js';
 export {LAST_PAGE};
 const src=n=>`/api/guide?page=${n}`;
 const TURN_MS=420;
-const still=()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 const clamp=(v,m)=>Math.min(m,Math.max(-m,v));
 export const ZOOM=2.5;
 const DOUBLE_TAP_MS=280;

@@ -10,8 +10,8 @@ import {staysOf,stayFor} from './stay-data.js';
 import {forecastFor} from './weather-data.js';
 import {forwardedTrackers} from './trackers.js';
 import {clamp,httpsLink as https} from './text.js';
+import {addDays as addDay} from './timing.js';
 const CLOCK=/^([01]\d|2[0-3]):[0-5]\d$/;
-const addDay=(date,n)=>{const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 // Every move in the trip: the morning we leave one hotel for the next.
 export function movesOf(state){
  const stays=staysOf(state),out=[];

@@ -5,7 +5,7 @@ import {YAKU,HIKARI,TANE,TAN,KASU,deal,step,stop,koikoi,hisMove,heStops,scoreOf,
 import HanafudaCard from './HanafudaCard.jsx';
 import {bestScore} from './trip-features.js';
 import {WinBurst} from './Win.jsx';
-const rng=seed=>{let n=seed>>>0||1;return()=>{n^=n<<13;n>>>=0;n^=n>>17;n^=n<<5;n>>>=0;return n/4294967296;};};
+import {rng} from './random.js';
 const KINDS=[[HIKARI,'Brights'],[TANE,'Animals'],[TAN,'Ribbons'],[KASU,'Plains']];
 const Pile=({cards,who})=><div className="fuda-pile">{KINDS.map(([kind,en])=>{
  const got=cards.filter(c=>c.kind===kind);

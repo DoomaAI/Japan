@@ -1,12 +1,11 @@
 import React,{useState,useRef,useEffect} from 'react';
 import {Lightbulb,ArrowLeft,ArrowRight,Sparkles,Check,BookOpen} from 'lucide-react';
 import {ALL_FACTS,factsForDay,factAloud,gentleFacts} from './fact-data.js';
-import {gentleOnly} from './child-levels.js';
+import {gentleOnly,readingHelp,readTo} from './child-levels.js';
 import {japanDate} from './timing.js';
 import {dayLabel,SILENT_HINT,useReadAloud,ReadAloudButton} from './AdventurePages.jsx';
 import {searchText,factQueue,factLogFor,factsSeenBy} from './trip-features.js';
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
-import {readingHelp,readTo} from './child-levels.js';
 import {YOUNG_RATE} from './speech.js';
 import SoundCheck from './SoundCheck.jsx';
 // The day's fun fact, and as many more as anyone wants to swipe through. Everything actually

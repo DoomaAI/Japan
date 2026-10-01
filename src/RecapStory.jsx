@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {ChevronLeft,ChevronRight,Crown} from 'lucide-react';
 import {recapStory} from './recap-story.js';
 import {swipeDelta} from './swipe.js';
-import {photoUrl} from './PhotoDay.jsx';
+import {photoUrl} from './api-urls.js';
 import {asAud} from './trip-features.js';
 // The trip as a story: one card at a time, a bar along the top for how far through, a tap on
 // the right or a swipe to go on. Built for the sofa at home, and readable as "so far" during.

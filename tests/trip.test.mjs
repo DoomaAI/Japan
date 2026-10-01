@@ -4131,7 +4131,8 @@ test('the guide turns like a book, and stops at both covers',async()=>{
  assert.match(source,/if\(tab!=='guide'\)return;/);
  assert.match(source,/removeEventListener\('keydown',onKey\)/);
  // Nobody who has asked for less motion gets a page swinging about.
- assert.match(book,/prefers-reduced-motion: reduce/);
+ assert.match(book,/import \{reducedMotion as still\} from '\.\/browser\.js'/);
+ assert.match(await readFile(new URL('../src/browser.js',import.meta.url),'utf8'),/prefers-reduced-motion: reduce/);
  // The page can still be scrolled up and down while it is swiped sideways.
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  assert.match(css,/\.guide-view\{touch-action:pan-y\}/);

@@ -1,9 +1,9 @@
 // A thing being dragged stays under the finger, rather than sitting still until it is let go
 // and then jumping. The tile games and the timeline both lift something this way, so they share
 // how it follows, what it is dropped on and how it goes back.
-const still=()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 // The dragged thing is under the finger itself, so what it is dropped on is the first match
 // beneath it rather than the top of the stack.
+import {reducedMotion as still} from './browser.js';
 export function underFinger(x,y,selector,lifted){
  if(typeof document==='undefined'||!document.elementsFromPoint)return null;
  for(const el of document.elementsFromPoint(x,y)){

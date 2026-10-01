@@ -1,13 +1,12 @@
 import React,{useState} from 'react';
 import {Coins,Banknote,Volume2,Square,Sparkles,Check,Eye,Wallet,Trophy} from 'lucide-react';
-import {useReadAloud,SILENT_HINT} from './AdventurePages.jsx';
+import {useReadAloud,SILENT_HINT,dayLabel} from './AdventurePages.jsx';
 import {CoinFace,NoteFace} from './MoneyArt.jsx';
 import {COINS,NOTES,OLD_NOTES,MONEY,MONEY_ALOUD,moneyAloud,kindOf} from './money-data.js';
 import {yenToAud,moneyFind,moneyTally} from './trip-features.js';
 import {japanDate} from './timing.js';
-import {dayLabel} from './AdventurePages.jsx';
 import {YOUNG_RATE} from './speech.js';
-const yen=n=>`¥${Math.round(n||0).toLocaleString('en-AU')}`;
+import {yen} from './format.js';
 const dollars=(n,rate)=>`$${yenToAud(n,rate).toFixed(2)}`;
 // One press, one thing said, and the same button wherever it turns up. It is deliberately not
 // ReadAloudButton: that one reads a mission, and this one has a picture beside it that the

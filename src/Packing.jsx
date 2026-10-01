@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {Radar,Luggage,Plus,X,Pencil,Trash2,RotateCcw,Inbox,MapPin,CloudSun,Compass,User,CalendarDays,Sparkles} from 'lucide-react';
+import {Radar,Luggage,Plus,X,Pencil,Trash2,RotateCcw,Inbox,MapPin,CloudSun,Compass,User,CalendarDays,Sparkles,DoorOpen,Check} from 'lucide-react';
 import {packing} from './trip-features.js';
 import {PACK_CATEGORIES,PACK_PRIORITY,PACK_SOURCES,PACK_SCOPES,inPackScope,packCategoryLabel,packingSuggestions,dismissedSuggestions,nextPackUp,packingProgress,daysAhead,packingWeather} from './packing-data.js';
 import {forwardedTrackers,linkState} from './trackers.js';
@@ -7,9 +7,8 @@ import {japanDate,japanClock} from './timing.js';
 import GoingHome from './GoingHome.jsx';
 import {goingHomeSoon} from './going-home.js';
 import {SWEEP,readSweep,writeSweep,toggleSweep,sweepWords} from './sweep-data.js';
-import {DoorOpen,Check} from 'lucide-react';
+import {shortDay as fmt} from './format.js';
 const SOURCE_ICONS={japan:MapPin,weather:CloudSun,activity:Compass,person:User,trip:CalendarDays};
-const fmt=date=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(date+'T12:00:00+09:00'));
 const whose=person=>person==='Family'?'All of us':`For ${person}`;
 // What goes onto the list from a suggestion: the suggestion as it stands, remembered by its id so
 // it is not offered again. Anything about it can be changed once it is on the list.

@@ -2,10 +2,10 @@ import React,{useState} from 'react';
 import GuideByline from './GuideByline.jsx';
 import {AlertCircle,ArrowRight,CalendarX,Check,Clock,CloudRain,ExternalLink,Info,LifeBuoy,MapPin,Plus,RefreshCw,Repeat,Shirt,TrainFront,X} from 'lucide-react';
 import {NOTE_KINDS,PLAN_B_REASONS,REST_KINDS,dayCheckOf,planBOf,draftPreview} from './day-check.js';
+import {shortWhen as when} from './format.js';
 const KIND_ICON={closed:CalendarX,holiday:CalendarX,hours:Clock,transport:TrainFront,weather:CloudRain,swap:Repeat,dress:Shirt,other:Info};
 const label=(list,id)=>list.find(([k])=>k===id)?.[1]||'';
 const dayLabel=d=>d?new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(`${d}T12:00:00+09:00`)):'Options';
-const when=iso=>iso?new Intl.DateTimeFormat('en-AU',{weekday:'short',hour:'numeric',minute:'2-digit',timeZone:'Asia/Tokyo'}).format(new Date(iso)):'';
 // Tomorrow's check and Plan B, on the day they are about, above its stops. The notes are what the
 // night-before check found; a parent accepts one (it goes into the stop's notes) or dismisses it.
 // Plan B folds under them: made the same night, kept in the trip, there with no signal.
