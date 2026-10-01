@@ -43,6 +43,7 @@ import {findDinner,dinnerReady} from './dinner.mjs';
 import {parkWaits} from './waits.mjs';
 import {applyDinnerVote} from '../src/dinner-data.js';
 import {findNightOut,nightOutReady,nightRequest} from './night-out.mjs';
+import {findGiftIdeas,giftIdeasReady,giftIdeasRequest} from './gift-ideas.mjs';
 import {googleReady,authUrl,exchangeCode,createAlbum,sealToken,sendGoogleFrames} from './google-photos.mjs';
 import {recordGoogleSent,MAX_GOOGLE_FRAMES,CONNECT_DAYS,GOOGLE_ALBUM} from '../src/google-frame-data.js';
 import {postcardReady,sendPostcard,postcardProviderId} from './postcard.mjs';
@@ -222,7 +223,7 @@ export default async function handler(req,res){
    if(!day)return json(res,{ok:true,ready:true,day:null});
    return json(res,{ok:true,ready:true,...await nightly(state,day,undefined,{onCheck:check=>tellTomorrow(check,parentsOf(state)).catch(()=>0)})});
   }
-  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),tomorrow:tomorrowReady(),highlights:highlightsReady(),frameMail:frameMailReady(),googleFrames:googleReady(),dinner:dinnerReady(),nightOut:nightOutReady(),postcard:postcardReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
+  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),tomorrow:tomorrowReady(),highlights:highlightsReady(),frameMail:frameMailReady(),googleFrames:googleReady(),dinner:dinnerReady(),nightOut:nightOutReady(),giftIdeas:giftIdeasReady(),postcard:postcardReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id,kind,role,household,max_uses,uses FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -350,6 +351,14 @@ export default async function handler(req,res){
   }
   // After dinner: anyone asks for what they are after (the boys, a late treat), and what comes
   // back is kept on the day beside the other kinds, so every phone sees the same places.
+  // Gift ideas for someone back home, from what was written about them; kept on the person so
+  // the whole family sees the same list.
+  if(route==='gift-ideas'&&post){
+   const {state}=await readTrip(),ask=giftIdeasRequest(b,state);
+   const found=await findGiftIdeas(ask,state,user);
+   const saved=await updateTrip(next=>(next.giftPeople||[]).some(p=>p.id===ask.person.id)?{...next,giftIdeas:{...(next.giftIdeas||{}),[ask.person.id]:found}}:next);
+   return json(res,visibleEnvelope(saved,user));
+  }
   if(route==='night-out'&&post){
    const {state}=await readTrip(),ask=nightRequest(b,state,user);
    const found=await findNightOut(ask,state,user);

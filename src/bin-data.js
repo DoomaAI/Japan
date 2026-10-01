@@ -8,6 +8,7 @@ export const BIN_KINDS={
  todoRemove:{kind:'todo',label:'To-do',list:s=>s.todos||[],put:(s,item)=>{s.todos=[...(s.todos||[]),item];}},
  packRemove:{kind:'pack',label:'Packing list',list:s=>s.packing?.items||[],put:(s,item)=>{s.packing.items=[...s.packing.items,item];}},
  shoppingRemove:{kind:'shopping',label:'Shopping list',list:s=>s.shopping||[],put:(s,item)=>{s.shopping=[...(s.shopping||[]),item];}},
+ giftPersonRemove:{kind:'giftPerson',label:'People to buy for',list:s=>s.giftPeople||[],put:(s,item)=>{s.giftPeople=[...(s.giftPeople||[]),item];}},
  shortlistRemove:{kind:'shortlist',label:'Purchase shortlist',list:s=>s.shortlist||[],put:(s,item)=>{s.shortlist=[...(s.shortlist||[]),item];}},
  huntRemove:{kind:'hunt',label:'Hunts & lists',list:s=>s.hunts?.entries||[],put:(s,item)=>{s.hunts.entries=[...s.hunts.entries,item];}},
  payMethodRemove:{kind:'payMethod',label:'Which card?',list:s=>s.payMethods||[],put:(s,item)=>{s.payMethods=[...(s.payMethods||[]),item];},parentOnly:true},

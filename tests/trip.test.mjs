@@ -8864,6 +8864,30 @@ test('anyone packs and ticks; changing it is whoever added it, and starting agai
  assert.ok(queued.packing.dismissed.goshuin);
 });
 
+test('before we go: the lines follow the next pack-up, anyone ticks, and the next pack-up clears them',async()=>{
+ const {ensureFeatures,pendingProgress}=await import('../src/trip-features.js');
+ const {nextPackUp,beforeWeGo,beforeProgress,BEFORE_WE_GO}=await import('../src/packing-data.js');
+ const source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const offline=source.match(/const OFFLINE_OPS=\[(.*?)\];/s)[1].split(',').map(s=>s.trim().replace(/'/g,''));
+ const state=ensureFeatures(structuredClone(seed));
+ const move=nextPackUp(state,'2026-09-23'),home=nextPackUp(state,'2026-10-06');
+ const ids=list=>list.map(b=>b.id);
+ assert.ok(ids(beforeWeGo(move)).includes('forward')&&!ids(beforeWeGo(move)).includes('checkin'),'a hotel move asks about the bags, not the flight');
+ assert.ok(ids(beforeWeGo(home)).includes('checkin')&&!ids(beforeWeGo(home)).includes('forward'),'going home asks about the flight');
+ assert.ok(ids(beforeWeGo(home)).includes('bill')&&ids(beforeWeGo(move)).includes('bill'));
+ assert.deepEqual(beforeWeGo(null),[]);
+ assert.equal(new Set(ids(BEFORE_WE_GO)).size,BEFORE_WE_GO.length);
+ let next=applyOperation(state,{type:'packBefore',id:'ic',done:true},child);
+ assert.equal(next.packing.before.ic.by,'Nate');
+ assert.equal(beforeProgress(next,move).done,1);
+ assert.equal(beforeProgress(applyOperation(next,{type:'packBefore',id:'ic',done:false},parent),move).done,0);
+ for(const bad of [{id:'nope',done:true},{id:'ic',done:'yes'}])assert.throws(()=>applyOperation(state,{type:'packBefore',...bad},parent),e=>e.status===400);
+ assert.equal(beforeProgress(applyOperation(next,{type:'packReset'},parent),move).done,0);
+ assert.ok(offline.includes('packBefore'),'ticked with no signal');
+ const queued=pendingProgress(ensureFeatures(structuredClone(state)),[{operation:{type:'packBefore',id:'bill',done:true,by:'Nate',at:'2026-09-23T10:00:00.000Z'}}]);
+ assert.equal(queued.packing.before.bill.by,'Nate');
+});
+
 test('a ticket’s own photo or PDF read into English and kept on the file',async()=>{
  const {createServer}=await import('node:http');
  let seen=null,reply={readable:true,language:'Japanese',kind:'hotel confirmation',title:'Kyoto hotel',
