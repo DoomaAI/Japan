@@ -37,6 +37,8 @@ import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange,tellTomorr
 import {tomorrowReady,tomorrowOf,nightly} from './tomorrow.mjs';
 import {isDeveloping,momentAccepts} from '../src/film-data.js';
 import {quizAction} from '../src/quiz-data.js';
+import {planHighlights,highlightsReady} from './highlights.mjs';
+import {cleanEditList,defaultEditList} from '../src/highlights-data.js';
 import {vaultReady,listVault,saveVault,addVaultFile,readVaultFile,vaultView} from './vault.mjs';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
 // A photo's own position, if the phone read one out of it, kept to about ten metres. Anything
@@ -163,7 +165,7 @@ export default async function handler(req,res){
    if(!day)return json(res,{ok:true,ready:true,day:null});
    return json(res,{ok:true,ready:true,...await nightly(state,day,undefined,{onCheck:check=>tellTomorrow(check,parentsOf(state)).catch(()=>0)})});
   }
-  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),tomorrow:tomorrowReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
+  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),tomorrow:tomorrowReady(),highlights:highlightsReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id,kind,role,household,max_uses,uses FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -431,6 +433,15 @@ export default async function handler(req,res){
   }
   // The dinner quiz. Answers arrive from every phone at once, so each one is applied to the trip as
   // it stands (updateTrip) rather than refused for not knowing the latest revision.
+  // The highlights video's edit list: planned by Claude where there is a key (the automatic plan
+  // otherwise), or a parent's own trim of it, checked and kept in the trip for every phone.
+  if(route==='highlights-plan'&&post){
+   parent(user);const {state}=await readTrip();
+   const list=b.auto?defaultEditList(state):b.list?cleanEditList(b.list,state):await planHighlights(state);
+   if(!list)throw new AppError('That plan has none of our photos in it.');
+   const saved=await updateTrip(next=>({...next,highlights:{list:cleanEditList(list,next)||list,at:new Date().toISOString(),by:user.name}}));
+   return json(res,visibleEnvelope(saved,user));
+  }
   if(route==='quiz'&&post){
    let problem=null;
    const saved=await updateTrip(state=>{const r=quizAction(state,b,user,new Date());if(r.error){problem=r.error;return null;}return r.state;});

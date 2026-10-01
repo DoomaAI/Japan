@@ -191,6 +191,14 @@ export function extraOperation(state,op,user,fail,now){
   state.insider={...state.insider,[op.stepId]:{...note,...patch,status:op.status,reviewedBy:op.status==='draft'?null:user.name,reviewedAt:op.status==='draft'?null:now}};
   return {summary:null,important:false,title:state.steps.find(s=>s.id===op.stepId)?.title||'Insider note'};
  }
+ // The ledger's shopping line a parent says is already on a list, so Flying home counts it once.
+ if(op.type==='expenseCounted'){
+  if(!parent)fail('A parent can make this change.',403);
+  const e=(state.expenses||[]).find(x=>x.id===op.id);if(!e)fail('That spending line is no longer there.',404);
+  if(typeof op.counted!=='boolean')fail('Say whether it is already counted.');
+  state.expenses=state.expenses.map(x=>x.id===e.id?{...x,alreadyCounted:op.counted}:x);
+  return {summary:null,important:false,title:e.title};
+ }
  if(op.type==='dayCheckNote'){
   if(!parent)fail('A parent can make this change.',403);
   dayCheck(op.day);

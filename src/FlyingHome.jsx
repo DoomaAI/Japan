@@ -7,7 +7,7 @@ const yen=n=>`¥${Math.round(n||0).toLocaleString('en-AU')}`,dollars=(n,rate)=>`
 // What we bought, against the three things the airport asks: the card, the allowance, the scales.
 const ROOM_KEY='japan.roomleft';
 const readRoom=()=>{try{const v=Number(localStorage.getItem(ROOM_KEY));return Number.isFinite(v)&&v>0?v:null;}catch{return null;}};
-export default function FlyingHome({state,go}){
+export default function FlyingHome({state,go,mutate,busy,parent}){
  const {groups,unsure,any}=declareGroups(state),duty=dutyFree(state);
  const [room,setRoom]=useState(readRoom);
  const weight=weightBudget(state,room);
@@ -24,6 +24,13 @@ export default function FlyingHome({state,go}){
   </section>
   <section className="arrival-part"><h2><Scale size={20}/> Duty-free allowance</h2>
    <p><strong>{yen(duty.yen)}</strong> bought so far, about <strong>{dollars(duty.yen,duty.rate)}</strong>, against <strong>A${duty.allowance.toLocaleString('en-AU')}</strong> for the family together.{duty.over>0?` That is A$${duty.over.toLocaleString('en-AU')} over: declare it, and duty is charged on the whole of what is over, not the part.`:' Inside the allowance.'}{duty.unpriced?` ${duty.unpriced} thing${duty.unpriced===1?' has':'s have'} no price written down and ${duty.unpriced===1?'is':'are'} not counted.`:''}</p>
+   {/* The sum, shown as its parts: the lists, and what the ledger adds that no list has. */}
+   {(duty.ledger.extra.length>0||duty.ledger.matched.length>0)&&<div className="home-front-group duty-ledger">
+    <p>From the lists: <strong>{yen(duty.lists)}</strong> · from the family ledger, not on any list: <strong>{yen(duty.ledger.yen)}</strong></p>
+    {duty.ledger.extra.map(e=><div className="list-row" key={e.id}><span>{e.title} · {yen(e.yen)}</span>{mutate&&<button type="button" className="linkish" disabled={busy} onClick={()=>mutate({type:'expenseCounted',id:e.id,counted:true})}>Already on a list</button>}</div>)}
+    {duty.ledger.matched.length>0&&<details><summary>Left out, already counted ({duty.ledger.matched.length})</summary>
+     {duty.ledger.matched.map(e=><div className="list-row" key={e.id}><span>{e.title} · {yen(e.yen)} <small>{e.flagged?'marked by a parent':`same as “${e.twin}”`}</small></span>{e.flagged&&mutate&&<button type="button" className="linkish" disabled={busy} onClick={()=>mutate({type:'expenseCounted',id:e.id,counted:false})}>Count it</button>}</div>)}</details>}
+   </div>}
    <p><small>A$900 each adult and A$450 each child, pooled. Alcohol has its own limit: 2.25 litres an adult, none for the boys.</small></p>
   </section>
   <section className="arrival-part"><h2><Package size={20}/> Will it fit in the cases?</h2>

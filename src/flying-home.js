@@ -28,9 +28,9 @@ export function classify(title){
 // shortlist once marked bought, and the boys' purses once the till took the money.
 export function boughtItems(state){
  const out=[];
- for(const s of state?.shopping||[])if(s.boughtAt)out.push({id:`shop-${s.id}`,title:s.title,qty:s.quantity||1,yen:s.budget||null,who:s.person||'Family',source:'shopping',taxFree:!!s.taxFree});
- for(const s of state?.shortlist||[])if(s.status==='bought')out.push({id:`short-${s.id}`,title:s.title,qty:1,yen:Number.isFinite(s.price)?s.price:null,who:s.person||'Family',source:'shortlist',taxFree:!!s.taxFree});
- for(const i of (state?.spending?.items)||[])if(i.boughtAt)out.push({id:`purse-${i.id}`,title:i.title,qty:1,yen:Number.isFinite(i.spent)?i.spent:(i.estimate||null),who:i.person,source:'purse',taxFree:false});
+ for(const s of state?.shopping||[])if(s.boughtAt)out.push({id:`shop-${s.id}`,title:s.title,qty:s.quantity||1,yen:s.budget||null,who:s.person||'Family',source:'shopping',taxFree:!!s.taxFree,day:s.day||null});
+ for(const s of state?.shortlist||[])if(s.status==='bought')out.push({id:`short-${s.id}`,title:s.title,qty:1,yen:Number.isFinite(s.price)?s.price:null,who:s.person||'Family',source:'shortlist',taxFree:!!s.taxFree,day:s.day||null});
+ for(const i of (state?.spending?.items)||[])if(i.boughtAt)out.push({id:`purse-${i.id}`,title:i.title,qty:1,yen:Number.isFinite(i.spent)?i.spent:(i.estimate||null),who:i.person,source:'purse',taxFree:false,day:i.day||null});
  return out.map(i=>({...i,declare:classify(i.title),kg:weightOf(i.title)*(i.qty||1)}));
 }
 // What to tick yes to, with our things under each, and the ones the words cannot place.
@@ -40,13 +40,28 @@ export function declareGroups(state){
 }
 // Duty-free: everything bought overseas counts, tax-free purchases included, against A$900 an
 // adult and A$450 a child, which a family travelling together may pool.
+// The family ledger's shopping, for what was paid for and never written on a list. A ledger line
+// is left out when a list already has it — the same words in the name and the same day or the same
+// price — or when a parent has said it is already counted. The rest is its own line in the sum.
+const words=t=>new Set(String(t||'').toLowerCase().split(/[^a-z0-9]+/).filter(w=>w.length>=4));
+const sameThing=(e,i)=>{const a=words(e.title),b=words(i.title);const shared=[...a].some(w=>b.has(w));return shared&&((i.day&&e.day===i.day)||(Number.isFinite(i.yen)&&i.yen===e.yen));};
+export function ledgerShopping(state,items=boughtItems(state)){
+ const rows=(state?.expenses||[]).filter(e=>e.category==='shopping'&&Number.isFinite(e.yen));
+ const extra=[],matched=[];
+ for(const e of rows){
+  const twin=e.alreadyCounted?'by a parent':items.find(i=>sameThing(e,i))?.title||null;
+  (twin?matched:extra).push({id:e.id,title:e.title,yen:e.yen,day:e.day||null,twin,flagged:!!e.alreadyCounted});
+ }
+ return {extra,matched,yen:extra.reduce((s,e)=>s+e.yen,0)};
+}
 export const ADULT_AUD=900,CHILD_AUD=450;
 export function dutyFree(state){
- const rate=yenPerAud(state),items=boughtItems(state).filter(i=>Number.isFinite(i.yen));
- const yen=items.reduce((s,i)=>s+i.yen*(i.qty||1),0),aud=yenToAud(yen,rate);
+ const rate=yenPerAud(state),all=boughtItems(state),items=all.filter(i=>Number.isFinite(i.yen));
+ const lists=items.reduce((s,i)=>s+i.yen*(i.qty||1),0),ledger=ledgerShopping(state,all);
+ const yen=lists+ledger.yen,aud=yenToAud(yen,rate);
  const members=state?.members||[];
  const allowance=members.reduce((s,n)=>{const a=ageOf(state,n);return s+(a!==null&&a<18?CHILD_AUD:ADULT_AUD);},0);
- return {yen,aud,rate,allowance,over:Math.max(0,Math.round((aud-allowance)*100)/100),counted:items.length,unpriced:boughtItems(state).length-items.length};
+ return {yen,lists,ledger,aud,rate,allowance,over:Math.max(0,Math.round((aud-allowance)*100)/100),counted:items.length,unpriced:boughtItems(state).length-items.length};
 }
 // Rough weights, by words in the name, for a case that has to come in under the allowance.
 const KG=[[1.4,['sake','whisky','whiskey','wine','bottle','shochu','umeshu']],[1.2,['lego','ceramic','pottery','bowl','plate','teapot','cast iron','tetsubin','knife set']],

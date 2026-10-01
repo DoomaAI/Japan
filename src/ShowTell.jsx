@@ -23,7 +23,7 @@ export default function ShowTell({state,user}){
    {!!pack.photos.length&&<div className="show-tell-photos">{pack.photos.map(p=><img key={p.id} src={photoUrl(p)} alt={`A photo by ${pack.boy}`}/>)}</div>}
    <div className="show-tell-grid">
     <section><h3><Trophy size={16}/> Missions I did</h3>{pack.missions.length?<ul>{pack.missions.slice(0,8).map(m=><li key={m.id}>{m.icon} {m.title}</li>)}</ul>:<p>None ticked yet.</p>}</section>
-    <section><h3><Star size={16}/> My favourite</h3><p>{pack.favourite?`${pack.favourite.title} · ${dayLabel(pack.favourite.day)}`:'No stars yet.'}</p><p>{pack.stops} stops, {pack.days} days, {pack.cities.join(', ')}.</p></section>
+    <section><h3><Star size={16}/> My favourite</h3><p>{pack.favourite?`${pack.favourite.title} · ${dayLabel(pack.favourite.day)}`:'No stars yet.'}</p><p>{pack.stops} stops, {pack.days} days{pack.stamps?`, ${pack.stamps} stamps in my stamp book`:''}, {pack.cities.join(', ')}.</p></section>
     <section><h3><Eye size={16}/> I noticed</h3><p>{pack.noticed?.text||'Nothing written yet.'}</p></section>
     <section><h3><MessageSquare size={16}/> I can say</h3>{pack.phrase?<p><span lang="ja">{pack.phrase.ja}</span> · {pack.phrase.en}</p>:<p>No phrase yet.</p>}</section>
    </div>
