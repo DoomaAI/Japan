@@ -76,7 +76,7 @@ function planSlot(state,park,slot,key,addStep){
 }
 // The day is read in order, not by clock, so a timed slot goes in after the last stop that starts
 // no later than it, rather than at the bottom of the day under the train home.
-function orderAt(state,day,time){
+export function orderAt(state,day,time){
  const steps=state.steps.filter(s=>s.day===day).sort((a,b)=>a.order-b.order);
  let at=-1;steps.forEach((s,i)=>{if(s.time&&mins(s.time)<=mins(time))at=i;});
  if(at<0)return (steps[0]?.order??10)-1;

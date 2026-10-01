@@ -2,6 +2,7 @@ import {ensureFeatures,inboxNotes,documentSteps,documentServesStep,documentSpent
 import {extraOperation} from './features.mjs';
 import {cleanCode,answerCodes,setOwner,recordSend} from '../src/wallet-codes.js';
 import {expressOperation} from './express.mjs';
+import {dpaOperation} from './dpa.mjs';
 import { randomUUID } from 'node:crypto';
 import {activeSteps,MAX_WINDOW} from '../src/timing.js';
 import {legCount,tickLeg} from '../src/route-data.js';
@@ -132,7 +133,7 @@ export function applyOperation(input,op,user){
  // in Recently deleted and come back exactly as it was. The removal itself is left to decide
  // whether this person may do it at all.
  const binned=binSnapshot(state,op);
- let extra=binOperation(state,op,user)||expressOperation(state,op,user,fail,now,(st,p)=>addStep(st,validatePatch(p,st)))||extraOperation(state,op,user,fail,now);
+ let extra=binOperation(state,op,user)||expressOperation(state,op,user,fail,now,(st,p)=>addStep(st,validatePatch(p,st)))||dpaOperation(state,op,user,fail,now,(st,p)=>addStep(st,validatePatch(p,st)))||extraOperation(state,op,user,fail,now);
  if(extra){
  }else if(op.type==='status'){
   if(!parent&&!step.participants.includes(user.name))throw new AppError('This activity is assigned to other family members.',403);
