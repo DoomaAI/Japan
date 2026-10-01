@@ -15,6 +15,7 @@ export const readinessState=state=>state.readiness||{};
 export const readinessFor=(state,day)=>readinessState(state)[day]||{};
 export const readinessOf=(state,day,person)=>readinessFor(state,day)[person]?.level??null;
 export const faceOf=level=>READINESS.find(r=>r.level===level)?.face||'';
+export const wordOf=level=>READINESS.find(r=>r.level===level)?.word||'';
 // Whoever is lowest, when anyone is under three; else nothing to say.
 export function lowest(state,day){
  const rows=Object.entries(readinessFor(state,day)).map(([person,r])=>({person,level:r.level})).filter(r=>Number.isInteger(r.level)).sort((a,b)=>a.level-b.level);

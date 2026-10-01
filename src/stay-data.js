@@ -12,7 +12,11 @@ export const STAY_FIELDS=[
  ['phone','Front desk phone',40],
  ['checkIn','Check-in from (HH:MM)',5],
  ['checkOut','Check-out by (HH:MM)',5],
- ['notes','Notes (breakfast, wifi, room)',600]
+ ['notes','Notes (breakfast, wifi, room)',600],
+ // A photograph of the hotel, as a hotel app leads with one. Nobody has to find one: until a
+ // parent adds a link (the hotel's own site, or our own photos), the card shows the picture from
+ // the guide's first page for the night we arrive, which is already saved for offline use.
+ ['photo','Photo of the hotel (a link to the image)',600]
 ];
 export const CLOCK=/^([01]\d|2[0-3]):[0-5]\d$/;
 const said=/check[\s-]?in/i,out=/check[\s-]?out/i;
@@ -49,7 +53,7 @@ export function stayFor(state,date){
   night:night||stay.nights.length,total:stay.nights.length,checkingOut:!night,
   checkIn:saved.checkIn||inStop?.time||'',checkOut:saved.checkOut||outStop?.time||'',
   checkInStop:inStop,checkOutStop:outStop,
-  reference:saved.reference||inStop?.bookingReference||'',guest:saved.guest||'',notes:saved.notes||'',
+  reference:saved.reference||inStop?.bookingReference||'',guest:saved.guest||'',notes:saved.notes||'',photo:saved.photo||'',guidePage:(state?.days||[]).find(d=>d.date===stay.from)?.pages?.[0]||null,
   phone:where.phone,address:where.address,japanese:where.japanese,japaneseAddress:where.japaneseAddress,
   place,moving:stay.from===date,leaving:!night||stay.nights.at(-1)===date,
   by:saved.by||null,at:saved.at||null
@@ -64,6 +68,7 @@ export function cleanStay(patch){
   const v=String(patch[key]??'').trim();
   if(v.length>max)return {error:`That ${key==='notes'?'note':'entry'} is too long.`};
   if((key==='checkIn'||key==='checkOut')&&v&&!CLOCK.test(v))return {error:'Write the time as a 24-hour clock, like 15:00.'};
+  if(key==='photo'&&v&&!/^https:\/\/\S+$/i.test(v))return {error:'The photo needs to be a link starting with https://.'};
   next[key]=v;
  }
  return {value:next};

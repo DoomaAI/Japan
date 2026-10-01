@@ -88,5 +88,5 @@ test('the assistant is a button on every page, switched on by default and off pe
  assert.equal(SETTINGS.find(s=>s.id==='voiceAssistant').group,'assistant');
  assert.match(main,/config\?\.ask&&isAvailable\('ask'\)&&settingOn\(settings,'voiceAssistant'\)&&tab!=='ask'&&!modal&&<button type="button" className="assistant-fab"/,'only where Ask works, and not over Ask or a sheet');
  assert.match(main,/modal\.type==='assistant'&&<AskTrip assistant /);
- assert.match(main,/className="assistant-fab" aria-label="AI assistant[^"]*"[^\n]*?><Sparkles size=\{24\}\/><span className="assistant-fab-mic"/,'one AI button: the sparkle, with the microphone on it');
+ assert.match(main,/className="assistant-fab" aria-label="Concierge[^"]*"[^\n]*?><ConciergeBell size=\{24\}\/><span className="assistant-fab-mic"/,'one concierge button: the bell, with the microphone on it');
 });

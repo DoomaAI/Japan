@@ -1,4 +1,5 @@
 import TicketAttachments from './TicketAttachments.jsx';
+import Mark from './Mark.jsx';
 import LocationDirectory,{GuideLocations} from './LocationDirectory.jsx';
 import {destinationFor,resolveLocation,showLocationDetails} from './locations.js';
 import {ensureFeatures,pendingProgress,phoneLinks,isTrainLeg,PIN_PLACES,stepPin,pinText,phraseSeenBy,phraseQueue,factSeenBy,factsSeenBy,factQueue,THANK_YOU_FROM,THANK_YOU_FOR,BOYS as NOTE_BOYS,todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,ticketList,isArchived,attachmentsOf,documentSteps,documentStepList,documentServesStep} from './trip-features.js';
@@ -31,7 +32,7 @@ import {factForDay,factsForStep,gentleFacts} from './fact-data.js';
 import {PHRASES} from './phrases.js';
 import {readSettings,writeSetting,settingOn} from './settings.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
-import {PAGES,cleanNav,emptyNav,setAvailable,isAvailable,setHeldBack,setPlan} from './nav-data.js';
+import {PAGES,cleanNav,emptyNav,setAvailable,isAvailable,setHeldBack,setPlan,isKidsPage} from './nav-data.js';
 import {HOME_WIDGETS,homeShown,homeRuns,emptyHome,cleanHome,homeDay,foldWidget,awayToday,backToday} from './home-widgets.js';
 import {linkOrder,emptyLinks,cleanLinks} from './card-links.js';
 import StopButtons from './StopButtons.jsx';
@@ -85,10 +86,10 @@ import Weather,{StepWeather,NowWeather} from './Weather.jsx';
 import DocumentReader from './DocumentReader.jsx';
 import PhotoDay from './PhotoDay.jsx';
 import {MascotBadge} from './Mascot.jsx';
-import React,{useEffect,useMemo,useRef,useState,lazy,Suspense} from 'react';
+import React,{useEffect,useLayoutEffect,useMemo,useRef,useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
-import {ArrowLeftRight,EyeOff,Sparkles,Radio,MessageCircleQuestion,Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,Inbox,Archive,ArchiveRestore,Heart,Phone,MessageCircle,Eye,RefreshCw,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
+import {ArrowLeftRight,EyeOff,Sparkles,ConciergeBell,Radio,MessageCircleQuestion,Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,Inbox,Archive,ArchiveRestore,Heart,Phone,MessageCircle,Eye,RefreshCw,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
 import {activeSteps,dayProgress,dayBehind,tripCountdown,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent,scheduleVariance,stayPlan,spanWords,setPlanZone,planZone,zonedInstant,windowText,WINDOW_CHOICES} from './timing.js';
 import {armPlayback} from './speech.js';
 import {PhraseAudio} from './PhraseAudio.jsx';
@@ -98,6 +99,8 @@ import SplitDay,{WhoseDay} from './SplitDay.jsx';
 import './style.css';
 import './stages.css';
 import './guide-theme.css';
+import './house-theme.css';
+import './house-colours.css';
 import './travel-guide.css';
 // Tomorrow's check and Plan B are read with no signal, on the stop card and the day, so they are in the shell.
 import DayCheck,{StopPlanB} from './DayCheck.jsx';
@@ -180,13 +183,18 @@ function Button({icon:Icon,children,...props}){return <button {...props}>{Icon&&
 // both until tomorrow. The card's own content is always drawn, folded or not, so a card with
 // nothing to say right now (dinner before four, the run-up after we land) still draws nothing,
 // label and all — the stylesheet hides a card whose body is empty.
+// A card whose own first heading says only what its label says marks it, so a look that shows
+// the label as the section's title can leave the repeat out.
+const sameWords=(a,b)=>String(a||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()===String(b||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 function HomeCard({label,folded,fold,away,children}){
+ const body=useRef(null);
+ useLayoutEffect(()=>{const first=body.current?.querySelector('.eyebrow');if(!first)return;const dup=sameWords(first.textContent,label);if(dup)first.setAttribute('data-repeats-label','');else first.removeAttribute('data-repeats-label');});
  return <section className={`home-card${folded?' folded':''}`} aria-label={label}>
   <div className="home-card-bar"><span>{label}</span>
    <button type="button" className="icon" aria-expanded={!folded} aria-label={folded?`Open ${label}`:`Fold ${label} for today`} onClick={fold}><ChevronDown size={16}/></button>
    <button type="button" className="icon" aria-label={`Put ${label} away until tomorrow`} onClick={away}><EyeOff size={15}/></button>
   </div>
-  <div className="home-card-body">{children}</div>
+  <div className="home-card-body" ref={body}>{children}</div>
  </section>;
 }
 // Anything typed into a sheet is asked about before a stray tap on the backdrop, or Escape,
@@ -230,6 +238,9 @@ function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[opened,setOpened]=useState(false),[error,setError]=useState(''),[toast,setToast]=useState('');
  // A link anyone can join with has asked who this is; the screen that asks is shown instead of the plan.
  const [joining,setJoining]=useState(null);
+ // Arrange Home: in the house look the fold and put-away buttons wait behind this, so Home reads
+ // as the day rather than as a row of controls. Not kept: Home opens arranged for reading.
+ const [arranging,setArranging]=useState(false);
  const [start]=useState(startingPosition);
  const [tab,setTab]=useState(TABS.includes(new URLSearchParams(location.search).get('tab'))?new URLSearchParams(location.search).get('tab'):'today'),[day,setDay]=useState(start.day),[selected,setSelected]=useState(start.step);
  const [focus,setFocus]=useState(new URLSearchParams(location.search).get('item')||null);
@@ -692,7 +703,7 @@ function App(){
   puzzle:<PuzzleLine state={visibleState} user={user} open={()=>setModal({type:'puzzle'})}/>,
   reports:<Reports state={visibleState} user={user} day={day} now={now} selectStep={selectStep}/>,
   codes:<CodePrompt state={state} parent={parent} busy={busy} mutate={mutate} notice={notice} onShow={doc=>setModal({type:'tickets',initialSearch:doc.title})}/>,
-  countdown:(c=>c&&<section className={`countdown-card ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span><b>{c.days===1?'day to go':'days to go'}</b><small>{c.days===1?'Tomorrow we fly to Japan!':`Until Day 1 · ${fmtDay(state.days[0].date)}`}</small></span></>:c.phase==='during'?<><strong>{c.day}</strong><span><b>{c.text}</b><small>{c.sub}</small></span></>:<><Check size={28}/><span><b>{c.text}</b><small>All {c.total} days of Japan behind us</small></span></>}</section>)(tripCountdown(state.days,todayJapan)),
+  countdown:(c=>c&&<section className={`countdown-card ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span><b>{c.days===1?'day to go':'days to go'}</b><small>{c.days===1?'Tomorrow we fly to Japan.':`Until Day 1 · ${fmtDay(state.days[0].date)}`}</small></span></>:c.phase==='during'?<><strong>{c.day}</strong><span><b>{c.text}</b><small>{c.sub}</small></span></>:<><Check size={28}/><span><b>{c.text}</b><small>All {c.total} days of Japan behind us</small></span></>}</section>)(tripCountdown(state.days,todayJapan)),
   dinner:<DinnerTonight key={`dinner-${day}`} state={visibleState} user={user} day={day} today={japanDate(now)} clock={japanClock(now)} config={config} request={request} accept={accept} mutate={mutate} busy={busy} notice={notice} openNearby={()=>setModal({type:'nearby',need:'food'})}/>,
   nightout:<NightOut key={`nightout-${day}`} state={visibleState} user={user} day={day} today={japanDate(now)} clock={japanClock(now)} config={config} request={request} accept={accept} mutate={mutate} busy={busy} notice={notice} openNearby={()=>setModal({type:'nearby',need:'izakaya'})}/>,
   tonight:<Tonight state={visibleState} user={user} day={day} today={japanDate(now)} clock={japanClock(now)} mutate={mutate} busy={busy} openVoice={()=>setModal({type:'voice',day})} go={go} addStop={parent?()=>setModal({type:'edit',step:null}):null} notice={notice}/>,
@@ -739,17 +750,17 @@ function App(){
         sumo, the train window) comes first, then everything every stop has; press and hold any
         of them to wobble the row and drag them into your own order. */}
     <StopButtons label="For this stop" order={linkOrder(linkPrefs)} setOrder={order=>saveLinks({order})} buttons={{
-     park:parkForDay(day)&&<button className="card-link-special" onClick={()=>setModal({type:'park',park:parkForDay(day)})}><span aria-hidden="true">🎢</span>Rides &amp; park map</button>,
+     park:parkForDay(day)&&<button className="card-link-special" onClick={()=>setModal({type:'park',park:parkForDay(day)})}><Mark emoji="🎢"/>Rides &amp; park map</button>,
      // Live waits for this stop's ride, and the rest of the park underneath, from Queue-Times.com
      // (src/wait-times.js). The official app stays one tap away inside the sheet.
-     waits:parkForDay(day)&&<button className="card-link-special" onClick={()=>setModal({type:'waits',park:parkForDay(day),step:current})}><span aria-hidden="true">⏱️</span>Wait times</button>,
-     sumo:day===SUMO_DAY&&<button className="card-link-special" onClick={()=>setModal({type:'sumo'})}><span aria-hidden="true">🥋</span>Sumo card{sumoState(state).bouts.length?` · ${sumoState(state).bouts.length} bouts`:''}</button>,
-     eyespy:isTrainLeg(current)&&<button className="card-link-special" onClick={()=>setModal({type:'eyespy',step:current})}><span aria-hidden="true">🎱</span>Japan bingo</button>,
+     waits:parkForDay(day)&&<button className="card-link-special" onClick={()=>setModal({type:'waits',park:parkForDay(day),step:current})}><Mark emoji="⏱️"/>Wait times</button>,
+     sumo:day===SUMO_DAY&&<button className="card-link-special" onClick={()=>setModal({type:'sumo'})}><Mark emoji="🥋"/>Sumo card{sumoState(state).bouts.length?` · ${sumoState(state).bouts.length} bouts`:''}</button>,
+     eyespy:isTrainLeg(current)&&<button className="card-link-special" onClick={()=>setModal({type:'eyespy',step:current})}><Mark emoji="🎱"/>Japan bingo</button>,
      website:<Link className="button" href={current.website||`https://www.google.com/search?q=${encodeURIComponent((current.place||current.title)+' official website Japan')}`}><ExternalLink size={15}/>{current.website?'Website':'Find website'}</Link>,
      tickets:<button onClick={()=>setModal({type:'tickets',step:current})}><Ticket size={15}/>Tickets{state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length?` (${state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length})`:''}</button>,
      photos:<button onClick={()=>setModal({type:'media',step:current})}><ImageIcon size={15}/>Photos</button>,
      voice:<button onClick={()=>setModal({type:'voice',step:current})}><Mic size={15}/>Voice note</button>,
-     ask:config?.ask&&<button onClick={()=>setModal({type:'ask',step:current})}><MessageCircleQuestion size={15}/>Ask a question</button>,
+     ask:config?.ask&&<button onClick={()=>setModal({type:'ask',step:current})}><ConciergeBell size={15}/>Ask the concierge</button>,
      guide:<button onClick={()=>openPage(current.page)}><BookOpen size={15}/>Guide p.{current.page}</button>,
      remind:<button onClick={()=>setModal({type:'alarm',step:current})}><Bell size={15}/>Remind me</button>,
      nearby:<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={15}/>Nearby</button>,
@@ -777,7 +788,7 @@ function App(){
   stay:<StayCard state={visibleState} day={day} parent={parent} busy={busy} mutate={mutate} notice={notice} directions={directions} onShow={place=>setModal({type:'show',step:{...place,title:place.place}})} onTickets={hotel=>setModal({type:'tickets',initialSearch:hotel})}/>,
   glance:<Button icon={ListOrdered} onClick={()=>go('glance')}>The day at a glance</Button>,
   adjust:parent&&<><Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button><Button icon={ArrowLeftRight} onClick={()=>setModal({type:'rearrange'})}>Move or swap days</Button></>,
-  tired:<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button>,
+  tired:<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>Slow the day</Button>,
   apps:<Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button>,
   spare:<SpareTime state={visibleState} day={day} now={now} user={user} parent={parent} busy={busy} mutate={mutate} selectStep={selectStep} openPark={p=>setModal({type:'park',park:p})}/>,
   nextup:<NextUp state={visibleState} day={day} person={lens||null} after={current?.id||null} now={now} selectStep={selectStep} open={setModal} go={go} user={user} mutate={mutate} busy={busy} parent={parent}/>,
@@ -794,7 +805,7 @@ function App(){
  // One place decides what a phrase sounds like, so every SayIt on every screen offers the
  // family's own recording where there is one without being handed props down five levels.
  return <PhraseAudio.Provider value={{clips:visibleState?.phraseAudio||{},user,request,accept,notice,config,busy}}>
-  <div className="app">
+  <div className="app" data-viewer={parent?'parent':'child'}>
   {/* The speaker in this row is on every page, up beside the bell rather than in a band of its
       own, for the five-year-old holding the phone. It says what the screen is for in words he
       can follow rather than reading the heading at him, and being in the same place on every
@@ -806,14 +817,14 @@ function App(){
   {user.expiresAt&&new Date(user.expiresAt)-now<14*86400000&&<div className="expiry-note"><AlertCircle size={14}/><span>Your link to the family plan ends {fmtDay(japanDate(new Date(user.expiresAt)))}. {parent?'Make a fresh link in Family settings before then.':'Ask a parent for a fresh link before then.'}</span></div>}
   {conflict&&<div className="conflict"><strong>The family changed the plan while you were offline.</strong><p>Your {queue.length} progress update(s) are still saved. Review them against the latest itinerary.</p><div className="row"><Button onClick={()=>setModal({type:'pending'})}>Review updates</Button><Button onClick={()=>{if(confirm(`Throw away ${queue.length} unsynced update${queue.length===1?'':'s'}? They cannot be brought back.`)){saveQueue([]);setConflict(false);}}}>Discard my pending updates</Button></div></div>}
   <HandedBanner user={user} handed={handed} takeBack={takeBack}/>
-  <main>
+  <main data-kids={isKidsPage(tab)?'':undefined}>
   {/* The pages opened now and then load when they are opened, so the shell that has to be
       on screen at a station stays small; every chunk is still put in the offline shell by
       the build, so a page opened for the first time in a tunnel still opens. */}
   <Suspense fallback={<p className="page-loading">Opening…</p>}>
   {/* Away from the Wallet the codes are still read, quietly, and Home asks about what was found. */}
   {tab!=='tickets'&&<CodeReader state={state} parent={parent} online={online} mutate={mutate} quiet/>}
-  {tab==='today'&&<div className="home">
+  {tab==='today'&&<div className={`home${arranging?' arranging':''}`}>
    {dayHeading}
    {dayStrip(selectDay)}
    <MomentBanner day={japanDate(now)} now={now} go={go}/>
@@ -821,14 +832,14 @@ function App(){
    {homeRuns(homeShown(homePrefs).filter(id=>awarenessAllows(visibleState,user.name,id)&&!todayHome.away.includes(id))).map(run=>Array.isArray(run)?<div className="home-actions" key={run.join()}>{run.map(id=><React.Fragment key={id}>{homeWidgets[id]}</React.Fragment>)}</div>:<HomeCard key={run} label={HOME_WIDGETS[run].label} folded={todayHome.folded.includes(run)} fold={()=>saveHomeToday(foldWidget(homeToday,todayKey,run))} away={()=>saveHomeToday(awayToday(homeToday,todayKey,run))}>{homeWidgets[run]}</HomeCard>)}
    {!homeShown(homePrefs).length&&<div className="empty"><h2>Home is clear.</h2><p>Every widget is put away. Bring back the ones you want from Customise.</p></div>}
    {todayHome.away.length>0&&<div className="home-away"><EyeOff size={15}/><span>{todayHome.away.length===1?`${HOME_WIDGETS[todayHome.away[0]].label} is`:`${todayHome.away.length} cards are`} put away until tomorrow.</span><button type="button" onClick={()=>saveHomeToday(backToday(homeToday,todayKey))}><Eye size={15}/> Show {todayHome.away.length===1?'it':'them'}</button><button type="button" onClick={()=>go('settings')}><SlidersHorizontal size={15}/> Put away for good</button></div>}
-   <div className="home-customise"><Button icon={SlidersHorizontal} onClick={()=>go('personalise')}>Customise Home</Button></div>
+   <div className="home-customise"><Button icon={SlidersHorizontal} onClick={()=>go('personalise')}>Customise Home</Button><button type="button" className="home-arrange" aria-pressed={arranging} onClick={()=>setArranging(a=>!a)}>{arranging?<Check size={18}/>:<ListOrdered size={18}/>} {arranging?'Done':'Arrange Home'}</button></div>
   </div>}
   {tab==='glance'&&<>
    {planSwitch}
    {dayHeading}
    {dayStrip(d=>go('glance',d))}
    {/* The day's own buttons sit here, over the stops they change, rather than on Home. */}
-   <div className="home-actions day-actions">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}{parent&&<Button icon={ArrowLeftRight} onClick={()=>setModal({type:'rearrange'})}>Move or swap days</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
+   <div className="home-actions day-actions">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}{parent&&<Button icon={ArrowLeftRight} onClick={()=>setModal({type:'rearrange'})}>Move or swap days</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>Slow the day</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
    <DayCheck state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} accept={accept} notice={notice} selectStep={selectStep} busy={busy}/>
    <DayTimeline steps={steps} allSteps={allSteps} splits={splits} lens={lens} setLens={follow} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/>
    <DayMap key={day} state={visibleState} day={day} selectStep={selectStep}/>
@@ -910,14 +921,14 @@ function App(){
   {tab==='help'&&<><p className="eyebrow">A LITTLE HELP, ALWAYS HANDY</p><h1>Find our way</h1><div className="help-grid"><Link className="help-card dark" href={directions(today?.hotel)}><House/><h2>Take me to our hotel</h2><p>{today?.hotel}</p><span>Open directions <ArrowRight size={18}/></span></Link><button className="help-card" onClick={()=>setModal({type:'show',step:current||{title:today?.hotel,place:today?.hotel,japanese:''}})}><Languages/><h2>Show someone</h2><p>Large destination name and Japanese help.</p></button><Link className="help-card" href={APPS.translate[1]}><Languages/><h2>Google Translate</h2><p>Translate text; use the official app for camera and conversation.</p></Link><button className="help-card" onClick={()=>setModal({type:'tickets'})}><Ticket/><h2>Tickets & documents</h2><p>All family bookings in one place.</p></button><button className="help-card" onClick={()=>setModal({type:'nearby'})}><Compass/><h2>Food & amenities near here</h2><p>Toilets, a convenience store, cash or somewhere to eat, from where we are standing.</p></button></div><h2>Straight to Maps</h2><MapsNearby/><h2>Useful apps</h2><AppLinks/><button type="button" className="button" onClick={()=>go('apps')}>Every app we suggest, and what to set up <ArrowRight size={16}/></button><h2>Before we rely on the plan</h2>{state.notices.map(n=><p className="callout" key={n.id}><AlertCircle size={18}/>{n.text}</p>)}<details><summary>Offline access and iPhone setup</summary><p>In Safari, tap Share → Add to Home Screen → Open as Web App. Each family member opens their own invite link first.</p><p>Your loaded itinerary is saved on this phone. Use Save page and Save file offline before going offline. Maps, live translations and external apps need their own offline preparation.</p><p>Offline progress queues on this phone. Reconnect to sync. Conflicting changes are shown for review.</p><p>Private downloads remain on a phone until cleared, even if its invite is later revoked.</p><Button icon={Download} onClick={async()=>{setBusy(true);try{for(const p of today.pages){const r=await fetch(`/api/guide?page=${p}`);if(!r.ok)throw new Error();const c=await caches.open('japan-private-v1');await c.put(`/api/guide?page=${p}`,r);}const next=[...new Set([...saved,...today.pages.map(p=>`page-${p}`)])];setSaved(next);localStorage.setItem('japan.saved',JSON.stringify(next));notice('All guide pages for this day are downloaded.');}catch{notice('Some pages could not download. Please retry.');}finally{setBusy(false);}}} disabled={busy}>Download this day’s guide pages</Button></details></>}
   </Suspense>
   </main>
-  {/* The AI assistant, one tap from any page: the sparkle that means AI, with the microphone on
+  {/* The concierge, one tap from any page: a bell, as at a hotel desk, with the microphone on
       it because it opens listening — and a box to type in for when talking will not do. It opens already listening, about the day in front
       of us; Ask itself has it at the top, so the button stands down there and under a sheet. */}
-  {user&&config?.ask&&isAvailable('ask')&&settingOn(settings,'voiceAssistant')&&tab!=='ask'&&!modal&&<button type="button" className="assistant-fab" aria-label="AI assistant: say or type what you want changed, or ask about the trip" onClick={()=>setModal({type:'assistant'})}><Sparkles size={24}/><span className="assistant-fab-mic" aria-hidden="true"><Mic size={12}/></span></button>}
+  {user&&config?.ask&&isAvailable('ask')&&settingOn(settings,'voiceAssistant')&&tab!=='ask'&&!modal&&<button type="button" className="assistant-fab" aria-label="Concierge: say or type what you want changed, or ask about the trip" onClick={()=>setModal({type:'assistant'})}><ConciergeBell size={24}/><span className="assistant-fab-mic" aria-hidden="true"><Mic size={12}/></span></button>}
   <BottomNav tab={tab} user={user} go={navGo} prefs={navPrefs} setPrefs={saveNav} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
   {toast&&!modal&&toastBar}
-  {modal&&<Dialog title={{edit:modal.step?'Edit stop':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',blend:'The Blend',quiz:'Dinner quiz',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',rearrange:'Move or swap days',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',report:'Tell the other phones',checkin:'Check In',latemsg:'Tell the others we’re late',puzzle:'Today’s puzzle',halfway:'Halfway there',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Japan bingo',park:modal.park?.name||'Theme park rides',waits:`Wait times · ${modal.park?.short||''}`,foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',assistant:'AI assistant',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','waits','voice','nearby','sumo','ask','assistant'].includes(modal.type)}>
+  {modal&&<Dialog title={{edit:modal.step?'Edit stop':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',blend:'The Blend',quiz:'Dinner quiz',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',rearrange:'Move or swap days',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',report:'Tell the other phones',checkin:'Check In',latemsg:'Tell the others we’re late',puzzle:'Today’s puzzle',halfway:'Halfway there',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Japan bingo',park:modal.park?.name||'Theme park rides',waits:`Wait times · ${modal.park?.short||''}`,foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',assistant:'Concierge',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','waits','voice','nearby','sumo','ask','assistant'].includes(modal.type)}>
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} mode={modal.mode} wishlist={modal.wishlist} need={modal.need} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)} available={!!config?.nearby}/>}
    {modal.type==='ask'&&<AskTrip state={visibleState} user={user} day={modal.step?.day||day} step={modal.step} config={config} online={online} request={request} mutate={mutate} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}

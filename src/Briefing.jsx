@@ -6,7 +6,9 @@ import {rollFor} from './film-data.js';
 import {readingBumps,dismissBump} from './level-nudge.js';
 import {useStored} from './stored.js';
 import {dayBriefing,briefingGreeting} from './briefing-data.js';
-import {READINESS,readinessOf,lowest,answered,faceOf} from './readiness-data.js';
+import {READINESS,readinessOf,lowest,answered,faceOf,wordOf} from './readiness-data.js';
+// How someone said they are, as the face and the word; the look decides which shows.
+const Feeling=({level})=>level?<span className="feeling"><span className="readiness-face">{faceOf(level)}</span><span className="readiness-word">{wordOf(level)}</span></span>:null;
 import {useState} from 'react';
 // The morning briefing widget: the day read in one card, with a tap through to its stops.
 // The phrase and the fun fact of the day are a widget of their own, TodaysJapan, just below.
@@ -43,10 +45,10 @@ export default function Briefing({state,day,today,clock,go,user,mutate,busy,open
   {day===today&&user&&<div className="readiness">
    {asking?<>
     <p className="readiness-ask">How is everyone this morning?</p>
-    {members.filter(p=>parent||p===user.name).map(p=>{const mine=readinessOf(state,day,p),can=true;return <div key={p} className="readiness-row"><span>{p}</span><div role="radiogroup" aria-label={`${p}: one to five`}>{READINESS.map(r=><button type="button" key={r.level} role="radio" aria-checked={mine===r.level} aria-label={`${r.word}, ${r.level} of 5`} className={mine===r.level?'is-on':''} disabled={busy||!can} onClick={()=>mutate({type:'readinessSet',day,person:p,level:r.level})}>{r.face}</button>)}</div></div>;})}
-    {!parent&&done.filter(p=>p!==user.name).length>0&&<p className="readiness-others">{done.filter(p=>p!==user.name).map(p=>`${p} ${faceOf(readinessOf(state,day,p))}`).join(' · ')}</p>}
+    {members.filter(p=>parent||p===user.name).map(p=>{const mine=readinessOf(state,day,p),can=true;return <div key={p} className="readiness-row"><span>{p}</span><div role="radiogroup" aria-label={`${p}: one to five`}>{READINESS.map(r=><button type="button" key={r.level} role="radio" aria-checked={mine===r.level} aria-label={`${r.word}, ${r.level} of 5`} className={mine===r.level?'is-on':''} disabled={busy||!can} onClick={()=>mutate({type:'readinessSet',day,person:p,level:r.level})}><span className="readiness-face">{r.face}</span><span className="readiness-word">{r.word}</span></button>)}</div></div>;})}
+    {!parent&&done.filter(p=>p!==user.name).length>0&&<p className="readiness-others">{done.filter(p=>p!==user.name).map((p,i)=><React.Fragment key={p}>{i>0&&' · '}{p} <Feeling level={readinessOf(state,day,p)}/></React.Fragment>)}</p>}
     {changing&&<button type="button" className="linkish" onClick={()=>setChanging(false)}>Done</button>}
-   </>:<button type="button" className="readiness-line" onClick={()=>setChanging(true)}>{members.map(p=><span key={p}>{p} {faceOf(readinessOf(state,day,p))}</span>)}</button>}
+   </>:<button type="button" className="readiness-line" onClick={()=>setChanging(true)}>{members.map(p=><span key={p}>{p} <Feeling level={readinessOf(state,day,p)}/></span>)}</button>}
    {low&&<div className="readiness-low"><p><b>{low.person} is at {low.level} of 5</b>, so the easier version of today is ready before anyone needs it.</p><div className="row wrap"><button type="button" onClick={()=>open?.({type:'tired'})}>Take it easier</button>{parent&&<button type="button" onClick={()=>open?.({type:'reschedule'})}>Adjust the day</button>}</div></div>}
   </div>}
   {b.fixed.length>0&&<ul className="briefing-fixed">{b.fixed.map(f=><li key={f.id}><LockKeyhole size={14}/><b>{f.time}</b> {f.title}</li>)}</ul>}

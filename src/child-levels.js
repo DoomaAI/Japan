@@ -19,7 +19,7 @@ export const READING=[
 export const AWARENESS=[
  ['with','With a grown-up','Today’s stops and his own things: missions, photos, the purse, the phrases. No times to keep, no reports, no check-ins, and no emergency page beyond the meeting card.'],
  ['told','Can be told things','Plus how the day goes: the weather by the hour, what the other phones reported, who is on their way back, and the safety page.'],
- ['trusted','Can be trusted with','Plus the plan’s clock: what’s next and how long until it, the next fixed time and its stage tracker, whether the trains are running, and Ask about our trip.']
+ ['trusted','Can be trusted with','Plus the plan’s clock: what’s next and how long until it, the next fixed time and its stage tracker, whether the trains are running, and the Concierge.']
 ];
 const READING_IDS=READING.map(([id])=>id),AWARENESS_IDS=AWARENESS.map(([id])=>id);
 export const readingLabel=id=>(READING.find(([key])=>key===id)||READING.at(-1))[1];

@@ -9,7 +9,7 @@ import {shortDay as fmt} from './format.js';
 // the taxi card, and the front desk's number.
 export default function StayCard({state,day,parent,busy,mutate,notice,directions,onShow,onTickets}){
  const stay=stayFor(state,day);
- const [editing,setEditing]=useState(false);
+ const [editing,setEditing]=useState(false),[photoFailed,setPhotoFailed]=useState('');
  if(!stay)return null;
  const tel=stay.phone?phoneLinks(stay.phone)?.tel:null;
  const copy=async()=>{try{await navigator.clipboard.writeText(stay.reference);notice('Confirmation number copied.');}catch{notice('This phone would not let the app copy. Select the number and copy it by hand.');}};
@@ -19,6 +19,9 @@ export default function StayCard({state,day,parent,busy,mutate,notice,directions
   if(await mutate({type:'stayEdit',hotel:stay.hotel,patch})){setEditing(false);notice('Saved for everyone.');}
  }
  return <section className="stay-card" aria-label="Tonight’s stay">
+  {stay.photo&&photoFailed!==stay.photo
+   ?<img className="stay-photo" src={stay.photo} alt={stay.hotel} loading="lazy" referrerPolicy="no-referrer" onError={()=>setPhotoFailed(stay.photo)}/>
+   :stay.guidePage&&<div className="stay-photo stay-photo-guide" role="img" aria-label={`${stay.hotel}, from our travel guide`} style={{backgroundImage:`url(/api/guide?page=${stay.guidePage})`}}/>}
   <div className="stay-head">
    <span className="stay-icon" aria-hidden="true"><BedDouble size={20}/></span>
    <div><p className="eyebrow">{stay.checkingOut?'CHECKING OUT TODAY':stay.moving?'CHECKING IN TODAY':stay.leaving?'LAST NIGHT HERE':'TONIGHT’S STAY'}{stay.checkingOut?'':` · NIGHT ${stay.night} OF ${stay.total}`}</p>
@@ -35,15 +38,15 @@ export default function StayCard({state,day,parent,busy,mutate,notice,directions
   <div className="stay-actions">
    <a className="button primary" href={directions(stay.address||stay.hotel)} target="_blank" rel="noopener noreferrer"><Navigation size={17}/>Directions</a>
    <button type="button" onClick={()=>onShow(stay.place)}><Languages size={17}/>Taxi card</button>
-   {tel&&<a className="button" href={tel}><Phone size={17}/>Call</a>}
-   <button type="button" onClick={()=>onTickets(stay.hotel)}><Ticket size={17}/>Booking</button>
+   {tel&&<a className="button stay-quiet" href={tel}><Phone size={17}/>Call</a>}
+   <button type="button" className="stay-quiet" onClick={()=>onTickets(stay.hotel)}><Ticket size={17}/>Booking</button>
   </div>
   {parent&&<ConciergeDesk state={state} day={day} notice={notice}/>}
   {parent&&!editing&&<button type="button" className="link-button stay-edit" onClick={()=>setEditing(true)}><Pencil size={14}/>{stay.reference||stay.phone?'Edit stay details':'Add the confirmation number and front desk phone'}</button>}
   {parent&&editing&&<form className="stay-form" onSubmit={save}>
    {STAY_FIELDS.map(([k,label,max])=>k==='notes'
     ?<label key={k}>{label}<textarea name={k} maxLength={max} defaultValue={stay[k]||''}/></label>
-    :<label key={k}>{label}<input name={k} maxLength={max} defaultValue={stay[k]||''} inputMode={k==='phone'?'tel':undefined} placeholder={k==='checkIn'?'15:00':k==='checkOut'?'11:00':undefined}/></label>)}
+    :<label key={k}>{label}<input name={k} maxLength={max} defaultValue={stay[k]||''} inputMode={k==='phone'?'tel':k==='photo'?'url':undefined} placeholder={k==='checkIn'?'15:00':k==='checkOut'?'11:00':undefined}/></label>)}
    <div className="row wrap"><button className="primary" disabled={busy}>Save for everyone</button><button type="button" onClick={()=>setEditing(false)}>Cancel</button></div>
   </form>}
  </section>;
