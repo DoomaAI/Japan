@@ -8388,7 +8388,7 @@ test('a question about the trip is answered out of the plan, and cannot change a
  const screen=await readFile(new URL('../src/AskTrip.jsx',import.meta.url),'utf8');
  // The one line that has to be on the screen rather than only in the prompt: a box that answers
  // questions looks like a box that does things, and nobody should find that out by asking it to.
- assert.match(screen,/It never moves a stop, changes a booking or tells anybody anything by itself: when the answer is to move a stop, it hands back the move as a draft/);
+ assert.match(screen,/It never moves or adds a stop, changes a booking or tells anybody anything by itself: when the answer is a change to the day, it hands it back as a draft/);
  assert.match(screen,/mutate\(\{type:'askDraftApply',itemId:item\.id,changes:item\.draft\.changes\}\)/,'a draft is applied through the ordinary mutation, by a tap');
 });
 
@@ -10577,7 +10577,7 @@ test('a parent’s question and its answer are kept in the trip, so the other pa
  assert.equal(state.askThread.length,SHARED_KEEP-2);
  assert.throws(()=>applyOperation(state,{type:'askForget',ids:['q3']},child),e=>e.status===403);
  const screen=await readFile(new URL('../src/AskTrip.jsx',import.meta.url),'utf8');
- assert.match(screen,/keep\(\[item,\.\.\.local\]\);\s*if\(shared\)mutate\(\{type:'askKeep',item:askItem\(item,user\.name\)\}\);/,'the phone first, then the trip');
+ assert.match(screen,/setThread\(prev=>writeThread\(user\?\.name,\[item,\.\.\.prev\]\)\);\s*if\(shared\)mutate\(\{type:'askKeep',item:askItem\(item,user\.name\)\}\);/,'the phone first, then the trip');
  assert.match(screen,/const shared=sharesThread\(user\)&&!!mutate,all=threadFor\(state,user,local\);/);
  assert.match(screen,/Asked by \{item\.by\}/,'the other parent’s questions say whose they were');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');

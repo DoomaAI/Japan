@@ -76,7 +76,7 @@ export function validatePatch(p,state){
 // Adding an activity, whether it was typed in or arrived as a forwarded booking. It is one
 // function so the two cannot drift apart: an emailed confirmation with a time becomes exactly
 // the same locked step as one entered by hand.
-function addStep(state,p){
+export function addStep(state,p){
  if(!p.title||p.day===undefined)throw new AppError('Add a name and choose a day or Options.');
  if(p.day===null&&(p.time||p.bookingTime||p.locked))throw new AppError('Options have no fixed date or time.');
  if(!!p.group!==!!p.option)throw new AppError('Add both an option group and option name, or leave both blank.');

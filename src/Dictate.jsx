@@ -4,14 +4,17 @@ import {canDictate,dictationEngine,dictationProblem,DICTATE_LANG,joinSpoken,hear
 // The microphone that sits under a box somebody has to fill in. It listens on the phone and
 // writes words into the box; it does not record, send or keep anything, and it never saves —
 // what was heard is still there to read, change and send yourself, exactly like typing.
-export function useDictation({lang=DICTATE_LANG,onText}={}){
+// `continuous` false is one utterance: it stops by itself at the first pause, which is what a
+// spoken question wants. `onEnd` is told when listening has stopped, for whatever reason.
+export function useDictation({lang=DICTATE_LANG,onText,onEnd,continuous=true}={}){
  const [listening,setListening]=useState(false),[thinking,setThinking]=useState(''),[problem,setProblem]=useState('');
- const engine=useRef(null),stopper=useRef(null),settled=useRef(0),write=useRef(onText);
- write.current=onText;
+ const engine=useRef(null),stopper=useRef(null),settled=useRef(0),write=useRef(onText),ended=useRef(onEnd);
+ write.current=onText;ended.current=onEnd;
  const supported=canDictate();
  // A listener left running when the screen changes keeps the microphone open, and iOS shows
  // the phone as listening long after the page has gone.
- useEffect(()=>()=>{clearTimeout(stopper.current);try{engine.current?.abort();}catch{}engine.current=null;},[]);
+ // Gone with the screen, so nobody is told it ended: there is nobody left to act on it.
+ useEffect(()=>()=>{clearTimeout(stopper.current);try{if(engine.current)engine.current.onend=null;engine.current?.abort();}catch{}engine.current=null;},[]);
  function stop(){clearTimeout(stopper.current);try{engine.current?.stop();}catch{}}
  function start(){
   const Engine=dictationEngine();
@@ -19,7 +22,7 @@ export function useDictation({lang=DICTATE_LANG,onText}={}){
   let rec;
   try{rec=new Engine();}catch{return setProblem(NO_DICTATION);}
   setProblem('');setThinking('');settled.current=0;
-  rec.lang=lang;rec.interimResults=true;rec.continuous=true;
+  rec.lang=lang;rec.interimResults=true;rec.continuous=continuous;
   rec.onresult=e=>{
    const {said,thinking:rest,settled:done}=heardSoFar(e?.results,settled.current);
    settled.current=done;
@@ -29,12 +32,13 @@ export function useDictation({lang=DICTATE_LANG,onText}={}){
   // 'aborted' and a listener that simply stops after a silence say nothing: a child who has
   // finished talking has not done anything wrong.
   rec.onerror=e=>{const message=dictationProblem(e?.error);if(message)setProblem(message);};
-  rec.onend=()=>{clearTimeout(stopper.current);engine.current=null;setListening(false);setThinking('');};
-  try{rec.start();}catch{return setProblem(NO_DICTATION);}
+  rec.onend=()=>{clearTimeout(stopper.current);engine.current=null;setListening(false);setThinking('');ended.current?.();};
+  try{rec.start();}catch{setProblem(NO_DICTATION);return false;}
   engine.current=rec;setListening(true);
   stopper.current=setTimeout(()=>{try{rec.stop();}catch{}},MAX_LISTEN_SECONDS*1000);
+  return true;
  }
- return {supported,listening,thinking,problem,toggle:()=>listening?stop():start(),stop};
+ return {supported,listening,thinking,problem,toggle:()=>listening?stop():start(),start,stop};
 }
 // `into` is a reference to the box itself, for a form that reads its boxes when it is sent;
 // `onText` is for a box React is holding in state. One or the other, never both.

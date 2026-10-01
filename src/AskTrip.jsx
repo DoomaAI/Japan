@@ -6,6 +6,7 @@ import Dictate from './Dictate.jsx';
 import {joinSpoken} from './dictation.js';
 import {profileFilled} from './trip-features.js';
 import {DraftChange} from './DayCheck.jsx';
+import AskVoice from './AskVoice.jsx';
 // Asking about the trip. It reads the plan and answers; it cannot touch it. That line is on the
 // screen rather than only in the prompt, because a box that answers questions looks like a box
 // that does things, and nobody should find out otherwise by asking it to move a booking.
@@ -25,20 +26,31 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
  const keep=next=>setThread(writeThread(user?.name,next));
  // Clearing takes the shown questions out of the trip as well as off this phone, for a parent.
  const clear=()=>{keep(step?local.filter(item=>item.step!==step.id):[]);if(shared&&thread.length)mutate({type:'askForget',ids:thread.map(i=>i.id)});};
+ // One question, typed or said, sent and kept. Said out loud, the answer is asked for in words
+ // that work read back, and the item comes back to the assistant to read.
+ async function send(asked,spoken=false){
+  const answer=await request('ask',{question:asked,day:about||null,step:step?.id||null,history:askHistory(thread),...(spoken?{spoken:true}:{})});
+  const item={id:`${Date.now()}`,at:new Date().toISOString(),...answer,...(spoken?{spoken:true}:{})};
+  // The phone first, so the answer is kept even if the trip cannot be reached; then the trip.
+  setThread(prev=>writeThread(user?.name,[item,...prev]));
+  if(shared)mutate({type:'askKeep',item:askItem(item,user.name)});
+  return item;
+ }
  async function ask(text){
   const asked=(text??question).trim();
   if(!asked){setError('Type a question first.');return;}
   if(!online){setError('Asking needs a signal. The plan itself is on this phone either way.');return;}
   setWorking(true);setError('');
-  try{
-   const answer=await request('ask',{question:asked,day:about||null,step:step?.id||null,history:askHistory(thread)});
-   const item={id:`${Date.now()}`,at:new Date().toISOString(),...answer};
-   // The phone first, so the answer is kept even if the trip cannot be reached; then the trip.
-   keep([item,...local]);
-   if(shared)mutate({type:'askKeep',item:askItem(item,user.name)});
-   setQuestion('');
-  }catch(e){setError(e.message||'That did not work. Try asking it another way.');}
+  try{await send(asked);setQuestion('');}
+  catch(e){setError(e.message||'That did not work. Try asking it another way.');}
   finally{setWorking(false);}
+ }
+ const canApply=user?.role==='parent'&&!!mutate&&online;
+ // The same apply for the button on the card and a yes said to the assistant.
+ async function applyItem(item){
+  const ok=await mutate({type:'askDraftApply',itemId:item.id,changes:item.draft.changes});
+  if(ok){setThread(prev=>writeThread(user?.name,prev.map(x=>x.id===item.id?{...x,draft:{...x.draft,appliedAt:new Date().toISOString(),appliedBy:user.name}}:x)));notice?.('Applied. The day is updated on every phone.');}
+  return ok;
  }
  return <div className="ask">
   {step?<p>Ask anything about {step.title} — how long it takes, what to eat, what the boys will like. It reads this stop and the rest of the day, and searches for what the plan cannot say.</p>:<>
@@ -50,6 +62,7 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
   {!ready&&<p className="callout"><AlertCircle size={18}/>Asking is not switched on for this deployment. Anything already answered is still below.</p>}
   {!online&&<p className="callout"><WifiOff size={18}/>No signal. Old answers are saved on this phone; a new question has to wait.</p>}
   {ready&&<>
+   {online&&<AskVoice ask={text=>send(text,true)} apply={applyItem} canApply={canApply} state={state} online={online} step={step}/>}
    {!step&&<label>About which day<select value={about} onChange={e=>setAbout(e.target.value)}>
     <option value="">The whole trip</option>
     {state.days.map(d=><option key={d.date} value={d.date}>{askDayLabel(d.date)} · {d.title}</option>)}
@@ -74,10 +87,7 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
    {item.answer&&<p>{item.answer}</p>}
    {!!item.because?.length&&<ul className="ask-because">{item.because.map((line,i)=><li key={i}><Check size={15}/>{line}</li>)}</ul>}
    {!!item.days?.length&&<div className="row wrap ask-days">{item.days.map(date=><button key={date} onClick={()=>selectDay?.(date)}><CalendarDays size={15}/>{askDayLabel(date)}</button>)}</div>}
-   {item.draft&&<DraftChange state={state} draft={item.draft} canApply={user?.role==='parent'&&!!mutate&&online} apply={async()=>{
-    const ok=await mutate({type:'askDraftApply',itemId:item.id,changes:item.draft.changes});
-    if(ok){keep(local.map(x=>x.id===item.id?{...x,draft:{...x.draft,appliedAt:new Date().toISOString(),appliedBy:user.name}}:x));notice?.('Applied. The day is updated on every phone.');}
-    return ok;}}/>}
+   {item.draft&&<DraftChange state={state} draft={item.draft} canApply={canApply} apply={()=>applyItem(item)}/>}
    {item.checkFirst&&<p className="callout"><AlertCircle size={18}/>Check first: {item.checkFirst}</p>}
    {!!item.sources?.length&&<details className="ask-sources"><summary>Where it looked ({item.sources.length})</summary>
     {item.sources.map(s=><a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer">{s.title||s.url} <ExternalLink size={13}/></a>)}</details>}
@@ -86,6 +96,6 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
   {!thread.length&&ready&&<div className="empty"><MessageCircleQuestion/><h2>Nothing asked yet</h2><p>Tap one of the questions above, or write your own. {shared?'Answers are kept in the trip, so both of you can read them again, and on this phone for when there is no signal.':'Answers are kept on this phone so you can read them again with no signal.'}</p></div>}
   {!!thread.length&&<div className="row wrap"><button onClick={()=>{clear();notice?.(step?'The questions about this stop are cleared.':shared?'The shared questions are cleared.':'Your questions on this phone are cleared.');}}><Trash2 size={16}/>{step?'Clear these questions':shared?'Clear our questions':'Clear my questions'}</button>
    {!step&&<button onClick={()=>go?.('planning')}>Planning board</button>}</div>}
-  {ready&&<p className="callout"><AlertCircle size={18}/>This reads the plan and gives an opinion. It never moves a stop, changes a booking or tells anybody anything by itself: when the answer is to move a stop, it hands back the move as a draft {user?.role==='parent'?'for you to look over and apply':'for a parent to apply'}. It can be wrong about what is open, what a ticket costs and what is on, so check anything you are about to rely on.</p>}
+  {ready&&<p className="callout"><AlertCircle size={18}/>This reads the plan and gives an opinion. It never moves or adds a stop, changes a booking or tells anybody anything by itself: when the answer is a change to the day, it hands it back as a draft {user?.role==='parent'?'for you to look over and apply — on the screen, or with a yes when you asked out loud':'for a parent to apply'}. It can be wrong about what is open, what a ticket costs and what is on, so check anything you are about to rely on.</p>}
  </div>;
 }
