@@ -1,6 +1,7 @@
 import React from 'react';
 import {ChevronRight,LockKeyhole,BedDouble,PlaneTakeoff,Smartphone,Clock,ShieldAlert} from 'lucide-react';
 import {openNotes} from './day-check.js';
+import WhatToWear from './WhatToWear.jsx';
 import {useStored} from './stored.js';
 import {dayBriefing,briefingGreeting} from './briefing-data.js';
 import {READINESS,readinessOf,lowest,answered,faceOf} from './readiness-data.js';
@@ -22,6 +23,7 @@ export default function Briefing({state,day,today,clock,go,user,mutate,busy,open
    <strong>{b.stops?`${b.stops} stop${b.stops===1?'':'s'}${span?` · ${span}`:''}`:'A free day'}</strong>
    <span>{b.done?`${b.done} done so far`:b.city}</span><ChevronRight size={18}/>
   </button>
+  <WhatToWear state={state} day={day}/>
   {day===today&&user&&<div className="readiness">
    {asking?<>
     <p className="readiness-ask">How is everyone this morning?</p>

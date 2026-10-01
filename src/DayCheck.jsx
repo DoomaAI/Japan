@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
-import {AlertCircle,ArrowRight,CalendarX,Check,Clock,CloudRain,ExternalLink,Info,LifeBuoy,MapPin,Plus,RefreshCw,Repeat,TrainFront,X} from 'lucide-react';
+import {AlertCircle,ArrowRight,CalendarX,Check,Clock,CloudRain,ExternalLink,Info,LifeBuoy,MapPin,Plus,RefreshCw,Repeat,Shirt,TrainFront,X} from 'lucide-react';
 import {NOTE_KINDS,PLAN_B_REASONS,REST_KINDS,dayCheckOf,planBOf,draftPreview} from './day-check.js';
-const KIND_ICON={closed:CalendarX,holiday:CalendarX,hours:Clock,transport:TrainFront,weather:CloudRain,swap:Repeat,other:Info};
+const KIND_ICON={closed:CalendarX,holiday:CalendarX,hours:Clock,transport:TrainFront,weather:CloudRain,swap:Repeat,dress:Shirt,other:Info};
 const label=(list,id)=>list.find(([k])=>k===id)?.[1]||'';
 const dayLabel=d=>d?new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(`${d}T12:00:00+09:00`)):'Options';
 const when=iso=>iso?new Intl.DateTimeFormat('en-AU',{weekday:'short',hour:'numeric',minute:'2-digit',timeZone:'Asia/Tokyo'}).format(new Date(iso)):'';

@@ -14,7 +14,7 @@ const mapSearch=q=>q?`https://www.google.com/maps/search/?api=1&query=${encodeUR
 
 // Tomorrow's check ---------------------------------------------------------------------------
 // What kind of problem a note is about, so the card can say it in one word and one icon.
-export const NOTE_KINDS=[['closed','Closed'],['holiday','Public holiday'],['hours','Hours'],['transport','Trains'],['weather','Weather'],['swap','Worth swapping'],['other','Worth knowing']];
+export const NOTE_KINDS=[['closed','Closed'],['holiday','Public holiday'],['hours','Hours'],['transport','Trains'],['weather','Weather'],['swap','Worth swapping'],['dress','What to wear'],['other','Worth knowing']];
 export const NOTE_KIND_IDS=NOTE_KINDS.map(([id])=>id);
 export const NOTE_STATUS=['open','accepted','dismissed'];
 export const MAX_NOTES=8;
