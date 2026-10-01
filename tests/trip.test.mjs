@@ -11360,6 +11360,7 @@ test('after the trip: notes to open next year, the show-and-tell page, sound pos
  assert.match(map,/v\.kind==='sound'\?<Volume2 size=\{15\}\/>:<Mic size=\{15\}\/>/);
  const tonight=await readFile(new URL('../src/Tonight.jsx',import.meta.url),'utf8');
  assert.match(tonight,/capsuleWritable\(state,today\)&&!capsuleFor\(state,user\.name\)\?\.text&&/,'the last days invite the note');
+});
 test('every coin and note is drawn on both sides, priced in both currencies, and can be heard',async()=>{
  const {COINS,NOTES,OLD_NOTES,MONEY,moneyAloud,audAloud,kindOf,MONEY_ALOUD}=await import('../src/money-data.js');
  const {DEFAULT_YEN_PER_AUD}=await import('../src/trip-features.js');
