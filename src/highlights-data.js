@@ -8,10 +8,10 @@
 // boy's photo, or a gallery photo or video. A sound is one of our sound postcards — the station
 // melody, the temple bell — played under the shots from the stop it was recorded at.
 import {photosFor,photoOfTheDay,photoOwner,stepRatings} from './trip-features.js';
+import {clamp} from './text.js';
 export const SHOT_SECONDS=3.2,TITLE_SECONDS=2.4,MAX_SHOTS=40,MAX_PER_DAY=4,MAX_VIDEO_SECONDS=6;
 const isVideo=d=>String(d.type||'').startsWith('video/');
 const isImage=d=>String(d.type||'').startsWith('image/');
-const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 const avg=r=>{const v=Object.values(r||{});return v.length?v.reduce((a,b)=>a+b,0)/v.length:0;};
 // Every picture or clip that could be a shot, with what is known about it.
 export function candidateShots(state){

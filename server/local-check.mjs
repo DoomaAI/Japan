@@ -1,6 +1,7 @@
 import {AppError} from './model.mjs';
 import {researchReady} from './research.mjs';
 import {LOCAL_EXPERIENCES,LOCAL_KIND_LABEL,localDays,cleanLocalCheck} from '../src/local-data.js';
+import {clamp} from '../src/text.js';
 // Checking one Like a local card against the web: is it open on the days we could go, what does
 // it cost now, has anything changed since the card was written. The card's own figures were
 // written in September 2026 from memory of the place, so a parent presses Check the details
@@ -38,7 +39,6 @@ How to work:
 - If you cannot find the place, set found to false and explain in checkFirst.
 
 Search first, then call record_check exactly once. Everything goes in that call, not in a message.`;
-const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 const fmt=d=>new Date(`${d}T12:00:00Z`).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'long',timeZone:'UTC'});
 // Nothing the model returns is trusted: every line is cut to length, the sources kept only if
 // they are https, and the shape is exactly what the trip stores.

@@ -1,11 +1,11 @@
-import {AppError,MEMBERS} from './model.mjs';
+import {AppError,MEMBERS,modelReady} from './model.mjs';
 import {parseCaptureLocally,CAPTURE_MAX} from '../src/capture-data.js';
 import {japanDate} from '../src/timing.js';
 // A sentence into a to-do. Claude reads the whole trip's days and the family's names, so
 // "get Nate's Disney hat sorted the day we're at DisneySea" comes back as a buy, for Nate, on
 // the DisneySea day. Without a key, or when Claude cannot be reached, the plain parser answers
 // instead, so the box never dies: it only gets less clever.
-export const captureReady=()=>!!process.env.ANTHROPIC_API_KEY;
+export const captureReady=modelReady;
 const SCHEMA={
  type:'object',additionalProperties:false,
  required:['title','kind','day','person','notes'],

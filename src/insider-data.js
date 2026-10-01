@@ -5,8 +5,7 @@
 // read over by a parent before anybody relies on it, and kept in the trip for no signal.
 import {activeSteps} from './timing.js';
 import {entryType} from './entry-types.js';
-const clamp=(v,max)=>String(v??'').trim().slice(0,max);
-const https=v=>{try{const u=new URL(String(v||'').trim());return u.protocol==='https:'&&!u.username&&!u.password?u.href.slice(0,500):'';}catch{return '';}};
+import {clamp,httpsLink as https} from './text.js';
 export const INSIDER_FIELDS=[
  ['queue','How the queue works','🎟️'],['payment','Paying','💴'],['access','Stroller and toilets','🚻'],
  ['lockers','Lockers and bags','🧳'],['bestTime','Best time to arrive','⏰'],['mistake','The common mistake','⚠️']

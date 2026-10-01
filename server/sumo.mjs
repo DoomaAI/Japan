@@ -1,6 +1,7 @@
-import {AppError} from './model.mjs';
+import {AppError,modelReady} from './model.mjs';
 import {SUMO_DIVISIONS,SUMO_SITE_DIVISIONS,sumo,sumoSiteUrl} from '../src/trip-features.js';
-export const sumoReady=()=>!!process.env.ANTHROPIC_API_KEY;
+import {clamp} from '../src/text.js';
+export const sumoReady=modelReady;
 export const MAX_BOUTS=60;
 // The torikumi goes up on the official site the afternoon before, so this is asked close to the
 // day and read off that page. Six searches is enough to reach the day's card and the two or
@@ -111,7 +112,6 @@ Boston is eight and will want to know whether he is any good, how big he is and 
 - "about" is three or four sentences, plain and concrete: how he fights, what he is known for, what to watch for. Not a list of statistics and not brochure language.
 - If you cannot find the man, set found to false rather than describing somebody with a similar name.
 - Never invent a height, a weight or a record. Leave it out instead.`;
-const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 const https=v=>{try{return new URL(v).protocol==='https:'?new URL(v).href:'';}catch{return '';}};
 const clock=v=>/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v||''))?v:'';
 const sources=list=>(Array.isArray(list)?list:[]).map(s=>({title:clamp(s?.title,200),url:https(s?.url)})).filter(s=>s.url).slice(0,6);

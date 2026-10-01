@@ -7,6 +7,7 @@
 import {activeSteps} from './timing.js';
 import {stayFor} from './stay-data.js';
 import {parentsOf} from './people.js';
+import {clamp} from './text.js';
 export const NIGHT_FROM='18:30',NIGHT_UNTIL='23:30',NIGHT_PER_MOOD=3;
 export const NIGHT_MOODS=[
  {id:'nightcap',label:'A quiet nightcap',short:'Nightcap',who:'grown-ups',time:'21:00',minutes:45,walk:5,
@@ -43,7 +44,6 @@ export const nightShows=(state,day,today,clock,dismissed=false)=>!dismissed&&day
 export const nightOf=(state,day)=>state?.nightOut?.[day]||{};
 // What a model sends back, checked the way dinner is: lists the screen knows, links only as the
 // search saw them, a rating only with enough votes behind it.
-const clamp=(v,n)=>String(v??'').trim().slice(0,n);
 const pick=(v,list,fallback)=>list.some(([id])=>id===v)?v:fallback;
 const yesNo=v=>v===true?true:v===false?false:null;
 export function cleanNightOption(o,checkLink=u=>u){

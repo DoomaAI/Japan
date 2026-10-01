@@ -52,13 +52,13 @@ import {postcardText} from '../src/postcard-data.js';
 import {cleanEditList,defaultEditList} from '../src/highlights-data.js';
 import {vaultReady,listVault,saveVault,addVaultFile,readVaultFile,vaultView} from './vault.mjs';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
+import {escapeHtml as esc} from '../src/text.js';
 // A photo's own position, if the phone read one out of it, kept to about ten metres. Anything
 // that is not a plain pair of coordinates is dropped rather than refused: the photo matters more.
 const photoGps=g=>validPosition(g)&&Object.keys(g).length===2?roundedPosition(Number(g.lat),Number(g.lng),PHOTO_PLACES):null;
 const json=(res,data,status=200)=>{res.statusCode=status;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));};
 async function body(req,max=1000000){if(req.body&&typeof req.body==='object')return req.body;let s='';for await(const c of req){s+=c;if(Buffer.byteLength(s)>max)throw new AppError('Request too large.',413);}try{return JSON.parse(s||'{}');}catch{throw new AppError('Invalid request.');}}
 // A plain page for someone who is not in the app: the grandparents, back from signing in to Google.
-const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function page(res,title,text){
  res.statusCode=200;res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('Cache-Control','no-store');
  res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>body{font:18px/1.5 system-ui,sans-serif;margin:0;padding:2rem 1.2rem;background:#f6efe2;color:#1d2a2b}main{max-width:32rem;margin:0 auto}h1{font-size:1.6rem}</style></head><body><main><p>日 · Japan 2026</p><h1>${esc(title)}</h1><p>${esc(text)}</p></main></body></html>`);

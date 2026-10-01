@@ -6,11 +6,11 @@
 // a place three people told us about is worth knowing about before it is voted on.
 // How it reached us. Kept on each name so the card can say "Sue, by email" and the family knows
 // where to look for the rest of what she said.
+import {clampLine as clamp} from './text.js';
 export const RECOMMEND_VIA=[['message','Text or WhatsApp'],['email','Email'],['screenshot','Screenshot'],['call','Phone call'],['person','In person'],['other','Somewhere else']];
 export const viaLabel=id=>(RECOMMEND_VIA.find(([k])=>k===id)||[null,''])[1];
 export const MAX_RECOMMEND_SHOTS=4;
 export const MAX_RECOMMENDERS=20,RECOMMENDER_NAME=80,RECOMMENDER_SAID=500,RECOMMEND_TEXT=6000,MAX_RECOMMEND_ITEMS=30;
-const clamp=(v,max)=>String(v??'').replace(/\s+/g,' ').trim().slice(0,max);
 export const recommenders=p=>Array.isArray(p?.recommendedBy)?p.recommendedBy:[];
 // One entry per person, matched without caring about case, newest words kept. Anything without a
 // name is dropped rather than shown as "someone".

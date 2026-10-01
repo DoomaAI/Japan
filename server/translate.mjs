@@ -1,5 +1,5 @@
-import {AppError} from './model.mjs';
-export const translatorReady=()=>!!process.env.ANTHROPIC_API_KEY;
+import {AppError,modelReady} from './model.mjs';
+export const translatorReady=modelReady;
 // The fields of a booking worth putting through the translator, and the two directions worth
 // asking for. Everything else on a ticket is a file, and a file goes to the document reader.
 export const TICKET_FIELDS=['title','reference','notes'];
