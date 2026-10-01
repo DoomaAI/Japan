@@ -11,6 +11,7 @@ import {READING,AWARENESS,childLevels,defaultReading,defaultAwareness,readingLab
 import {HandOver} from './HandOver.jsx';
 import {FRAME_SERVICES,frameService,SHORTCUT_STEPS,ALBUM_NAME} from './frame-mail-data.js';
 import {guideOf,GUIDE_VOICES} from './guide-data.js';
+import {NEST_STEPS,GOOGLE_ALBUM} from './google-frame-data.js';
 import {PLAN_TYPES,planOf,modulesOff,validTimeZone} from './plan-context.js';
 import {PAGES} from './nav-data.js';
 const ICONS={voiceAssistant:Sparkles,dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
@@ -123,6 +124,11 @@ function Frames({state,config,request,accept,notice}){
  const run=async fn=>{setBusy(true);try{await fn();}catch(e){notice(e.message);}finally{setBusy(false);}};
  const copy=(url,album)=>navigator.clipboard?.writeText(url).then(()=>notice(album?'Feed link copied. Paste it into the Shortcut on their iPhone or iPad.':'Frame link copied. Open it on the frame and add it to the home screen or bookmarks.'),()=>notice(url));
  const addKey=e=>{e.preventDefault();const form=e.currentTarget,label=new FormData(form).get('label');run(async()=>{const r=await request('frame-link',{action:'add',label,kind});setFrames(r.frames);form.reset();if(r.url)await copy(r.url,kind==='album');});};
+ const googles=state?.googleFrames||[];
+ // The link goes to the grandparents however they read messages; a phone with no share sheet copies it.
+ const sendLink=async(link,label)=>{if(!link)return;const text=`To put our Japan photos on ${label}: open this on your phone and sign in with the Google account your Nest Hub uses. It works for a week.\n\n${link}`;
+  if(navigator.share){try{await navigator.share({title:'Our Japan photos on your Nest Hub',text});}catch(e){if(e?.name!=='AbortError')throw e;}}else{await navigator.clipboard?.writeText(text);notice('Message and link copied. Send it to them.');}};
+ const addGoogle=e=>{e.preventDefault();const form=e.currentTarget,label=new FormData(form).get('label');run(async()=>{const r=await request('google-frame',{action:'add',label});accept(r);form.reset();await sendLink(r.link,label);});};
  const addMail=e=>{e.preventDefault();const form=e.currentTarget,f=new FormData(form);run(async()=>{accept(await request('frame-email',{action:'add',service,label:f.get('label'),address:f.get('address'),fromNow:f.get('fromNow')==='on'}));form.reset();notice('Frame added. It gets its photos tonight, or press Send now.');});};
  return <>
   <h3><Tv size={16}/> Screen frames</h3>
@@ -139,6 +145,16 @@ function Frames({state,config,request,accept,notice}){
    <ol>{SHORTCUT_STEPS.map(t=><li key={t}>{t}</li>)}</ol>
    <p><small>Each photo is handed over once. If the album is deleted, press Again and the next fetch brings them all back.</small></p>
   </details>}
+  <h3><Tv size={16}/> Google Nest Hub</h3>
+  <p>A Nest Hub shows an album from Google Photos. The grandparents sign in once from a link you send them; the app makes a “{GOOGLE_ALBUM}” album in their Google Photos and adds the frame’s photos to it every evening. It can only add to that album: nothing else in their Google Photos is read.</p>
+  {!config?.googleFrames?<p className="notice-line"><small>Needs a Google Cloud project with the Photos Library API: set <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> in the deployment settings, with <code>APP_ORIGIN</code>/api/google-callback as the redirect address.</small></p>:<>
+   {!!googles.length&&<ul className="frame-list">{googles.map(g=><li key={g.id}><span><strong>{g.label}</strong><small>{g.status==='connected'?`Connected · ${g.sent} photo${g.sent===1?'':'s'} added${g.lastSentAt?`, last ${new Date(g.lastSentAt).toLocaleDateString('en-AU',{day:'numeric',month:'short'})}`:''}`:`Waiting for them to sign in${g.linkUntil?` · link works until ${new Date(g.linkUntil).toLocaleDateString('en-AU',{day:'numeric',month:'short'})}`:''}`}</small></span>
+    {g.status==='connected'?<button type="button" disabled={busy} onClick={()=>run(async()=>{const r=await request('google-frame',{action:'send',id:g.id});accept(r);notice(r.sent?`${r.sent} photo${r.sent===1?'':'s'} added to ${g.label}.`:`${g.label} already has every photo.`);})}><Send size={15}/> Send now</button>
+     :<button type="button" disabled={busy} onClick={()=>run(async()=>{const r=await request('google-frame',{action:'link',id:g.id});accept(r);await sendLink(r.link,g.label);})}><Share2 size={15}/> Send the link</button>}
+    <button type="button" className="icon danger" aria-label={`Take ${g.label} off`} disabled={busy} onClick={()=>confirm(`Stop adding photos to “${g.label}”? The album stays in their Google Photos.`)&&run(async()=>accept(await request('google-frame',{action:'remove',id:g.id})))}><Trash2 size={15}/></button></li>)}</ul>}
+   <form className="row wrap frame-add" onSubmit={addGoogle}><input name="label" maxLength={40} required placeholder="Name it: Grandma’s Nest Hub" aria-label="Nest Hub name"/><button disabled={busy}><Plus size={16}/> Add and send the link</button></form>
+   <details className="frame-shortcut"><summary>How it works for them</summary><ol>{NEST_STEPS.map(t=><li key={t}>{t}</li>)}</ol></details>
+  </>}
   <h3><Mail size={16}/> Photo frames that take email</h3>
   <p>Aura, Nixplay and Skylight frames each have an email address for photos. The app sends the same photos as the screen frames — the photo of the day and the ones you put on — each one once, every night and when you press Send now.</p>
   {!config?.frameMail&&<p className="notice-line"><small>Needs an email service to send from: set <code>RESEND_API_KEY</code> and <code>FRAME_MAIL_FROM</code> in the deployment settings. Frames can be added now and will be sent to once it is set.</small></p>}
