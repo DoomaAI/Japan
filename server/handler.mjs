@@ -668,9 +668,7 @@ export default async function handler(req,res){
    const feedback=b.feedback&&typeof b.feedback==='object'?{
     title:String(b.feedback.title||'').slice(0,200),
     subject:String(b.feedback.subject||'').slice(0,200),
-    good:(Array.isArray(b.feedback.good)?b.feedback.good:[]).slice(0,3).map(g=>String(g).slice(0,300)),
-    tip:String(b.feedback.tip||'').slice(0,400),
-    score:Number.isInteger(b.feedback.score)?Math.max(1,Math.min(10,b.feedback.score)):null
+    good:(Array.isArray(b.feedback.good)?b.feedback.good:[]).slice(0,3).map(g=>String(g).slice(0,300))
    }:null;
    current.state.photos=[...current.state.photos,{id:randomUUID(),by:user.name,for:owner,day:b.day,
     title:(b.title||'').trim(),pathname:b.pathname,type:blob.contentType,size:blob.size,feedback,gps:photoGps(b.gps),at:new Date().toISOString(),

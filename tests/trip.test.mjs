@@ -4653,8 +4653,10 @@ test('the photo coach talks to the child, and never about who is in the picture'
   assert.match(seen.system,/never guess who they are/i,'and it is told not to describe people');
   assert.match(seen.system,/against what a child of this age could manage/);
   assert.equal(seen.messages[0].content[0].type,'image');
-  // A score outside the scale is brought back onto it rather than shown as 14 out of 10.
-  assert.equal(out.score,10);
+  // Ratings and tips are switched off: neither is asked for, and neither is passed on if it comes back.
+  assert.deepEqual(seen.output_config.format.schema.required.sort(),['good','readable','subject','title']);
+  assert.equal(out.score,undefined);
+  assert.equal(out.tip,undefined);
   assert.equal(out.title,'Deer at the gate');
   // An age nobody could be falls back rather than being passed on.
   await coachPhoto({image:data,mediaType:'image/jpeg',age:99});

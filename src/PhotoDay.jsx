@@ -2,7 +2,7 @@ import React,{useState,useRef} from 'react';
 import {developingCount,inMoment,momentFor} from './film-data.js';
 import {photoPosition} from './exif-gps.js';
 import {upload} from '@vercel/blob/client';
-import {Camera,Trophy,Trash2,Check,Sparkles,Users,AlertCircle,Tv,Mail} from 'lucide-react';
+import {Camera,Trophy,Trash2,Check,Users,AlertCircle,Tv,Mail} from 'lucide-react';
 import {shrinkPhoto} from './MenuReader.jsx';
 import {kudosFor,kudosLine} from './kudos-data.js';
 import {ageOf} from './child-levels.js';
@@ -10,7 +10,7 @@ import {postcardText} from './postcard-data.js';
 import {photosFor,photosOf,photoOwner,photoCounts,photoVotesFor,photoOfTheDay,BOYS} from './trip-features.js';
 import {photoUrl} from './api-urls.js';
 // The photo coach is told how old the photographer is, from the travel party.
-// The boys' own photographs: take one, hear what was good about it and one thing to try, and
+// The boys' own photographs: take one, hear what was good about it (never a score or a tip), and
 // then everybody votes for the day's best. The feedback talks to the child, and the vote is
 // the family's rather than the app's — nobody wants a computer choosing between brothers.
 //
@@ -66,7 +66,7 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
     await (await fetch(shot.preview)).blob(),{access:'private',contentType:'image/jpeg',handleUploadUrl:'/api/upload'});
    accept(await request('photo',{pathname:blob.pathname,day,for:belongsTo,title:feedback?.title||'',feedback,gps:await photoPosition(file),film,moment:inMoment(day)}));
    setPreview(null);
-   notice(film?'On the film. It develops at seven tomorrow morning.':feedback?`${feedback.title} — ${feedback.score}/10`:`Photo added${belongsTo===user.name?'':` for ${belongsTo}`}.`);
+   notice(film?'On the film. It develops at seven tomorrow morning.':feedback?.title?`${feedback.title} — added.`:`Photo added${belongsTo===user.name?'':` for ${belongsTo}`}.`);
   }catch(e){setFailed(e.message||'That photo could not be added.');setPreview(null);}
   finally{setBusy(false);setWorking('');}
  }
@@ -116,11 +116,7 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
      {whole&&<small>{dayLabel(p.day)}</small>}
      {p.by!==owner&&<small>Added by {p.by}</small>}
      {kudosFor(state,'photo',p.id).total>0&&<small className="photo-kudos">{kudosLine(kudosFor(state,'photo',p.id))} · from {Object.keys(kudosFor(state,'photo',p.id).names).join(', ')}</small>}
-     {p.feedback&&<>
-      {!!p.feedback.good?.length&&<ul>{p.feedback.good.map((g,i)=><li key={i}>{g}</li>)}</ul>}
-      {p.feedback.tip&&<p className="photo-tip"><Sparkles size={13}/> {p.feedback.tip}</p>}
-      {p.feedback.score&&<small>{p.feedback.score}/10 for a {ageOf(state,owner)||'young'}-year-old photographer</small>}
-     </>}
+     {!!p.feedback?.good?.length&&<ul>{p.feedback.good.map((g,i)=><li key={i}>{g}</li>)}</ul>}
      <div className="row wrap">
       {!whole&&<button type="button" className={myVote===p.id?'primary':''} disabled={busy}
        onClick={()=>mutate({type:'photoVote',person:user.name,day,id:myVote===p.id?null:p.id})}>
