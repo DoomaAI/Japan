@@ -4,6 +4,7 @@
 // something to be made from. Each is already a thing the app keeps; this only asks for them
 // at the right time, and counts what is still to do.
 import {activeSteps} from './timing.js';
+import {dayCheckOf,openNotes,planBOf} from './day-check.js';
 import {photosFor,photoVotesFor,voiceNotesFor,stepRatings} from './trip-features.js';
 export const TONIGHT_FROM='17:00';
 export const TONIGHT_RATE=3;
@@ -28,4 +29,11 @@ export function tonightFor(state,day,person,parent=false){
  return {done:done.length,open,rated,toRate,photos,vote,spoke,wrote,tasks,
   finished:Object.values(tasks).filter(Boolean).length,total:Object.keys(tasks).length,
   complete:Object.values(tasks).every(Boolean)};
+}
+// Tomorrow, read the night before: whether the check has run for the next trip day, and what it
+// found that nobody has dealt with yet. Null on the last day, when there is no tomorrow to check.
+export function tomorrowCheck(state,day){
+ const next=state.days.find(d=>d.date>day);if(!next)return null;
+ const check=dayCheckOf(state,next.date);
+ return {day:next.date,title:next.title,checked:!!check,open:check?openNotes(state,next.date):[],planB:!!planBOf(state,next.date)};
 }

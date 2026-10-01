@@ -58,6 +58,16 @@ test('tonight has a parent catch up the stops nobody ticked, at the time they we
  const early=new Date('2026-09-22T00:00:00Z');
  assert.equal(caughtUpAt({time:'18:00'},day,early),early.toISOString(),'never in the future');
 });
+test('tonight says whether tomorrow has been checked the night before',async()=>{
+ const {tomorrowCheck}=await import('../src/tonight-data.js');
+ const state=upgraded(seed),day=state.days[1].date,next=state.days[2].date;
+ let t=tomorrowCheck(state,day);
+ assert.equal(t.day,next);assert.equal(t.checked,false);assert.equal(t.open.length,0);
+ state.dayChecks={[next]:{day:next,at:'2026-09-22T10:00:00Z',notes:[{id:'a',title:'Closed for a festival',status:'open'},{id:'b',title:'Seen',status:'dismissed'}]}};
+ t=tomorrowCheck(state,day);
+ assert.equal(t.checked,true);assert.deepEqual(t.open.map(n=>n.id),['a'],'only what nobody has dealt with');assert.equal(t.planB,false);
+ assert.equal(tomorrowCheck(state,state.days.at(-1).date),null,'no tomorrow on the last day');
+});
 test('the stamp book is earned from what is ticked off, with milestones per person',async()=>{
  const {familyStamps,personalStamps,cityNames,MILESTONES}=await import('../src/stamp-data.js');
  const state=upgraded(seed);
