@@ -4,7 +4,7 @@ import {destinationFor,resolveLocation,showLocationDetails} from './locations.js
 import {ensureFeatures,pendingProgress,phoneLinks,isTrainLeg,EYE_SPY,eyeSpySpotted,PIN_PLACES,stepPin,pinText} from './trip-features.js';
 import {askPhoneWhereItIs} from './geo.js';
 import RouteCard from './RouteCard.jsx';
-import {routeFor,legCount,legsTicked,routeMinutes} from './route-data.js';
+import {routeFor,legCount,legsTicked,routeMinutes,baseMinutes} from './route-data.js';
 import {Challenges,Shopping,SpeakRules,useReadAloud} from './AdventurePages.jsx';
 import Shortlist,{DayFinds} from './Shortlist.jsx';
 import {NextUp,RunningLate,OfflineReadiness,Updates} from './HomeFeatures.jsx';
@@ -531,6 +531,18 @@ function App(){
   notice(`${what}${after!==before?` The journey is now about ${after} min${s.time?`, there about ${asClock((minutes(s.time)+after)%1440)}`:''}.`:''}`);
   return ok;
  }
+ // Part or all of the route gone another way (a taxi, on foot), or put back to the plan.
+ async function routeSwap(c){
+  const s=current,before=routeMinutes(routeFor(s)),was=(s.swaps||[]).find(x=>x.id===c.swapId);
+  const ok=await mutate({type:'legSwap',id:s.id,...c});
+  if(!ok)return ok;
+  // Says what the change did to the journey as a whole: the guide's legs give back their time, the new way takes its own.
+  const out=was?(was.minutes||0)-baseMinutes(s,was.from,was.to):0,range=c.action==='remove'?null:{from:c.from??was.from,to:c.to??was.to};
+  const after=before-out+(range?(c.minutes??was?.minutes??0)-baseMinutes(s,range.from,range.to):0);
+  const what=c.action==='add'?`Going another way: ${c.text}.`:c.action==='update'?`Changed: ${c.text}.`:`Back to the plan instead of: ${was?.text||c.text}.`;
+  notice(`${what}${after!==before?` The journey is now about ${after} min${s.time?`, there about ${asClock((minutes(s.time)+after)%1440)}`:''}.`:''}`);
+  return ok;
+ }
  // The one time it would be alarming to miss, kept in the top bar wherever the family is in the
  // app: from two hours before the leave-by time until a quarter of an hour after it, the clock
  // gives its place to a countdown, and tapping it opens that booking. It always reads today's
@@ -721,7 +733,7 @@ function App(){
      // now stands as well: ticking off is the one moment we know both what was planned and what
      // actually happened, and twelve minutes in hand is worth hearing before the next step.
      setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);}}}>Done</Button></>}{parent&&<button className="icon completion-more" aria-label="Edit, lock, move or remove this stop" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal size={18}/></button>}</div>
-    {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg} onWaypoint={routeWaypoint} lookOpen={settingOn(settings,'routeLookOpen')}/>}
+    {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg} onWaypoint={routeWaypoint} onSwap={routeSwap} lookOpen={settingOn(settings,'routeLookOpen')}/>}
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore stop</button></p>}
     {/* One row rather than three that stack. Untouched, what only this day has (the park, the
         sumo, the train window) comes first, then everything every stop has; press and hold any

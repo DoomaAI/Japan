@@ -5,7 +5,7 @@ import {expressOperation} from './express.mjs';
 import {dpaOperation} from './dpa.mjs';
 import { randomUUID } from 'node:crypto';
 import {activeSteps,MAX_WINDOW} from '../src/timing.js';
-import {legCount,tickLeg,routeFor,rekeyLegs,ROUTES,MAX_WAYPOINTS,WAYPOINT_KINDS,addedMinutes} from '../src/route-data.js';
+import {legCount,tickLeg,routeFor,rekeyLegs,ROUTES,MAX_WAYPOINTS,WAYPOINT_KINDS,addedMinutes,SWAP_MODES,swappable,routeMinutes} from '../src/route-data.js';
 import {ENTRY_TYPE_IDS} from '../src/entry-types.js';
 import {guessPlatform} from '../src/booked-via.js';
 import {BIN_KINDS,binEntries,binTitle} from '../src/bin-data.js';
@@ -125,8 +125,8 @@ export function applyOperation(input,op,user){
  const state=ensureFeatures(structuredClone(input)),now=new Date().toISOString();
  const parent=user.role==='parent';
  const step=state.steps.find(s=>s.id===op.id);
- if(!parent && !['status','legStatus','waypoint','challengeStatus','challengeSkip','challengeNew','etiquetteMission','eyeSpy','bingoTick','bingoCard','parkRide','parkWant','foodTried','foodRating','phraseSeen','factSeen','moneyFound','gameScore','weatherUpdate','jankenThrow','jankenNewRound','binRestore','binDrop','voiceNoteRemove','voiceNoteLabel','voiceNoteWords','shoppingAdd','shoppingStatus','shortlistAdd','shortlistEdit','shortlistStatus','shortlistRating','shortlistShop','shortlistRemove','todoAdd','todoStatus','packAdd','packAddAll','packEdit','packStatus','packRemove','packDismiss','noticedAdd','noticedEdit','noticedRemove','huntNew','huntPick','huntAdd','huntEdit','huntRate','huntRemove','huntRank','huntTried','huntListEdit','huntListRemove','spendAdd','spendEdit','spendBought','spendRemove','spendRequest','spendRequestCancel','sumoResult','sumoPredict','stepRating','stepThought','stepNextTime','capsuleWrite','dayRating','dayThought','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust','proposalRecommend','partyPerson','partyPriorities','photoVote','photoRemove','photoAssign','drawingRemove','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','thankYouSeen','checkInStart','checkInArrive','checkInCancel','lateSend','lateSeen','lateClear','lateAnswer','readinessSet','stageSet','rsvpSet'].includes(op.type))throw new AppError('A parent can make this change.',403);
- if(['status','legStatus','waypoint','patch','lock','remove','backlog','schedule'].includes(op.type)&&!step)throw new AppError('Activity not found.',404);
+ if(!parent && !['status','legStatus','waypoint','legSwap','challengeStatus','challengeSkip','challengeNew','etiquetteMission','eyeSpy','bingoTick','bingoCard','parkRide','parkWant','foodTried','foodRating','phraseSeen','factSeen','moneyFound','gameScore','weatherUpdate','jankenThrow','jankenNewRound','binRestore','binDrop','voiceNoteRemove','voiceNoteLabel','voiceNoteWords','shoppingAdd','shoppingStatus','shortlistAdd','shortlistEdit','shortlistStatus','shortlistRating','shortlistShop','shortlistRemove','todoAdd','todoStatus','packAdd','packAddAll','packEdit','packStatus','packRemove','packDismiss','noticedAdd','noticedEdit','noticedRemove','huntNew','huntPick','huntAdd','huntEdit','huntRate','huntRemove','huntRank','huntTried','huntListEdit','huntListRemove','spendAdd','spendEdit','spendBought','spendRemove','spendRequest','spendRequestCancel','sumoResult','sumoPredict','stepRating','stepThought','stepNextTime','capsuleWrite','dayRating','dayThought','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust','proposalRecommend','partyPerson','partyPriorities','photoVote','photoRemove','photoAssign','drawingRemove','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','thankYouSeen','checkInStart','checkInArrive','checkInCancel','lateSend','lateSeen','lateClear','lateAnswer','readinessSet','stageSet','rsvpSet'].includes(op.type))throw new AppError('A parent can make this change.',403);
+ if(['status','legStatus','waypoint','legSwap','patch','lock','remove','backlog','schedule'].includes(op.type)&&!step)throw new AppError('Activity not found.',404);
  const before=step?structuredClone(step):null;
  const fail=(message,status=400)=>{throw new AppError(message,status);};
  // A copy of whatever a removal is about to take, made before the removal runs, so it can wait
@@ -182,6 +182,36 @@ export function applyOperation(input,op,user){
   rekeyLegs(was,step);
   // The journey takes as much longer (or shorter) in the day as the stops and legs added to it.
   const grew=addedMinutes(step)-addedMinutes(was);
+  if(grew)step.duration=Math.min(1440,Math.max(5,(step.duration||30)+grew));
+ }else if(op.type==='legSwap'){
+  // Part or all of the guide's route gone another way (a taxi, on foot), by anyone who may tick it.
+  if(!parent&&!step.participants.includes(user.name))throw new AppError('This activity is assigned to other family members.',403);
+  if(!routeFor(step))throw new AppError('Only a stop with a route can change how we get there.');
+  if(step.status==='done')throw new AppError('This journey is already done.');
+  const was=structuredClone(step),list=step.swaps||[],old=op.action==='add'?null:list.find(s=>s.id===op.swapId);
+  if(op.action!=='add'&&!old)throw new AppError('That change to the journey is already undone.',404);
+  // The way, the legs it covers and how long it takes, checked the same way whether it is new or being changed.
+  const details=(o,base={})=>{
+   const s={...base};
+   if('mode'in o||!base.id){s.mode=o.mode;if(!SWAP_MODES[s.mode])throw new AppError('Choose a taxi, a walk or another way.');}
+   if('text'in o||!base.id){s.text=typeof o.text==='string'?o.text.trim():'';if(!s.text||s.text.length>160)throw new AppError('Say how you are going instead, in under 160 characters.');}
+   if('from'in o||'to'in o||!base.id){
+    const from=o.from??base.from,to=o.to??base.to,open=swappable(step,base.id);
+    if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to<from||to>=open.length)throw new AppError('Choose which legs to change.');
+    for(let k=from;k<=to;k++)if(!open[k])throw new AppError(ROUTES[step.id][k].mode==='stop'?'A stop on the way stays; change the legs either side of it.':'Leg '+(k+1)+' is already done or changed.');
+    s.from=from;s.to=to;
+   }
+   if('minutes'in o||!base.id){if(!(Number.isInteger(o.minutes)&&o.minutes>0&&o.minutes<=240))throw new AppError('Say about how long it takes, up to 240 minutes.');s.minutes=o.minutes;}
+   return s;
+  };
+  if(op.action==='add')step.swaps=[...list,{id:randomUUID().slice(0,8),...details(op),by:user.name,at:now}];
+  else if(op.action==='update')step.swaps=list.map(s=>s===old?{...details(op,old),updatedBy:user.name,updatedAt:now}:s);
+  else if(op.action==='remove'){step.swaps=list.filter(s=>s!==old);if(!step.swaps.length)delete step.swaps;}
+  else throw new AppError('Invalid action.');
+  step.updatedBy=user.name;
+  rekeyLegs(was,step);
+  // The journey takes as much longer (or shorter) in the day as the new way does.
+  const grew=routeMinutes(routeFor(step))-routeMinutes(routeFor(was));
   if(grew)step.duration=Math.min(1440,Math.max(5,(step.duration||30)+grew));
  }else if(op.type==='patch'){
   const patch=validatePatch(op.patch,state);

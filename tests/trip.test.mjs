@@ -10184,6 +10184,66 @@ test('adding, changing or taking off a stop or leg updates the journey: its legs
  assert.match(card,/action:'update',waypointId:form\.editing\.id/);
 });
 
+test('changing how we get there for part or all of a journey: pick the way and the legs, and undo it',async()=>{
+ const {routeFor,routeMinutes,ROUTES,legStrip,legCount,routeFares,swappable}=await import('../src/route-data.js');
+ const s=seed.steps.find(s=>s.id==='2026-09-26-01'),base=ROUTES[s.id],total=routeMinutes(base);
+ assert.deepEqual(base.map(l=>l.mode),['walk','ride','ride']);
+ // The two trains by taxi instead: one leg in their place, with its own time, and the day follows.
+ let state=applyOperation(seed,{type:'legStatus',id:s.id,leg:0,done:true,at:'2026-09-26T01:00:00.000Z'},child);
+ state=applyOperation(state,{type:'legSwap',id:s.id,action:'add',mode:'taxi',text:'Taxi to Saga-Arashiyama',from:1,to:2,minutes:30},child);
+ let step=state.steps.find(x=>x.id===s.id);
+ assert.deepEqual(routeFor(step).map(l=>l.mode),['walk','taxi']);
+ const swap=routeFor(step)[1].swap;
+ assert.equal(swap.by,'Nate');assert.deepEqual(swap.instead,['Karasuma Line to Kyoto','JR Sagano Line to Saga-Arashiyama']);
+ assert.equal(legCount(step),2);assert.deepEqual(Object.keys(step.legsDone),['0'],'the walk stays ticked');
+ assert.equal(legStrip(routeFor(step),step,1)[1].label,'Taxi');
+ assert.equal(routeFares(routeFor(step)),null,'no train fares left to add up');
+ assert.equal(step.duration,s.duration+30-routeMinutes(base.slice(1)));
+ // Changed to another way for one leg only; the other train comes back, and its time with it.
+ state=applyOperation(state,{type:'legSwap',id:s.id,action:'update',swapId:step.swaps[0].id,mode:'other',text:'A lift from a friend',to:1,minutes:5},parent);
+ step=state.steps.find(x=>x.id===s.id);
+ assert.deepEqual(routeFor(step).map(l=>l.mode),['walk','other','ride']);
+ assert.equal(routeFor(step)[2].line,'sagano');assert.equal(step.swaps[0].by,'Nate');assert.equal(step.swaps[0].updatedBy,'Damien');
+ assert.equal(step.duration,s.duration+5-base[1].minutes);
+ // A leg already done or already changed cannot be changed again; a stop on the way stays.
+ assert.throws(()=>applyOperation(state,{type:'legSwap',id:s.id,action:'add',mode:'walk',text:'Walk',from:0,to:0,minutes:10},parent),/already done or changed/);
+ assert.throws(()=>applyOperation(state,{type:'legSwap',id:s.id,action:'add',mode:'walk',text:'Walk',from:1,to:2,minutes:10},parent),/already done or changed/);
+ const home=seed.steps.find(x=>x.id==='2026-10-01-14');
+ assert.deepEqual(swappable(home),[true,false,true,true,true,true]);
+ assert.throws(()=>applyOperation(seed,{type:'legSwap',id:home.id,action:'add',mode:'taxi',text:'Taxi',from:0,to:5,minutes:60},parent),/stop on the way stays/);
+ // The rest of that journey by taxi: the bags are still picked up, and the guide's own taxi is part of it.
+ const rest=applyOperation(seed,{type:'legSwap',id:home.id,action:'add',mode:'taxi',text:'Taxi from the Fantasy Springs Hotel to Hilton Tokyo',from:2,to:5,minutes:60},parent).steps.find(x=>x.id===home.id);
+ assert.deepEqual(routeFor(rest).map(l=>l.mode),['walk','stop','taxi']);
+ // Back to the plan: the guide's legs return, and so does the time.
+ step=applyOperation(state,{type:'legSwap',id:s.id,action:'remove',swapId:step.swaps[0].id},parent).steps.find(x=>x.id===s.id);
+ assert.equal(step.swaps,undefined);assert.equal(routeFor(step),ROUTES[s.id]);assert.equal(step.duration,s.duration);
+ assert.equal(routeMinutes(routeFor(step)),total);
+ // Checked like any other change.
+ for(const bad of [{mode:'helicopter',text:'Up',from:1,to:1,minutes:5},{mode:'taxi',text:'',from:1,to:1,minutes:5},{mode:'taxi',text:'Taxi',from:2,to:1,minutes:5},{mode:'taxi',text:'Taxi',from:1,to:3,minutes:5},{mode:'taxi',text:'Taxi',from:1,to:1},{mode:'taxi',text:'Taxi',from:1,to:1,minutes:500}])
+  assert.throws(()=>applyOperation(seed,{type:'legSwap',id:s.id,action:'add',...bad},parent),AppErrorLike);
+ assert.throws(()=>applyOperation(seed,{type:'legSwap',id:'2026-10-01-15',action:'add',mode:'taxi',text:'Taxi',from:0,to:0,minutes:5},parent),/Only a stop with a route/);
+ assert.throws(()=>applyOperation(seed,{type:'legSwap',id:s.id,action:'remove',swapId:'gone'},parent),e=>e.status===404);
+ const theirs={...seed,steps:seed.steps.map(x=>x.id===s.id?{...x,participants:['Damien']}:x)};
+ assert.throws(()=>applyOperation(theirs,{type:'legSwap',id:s.id,action:'add',mode:'taxi',text:'Taxi',from:1,to:1,minutes:5},child),e=>e.status===403);
+ // On the card and in the app.
+ const card=await readFile(new URL('../src/RouteCard.jsx',import.meta.url),'utf8');
+ assert.match(card,/Change how we get there/);
+ assert.match(card,/onSwap\(\{action:'remove',swapId:leg\.swap\.id,text:leg\.text\}\)/);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/onSwap=\{routeSwap\}/);
+});
+test('a swap keeps the rides either side honest: a shared ticket pays for itself, an exit says it was for the plan',async()=>{
+ const {routeFor,ROUTES}=await import('../src/route-data.js');
+ const s=seed.steps.find(s=>s.id==='2026-10-02-02'),base=ROUTES[s.id];
+ assert.ok(base[1].through&&base[2].sameTicket);
+ const one=applyOperation(seed,{type:'legSwap',id:s.id,action:'add',mode:'walk',text:'Walk from Hilton Tokyo to Nishi-shinjuku',from:0,to:0,minutes:5},parent).steps.find(x=>x.id===s.id);
+ assert.equal(routeFor(one)[0].mode,'walk');assert.equal(routeFor(one)[0].swap.from,0);
+ const legs=routeFor(applyOperation(seed,{type:'legSwap',id:s.id,action:'add',mode:'taxi',text:'Taxi to Ginza',from:0,to:1,minutes:25},parent).steps.find(x=>x.id===s.id));
+ assert.equal(legs[1].sameTicket,undefined);assert.equal(legs[1].ownTicket,true);
+ const tail=routeFor(applyOperation(seed,{type:'legSwap',id:s.id,action:'add',mode:'walk',text:'Walk to Tsukiji',from:2,to:2,minutes:15},parent).steps.find(x=>x.id===s.id));
+ assert.equal(tail[1].through,undefined);assert.equal(tail[1].exitAsPlanned,true);
+});
+
 test('things we noticed: said out loud, tagged to where it was and what it was about, and in the diary and on the map',async()=>{
  const {ensureFeatures,pendingProgress,searchTrip,diaryDays}=await import('../src/trip-features.js');
  const {noticedWhere,noticedItem,noticedFor}=await import('../src/noticed-data.js');
