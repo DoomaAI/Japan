@@ -1948,7 +1948,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  // Side by side they share one grid; apart, each is its own.
  assert.deepEqual(homeRuns(['step','tired','apps','weather','glance']),['step',['tired','apps'],'weather',['glance']]);
  // Home draws them by id, the day heading and strip stay put, and the phone keeps the choice.
- assert.match(main,/\{dayStrip\(selectDay\)\}\s*<MomentBanner [^\n]*\/>\s*\{homeRuns\(homeShown\(homePrefs\)\.filter\(id=>awarenessAllows\(visibleState,user\.name,id\)\)\)\.map\(run=>/);
+ assert.match(main,/\{dayStrip\(selectDay\)\}\s*<MomentBanner [^\n]*\/>\s*<QuizLine [^\n]*\/>\s*\{homeRuns\(homeShown\(homePrefs\)\.filter\(id=>awarenessAllows\(visibleState,user\.name,id\)\)\)\.map\(run=>/);
  // Today carries the day's buttons above its stops.
  assert.match(main,/\{dayStrip\(d=>go\('glance',d\)\)\}[\s\S]{0,200}<div className="home-actions day-actions">[\s\S]*?We’re tired[\s\S]*?Useful apps[\s\S]*?<DayTimeline/);
  for(const id of HOME_DEFAULT)assert.match(main,new RegExp(`\\n  ${id}:`),`${id} is drawn`);

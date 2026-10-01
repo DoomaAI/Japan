@@ -1,6 +1,7 @@
 import {thankYouForDay,thankYouList,THANK_YOU_FROM,THANK_YOU_FOR} from '../src/trip-features.js';
 import {japanDate} from '../src/timing.js';
 import {isDeveloping,developingStub} from '../src/film-data.js';
+import {questionOpen} from '../src/quiz-data.js';
 import {visiblePredictions} from '../src/prediction-data.js';
 import {visibleCapsule} from '../src/capsule-data.js';
 import {visibleRsvps,guestSummary} from '../src/rsvp-data.js';
@@ -36,6 +37,13 @@ export function visibleTrip(state,user,now=new Date()){
  // The invitation key is the same again: the public link's key, handed to a parent by one route.
  const {calendarKey,followKey,inviteKey,...rest}=state;
  state=hideExpenses(hideTrackerLinks(hideInbox(hideUnthrownHands(rest,user),user),user),user);
+ // The dinner quiz: a buzzer phone is not sent the right answer, or anyone else's, until the
+ // question has closed. The host's phone has them; it is the one showing the scores.
+ if(state.quiz&&user?.name!==state.quiz.host){
+  const q=state.quiz,open=questionOpen(q,+now);
+  state={...state,quiz:{...q,questions:q.questions.map((x,i)=>i<q.index||(i===q.index&&!open)||q.done?x:{...x,answer:null}),
+   answers:Object.fromEntries(Object.entries(q.answers||{}).map(([i,a])=>[i,Number(i)===q.index&&open&&!q.done?Object.fromEntries(Object.entries(a).filter(([n])=>n===user?.name)):a]))}};
+ }
  // A film photo still developing goes to no phone, the photographer's included: only that it is
  // there, and whose. The picture itself arrives at seven the next morning.
  if(state.photos?.some(p=>isDeveloping(p,+now)))state={...state,photos:state.photos.map(p=>isDeveloping(p,+now)?developingStub(p):p)};

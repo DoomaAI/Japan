@@ -35,6 +35,7 @@ import {applyKudos} from '../src/kudos-data.js';
 import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange,tellTomorrow} from './push.mjs';
 import {tomorrowReady,tomorrowOf,nightly} from './tomorrow.mjs';
 import {isDeveloping,momentAccepts} from '../src/film-data.js';
+import {quizAction} from '../src/quiz-data.js';
 import {vaultReady,listVault,saveVault,addVaultFile,readVaultFile,vaultView} from './vault.mjs';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
 // A photo's own position, if the phone read one out of it, kept to about ten metres. Anything
@@ -420,6 +421,14 @@ export default async function handler(req,res){
    const failed=parts.map(p=>result[{check:'checkError',planb:'planBError',move:'moveError',insider:'insiderError'}[p]]).filter(Boolean);
    if(failed.length===parts.length)throw new AppError(failed[0],502);
    return json(res,{...result,...visibleEnvelope(await readTrip(),user)});
+  }
+  // The dinner quiz. Answers arrive from every phone at once, so each one is applied to the trip as
+  // it stands (updateTrip) rather than refused for not knowing the latest revision.
+  if(route==='quiz'&&post){
+   let problem=null;
+   const saved=await updateTrip(state=>{const r=quizAction(state,b,user,new Date());if(r.error){problem=r.error;return null;}return r.state;});
+   if(problem)throw new AppError(problem,409);
+   return json(res,visibleEnvelope(saved,user));
   }
   if(route==='ask'&&post){
    const {state}=await readTrip();
