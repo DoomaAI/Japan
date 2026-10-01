@@ -186,6 +186,7 @@ Nineteen PRs merged on 29 September (#211–#261, this session's share). Four th
 9. **Built (1 October 2026).** **Trip highlights video.** It is on Looking back → Highlights video. `src/highlights-data.js` defines the shots, the edit list and its checks. `server/highlights.mjs` asks Claude for the edit list, using metadata plus up to 16 pictures, with a strict tool schema; the result is checked with `cleanEditList`. The automatic plan is used when there is no key. `src/Highlights.jsx` renders it at 1080×1920: Ken Burns on photos, clips playing, a card for each day and captions. The sound postcards and the clips' own sound go through the shared mixer into the recording. A parent can reorder, trim and re-caption the plan, and save the finished video to the family gallery. Not yet tried: recording on an iPhone (MP4) and the live planning call.
 10. **Trip recap.** Totals for days, cities, stops, photos and top-rated moments, plus a printable photobook layout for the diary.
 11. **Follow-along link for family at home.** A view-only link to the diary and photos, with no tickets, locations or invite rights.
+12. **Cut the AI bill (logged 1 October 2026).** Move translation, the menu photo, dictation, Nearby, place research and structured booking emails off the model onto web services and the phone; add "Ask in your own AI" hand-off buttons; consider a Claude connector. Details and costs in [commercialisation.md → Cutting the AI bill](commercialisation.md#cutting-the-ai-bill-the-travellers-own-ai-and-plain-web-services).
 
 ## Not planned
 
