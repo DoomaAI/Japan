@@ -6,7 +6,8 @@
 import {daySplits,laneOf,stepsFor} from './split.js';
 import {checkInDestinations} from './checkin-data.js';
 import {awarenessAllows} from './child-levels.js';
-import {japanClock,japanDate,minutes} from './timing.js';
+import {japanClock,japanDate,minutes,activeSteps} from './timing.js';
+import {isParent} from './people.js';
 export const LATE_MINUTES=[5,10,15,20,30,45,60];
 export const LATE_MAX=180;
 // A notice stays on the waiting phones until half an hour after the new time, then it is history.
@@ -66,6 +67,37 @@ export function lateLine(n,viewer){
  return `${who} ${many?'are':'is'} running ${n.minutes} min late${n.target?` for ${n.target}`:''}`;
 }
 export const etaText=n=>`there about ${japanClock(new Date(n.eta))}${n.time?` instead of ${n.time}`:''}`;
+// ---- Asking for more than to be waited for ---------------------------------------------------
+// A running-late message can carry one of two things besides the news. "Push it back" asks the
+// people waiting to start the stop later by the same minutes; it is a request, and the stop only
+// moves when somebody waiting agrees (a grown-up on one side or the other: a boy cannot move the
+// plan by asking his brother). "We'll skip it" says the late ones will miss that stop and meet
+// the others at the next one they are both on; nothing in the plan moves for that.
+export const LATE_ASKS=['delay','skip'];
+const clock=m=>`${String(Math.floor(m/60)%24).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+export const pushedBack=(time,m)=>clock(minutes(time)+m);
+// A stop can be pushed back when it has a time to push, is not a booking that cannot move, has not
+// started, and the later start still falls on the same day.
+export function canDelay(step,m){
+ return !!step&&!!step.time&&!step.locked&&step.kind!=='fixed'&&!['started','done','skipped'].includes(step.status)&&minutes(step.time)+m<24*60;
+}
+// Where the late ones meet the others after skipping a stop: the next stop that day, still to do,
+// that somebody being told is on.
+export function meetAfter(state,day,stepId,to){
+ const steps=activeSteps(state,day),i=steps.findIndex(s=>s.id===stepId);
+ if(i<0)return null;
+ return steps.slice(i+1).find(s=>!['done','skipped'].includes(s.status)&&(s.participants||[]).some(p=>to.includes(p)))||null;
+}
+// Who may say yes to "push it back": somebody it was sent to, and a grown-up on one side or other.
+export const canAgree=(state,n,name)=>n.ask==='delay'&&n.proposal?.status==='open'&&n.to.includes(name)&&(isParent(state,name)||isParent(state,n.from));
+export function askLine(n,viewer){
+ if(n.ask==='skip')return `Skipping ${n.target||'it'}${n.meet?` · meet you at ${n.meet}${n.meetTime?` at ${n.meetTime}`:''}`:''}`;
+ if(n.ask!=='delay'||!n.proposal)return null;
+ const p=n.proposal,what=`${n.target} at ${p.to} instead of ${p.from}`;
+ if(p.status==='accepted')return `${p.by===viewer?'You':p.by} agreed: ${what}`;
+ if(p.status==='declined')return `${p.by===viewer?'You':p.by} said no to starting ${n.target} later`;
+ return `${n.from===viewer?'You asked':'Asks'} to start ${what}`;
+}
 // The words on the lock screen of the phones it was sent to.
 export const latePush=n=>({title:`${whoText(n.with,'')} ${n.with.length>1?'are':'is'} running ${n.minutes} min late`,
- body:[n.target?`For ${n.target}, ${etaText(n)}.`:`Now ${etaText(n)}.`,n.note].filter(Boolean).join(' ')});
+ body:[n.ask==='skip'?`${askLine(n,'')}.`:n.target?`For ${n.target}, ${etaText(n)}.`:`Now ${etaText(n)}.`,n.ask==='delay'?`Can we start it at ${n.proposal.to}?`:null,n.note].filter(Boolean).join(' ')});

@@ -34,7 +34,7 @@ import {cleanStay} from '../src/stay-data.js';
 import {PREDICTION_MAX,findPrediction,predictionPhase} from '../src/prediction-data.js';
 import {japanDate,japanClock} from '../src/timing.js';
 import {CHECKIN_AHEAD_HOURS} from '../src/checkin-data.js';
-import {LATE_MAX,LATE_NOTE_MAX,lateEta} from '../src/late-data.js';
+import {LATE_MAX,LATE_NOTE_MAX,LATE_ASKS,lateEta,canDelay,meetAfter,canAgree,pushedBack} from '../src/late-data.js';
 import {READINESS} from '../src/readiness-data.js';
 import {findSquare,validCard} from '../src/bingo-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
@@ -48,6 +48,7 @@ const MAX_PROPOSALS=300;
 const MAX_SHORTLIST=200;
 const https=v=>{try{return new URL(v).protocol==='https:';}catch{return false;}};
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
+const minutesBetween=(a,b)=>{const m=t=>+t.slice(0,2)*60+ +t.slice(3);return m(b)-m(a);};
 export function extraOperation(state,op,user,fail,now){
  const parent=user.role==='parent',dayOK=day=>day===null||state.days.some(d=>d.date===day);
  // The invitation (src/rsvp-data.js): what guests read at the link and what they are asked. A
@@ -1713,7 +1714,7 @@ export function extraOperation(state,op,user,fail,now){
  }
  if(op.type==='checkInCancel'){c.closedAt=now;c.closedBy=user.name;return {summary:null,important:false,title:'Check In'};}
  fail('Unknown check-in change.');
-}else if(typeof op.type==='string'&&op.type.startsWith('late')&&['lateSend','lateSeen','lateClear'].includes(op.type)){
+}else if(typeof op.type==='string'&&op.type.startsWith('late')&&['lateSend','lateSeen','lateClear','lateAnswer'].includes(op.type)){
  // Running late, told to the people waiting (src/late-data.js). Anyone says it for themselves
  // and whoever is with them; only the people it is to are told, and only they say they saw it.
  // A new one from the same person replaces their last, so there is one at a time to read.
@@ -1728,9 +1729,21 @@ export function extraOperation(state,op,user,fail,now){
   if(op.note!=null)requireText(op.note,LATE_NOTE_MAX,'note');
   if(op.stepId!=null&&!state.steps.some(s=>s.id===op.stepId))fail('Activity not found.',404);
   if(op.time!=null&&!(typeof op.time==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(op.time)))fail('Invalid time.');
-  const at=new Date(now),day=japanDate(at),eta=lateEta({minutes:op.minutes,time:op.time||null,day},at);
+  const at=new Date(now),day=japanDate(at);
+  // What they are asked for, if anything: to start the stop later, or that we skip it and meet
+  // them at the next one. Both are about a stop today, and the stop is read from the plan.
+  if(op.ask!=null&&!LATE_ASKS.includes(op.ask))fail('Unknown request.');
+  const step=op.ask?state.steps.find(s=>s.id===op.stepId):null;
+  if(op.ask&&(!step||step.day!==day))fail('Choose one of today’s stops.');
+  if(op.ask==='delay'&&!canDelay(step,op.minutes))fail('That stop cannot be moved: it is a fixed time, has started, or has no time.');
+  const meet=op.ask==='skip'?meetAfter(state,day,step.id,to):null;
+  if(op.ask==='skip'&&!meet)fail('There is no later stop today to meet up at.');
+  const eta=meet?.time?lateEta({minutes:0,time:meet.time,day},at):lateEta({minutes:op.minutes,time:op.time||null,day},at);
   for(const n of list)if(n.from===user.name&&!n.clearedAt){n.clearedAt=now;n.clearedBy=user.name;}
-  const item={id:randomUUID(),from:user.name,with:withUs,to,minutes:op.minutes,target:op.target?.trim()||null,stepId:op.stepId||null,time:op.time&&+eta!==+at+op.minutes*60000?op.time:null,note:op.note?.trim()||null,day,at:now,eta:eta.toISOString(),seenBy:{},clearedAt:null,clearedBy:null};
+  const item={id:randomUUID(),from:user.name,with:withUs,to,minutes:op.minutes,target:op.target?.trim()||null,stepId:op.stepId||null,time:op.time&&+eta!==+at+op.minutes*60000?op.time:null,note:op.note?.trim()||null,day,at:now,eta:eta.toISOString(),seenBy:{},clearedAt:null,clearedBy:null,
+   ask:op.ask||null,meet:meet?meet.title:null,meetStepId:meet?.id||null,meetTime:meet?.time||null,
+   proposal:op.ask==='delay'?{status:'open',from:step.time,to:pushedBack(step.time,op.minutes),by:null,at:null}:null};
+  if(op.ask){item.target=step.title;item.stepId=step.id;item.time=op.ask==='delay'?step.time:item.time;}
   state.lateNotices=[...list,item].slice(-30);
   return {summary:null,important:false,title:`Running ${op.minutes} min late`};
  }
@@ -1739,6 +1752,21 @@ export function extraOperation(state,op,user,fail,now){
   if(!n.to.includes(user.name))fail('That message was not to you.',403);
   n.seenBy={...n.seenBy,[user.name]:now};
   return {summary:null,important:false,title:'Running late · seen'};
+ }
+ if(op.type==='lateAnswer'){
+  if(typeof op.accept!=='boolean')fail('Say yes or no.');
+  if(n.ask!=='delay'||n.proposal?.status!=='open')fail('That has already been answered.',409);
+  if(!n.to.includes(user.name))fail('That request was not to you.',403);
+  n.seenBy={...n.seenBy,[user.name]:now};
+  if(!op.accept){n.proposal={...n.proposal,status:'declined',by:user.name,at:now};return {summary:null,important:false,title:`Not starting later · ${n.target}`};}
+  if(!canAgree(state,n,user.name))fail('A grown-up agrees to moving the plan.',403);
+  const step=state.steps.find(s=>s.id===n.stepId);
+  // The stop is checked again as it is now: somebody may have moved it, locked it or started it
+  // since the request went out, and then the request no longer says what it would do.
+  if(!step||step.time!==n.proposal.from||!canDelay(step,minutesBetween(n.proposal.from,n.proposal.to)))fail('That stop has changed since the request. Look at it again.',409);
+  step.originalTime??=step.time;step.time=n.proposal.to;
+  n.proposal={...n.proposal,status:'accepted',by:user.name,at:now};
+  return {summary:`${step.title} now starts at ${step.time} (was ${n.proposal.from}): ${n.from} is running ${n.minutes} min late`,important:true,title:step.title,stepId:step.id};
  }
  if(!parent&&!n.with.includes(user.name))fail('Only whoever is running late, or a parent, can say they are there.',403);
  n.clearedAt=now;n.clearedBy=user.name;

@@ -90,6 +90,14 @@ export async function tellLate(notice,send=sendOne){
  if(!(await claim(key)))return 0;
  return deliver({key,kind:'late',...latePush(notice),url:'/?tab=whereabouts',to:notice.to},await subscriptions(),send);
 }
+// A "no" to starting a stop later goes back to whoever asked; a "yes" moves the plan, and the
+// plan change is told to everyone the usual way.
+export async function tellLateNo(notice,send=sendOne){
+ if(!pushReady()&&send===sendOne)return 0;
+ const key=`late-no|${notice.id}`;
+ if(!(await claim(key)))return 0;
+ return deliver({key,kind:'late',title:`${notice.proposal.by} said no to starting later`,body:`${notice.target} stays at ${notice.proposal.from}.`,url:'/?tab=whereabouts',to:notice.with},await subscriptions(),send);
+}
 // Tomorrow's check, told to the parents when it found something to do before morning. Once a
 // day at most: the key is the day checked, so a second run of the check is not a second buzz.
 export async function tellTomorrow(check,parents,send=sendOne){

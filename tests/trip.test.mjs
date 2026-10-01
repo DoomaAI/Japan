@@ -8997,6 +8997,56 @@ test('running late: one lane tells the other, for where we meet back up, and onl
   assert.equal(await tellLate(n,send),0,'told once');
  }finally{delete process.env.LOCAL_DEMO;resetDemoPush();}
 });
+test('running late can ask to start a stop later, which moves it only when a grown-up waiting agrees, or say we skip it and meet at the next',async()=>{
+ const {canDelay,meetAfter,canAgree,askLine,pushedBack,latePush}=await import('../src/late-data.js');
+ const {tellLateNo,subscribe,resetDemoPush}=await import('../server/push.mjs');
+ // Today, whatever today is: two stops tonight, the second shared with everybody.
+ const today=japanDate(new Date()),trip=structuredClone(seed);
+ if(!trip.days.some(d=>d.date===today))trip.days.push({...trip.days.at(-1),date:today});
+ const flex=trip.steps.filter(s=>!s.locked&&s.kind!=='fixed'&&!s.group);
+ const ramen=Object.assign(flex[0],{day:today,time:'20:00',status:'todo',order:9001,participants:['Damien','Lauren','Nate','Boston']});
+ const dessert=Object.assign(flex[1],{day:today,time:'21:30',status:'todo',order:9002,participants:['Damien','Lauren','Nate','Boston']});
+ const boston={name:'Boston',role:'child'},lauren={name:'Lauren',role:'parent'};
+ assert.equal(pushedBack('20:00',15),'20:15');
+ assert.ok(canDelay(ramen,15));assert.ok(!canDelay({...ramen,locked:true},15),'a booking cannot wait');assert.ok(!canDelay({...ramen,status:'started'},15));
+ assert.equal(meetAfter(trip,today,ramen.id,['Lauren']).id,dessert.id);
+ // Push it back: asked by Damien, answered by Lauren.
+ let s=applyOperation(trip,{type:'lateSend',minutes:15,with:[],to:['Lauren','Boston'],stepId:ramen.id,ask:'delay'},parent);
+ let n=s.lateNotices.at(-1);
+ assert.deepEqual(n.proposal,{status:'open',from:'20:00',to:'20:15',by:null,at:null});assert.equal(n.target,ramen.title);
+ assert.equal(s.steps.find(x=>x.id===ramen.id).time,'20:00','asking moves nothing');
+ assert.match(askLine(n,'Lauren'),/^Asks to start .* at 20:15 instead of 20:00$/);assert.match(latePush(n).body,/Can we start it at 20:15\?/);
+ assert.ok(canAgree(s,n,'Boston'),'a parent asked, so whoever is waiting can say yes');
+ assert.throws(()=>applyOperation(s,{type:'lateAnswer',id:n.id,accept:true},{name:'Nate',role:'child'}),/not to you/);
+ const yes=applyOperation(s,{type:'lateAnswer',id:n.id,accept:true},lauren);
+ assert.equal(yes.steps.find(x=>x.id===ramen.id).time,'20:15');assert.equal(yes.lateNotices.at(-1).proposal.status,'accepted');
+ assert.match(yes.alerts[0].summary,/now starts at 20:15 \(was 20:00\): Damien is running 15 min late/);assert.equal(yes.alerts[0].stepId,ramen.id,'the family is told, with the stop');
+ assert.throws(()=>applyOperation(yes,{type:'lateAnswer',id:n.id,accept:true},boston),/already been answered/);
+ const no=applyOperation(s,{type:'lateAnswer',id:n.id,accept:false},boston);
+ assert.equal(no.steps.find(x=>x.id===ramen.id).time,'20:00');assert.match(askLine(no.lateNotices.at(-1),'Damien'),/^Boston said no/);
+ const moved=structuredClone(s);moved.steps.find(x=>x.id===ramen.id).time='19:45';
+ assert.throws(()=>applyOperation(moved,{type:'lateAnswer',id:n.id,accept:true},lauren),/changed since/,'a stop moved meanwhile is not moved again');
+ // A boy asking a boy: only a grown-up can say yes.
+ const kids=applyOperation(trip,{type:'lateSend',minutes:10,with:[],to:['Nate'],stepId:ramen.id,ask:'delay'},boston);
+ assert.throws(()=>applyOperation(kids,{type:'lateAnswer',id:kids.lateNotices.at(-1).id,accept:true},{name:'Nate',role:'child'}),/grown-up/);
+ // We'll skip it and meet you at the next one.
+ const skip=applyOperation(trip,{type:'lateSend',minutes:30,with:['Boston'],to:['Lauren'],stepId:ramen.id,ask:'skip'},parent).lateNotices.at(-1);
+ assert.equal(skip.meetStepId,dessert.id);assert.equal(skip.meetTime,'21:30');assert.equal(skip.proposal,null);
+ assert.equal(skip.eta,new Date(`${today}T21:30:00+09:00`).toISOString(),'there when the next one starts');
+ assert.equal(askLine(skip,'Lauren'),`Skipping ${ramen.title} · meet you at ${dessert.title} at 21:30`);
+ for(const bad of [{ask:'cancel',stepId:ramen.id},{ask:'delay',stepId:ramen.id,minutes:300},{ask:'skip',stepId:dessert.id}])
+  assert.throws(()=>applyOperation(trip,{type:'lateSend',minutes:15,with:[],to:['Lauren'],...bad},parent));
+ const fixed=structuredClone(trip);fixed.steps.find(x=>x.id===ramen.id).locked=true;
+ assert.throws(()=>applyOperation(fixed,{type:'lateSend',minutes:15,with:[],to:['Lauren'],stepId:ramen.id,ask:'delay'},parent),/cannot be moved/);
+ // A no goes back to whoever is late.
+ process.env.LOCAL_DEMO='1';delete process.env.VERCEL;resetDemoPush();
+ try{
+  const sub=x=>({endpoint:`https://push.example/${x}`,keys:{p256dh:'k'.repeat(20),auth:'a'.repeat(10)}});
+  await subscribe({name:'Damien'},sub('damien'),{});await subscribe({name:'Boston'},sub('boston'),{});
+  const sent=[];assert.equal(await tellLateNo(no.lateNotices.at(-1),async(x,p)=>{sent.push([x.endpoint,p.title]);}),1);
+  assert.deepEqual(sent,[['https://push.example/damien','Boston said no to starting later']]);
+ }finally{delete process.env.LOCAL_DEMO;resetDemoPush();}
+});
 test('what somebody else is doing: what they marked arrived first, then the plan, said as the plan',async()=>{
  const {whereIs}=await import('../src/split.js');
  const {trip,day}=splitTrip();
