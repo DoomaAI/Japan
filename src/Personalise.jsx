@@ -19,7 +19,7 @@ import {HOME_WIDGETS,homeOrder,cleanHome,moveWidget,toggleWidget,emptyHome} from
 // the way back from wherever a bad arrangement leaves you.
 export default function Personalise({user,prefs,setPrefs,home,setHome,held=[]}){
  const bar=primaryNav(user,prefs),hidden=hiddenNav(user,prefs);
- const save=next=>setPrefs(cleanNav(next,user));
+ const save=next=>setPrefs(cleanNav({...next,order:prefs?.order},user));
  const hide=id=>{if(!FIXED.includes(id))save({bar:bar.filter(x=>x!==id),hidden:[...hidden,id]});};
  const unhide=id=>save({bar,hidden:hidden.filter(x=>x!==id)});
  const row=id=>{const Icon=iconFor(id);return <><span className="more-icon"><Icon size={19}/></span>
@@ -69,7 +69,7 @@ export function BarShortcuts({user,prefs,setPrefs}){
  const bar=primaryNav(user,prefs),hidden=hiddenNav(user,prefs),spare=addableNav(user,prefs);
  // The first change to a bar nobody has touched starts from the one they have been using,
  // rather than from nothing — otherwise moving one row down would rebuild the whole bar.
- const withBar=list=>setPrefs(cleanNav({bar:list,hidden},user));
+ const withBar=list=>setPrefs(cleanNav({bar:list,hidden,order:prefs?.order},user));
  const move=(id,by)=>{
   const at=bar.indexOf(id),to=at+by;
   if(at<1||to<1||to>=bar.length)return;

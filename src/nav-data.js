@@ -196,7 +196,7 @@ export const dropFavourite=(list,id,onto)=>{
 // hold more shortcuts than fit across a phone.
 export const BAR_MIN=3,BAR_MAX=12;
 export const FIXED=['today','personalise'];
-export const emptyNav=()=>({bar:null,hidden:[]});
+export const emptyNav=()=>({bar:null,hidden:[],order:[]});
 export function cleanNav(prefs,user){
  const ok=id=>!!PAGES[id]&&allowed(id,user);
  const hidden=[...new Set((Array.isArray(prefs?.hidden)?prefs.hidden:[]).filter(id=>ok(id)&&!FIXED.includes(id)))];
@@ -205,7 +205,10 @@ export function cleanNav(prefs,user){
   :null;
  if(wanted)wanted=['today',...wanted.filter(id=>id!=='today')];
  if(wanted)wanted=wanted.slice(0,BAR_MAX);
- return {bar:wanted&&wanted.length>=BAR_MIN?wanted:null,hidden};
+ // The order of the cards on More, as this person arranged them. Only what they can see is
+ // kept; anything new or never moved falls in after it, where the menu itself puts it.
+ const order=[...new Set((Array.isArray(prefs?.order)?prefs.order:[]).filter(ok))];
+ return {bar:wanted&&wanted.length>=BAR_MIN?wanted:null,hidden,order};
 }
 // The bar for somebody who has not arranged one, which is not simply the one for their role:
 // a screen they have put away cannot come back on the bar through the back door. Taking one
@@ -238,9 +241,31 @@ export const hiddenNav=(user,prefs)=>cleanNav(prefs,user).hidden;
 // With withBar, the bar's own screens are listed too, in their places, so More can mark them.
 export const moreSections=(user,prefs,withBar=false)=>{
  const shown=new Set(withBar?[]:primaryNav(user,prefs)),away=new Set(hiddenNav(user,prefs));
+ const rank=arranged(cleanNav(prefs,user).order);
  return MORE_SECTIONS
-  .map(([title,ids])=>[title,ids.filter(id=>!shown.has(id)&&!away.has(id)&&allowed(id,user))])
+  .map(([title,ids])=>[title,inOrder(ids.filter(id=>!shown.has(id)&&!away.has(id)&&allowed(id,user)),rank)])
   .filter(([,ids])=>ids.length);
+};
+// Cards are arranged within their own section: a card moved to the top of Out and about stays
+// in Out and about. Anything this person has never moved keeps the place the menu gives it,
+// after the ones they have.
+const arranged=order=>new Map(order.map((id,i)=>[id,i]));
+const inOrder=(ids,rank)=>ids.map((id,i)=>[id,rank.has(id)?rank.get(id):ORDER_TAIL+i]).sort((a,b)=>a[1]-b[1]).map(([id])=>id);
+const ORDER_TAIL=1e6;
+// One card along its section by one place, as the section is on the screen right now. The
+// whole section is written down in its new order, so the next move starts from what was seen.
+export const moveInMore=(prefs,section,id,by)=>{
+ const at=section.indexOf(id),to=at+by;
+ if(at<0||to<0||to>=section.length)return prefs;
+ const list=[...section];list[at]=list[to];list[to]=id;
+ const rest=(Array.isArray(prefs?.order)?prefs.order:[]).filter(x=>!list.includes(x));
+ return {...prefs,order:[...rest,...list]};
+};
+// Put away straight from More, with the same rule as Customise: Home and Customise stay.
+export const hideInMore=(prefs,id)=>FIXED.includes(id)?prefs:{
+ ...prefs,
+ bar:Array.isArray(prefs?.bar)?prefs.bar.filter(x=>x!==id):prefs?.bar??null,
+ hidden:[...new Set([...(prefs?.hidden||[]),id])]
 };
 export const moreIds=(user,prefs)=>moreSections(user,prefs).flatMap(([,ids])=>ids);
 // What is left to put on the bar, in the order the menu itself is in, so the screen offering

@@ -1,6 +1,6 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
-import {LocateFixed,Clapperboard,Printer,Smartphone,BookLock,PlaneLanding,AlarmClock,MailQuestion,BookImage,Stamp,Crown,GalleryHorizontalEnd,History,Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid,ChevronDown,Star,Check,Plus,Store,Footprints,DoorOpen,PlaneTakeoff,SearchX,Repeat,Hourglass,GraduationCap,X,ChevronLeft} from 'lucide-react';
-import {PAGES,primaryNav,moreSections,navActive,hiddenNav,favourites,toggleFavourite,dropFavourite,FAV_MAX,favRows,pickerSections} from './nav-data.js';
+import {LocateFixed,Clapperboard,Printer,Smartphone,BookLock,PlaneLanding,AlarmClock,MailQuestion,BookImage,Stamp,Crown,GalleryHorizontalEnd,History,Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid,ChevronDown,Star,Check,Plus,Store,Footprints,DoorOpen,PlaneTakeoff,SearchX,Repeat,Hourglass,GraduationCap,X,ChevronLeft,EyeOff,Undo2} from 'lucide-react';
+import {PAGES,FIXED,moveInMore,hideInMore,primaryNav,moreSections,navActive,hiddenNav,favourites,toggleFavourite,dropFavourite,FAV_MAX,favRows,pickerSections} from './nav-data.js';
 import {isOpen,setOpen} from './fold.js';
 import {useWobble} from './wobble.js';
 import {homePages} from './home-widgets.js';
@@ -276,9 +276,14 @@ function FavSheet({user,prefs,tab,go,close,all,bottom,drop,startChoosing}){
 // change them, and down in the sections a star marks each one. Hold any card to star or unstar
 // it there and then. A button marks which cards are already a shortcut on the bar or a widget
 // on Home, so it is plain what is one tap away; it is off to begin with.
+// Every card carries arrows and an eye underneath it, so the menu can be put in this person's
+// order and the screens they never open put away right here, without a mode to switch on first
+// or a trip to Customise. The card itself still opens its screen. Arrows rather than dragging,
+// for the same reasons as the bar's own list in Customise.
 const HOLD=450,SLOP=10;
-export function MorePage({user,tab,go,children,prefs,home}){
+export function MorePage({user,tab,go,children,prefs,home,setPrefs}){
  const [where,setWhere]=useState(false);
+ const [undo,setUndo]=useState(null);
  const [saved,setSaved]=useSavedFavourites();
  const favs=favourites(user,saved),starred=new Set(favs),full=favs.length>=FAV_MAX;
  const onBar=new Set(primaryNav(user,prefs)),onHome=homePages(home);
@@ -305,17 +310,31 @@ export function MorePage({user,tab,go,children,prefs,home}){
   onContextMenu:e=>e.preventDefault(),
   onClickCapture:e=>{if(eat.current){e.preventDefault();e.stopPropagation();eat.current=false;}}
  });
- useEffect(()=>{if(!said)return;const t=setTimeout(()=>setSaid(''),2400);return ()=>clearTimeout(t);},[said]);
+ // Long enough to reach Undo after putting a card away; the plain notes go sooner.
+ useEffect(()=>{if(!said)return;const t=setTimeout(()=>setSaid(''),undo?6000:2400);return ()=>clearTimeout(t);},[said]);
  useEffect(()=>()=>clearTimeout(press.current?.timer),[]);
- const card=id=>{
+ const shift=(ids,id,by)=>setPrefs?.(moveInMore(prefs,ids,id,by));
+ const putAway=id=>{
+  if(!setPrefs||FIXED.includes(id))return;
+  setUndo(prefs);setPrefs(hideInMore(prefs,id));
+  setSaid(`${PAGES[id].label} put away · back from Customise`);
+ };
+ useEffect(()=>{if(!said)setUndo(null);},[said]);
+ const card=(id,i,ids)=>{
   const Icon=iconFor(id),bar=onBar.has(id),widget=onHome.has(id),on=starred.has(id);
-  return <div className="more-card-wrap" key={id} {...holdProps(id)}>
-   <button type="button" className={`right-now-tile${tab===id?' current':''}${where&&!bar&&!widget?' more-elsewhere':''}`} title={PAGES[id].note} onClick={()=>go(id)}>
+  const label=PAGES[id].label;
+  return <div className={`more-card-wrap${setPrefs?' arranging':''}`} key={id}>
+   <button type="button" {...holdProps(id)} className={`right-now-tile${tab===id?' current':''}${where&&!bar&&!widget?' more-elsewhere':''}`} title={PAGES[id].note} onClick={()=>go(id)}>
     <Icon size={22}/><span>{PAGES[id].label}</span>
     {/* A favourite is marked where it sits, so it is plain which are chosen. */}
     {on&&<Star className="more-fav-mark" size={13} aria-label="In favourites"/>}
     {where&&(bar||widget)&&<span className="more-tags">{bar&&<span className="tag">Bar</span>}{widget&&<span className="tag">Home</span>}</span>}
    </button>
+   {setPrefs&&<span className="more-card-tools">
+    <button type="button" aria-label={`Move ${label} earlier`} disabled={i===0} onClick={()=>shift(ids,id,-1)}><ChevronLeft size={16}/></button>
+    <button type="button" aria-label={`Put ${label} away`} disabled={FIXED.includes(id)} onClick={()=>putAway(id)}><EyeOff size={15}/></button>
+    <button type="button" aria-label={`Move ${label} later`} disabled={i===ids.length-1} onClick={()=>shift(ids,id,1)}><ChevronRight size={16}/></button>
+   </span>}
   </div>;
  };
  return <div className="more-page">
@@ -329,14 +348,15 @@ export function MorePage({user,tab,go,children,prefs,home}){
   <button type="button" className={`more-where${where?' on':''}`} aria-pressed={where} onClick={()=>setWhere(!where)}>
    <LayoutGrid size={16}/>{where?'Hide what is on my bar and Home':'Show what is on my bar and Home'}
   </button>
+  {setPrefs&&<p className="more-arrange-hint">Tap a card to open it. The arrows under it move it along its section, and the eye puts it away.</p>}
   {sections.map(([title,ids])=>{const shut=!(open[title]??false);
    return <section className={`more-section${shut?' shut':''}`} key={title}>
     <h2><button type="button" className="more-fold" aria-expanded={!shut} onClick={()=>fold(title)}>
      <span>{title}</span><small>{ids.length}</small><ChevronDown size={18}/>
     </button></h2>
-    {!shut&&<div className="right-now more-grid">{ids.map(id=>card(id))}</div>}
+    {!shut&&<div className="right-now more-grid">{ids.map((id,i)=>card(id,i,ids))}</div>}
    </section>;})}
-  <p className="more-said" role="status" aria-live="polite">{said}</p>
+  <p className="more-said" role="status" aria-live="polite">{said}{undo&&<> <button type="button" className="more-undo" onClick={()=>{setPrefs(undo);setUndo(null);setSaid('');}}><Undo2 size={14}/>Undo</button></>}</p>
   {children}
  </div>;
 }
