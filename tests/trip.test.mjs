@@ -11846,3 +11846,16 @@ test('a Home card folded or put away stays so for the rest of the day and is bac
  assert.deepEqual(homeDay(t,'2026-10-02'),{day:'2026-10-02',folded:[],away:[]},'a new day starts clear');
  assert.deepEqual(homeDay({day:'2026-10-01',folded:['nope','stay','stay'],away:'x'},'2026-10-01'),{day:'2026-10-01',folded:['stay'],away:[]});
 });
+
+test('the top bar shows the sky now: this hour when saved, else the day, nothing off the trip',async()=>{
+ const {nowWeather}=await import('../src/weather-data.js');
+ const day='2026-10-01';
+ const state={days:[{date:day,city:'Tokyo'}],weather:{days:{[day]:{city:'Tokyo',code:61,max:22,min:19,rain:33,sunrise:'05:40',sunset:'17:25'}},
+  hours:{[day]:[{h:17,temp:21,rain:10,code:3},{h:18,temp:20,rain:40,code:61}]}}};
+ const now=nowWeather(state,day,'18:45');
+ assert.equal(now.temp,20);assert.equal(now.label,'Light rain');assert.equal(now.rain,40);
+ const daily=nowWeather({...state,weather:{days:state.weather.days}},day,'18:45');
+ assert.equal(daily.temp,22);assert.equal(daily.label,'Light rain');
+ assert.equal(nowWeather(state,'2026-10-02','09:00'),null);
+ assert.equal(nowWeather({days:[],weather:{hours:{[day]:[{h:21,temp:18,rain:0,code:0}]}}},day,'21:10').icon,'🌙✨');
+});

@@ -9,6 +9,7 @@ import {legCount,tickLeg,routeFor,rekeyLegs,ROUTES,MAX_WAYPOINTS,WAYPOINT_KINDS,
 import {ENTRY_TYPE_IDS} from '../src/entry-types.js';
 import {guessPlatform} from '../src/booked-via.js';
 import {BIN_KINDS,binEntries,binTitle} from '../src/bin-data.js';
+import {orderDays,moveSteps} from '../src/day-moves.js';
 // The family, kept only as the fallback the AI modules name when a state has no members list.
 // Every membership check reads state.members and the records in src/people.js.
 export const MEMBERS = ['Damien','Lauren','Nate','Boston'];
@@ -17,6 +18,7 @@ export const MEMBERS = ['Damien','Lauren','Nate','Boston'];
 export const INBOX_DESTINATIONS=['ticket','activity','options','idea','todo'];
 export class AppError extends Error { constructor(message,status=400){super(message);this.status=status;} }
 const text = (v,max=1000) => typeof v === 'string' && v.length <= max;
+const shortDate=d=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(`${d}T12:00:00Z`));
 const clock = v => v === null || (typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v));
 export function safeLink(v){try{const u=new URL(v);return u.protocol==='https:';}catch{return false;}}
 export function documentDetails(p){
@@ -234,6 +236,15 @@ export function applyOperation(input,op,user){
   if(step.day!==null)throw new AppError('This activity is already on a day.');
   if(!state.days.some(d=>d.date===op.day)||!clock(op.time??null))throw new AppError('Choose a valid day and time.');
   step.day=op.day;step.time=op.time||null;step.order=Math.max(0,...state.steps.filter(s=>s.day===op.day).map(s=>s.order))+10;
+ }else if(op.type==='orderDays'){
+  // Whole days traded or put in a new order; the dates and the hotels stay where they are.
+  const moves=orderDays(state,op.order,{moveLocked:op.moveLocked===true,positions:op.positions},fail);
+  extra={summary:`Days rearranged: ${moves.map(m=>`${state.days.find(d=>d.date===m.to).title} → ${shortDate(m.to)}`).join('; ')}`,important:true,title:'Days rearranged'};
+ }else if(op.type==='moveSteps'){
+  // Stops picked off one day and moved to another, or traded for stops picked there.
+  const r=moveSteps(state,{ids:op.ids,to:op.to,swapIds:op.swapIds||[],moveLocked:op.moveLocked===true,positions:op.positions},fail);
+  const names=list=>list.length===1?list[0].title:`${list.length} stops`;
+  extra={summary:r.coming.length?`${names(r.going)} (${shortDate(r.from)}) swapped with ${names(r.coming)} (${shortDate(r.to)})`:`${names(r.going)} moved from ${shortDate(r.from)} to ${shortDate(r.to)}`,important:true,title:names(r.going)};
  }else if(op.type==='reorder'){
   const active=activeSteps(state,op.day);
   if(!Array.isArray(op.ids)||new Set(op.ids).size!==active.length||op.ids.length!==active.length||op.ids.some(id=>!active.some(s=>s.id===id)))throw new AppError('The day changed. Reload before reordering.');
