@@ -394,6 +394,20 @@ test('tax-free: a flag on shopping and shortlist items, carried across, and a pe
  state=applyOperation(state,{type:'shortlistShop',id:find.id},parent);
  assert.equal(state.shopping.at(-1).taxFree,true,'the flag comes across with it');
 });
+test('shopping: a souvenir for friends and family back home carries the name it is for',async()=>{
+ const {applyOperation}=await import('../server/model.mjs');
+ const {GIFT,forLabel,shoppingFor}=await import('../src/shopping-groups.js');
+ const parent={name:'Damien',role:'parent'};
+ let state=upgraded(seed);
+ assert.deepEqual(shoppingFor(['Damien']),['Family','Damien',GIFT]);
+ state=applyOperation(state,{type:'shoppingAdd',title:'Furoshiki',person:GIFT,giftFor:'  Grandma ',quantity:1},parent);
+ const gift=state.shopping.at(-1);
+ assert.equal(gift.person,GIFT);assert.equal(gift.giftFor,'Grandma');assert.equal(forLabel(gift),'For Grandma');
+ assert.equal(forLabel({person:GIFT,giftFor:''}),GIFT,'no name, the group still shows');
+ state=applyOperation(state,{type:'shoppingEdit',id:gift.id,title:'Furoshiki',person:'Family',giftFor:'Grandma',quantity:1},parent);
+ assert.equal(state.shopping.at(-1).giftFor,'','a name only goes with a gift');
+ assert.throws(()=>applyOperation(state,{type:'shoppingAdd',title:'X',person:'Someone else',quantity:1},parent),/Choose who it is for/);
+});
 test('arrival paperwork: the declaration reminder shows in the 72 hours before the flight home',async()=>{
  const {declarationDue,VJW_STEPS,VISIT_JAPAN_WEB,TRAVEL_DECLARATION}=await import('../src/arrival-data.js');
  const {dayBriefing}=await import('../src/briefing-data.js');
