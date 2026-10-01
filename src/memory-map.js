@@ -144,8 +144,8 @@ export function replayFrames(state){
    const lat=at?.lat??near?.lat,lng=at?.lng??near?.lon;
    if(!validCoords(lat,lng))continue;
    const last=frames.at(-1);
-   if(last&&last.day===d.date&&last.lat===lat&&last.lng===lng){last.titles.push(s.title);continue;}
-   frames.push({day:d.date,dayNumber:i+1,city:d.city||'',titles:[s.title],time:s.time||null,lat,lng,exact:!!at});
+   if(last&&last.day===d.date&&last.lat===lat&&last.lng===lng){last.titles.push(s.title);last.stepIds.push(s.id);continue;}
+   frames.push({day:d.date,dayNumber:i+1,city:d.city||'',titles:[s.title],stepIds:[s.id],time:s.time||null,lat,lng,exact:!!at});
   }
  });
  return {frames,plan:!did};
@@ -156,3 +156,6 @@ export function kmBetween(a,b){
  const h=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)**2;
  return 12742*Math.asin(Math.sqrt(h));
 }
+// The sound postcard recorded at a frame's stop, if there is one: what the replay plays as it
+// passes. A sound is only ever tied to a stop, so a frame without one is silent.
+export const frameSound=(state,frame)=>(state?.voiceNotes||[]).find(v=>v.kind==='sound'&&v.pathname&&frame?.stepIds?.includes(v.stepId))||null;

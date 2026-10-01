@@ -10880,18 +10880,18 @@ test('More is leaner: money on one shelf, memories on their own, housekeeping ap
  assert.deepEqual(section('Money'),['money','paying','ledger','shopping','shortlist','shop']);
  assert.ok(section('For the boys').includes('spending'));
  // Looking back is memories only; the app's own housekeeping is not among the photos.
- assert.deepEqual(section('Looking back'),['noticed','nexttime','photos','memorymap','diary','recap','book','capsule']);
+ assert.deepEqual(section('Looking back'),['noticed','nexttime','photos','memorymap','diary','recap','highlights','book','capsule']);
  assert.deepEqual(section('Housekeeping'),['updates','bin','search','guide']);
  // Nothing is listed twice, and every page not on the bar is somewhere.
  const all=MORE_SECTIONS.flatMap(([,ids])=>ids);
  assert.equal(new Set(all).size,all.length);
  for(const id of Object.keys(PAGES))if(!['today','days'].includes(id))assert.ok(all.includes(id),`${id} has no shelf`);
- // The highlights placeholder is gone from the registry, the menu, the spoken guide and the app.
- assert.equal(PAGES.highlights,undefined);assert.equal(PAGE_RULES.highlights,undefined);
- assert.ok(!all.includes('highlights'));
- const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
- assert.doesNotMatch(main,/Highlights/);
- await assert.rejects(()=>readFile(new URL('../src/Highlights.jsx',import.meta.url)),'the page file is deleted, not left behind');
+ // Highlights was once a placeholder and was removed; it is back as a real page (the video), on
+ // the Looking back shelf, with its spoken guide, and no longer a placeholder.
+ assert.ok(PAGES.highlights);assert.ok(PAGE_RULES.highlights);
+ assert.ok(all.includes('highlights'));
+ const page=await readFile(new URL('../src/Highlights.jsx',import.meta.url),'utf8');
+ assert.doesNotMatch(page,/coming soon|placeholder/i);
  // A parent sees Money; a boy does not get the parents' screens but still gets his own shelf last.
  const parentTitles=moreSections({name:'Lauren',role:'parent'}).map(([t])=>t),boyTitles=moreSections({name:'Nate',role:'child'}).map(([t])=>t);
  assert.ok(parentTitles.includes('Money'));assert.equal(boyTitles.at(-1),'For the boys');

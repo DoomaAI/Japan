@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {Play,Pause,Video,X,Square} from 'lucide-react';
-import {replayFrames} from './memory-map.js';
+import {replayFrames,frameSound} from './memory-map.js';
+import {createMixer,voiceUrl} from './sound-mix.js';
 import {photoOfTheDay} from './trip-features.js';
 import {flightPlan,cameraAt,offsetKm,project,recordingType,DAY_PAUSE} from './flyover-data.js';
 const W=1080,H=1080,photoUrl=p=>`/api/photo?id=${encodeURIComponent(p.id)}`;
@@ -13,12 +14,19 @@ export default function Flyover({state,close,notice}){
  const plan=useMemo(()=>flightPlan(frames),[frames]);
  const canvas=useRef(null),images=useRef({}),clock=useRef({t:0,last:null}),rec=useRef(null);
  const [playing,setPlaying]=useState(true),[recording,setRecording]=useState(false),[t,setT]=useState(0);
+ // The sound postcards play as the camera passes the stop they were recorded at, and are recorded
+ // into the video with the picture.
+ const mixer=useRef(null),lastLeg=useRef(-1);
+ useEffect(()=>()=>mixer.current?.close(),[]);
+ useEffect(()=>{if(!playing)mixer.current?.stopAll();},[playing]);
  // Each day's photo of the day, loaded once from our own server so the canvas stays recordable.
  useEffect(()=>{for(const d of new Set(frames.map(f=>f.day))){const best=photoOfTheDay(state,d)?.winners?.[0];if(best&&!images.current[d]){const img=new Image();img.src=photoUrl(best);images.current[d]=img;}}},[frames]);
  useEffect(()=>{
   let raf;const tick=now=>{
    const c=clock.current;if(c.last!=null&&playing)c.t=Math.min(plan.duration,c.t+(now-c.last)/1000);c.last=now;
    draw(canvas.current,c.t);setT(c.t);
+   const cam=cameraAt(plan,c.t);
+   if(cam&&playing&&cam.index!==lastLeg.current){lastLeg.current=cam.index;const v=frameSound(state,cam.leg.to);if(v){mixer.current??=createMixer();mixer.current?.play(voiceUrl(v.id));}}
    if(c.t>=plan.duration&&rec.current?.state==='recording')rec.current.stop();
    raf=requestAnimationFrame(tick);};
   raf=requestAnimationFrame(tick);return()=>cancelAnimationFrame(raf);
@@ -62,7 +70,9 @@ export default function Flyover({state,close,notice}){
  function record(){
   const type=recordingType();
   if(!type||!canvas.current?.captureStream){notice?.('This browser cannot record the flyover. Safari on an iPhone can.');return;}
-  const chunks=[],r=new MediaRecorder(canvas.current.captureStream(30),{mimeType:type,videoBitsPerSecond:6000000});
+  mixer.current??=createMixer();
+  const video=canvas.current.captureStream(30),stream=new MediaStream([...video.getVideoTracks(),...(mixer.current?.stream.getAudioTracks()||[])]);
+  const chunks=[],r=new MediaRecorder(stream,{mimeType:type,videoBitsPerSecond:6000000});
   r.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
   r.onstop=async()=>{
    setRecording(false);
@@ -71,7 +81,7 @@ export default function Flyover({state,close,notice}){
     else{const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:file.name});document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);notice?.('Saved to the phone.');}}
    catch(e){if(e?.name!=='AbortError')notice?.('The video could not be shared.');}
   };
-  clock.current.t=0;setPlaying(true);rec.current=r;r.start(1000);setRecording(true);
+  clock.current.t=0;lastLeg.current=-1;setPlaying(true);rec.current=r;r.start(1000);setRecording(true);
  }
  return <div className="replay flyover" role="dialog" aria-modal="true" aria-label="Flyover of the trip">
   <canvas ref={canvas} className="flyover-canvas" aria-label="The trip, flown over"/>
