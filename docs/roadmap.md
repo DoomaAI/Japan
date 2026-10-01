@@ -137,10 +137,10 @@ Nineteen PRs merged on 29 September (#211–#261, this session's share). Four th
 
 **What the boys are ready for** is built on `claude/child-levels` (the reading and awareness dials in Settings, read by the facts, the notes, the phrasebook, the missions, Home's widgets, the menus and the model's brief) and not yet tried on a phone. Left for a later pass:
 
-- [ ] The purse for a boy at *With a grown-up*: a picture and "enough for a snack" rather than a yen balance. Today the number shows whatever the dial says.
+- [x] The purse for a boy at *With a grown-up*: a money box and "enough for a snack" rather than a yen balance. Built in #282 (`purseInWords`, Spending).
 - [ ] Fun facts kept gentle at *With a grown-up*: the pool has no topic flags yet, so only the model's brief pitches them; the guide's own facts are shown as they are.
-- [ ] Customise Home still offers a held-back widget to arrange; it is simply not drawn. Hide it there too.
-- [ ] "Nate's turn": a button on a parent's phone that switches it to a boy's dials until a passcode takes it back.
+- [x] Customise Home no longer offers a held-back widget. Built in #282 (`heldBack`, Personalise).
+- [x] "Nate's turn": a parent's phone handed to a boy until a passcode takes it back. Built in #282 (`hand-over.js`, HandOver).
 - [ ] The suggested bump: after a boy reads the kana puzzle three days running, one line on a parent's Home offers to move his reading dial up. The parent decides.
 - [ ] On a phone: a boy's link with each dial, the Settings section in dark mode, and that moving a dial reaches his phone on the next refresh.
 
