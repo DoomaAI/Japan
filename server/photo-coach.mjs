@@ -4,22 +4,20 @@ const MEDIA_TYPES=['image/jpeg','image/png','image/webp'];
 const MAX_BASE64=3_000_000;
 const SCHEMA={
  type:'object',additionalProperties:false,
- required:['readable','title','good','tip','score','subject'],
+ required:['readable','title','good','subject'],
  properties:{
   readable:{type:'boolean',description:'False if the file is not a photograph at all.'},
   title:{type:'string',description:'A short, warm title for the photo, four words or fewer.'},
   subject:{type:'string',description:'What the photo is of, in a few words.'},
-  good:{type:'array',description:'One to three things this photographer genuinely did well. Specific, never generic praise.',items:{type:'string'}},
-  tip:{type:'string',description:'One thing to try next time, phrased as an experiment rather than a correction.'},
-  score:{type:'integer',description:'Out of ten, judged against what a child of this age could do — not against a professional.'}}
+  good:{type:'array',description:'One to three things this photographer genuinely did well. Specific, never generic praise.',items:{type:'string'}}}
 };
+// No score and no tip: the photos are not marked, and nobody is told what to do differently.
 const system=age=>`You are looking at a photograph taken by a ${age}-year-old on a family holiday in Japan, and giving them feedback.
 
 Rules:
 - Talk to the child, not about them. Short sentences. No jargon: say "the light was behind you" rather than "backlit".
 - "good" must be specific to THIS photo — what they framed, caught, noticed or waited for. Generic praise is worthless and children can tell.
-- "tip" is one thing to try next time, as an experiment: "next time crouch down to his height and see what happens". Never a list, never a telling-off.
-- The score is out of ten against what a child of this age could manage, not against a professional. Be generous but not dishonest: a genuinely lovely photo can be a 9, a blurry one of a bin is a 3, and most are 5 to 8.
+- Judge it against what a child of this age could manage, not against a professional. Do not give a score, a rating or a tip for next time.
 - If there are people in it, never guess who they are, never describe how anyone looks, and never comment on anybody's body or face.
 - If it is not a photograph, set readable to false.`;
 export async function coachPhoto({image,mediaType,age}){
@@ -39,7 +37,7 @@ export async function coachPhoto({image,mediaType,age}){
    thinking:{type:'adaptive'},
    output_config:{effort:'low',format:{type:'json_schema',schema:SCHEMA}},
    messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mediaType,data}},
-    {type:'text',text:'Tell them what they did well and one thing to try next time.'}]}]
+    {type:'text',text:'Tell them what they did well.'}]}]
   });
  }catch(e){
   if(e?.status===401)throw new AppError('The Anthropic API key was rejected.',502);
@@ -50,5 +48,5 @@ export async function coachPhoto({image,mediaType,age}){
  const text=response.content.filter(b=>b.type==='text').map(b=>b.text).join('');
  let parsed;try{parsed=JSON.parse(text);}catch{throw new AppError('The feedback came back unreadable. Try again.',502);}
  if(!parsed.readable)throw new AppError('That does not look like a photograph.',422);
- return {...parsed,score:Math.max(1,Math.min(10,parsed.score||5)),usage:{input:response.usage?.input_tokens??0,output:response.usage?.output_tokens??0}};
+ return {title:parsed.title,subject:parsed.subject,good:parsed.good,usage:{input:response.usage?.input_tokens??0,output:response.usage?.output_tokens??0}};
 }
