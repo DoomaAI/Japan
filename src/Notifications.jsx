@@ -4,7 +4,8 @@ import {PUSH_KINDS} from './push-data.js';
 // Notifications on this phone: the switch, and which kinds. An iPhone only offers them to the
 // app added to the Home Screen, so a phone that cannot is told how, rather than shown a button
 // that does nothing. Which kinds are wanted is kept with the subscription on the server, because
-// it is the server that decides whom to tell.
+// it is the server that decides whom to tell. Whether they show on the lock screen is the
+// phone's setting, not the app's, so the steps for this kind of phone are shown here.
 const KEY='japan.push.prefs';
 const readPrefs=()=>{try{return JSON.parse(localStorage.getItem(KEY))||{};}catch{return {};}};
 const b64=s=>{const p='='.repeat((4-s.length%4)%4),raw=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));};
@@ -29,6 +30,10 @@ export default function Notifications({config,request,notice,user}){
    :<>
     <div className="row wrap">{sub?<button type="button" disabled={busy} onClick={off}><BellOff size={16}/> Turn off on this phone</button>:<button type="button" className="primary" disabled={busy} onClick={on}><Bell size={16}/> Turn on notifications</button>}</div>
     {PUSH_KINDS.filter(([id])=>!['windows','apps','tomorrow'].includes(id)||user?.role==='parent').map(([id,label,note])=><label className="checkline" key={id}><input type="checkbox" checked={prefs[id]!==false} disabled={busy} onChange={e=>save({...prefs,[id]:e.target.checked})}/><span>{label}<small>{note}</small></span></label>)}
+    <details open={!!sub}><summary>Show them on the lock screen</summary>
+     {ios?<ol><li>Open the phone’s Settings, then Notifications, then Japan 2026.</li><li>Turn on Allow Notifications and tick Lock Screen.</li><li>Set Show Previews to Always, so the words show and not just “Notification”.</li><li>Check that no Focus, such as Sleep or Do Not Disturb, is silencing it.</li></ol>
+      :<ol><li>Open the phone’s Settings, then Apps, then Japan 2026 (or Chrome), then Notifications, and turn them on.</li><li>In Settings, Notifications, set Notifications on lock screen to show all content.</li></ol>}
+    </details>
    </>}
  </section>;
 }
