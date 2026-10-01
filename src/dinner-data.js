@@ -59,3 +59,31 @@ export function cleanDinnerOption(o,checkLink=u=>u){
 }
 // Kid-friendly and non-smoking lead, then walk-ins (no booking to fight over), then the rating.
 export const rankDinner=list=>[...list].sort((a,b)=>(b.kidsWelcome-a.kidsWelcome)||((b.nonSmoking===true)-(a.nonSmoking===true))||((a.booking==='walk-in'?0:1)-(b.booking==='walk-in'?0:1))||((b.rating||0)-(a.rating||0)));
+// Swiping for dinner. With more than one place on the card, everyone swipes on their own phone —
+// right for "I feel like that", left for "not tonight" — and the card shows where the family
+// agrees. Each vote is one person's, on one place, kept on the day with the options.
+export const dinnerKey=(group,option)=>`${group.anchor}:${option.title}`;
+export const dinnerOptions=found=>(found?.groups||[]).flatMap(g=>g.options.map(o=>({key:dinnerKey(g,o),group:g,option:o})));
+export const myDinnerVotes=(found,name)=>Object.fromEntries(Object.entries(found?.votes||{}).filter(([,v])=>v?.[name]).map(([k,v])=>[k,v[name]]));
+// Best agreement first: everyone yes, then the most yeses with no noes, then the most yeses.
+export function dinnerMatches(found,members){
+ const out=dinnerOptions(found).map(x=>{
+  const v=found?.votes?.[x.key]||{},yes=members.filter(n=>v[n]==='yes'),no=members.filter(n=>v[n]==='no'),waiting=members.filter(n=>!v[n]);
+  return {...x,yes,no,waiting,everyone:yes.length===members.length&&members.length>0,clear:yes.length>=2&&!no.length};
+ }).filter(x=>x.yes.length);
+ return out.sort((a,b)=>(b.everyone-a.everyone)||(b.clear-a.clear)||(b.yes.length-a.yes.length)||(a.no.length-b.no.length));
+}
+// One vote, checked: a member of the family, a place that is on tonight's card.
+export function applyDinnerVote(state,{day,key,vote,reset},name){
+ const found=state?.dinner?.[day];
+ if(!found)return {error:'There is nothing to swipe on for that day.'};
+ if(!(state.members||[]).includes(name))return {error:'Only the family swipes.'};
+ const votes={...(found.votes||{})};
+ if(reset){for(const k of Object.keys(votes)){const {[name]:_,...rest}=votes[k];votes[k]=rest;}}
+ else{
+  if(!dinnerOptions(found).some(x=>x.key===key))return {error:'That place is not on the card any more.'};
+  if(!['yes','no'].includes(vote))return {error:'Swipe yes or no.'};
+  votes[key]={...(votes[key]||{}),[name]:vote};
+ }
+ return {state:{...state,dinner:{...state.dinner,[day]:{...found,votes}}}};
+}

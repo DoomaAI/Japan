@@ -40,6 +40,7 @@ import {quizAction} from '../src/quiz-data.js';
 import {planHighlights,highlightsReady} from './highlights.mjs';
 import {mailFrames,recordSent,frameMailReady,frameMailFrom} from './frame-mail.mjs';
 import {findDinner,dinnerReady} from './dinner.mjs';
+import {applyDinnerVote} from '../src/dinner-data.js';
 import {googleReady,authUrl,exchangeCode,createAlbum,sealToken,sendGoogleFrames} from './google-photos.mjs';
 import {googleFrameView,recordGoogleSent,MAX_GOOGLE_FRAMES,CONNECT_DAYS,GOOGLE_ALBUM} from '../src/google-frame-data.js';
 import {postcardReady,sendPostcard,postcardProviderId} from './postcard.mjs';
@@ -343,6 +344,14 @@ export default async function handler(req,res){
    parent(user);const {state}=await readTrip();
    const found=await findDinner({day:String(b.day||'')},state);
    const saved=await updateTrip(next=>({...next,dinner:{...Object.fromEntries(Object.entries(next.dinner||{}).filter(([d])=>d>=b.day).slice(-6)),[b.day]:{...found,by:user.name}}}));
+   return json(res,visibleEnvelope(saved,user));
+  }
+  // A swipe on tonight's dinner, from any of the family: added to whatever is there, the way the
+  // quiz takes answers, so four phones swiping at once are all kept.
+  if(route==='dinner-swipe'&&post){
+   let problem=null;
+   const saved=await updateTrip(state=>{const r=applyDinnerVote(state,b,user.name);if(r.error){problem=r.error;return null;}return r.state;});
+   if(problem)throw new AppError(problem,409);
    return json(res,visibleEnvelope(saved,user));
   }
   // Posting a postcard from the app, once a provider is connected (server/postcard.mjs). Until
