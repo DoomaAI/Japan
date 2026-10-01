@@ -7,7 +7,7 @@ import {press,shown,KEYS} from '../src/numpad-data.js';
 import {timeLeft,dayPace,spoken} from '../src/time-left.js';
 import {wordsOf,litCount,beats} from '../src/synced-words.js';
 import {findAnything} from '../src/find-data.js';
-import {ringsFor,dayScore,PHOTO_TARGET} from '../src/rings-data.js';
+import {ringsFor,dayScore,PHOTO_TARGET,cleanRings,shownRings,RING_IDS} from '../src/rings-data.js';
 import {rankings} from '../src/leaderboard-data.js';
 import {blendFor,blendLines,blendDue} from '../src/blend-data.js';
 import {isDeveloping,developsAt,momentFor,inMoment,momentAccepts,rollFor,developingStub} from '../src/film-data.js';
@@ -70,6 +70,19 @@ test('three rings close on the day’s stops, five photos and the phrase, and sc
  assert.equal(dayScore(state,'Nate',day),2);
  const board=rankings(state,'2026-10-02').find(b=>b.id==='rings');
  assert.equal(board.label,'Rings closed');assert.deepEqual(board.leaders,['Nate']);
+});
+
+test('extra rings are chosen and ordered on the phone, and never change the score',()=>{
+ let state=fresh();const day='2026-10-02';
+ assert.deepEqual(shownRings(null),['stops','photos','phrase']);
+ const prefs=cleanRings({order:['voice','nope','stops','voice'],shown:['voice','fact','nope']});
+ assert.deepEqual(prefs.order,['voice','stops',...RING_IDS.filter(id=>!['voice','stops'].includes(id))],'unknown and repeated ids go, the rest follow');
+ assert.deepEqual(shownRings(prefs),['voice','fact']);
+ assert.deepEqual(cleanRings({shown:[]}).shown,['stops','photos','phrase'],'never an empty card');
+ state=applyOperation(state,{type:'factSeen',person:'Nate',day},nate);
+ const [fact,rated]=ringsFor(state,'Nate',day,['fact','rated']);
+ assert.equal(fact.closed,true);assert.equal(rated.target,0);
+ assert.equal(dayScore(state,'Nate',day),0,'only the first three count on the leaderboard');
 });
 
 test('the Blend finds what two of us both starred and the stop we never agreed on',()=>{

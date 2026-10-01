@@ -2,6 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {cleanGuideName,GUIDE_VOICES} from '../src/guide-data.js';
 import {findRide} from '../src/park-data.js';
 import {MONEY} from '../src/money-data.js';
+import {GIFT,shoppingFor} from '../src/shopping-groups.js';
 import {FOOD,FOOD_KINDS} from '../src/food-data.js';
 import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {ALL_FACTS,findFact} from '../src/fact-data.js';
@@ -834,7 +835,8 @@ export function extraOperation(state,op,user,fail,now){
  }else if(op.type==='shoppingAdd'||op.type==='shoppingEdit'){
   if(!string(op.title,250)||!op.title.trim())fail('Add an item name.');dayCheck(op.day??null);
   const item={title:op.title.trim(),day:op.day??null,person:op.person||'Family',store:op.store||'',notes:op.notes||'',url:op.url||'',quantity:op.quantity??1,budget:op.budget??null,taxFree:op.taxFree===true};
-  if(!['Family',...state.members].includes(item.person))fail('Choose a family member.');
+  if(!shoppingFor(state.members).includes(item.person))fail('Choose who it is for.');
+  item.giftFor=item.person===GIFT?String(op.giftFor||'').trim():'';requireText(item.giftFor,250,'gift name');
   for(const key of ['store','notes','url'])requireText(item[key],key==='notes'?2000:2000,key);
   if(item.url){try{if(new URL(item.url).protocol!=='https:')fail('Use an HTTPS shopping link.');}catch{fail('Use an HTTPS shopping link.');}}
   if(!Number.isInteger(item.quantity)||item.quantity<1||item.quantity>999)fail('Quantity must be 1–999.');
