@@ -8953,6 +8953,50 @@ test('a split keeps every lane on the day, each person sees their own, and every
  assert.throws(()=>applyOperation(seed,{type:'groupMode',group:'nope',mode:'split'},parent),/not found/);
  assert.ok(trip.alerts[0].summary.includes('we split up'),'the family is told');
 });
+test('running late: one lane tells the other, for where we meet back up, and only they are told',async()=>{
+ const {lateDefaults,lateTargets,lateFor,liveLate,lateLine,lateEta,latePush,LATE_SHOWN_MIN}=await import('../src/late-data.js');
+ const {tellLate,subscribe,resetDemoPush}=await import('../server/push.mjs');
+ const {daySplits}=await import('../src/split.js');
+ const {trip,day}=splitTrip();
+ const morning=new Date('2026-10-02T09:00:00+09:00');
+ const d=lateDefaults(trip,day,'Lauren',morning);
+ assert.deepEqual(d.with,['Lauren','Boston'],'my lane is who is late');
+ assert.deepEqual(d.to,['Damien'],'the other lane is told, but not a five-year-old kept free of being late');
+ assert.equal(d.target.label,daySplits(trip,day)[0].meet.title,'for where we meet back up');
+ assert.equal(lateTargets(trip,day,'Lauren',morning)[0].key,d.target.key,'which is offered first');
+ const solo=lateDefaults(seed,'2026-09-24','Damien',new Date('2026-09-24T08:00:00+09:00'));
+ assert.deepEqual(solo.with,['Damien']);assert.ok(!solo.to.includes('Damien')&&solo.to.includes('Lauren'),'no split: everybody else');
+ // The new time is the planned time plus the minutes, or the minutes from now once that has passed.
+ assert.equal(lateEta({minutes:15,time:'18:00',day},morning).toISOString(),'2026-10-02T09:15:00.000Z');
+ assert.equal(lateEta({minutes:15,time:'08:00',day},morning).toISOString(),'2026-10-02T00:15:00.000Z');
+ let s=applyOperation(trip,{type:'lateSend',minutes:15,with:['Boston'],to:['Damien'],target:'Ramen',time:null,note:'Train was full'},{name:'Boston',role:'child'});
+ const n=s.lateNotices.at(-1);
+ assert.deepEqual(n.with,['Boston']);assert.deepEqual(n.to,['Damien']);assert.equal(n.minutes,15);assert.equal(n.note,'Train was full');
+ assert.equal(s.alerts.length,trip.alerts.length,'a message, not a change to the plan for everyone');
+ assert.equal(lateLine(n,'Damien'),'Boston is running 15 min late for Ramen');
+ assert.equal(lateLine(n,'Boston'),'You are running 15 min late for Ramen');
+ assert.match(latePush(n).title,/^Boston is running 15 min late$/);
+ assert.equal(lateFor(s,'Damien').length,1);assert.equal(lateFor(s,'Lauren').length,0,'not told, not shown');
+ assert.throws(()=>applyOperation(s,{type:'lateSeen',id:n.id},{name:'Lauren',role:'parent'}),/not to you/);
+ s=applyOperation(s,{type:'lateSeen',id:n.id},parent);assert.ok(s.lateNotices.at(-1).seenBy.Damien);
+ assert.throws(()=>applyOperation(s,{type:'lateClear',id:n.id},child),/whoever is running late/);
+ const again=applyOperation(s,{type:'lateSend',minutes:30,with:[],to:['Damien'],target:null},{name:'Boston',role:'child'});
+ assert.equal(liveLate(again).length,1,'later still replaces the last one');assert.equal(liveLate(again)[0].minutes,30);
+ assert.equal(liveLate(again,new Date(Date.parse(liveLate(again)[0].eta)+(LATE_SHOWN_MIN+1)*60000)).length,0,'gone half an hour after the new time');
+ const done=applyOperation(s,{type:'lateClear',id:n.id},{name:'Boston',role:'child'});assert.equal(liveLate(done).length,0);
+ for(const bad of [{minutes:0,with:[],to:['Damien']},{minutes:15,with:[],to:[]},{minutes:15,with:[],to:['Stranger']},{minutes:15,with:[],to:['Damien'],time:'25:00'}])
+  assert.throws(()=>applyOperation(trip,{type:'lateSend',...bad},parent));
+ // Pushed to the people it was for, once.
+ process.env.LOCAL_DEMO='1';delete process.env.VERCEL;resetDemoPush();
+ try{
+  const sub=x=>({endpoint:`https://push.example/${x}`,keys:{p256dh:'k'.repeat(20),auth:'a'.repeat(10)}});
+  await subscribe({name:'Damien'},sub('damien'),{});await subscribe({name:'Lauren'},sub('lauren'),{});await subscribe({name:'Boston'},sub('boston'),{});
+  const sent=[],send=async(x,p)=>{sent.push([x.endpoint,p.title,p.url]);};
+  assert.equal(await tellLate(n,send),1);
+  assert.deepEqual(sent.map(([e])=>e),['https://push.example/damien']);assert.equal(sent[0][2],'/?tab=whereabouts');
+  assert.equal(await tellLate(n,send),0,'told once');
+ }finally{delete process.env.LOCAL_DEMO;resetDemoPush();}
+});
 test('what somebody else is doing: what they marked arrived first, then the plan, said as the plan',async()=>{
  const {whereIs}=await import('../src/split.js');
  const {trip,day}=splitTrip();
@@ -11152,7 +11196,7 @@ test('what each boy is ready for is two dials a parent sets, starting from his a
  assert.deepEqual(readingHelp(state,'Boston'),{reading:'reads',young:false,pictures:false,rate:undefined});
  assert.equal(readingHelp(state,'Lauren').young,false);
  // How much of the trip's machinery his phone shows.
- assert.deepEqual(heldBack(state,'Nate').sort(),['ask','checkin','links','nextup','report','reports','running','safety','spare','weather']);
+ assert.deepEqual(heldBack(state,'Nate').sort(),['ask','checkin','late','links','nextup','report','reports','running','safety','spare','weather']);
  assert.deepEqual(heldBack(state,'Boston').sort(),['ask','links','nextup','report','running']);
  assert.deepEqual(heldBack(state,'Damien'),[]);
  assert.ok(awarenessAllows(state,'Nate','step')&&awarenessAllows(state,'Nate','meeting'),'his own things and the meeting card are never held back');

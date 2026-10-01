@@ -20,6 +20,7 @@ export const HOME_WIDGETS={
  todaysjapan:{label:'Phrase and fun fact of the day',note:'On the trip: the day’s phrase to say and fact to read, folded to one line or open'},
  step:{label:'The step we are on',note:'The current stop, swipe for the rest of the day'},
  checkin:{label:'Check In',note:'Somebody is on their way back: where to, by when, how far off, and when they get there'},
+ late:{label:'Running late',note:'Who is running late for you, by how much and when they will get there; and while you are sharing where you are',page:'whereabouts'},
  reports:{label:'Reports from the family',note:'What the other phones said in the last two hours: the queue, the toilets, sold out'},
  codes:{label:'Codes found',note:'Parents: a ticket’s QR code has been read; add it to the Wallet, or leave it out'},
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},

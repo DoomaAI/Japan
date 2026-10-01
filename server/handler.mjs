@@ -33,7 +33,7 @@ import {calendarFeed,japanDate} from '../src/timing.js';
 import {RECEIPT_TYPES} from '../src/ledger-data.js';
 import {followView,followPhoto} from '../src/follow-data.js';
 import {applyKudos} from '../src/kudos-data.js';
-import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange,tellTomorrow} from './push.mjs';
+import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange,tellTomorrow,tellLate} from './push.mjs';
 import {tomorrowReady,tomorrowOf,nightly} from './tomorrow.mjs';
 import {isDeveloping,momentAccepts} from '../src/film-data.js';
 import {quizAction} from '../src/quiz-data.js';
@@ -263,6 +263,8 @@ export default async function handler(req,res){
    // A new line in Family updates is a change to the plan: the others' phones are told now.
    const fresh=(saved.state.alerts||[])[0];
    if(fresh&&!(current.state.alerts||[]).some(a=>a.id===fresh.id))await Promise.race([tellChange(fresh,user.name),new Promise(r=>setTimeout(r,4000))]).catch(()=>{});
+   // Running late goes to the phones it was for, straight away.
+   if(b.operation?.type==='lateSend'){const sent=(saved.state.lateNotices||[]).findLast(n=>n.from===user.name&&!n.clearedAt);if(sent)await Promise.race([tellLate(sent),new Promise(r=>setTimeout(r,4000))]).catch(()=>{});}
    // A discarded email leaves no attachments behind in private storage. The files are gone
    // from the trip either way, so a failed delete is not worth failing the change over.
    if(b.operation?.type==='inboxDiscard')for(const pathname of inboxFiles(current.state,b.operation.id))await del(pathname).catch(()=>{});

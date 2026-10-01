@@ -34,6 +34,7 @@ import {cleanStay} from '../src/stay-data.js';
 import {PREDICTION_MAX,findPrediction,predictionPhase} from '../src/prediction-data.js';
 import {japanDate,japanClock} from '../src/timing.js';
 import {CHECKIN_AHEAD_HOURS} from '../src/checkin-data.js';
+import {LATE_MAX,LATE_NOTE_MAX,lateEta} from '../src/late-data.js';
 import {READINESS} from '../src/readiness-data.js';
 import {findSquare,validCard} from '../src/bingo-data.js';
 import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/trackers.js';
@@ -1712,6 +1713,36 @@ export function extraOperation(state,op,user,fail,now){
  }
  if(op.type==='checkInCancel'){c.closedAt=now;c.closedBy=user.name;return {summary:null,important:false,title:'Check In'};}
  fail('Unknown check-in change.');
+}else if(typeof op.type==='string'&&op.type.startsWith('late')&&['lateSend','lateSeen','lateClear'].includes(op.type)){
+ // Running late, told to the people waiting (src/late-data.js). Anyone says it for themselves
+ // and whoever is with them; only the people it is to are told, and only they say they saw it.
+ // A new one from the same person replaces their last, so there is one at a time to read.
+ const list=state.lateNotices||[];
+ if(op.type==='lateSend'){
+  if(!Number.isInteger(op.minutes)||op.minutes<1||op.minutes>LATE_MAX)fail(`Say how late, from 1 to ${LATE_MAX} minutes.`);
+  const names=v=>Array.isArray(v)&&v.length<=state.members.length&&v.every(n=>state.members.includes(n));
+  if(!names(op.with)||!names(op.to))fail('Choose people from the family.');
+  const withUs=[...new Set([user.name,...op.with])],to=[...new Set(op.to)].filter(n=>!withUs.includes(n));
+  if(!to.length)fail('Choose who to tell.');
+  if(op.target!=null){requireText(op.target,120,'place');}
+  if(op.note!=null)requireText(op.note,LATE_NOTE_MAX,'note');
+  if(op.stepId!=null&&!state.steps.some(s=>s.id===op.stepId))fail('Activity not found.',404);
+  if(op.time!=null&&!(typeof op.time==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(op.time)))fail('Invalid time.');
+  const at=new Date(now),day=japanDate(at),eta=lateEta({minutes:op.minutes,time:op.time||null,day},at);
+  for(const n of list)if(n.from===user.name&&!n.clearedAt){n.clearedAt=now;n.clearedBy=user.name;}
+  const item={id:randomUUID(),from:user.name,with:withUs,to,minutes:op.minutes,target:op.target?.trim()||null,stepId:op.stepId||null,time:op.time&&+eta!==+at+op.minutes*60000?op.time:null,note:op.note?.trim()||null,day,at:now,eta:eta.toISOString(),seenBy:{},clearedAt:null,clearedBy:null};
+  state.lateNotices=[...list,item].slice(-30);
+  return {summary:null,important:false,title:`Running ${op.minutes} min late`};
+ }
+ const n=list.find(n=>n.id===op.id);if(!n||n.clearedAt)fail('That message is over.',404);
+ if(op.type==='lateSeen'){
+  if(!n.to.includes(user.name))fail('That message was not to you.',403);
+  n.seenBy={...n.seenBy,[user.name]:now};
+  return {summary:null,important:false,title:'Running late · seen'};
+ }
+ if(!parent&&!n.with.includes(user.name))fail('Only whoever is running late, or a parent, can say they are there.',403);
+ n.clearedAt=now;n.clearedBy=user.name;
+ return {summary:null,important:false,title:'Running late · there now'};
 }else if(op.type==='runningLate'){
   dayCheck(op.day);if(!op.day||!Number.isInteger(op.delay)||op.delay<1||op.delay>240)fail('Enter a delay of 1–240 minutes.');
   const plan=delayForDay(state,op.day,op.delay);

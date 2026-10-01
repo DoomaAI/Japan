@@ -81,6 +81,7 @@ export const PAGE_RULES={
  places:'Places and our map. Every place we are going, and a button that opens the map and takes you there.',
  allergy:'Allergy card. What each of us cannot eat, written in Japanese big enough to show the waiter. Hand the phone over and let them read it.',
  bin:'Recently deleted. Anything somebody took off a list in the last thirty days. Tap Put it back and it comes back exactly as it was.',
+ whereabouts:'Where we are. A map with a dot for each of us, in the place our phones last said we were. If we are going to be late to meet the others, press the button and their phones will be told how late we are.',
  meeting:'Meeting card. If you ever get lost, show this to a grown up who works there. It has our hotel and Mum and Dad on it, in Japanese.',
  phrases:'Phrases. Japanese to say out loud. Each one shows you how to say it, and there is a button to hear it. Try one on somebody today.',
  help:'Help and useful apps. Other apps and phone numbers for when something goes wrong. This one is for Mum and Dad.',

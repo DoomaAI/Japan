@@ -479,3 +479,21 @@ test('halfway there: from the middle of the trip, the numbers so far on one squa
  assert.match(main,/halfway:<><HalfwayLine state=\{visibleState\}/);assert.match(widgets,/halfway:\{label:'Halfway there'/);
  assert.match(page,/navigator\.canShare\?\.\(\{files:\[file\]\}\)/,'the square goes to the share sheet as a picture');
 });
+test('Where we are: the family on a map, sharing for a while, and running late one tap from Home and the split',async()=>{
+ const {SHARE_FOR,sharingUntil}=await import('../src/live-share.js');
+ const {CHECKIN_HOURS}=await import('../src/memory-map.js');
+ const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGE_RULES}=await import('../src/spoken-rules.js');
+ const {HOME_WIDGETS}=await import('../src/home-widgets.js');
+ const {PUSH_KIND_IDS}=await import('../src/push-data.js');
+ assert.ok(SHARE_FOR.length&&SHARE_FOR.every(m=>m<=CHECKIN_HOURS*60),'never longer than the server keeps a position');
+ assert.equal(sharingUntil(new Date(Date.now()-1000).toISOString()),null,'a share whose time is up has stopped');
+ assert.ok(PAGES.whereabouts&&PAGE_RULES.whereabouts&&MORE_SECTIONS.find(([t])=>t==='Out and about')[1].includes('whereabouts'));
+ assert.equal(HOME_WIDGETS.late.page,'whereabouts');assert.ok(PUSH_KIND_IDS.includes('late'));
+ const main=await source('main.jsx'),home=await source('HomeFeatures.jsx'),split=await source('SplitDay.jsx'),page=await source('Whereabouts.jsx');
+ assert.match(main,/const live=useLiveShare\(request,!!user\);/,'sharing keeps going whichever screen is open');
+ assert.match(main,/modal\.type==='latemsg'&&<LateSheet/);assert.match(main,/late:<LateCards /);
+ assert.match(home,/open\(\{type:'latemsg'\}\)\}>Tell the others we’re late/);
+ assert.match(split,/laneOf\(split,user\.name\)&&day===japanDate\(now\)&&<button type="button" className="split-late"/);
+ assert.match(page,/askPhoneWhereItIs\(5\)\);/);assert.match(page,/It is not sent to anyone/,'my own dot stays on this phone');
+});
