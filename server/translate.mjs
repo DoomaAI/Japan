@@ -1,4 +1,5 @@
 import {AppError,modelReady} from './model.mjs';
+import {claude,OPUS} from './usage.mjs';
 export const translatorReady=modelReady;
 // The fields of a booking worth putting through the translator, and the two directions worth
 // asking for. Everything else on a ticket is a file, and a file goes to the document reader.
@@ -32,12 +33,11 @@ export async function translatePhrase({english}){
  if(!translatorReady())throw new AppError('Translation is not switched on. Add an Anthropic API key to the deployment.',503);
  if(typeof english!=='string'||!english.trim())throw new AppError('Type the phrase you want in Japanese.');
  if(english.length>300)throw new AppError('Keep it to one short phrase.');
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('translate');
  let response;
  try{
   response=await client.messages.create({
-   model:'claude-opus-5',
+   model:OPUS,
    max_tokens:2000,
    system:SYSTEM,
    thinking:{type:'adaptive'},
@@ -105,13 +105,12 @@ export async function translateTicketText({text,direction='en',field='notes',tit
  if(text.length>LIMITS[direction])throw new AppError(direction==='ja'
   ?'That is more than anyone will read at a counter. Put the part you need to show into its own booking note.'
   :'That is too long to translate in one go. Split it across the booking’s notes.');
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('translate-ticket');
  const named={title:'the name of this booking',reference:'the booking reference',notes:'the notes on this booking'}[field]||'this booking';
  let response;
  try{
   response=await client.messages.create({
-   model:'claude-opus-5',
+   model:OPUS,
    max_tokens:8000,
    system:direction==='ja'?TO_JAPANESE_SYSTEM:TO_ENGLISH_SYSTEM,
    thinking:{type:'adaptive'},

@@ -4,6 +4,7 @@ import {withGuide} from '../src/guide-data.js';
 import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MEAL_KINDS,PRICE_BANDS,proposalDraft,roundCoord,validCoords,partyBrief,matchDish,MAX_DISH_HUNT,MIN_RATING_VOTES,MINUTES_PER_STAR,isRatedKind,placeScore,rankNearby,ratingText,validRating} from '../src/trip-features.js';
 import {seenHosts,checkedLink} from './links.mjs';
 import {clamp} from '../src/text.js';
+import {claude,OPUS} from './usage.mjs';
 export const nearbyReady=modelReady;
 export const MAX_NEARBY=8;
 // This is the one asked standing in the street with two tired children, so it is tuned for speed:
@@ -101,8 +102,7 @@ export async function nearbyPlaces({lat,lng,place,city,kinds,note,wishlist},stat
  // Asked from the food page, the question carries the dishes still on the list. They are names of
  // dishes and nothing else — no part of who the family is travels with them that does not already.
  const hunting=[...new Set((Array.isArray(wishlist)?wishlist:[]).map(n=>clamp(n,120)).filter(Boolean))].slice(0,MAX_DISH_HUNT);
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('nearby');
  // The coordinates on their own are a pin in an empty map. The place the itinerary says they are
  // at, and the city they are in today, are what make the answer worth reading.
  const ask=`They are looking for: ${want.map(id=>NEARBY_KINDS.find(([key])=>key===id)[1]).join(', ')}
@@ -116,7 +116,7 @@ ${partyBrief(state)}`;
  try{
   for(let attempt=0;attempt<3;attempt++){
    message=await client.messages.create({
-    model:'claude-opus-5',
+    model:OPUS,
     max_tokens:6000,
     system:withGuide(SYSTEM,state,japanDate()),
     thinking:{type:'adaptive'},

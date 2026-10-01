@@ -1,4 +1,5 @@
 import {AppError,modelReady} from './model.mjs';
+import {claude,OPUS} from './usage.mjs';
 export const coachReady=modelReady;
 const MEDIA_TYPES=['image/jpeg','image/png','image/webp'];
 const MAX_BASE64=3_000_000;
@@ -30,12 +31,11 @@ export async function coachPhoto({image,mediaType,age}){
  if(data.length>MAX_BASE64)throw new AppError('That photo is too large.',413);
  if(!MEDIA_TYPES.includes(mediaType))throw new AppError('Use a JPEG, PNG or WebP photo.');
  const years=Number.isInteger(age)&&age>=3&&age<=18?age:8;
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('photo-coach');
  let response;
  try{
   response=await client.messages.create({
-   model:'claude-opus-5',max_tokens:2000,system:system(years),
+   model:OPUS,max_tokens:2000,system:system(years),
    thinking:{type:'adaptive'},
    output_config:{effort:'low',format:{type:'json_schema',schema:SCHEMA}},
    messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mediaType,data}},

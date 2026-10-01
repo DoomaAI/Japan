@@ -8,6 +8,7 @@ import {partyBrief} from '../src/trip-features.js';
 import {nightAnchor,moodOf,moodsFor,whoFor,cleanNightOption,rankNight,VIBES,PAYS,NIGHT_PER_MOOD} from '../src/night-out-data.js';
 import {seenHosts,checkedLink} from './links.mjs';
 import {clamp} from '../src/text.js';
+import {claude,OPUS} from './usage.mjs';
 export const nightOutReady=modelReady;
 const SEARCH={type:'web_search_20260209',name:'web_search',max_uses:6,user_location:{type:'approximate',country:'JP',timezone:'Asia/Tokyo'}};
 const ids=list=>list.map(([id])=>id);
@@ -62,11 +63,10 @@ Within about ${mood.walk} minutes' walk where possible.
 
 The family:
 ${partyBrief(state)}`;
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();let message,messages=[{role:'user',content:ask}];
+ const client=await claude('night-out');let message,messages=[{role:'user',content:ask}];
  try{
   for(let attempt=0;attempt<3;attempt++){
-   message=await client.messages.create({model:'claude-opus-5-5',max_tokens:8000,system:withGuide(SYSTEM,state,japanDate(now)),thinking:{type:'adaptive'},output_config:{effort:'low'},tools:[SEARCH,RECORD],messages});
+   message=await client.messages.create({model:OPUS,max_tokens:8000,system:withGuide(SYSTEM,state,japanDate(now)),thinking:{type:'adaptive'},output_config:{effort:'low'},tools:[SEARCH,RECORD],messages});
    if(message.stop_reason!=='pause_turn')break;
    messages=[...messages,{role:'assistant',content:message.content}];
   }

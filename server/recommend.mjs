@@ -3,6 +3,7 @@ import {PROPOSAL_KINDS,tripAreas} from '../src/trip-features.js';
 import {researchReady} from './research.mjs';
 import {RECOMMEND_TEXT,MAX_RECOMMEND_ITEMS,RECOMMENDER_SAID,MAX_RECOMMEND_SHOTS} from '../src/recommend-data.js';
 import {clampLine as clamp} from '../src/text.js';
+import {claude,OPUS} from './usage.mjs';
 // Reads a message from a friend or relative ("you HAVE to get the katsu sando at…, and if you're
 // in Kyoto go early to…") into the separate things they recommended. No web search: it is only
 // reading what they wrote, so it is quick and cheap, and nothing is saved here. The list comes
@@ -58,12 +59,12 @@ export async function readRecommendations({text='',from,images},state={days:[]})
  const pictures=shots(images),areas=tripAreas(state);
  if(typeof text!=='string'||(!text.trim()&&!pictures.length))throw new AppError('Paste the message or add a screenshot first.');
  if(text.length>RECOMMEND_TEXT)throw new AppError(`Keep the message under ${RECOMMEND_TEXT} characters, or paste it in two goes.`);
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('recommend');
  let message;
  try{
-  message=await client.messages.create({model:'claude-opus-5',max_tokens:4000,system:SYSTEM,
-   tools:[record(areas)],tool_choice:{type:'tool',name:'record_recommendations'},
+  message=await client.messages.create({model:OPUS,max_tokens:4000,system:SYSTEM,thinking:{type:'adaptive'},output_config:{effort:'low'},
+   // Opus 5.5 refuses a forced tool; the prompt asks for record_recommendations once and strict keeps its shape.
+   tools:[record(areas)],
    messages:[{role:'user',content:[...pictures,{type:'text',text:`${from?`From ${clamp(from,80)}.`:'From a friend.'}\nThe family's bases: ${areas.join(', ')||'not set'}.${text.trim()?`\n\n${text.trim()}`:'\n\nThe message is in the screenshots.'}`}]}]});
  }catch(e){
   if(e?.status===401)throw new AppError('The Anthropic API key was rejected. Check it in the deployment settings.',502);

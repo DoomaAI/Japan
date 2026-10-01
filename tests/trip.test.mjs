@@ -1607,7 +1607,7 @@ test('the menu reader sends a well-formed vision request and reads the answer ba
 
   // The request the SDK actually put on the wire.
   assert.equal(seen.path,'/v1/messages');
-  assert.equal(seen.json.model,'claude-opus-5');
+  assert.equal(seen.json.model,'claude-opus-5-5');
   assert.equal(seen.json.max_tokens,8000);
   assert.deepEqual(seen.json.thinking,{type:'adaptive'});
   assert.equal(seen.json.output_config.effort,'medium');
@@ -2569,7 +2569,7 @@ test('a phrase of our own: asked for, checked, then kept',async()=>{
   assert.equal(out.usage.input,300);
   // The request itself: a schema-shaped answer, and the phrase as typed.
   assert.equal(seen.path,'/v1/messages');
-  assert.equal(seen.json.model,'claude-opus-5');
+  assert.equal(seen.json.model,'claude-opus-5-5');
   assert.equal(seen.json.output_config.format.type,'json_schema');
   assert.deepEqual(seen.json.output_config.format.schema.required,['ja','romaji','say','literal','note','sensible']);
   assert.match(seen.json.system,/polite form a visitor would use/);
@@ -3064,7 +3064,7 @@ test('looking a place up searches the web, and nothing it says is taken on trust
   // The request the SDK actually put on the wire.
   assert.equal(seen.length,2,'a paused search is resumed');
   const [first,resumed]=seen;
-  assert.equal(first.model,'claude-opus-5');
+  assert.equal(first.model,'claude-opus-5-5');
   assert.deepEqual(first.thinking,{type:'adaptive'});
   assert.equal(first.output_config.effort,'medium');
   const search=first.tools.find(t=>t.name==='web_search');
@@ -3416,7 +3416,7 @@ test('suggestions are built from who is going, and land on the board as ordinary
   const result=await suggestIdeas({city:'Tokyo',kinds:['landmark','unique','drink'],count:6},state);
 
   // The request the SDK actually put on the wire.
-  assert.equal(seen.model,'claude-opus-5');
+  assert.equal(seen.model,'claude-opus-5-5');
   assert.deepEqual(seen.thinking,{type:'adaptive'});
   const search=seen.tools.find(t=>t.name==='web_search');
   assert.equal(search.type,'web_search_20260209');
@@ -4704,7 +4704,7 @@ test('the sumo card is read from the official schedule and kept for a basement w
   let state=ensureFeatures(structuredClone(seed));
   const fetched=await fetchSumoDay({date:SUMO_DAY},state);
 
-  assert.equal(seen.model,'claude-opus-5');
+  assert.equal(seen.model,'claude-opus-5-5');
   assert.equal(seen.tools.find(t=>t.name==='web_search').type,'web_search_20260209');
   assert.equal(seen.tools.find(t=>t.name==='record_sumo_day').strict,true);
   assert.match(seen.system,/sumo\.or\.jp/,'the official site is the source that matters');
@@ -8146,7 +8146,7 @@ test('a booking read in the other language, and kept on the booking where it wil
   assert.equal(english.direction,'en');
   assert.equal(english.source,'チェックインは15時です。予約番号 AB-9931','what was translated is kept beside the translation');
   assert.equal(english.usage.input,410);
-  assert.equal(seen.json.model,'claude-opus-5');
+  assert.equal(seen.json.model,'claude-opus-5-5');
   assert.deepEqual(seen.json.output_config.format.schema.required,['readable','language','english','note']);
   assert.match(seen.json.system,/into English for an Australian family/);
   assert.match(JSON.stringify(seen.json.messages),/the notes on this booking/);
@@ -8325,7 +8325,7 @@ test('a question about the trip is answered out of the plan, and cannot change a
    history:[{role:'user',text:'What is the weather doing in Kyoto?'},{role:'assistant',text:'Wet on Thursday afternoon.'}]},state,parent,now);
 
   // The request the SDK actually put on the wire.
-  assert.equal(seen.model,'claude-opus-5');
+  assert.equal(seen.model,'claude-opus-5-5');
   assert.deepEqual(seen.thinking,{type:'adaptive'});
   const search=seen.tools.find(t=>t.name==='web_search');
   assert.equal(search.max_uses,5);

@@ -6,6 +6,7 @@
 import {get} from '@vercel/blob';
 import {AppError,modelReady} from './model.mjs';
 import {candidateShots,soundsOf,cleanEditList,defaultEditList,MAX_SHOTS} from '../src/highlights-data.js';
+import {claude,OPUS} from './usage.mjs';
 export const highlightsReady=modelReady;
 export const MAX_IMAGES=16;
 const IMAGE_TYPES=['image/jpeg','image/png','image/webp'];
@@ -52,12 +53,12 @@ export async function planHighlights(state,{images=true}={}){
  const list=shots.map(s=>`[${s.ref}] ${s.day} · ${s.kind}${s.best?' · photo of the day':''}${s.stars?` · ${s.stars}★`:''}${s.who?` · by ${s.who}`:''}${s.stop?` · at ${s.stop}`:''}${s.title?` · “${s.title}”`:''}`).join('\n');
  const sound=sounds.map(v=>`[${v.id}] ${v.day} · ${v.title||'a sound'}${v.stepId?` · at ${(state.steps||[]).find(x=>x.id===v.stepId)?.title||''}`:''} · ${v.seconds||12}s`).join('\n');
  const ask=`The trip: ${state.tripName||'Japan'}, ${state.days?.length||0} days.\n${days}\n\nEvery shot there is:\n${list}\n\nSound postcards:\n${sound||'(none)'}\n\nSome of the pictures follow, so you can see them.`;
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('highlights');
  let message;
  try{
-  message=await client.messages.create({model:'claude-opus-5-5',max_tokens:8000,system:SYSTEM,thinking:{type:'adaptive'},output_config:{effort:'low'},
-   tools:[RECORD],tool_choice:{type:'tool',name:'record_edit'},messages:[{role:'user',content:[{type:'text',text:ask},...blocks]}]});
+  message=await client.messages.create({model:OPUS,max_tokens:8000,system:SYSTEM,thinking:{type:'adaptive'},output_config:{effort:'low'},
+   // Opus 5.5 refuses a forced tool; the prompt asks for record_edit once and strict keeps its shape.
+   tools:[RECORD],messages:[{role:'user',content:[{type:'text',text:ask},...blocks]}]});
  }catch(e){
   if(e?.status===401)throw new AppError('The Anthropic API key was rejected. Check it in the deployment settings.',502);
   if(e?.status===429)throw new AppError('Busy. Try again in a moment.',429);

@@ -1,6 +1,7 @@
 import {AppError,modelReady} from './model.mjs';
 import {FOOD} from '../src/food-data.js';
 import {foodAverage,foodRatings,triedFood} from '../src/trip-features.js';
+import {claude,OPUS} from './usage.mjs';
 export const menuReaderReady=modelReady;
 const MEDIA_TYPES=['image/jpeg','image/png','image/webp'];
 // Roughly 3 MB of base64, comfortably inside Vercel's request body limit. The phone downscales before sending, so a real photo lands far
@@ -109,12 +110,11 @@ function photo({image,mediaType}){
  return data;
 }
 async function readPhoto({data,mediaType,system,schema,ask,what}){
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('menu');
  let response;
  try{
   response=await client.messages.create({
-   model:'claude-opus-5',
+   model:OPUS,
    max_tokens:8000,
    system,
    // A hungry family is standing at a counter, so this trades some depth for a faster answer.

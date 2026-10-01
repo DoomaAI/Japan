@@ -1,6 +1,7 @@
 import {AppError,modelReady} from './model.mjs';
 import {SUMO_DIVISIONS,SUMO_SITE_DIVISIONS,sumo,sumoSiteUrl} from '../src/trip-features.js';
 import {clamp} from '../src/text.js';
+import {claude,OPUS} from './usage.mjs';
 export const sumoReady=modelReady;
 export const MAX_BOUTS=60;
 // The torikumi goes up on the official site the afternoon before, so this is asked close to the
@@ -143,7 +144,7 @@ export function normaliseWrestler(found){
 async function ask(client,{system,tools,messages,maxTokens}){
  let message,turn=[...messages];
  for(let attempt=0;attempt<4;attempt++){
-  message=await client.messages.create({model:'claude-opus-5',max_tokens:maxTokens,system,
+  message=await client.messages.create({model:OPUS,max_tokens:maxTokens,system,
    thinking:{type:'adaptive'},output_config:{effort:'medium'},tools,messages:turn});
   if(message.stop_reason!=='pause_turn')break;
   turn=[...turn,{role:'assistant',content:message.content}];
@@ -159,9 +160,8 @@ function apiError(e,what){
 export async function fetchSumoDay({date},state){
  if(!sumoReady())throw new AppError('Reading the sumo card is not switched on. Add an Anthropic API key to the deployment.',503);
  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||''))||!state.days.some(d=>d.date===date))throw new AppError('Choose a trip day.');
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
  let message;
- try{message=await ask(new Anthropic(),{system:CARD_SYSTEM,tools:[SEARCH,FETCH,CARD],maxTokens:12000,
+ try{message=await ask(await claude('sumo-card'),{system:CARD_SYSTEM,tools:[SEARCH,FETCH,CARD],maxTokens:12000,
   messages:[{role:'user',content:`Read the official schedule for ${date} and write down that day's card.\n\nThe official pages for that day, if it is day ${dayNumberFor(state,date)} of the Aki basho as we expect:\n${officialPages(dayNumberFor(state,date))}\n\nThey have second-floor chair seats at Ryogoku Kokugikan and are arriving mid-afternoon with two children.`}]});
  }catch(e){throw apiError(e,'The sumo schedule');}
  if(message.stop_reason==='refusal')throw new AppError('That one was declined.',422);
@@ -198,9 +198,8 @@ export async function fetchSumoResults({date},state){
  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||''))||date!==card.date)throw new AppError('The card loaded is for a different day.');
  const day=dayNumberFor(state,date);
  const list=card.bouts.map(b=>`${b.id}: east ${b.east.name} v west ${b.west.name} (${b.division})`).join('\n');
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
  let message;
- try{message=await ask(new Anthropic(),{system:RESULTS_SYSTEM,tools:[SEARCH,FETCH,resultsTool(card.bouts.map(b=>b.id))],maxTokens:8000,
+ try{message=await ask(await claude('sumo-results'),{system:RESULTS_SYSTEM,tools:[SEARCH,FETCH,resultsTool(card.bouts.map(b=>b.id))],maxTokens:8000,
   messages:[{role:'user',content:`Who has won so far on ${date}${day?`, day ${day}`:''}? Read the official pages:\n${officialPages(day)}\n\nThe card:\n${list}`}]});
  }catch(e){throw apiError(e,'The official results');}
  if(message.stop_reason==='refusal')throw new AppError('That one was declined.',422);
@@ -213,9 +212,8 @@ export async function fetchWrestler({name}){
  if(!sumoReady())throw new AppError('Looking wrestlers up is not switched on. Add an Anthropic API key to the deployment.',503);
  if(typeof name!=='string'||!name.trim())throw new AppError('Choose a wrestler.');
  if(name.length>80)throw new AppError('That is not a shikona.');
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
  let message;
- try{message=await ask(new Anthropic(),{system:PROFILE_SYSTEM,tools:[SEARCH,PROFILE],maxTokens:6000,
+ try{message=await ask(await claude('sumo-profile'),{system:PROFILE_SYSTEM,tools:[SEARCH,PROFILE],maxTokens:6000,
   messages:[{role:'user',content:`Look up the sumo wrestler ${name.trim()}, who is on today's card.`}]});
  }catch(e){throw apiError(e,'The wrestler lookup');}
  if(message.stop_reason==='refusal')throw new AppError('That one was declined.',422);
