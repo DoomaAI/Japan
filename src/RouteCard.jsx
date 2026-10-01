@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket,Baby,ChevronDown,ArrowLeft,ArrowRight} from 'lucide-react';
-import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked,legToDo,legStrip} from './route-data.js';
+import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket,Baby,ChevronDown,ArrowLeft,ArrowRight,Luggage,MapPinPlus,Trash2} from 'lucide-react';
+import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked,legToDo,legStrip,ROUTES,MAX_WAYPOINTS} from './route-data.js';
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
 import BigSteps,{BigStepsButton} from './BigSteps.jsx';
@@ -67,7 +67,7 @@ function LegStrip({legs,strip,go}){
  return <div className="route-legs">
   <div className="route-leg-strip" role="tablist" aria-label="Legs of this route">
    {strip.map(l=>{
-    const leg=legs[l.k],Icon=l.mode==='walk'?Footprints:KIND_ICON[LINES[leg.line].kind]||TrainFront;
+    const leg=legs[l.k],Icon=l.mode==='walk'?Footprints:l.mode==='stop'?Luggage:KIND_ICON[LINES[leg.line].kind]||TrainFront;
     return <button type="button" role="tab" key={l.k} id={`route-leg-tab-${l.k}`} aria-selected={l.showing} aria-controls="route-leg-page" aria-label={`Leg ${l.k+1} of ${n}: ${l.label}, ${STATUS_WORD[l.status].toLowerCase()}`}
      className={`route-leg-pip is-${l.status.replace(' ','-')}${l.showing?' is-showing':''}`} style={l.colour?{'--line':l.colour}:undefined} onClick={()=>go(l.k)}>
      <span className="route-leg-bar" aria-hidden="true"/><span className="route-leg-mark" aria-hidden="true">{l.done?<Check size={12} strokeWidth={3}/>:<Icon size={13}/>}</span>
@@ -77,7 +77,23 @@ function LegStrip({legs,strip,go}){
   <p className="route-leg-caption" aria-live="polite"><b>Leg {on.k+1} of {n} · {on.label}</b><span className={`route-leg-status is-${on.status.replace(' ','-')}`}>{STATUS_WORD[on.status]}</span><small>{done} of {n} done</small></p>
  </div>;
 }
-export default function RouteCard({legs,step,canTick,busy,onTick,lookOpen=false}){
+// A stop on the way, added by the family: what it is for, where on the route it goes (before the
+// first leg, or after any leg of the guide's route) and roughly how long it takes.
+function AddWaypoint({step,busy,onAdd,onClose}){
+ const base=ROUTES[step.id]||[],[text,setText]=useState(''),[after,setAfter]=useState(Math.min(1,base.length)),[minutes,setMinutes]=useState('15');
+ const legName=l=>l.mode==='ride'?`${LINES[l.line].name} to ${l.to}`:l.mode==='stop'?'the stop on the way':'the walk';
+ const submit=async e=>{e.preventDefault();const m=parseInt(minutes,10);if(await onAdd({text:text.trim(),after,minutes:m>0?m:null}))onClose();};
+ return <form className="route-waypoint-form" onSubmit={submit}>
+  <label>Stop for<input value={text} maxLength={160} required placeholder="Pick up bags at the hotel" onChange={e=>setText(e.target.value)}/></label>
+  <label>Where on the way<select value={after} onChange={e=>setAfter(Number(e.target.value))}>
+   <option value={0}>Before setting off</option>
+   {base.map((l,k)=><option key={k} value={k+1}>{k+1===base.length?'At the end, ':''}after leg {k+1}, {legName(l)}</option>)}
+  </select></label>
+  <label>About how long (min)<input type="number" inputMode="numeric" min={1} max={180} value={minutes} onChange={e=>setMinutes(e.target.value)}/></label>
+  <div className="route-waypoint-actions"><button type="submit" disabled={busy||!text.trim()}><MapPinPlus size={14}/>Add stop</button><button type="button" onClick={onClose}>Cancel</button></div>
+ </form>;
+}
+export default function RouteCard({legs,step,canTick,busy,onTick,onWaypoint,lookOpen=false}){
  const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
  const fares=routeFares(legs),priced=legs.some(l=>l.yen||l.options),rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
  // Every ride offers the one tracker; its status sits with the ride it is following (the one pressed until it knows).
@@ -90,11 +106,17 @@ export default function RouteCard({legs,step,canTick,busy,onTick,lookOpen=false}
  // the strip, or an arrow key while the card has focus. It opens on the leg the family is up
  // to, ticking a leg off turns to the next, and a tracked ride pulls the card to where the
  // phone is. A drag that began on a button or the tick is a press, not a turn.
- const paged=legs.length>1,[index,setIndex]=useState(()=>legToDo(step,legs.length)),touch=useRef(null),[big,setBig]=useState(false);
+ const paged=legs.length>1,[index,setIndex]=useState(()=>legToDo(step,legs.length)),touch=useRef(null),[big,setBig]=useState(false),[adding,setAdding]=useState(false);
+ // A stop added or removed changes how many legs there are; the page stays on a leg that exists.
+ useEffect(()=>{if(index>legs.length-1)setIndex(Math.max(0,legs.length-1));},[legs.length]);
+ const canAdd=onWaypoint&&canTick&&step&&ROUTES[step.id]&&(step.waypoints||[]).length<MAX_WAYPOINTS&&step.status!=='done';
  const go=k=>setIndex(i=>stepIndex(i,k-i,legs.length)),move=d=>setIndex(i=>stepIndex(i,d,legs.length));
  useEffect(()=>{if(where&&where.i>=0){const k=legs.findIndex((l,j)=>l.mode==='ride'&&rideAt[j]===where.i);if(k>=0)setIndex(k);}},[where&&where.i]);
  const tick=(k,label)=>ticks?<LegTick step={step} k={k} label={label} canTick={canTick} busy={busy} onTick={(leg,done)=>{onTick(leg,done);if(done&&leg===index)move(1);}}/>:null,doneClass=k=>ticks>0&&legDone(step,k)?' leg-done':'';
  const renderLeg=(leg,k)=>{
+   if(leg.mode==='stop')return <div className={`route-stop-leg${doneClass(k)}`} key={k}><p><Luggage size={15}/><span><b>Stop on the way:</b> {leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span>{tick(k,'stop on the way')}</p>
+    {leg.added&&<p className="route-stop-by"><small>Added{leg.added.by?` by ${leg.added.by}`:''}</small>{onWaypoint&&canTick&&<button type="button" disabled={busy} onClick={()=>onWaypoint({action:'remove',waypointId:leg.added.id})}><Trash2 size={13}/>Remove</button>}</p>}
+   </div>;
    if(leg.mode==='walk')return <p className={`route-walk${doneClass(k)}`} key={k}><Footprints size={15}/><span>{leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span>{tick(k,'walk')}</p>;
    const r=rideAt[k],line=LINES[leg.line],stops=rides[r],on=where&&where.i===r,here=on?where.index:-1,next=on&&!where.arrived?where.next:-1;
    const Icon=KIND_ICON[line.kind]||TrainFront,fast=line.fast||[],symbols=lineSymbols(stops);
@@ -125,6 +147,8 @@ export default function RouteCard({legs,step,canTick,busy,onTick,lookOpen=false}
   {ticks>0&&<p className="route-progress"><CheckCircle2 size={15}/><span>{step.status==='done'?<><b>Every leg is done.</b> This stop is complete.</>:<><b>{legsTicked(step)} of {ticks} legs done.</b> Tick each leg as you finish it; the last one ticks off the whole stop.</>}</span></p>}
   {fares&&<p className="route-fares"><Ticket size={15}/><span><b>Fare: adult {yen(fares.adult)} · child {yen(fares.child)} each,</b> as {fares.rides.length} separate tickets, one per company: {fares.rides.map(r=>`${r.operator} ${yen(r.yen[0])} / ${yen(r.yen[1])}`).join(' + ')}. An IC card covers them all: tap out at one company's gates and in again at the next, and each part is charged.{legs.some(l=>l.options)?' Seat tickets on the options below are extra.':''}</span></p>}
   {priced&&<p className="route-fares"><Baby size={15}/><span><b>Under 6 (not yet at school): free.</b> Up to two ride free with each paying adult or child, no ticket; walk through the wide gate with a parent. Only a child aged 6 or over pays the child fare.</span></p>}
+  {canAdd&&!adding&&<button type="button" className="route-waypoint-add" onClick={()=>setAdding(true)}><MapPinPlus size={14}/>Add a stop on the way</button>}
+  {adding&&<AddWaypoint step={step} busy={busy} onAdd={w=>onWaypoint({action:'add',...w})} onClose={()=>setAdding(false)}/>}
   {!paged&&legs.map(renderLeg)}
   {paged&&<>
    <LegStrip legs={legs} strip={legStrip(legs,step,index)} go={go}/>

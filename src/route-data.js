@@ -43,6 +43,9 @@ export const LINES={
 };
 const ride=(line,from,to,extra={})=>({mode:'ride',line,from,to,...extra});
 const walk=(text,minutes)=>({mode:'walk',text,minutes});
+// A stop made on the way rather than a stop of its own: collecting bags, a shop, a toilet break.
+// It is a leg like a walk or a ride, ticked as it is done, so the journey stays one card.
+const pause=(text,minutes,place)=>({mode:'stop',text,minutes,...(place?{place}:{})});
 // Choices on the same ride, with time, fare and how to pay, so the family can pick on the day.
 const KINTETSU_OPTIONS=[
  {name:'Express',ja:'急行',minutes:45,yen:[760,380],fare:'adult ¥760 · child ¥380',how:'Tap an IC card (ICOCA, Suica, PASMO) at the Kintetsu gates, or buy a paper ticket from the fare machines. No seat reservation; sit anywhere free.'},
@@ -87,7 +90,9 @@ export const ROUTES={
   ride('resort','Bayside','Tokyo Disneyland Station',{yen:[300,150],towards:'any train; the loop runs one way',minutes:13,exit:'Straight ahead to the Tokyo Disneyland gates.'})],
  '2026-09-30-19':[walk('Tokyo Disneyland gates to Tokyo Disneyland Station.',5),
   ride('resort','Tokyo Disneyland Station','Bayside',{yen:[300,150],towards:'any train; the loop runs one way',minutes:4,exit:'Follow signs for Fantasy Springs Hotel.'})],
- '2026-10-01-14':[walk('Leave through the Fantasy Springs Entrance (open to every guest leaving since 15 September 2026; be inside Fantasy Springs before 9 pm), then a few minutes to Bayside Station. If that exit is shut, use the main gate and Tokyo DisneySea Station.',10),
+ '2026-10-01-14':[walk('Leave through the Fantasy Springs Entrance (open to every guest leaving since 15 September 2026; be inside Fantasy Springs before 9 pm), straight across to the Fantasy Springs Hotel. If that exit is shut, leave by the main gate and follow signs for the hotel, about 15 min.',5),
+  pause('Pick up the bags left at the Fantasy Springs Hotel after check-out this morning: the bell desk (luggage storage) in the lobby. Have the claim tags ready.',15,'Tokyo DisneySea Fantasy Springs Hotel'),
+  walk('Fantasy Springs Hotel to Bayside Station.',5),
   ride('resort','Bayside','Resort Gateway',{yen:[300,150],towards:'any train; the loop runs one way',minutes:8,exit:'Across to JR Maihama.'}),
   ride('keiyo','Maihama','Tokyo',{yen:[260,130],towards:'Tokyo (東京)',minutes:15,exit:'Follow signs for the Marunouchi Line (丸ノ内線), a long walk north through the station, 15–20 min.'}),
   ride('marunouchi','Tokyo','Nishi-shinjuku',{yen:[210,110],towards:'Ogikubo (荻窪)',minutes:20,exit:'Exit C8, then up into the Hiltopia arcade under Hilton Tokyo, about 2 min.'})],
@@ -133,7 +138,31 @@ export function legStops(leg){
  if(line.loop){const out=[];for(let k=i;;k=(k+1)%all.length){out.push(station(all[k]));if(k===j)break;}return out;}
  return (i<=j?all.slice(i,j+1):all.slice(j,i+1).reverse()).map(station);
 }
-export const routeFor=step=>ROUTES[step?.id]||null;
+// The family can add a stop on the way to any route (a bag pickup, a shop, a toilet break). It is
+// kept on the step as a waypoint, `after` legs into the guide's route, and shows as a leg of its
+// own. Every leg carries a `key` that survives one being added or taken away (`r2` for the
+// route's third leg, `w:<id>` for a waypoint), so the legs already ticked stay ticked.
+export const MAX_WAYPOINTS=6;
+export function routeFor(step){
+ const base=ROUTES[step?.id];
+ if(!base)return null;
+ const added=step.waypoints||[];
+ if(!added.length)return base;
+ const legs=[];
+ base.forEach((leg,k)=>{for(const w of added)if(w.after===k)legs.push(waypointLeg(w));legs.push({...leg,key:`r${k}`});});
+ for(const w of added)if(w.after>=base.length)legs.push(waypointLeg(w));
+ return legs;
+}
+const waypointLeg=w=>({mode:'stop',text:w.text,minutes:w.minutes||null,key:`w:${w.id}`,added:{id:w.id,by:w.by||null}});
+const legKeys=step=>(routeFor(step)||[]).map((l,k)=>l.key||`r${k}`);
+// Moves the legs already ticked onto their new places after a waypoint is added or removed.
+// A removed waypoint takes its tick with it; a stop that was done stays done.
+export function rekeyLegs(before,after){
+ if(!before.legsDone)return;
+ const from=legKeys(before),to=legKeys(after),ticked={};
+ for(const [k,at] of Object.entries(before.legsDone)){const i=to.indexOf(from[k]);if(i>=0)ticked[i]=at;}
+ after.legsDone=ticked;
+}
 // A stop reached by more than one leg (a walk, a train, a change, another train) is ticked off
 // leg by leg as each is done, and the stop ticks itself off with the last one. A single-leg
 // route is just the stop, so it has no legs of its own to tick.
@@ -148,7 +177,7 @@ export function legStrip(legs,step,showing){
  const now=legToDo(step,legs.length);
  return legs.map((leg,k)=>{
   const done=legDone(step,k),line=leg.mode==='ride'?LINES[leg.line]:null;
-  return {k,mode:leg.mode,label:line?line.name:'Walk',colour:line?.colour||null,done,showing:k===showing,status:done?'done':k===now?'now':'to come'};
+  return {k,mode:leg.mode,label:line?line.name:leg.mode==='stop'?'Stop on the way':'Walk',colour:line?.colour||null,done,showing:k===showing,status:done?'done':k===now?'now':'to come'};
  });
 }
 // Applies one leg's tick to the stop, in place, and says what that did to the stop as a whole:

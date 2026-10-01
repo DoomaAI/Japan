@@ -5,7 +5,7 @@ import {expressOperation} from './express.mjs';
 import {dpaOperation} from './dpa.mjs';
 import { randomUUID } from 'node:crypto';
 import {activeSteps,MAX_WINDOW} from '../src/timing.js';
-import {legCount,tickLeg} from '../src/route-data.js';
+import {legCount,tickLeg,routeFor,rekeyLegs,ROUTES,MAX_WAYPOINTS} from '../src/route-data.js';
 import {ENTRY_TYPE_IDS} from '../src/entry-types.js';
 import {guessPlatform} from '../src/booked-via.js';
 import {BIN_KINDS,binEntries,binTitle} from '../src/bin-data.js';
@@ -125,8 +125,8 @@ export function applyOperation(input,op,user){
  const state=ensureFeatures(structuredClone(input)),now=new Date().toISOString();
  const parent=user.role==='parent';
  const step=state.steps.find(s=>s.id===op.id);
- if(!parent && !['status','legStatus','challengeStatus','challengeSkip','challengeNew','etiquetteMission','eyeSpy','bingoTick','bingoCard','parkRide','parkWant','foodTried','foodRating','phraseSeen','factSeen','moneyFound','gameScore','weatherUpdate','jankenThrow','jankenNewRound','binRestore','binDrop','voiceNoteRemove','voiceNoteLabel','voiceNoteWords','shoppingAdd','shoppingStatus','shortlistAdd','shortlistEdit','shortlistStatus','shortlistRating','shortlistShop','shortlistRemove','todoAdd','todoStatus','packAdd','packAddAll','packEdit','packStatus','packRemove','packDismiss','noticedAdd','noticedEdit','noticedRemove','huntNew','huntPick','huntAdd','huntEdit','huntRate','huntRemove','huntRank','huntTried','huntListEdit','huntListRemove','spendAdd','spendEdit','spendBought','spendRemove','spendRequest','spendRequestCancel','sumoResult','sumoPredict','stepRating','stepThought','stepNextTime','capsuleWrite','dayRating','dayThought','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust','proposalRecommend','partyPerson','partyPriorities','photoVote','photoRemove','photoAssign','drawingRemove','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','thankYouSeen','checkInStart','checkInArrive','checkInCancel','lateSend','lateSeen','lateClear','lateAnswer','readinessSet','stageSet','rsvpSet'].includes(op.type))throw new AppError('A parent can make this change.',403);
- if(['status','legStatus','patch','lock','remove','backlog','schedule'].includes(op.type)&&!step)throw new AppError('Activity not found.',404);
+ if(!parent && !['status','legStatus','waypoint','challengeStatus','challengeSkip','challengeNew','etiquetteMission','eyeSpy','bingoTick','bingoCard','parkRide','parkWant','foodTried','foodRating','phraseSeen','factSeen','moneyFound','gameScore','weatherUpdate','jankenThrow','jankenNewRound','binRestore','binDrop','voiceNoteRemove','voiceNoteLabel','voiceNoteWords','shoppingAdd','shoppingStatus','shortlistAdd','shortlistEdit','shortlistStatus','shortlistRating','shortlistShop','shortlistRemove','todoAdd','todoStatus','packAdd','packAddAll','packEdit','packStatus','packRemove','packDismiss','noticedAdd','noticedEdit','noticedRemove','huntNew','huntPick','huntAdd','huntEdit','huntRate','huntRemove','huntRank','huntTried','huntListEdit','huntListRemove','spendAdd','spendEdit','spendBought','spendRemove','spendRequest','spendRequestCancel','sumoResult','sumoPredict','stepRating','stepThought','stepNextTime','capsuleWrite','dayRating','dayThought','acknowledge','proposalAdd','proposalEdit','proposalRemove','proposalPark','proposalVote','proposalMust','proposalRecommend','partyPerson','partyPriorities','photoVote','photoRemove','photoAssign','drawingRemove','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','thankYouSeen','checkInStart','checkInArrive','checkInCancel','lateSend','lateSeen','lateClear','lateAnswer','readinessSet','stageSet','rsvpSet'].includes(op.type))throw new AppError('A parent can make this change.',403);
+ if(['status','legStatus','waypoint','patch','lock','remove','backlog','schedule'].includes(op.type)&&!step)throw new AppError('Activity not found.',404);
  const before=step?structuredClone(step):null;
  const fail=(message,status=400)=>{throw new AppError(message,status);};
  // A copy of whatever a removal is about to take, made before the removal runs, so it can wait
@@ -154,6 +154,25 @@ export function applyOperation(input,op,user){
   const outcome=tickLeg(step,op.leg,op.done,at);
   if(outcome==='done')ticketsUsed(state,step,at,user);
   if(outcome==='undone')ticketsBack(state,step);
+ }else if(op.type==='waypoint'){
+  // A stop on the way, added to a route or taken off it by anyone who may tick the route.
+  if(!parent&&!step.participants.includes(user.name))throw new AppError('This activity is assigned to other family members.',403);
+  if(!routeFor(step))throw new AppError('Only a stop with a route can have a stop on the way.');
+  const was=structuredClone(step),list=step.waypoints||[];
+  if(op.action==='add'){
+   const text=typeof op.text==='string'?op.text.trim():'',route=ROUTES[step.id].length;
+   if(!text||text.length>160)throw new AppError('Say what the stop is for, in under 160 characters.');
+   if(!Number.isInteger(op.after)||op.after<0||op.after>route)throw new AppError('Choose where on the way the stop goes.');
+   if(op.minutes!=null&&!(Number.isInteger(op.minutes)&&op.minutes>0&&op.minutes<=180))throw new AppError('Use up to 180 minutes for the stop.');
+   if(list.length>=MAX_WAYPOINTS)throw new AppError(`Add at most ${MAX_WAYPOINTS} stops on the way.`);
+   step.waypoints=[...list,{id:randomUUID().slice(0,8),text,after:op.after,minutes:op.minutes??null,by:user.name,at:now}];
+  }else if(op.action==='remove'){
+   if(!list.some(w=>w.id===op.waypointId))throw new AppError('That stop on the way is already gone.',404);
+   step.waypoints=list.filter(w=>w.id!==op.waypointId);
+   if(!step.waypoints.length)delete step.waypoints;
+  }else throw new AppError('Invalid action.');
+  step.updatedBy=user.name;
+  rekeyLegs(was,step);
  }else if(op.type==='patch'){
   const patch=validatePatch(op.patch,state);
   if(step.locked && patch.locked!==false && (('time' in patch && patch.time!==step.time)||('day'in patch&&patch.day!==step.day)||('bookingTime'in patch&&patch.bookingTime!==(step.bookingTime??null))))throw new AppError('Unlock this time before moving it.');

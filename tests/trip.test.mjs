@@ -9416,7 +9416,7 @@ test('every train and transfer has its route: line, direction, each station and 
   const step=seed.steps.find(s=>s.id===id);
   assert.ok(step?.day,id);
   for(const leg of legs){
-   if(leg.mode==='walk'){assert.ok(leg.text&&leg.minutes>0,id);continue;}
+   if(leg.mode==='walk'||leg.mode==='stop'){assert.ok(leg.text&&leg.minutes>0,id);continue;}
    const stops=legStops(leg);
    assert.ok(stops.length>=2&&leg.towards&&leg.exit&&leg.minutes>0&&LINES[leg.line].status.startsWith('https://'),`${id} ${leg.line}`);
    // Whose line it is, its sign colour and what to look for on the way.
@@ -10104,6 +10104,47 @@ test('leg ticks are checked like stop ticks',()=>{
  const theirs={...seed,steps:seed.steps.map(s=>s.id===multi.id?{...s,participants:['Damien']}:s)};
  assert.throws(()=>applyOperation(theirs,{type:'legStatus',id:multi.id,leg:0,done:true},child),e=>e.status===403);
 });
+test('a stop on the way is a leg of the journey: the bags today, and any the family adds',async()=>{
+ const {ROUTES,routeFor,legCount,legStrip}=await import('../src/route-data.js');
+ // Today the bags left at the Fantasy Springs Hotel are picked up on the way out, inside the one journey card.
+ const home=seed.steps.find(s=>s.id==='2026-10-01-14');
+ assert.deepEqual(ROUTES[home.id].map(l=>l.mode),['walk','stop','walk','ride','ride','ride']);
+ assert.match(ROUTES[home.id][1].text,/bags.*Fantasy Springs Hotel/);
+ assert.equal(legStrip(ROUTES[home.id],{},1)[1].label,'Stop on the way');
+ assert.match(home.notes,/pick up our bags/);
+ assert.equal(seed.steps.filter(s=>s.day==='2026-10-01'&&/bag/i.test(s.title)).length,0,'no separate card for the bags');
+ // A stop added on the way goes where it was put, and the legs already ticked stay ticked.
+ const s=seed.steps.find(s=>s.id==='2026-09-26-01');
+ let state=applyOperation(seed,{type:'legStatus',id:s.id,leg:1,done:true,at:'2026-09-26T01:00:00.000Z'},child);
+ state=applyOperation(state,{type:'waypoint',id:s.id,action:'add',text:'Pick up bags',after:1,minutes:10},child);
+ let step=state.steps.find(x=>x.id===s.id);
+ assert.deepEqual(routeFor(step).map(l=>l.mode),['walk','stop','ride','ride']);
+ assert.equal(routeFor(step)[1].added.by,'Nate');assert.equal(legCount(step),4);
+ assert.deepEqual(Object.keys(step.legsDone),['2'],'the Karasuma tick moved with the Karasuma leg');
+ // The new leg is ticked like any other; taking it off moves the ticks back.
+ state=applyOperation(state,{type:'legStatus',id:s.id,leg:1,done:true,at:'2026-09-26T01:10:00.000Z'},child);
+ const id=state.steps.find(x=>x.id===s.id).waypoints[0].id;
+ step=applyOperation(state,{type:'waypoint',id:s.id,action:'remove',waypointId:id},child).steps.find(x=>x.id===s.id);
+ assert.equal(step.waypoints,undefined);assert.deepEqual(Object.keys(step.legsDone),['1']);assert.equal(routeFor(step),ROUTES[s.id]);
+ // At the end of the route, and checked like any other change.
+ const end=applyOperation(seed,{type:'waypoint',id:s.id,action:'add',text:'Coffee',after:3},parent).steps.find(x=>x.id===s.id);
+ assert.equal(routeFor(end).at(-1).mode,'stop');
+ for(const bad of [{text:'',after:0},{text:'x'.repeat(161),after:0},{text:'Shop',after:4},{text:'Shop',after:-1},{text:'Shop',after:0,minutes:0},{text:'Shop',after:0,minutes:500}])
+  assert.throws(()=>applyOperation(seed,{type:'waypoint',id:s.id,action:'add',...bad},parent),AppErrorLike);
+ assert.throws(()=>applyOperation(seed,{type:'waypoint',id:'2026-10-01-15',action:'add',text:'Shop',after:0},parent),/Only a stop with a route/);
+ assert.throws(()=>applyOperation(seed,{type:'waypoint',id:s.id,action:'remove',waypointId:'nope'},parent),e=>e.status===404);
+ const theirs={...seed,steps:seed.steps.map(x=>x.id===s.id?{...x,participants:['Damien']}:x)};
+ assert.throws(()=>applyOperation(theirs,{type:'waypoint',id:s.id,action:'add',text:'Shop',after:0},child),e=>e.status===403);
+ let full=seed;for(let k=0;k<6;k++)full=applyOperation(full,{type:'waypoint',id:s.id,action:'add',text:`Stop ${k}`,after:0},parent);
+ assert.throws(()=>applyOperation(full,{type:'waypoint',id:s.id,action:'add',text:'One more',after:0},parent),/at most 6/);
+ // On the card: an added stop shows with who added it and can be taken off; the form offers every place on the way.
+ const card=await readFile(new URL('../src/RouteCard.jsx',import.meta.url),'utf8');
+ assert.match(card,/Add a stop on the way/);
+ assert.match(card,/onWaypoint\(\{action:'remove',waypointId:leg\.added\.id\}\)/);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/onWaypoint=\{routeWaypoint\}/);
+});
+const AppErrorLike=e=>e.status===400;
 test('things we noticed: said out loud, tagged to where it was and what it was about, and in the diary and on the map',async()=>{
  const {ensureFeatures,pendingProgress,searchTrip,diaryDays}=await import('../src/trip-features.js');
  const {noticedWhere,noticedItem,noticedFor}=await import('../src/noticed-data.js');
