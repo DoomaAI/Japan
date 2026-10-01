@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket,Baby,ChevronDown,ArrowLeft,ArrowRight,Luggage,MapPinPlus,Trash2,Pencil,CarTaxiFront,Clock} from 'lucide-react';
-import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked,legToDo,legStrip,ROUTES,MAX_WAYPOINTS,WAYPOINT_KINDS,routeMinutes,addedMinutes} from './route-data.js';
+import {Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket,Baby,ChevronDown,ArrowLeft,ArrowRight,Luggage,MapPinPlus,Trash2,Pencil,CarTaxiFront,Clock,Navigation,Shuffle,Undo2} from 'lucide-react';
+import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked,legToDo,legStrip,ROUTES,MAX_WAYPOINTS,WAYPOINT_KINDS,routeMinutes,addedMinutes,SWAP_MODES,LEG_LABELS,legName,swappable,baseMinutes} from './route-data.js';
 import {minutes as clockMinutes,asClock} from './timing.js';
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
@@ -81,21 +81,50 @@ function LegStrip({legs,strip,go}){
 // A stop on the way or a leg of the family's own (a walk, a taxi): what it is for, where on the
 // route it goes (before the first leg, or after any leg of the guide's route) and roughly how
 // long it takes. The same form changes one already added.
-const LEG_ICON={stop:Luggage,walk:Footprints,taxi:CarTaxiFront};
+const LEG_ICON={stop:Luggage,walk:Footprints,taxi:CarTaxiFront,other:Navigation};
 const PLACEHOLDER={stop:'Pick up bags at the hotel',walk:'Walk to the station',taxi:'Taxi to the station'};
 function WaypointForm({step,busy,editing,onSave,onClose}){
  const base=ROUTES[step.id]||[],[kind,setKind]=useState(editing?.kind||'stop'),[text,setText]=useState(editing?.text||''),[after,setAfter]=useState(editing?editing.after:Math.min(1,base.length)),[minutes,setMinutes]=useState(String(editing?editing.minutes??'':15));
- const legName=l=>l.mode==='ride'?`${LINES[l.line].name} to ${l.to}`:l.mode==='stop'?'the stop on the way':l.mode==='taxi'?'the taxi':'the walk';
  const submit=async e=>{e.preventDefault();const m=parseInt(minutes,10);if(await onSave({kind,text:text.trim(),after,minutes:m>0?m:null}))onClose();};
  return <form className="route-waypoint-form" onSubmit={submit}>
   <fieldset className="route-waypoint-kinds"><legend>Add</legend>{Object.entries(WAYPOINT_KINDS).map(([k,label])=>{const Icon=LEG_ICON[k];return <label key={k} className={kind===k?'is-on':''}><input type="radio" name="waypoint-kind" value={k} checked={kind===k} onChange={()=>setKind(k)}/><Icon size={14}/>{k==='stop'?'A stop':label}</label>;})}</fieldset>
   <label>{kind==='stop'?'Stop for':'Where to'}<input value={text} maxLength={160} required placeholder={PLACEHOLDER[kind]} onChange={e=>setText(e.target.value)}/></label>
   <label>Where on the way<select value={after} onChange={e=>setAfter(Number(e.target.value))}>
    <option value={0}>Before setting off</option>
-   {base.map((l,k)=><option key={k} value={k+1}>{k+1===base.length?'At the end, ':''}after leg {k+1}, {legName(l)}</option>)}
+   {base.map((l,k)=>{const s=(step.swaps||[]).find(x=>x.from<=k&&k<=x.to);if(s&&k<s.to)return null;return <option key={k} value={k+1}>{k+1===base.length?'At the end, ':''}after leg {k+1}, {s?`${legName({mode:s.mode})} instead`:legName(l)}</option>;})}
   </select></label>
   <label>About how long (min)<input type="number" inputMode="numeric" min={1} max={180} value={minutes} onChange={e=>setMinutes(e.target.value)}/></label>
   <div className="route-waypoint-actions"><button type="submit" disabled={busy||!text.trim()}>{editing?<><Check size={14}/>Save changes</>:<><MapPinPlus size={14}/>Add to the journey</>}</button><button type="button" onClick={onClose}>Cancel</button></div>
+ </form>;
+}
+// Going another way for part or all of the guide's route: how (a taxi, on foot, another way),
+// which legs it stands in for, what to tell the driver or where to walk, and how long it takes.
+// The legs on offer are the travel legs not yet done and not already changed; the time starts as
+// the guide's own for those legs. The same form changes one already made.
+const SWAP_PLACEHOLDER={taxi:'Taxi from the station to the hotel',walk:'Walk to the hotel',other:'Hotel shuttle bus'};
+function SwapForm({step,busy,editing,onSave,onClose}){
+ const base=ROUTES[step.id]||[],open=swappable(step,editing?.id),first=open.indexOf(true);
+ const [mode,setMode]=useState(editing?.mode||'taxi'),[from,setFrom]=useState(editing?editing.from:first),[to,setTo]=useState(editing?editing.to:first);
+ const [text,setText]=useState(editing?.text||''),[minutes,setMinutes]=useState(String(editing?editing.minutes:baseMinutes(step,first,first)||15)),[touched,setTouched]=useState(!!editing);
+ // The legs to the end of the run open from the first one chosen; a stop on the way or a leg already done ends it.
+ const reach=[];for(let k=from;k>=0&&k<base.length&&open[k];k++)reach.push(k);
+ const pick=(f,t)=>{setFrom(f);setTo(t);if(!touched)setMinutes(String(baseMinutes(step,f,t)||15));};
+ const runs=[];for(let k=0;k<base.length;k++)if(open[k]&&!open[k-1]){let e=k;while(open[e+1])e++;runs.push([k,e]);}
+ const submit=async e=>{e.preventDefault();const m=parseInt(minutes,10);if(await onSave({mode,text:text.trim(),from,to,minutes:m}))onClose();};
+ if(first<0&&!editing)return <div className="route-waypoint-form"><p>Every leg is already done or changed.</p><div className="route-waypoint-actions"><button type="button" onClick={onClose}>Close</button></div></div>;
+ return <form className="route-waypoint-form route-swap-form" onSubmit={submit}>
+  <fieldset className="route-waypoint-kinds"><legend>Go by</legend>{Object.entries(SWAP_MODES).map(([k,label])=>{const Icon=LEG_ICON[k];return <label key={k} className={mode===k?'is-on':''}><input type="radio" name="swap-mode" value={k} checked={mode===k} onChange={()=>setMode(k)}/><Icon size={14}/>{label}</label>;})}</fieldset>
+  {runs.length>0&&<div className="route-swap-quick" role="group" aria-label="Quick choice">{runs.map(([a,b])=><button type="button" key={a} aria-pressed={from===a&&to===b} className={from===a&&to===b?'is-on':''} onClick={()=>pick(a,b)}>{a===0&&b===base.length-1?'The whole journey':`${a===b?`Leg ${a+1}`:`Legs ${a+1}–${b+1}`}${b===base.length-1?', to the end':''}`}</button>)}</div>}
+  <label>From<select value={from} onChange={e=>{const f=Number(e.target.value);pick(f,f);}}>
+   {base.map((l,k)=>open[k]&&<option key={k} value={k}>Leg {k+1}, {legName(l)}</option>)}
+  </select></label>
+  <label>To<select value={to} onChange={e=>pick(from,Number(e.target.value))}>
+   {reach.map(k=><option key={k} value={k}>Leg {k+1}, {legName(base[k])}{k===base.length-1?' (the end)':''}</option>)}
+  </select></label>
+  <p className="route-swap-instead"><small>Instead of: {base.slice(from,to+1).map(legName).join(', ')}.</small></p>
+  <label>{mode==='walk'?'Where to':'What to tell the driver, or how'}<input value={text} maxLength={160} required placeholder={SWAP_PLACEHOLDER[mode]} onChange={e=>setText(e.target.value)}/></label>
+  <label>About how long (min)<input type="number" inputMode="numeric" min={1} max={240} required value={minutes} onChange={e=>{setTouched(true);setMinutes(e.target.value);}}/></label>
+  <div className="route-waypoint-actions"><button type="submit" disabled={busy||!text.trim()}>{editing?<><Check size={14}/>Save changes</>:<><Shuffle size={14}/>Go this way instead</>}</button><button type="button" onClick={onClose}>Cancel</button></div>
  </form>;
 }
 // The whole journey door to door, which grows and shrinks as stops and legs are added, and when
@@ -108,7 +137,7 @@ function JourneyTime({legs,step}){
  const arrive=step?.time?asClock((clockMinutes(step.time)+total)%1440):null;
  return <p className="route-total"><Clock size={15}/><span><b>Journey: about {total} min{changes?' on the legs':''}</b>{changes?', plus the changes between trains':''}{arrive?`; ${changes?'no earlier than':'there about'} ${arrive} leaving at ${step.time}`:''}.{extra?` Includes ${extra} min the family added.`:''}</span></p>;
 }
-export default function RouteCard({legs,step,canTick,busy,onTick,onWaypoint,lookOpen=false}){
+export default function RouteCard({legs,step,canTick,busy,onTick,onWaypoint,onSwap,lookOpen=false}){
  const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
  const fares=routeFares(legs),priced=legs.some(l=>l.yen||l.options),rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
  // Every ride offers the one tracker; its status sits with the ride it is following (the one pressed until it knows).
@@ -121,10 +150,11 @@ export default function RouteCard({legs,step,canTick,busy,onTick,onWaypoint,look
  // the strip, or an arrow key while the card has focus. It opens on the leg the family is up
  // to, ticking a leg off turns to the next, and a tracked ride pulls the card to where the
  // phone is. A drag that began on a button or the tick is a press, not a turn.
- const paged=legs.length>1,[index,setIndex]=useState(()=>legToDo(step,legs.length)),touch=useRef(null),[big,setBig]=useState(false),[form,setForm]=useState(null);
+ const paged=legs.length>1,[index,setIndex]=useState(()=>legToDo(step,legs.length)),touch=useRef(null),[big,setBig]=useState(false),[form,setForm]=useState(null),[swapForm,setSwapForm]=useState(null);
  // A stop added or removed changes how many legs there are; the page stays on a leg that exists.
  useEffect(()=>{if(index>legs.length-1)setIndex(Math.max(0,legs.length-1));},[legs.length]);
  const canAdd=onWaypoint&&canTick&&step&&ROUTES[step.id]&&(step.waypoints||[]).length<MAX_WAYPOINTS&&step.status!=='done';
+ const canSwap=onSwap&&canTick&&step&&ROUTES[step.id]&&step.status!=='done'&&swappable(step).some(Boolean);
  const go=k=>setIndex(i=>stepIndex(i,k-i,legs.length)),move=d=>setIndex(i=>stepIndex(i,d,legs.length));
  useEffect(()=>{if(where&&where.i>=0){const k=legs.findIndex((l,j)=>l.mode==='ride'&&rideAt[j]===where.i);if(k>=0)setIndex(k);}},[where&&where.i]);
  const tick=(k,label)=>ticks?<LegTick step={step} k={k} label={label} canTick={canTick} busy={busy} onTick={(leg,done)=>{onTick(leg,done);if(done&&leg===index)move(1);}}/>:null,doneClass=k=>ticks>0&&legDone(step,k)?' leg-done':'';
@@ -133,6 +163,12 @@ export default function RouteCard({legs,step,canTick,busy,onTick,onWaypoint,look
    const added=leg.added&&<p className="route-stop-by"><small>Added{leg.added.by?` by ${leg.added.by}`:''}</small>{onWaypoint&&canTick&&<span>
     <button type="button" disabled={busy} onClick={()=>setForm({editing:{id:leg.added.id,kind:leg.added.kind,text:leg.text,after:leg.added.after,minutes:leg.minutes}})}><Pencil size={13}/>Change</button>
     <button type="button" disabled={busy} onClick={()=>onWaypoint({action:'remove',waypointId:leg.added.id,text:leg.text})}><Trash2 size={13}/>Remove</button></span>}</p>;
+   // A leg the family changed says what it stands in for and who changed it, and can be changed again or undone.
+   if(leg.swap){const Icon=LEG_ICON[leg.mode],n=leg.swap.to-leg.swap.from+1;return <div className={`route-stop-leg is-${leg.mode==='walk'?'walk':'taxi'} is-swap${doneClass(k)}`} key={k}><p><Icon size={15}/><span><b>{LEG_LABELS[leg.mode]}:</b> {leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span>{tick(k,LEG_LABELS[leg.mode].toLowerCase())}</p>
+    <p className="route-swap-instead"><small>Instead of {n===1?'leg':'legs'} {leg.swap.from+1}{n>1?`–${leg.swap.to+1}`:''}: {leg.swap.instead.join(', ')}.</small></p>
+    <p className="route-stop-by"><small>Changed{leg.swap.by?` by ${leg.swap.by}`:''}</small>{onSwap&&canTick&&step.status!=='done'&&<span>
+     <button type="button" disabled={busy} onClick={()=>setSwapForm({editing:{id:leg.swap.id,mode:leg.swap.mode,text:leg.text,from:leg.swap.from,to:leg.swap.to,minutes:leg.minutes}})}><Pencil size={13}/>Change</button>
+     <button type="button" disabled={busy} onClick={()=>onSwap({action:'remove',swapId:leg.swap.id,text:leg.text})}><Undo2 size={13}/>Back to the plan</button></span>}</p></div>;}
    if(leg.mode==='stop'||leg.mode==='taxi'){const Icon=LEG_ICON[leg.mode];return <div className={`route-stop-leg is-${leg.mode}${doneClass(k)}`} key={k}><p><Icon size={15}/><span><b>{leg.mode==='taxi'?'Taxi':'Stop on the way'}:</b> {leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span>{tick(k,leg.mode==='taxi'?'taxi':'stop on the way')}</p>{added}</div>;}
    if(leg.mode==='walk'&&leg.added)return <div className={`route-stop-leg is-walk${doneClass(k)}`} key={k}><p><Footprints size={15}/><span><b>Walk:</b> {leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span>{tick(k,'walk')}</p>{added}</div>;
    if(leg.mode==='walk')return <p className={`route-walk${doneClass(k)}`} key={k}><Footprints size={15}/><span>{leg.text}{leg.minutes?` About ${leg.minutes} min.`:''}</span>{tick(k,'walk')}</p>;
@@ -145,6 +181,7 @@ export default function RouteCard({legs,step,canTick,busy,onTick,onWaypoint,look
     <p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>
     <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes&&!leg.options?` · about ${leg.minutes} min`:''}</p>
     {leg.yen&&!leg.options&&<p className="route-fare"><b>Fare:</b> adult {yen(leg.yen[0])} · child {yen(leg.yen[1])}{fares?`, a separate ${line.operator} ticket`:''}{leg.through?`, which also covers the ${LINES[legs[k+1]?.line]?.name||'next ride'} after it: change trains without going out through the gates`:''}. Tap an IC card at the gates, or buy a ticket from the fare machines.{line.childIc?` ${line.childIc}`:''}</p>}
+    {leg.ownTicket&&<p className="route-fare"><b>Fare:</b> a ticket of its own now the ride before it goes another way. Tap an IC card at the gates, or buy a ticket from the fare machines.</p>}
     {leg.sameTicket&&<p className="route-fare"><b>Fare:</b> nothing more; the ticket or IC tap from the ride before covers this one. Stay inside the gates to change.</p>}
     {leg.booked&&<p className="route-fare"><b>Tickets:</b> {leg.booked}</p>}
     {leg.options&&<div className="route-options"><b>Options</b>{leg.options.map(o=><div key={o.name}><strong>{o.name} {o.ja&&<span lang="ja">{o.ja}</span>}<small>about {o.minutes} min</small></strong><span>{o.fare}</span><p>{o.how}</p></div>)}</div>}
@@ -156,7 +193,7 @@ export default function RouteCard({legs,step,canTick,busy,onTick,onWaypoint,look
      <Tracker legs={legs} rides={rides} track={track} status={r===trackAt} onPress={()=>setPressed(r)}/>
     </div>
     <div className="route-links"><a href={liveTimes(leg)} target="_blank" rel="noreferrer"><Radio size={14}/>Live times</a><a href={line.status} target="_blank" rel="noreferrer"><ExternalLink size={14}/>{line.operator} service status</a></div>
-    {leg.exit&&<p className="route-exit"><b>Exit:</b> {leg.exit}</p>}
+    {leg.exit&&<p className="route-exit"><b>Exit{leg.exitAsPlanned?', for the route as planned':''}:</b> {leg.exit}</p>}
    </div>;
  };
  return <section className="route-card" aria-label="Route">
@@ -166,7 +203,11 @@ export default function RouteCard({legs,step,canTick,busy,onTick,onWaypoint,look
   {fares&&<p className="route-fares"><Ticket size={15}/><span><b>Fare: adult {yen(fares.adult)} · child {yen(fares.child)} each,</b> as {fares.rides.length} separate tickets, one per company: {fares.rides.map(r=>`${r.operator} ${yen(r.yen[0])} / ${yen(r.yen[1])}`).join(' + ')}. An IC card covers them all: tap out at one company's gates and in again at the next, and each part is charged.{legs.some(l=>l.options)?' Seat tickets on the options below are extra.':''}</span></p>}
   {priced&&<p className="route-fares"><Baby size={15}/><span><b>Under 6 (not yet at school): free.</b> Up to two ride free with each paying adult or child, no ticket; walk through the wide gate with a parent. Only a child aged 6 or over pays the child fare.</span></p>}
   <JourneyTime legs={legs} step={step}/>
-  {canAdd&&!form&&<button type="button" className="route-waypoint-add" onClick={()=>setForm({})}><MapPinPlus size={14}/>Add a stop or leg on the way</button>}
+  {(canAdd&&!form||canSwap&&!swapForm)&&<div className="route-waypoint-buttons">
+   {canAdd&&!form&&<button type="button" className="route-waypoint-add" onClick={()=>{setSwapForm(null);setForm({});}}><MapPinPlus size={14}/>Add a stop or leg on the way</button>}
+   {canSwap&&!swapForm&&<button type="button" className="route-waypoint-add" onClick={()=>{setForm(null);setSwapForm({});}}><Shuffle size={14}/>Change how we get there</button>}
+  </div>}
+  {swapForm&&<SwapForm key={swapForm.editing?.id||'new'} step={step} busy={busy} editing={swapForm.editing} onSave={s=>onSwap(swapForm.editing?{action:'update',swapId:swapForm.editing.id,...s}:{action:'add',...s})} onClose={()=>setSwapForm(null)}/>}
   {form&&<WaypointForm key={form.editing?.id||'new'} step={step} busy={busy} editing={form.editing} onSave={w=>onWaypoint(form.editing?{action:'update',waypointId:form.editing.id,...w}:{action:'add',...w})} onClose={()=>setForm(null)}/>}
   {!paged&&legs.map(renderLeg)}
   {paged&&<>
