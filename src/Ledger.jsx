@@ -95,7 +95,7 @@ export default function Ledger({state,user,mutate,busy,remove,config,online=true
  return <>
   <p className="eyebrow">WHERE THE MONEY WENT</p>
   <h1>Family spending</h1>
-  <p>What we spend, in yen as the receipt says, with dollars at the family’s shared rate of {rateText(all.rate)}{rateIsSet(state)?'':' (an estimate until the rate is set on the Yen page)'}. The boys’ own money is under Spending money.</p>
+  <p>What we spend, in yen as the receipt says, with dollars at the family’s shared rate of {rateText(all.rate)}{rateIsSet(state)?'':' (an estimate until the rate is set on the FX page)'}. The boys’ own money is under Spending money.</p>
   <div className="ledger-totals">
    <div><small>Whole trip</small><strong>{yen(all.total)}</strong><span>{aud(all.aud)}</span>{all.dailyAverage!==null&&<small>about {yen(all.dailyAverage)} a day</small>}</div>
    {one&&<div><small>{dayLabel(day)}</small><strong>{yen(one.total)}</strong><span>{aud(one.aud)}</span>

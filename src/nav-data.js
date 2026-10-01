@@ -10,7 +10,7 @@ export const PAGES={
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
  hunts:{label:'Hunts & lists',note:'Rate and rank every matcha, gachapon and ramen, lists of our own, and where each one was'},
  local:{label:'Like a local',note:'The bathhouse, the food hall, the tram and the Sunday market: what the locals do more than visitors, by base'},
- money:{label:'Yen',note:'What a price is in dollars, signal or not'},
+ money:{label:'FX',note:'What a price is in dollars, signal or not'},
  paying:{label:'Which card?',note:'The cheapest card or cash for a payment or an ATM, and each card\u2019s fees looked up'},
  ledger:{label:'Family spending',note:'What we have spent, by day and category, in yen and dollars'},
  challenges:{label:'Missions',note:'Daily missions and whole-trip quests'},
