@@ -2,6 +2,7 @@ import React from 'react';
 import {ChevronRight,LockKeyhole,BedDouble,PlaneTakeoff,Smartphone,Clock,ShieldAlert} from 'lucide-react';
 import {openNotes} from './day-check.js';
 import WhatToWear from './WhatToWear.jsx';
+import {readingBumps,dismissBump} from './level-nudge.js';
 import {useStored} from './stored.js';
 import {dayBriefing,briefingGreeting} from './briefing-data.js';
 import {READINESS,readinessOf,lowest,answered,faceOf} from './readiness-data.js';
@@ -24,6 +25,8 @@ export default function Briefing({state,day,today,clock,go,user,mutate,busy,open
    <span>{b.done?`${b.done} done so far`:b.city}</span><ChevronRight size={18}/>
   </button>
   <WhatToWear state={state} day={day}/>
+  {/* A boy reading the kana: the offer to move his reading dial up, for a parent to take or leave. */}
+  {parent&&day===today&&<ReadingBumps state={state} today={today} mutate={mutate} busy={busy}/>}
   {day===today&&user&&<div className="readiness">
    {asking?<>
     <p className="readiness-ask">How is everyone this morning?</p>
@@ -41,4 +44,14 @@ export default function Briefing({state,day,today,clock,go,user,mutate,busy,open
   {b.declaration&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('arrival')}><PlaneTakeoff size={15}/>Australia Travel Declaration: fill it in for each of us, within 72 hours of the flight home.</button>}
   {apps.map(a=><button type="button" key={a.id} className="briefing-note briefing-link" onClick={()=>go('apps')}><Smartphone size={15}/>{a.today?'Needed today':'Tomorrow'}: {a.name}. Not on this phone yet; set it up now.</button>)}
  </section>;
+}
+function ReadingBumps({state,today,mutate,busy}){
+ const [,redraw]=useState(0);
+ const bumps=readingBumps(state,today);
+ if(!bumps.length)return null;
+ return bumps.map(b=><div className="briefing-bump" key={b.name}>
+  <p><b>{b.name} has solved the last three katakana puzzles.</b> Move his reading from {b.fromLabel} to {b.toLabel}?</p>
+  <div className="row wrap"><button type="button" className="primary" disabled={busy} onClick={()=>mutate({type:'childLevels',name:b.name,reading:b.to})}>Move it up</button>
+   <button type="button" onClick={()=>{dismissBump(b.name,b.from);redraw(n=>n+1);}}>Not yet</button></div>
+ </div>);
 }

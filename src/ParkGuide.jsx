@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import {gentleOnly} from './child-levels.js';
 import {Check,Star,MapPin,ExternalLink,Ticket,AlertCircle,Ruler,Ban} from 'lucide-react';
 import {PARKS,THRILL,parkLands,openRides,ridePlanned} from './park-data.js';
 import {BOYS,riddenBy,wantedBy,isMustDo,heightCheck,parkProgress} from './trip-features.js';
@@ -73,7 +74,7 @@ export default function ParkGuide({state,user,speak,openPage,park:initial,mutate
      {family&&parent&&<button className="linkish" disabled={busy} onClick={()=>mutate({type:'parkMust',rideId:ride.id,must:false})}>Clear family star</button>}
     </div>
     <p>{ride.note}</p>
-    <CardFacts facts={factsForItem(ride.name,ride.land)} openPage={openPage} aloud={aloud}/>
+    <CardFacts gentle={gentleOnly(state,user?.name)} facts={factsForItem(ride.name,ride.land)} openPage={openPage} aloud={aloud}/>
     <div className="ride-heights">{ride.height
      ?BOYS.map(n=>{const check=heightCheck(ride,n,heights);return <span key={n} className={`ride-height${check.ok===true?' ok':check.ok===false?' no':''}`}>{check.ok===true?<Check size={14}/>:check.ok===false?'✕ ':null}{check.ok===null?`${ride.height}cm minimum`:check.label}</span>;})
      :<span className="ride-height ok"><Check size={14}/>No height limit</span>}</div>

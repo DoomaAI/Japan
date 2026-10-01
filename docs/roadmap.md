@@ -138,10 +138,10 @@ Nineteen PRs merged on 29 September (#211–#261, this session's share). Four th
 **What the boys are ready for** is built on `claude/child-levels` (the reading and awareness dials in Settings, read by the facts, the notes, the phrasebook, the missions, Home's widgets, the menus and the model's brief) and not yet tried on a phone. Left for a later pass:
 
 - [x] The purse for a boy at *With a grown-up*: a money box and "enough for a snack" rather than a yen balance. Built in #282 (`purseInWords`, Spending).
-- [ ] Fun facts kept gentle at *With a grown-up*: the pool has no topic flags yet, so only the model's brief pitches them; the guide's own facts are shown as they are.
+- [x] Fun facts kept gentle at *With a grown-up*: the three grim ones (Hachikō, the 1945 bombing, the funeral chopsticks) carry `gentle:false` and are left out of his queue, the Fun facts page and every card. Built for #291.
 - [x] Customise Home no longer offers a held-back widget. Built in #282 (`heldBack`, Personalise).
 - [x] "Nate's turn": a parent's phone handed to a boy until a passcode takes it back. Built in #282 (`hand-over.js`, HandOver).
-- [ ] The suggested bump: after a boy reads the kana puzzle three days running, one line on a parent's Home offers to move his reading dial up. The parent decides.
+- [x] The suggested bump: three katakana puzzles solved in a row put one line on a parent's day in brief offering his next reading step; Move it up goes through `childLevels`, Not yet is remembered on that phone (`src/level-nudge.js`). Built for #291.
 - [ ] On a phone: a boy's link with each dial, the Settings section in dark mode, and that moving a dial reaches his phone on the next refresh.
 
 ## Backlog — logged 27 September 2026, to pick up later

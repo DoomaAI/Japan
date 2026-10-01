@@ -2191,12 +2191,14 @@ test('marking the daily fun fact seen is per person, per day, and keeps the firs
 
 test('the fun fact log records what was swiped through, once each, and never repeats one',async()=>{
  const {ensureFeatures,factLogFor,factsSeenBy,factQueue}=await import('../src/trip-features.js');
- const {ALL_FACTS,factsForDay}=await import('../src/fact-data.js');
+ const {ALL_FACTS,factsForDay,gentleFacts}=await import('../src/fact-data.js');
  const state=ensureFeatures(structuredClone(seed)),day='2026-09-23',at='2026-09-19T01:00:00.000Z';
  assert.deepEqual(state.factLog,{});
- // Opening on sumo day offers the sumo facts first, in the order they are written.
+ // Opening on sumo day offers the sumo facts first, in the order they are written. Nate is with
+ // a grown-up, so his queue is the gentle facts; Boston's is all of them.
  const opened=factQueue(state,'Nate',day);
- assert.equal(opened.length,ALL_FACTS().length);
+ assert.equal(opened.length,gentleFacts(ALL_FACTS()).length);
+ assert.equal(factQueue(state,'Boston',day).length,ALL_FACTS().length);
  assert.deepEqual(opened.slice(0,3).map(f=>f.id),factsForDay(seed.days,day).slice(0,3).map(f=>f.id));
  // Closing the pop-up hands back every fact actually put on screen, and marks the day done.
  const swiped=opened.slice(0,3).map(f=>f.id);
@@ -2214,7 +2216,7 @@ test('the fun fact log records what was swiped through, once each, and never rep
  assert.equal(factLogFor(again,'Nate').length,4);
  assert.deepEqual(factLogFor(again,'Boston'),[]);
  const next=factQueue(again,'Nate',day);
- assert.equal(next.length,ALL_FACTS().length-4);
+ assert.equal(next.length,gentleFacts(ALL_FACTS()).length-4);
  assert.ok(!next.some(f=>factsSeenBy(again,'Nate')[f.id]),'nothing already met comes round again');
  assert.equal(next[0].id,factsForDay(seed.days,day)[3].id,'still the day’s own facts first');
  // Once the whole collection has been met there is nothing new left, so the pop-up falls

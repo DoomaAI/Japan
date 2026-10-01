@@ -1,6 +1,7 @@
 import React,{useState,useRef,useEffect} from 'react';
 import {Lightbulb,ArrowLeft,ArrowRight,Sparkles,Check,BookOpen} from 'lucide-react';
-import {ALL_FACTS,factsForDay,factAloud} from './fact-data.js';
+import {ALL_FACTS,factsForDay,factAloud,gentleFacts} from './fact-data.js';
+import {gentleOnly} from './child-levels.js';
 import {japanDate} from './timing.js';
 import {dayLabel,SILENT_HINT,useReadAloud,ReadAloudButton} from './AdventurePages.jsx';
 import {searchText,factQueue,factLogFor,factsSeenBy} from './trip-features.js';
@@ -55,11 +56,13 @@ export default function FunFacts({state,user,day,mutate,busy,openPage}){
  const [extra,setExtra]=useState(null),[open,setOpen]=useState(false),[q,setQ]=useState('');
  const {supported:canRead,reading,read,problem}=useReadAloud(),{young,rate}=readingHelp(state,user?.name),helped=readTo(state).filter(n=>n!==user?.name);
  const aloud=canRead?{reading,read,rate}:null;
- const total=ALL_FACTS().length,log=factLogFor(state,user.name),seen=factsSeenBy(state,user.name);
+ // A boy who is always with a grown-up gets the gentle facts only, here as everywhere else.
+ const gentle=gentleOnly(state,user.name),pool=gentle?gentleFacts(ALL_FACTS()):ALL_FACTS();
+ const total=pool.length,log=factLogFor(state,user.name),seen=factsSeenBy(state,user.name);
  const queue=factQueue(state,user.name,day).filter(f=>!seen[f.id]);
- const todays=factsForDay(state.days,day);
+ const todays=gentle?gentleFacts(factsForDay(state.days,day)):factsForDay(state.days,day);
  const query=searchText(q);
- const found=query?ALL_FACTS().filter(f=>searchText(`${f.title} ${f.text}`).includes(query)):null;
+ const found=query?pool.filter(f=>searchText(`${f.title} ${f.text}`).includes(query)):null;
  async function another(){
   const pick=queue[0];if(!pick)return;
   setExtra(pick);await mutate({type:'factSeen',person:user.name,factIds:[pick.id]});
@@ -98,7 +101,7 @@ export default function FunFacts({state,user,day,mutate,busy,openPage}){
    <section className="fact-section">
     <h2>Every fact</h2>
     <p>All {total}, in the order they turn up on the trip. Nothing here needs signal.</p>
-    {ALL_FACTS().map(f=><FactRow key={f.id} fact={f} openPage={openPage} aloud={aloud}/>)}
+    {pool.map(f=><FactRow key={f.id} fact={f} openPage={openPage} aloud={aloud}/>)}
    </section>
   </>}
  </>;
@@ -114,7 +117,8 @@ export const factAloudFor=(speech,state,person)=>speech?.supported?{reading:spee
 // card whose job is the time and the address must not become a page of reading; and it is not
 // recorded, because a card is somewhere to look something up and quietly spending the day's
 // fact here would leave tomorrow's pop-up with nothing of its own to give.
-export function CardFacts({facts,openPage,aloud,label='Fun fact'}){
+export function CardFacts({facts:all,openPage,aloud,label='Fun fact',gentle=false}){
+ const facts=gentle?gentleFacts(all):all;
  if(!facts?.length)return null;
  return <details className="card-facts">
   <summary><Lightbulb size={14}/> <span className="card-facts-label">{facts.length>1?`${label}s · ${facts.length}`:label}</span> <span className="card-facts-lead">{facts[0].title}</span></summary>
