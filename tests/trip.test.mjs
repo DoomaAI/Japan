@@ -5789,7 +5789,7 @@ test('every page and every game can be heard rather than read, in words a five-y
  assert.match(topbar,/<SpeakRules id=\{`page-\$\{tab\}`\} text=\{pageRule\(tab\)\} label="What is this page\?" compact\/>/,
   'the page speaker is in the top bar');
  assert.ok(topbar.indexOf('notification-button')<topbar.indexOf('<SpeakRules'),'it sits beside the updates bell');
- assert.doesNotMatch(main,/<main>\s*(\{\/\*[\s\S]*?\*\/\}\s*)?<SpeakRules/,'and no longer takes a section of its own');
+ assert.doesNotMatch(main,/<main[^>]*>\s*(\{\/\*[\s\S]*?\*\/\}\s*)?<SpeakRules/,'and no longer takes a section of its own');
  assert.match(games,/<SpeakRules id=\{`rules-\$\{current\.id\}`\} text=\{gameRule\(current\.id\)\}/);
  const pages=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
  // Read at a slower pace than the app reads anything else, and in English rather than the
@@ -11387,7 +11387,7 @@ test('the pages opened now and then load when opened, and every chunk is still i
  for(const name of ['DayTimeline','RouteCard','FunFacts','Phrasebook','TodoList','Packing'])assert.match(main,new RegExp(`^import ${name}[,\\s]`,'m'),`${name} stays in the shell: it is on Home or Today`);
  assert.match(main,/^import \{BottomNav,MorePage\} from '\.\/Navigation\.jsx';/m,'and so does the bar');
  // One fallback around the pages and one inside the sheet, so a first open in a tunnel says something.
- assert.match(main,/<main>\s*\{\/\*[^*]*\*\/\}\s*<Suspense fallback=\{<p className="page-loading">Opening…<\/p>\}>/);
+ assert.match(main,/<main[^>]*>\s*\{\/\*[^*]*\*\/\}\s*<Suspense fallback=\{<p className="page-loading">Opening…<\/p>\}>/);
  assert.match(main,/<\/Suspense>\s*<\/main>/);
  assert.match(main,/<div className="dialog-body"><Suspense fallback=\{<p className="page-loading">Opening…<\/p>\}>\{children\}<\/Suspense><\/div>/);
  // The build puts every file in dist/assets into the service worker's shell, chunks included: a
@@ -11507,7 +11507,7 @@ test('a parent’s phone can be handed to one of the boys until the code takes i
  // Where it lands on the screens.
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/user=handedUser\(envelope\?\.user,handed,state\?\.members\)/,'the whole app reads the handed user');
- assert.match(main,/<HandedBanner user=\{user\} handed=\{handed\} takeBack=\{takeBack\}\/>\n\s*<main>/,'the strip sits with the other status strips, above the page');
+ assert.match(main,/<HandedBanner user=\{user\} handed=\{handed\} takeBack=\{takeBack\}\/>\n\s*<main[^>]*>/,'the strip sits with the other status strips, above the page');
  assert.match(main,/hand=\{parent\?handTo:null\}/,'only a parent can hand it over');
  assert.match(main,/<Personalise[^>]*held=\{heldBack\(visibleState,user\.name\)\}/);
  const personalise=await readFile(new URL('../src/Personalise.jsx',import.meta.url),'utf8');
