@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import GuideByline from './GuideByline.jsx';
 import {AlertCircle,ArrowRight,CalendarX,Check,Clock,CloudRain,ExternalLink,Info,LifeBuoy,MapPin,Plus,RefreshCw,Repeat,Shirt,TrainFront,X} from 'lucide-react';
 import {NOTE_KINDS,PLAN_B_REASONS,REST_KINDS,dayCheckOf,planBOf,draftPreview} from './day-check.js';
 const KIND_ICON={closed:CalendarX,holiday:CalendarX,hours:Clock,transport:TrainFront,weather:CloudRain,swap:Repeat,dress:Shirt,other:Info};
@@ -43,6 +44,7 @@ export default function DayCheck({state,user,day,config,online=true,request,muta
   <div className="day-check-head"><p className="eyebrow">CHECKED THE NIGHT BEFORE</p>
    {check&&<small>{when(check.at)}</small>}</div>
   {check?<>
+   <GuideByline state={state} verb='Checked by'/>
    {check.summary&&<p className="day-check-summary">{check.summary}</p>}
    {!notes.length&&<p className="day-check-clear"><Check size={16}/>{hidden?'Everything it found has been dealt with.':'Nothing found that changes the day.'}</p>}
    {notes.map(n=>{const Icon=KIND_ICON[n.kind]||Info;return <article key={n.id} className={`day-check-note${n.act&&n.status==='open'?' act':''}${n.status==='accepted'?' accepted':''}`}>

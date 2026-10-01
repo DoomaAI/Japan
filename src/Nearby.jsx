@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import GuideByline from './GuideByline.jsx';
 import {MapPin,Navigation,Search,Plus,Check,AlertCircle,Clock,Coins,ExternalLink,Inbox,Users,LocateFixed,UtensilsCrossed,Star} from 'lucide-react';
 import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MAX_DISH_HUNT,MINUTES_PER_STAR,isRatedKind,nearbyKindLabel,priceBandLabel,ratingText,walkingLink,COORD_PLACES,MAPS_NEARBY,mapsNearbyLink,partyFit,rankNearby} from './trip-features.js';
 import {SuggestDeck,PartyMatch} from './SuggestDeck.jsx';
@@ -126,6 +127,7 @@ export default function Nearby({state,user,day,step,request,mutate,busy,notice,c
   {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
   {result&&<div className="nearby-results">
    <h3>Near {result.anchor||today?.city}</h3>
+   <GuideByline state={state} verb='Picked by'/>
    <p className="nearby-hint">One card at a time: swipe right to {parent?'add it to today':'save it to the board'}, left to pass. Somewhere to eat or drink that answers more of us — a like somebody typed, an interest somebody ticked — comes first, and says whose. After that it is best first rather than nearest first: the Google rating with the walk taken off it, a tenth of a star for every minute — so we will walk {MINUTES_PER_STAR} minutes more for a whole extra star. Somewhere with no rating is ranked as an ordinary place and says so on its card. Toilets, cash, lockers and convenience stores are the nearest one, which is the only thing that matters about them.</p>
    {result.note&&<p className="callout"><AlertCircle size={18}/>{result.note}</p>}
    <SuggestDeck key={round} items={ranked} keyOf={item=>item.draft.title+item.area} titleOf={item=>item.draft.title} kept={added} busy={busy}

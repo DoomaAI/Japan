@@ -1,5 +1,6 @@
 import {AppError,MEMBERS} from './model.mjs';
-import {activeSteps} from '../src/timing.js';
+import {withGuide} from '../src/guide-data.js';
+import {activeSteps,japanDate} from '../src/timing.js';
 import {seenHosts,checkedLink} from './links.mjs';
 import {PROPOSAL_KINDS,PROPOSAL_TIMING,SUGGEST_KINDS,TRAVEL_MODES,MIN_RATING_VOTES,validRating,ratingText,proposalDraft,partyBrief,proposals,rejoinAt,BOYS} from '../src/trip-features.js';
 export const suggestReady=()=>!!process.env.ANTHROPIC_API_KEY;
@@ -152,7 +153,7 @@ ${alreadyHave(state).join(' · ')||'nothing yet'}`;
    message=await client.messages.create({
     model:'claude-opus-5',
     max_tokens:12000,
-    system:SYSTEM,
+    system:withGuide(SYSTEM,state,japanDate()),
     thinking:{type:'adaptive'},
     output_config:{effort:'medium'},
     tools:[SEARCH,RECORD],
