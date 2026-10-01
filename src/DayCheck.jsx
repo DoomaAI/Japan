@@ -98,14 +98,14 @@ export function DraftChange({state,draft,canApply,apply}){
  const [busy,setBusy]=useState(false);
  const {rows,conflicts,stale}=draftPreview(state,draft);
  const applied=!!draft.appliedAt;
- const to=r=>r.action==='skip'?'skipped':r.action==='later'?'back to Options':`${dayLabel(r.to.day)}${r.to.time?` ${r.to.time}`:', no set time'}`;
+ const to=r=>r.action==='skip'?'skipped':r.action==='later'?'back to Options':`${r.action==='add'?'new on ':''}${dayLabel(r.to.day)}${r.to.time?` ${r.to.time}`:', no set time'}`;
  return <div className={`ask-draft${applied?' applied':''}`}>
   <p className="eyebrow">{applied?'APPLIED':'SUGGESTED CHANGE'}</p>
   {draft.summary&&<p><b>{draft.summary}</b></p>}
-  <ul>{rows.map(r=><li key={r.id} className={r.stale&&!applied?'stale':''}><span>{r.title}</span>
+  <ul>{rows.map(r=><li key={r.id} className={r.stale&&!applied?'stale':''}><span>{r.action==='add'&&<Plus size={14}/>}{r.title}{r.place&&<small> · {r.place}</small>}</span>
    {!applied&&r.from&&<small>{dayLabel(r.from.day)}{r.from.time?` ${r.from.time}`:''}</small>}<ArrowRight size={14}/><strong>{to(r)}</strong></li>)}</ul>
   {applied?<small><Check size={13}/> Applied by {draft.appliedBy||'a parent'}</small>:<>
-   {stale&&<p className="callout"><AlertCircle size={18}/>The plan has moved on since this was suggested: a stop in it is booked, under way, done or gone. Ask again for a fresh one.</p>}
+   {stale&&<p className="callout"><AlertCircle size={18}/>The plan has moved on since this was suggested: a stop in it is booked, under way, done, gone or already added. Ask again for a fresh one.</p>}
    {conflicts.map(c=><p className="callout" key={c}><AlertCircle size={18}/>{c}</p>)}
    {canApply&&<button type="button" className="primary" disabled={busy||stale||!!conflicts.length} onClick={async()=>{setBusy(true);try{await apply();}finally{setBusy(false);}}}><Check size={16}/>Apply this change</button>}
    {!canApply&&<small>A parent can apply this.</small>}

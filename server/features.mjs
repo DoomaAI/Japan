@@ -15,6 +15,7 @@ import {LOCAL_EXPERIENCES,cleanLocalCheck} from '../src/local-data.js';
 import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
 import {NOTE_STATUS,acceptedLine,applyDraft,cleanDraft} from '../src/day-check.js';
 import {movesOf} from '../src/move-data.js';
+import {addStep,validatePatch} from './model.mjs';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
@@ -147,7 +148,7 @@ export function extraOperation(state,op,user,fail,now){
  // against the plan as it stands, and the whole draft goes through or none of it does.
  if(op.type==='askDraftApply'){
   if(!parent)fail('A parent can make this change.',403);
-  const {changes,summary,error}=applyDraft(state,op.changes);if(error)fail(error,409);
+  const {changes,summary,error}=applyDraft(state,op.changes,p=>addStep(state,validatePatch(p,state)));if(error)fail(error,409);
   if(op.itemId!==undefined&&op.itemId!==null){
    state.askThread=(state.askThread||[]).map(x=>x.id===String(op.itemId)?{...x,draft:{summary:x.draft?.summary||'',changes,appliedAt:now,appliedBy:user.name}}:x);
   }

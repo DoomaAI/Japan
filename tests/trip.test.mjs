@@ -7941,13 +7941,13 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  const store=(saved={})=>({getItem:k=>saved[k]??null,setItem:(k,v)=>{saved[k]=v;},saved});
  // Nothing is off until somebody says so, so a phone that never opens this page behaves
  // exactly as it always did.
- assert.deepEqual(DEFAULTS,{dailyPhrase:true,dailyFact:true,transcribeVoice:false,routeLookOpen:false});
+ assert.deepEqual(DEFAULTS,{dailyPhrase:true,dailyFact:true,transcribeVoice:false,voiceAssistant:true,routeLookOpen:false});
  assert.deepEqual(readSettings('Nate',store()),DEFAULTS);
  // One at a time: turning the fun fact off leaves the phrase alone, which is the whole point
  // of two switches rather than one.
  const phone=store();
- assert.deepEqual(writeSetting('Nate','dailyFact',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,routeLookOpen:false});
- assert.deepEqual(readSettings('Nate',phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,routeLookOpen:false});
+ assert.deepEqual(writeSetting('Nate','dailyFact',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,voiceAssistant:true,routeLookOpen:false});
+ assert.deepEqual(readSettings('Nate',phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,voiceAssistant:true,routeLookOpen:false});
  // Under the person's own name. Two boys sharing a phone do not share an opinion about a
  // pop-up, and switching one off must never switch it off for somebody else.
  assert.deepEqual(readSettings('Boston',phone),DEFAULTS);
@@ -7961,7 +7961,7 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'not json at all'})),DEFAULTS);
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'{"dailyFact":"no"}'})),DEFAULTS);
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'{"dailyLater":false}'})),DEFAULTS);
- assert.deepEqual(writeSetting('Nate','dailyLater',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,routeLookOpen:false},'a setting nothing knows about is not written');
+ assert.deepEqual(writeSetting('Nate','dailyLater',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,voiceAssistant:true,routeLookOpen:false},'a setting nothing knows about is not written');
  assert.equal(settingOn(undefined,'transcribeVoice'),false,'writing voice notes down starts off');
  assert.equal(settingOn(undefined,'routeLookOpen'),false,'what to look for on a route card starts closed');
  assert.match(main,/lookOpen=\{settingOn\(settings,'routeLookOpen'\)\}/,'the route card is told how each line starts');
@@ -8388,7 +8388,7 @@ test('a question about the trip is answered out of the plan, and cannot change a
  const screen=await readFile(new URL('../src/AskTrip.jsx',import.meta.url),'utf8');
  // The one line that has to be on the screen rather than only in the prompt: a box that answers
  // questions looks like a box that does things, and nobody should find that out by asking it to.
- assert.match(screen,/It never moves a stop, changes a booking or tells anybody anything by itself: when the answer is to move a stop, it hands back the move as a draft/);
+ assert.match(screen,/It never moves or adds a stop, changes a booking or tells anybody anything by itself: when the answer is a change to the day, it hands it back as a draft/);
  assert.match(screen,/mutate\(\{type:'askDraftApply',itemId:item\.id,changes:item\.draft\.changes\}\)/,'a draft is applied through the ordinary mutation, by a tap');
 });
 
@@ -10577,12 +10577,12 @@ test('a parent’s question and its answer are kept in the trip, so the other pa
  assert.equal(state.askThread.length,SHARED_KEEP-2);
  assert.throws(()=>applyOperation(state,{type:'askForget',ids:['q3']},child),e=>e.status===403);
  const screen=await readFile(new URL('../src/AskTrip.jsx',import.meta.url),'utf8');
- assert.match(screen,/keep\(\[item,\.\.\.local\]\);\s*if\(shared\)mutate\(\{type:'askKeep',item:askItem\(item,user\.name\)\}\);/,'the phone first, then the trip');
+ assert.match(screen,/setThread\(prev=>writeThread\(user\?\.name,\[item,\.\.\.prev\]\)\);\s*if\(shared\)mutate\(\{type:'askKeep',item:askItem\(item,user\.name\)\}\);/,'the phone first, then the trip');
  assert.match(screen,/const shared=sharesThread\(user\)&&!!mutate,all=threadFor\(state,user,local\);/);
  assert.match(screen,/Asked by \{item\.by\}/,'the other parent’s questions say whose they were');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/hasAskHistory\(user\)\|\|!!state\?\.askThread\?\.length/,'a phone with shared answers keeps the page even before its config arrives');
- assert.equal((main.match(/<AskTrip [^\n]*mutate=\{mutate\}/g)||[]).length,2,'both the page and the stop sheet can keep to the trip');
+ assert.equal((main.match(/<AskTrip [^\n]*mutate=\{mutate\}/g)||[]).length,3,'the page, the stop sheet and the assistant can all keep to the trip');
 });
 
 test('Back and the swipe from the edge walk back through screens, and close a sheet before leaving its page',async()=>{
