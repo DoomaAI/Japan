@@ -9,8 +9,8 @@
 // works with no signal, which is exactly when the wait is longest.
 //
 // When the trip has come in, the screen stays until the card on it has had its full time, so
-// nobody loses a fact halfway through reading it; a tap on the card, or Go in now, skips the
-// rest. Which cards come round — facts and words, one or the other, or none — is chosen at the
+// nobody loses a fact halfway through reading it; a tap on the card, or Skip in the corner, skips
+// the rest. Which cards come round — facts and words, one or the other, or none — is chosen at the
 // foot of the screen and under Customise. With none, the trip opens the moment it is ready.
 import React,{useEffect,useRef,useState} from 'react';
 import {TIP_OPTIONS,readTips,writeTips,showsFacts,showsWords} from './opening-tips.js';
@@ -57,6 +57,20 @@ function deckNow(days,tips='both'){
 function Countdown({days}){const c=tripCountdown(days);if(!c)return null;
  return <p className={`opening-countdown ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span>{c.days===1?'day to go':'days to go'}</span></>:c.phase==='during'?<><strong>{`Day ${c.day}`}</strong><span>{`of ${c.total} days in Japan`}</span></>:<span>{c.text}</span>}</p>;}
 
+// A whole bullet train, nose first, that runs in from one side along the rail and out the other
+// while the trip comes in: a white body with the blue stripe, a window row and a cab on the nose.
+// Its paint is part of the drawing, so it stays the same train in every look.
+const CARS=[[4,60],[63,119],[122,178]];
+function Train(){
+ return <svg className="opening-train" viewBox="0 0 182 22" fill="#f6f5ef" style={{filter:'drop-shadow(0 1px 2px rgb(0 0 0 / .5))'}} aria-hidden="true">
+  <path d="M60 4H26Q13 4 7 11Q1 16 5 18H60Z"/><rect x="63" y="4" width="56" height="14" rx="1.5"/><path d="M122 4H156Q169 4 175 11Q181 16 177 18H122Z"/>
+  <g fill="#2457a8">{CARS.map(([a,b],i)=><rect key={i} x={i===0?8:a} y="13" width={(i===2?174:b)-(i===0?8:a)} height="2"/>)}</g>
+  <g fill="#24323d">{CARS.map(([a,b],i)=>Array.from({length:7},(_,k)=><rect key={`${i}${k}`} x={(i===0?28:a+4)+k*((i===1?48:28)/6)} y="7.5" width="3" height="3" rx=".6"/>))}
+   <path d="M160 6.5Q168 7 172 11H160Z"/></g>
+  <g fill="#0b1410"><rect x="60" y="6" width="3" height="11"/><rect x="119" y="6" width="3" height="11"/></g>
+ </svg>;
+}
+
 function Petals({onCatch}){
  const [petals,setPetals]=useState(()=>Array.from({length:PETALS},()=>petal(true)));
  const [caught,setCaught]=useState(()=>new Set());
@@ -100,6 +114,7 @@ export default function Opening({days,ready=false,onDone}){
  return <main className={`opening${still?' still':''}`}>
   <div className="opening-backdrop" aria-hidden="true"/>
   <div className="opening-stage">
+   {ready&&<button type="button" className="opening-skip" onClick={finish}>Skip<span aria-hidden="true"> ›</span></button>}
    <img className="opening-cover" src="/cover.jpg" alt="The Pasfield family Japan Travel Guide 2026 cover: the family walking towards a pagoda and Mount Fuji under cherry blossom"/>
    {!still&&<Petals onCatch={onCatch}/>}
    <div className="opening-panel">
@@ -118,8 +133,8 @@ export default function Opening({days,ready=false,onDone}){
      <span key={`x${card.id}`} className="opening-fact-text">“{card.say}”{card.note?<> · {card.note}</>:null}</span>
      <i key={`b${at}${tips}`} className="opening-fact-timer" aria-hidden="true"/>
     </button>}
-    <div className={`opening-track${ready?' ready':''}`} role="status"><span className="opening-rail" aria-hidden="true"><span className="opening-train">🚅</span></span>
-     {ready?<span>Your trip is ready · <button type="button" className="opening-go" onClick={finish}>Go in now</button></span>:<span>Opening your family trip…</span>}</div>
+    <div className={`opening-track${ready?' ready':''}`} role="status"><span className="opening-rail" aria-hidden="true"><Train/></span>
+     <span>{ready?'Your trip is ready':'Opening your family trip…'}</span></div>
     <label className="opening-tips">Tips while it opens
      <select value={tips} onChange={e=>choose(e.target.value)}>{TIP_OPTIONS.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
    </div>
