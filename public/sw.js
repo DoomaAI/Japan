@@ -20,10 +20,15 @@ self.addEventListener('fetch',event=>{
  // Only when there is no saved copy at all does the app wait for the slow answer.
  event.respondWith((async()=>{
   const c=await caches.open(SHELL),key=event.request.mode==='navigate'?'/':event.request,keep=r=>r.ok&&(u.pathname.startsWith('/assets/')||event.request.mode==='navigate');
+  // Built files are named by their contents, so a saved one is always right: it opens at once,
+  // and an app still running an older build can load its screens after a newer build has
+  // replaced them on the server.
+  if(u.pathname.startsWith('/assets/')){const saved=await c.match(key);if(saved)return saved;}
   const net=fetch(event.request).then(r=>{if(keep(r))c.put(key,r.clone());return r;});
   const first=await Promise.race([net.catch(()=>null),new Promise(res=>setTimeout(()=>res(null),NET_WAIT))]);
-  if(first)return first;
+  if(first?.ok)return first;
   const saved=await c.match(key);if(saved)return saved;
+  if(first)return first;
   try{return await net;}catch{return new Response('Open the app once while online to save it.',{status:503});}
  })());
 });

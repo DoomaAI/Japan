@@ -1047,6 +1047,16 @@ function Family({user,state,notice,onLogout,pending=0}){const [invites,setInvite
 class Boundary extends React.Component{
  constructor(p){super(p);this.state={error:null};}
  static getDerivedStateFromError(error){return {error};}
+ // A screen's code that will not load is almost always an app left open across an update: the
+ // old build asks for a file the new one has renamed. One quiet reload picks up the new build;
+ // the guard stops a real outage turning into a reload loop.
+ componentDidCatch(error){
+  if(!/module script|dynamically imported module|Loading chunk|error loading dynamically/i.test(String(error?.message||error)))return;
+  let last=0;try{last=Number(sessionStorage.getItem('japan.chunkReload'))||0;}catch{}
+  if(Date.now()-last<60000)return;
+  try{sessionStorage.setItem('japan.chunkReload',String(Date.now()));}catch{}
+  location.reload();
+ }
  render(){
   if(!this.state.error)return this.props.children;
   return <div className="crash"><h1>Something went wrong on this screen.</h1><p>Your plan and progress are saved on this phone. Reloading brings the app back.</p><p className="crash-detail">{String(this.state.error?.message||this.state.error)}</p><div className="row"><button className="primary" onClick={()=>location.reload()}>Reload</button><button onClick={()=>{location.href='/?tab=today';}}>Go Home</button></div></div>;
