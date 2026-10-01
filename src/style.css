@@ -1018,3 +1018,4 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 /* Until a parent adds the hotel's own photo, the guide's page for the night we arrive stands in,
    cropped to the photograph across its top and clear of the headline on its left. */
 .stay-photo-guide{background-size:230% auto;background-position:86% 4%;background-repeat:no-repeat}
+.top-edge{position:fixed;top:0;left:0;right:0;z-index:12;height:max(1px,env(safe-area-inset-top));background:var(--page);pointer-events:none}

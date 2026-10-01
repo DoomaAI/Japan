@@ -134,6 +134,14 @@ const NextTime=lazy(()=>import('./NextTime.jsx'));
 const Capsule=lazy(()=>import('./Capsule.jsx'));
 const Guests=lazy(()=>import('./Guests.jsx'));
 const InvitationEditor=lazy(()=>import('./InvitationEditor.jsx'));
+// iOS draws a frosted blur under the status bar. At the very top of a page there is nothing
+// above to blur, so a plain strip in the page colour sits there; Safari tints the bar from it
+// instead. Once anything has scrolled up underneath, the strip goes and the blur returns.
+function TopEdge(){
+ const [atTop,setAtTop]=useState(()=>typeof window==='undefined'||window.scrollY<=0);
+ useEffect(()=>{const check=()=>setAtTop(window.scrollY<=0);check();window.addEventListener('scroll',check,{passive:true});return()=>window.removeEventListener('scroll',check);},[]);
+ return atTop?<div className="top-edge" aria-hidden="true"/>:null;
+}
 const ShowTell=lazy(()=>import('./ShowTell.jsx'));
 const AskTrip=lazy(()=>import('./AskTrip.jsx'));
 const Ledger=lazy(()=>import('./Ledger.jsx'));
@@ -806,6 +814,7 @@ function App(){
  // family's own recording where there is one without being handed props down five levels.
  return <PhraseAudio.Provider value={{clips:visibleState?.phraseAudio||{},user,request,accept,notice,config,busy}}>
   <div className="app" data-viewer={parent?'parent':'child'}>
+  <TopEdge/>
   {/* The speaker in this row is on every page, up beside the bell rather than in a band of its
       own, for the five-year-old holding the phone. It says what the screen is for in words he
       can follow rather than reading the heading at him, and being in the same place on every
