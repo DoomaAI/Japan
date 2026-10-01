@@ -2,6 +2,11 @@
 // standing in, or by the day we plan to be there. A shop is read from what was typed, up to the
 // first comma or bracket and without minding capitals, so "Don Quijote" and "don quijote,
 // Shibuya" are one shop. Anything with no shop or no day written down goes last, together.
+// Who a thing is for: the family as a whole, one of us, or a souvenir for friends and family back
+// home, with the name of whoever it is for written down so the gifts can be checked off by person.
+export const GIFT='Friends & family';
+export const shoppingFor=members=>['Family',...members,GIFT];
+export const forLabel=s=>s.person===GIFT&&s.giftFor?`For ${s.giftFor}`:s.person;
 export const GROUPINGS=[['shop','By shop'],['day','By day'],['none','One list']];
 export const shopKey=store=>String(store||'').split(/[,(·\-–]/)[0].trim().toLowerCase();
 export const shopLabel=store=>String(store||'').split(/[,(·\-–]/)[0].trim();
