@@ -1913,9 +1913,10 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const screen=await readFile(new URL('../src/Personalise.jsx',import.meta.url),'utf8');
  // Untouched, Home shows everything but the day's buttons, with the step we are on first.
- const ON=HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id));
+ assert.equal(HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id))[0],'find','the type-anything box sits at the very top');
+ const ON=HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id)&&id!=='find');
  assert.deepEqual(HOME_OFF,['countdown','glance','adjust','tired','apps']);
- assert.deepEqual(homeShown(emptyHome()),ON);
+ assert.deepEqual(homeShown(emptyHome()),['find',...ON]);
  assert.equal(ON[0],'onthisday','an anniversary leads Home, on the days there is one');assert.equal(ON[1],'runup','then the run-up, before we fly');assert.equal(ON[2],'dailyjapan','then a little Japan each day');assert.equal(ON[3],'bookingwindows','then the booking windows about to open');assert.equal(ON[4],'briefing','then the day in brief');assert.equal(ON[5],'todaysjapan','then its phrase and fun fact');assert.equal(ON[6],'step','then the step card');
  for(const id of HOME_DEFAULT)assert.ok(HOME_WIDGETS[id].label&&HOME_WIDGETS[id].note,id);
  // Moved and put away, and nothing lost: a widget put away is still in the order to come back.
@@ -1935,7 +1936,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.deepEqual(arranged.slice(0,3),['weather','briefing','todaysjapan'],'a new widget lands beside its neighbour, not at the foot');
  assert.equal(arranged.length,HOME_DEFAULT.length);
  for(const rubbish of [null,undefined,'x',{order:'x'},{hidden:'step'}])
-  assert.deepEqual(homeShown(rubbish),ON,JSON.stringify(rubbish));
+  assert.deepEqual(homeShown(rubbish),['find',...ON],JSON.stringify(rubbish));
  // The day's buttons can be brought onto Home one by one, moved, and put away again.
  prefs=toggleWidget(emptyHome(),'tired');
  assert.ok(homeShown(prefs).includes('tired')&&!homeShown(prefs).includes('apps'));
@@ -10324,10 +10325,15 @@ test('before we head out is a list built for the day, ticked fresh each morning,
  assert.ok(wet.some(x=>x.id==='umbrella')&&wet.some(x=>x.id==='jumpers'),'the forecast adds umbrellas and jumpers');
  assert.ok(!plain.some(x=>x.id==='umbrella'),'and says nothing about them on a dry day');
  const days=s.days;
- assert.deepEqual(nextStreak({count:0,last:null},'2026-09-27',days),{count:1,last:'2026-09-27'});
- assert.deepEqual(nextStreak({count:1,last:'2026-09-27'},'2026-09-28',days),{count:2,last:'2026-09-28'});
+ assert.deepEqual(nextStreak({count:0,last:null},'2026-09-27',days),{count:1,last:'2026-09-27',frozen:[]});
+ assert.deepEqual(nextStreak({count:1,last:'2026-09-27'},'2026-09-28',days),{count:2,last:'2026-09-28',frozen:[]});
  assert.deepEqual(nextStreak({count:2,last:'2026-09-28'},'2026-09-28',days),{count:2,last:'2026-09-28'},'the same morning twice changes nothing');
- assert.deepEqual(nextStreak({count:2,last:'2026-09-26'},'2026-09-28',days),{count:1,last:'2026-09-28'},'a missed morning starts again');
+ // One missed morning a week is forgiven, and says which; a second inside the week, or two in a row, start again.
+ const forgiven=nextStreak({count:2,last:'2026-09-26'},'2026-09-28',days);
+ assert.deepEqual(forgiven,{count:3,last:'2026-09-28',frozen:['2026-09-27'],forgiven:'2026-09-27'});
+ assert.deepEqual(nextStreak({...forgiven,last:'2026-09-29'},'2026-10-01',days),{count:1,last:'2026-10-01',frozen:[]},'a second gap within the week');
+ assert.deepEqual(nextStreak({count:2,last:'2026-09-25'},'2026-09-28',days),{count:1,last:'2026-09-28',frozen:[]},'two missed mornings start again');
+ assert.equal(streakWords(3,'2026-09-27'),'3 mornings in a row · one missed morning forgiven this week');
  assert.equal(streakWords(1),'First morning done');assert.equal(streakWords(4),'4 mornings in a row');assert.equal(streakWords(0),'');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/needs:<MorningChecklist key=\{day\} state=\{visibleState\} day=\{day\} today=\{japanDate\(now\)\}\/>/,'the widget slot is the checklist');

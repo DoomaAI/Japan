@@ -11,6 +11,7 @@
 // come after.
 export const HOME_WIDGETS={
  countdown:{label:'Trip countdown',note:'Days to go before we fly, then which day of the trip it is',off:true},
+ find:{label:'Type anything',note:'One box at the top: a stop, hotel, ticket, phrase, person or screen, found as you type, with no signal'},
  onthisday:{label:'On this day',note:'After the trip: a day of it brought back a month, a year, on from when it happened'},
  runup:{label:'The run-up',note:'Before we fly: days to go, and a family task unlocked at 100, 50, 30, 14 and 7 days'},
  dailyjapan:{label:'A little Japan each day',note:'Before we fly: one phrase to say and one fact to read, every day of the run-up'},
