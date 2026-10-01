@@ -22,6 +22,7 @@ export const PAGES={
  capsule:{label:'Open next year',note:'A note from each of us to the family a year on, sealed until the anniversary of the last day'},
  showtell:{label:'Show and tell',note:'One page per boy for the first day back at school: his photos, missions, a noticing, a phrase, read aloud first'},
  diary:{label:'Diary',note:'Completed stops, discoveries and photos'},
+ highlights:{label:'Highlights video',note:'The best of the trip, cut into a short video with our sounds, to share'},
  recap:{label:'Our trip story',note:'The trip in swipeable cards: the numbers, the places, our best bits and everyone’s favourite'},
  book:{label:'Photobook',note:'A page for each day, with the photo of the day, the stops we loved and the diary, to print'},
  places:{label:'Places & our map',note:'Directions and our Google My Map'},
@@ -87,7 +88,7 @@ export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','meeting','safety','lost','help','apps']],
  ['Money',['money','paying','ledger','shopping','shortlist','shop']],
  ['The plan',['glance','days','guests','invitation','todo','packing','trackers','windows','arrival','flyinghome','homefront','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
- ['Looking back',['noticed','nexttime','photos','memorymap','diary','recap','book','capsule']],
+ ['Looking back',['noticed','nexttime','photos','memorymap','diary','recap','highlights','book','capsule']],
  ['Housekeeping',['updates','bin','search','guide']],
  ['Just for you',['nightstand','personalise','settings','thanks']],
  ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot','showtell']]

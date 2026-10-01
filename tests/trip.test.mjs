@@ -4380,6 +4380,41 @@ test('sumo has a speed for everyone, and the pairs boards can be sized',async()=
  assert.match(source,/game:`kana-\$\{set\}-\$\{pairs\}`/);
 });
 
+test('Japan pairs is played on sake barrels that spin round, not on cards that flip',async()=>{
+ const games=await readFile(new URL('../src/Games.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // The boys walk past the wall of barrels at Meiji Jingu before they have been in Japan a day,
+ // so the board is that rather than a deck: nothing is left of the card it used to be.
+ const sights=games.slice(games.indexOf('function Sights('),games.indexOf('\nfunction ',games.indexOf('function Sights(')+10));
+ assert.doesNotMatch(sights,/sight-card|sight-grid|sight-back|🎴/,'the old card board is still in there');
+ assert.doesNotMatch(css,/\.sight-card|\.sight-grid|\.sight-back/,'the old card styling is still in there');
+ // Two faces on one barrel, and the picture only exists in the page once it has been turned —
+ // a boy reading the source over your shoulder is not shown where everything is.
+ assert.match(games,/className="barrel-face barrel-front"/);
+ assert.match(games,/className="barrel-face barrel-back">\{up&&/);
+ // A barrel turns on the spot rather than being swapped for a different picture, which is a
+ // real rotation in three dimensions: the back is genuinely the other side of the same thing.
+ assert.match(css,/\.barrel-spin\{[^}]*transform-style:preserve-3d/);
+ assert.match(css,/\.sake-barrel\.up \.barrel-spin\{transform:rotateY\(180deg\)\}/);
+ assert.match(css,/\.barrel-face\{[^}]*backface-visibility:hidden/);
+ assert.match(css,/\.barrel-back\{transform:rotateY\(180deg\)/);
+ // Finding the twin is worth a whole extra turn of the barrel, and it lands back where it was.
+ assert.match(css,/@keyframes barrel-roll\{from\{transform:rotateY\(180deg\)\}to\{transform:rotateY\(540deg\)\}\}/);
+ // And a phone told to stop moving things stops moving them. The game still works: the face
+ // is simply there rather than spun to.
+ assert.match(css,/@media\(prefers-reduced-motion:reduce\)\{\.barrel-spin\{transition:none\}\}/);
+ assert.match(css,/@media\(prefers-reduced-motion:no-preference\)\{\.sake-barrel\.matched \.barrel-spin\{animation:barrel-roll/);
+ // A barrel face down says what tapping it does, because the picture on it is the answer and
+ // cannot be read out before it is turned.
+ assert.match(games,/aria-label=\{up\?c\.sight\.en:'Spin this barrel round'\}/);
+ // The words match the thing: nothing tells a five-year-old to turn over a card any more.
+ const {gameGuide}=await import('../src/game-guide.js');
+ const {gameRule}=await import('../src/spoken-rules.js');
+ const said=[gameGuide('sights').objective,gameGuide('sights').win,...gameGuide('sights').setup,...gameGuide('sights').rules,gameRule('sights')];
+ for(const line of said)assert.doesNotMatch(line,/\bcards?\b/i,`Japan pairs still calls it a card: "${line.slice(0,50)}"`);
+ assert.ok(said.some(l=>/barrel/i.test(l))&&said.some(l=>/spins? round/i.test(l)),'the rules never say what it is or what it does');
+});
+
 test('the sumo lead-up is a game of its own, and pays into the bout rather than into the score',async()=>{
  const {SUMO_RITUALS,STOMP_WINDOW,stompScore,SALT_BAND,saltScore,MATTA,chargeScore,leadUpEffect,ceremonyScore,KIMARITE,kimariteById,theirWeight}=await import('../src/kana-data.js');
  // Three rituals, each with the Japanese for it, because the point is knowing what you are
@@ -10845,18 +10880,18 @@ test('More is leaner: money on one shelf, memories on their own, housekeeping ap
  assert.deepEqual(section('Money'),['money','paying','ledger','shopping','shortlist','shop']);
  assert.ok(section('For the boys').includes('spending'));
  // Looking back is memories only; the app's own housekeeping is not among the photos.
- assert.deepEqual(section('Looking back'),['noticed','nexttime','photos','memorymap','diary','recap','book','capsule']);
+ assert.deepEqual(section('Looking back'),['noticed','nexttime','photos','memorymap','diary','recap','highlights','book','capsule']);
  assert.deepEqual(section('Housekeeping'),['updates','bin','search','guide']);
  // Nothing is listed twice, and every page not on the bar is somewhere.
  const all=MORE_SECTIONS.flatMap(([,ids])=>ids);
  assert.equal(new Set(all).size,all.length);
  for(const id of Object.keys(PAGES))if(!['today','days'].includes(id))assert.ok(all.includes(id),`${id} has no shelf`);
- // The highlights placeholder is gone from the registry, the menu, the spoken guide and the app.
- assert.equal(PAGES.highlights,undefined);assert.equal(PAGE_RULES.highlights,undefined);
- assert.ok(!all.includes('highlights'));
- const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
- assert.doesNotMatch(main,/Highlights/);
- await assert.rejects(()=>readFile(new URL('../src/Highlights.jsx',import.meta.url)),'the page file is deleted, not left behind');
+ // Highlights was once a placeholder and was removed; it is back as a real page (the video), on
+ // the Looking back shelf, with its spoken guide, and no longer a placeholder.
+ assert.ok(PAGES.highlights);assert.ok(PAGE_RULES.highlights);
+ assert.ok(all.includes('highlights'));
+ const page=await readFile(new URL('../src/Highlights.jsx',import.meta.url),'utf8');
+ assert.doesNotMatch(page,/coming soon|placeholder/i);
  // A parent sees Money; a boy does not get the parents' screens but still gets his own shelf last.
  const parentTitles=moreSections({name:'Lauren',role:'parent'}).map(([t])=>t),boyTitles=moreSections({name:'Nate',role:'child'}).map(([t])=>t);
  assert.ok(parentTitles.includes('Money'));assert.equal(boyTitles.at(-1),'For the boys');

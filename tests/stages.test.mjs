@@ -729,14 +729,14 @@ test('flying home: what we bought is read off our own lists and set against the 
  // A boy's purse counts too, at what the till took, and is his.
  let purse=applyOperation(state,{type:'spendAdd',person:'Nate',title:'Pokémon plush',estimate:1500},child);
  purse=applyOperation(purse,{type:'spendBought',id:purse.spending.items.at(-1).id,done:true,spent:1800},child);
- assert.deepEqual(boughtItems(purse).at(-1),{id:`purse-${purse.spending.items.at(-1).id}`,title:'Pokémon plush',qty:1,yen:1800,who:'Nate',source:'purse',taxFree:false,declare:null,kg:0.5});
+ assert.deepEqual(boughtItems(purse).at(-1),{id:`purse-${purse.spending.items.at(-1).id}`,title:'Pokémon plush',qty:1,yen:1800,who:'Nate',source:'purse',taxFree:false,day:null,declare:null,kg:0.5});
  assert.deepEqual(declareGroups(purse).unsure.map(i=>i.title),['Pokémon plush'],'a thing the words cannot place is listed to look at');
  assert.equal(dutyFree(purse).yen,duty.yen+1800);
  // Its place in the app.
  assert.ok(PAGES.flyinghome?.label&&PAGE_RULES.flyinghome);
  assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('flyinghome'));
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
- assert.match(main,/\{tab==='flyinghome'&&<FlyingHome state=\{visibleState\} go=\{go\}\/>\}/);
+ assert.match(main,/\{tab==='flyinghome'&&<FlyingHome state=\{visibleState\} go=\{go\} mutate=\{parent\?mutate:null\} busy=\{busy\} parent=\{parent\}\/>\}/);
 });
 test('lost something: the Japanese to hand over, the right desk for the day’s lines and parks, the kōban and the claim',async()=>{
  const {ITEMS,COLOURS,DESKS,desksFor,deskFor,lostDraft,KOBAN,CLAIM,claimSummary}=await import('../src/lost-data.js');

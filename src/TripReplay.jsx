@@ -1,8 +1,9 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import {Play,Pause,RotateCcw,X,FastForward} from 'lucide-react';
-import {replayFrames,kmBetween} from './memory-map.js';
+import {Play,Pause,RotateCcw,X,FastForward,Volume2,VolumeX} from 'lucide-react';
+import {replayFrames,kmBetween,frameSound} from './memory-map.js';
+import {createMixer,voiceUrl} from './sound-mix.js';
 import {photoOfTheDay} from './trip-features.js';
 import {dayLabel} from './AdventurePages.jsx';
 const photoUrl=p=>`/api/photo?id=${encodeURIComponent(p.id)}`;
@@ -14,6 +15,15 @@ export default function TripReplay({state,close}){
  const {frames,plan}=useMemo(()=>replayFrames(state),[state]);
  const [at,setAt]=useState(0),[playing,setPlaying]=useState(true),[fast,setFast]=useState(false);
  const box=useRef(null),map=useRef(null),line=useRef(null),dot=useRef(null);
+ // A sound postcard plays as the replay passes the stop it was recorded at (the station melody as
+ // the Shinkansen goes by). Only while it is playing, and off with one tap.
+ const mixer=useRef(null),[sound,setSound]=useState(true);
+ useEffect(()=>()=>mixer.current?.close(),[]);
+ useEffect(()=>{
+  if(!playing||!sound)return;const v=frameSound(state,frames[at]);if(!v)return;
+  mixer.current??=createMixer();mixer.current?.play(voiceUrl(v.id));
+ },[at,playing,sound]);
+ useEffect(()=>{if(!playing||!sound)mixer.current?.stopAll();},[playing,sound]);
  useEffect(()=>{
   const m=L.map(box.current,{zoomControl:false,attributionControl:true}).fitBounds(JAPAN);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,referrerPolicy:'strict-origin-when-cross-origin',
@@ -46,13 +56,14 @@ export default function TripReplay({state,close}){
     <div className="replay-caption">
      {best&&<img key={f.day} className={newDay?'fresh':''} src={photoUrl(best)} alt="Photo of the day"/>}
      <div><p className="eyebrow">Day {f.dayNumber} · {dayLabel(f.day)} · {f.city}{plan?' · the plan':''}</p>
-      <strong>{f.titles.at(-1)}</strong>{f.titles.length>1&&<small>and {f.titles.length-1} more here</small>}{!f.exact&&<small>Roughly here: our map has no pin for it</small>}</div>
+      <strong>{f.titles.at(-1)}</strong>{frameSound(state,f)&&<small>🔊 {frameSound(state,f).title||'A sound from here'}</small>}{f.titles.length>1&&<small>and {f.titles.length-1} more here</small>}{!f.exact&&<small>Roughly here: our map has no pin for it</small>}</div>
     </div>
     <input type="range" min="0" max={frames.length-1} value={at} aria-label="Where in the trip" onChange={e=>{setAt(+e.target.value);setPlaying(false);}}/>
     <div className="row replay-controls">
      {end?<button type="button" className="primary" onClick={()=>{setAt(0);setPlaying(true);}}><RotateCcw size={17}/>Play again</button>
       :<button type="button" className="primary" onClick={()=>setPlaying(p=>!p)}>{playing?<><Pause size={17}/>Pause</>:<><Play size={17}/>Play</>}</button>}
      <button type="button" aria-pressed={fast} onClick={()=>setFast(v=>!v)}><FastForward size={17}/>{fast?'2×':'1×'}</button>
+     <button type="button" aria-pressed={sound} aria-label={sound?'Turn the sound postcards off':'Turn the sound postcards on'} onClick={()=>setSound(v=>!v)}>{sound?<Volume2 size={17}/>:<VolumeX size={17}/>}</button>
      <span>{at+1} of {frames.length}</span>
     </div>
    </>}

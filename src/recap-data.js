@@ -16,6 +16,8 @@ export function highlightsMaterial(state){
   videos:memories.filter(isVideo).length,
   boysPhotos:photosFor(state).length,
   voiceNotes:voiceNotesFor(state).length,
+  // The sound postcards (a station melody, a temple bell): the soundtrack the video is cut over.
+  sounds:(state.voiceNotes||[]).filter(v=>v.kind==='sound'&&v.pathname).length,
   topRated:ratedSteps(state,{min:4}).slice(0,10),
   daysWithWinner:days.filter(d=>d.winners.length).length,
   days

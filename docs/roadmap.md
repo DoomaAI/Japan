@@ -127,10 +127,10 @@ Nineteen PRs merged on 29 September (#211–#261, this session's share). Four th
 
 **Built on `claude/road-features`, 30 September 2026, none tried on a phone:** hand this phone to a boy, held-back widgets out of Customise, the youngest purse in words; Home while we're away and the clocks-change note; Flying home (the card, the allowance, the scales); Lost something; the checkout sweep, the nightstand and price sense; Next time; the frame; Open next year, Show and tell, sound postcards and the postcard seam. Left from that pass:
 
-- [ ] Sound postcards on the memory map replay and in the highlights render plan: they are marked on the map's point cards only.
+- [x] Sound postcards on the memory map replay and in the highlights render plan (#286): each replay frame knows its stops, so the postcard recorded there plays as the replay or flyover reaches it, and a recorded flyover carries the sound.
 - [ ] The postcard's print-and-post provider: TouchNote and Australia Post are linked as places to assess; nothing is integrated, the share sheet does the sending.
-- [ ] Show and tell has no stamp-book line: the stamp accessor is not exposed as a list.
-- [ ] Flying home reads prices from the lists; the family ledger's shopping category is not counted, so a thing paid for and never written on a list is missed.
+- [x] Show and tell's stamp-book line (#290): `stampsFor()` lists a boy's stamps, and the count is on the screen and in the spoken part.
+- [x] Flying home counts the family ledger's shopping (#289): a ledger line that matches nothing on a list is added to the allowance, and a parent can mark one as already on a list.
 - [ ] On a phone: the frame on an iPad and a TV browser (wake lock, dimming, the clap), the nightstand's wake lock, the sound postcard's twelve-second stop, the checkout sweep on a move day, and the hand-over strip.
 
 **The frame** (the follow link in frame mode) uses the follow key itself. A key per frame, so one frame can be withdrawn without breaking a grandparent's phone link, and email-to-frame delivery for Aura, Nixplay and Skylight frames, are logged for the commercial version in [commercialisation.md](commercialisation.md) terms; the latter needs outbound email, which the inbound forwarding module does not provide.
@@ -152,7 +152,7 @@ Nineteen PRs merged on 29 September (#211–#261, this session's share). Four th
 | 6. Offline day maps | Done | A sketch map of each day on Today, drawn on the phone, so it needs no signal and no map tiles |
 | 7b. Tax-free flag per shopping item | Done | A flag on shopping and shortlist items, and a per-shop total against ¥5,000 |
 | 8. Visit Japan Web card | Done | Arrival paperwork page, with the Australia Travel Declaration for the flight home |
-| 9. Trip highlights video | After the trip | Decide how the video is put together: on the phone, or a paid service. Then the Claude selection call. Placeholder page already live |
+| 9. Trip highlights video | Built 1 October 2026; not tried on a phone | Rendered on the phone. Claude picks the shots and writes the captions; the page draws them on a canvas with the sound postcards and records the video. Details under After the trip |
 | 10. Trip recap and photobook | Done (#200, #202) | Our trip story and the Photobook |
 | 11. Follow-along link for family at home | Done (#204) | Built as a keyed read-only link rather than an invite role; see the plan above |
 | 12. App Store and Google Play apps (commercial) | Parked 29 September 2026; after the trip | Decided: commercial, published by I'm In Ventures Pty Ltd on organisation accounts, cloud builds. First action: D-U-N-S number, company domain and email. Full log in [native-apps.md](native-apps.md) |
@@ -175,7 +175,7 @@ Nineteen PRs merged on 29 September (#211–#261, this session's share). Four th
 
 ## After the trip
 
-9. **Trip highlights video.** The placeholder page was retired from More on 29 September; `highlightsMaterial` in `src/recap-data.js` still counts the material. See the design below.
+9. **Built (1 October 2026).** **Trip highlights video.** It is on Looking back → Highlights video. `src/highlights-data.js` defines the shots, the edit list and its checks. `server/highlights.mjs` asks Claude for the edit list, using metadata plus up to 16 pictures, with a strict tool schema; the result is checked with `cleanEditList`. The automatic plan is used when there is no key. `src/Highlights.jsx` renders it at 1080×1920: Ken Burns on photos, clips playing, a card for each day and captions. The sound postcards and the clips' own sound go through the shared mixer into the recording. A parent can reorder, trim and re-caption the plan, and save the finished video to the family gallery. Not yet tried: recording on an iPhone (MP4) and the live planning call.
 10. **Trip recap.** Totals for days, cities, stops, photos and top-rated moments, plus a printable photobook layout for the diary.
 11. **Follow-along link for family at home.** A view-only link to the diary and photos, with no tickets, locations or invite rights.
 

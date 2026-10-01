@@ -30,7 +30,7 @@ test('the phrase and fun fact of the day wait in a folding widget of their own i
  assert.doesNotMatch(await source('Briefing.jsx'),/Today’s phrase/,'the day in brief no longer carries it');
 });
 test('no text is set below 12px, outside game boards and the drawn day map',async()=>{
- const exempt=['snake-cell','shogi-square','picross-cols','picross-rows','merge-tile','stable-cell','bingo-cell','.dm-','line-symbol','game-tile-stars'];
+ const exempt=['snake-cell','shogi-square','picross-cols','picross-rows','merge-tile','stable-cell','bingo-cell','.dm-','line-symbol','game-tile-stars','barrel-'];
  for(const f of ['style.css','stages.css','guide-theme.css']){
   const css=await source(f);
   for(const [,sel,body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)){
