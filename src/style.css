@@ -992,7 +992,7 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .gift-form .chip{flex-direction:row;padding:.4rem .7rem;min-height:40px}.gift-form .chip input{width:16px;height:16px;flex:none}
 /* A Mark (Mark.jsx) carries an emoji and its line icon; the look decides which one shows. */
 .mark{display:inline-flex;align-items:center}.mark-line{display:none}
-.readiness-word{display:none}
+.readiness-line-icon{display:none;align-items:center;justify-content:center}
 /* Arrange Home only means something in a look that tucks the card buttons away (house-theme.css). */
 .home-arrange{display:none}
 /* The hotel's photograph runs to the card's edges, above everything else on it. */
