@@ -11,11 +11,11 @@ import {japanClock,japanDate} from './timing.js';
 import {SHARE_FOR} from './live-share.js';
 import {LateCards} from './LateNotice.jsx';
 import {parentsOf} from './people.js';
+import {escapeHtml as esc} from './text.js';
 // Where we are: the family on a real map, from what each phone last shared, with today's stops
 // under them and this phone's own dot, which is never sent anywhere unless asked. Sharing is
 // once, or for a while; running late is one button away, because "where are you?" and "we're
 // late" are the same moment on a split day.
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const JAPAN=[[31,129.5],[43.5,145.5]];
 // A position more than half an hour old is drawn faded: it says where they were, not where they are.
 const OLD_MIN=30;

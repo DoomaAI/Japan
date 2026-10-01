@@ -1,7 +1,7 @@
 import React from 'react';
 import {FileText,Link2,StickyNote,Film,Image as ImageIcon} from 'lucide-react';
 import {documentThumbnail} from './trip-features.js';
-const fileUrl=d=>`/api/document?id=${encodeURIComponent(d.id)}`;
+import {documentUrl as fileUrl} from './api-urls.js';
 const HEIC=['image/heic','image/heif'];
 // A thumbnail for a ticket, luggage tag or attached file. A real photo when there is one to
 // draw, otherwise a labelled tile — so every row is the same shape and every one is tappable.

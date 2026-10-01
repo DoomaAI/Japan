@@ -2,6 +2,7 @@ import {BOYS,personProfile,packing} from './trip-features.js';
 import {ageOf} from './child-levels.js';
 import {forecastFor,describe} from './weather-data.js';
 import {japanDate} from './timing.js';
+import {shortDay} from './format.js';
 // The packing list. What we actually pack is ours to write, tick and change; what it suggests is
 // worked out on the phone from what the trip already knows — where each day is, the forecast
 // we last saved (or, before there is one, what that city is usually like that month), what is
@@ -27,7 +28,6 @@ const NORMALS={
 };
 const normalsFor=city=>/kyoto|nara/i.test(city||'')?'Kyoto':/osaka/i.test(city||'')?'Osaka':'Tokyo';
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
-const shortDay=date=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(date+'T12:00:00+09:00'));
 const listDays=dates=>{const d=[...new Set(dates)].sort();return d.length>3?`${d.slice(0,3).map(shortDay).join(', ')} and ${d.length-3} more`:d.map(shortDay).join(', ');};
 // The days a suggestion is worth thinking about: the ones still ahead once the trip is under way,
 // all of them before it starts. Packing for a day we have already had is not packing.

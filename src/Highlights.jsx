@@ -2,8 +2,9 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {Play,Pause,Video,Square,Sparkles,Wand2,Trash2,ArrowUp,ArrowDown,Upload,Volume2,VolumeX} from 'lucide-react';
 import {upload} from '@vercel/blob/client';
 import {candidateShots,highlightsMaterial,currentEditList,cleanEditList,defaultEditList,timeline,runningTime,itemAt} from './highlights-data.js';
-import {createMixer,voiceUrl} from './sound-mix.js';
+import {createMixer} from './sound-mix.js';
 import {recordingType} from './flyover-data.js';
+import {voiceUrl} from './api-urls.js';
 // The trip highlights video. Claude chooses the moments and writes the captions (the edit list);
 // this phone draws them on a tall canvas — a slow pan and zoom over each photo, the clips playing,
 // a card at the start of each day — with the sound postcards under the shots they belong to, and
@@ -46,7 +47,7 @@ export default function Highlights({state,user,config,request,accept,notice,busy
   if(it.kind==='shot'){
    const m=media.current[it.ref];
    if(m?.tagName==='VIDEO'){mixer.current?.attach&&!m.dataset.mixed&&(m.dataset.mixed=mixer.current.attach(m,{volume:.7})?'1':'');m.currentTime=it.from||0;m.play().catch(()=>{});}
-   if(it.sound)mixer.current?.play(voiceUrl(it.sound));
+   if(it.sound)mixer.current?.play(voiceUrl({id:it.sound}));
   }
  }
  function draw(time){

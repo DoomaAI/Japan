@@ -6,11 +6,11 @@
 // a place three people told us about is worth knowing about before it is voted on.
 // How it reached us. Kept on each name so the card can say "Sue, by email" and the family knows
 // where to look for the rest of what she said.
+import {clampLine as clamp} from './text.js';
 export const RECOMMEND_VIA=[['message','Text or WhatsApp'],['email','Email'],['screenshot','Screenshot'],['call','Phone call'],['person','In person'],['other','Somewhere else']];
 export const viaLabel=id=>(RECOMMEND_VIA.find(([k])=>k===id)||[null,''])[1];
 export const MAX_RECOMMEND_SHOTS=4;
 export const MAX_RECOMMENDERS=20,RECOMMENDER_NAME=80,RECOMMENDER_SAID=500,RECOMMEND_TEXT=6000,MAX_RECOMMEND_ITEMS=30;
-const clamp=(v,max)=>String(v??'').replace(/\s+/g,' ').trim().slice(0,max);
 export const recommenders=p=>Array.isArray(p?.recommendedBy)?p.recommendedBy:[];
 // One entry per person, matched without caring about case, newest words kept. Anything without a
 // name is dropped rather than shown as "someone".
@@ -123,8 +123,6 @@ export function recommenderList(proposals){
 // The ideas that came from outside the family, the most recommended first.
 export const recommendedProposals=proposals=>(Array.isArray(proposals)?proposals:[]).filter(p=>recommenders(p).length)
  .sort((a,b)=>recommenders(b).length-recommenders(a).length||String(a.title).localeCompare(String(b.title)));
-// One line for the card and for the stop's notes once it is on a day.
-export const recommendedLine=p=>{const r=recommenders(p);return r.length?`Recommended by ${r.map(x=>x.name).join(', ')}`:'';};
 // Who a forwarded email was first from. A parent forwards Sue's email to the trip address, so the
 // inbox says it came from the parent; the "From:" line inside the forward says it was Sue.
 // Her name, or the part of her address before the @, or nothing for a person to type in.

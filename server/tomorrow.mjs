@@ -9,7 +9,7 @@
 //
 // The two are separate calls, run side by side, each saved as it lands: the function has sixty
 // seconds, and a check that finishes should not be lost because the fallbacks ran long.
-import {AppError} from './model.mjs';
+import {AppError,modelReady} from './model.mjs';
 import {withGuide} from '../src/guide-data.js';
 import {updateTrip} from './store.mjs';
 import {seenHosts,checkedLink} from './links.mjs';
@@ -19,8 +19,8 @@ import {stayFor} from '../src/stay-data.js';
 import {INSIDER_FIELDS,insiderWanted,cleanInsider} from '../src/insider-data.js';
 import {activeSteps,japanDate,windowText} from '../src/timing.js';
 import {NOTE_KIND_IDS,PLAN_B_REASONS,REST_KINDS,cleanDayCheck,cleanPlanB,keepChecks,spareIdeas} from '../src/day-check.js';
-export const tomorrowReady=()=>!!process.env.ANTHROPIC_API_KEY;
-const clamp=(v,max)=>String(v??'').trim().slice(0,max);
+import {clamp} from '../src/text.js';
+export const tomorrowReady=modelReady;
 const SEARCH={type:'web_search_20260209',name:'web_search',user_location:{type:'approximate',country:'JP',timezone:'Asia/Tokyo'}};
 const source={type:'object',additionalProperties:false,required:['title','url'],properties:{title:{type:'string'},url:{type:'string'}}};
 const CHECK={

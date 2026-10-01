@@ -1,4 +1,4 @@
-import React,{useState,useRef,useEffect,useMemo} from 'react';
+import React,{useRef,useEffect,useMemo} from 'react';
 import {useStored} from './stored.js';
 import {ArrowLeft,ArrowRight,Check,RotateCcw,Trophy,Hand} from 'lucide-react';
 import {ORIGAMI,modelById,stepFrames,origamiGame,foldSpec,creaseInBox,clipToSide,reflect,boundsOf} from './origami-data.js';

@@ -7,6 +7,7 @@
 // weekend-only one waits for a weekend we are actually there. Nothing here needs a signal or a
 // key. Prices are September 2026 and rounded; the card says "about" for a reason.
 import {dayAreas} from './trip-features.js';
+import {addDays} from './timing.js';
 export const LOCAL_KINDS=[
  ['eat','Eat where they eat'],['bathe','Bathe'],['wander','Wander'],['ride','Ride'],
  ['play','Play'],['shop','Shop'],['weekend','Weekend mornings']
@@ -210,7 +211,6 @@ export function localPicks(state,today,limit=3){
  const soon=dated.filter(e=>e.next===today||e.next===addDays(today,1));
  return [...soon,...turned.filter(e=>!soon.includes(e))].slice(0,limit);
 }
-const addDays=(date,n)=>{const d=new Date(`${date}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 // Directions, by the Japanese name so Maps lands on the place and not on a translation of it.
 export const localMapUrl=e=>`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${e.ja||e.title} ${e.area} Japan`)}`;
 // What goes on the planning board: the same fields a typed idea has, so it votes, filters and

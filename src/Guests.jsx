@@ -2,7 +2,7 @@ import React,{useState} from 'react';
 import {Users,Download,ExternalLink,Utensils} from 'lucide-react';
 import {RSVP_STATUSES,STATUS_IDS,rsvpOf,guestSummary,guestsCsv,invitationOf,answersClosed} from './rsvp-data.js';
 import {roleLabel,householdOf} from './people.js';
-function download(name,data,type){const u=URL.createObjectURL(new Blob([data],{type})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
+import {download} from './browser.js';
 const WORD={in:'In',maybe:'Maybe',out:'Out',none:'No answer'};
 // Your own answer, written from inside the plan rather than from the public link; the guest list
 // for the organiser, with what the caterer asks; and for everyone, who is in when the organiser

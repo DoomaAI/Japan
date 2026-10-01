@@ -4,9 +4,9 @@ import {sortPhoto,sortedTarget,sortReason} from './photo-sort.js';
 import {upload} from '@vercel/blob/client';
 import {Image as ImageIcon,X,Plus} from 'lucide-react';
 import ZoomImage from './ZoomImage.jsx';
+import {documentUrl as fileUrl} from './api-urls.js';
 const dateLabel=day=>day?new Intl.DateTimeFormat('en-AU',{day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(day+'T12:00:00+09:00')):'Unscheduled';
 const takenLabel=t=>new Intl.DateTimeFormat('en-AU',{hour:'numeric',minute:'2-digit',timeZone:'Asia/Tokyo'}).format(new Date(t.length===19?`${t}+09:00`:t));
-const fileUrl=d=>`/api/document?id=${encodeURIComponent(d.id)}`;
 export default function MediaGallery({state,user,day,step,initialSearch='',config,busy,setBusy,accept,mutate,notice,request}){
  const [filter,setFilter]=useState(day||''),[query,setQuery]=useState(initialSearch),[kind,setKind]=useState(''),[editing,setEditing]=useState(null),[view,setView]=useState(null),[progress,setProgress]=useState(''),[retry,setRetry]=useState(null),[reset,setReset]=useState(0),[sorting,setSorting]=useState(null),[reading,setReading]=useState(false);
  const parent=user.role==='parent';

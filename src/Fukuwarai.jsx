@@ -1,7 +1,7 @@
 import React,{useRef} from 'react';
 import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Eye,EyeOff} from 'lucide-react';
-import {FACES,faceById,PARTS,targetFor,fukuwaraiScore,verdictOf,PERFECT} from './fukuwarai-data.js';
+import {FACES,faceById,PARTS,fukuwaraiScore,verdictOf,PERFECT} from './fukuwarai-data.js';
 import {bestScore} from './trip-features.js';
 import {WinBurst} from './Win.jsx';
 const INK='#16383b';

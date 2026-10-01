@@ -7,13 +7,13 @@
 import {activeSteps} from './timing.js';
 import {stepAverage} from './trip-features.js';
 import {FOOD} from './food-data.js';
+import {cut} from './text.js';
 export const GUIDE_DEFAULT={name:'Tabi',voice:'warm'};
 export const GUIDE_VOICES=[
  {id:'warm',label:'Warm',line:'Warm and plain, like a friend who has lived in Japan: short sentences, kind, specific, never gushing.'},
  {id:'brief',label:'Brief',line:'Brief and practical: the answer first, in as few words as will do, no warm-up and no sign-off.'},
  {id:'playful',label:'Playful',line:'Light and a little playful, with the boys in mind: one small joke at most, never at anyone’s expense, and the facts still exact.'}
 ];
-const cut=(s,n)=>{s=String(s||'').replace(/\s+/g,' ').trim();return s.length>n?`${s.slice(0,n-1)}…`:s;};
 export const cleanGuideName=s=>cut(String(s||'').replace(/[^\p{L}\p{N} '’-]/gu,''),20);
 export function guideOf(state){
  const g=state?.guide||{};

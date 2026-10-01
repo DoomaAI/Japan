@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import {SearchX,Phone,ExternalLink,Copy,ShieldAlert,Receipt,Ticket} from 'lucide-react';
-import {ITEMS,COLOURS,DESKS,desksFor,lostDraft,KOBAN,POLICE_LINKS,CLAIM,claimSummary} from './lost-data.js';
+import {ITEMS,COLOURS,desksFor,lostDraft,KOBAN,POLICE_LINKS,CLAIM,claimSummary} from './lost-data.js';
 import {activeSteps} from './timing.js';
 import {LINES,routeFor} from './route-data.js';
 const tel=n=>`tel:${n.replace(/[^+\d]/g,'')}`;

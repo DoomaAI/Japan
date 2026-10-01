@@ -17,10 +17,10 @@ import {TIP_OPTIONS,readTips,writeTips,showsFacts,showsWords} from './opening-ti
 import {tripCountdown,japanDate} from './timing.js';
 import {factsForDay,ANYTIME_FACTS} from './fact-data.js';
 import {phraseForDay,ORDERED_PHRASES} from './phrasebook-data.js';
+import {reducedMotion as calm} from './browser.js';
 
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
-const calm=()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // A petal is somewhere across the width, a size, a speed and a sway; a caught one comes back as
 // a new petal from the top so the sky never empties.

@@ -21,4 +21,3 @@ export function lowest(state,day){
  return rows.length&&rows[0].level<LOW_READINESS?rows[0]:null;
 }
 export const answered=(state,day,members)=>members.filter(p=>Number.isInteger(readinessOf(state,day,p)));
-export const readinessLine=(state,day,members)=>members.filter(p=>Number.isInteger(readinessOf(state,day,p))).map(p=>`${p} ${faceOf(readinessOf(state,day,p))}`).join(' · ');

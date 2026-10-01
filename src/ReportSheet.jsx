@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
 import {Check,MapPin} from 'lucide-react';
 import {REPORT_KINDS,QUEUE_MINUTES,reportText} from './report-data.js';
-import {askPhoneWhereItIs,GEO_TROUBLE} from './geo.js';
+import {askPhoneWhereItIs} from './geo.js';
 import {PIN_PLACES} from './trip-features.js';
 // One tap to tell the other phones what it is like here. Five big buttons and, for a queue, how
 // long. The phone's position goes on it when the phone gives one quickly; when it does not, the

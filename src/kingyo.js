@@ -4,6 +4,8 @@
 //
 // The scoop is a poi (ポイ), and the paper comes in numbered grades — the higher the number the
 // thinner it is, which is the real difficulty setting at a real stall, so it is the one here.
+import {rng} from './random.js';
+export {rng};
 export const TANK=100,TICK=50;
 export const POI_R=11;
 // Three fish, and the slow ones are worth more, which is true of the stall as well: the black
@@ -34,7 +36,6 @@ export const levelById=id=>LEVELS.find(l=>l.id===id)||LEVELS[0];
 // What wears the paper out. Everything here is a real thing that ruins a scoop: leaving it
 // under water, dragging it about instead of moving it smoothly, and being greedy on the lift.
 export const SOAK=0.0042,DRAG=0.0022,LIFT=0.03,GREED=1.7;
-export const rng=seed=>{let n=seed>>>0||1;return()=>{n^=n<<13;n>>>=0;n^=n>>17;n^=n<<5;n>>>=0;return n/4294967296;};};
 const between=(lo,hi,rand)=>lo+rand()*(hi-lo);
 function spawn(i,rand){
  const roll=rand();

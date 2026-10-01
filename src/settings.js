@@ -12,6 +12,7 @@
 //
 // Every call degrades to the defaults rather than throwing. A private window or a phone with
 // storage turned off must not be the reason a family loses a pop-up it still wants.
+import {localStore as device} from './browser.js';
 export const SETTINGS=[
  {id:'dailyPhrase',label:'Phrase of the day',
   on:'One new Japanese phrase each morning, on the day in brief on Home, with how to say it. Tap it to hear it.',
@@ -38,7 +39,6 @@ export const SETTINGS=[
 // exactly as it always did — apart from a setting that says it starts off.
 export const DEFAULTS=Object.fromEntries(SETTINGS.map(s=>[s.id,s.default??true]));
 const KEY=person=>`japan.settings.${person||'everyone'}`;
-const device=()=>{try{return typeof localStorage==='undefined'?null:localStorage;}catch{return null;}};
 // Only the settings this version knows about, and only where the saved value is a real
 // true/false. Anything else — a half-written key, a setting from a later version, a string
 // where a boolean should be — falls back to the default rather than switching something off.

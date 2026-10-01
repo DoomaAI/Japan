@@ -1,6 +1,7 @@
 import {activeSteps,japanDate} from './timing.js';
 import {proposals,proposalPlacement} from './trip-features.js';
 import {forecastFor} from './weather-data.js';
+import {shortDay as fmtDay} from './format.js';
 // One question, typed with a thumb. Longer than this is two questions, and two questions get
 // one muddled answer, so the box stops rather than the server refusing it afterwards.
 export const ASK_LIMIT=600;
@@ -51,7 +52,6 @@ export const askItem=(item,by)=>({id:String(item.id),at:item.at,by,question:item
 // model's own blocks are never replayed — nothing a previous answer carried can come back round.
 export const askHistory=thread=>thread.slice(0,ASK_HISTORY).reverse()
  .flatMap(item=>[{role:'user',text:item.question},{role:'assistant',text:[item.verdict,item.answer].filter(Boolean).join(' ')}]);
-const fmtDay=date=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(date+'T12:00:00+09:00'));
 export {fmtDay as askDayLabel};
 // Questions built out of the day in front of them, so the first one is a tap rather than a blank
 // box. Everything here names something that is actually on the plan.

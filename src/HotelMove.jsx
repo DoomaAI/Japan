@@ -1,8 +1,7 @@
 import React,{useState} from 'react';
 import {AlertCircle,ArrowRight,BedDouble,Check,ExternalLink,Luggage,MapPin,RefreshCw,Tag} from 'lucide-react';
 import {moveCard,MOVE_FIELDS} from './move-data.js';
-const fmt=d=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(d+'T12:00:00+09:00'));
-const when=iso=>iso?new Intl.DateTimeFormat('en-AU',{weekday:'short',hour:'numeric',minute:'2-digit',timeZone:'Asia/Tokyo'}).format(new Date(iso)):'';
+import {shortDay as fmt,shortWhen as when} from './format.js';
 // The hotel-move concierge on Home: the evening before a move and the morning of it. What to do
 // and by when, the forwarding label in Japanese to copy onto the slip, the overnight bag, and what
 // a lookup of both hotels found. Nothing here books or sends anything; the desk does that.

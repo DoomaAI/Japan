@@ -1,9 +1,10 @@
 import React,{useState} from 'react';
 import {PlaneTakeoff,ClipboardCheck,Scale,Package,ExternalLink} from 'lucide-react';
-import {declareGroups,dutyFree,weightBudget,DECLARE_LABEL} from './flying-home.js';
+import {declareGroups,dutyFree,weightBudget} from './flying-home.js';
 import {BORDER_LINKS,DECLARE_RULE} from './going-home.js';
 import {yenToAud} from './trip-features.js';
-const yen=n=>`¥${Math.round(n||0).toLocaleString('en-AU')}`,dollars=(n,rate)=>`$${yenToAud(Math.abs(n||0),rate).toFixed(2)}`;
+import {yen} from './format.js';
+const dollars=(n,rate)=>`$${yenToAud(Math.abs(n||0),rate).toFixed(2)}`;
 // What we bought, against the three things the airport asks: the card, the allowance, the scales.
 const ROOM_KEY='japan.roomleft';
 const readRoom=()=>{try{const v=Number(localStorage.getItem(ROOM_KEY));return Number.isFinite(v)&&v>0?v:null;}catch{return null;}};

@@ -1,4 +1,4 @@
-import {BOYS,party,personProfile,interestLabel,paceLabel,partyInterests,partyLikes} from './trip-features.js';
+import {party,personProfile,interestLabel,paceLabel,partyInterests,partyLikes} from './trip-features.js';
 import {allergyOf,allergenById} from './allergy-data.js';
 import {PRIORITIES,PRIORITY_LEVELS} from './decide-data.js';
 import {localBrief} from './local-data.js';

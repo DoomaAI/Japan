@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {Play,ChevronRight,Trophy,X} from 'lucide-react';
-import {COLOURS,QUESTIONS,WINDOW_SECONDS,questionOpen,secondsLeft,scores,points} from './quiz-data.js';
+import {COLOURS,WINDOW_SECONDS,questionOpen,secondsLeft,scores,points} from './quiz-data.js';
 import {gentleOnly} from './child-levels.js';
 // The dinner quiz screen, host and buzzer in one. The host's phone shows the question, the clock
 // and who has answered; every other phone shows the four coloured answers. While it is open the

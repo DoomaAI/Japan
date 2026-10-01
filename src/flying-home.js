@@ -16,7 +16,6 @@ const WORDS={
  wood:['kokeshi','chopstick','bamboo','straw','wooden','wood','ema','plaque','tansu','cypress','hinoki','cedar','rattan','wicker','basket','cork'],
  soil:['soil','sand','stone from','pebble','mud']
 };
-export const DECLARE_LABEL=id=>DECLARE.find(d=>d.id===id)?.title||'Have a look';
 // The category a name falls under, or null for a thing the words cannot place.
 export function classify(title){
  const t=String(title||'').toLowerCase();

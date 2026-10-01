@@ -9,11 +9,9 @@ import {askPhoneWhereItIs} from './geo.js';
 import {japanDate} from './timing.js';
 import TripReplay from './TripReplay.jsx';
 import Flyover from './Flyover.jsx';
-const docUrl=d=>`/api/document?id=${encodeURIComponent(d.id)}`;
-const photoUrl=p=>`/api/photo?id=${encodeURIComponent(p.id)}`;
+import {documentUrl as docUrl,photoUrl,voiceUrl} from './api-urls.js';
+import {escapeHtml as esc} from './text.js';
 const findUrl=f=>`/api/shortlist?id=${encodeURIComponent(f.id)}`;
-const voiceUrl=v=>`/api/voice?id=${encodeURIComponent(v.id)}`;
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // Japan, whole, for when there is nothing to fit the map around yet.
 const JAPAN=[[31,129.5],[43.5,145.5]];
 // Markers are drawn from counts and initials only, never from anything a person typed, and

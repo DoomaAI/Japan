@@ -5,7 +5,7 @@ import Dictate from './Dictate.jsx';
 import {dictationEngine,dictationProblem,heardSoFar,joinSpoken,DICTATE_LANG} from './dictation.js';
 import {voiceNotesFor,voiceLength} from './trip-features.js';
 import {savePending,listPending,dropPending} from './pending-store.js';
-export const voiceUrl=note=>`/api/voice?id=${encodeURIComponent(note.id)}`;
+import {voiceUrl} from './api-urls.js';
 const MAX_SECONDS=300;
 // A sound postcard: the place itself for a few seconds, on a stop. Short by definition.
 const SOUND_SECONDS=12;

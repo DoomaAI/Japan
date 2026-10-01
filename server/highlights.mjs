@@ -4,9 +4,9 @@
 // with captions, and which sound plays under which shot. It makes nothing; the phone renders it.
 // Whatever comes back is checked against the trip (cleanEditList) before it is kept.
 import {get} from '@vercel/blob';
-import {AppError} from './model.mjs';
+import {AppError,modelReady} from './model.mjs';
 import {candidateShots,soundsOf,cleanEditList,defaultEditList,MAX_SHOTS} from '../src/highlights-data.js';
-export const highlightsReady=()=>!!process.env.ANTHROPIC_API_KEY;
+export const highlightsReady=modelReady;
 export const MAX_IMAGES=16;
 const IMAGE_TYPES=['image/jpeg','image/png','image/webp'];
 const RECORD={

@@ -7,6 +7,7 @@
 import {activeSteps} from './timing.js';
 import {entryType} from './entry-types.js';
 import {stayFor} from './stay-data.js';
+import {clamp} from './text.js';
 export const DINNER_FROM='16:00',DINNER_UNTIL='21:30',DINNER_PER_ANCHOR=3;
 export const BOOKING=[['walk-in','Walk in'],['recommended','Booking recommended'],['required','Booking needed'],['unknown','Not sure about booking']];
 export const CHANNELS=[['tablecheck','TableCheck'],['tabelog','Tabelog'],['omakase','OMAKASE'],['website','Its own website'],['phone','Phone only'],['none','No bookings'],['unknown','Not known']];
@@ -43,7 +44,6 @@ export function reservationMessage({time='18:00',adults=2,children=[8,5],name=''
   en:`Could we book a table for ${n} today from ${time}${children.length?` (${adults} adults and ${children.length} children, aged ${children.join(' and ')})`:''}? Non-smoking please. A child's chair or cutlery would help.${name?` The name is ${name}.`:''} Thank you.`};
 }
 // What a model sends back, checked: lists the screen knows, links only as the search saw them.
-const clamp=(v,n)=>String(v??'').trim().slice(0,n);
 const pick=(v,list,fallback)=>list.some(([id])=>id===v)?v:fallback;
 export function cleanDinnerOption(o,checkLink=u=>u){
  const title=clamp(o?.title,120);if(!title)return null;

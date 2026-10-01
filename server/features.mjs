@@ -8,7 +8,7 @@ import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {PRIORITIES,validPriorities} from '../src/decide-data.js';
-import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_FOR,normaliseThankYou,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem,tripAreas,proposalChildren} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_FOR,normaliseThankYou,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem,tripAreas,proposalChildren,EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {IC_MAX,RECEIPT_TYPES} from '../src/ledger-data.js';
 import {isChild,validReading,validAwareness} from '../src/child-levels.js';
 import {MAX_NEXT_TIME} from '../src/next-time.js';
@@ -19,9 +19,8 @@ import {NOTE_STATUS,acceptedLine,applyDraft,cleanDraft} from '../src/day-check.j
 import {movesOf} from '../src/move-data.js';
 import {findEtiquette} from '../src/etiquette-data.js';
 import {INSIDER_FIELDS,INSIDER_STATUS,INSIDER_MAX} from '../src/insider-data.js';
-import {addStep,validatePatch} from './model.mjs';
+import {addStep,validatePatch,safeLink} from './model.mjs';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
-import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,MAX_PAY_METHODS} from '../src/pay-advice.js';
 import {HUNTS,MAX_CUSTOM_HUNTS,MAX_HUNT_ENTRIES,huntEntryFields} from '../src/hunt-data.js';
 import {allergenById} from '../src/allergy-data.js';
@@ -42,12 +41,11 @@ import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/track
 import {validPlanPatch,applyPlanPatch,planType} from '../src/plan-context.js';
 import {PAGES} from '../src/nav-data.js';
 import {joinMember,changeRole,changeHousehold,cleanName,roleLabel} from '../src/people.js';
-import {invitationProblem,invitationOf,applyRsvp,STATUS_IDS} from '../src/rsvp-data.js';
+import {invitationProblem,invitationOf,applyRsvp} from '../src/rsvp-data.js';
 const MAX_PROPOSALS=300;
 // A shortlist is a list you can still read. Past a couple of hundred finds it is an archive of
 // shops, and the answer to that is to decide on some rather than to keep adding.
 const MAX_SHORTLIST=200;
-const https=v=>{try{return new URL(v).protocol==='https:';}catch{return false;}};
 const string=(v,max)=>typeof v==='string'&&v.length<=max;
 const minutesBetween=(a,b)=>{const m=t=>+t.slice(0,2)*60+ +t.slice(3);return m(b)-m(a);};
 export function extraOperation(state,op,user,fail,now){
@@ -310,7 +308,7 @@ export function extraOperation(state,op,user,fail,now){
    const draft=proposalDraft(op);
    if(!draft.title)fail('Give the idea a name.');
    for(const [key,max] of [['title',250],['place',250],['japanese',250],['costNote',250],['availability',250],['notes',4000],['website',2000],['ticketUrl',2000],['mapUrl',2000]])if(!string(draft[key],max))fail(`Keep the ${key} under ${max} characters.`);
-   for(const key of ['website','ticketUrl','mapUrl'])if(draft[key]&&!https(draft[key]))fail('Use an HTTPS link.');
+   for(const key of ['website','ticketUrl','mapUrl'])if(draft[key]&&!safeLink(draft[key]))fail('Use an HTTPS link.');
    if(!PROPOSAL_KINDS.some(([id])=>id===draft.category))fail('Choose what kind of idea this is.');
    if(!PROPOSAL_TIMING.some(([id])=>id===draft.timing))fail('Say whether it is flexible, only at certain times, or a fixed time.');
    if(draft.day!==null&&!state.days.some(d=>d.date===draft.day))fail('Choose a trip day, or leave the day open.');
@@ -362,7 +360,7 @@ export function extraOperation(state,op,user,fail,now){
    const draft=proposalDraft({...op,source:'recommended',parentId:parentIdea?(parentIdea.parentId||parentIdea.id):null});
    if(!draft.title)fail('Give the idea a name.');
    for(const [key,max] of [['title',250],['place',250],['japanese',250],['notes',4000]])if(!string(draft[key],max))fail(`Keep the ${key} under ${max} characters.`);
-   for(const key of ['website','ticketUrl','mapUrl'])if(draft[key]&&!https(draft[key]))fail('Use an HTTPS link.');
+   for(const key of ['website','ticketUrl','mapUrl'])if(draft[key]&&!safeLink(draft[key]))fail('Use an HTTPS link.');
    if(!PROPOSAL_KINDS.some(([id])=>id===draft.category))fail('Choose what kind of idea this is.');
    if(!PROPOSAL_TIMING.some(([id])=>id===draft.timing))fail('Say whether it is flexible, only at certain times, or a fixed time.');
    if(draft.day!==null&&!state.days.some(d=>d.date===draft.day))fail('Choose a trip day, or leave the day open.');
@@ -1580,7 +1578,7 @@ export function extraOperation(state,op,user,fail,now){
   if(op.type==='bookingWindowAdd'||op.type==='bookingWindowEdit'){
    const title=String(op.title||'').trim();if(!title)fail('Say what the booking is for.');requireText(title,200,'title');
    if(!Number.isFinite(Date.parse(op.opensAt)))fail('Choose when the booking opens.');
-   const url=String(op.url||'').trim();if(url&&!https(url))fail('The booking link must start with https://.');
+   const url=String(op.url||'').trim();if(url&&!safeLink(url))fail('The booking link must start with https://.');
    requireText(op.notes||'',2000,'notes');
    if(op.stepId&&!state.steps.some(s=>s.id===op.stepId))fail('Activity not found.',404);
    dayCheck(op.day??null);

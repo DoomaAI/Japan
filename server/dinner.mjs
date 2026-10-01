@@ -1,13 +1,14 @@
 // Dinner tonight: somewhere to eat near the last stop of the day and near tonight's hotel, found on
 // the web for a family with a five- and an eight-year-old, in the guide's voice. The reservation
 // message is written by the app (src/dinner-data.js), not by the model.
-import {AppError} from './model.mjs';
+import {AppError,modelReady} from './model.mjs';
 import {japanDate} from '../src/timing.js';
 import {withGuide} from '../src/guide-data.js';
 import {partyBrief} from '../src/trip-features.js';
 import {dinnerAnchors,cleanDinnerOption,rankDinner,BOOKING,CHANNELS,MENUS,DINNER_PER_ANCHOR} from '../src/dinner-data.js';
 import {seenHosts,checkedLink} from './links.mjs';
-export const dinnerReady=()=>!!process.env.ANTHROPIC_API_KEY;
+import {clamp} from '../src/text.js';
+export const dinnerReady=modelReady;
 const SEARCH={type:'web_search_20260209',name:'web_search',max_uses:6,user_location:{type:'approximate',country:'JP',timezone:'Asia/Tokyo'}};
 const ids=list=>list.map(([id])=>id);
 const OPTION={type:'object',additionalProperties:false,
@@ -45,7 +46,6 @@ const SYSTEM=`You find dinner tonight for one family in Japan who have nothing b
 - Set every field honestly: null or "unknown" where you have not seen it. Flag cash only. Name the booking channel (TableCheck, Tabelog, OMAKASE, its own site, phone only) and give its cancellation rule if it states one.
 - Links only exactly as search results showed them. Never invent a phone number.
 - Call record_dinner exactly once.`;
-const clamp=(v,n)=>String(v??'').trim().slice(0,n);
 export async function findDinner({day},state,now=new Date()){
  if(!dinnerReady())throw new AppError('Dinner suggestions need an Anthropic API key on the deployment.',503);
  if(!(state.days||[]).some(d=>d.date===day))throw new AppError('Choose a trip day.');

@@ -1,9 +1,10 @@
-import {AppError,MEMBERS} from './model.mjs';
+import {AppError,MEMBERS,modelReady} from './model.mjs';
 import {withGuide} from '../src/guide-data.js';
 import {activeSteps,japanDate} from '../src/timing.js';
 import {seenHosts,checkedLink} from './links.mjs';
 import {PROPOSAL_KINDS,PROPOSAL_TIMING,SUGGEST_KINDS,TRAVEL_MODES,MIN_RATING_VOTES,validRating,ratingText,proposalDraft,partyBrief,proposals,rejoinAt,BOYS} from '../src/trip-features.js';
-export const suggestReady=()=>!!process.env.ANTHROPIC_API_KEY;
+import {clamp} from '../src/text.js';
+export const suggestReady=modelReady;
 export const MAX_SUGGESTIONS=8;
 // Enough searching to check what is actually on in that city while they are there, and to drop
 // anything that has since closed. Hours, prices and tickets are not this call's job — those come
@@ -60,7 +61,6 @@ How to choose:
 What this is not: you are not checking opening hours, prices or whether tickets are available. The family looks a place up separately for that, and the app tells them so. Give a rough cost and a rough duration and be plain that they are rough. Give "website" and "bookingUrl" only as a search result actually showed them; the app throws away any address whose site did not come up in your searches, so a guessed one is simply lost.
 
 Search if it helps, then call record_suggestions exactly once. Everything you suggest goes in that call, not in a message.`;
-const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 // A suggestion lands on the board as an ordinary idea, so it is cut to the same shape and the
 // same limits as one somebody typed. An unchecked address is worse than none, so the only links
 // it carries are ones whose site the searches in this same answer returned.

@@ -1,6 +1,6 @@
 // Reading and drawing QR codes on the phone. The libraries are fetched only when a ticket is being
 // read or a code is being shown, so no other screen carries their weight.
-const fileUrl=id=>`/api/document?id=${encodeURIComponent(id)}`;
+import {documentUrl} from './api-urls.js';
 export const PDF_PAGES=20,PER_PAGE=8;
 // Plain-text codes (almost every ticket) are kept as they read. Anything else is kept as its exact
 // bytes, marked b64:, so the code drawn back is byte for byte the one that was photographed.
@@ -73,7 +73,7 @@ async function codesInPdf(jsQR,blob){
 // Every code on a ticket's file, in reading order: none, one, or several.
 export async function readCodes(id,type=''){
  const {default:jsQR}=await import('jsqr');
- const blob=await (await fetch(fileUrl(id),{credentials:'same-origin'})).blob();
+ const blob=await (await fetch(documentUrl({id}),{credentials:'same-origin'})).blob();
  return type==='application/pdf'||blob.type==='application/pdf'?codesInPdf(jsQR,blob):codesInImage(jsQR,blob);
 }
 // The code drawn fresh as a picture: medium error correction, and the four-module quiet zone

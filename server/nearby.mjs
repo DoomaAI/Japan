@@ -1,10 +1,10 @@
-import {AppError,MEMBERS} from './model.mjs';
+import {AppError,MEMBERS,modelReady} from './model.mjs';
 import {japanDate} from '../src/timing.js';
 import {withGuide} from '../src/guide-data.js';
-import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MEAL_KINDS,PRICE_BANDS,PROPOSAL_KINDS,proposalDraft,roundCoord,validCoords,partyBrief,matchDish,MAX_DISH_HUNT,
- MIN_RATING_VOTES,MINUTES_PER_STAR,isRatedKind,placeScore,rankNearby,ratingText,validRating} from '../src/trip-features.js';
+import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MEAL_KINDS,PRICE_BANDS,proposalDraft,roundCoord,validCoords,partyBrief,matchDish,MAX_DISH_HUNT,MIN_RATING_VOTES,MINUTES_PER_STAR,isRatedKind,placeScore,rankNearby,ratingText,validRating} from '../src/trip-features.js';
 import {seenHosts,checkedLink} from './links.mjs';
-export const nearbyReady=()=>!!process.env.ANTHROPIC_API_KEY;
+import {clamp} from '../src/text.js';
+export const nearbyReady=modelReady;
 export const MAX_NEARBY=8;
 // This is the one asked standing in the street with two tired children, so it is tuned for speed:
 // four searches, low effort, a short answer. The planning board is where thinking happens.
@@ -61,7 +61,6 @@ How to answer:
 - If you genuinely do not know the area well enough, say so in "anchor" and give fewer, more general answers rather than inventing named shops.
 
 You cannot see a map, you do not know what has closed this year, and you are not confirming anything is open. The app says so on the screen. Search if it helps, then call record_nearby exactly once.`;
-const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 // Everything comes back through the same gate as the rest of the app: clamped, checked against
 // the lists the screen knows how to draw, and carrying no link whose site the search did not see.
 export function normaliseNearby(item,state,wishlist=[],hosts=new Set()){

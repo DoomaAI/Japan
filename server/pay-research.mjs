@@ -1,6 +1,7 @@
 import {AppError} from './model.mjs';
 import {researchReady} from './research.mjs';
 import {PAY_KINDS,FEE_FIELDS} from '../src/pay-advice.js';
+import {clamp} from '../src/text.js';
 // Looking up what an Australian card charges overseas. Asked from Australia, because the fee
 // schedules that matter are the Australian issuers' own pages. Nothing is saved here: the
 // figures come back as a draft that a parent reads, corrects and saves.
@@ -39,7 +40,6 @@ How to work:
 - If you cannot tell which card they mean, set found to false and explain in checkFirst.
 
 Search first, then call record_fees exactly once. Everything goes in that call, not in a message.`;
-const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 const https=v=>{try{const u=new URL(v);return u.protocol==='https:'?u.href:'';}catch{return '';}};
 // Nothing the model returns is trusted: every fee must fall inside the bounds the app enforces,
 // or it is dropped to unknown rather than stored as a figure that looks researched.

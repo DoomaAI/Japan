@@ -1,4 +1,4 @@
-import React,{useState,useMemo,useEffect,useRef} from 'react';
+import React,{useState,useMemo,useEffect} from 'react';
 import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Volume2} from 'lucide-react';
 import {KARUTA_DECKS,KARUTA_SIZES,karutaRound,karutaScore,OTETSUKI} from './karuta-data.js';

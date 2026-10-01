@@ -1,7 +1,7 @@
-import {AppError} from './model.mjs';
+import {AppError,modelReady} from './model.mjs';
 import {FOOD} from '../src/food-data.js';
 import {foodAverage,foodRatings,triedFood} from '../src/trip-features.js';
-export const menuReaderReady=()=>!!process.env.ANTHROPIC_API_KEY;
+export const menuReaderReady=modelReady;
 const MEDIA_TYPES=['image/jpeg','image/png','image/webp'];
 // Roughly 3 MB of base64, comfortably inside Vercel's request body limit. The phone downscales before sending, so a real photo lands far
 // under this; the cap is here to stop an oversized upload reaching the model at all.

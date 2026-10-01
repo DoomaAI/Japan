@@ -3,10 +3,10 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {Play,Pause,RotateCcw,X,FastForward,Volume2,VolumeX} from 'lucide-react';
 import {replayFrames,kmBetween,frameSound} from './memory-map.js';
-import {createMixer,voiceUrl} from './sound-mix.js';
+import {createMixer} from './sound-mix.js';
 import {photoOfTheDay} from './trip-features.js';
 import {dayLabel} from './AdventurePages.jsx';
-const photoUrl=p=>`/api/photo?id=${encodeURIComponent(p.id)}`;
+import {photoUrl,voiceUrl} from './api-urls.js';
 const JAPAN=[[31,129.5],[43.5,145.5]];
 // Replay the trip: the whole journey drawn stop by stop over the map, the day and the stop
 // along the bottom, and the day's photo of the day as each new day begins. A long hop — a
@@ -21,7 +21,7 @@ export default function TripReplay({state,close}){
  useEffect(()=>()=>mixer.current?.close(),[]);
  useEffect(()=>{
   if(!playing||!sound)return;const v=frameSound(state,frames[at]);if(!v)return;
-  mixer.current??=createMixer();mixer.current?.play(voiceUrl(v.id));
+  mixer.current??=createMixer();mixer.current?.play(voiceUrl(v));
  },[at,playing,sound]);
  useEffect(()=>{if(!playing||!sound)mixer.current?.stopAll();},[playing,sound]);
  useEffect(()=>{

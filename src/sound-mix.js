@@ -2,7 +2,6 @@
 // video. Each sound is an <audio> from our own server, played through Web Audio so that it reaches
 // the speaker and, while something is recording, the recording too. A new sound fades the last one
 // out rather than talking over it.
-export const voiceUrl=id=>`/api/voice?id=${encodeURIComponent(id)}`;
 export function createMixer(){
  const AC=typeof window!=='undefined'&&(window.AudioContext||window.webkitAudioContext);
  if(!AC)return null;

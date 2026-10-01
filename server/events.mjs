@@ -1,6 +1,7 @@
-import {AppError,MEMBERS} from './model.mjs';
+import {AppError,MEMBERS,modelReady} from './model.mjs';
 import {proposalDraft,partyBrief,proposals,EVENT_KINDS,tripAreas,dayAreas,eventDays} from '../src/trip-features.js';
-export const eventsReady=()=>!!process.env.ANTHROPIC_API_KEY;
+import {clamp} from '../src/text.js';
+export const eventsReady=modelReady;
 export const MAX_EVENTS=10;
 // Finding what is on is almost all searching — league fixtures, festival calendars, concert
 // listings, exhibition pages — so this call gets the same budget as suggestions and spends it
@@ -20,7 +21,6 @@ How to choose:
 - Leave out anything already on their plan or their board — both lists are given to you.
 
 Search, then call record_events exactly once. Everything you found goes in that call, not in a message.`;
-const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 const isDate=v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v||''));
 const isTime=v=>/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v||''));
 function recordTool(areas){

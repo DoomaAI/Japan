@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Share2,Sparkles,ChevronRight,Download} from 'lucide-react';
+import {Share2,Sparkles,ChevronRight} from 'lucide-react';
 import {halfwayCard,halfwayDue,drawHalfway} from './halfway-data.js';
 import {japanDate} from './timing.js';
 // The square, drawn on the phone and handed to the share sheet as a picture; saved instead on a

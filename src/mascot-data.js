@@ -190,12 +190,10 @@ export const CHOICES={theme:THEMES,shape:SHAPES,palette:PALETTES,eyes:EYES,mouth
 export const CHOICE_FIELDS=Object.keys(CHOICES);
 export const TEXT_FIELDS={name:40,romaji:40,meaning:140,saying:120,power:140};
 export const validChoice=(field,id)=>(CHOICES[field]||[]).some(o=>o.id===id);
-export const optionFor=(field,id)=>(CHOICES[field]||[]).find(o=>o.id===id)||CHOICES[field]?.[0];
 export const themeFor=id=>THEMES.find(t=>t.id===id)||THEMES[0];
 export const paletteFor=id=>PALETTES.find(p=>p.id===id)||PALETTES[0];
 export const DEFAULT_MASCOT={theme:'kitsune',...THEMES[0].suggest,name:'',romaji:'',meaning:'',saying:'',power:''};
 export const mascotFor=(state,person)=>state?.mascots?.[person]||null;
-export const hasMascot=(state,person)=>!!mascotFor(state,person);
 // A character is only shown around the app once it has a name, so a half-finished one does
 // not quietly replace somebody's initial everywhere.
 export const mascotReady=m=>!!m&&!!String(m.name||'').trim();

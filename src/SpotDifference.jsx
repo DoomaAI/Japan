@@ -2,7 +2,7 @@ import React,{useState,useEffect,useRef,useMemo,useCallback} from 'react';
 import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Lightbulb,Eye,Timer,Camera,WifiOff} from 'lucide-react';
 import {photosFor,scoresFor} from './trip-features.js';
-import {photoUrl} from './PhotoDay.jsx';
+import {photoUrl} from './api-urls.js';
 import {LEVELS,levelFor,hashSeed,workingSize,planRound,applyEdits,hitTest,hintFor,paneLayout,paneBox,spotScore,spotGame} from './spot-data.js';
 import {WinBurst} from './Win.jsx';
 // Spot the difference, out of the photos the boys took themselves. One of the two pictures has

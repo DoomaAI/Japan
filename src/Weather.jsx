@@ -1,27 +1,12 @@
 import React,{useState} from 'react';
-import {CloudSun,RefreshCw,X,ChevronRight,ChevronDown,ChevronUp,Sunrise,Sunset} from 'lucide-react';
+import {CloudSun,RefreshCw,ChevronRight,ChevronDown,ChevronUp,Sunrise,Sunset} from 'lucide-react';
 import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
-import {pointFor,forecastUrl,areaForecastUrl,AREAS_PER_REQUEST,stepTargets,stepReadings,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,morningNeeds,isMorning,hoursFor,stepWeather,iconAt,skyPhase,skyFor,hourLabel,nowWeather} from './weather-data.js';
+import {pointFor,forecastUrl,areaForecastUrl,AREAS_PER_REQUEST,stepTargets,stepReadings,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,hoursFor,stepWeather,iconAt,skyPhase,skyFor,hourLabel,nowWeather} from './weather-data.js';
 import {japanDate,japanClock} from './timing.js';
 import {isOpen,setOpen} from './fold.js';
 import SkyIcon from './SkyIcon.jsx';
 // The one section that folds away, named here so the phone remembers which one it was.
 export const FOLD_ID='weather';
-// The morning reminder. It is about the jumper and the umbrella, not the meteorology, it only
-// appears while it is still morning in Japan and only for the day we are actually on, and it
-// goes away for the day once someone has read it. It reads the forecast already on the phone,
-// so it works with no signal.
-export function MorningNeeds({state,day,clock,today}){
- const [hidden,setHidden]=useState(()=>{try{return localStorage.getItem(`japan.needs.${day}`)==='seen';}catch{return false;}});
- const needs=morningNeeds(forecastFor(state,day));
- if(!needs||hidden||day!==today||!isMorning(clock))return null;
- const dismiss=()=>{try{localStorage.setItem(`japan.needs.${day}`,'seen');}catch{}setHidden(true);};
- return <div className="morning-needs">
-  <span className="morning-icons" aria-hidden="true">{needs.icons}</span>
-  <div><strong>Before we go out</strong><p>{needs.summary}</p></div>
-  <button type="button" aria-label="Dismiss for today" onClick={dismiss}><X size={16}/></button>
- </div>;
-}
 // When it gets light and when it gets dark, which decides how late a walk can start and whether
 // the lanterns will be lit by the time we get there.
 export function SunTimes({entry}){

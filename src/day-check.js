@@ -7,10 +7,8 @@
 // Every shape here is cleaned the same way on the server, where it is written, and on the phone,
 // where it is drawn, so a stored check from an older version never draws something half-formed.
 import {activeSteps,minutes,latestStart,windowText} from './timing.js';
-const clamp=(v,max)=>String(v??'').trim().slice(0,max);
-const https=v=>{try{const u=new URL(String(v||'').trim());return u.protocol==='https:'&&!u.username&&!u.password?u.href.slice(0,500):'';}catch{return '';}};
+import {clamp,httpsLink as https,mapSearch} from './text.js';
 const isClock=v=>typeof v==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(v);
-const mapSearch=q=>q?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`:'';
 
 // Tomorrow's check ---------------------------------------------------------------------------
 // What kind of problem a note is about, so the card can say it in one word and one icon.
@@ -120,7 +118,6 @@ export function cleanPlanB(found,state,day,now=new Date().toISOString()){
  return {day,at:now,stops,rest};
 }
 export const planBOf=(state,day)=>state?.planB?.[day]||null;
-export const planBFor=(state,day,stepId)=>(planBOf(state,day)?.stops||[]).filter(s=>s.stepId===stepId);
 
 // A draft change from Ask ---------------------------------------------------------------------
 // Ask reads the plan and gives an opinion. When the opinion is "move this to tomorrow", it can

@@ -1,7 +1,7 @@
 import React,{useState,useEffect,useRef} from 'react';
 import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Check} from 'lucide-react';
-import {TRICKS,MOSHIKAME,HANG,trickById,trickAt,airtime,judge,moshikameWindow,kendamaScore,moshikameScore} from './kendama.js';
+import {TRICKS,MOSHIKAME,HANG,trickAt,airtime,judge,moshikameWindow,kendamaScore,moshikameScore} from './kendama.js';
 import {bestScore} from './trip-features.js';
 import {WinBurst} from './Win.jsx';
 const INK='#16383b',WOOD='#c9884a',DARK='#9c6433';

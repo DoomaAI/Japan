@@ -6,7 +6,7 @@ import {dayLabel} from './AdventurePages.jsx';
 import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf,rankByParty,travelText,COORD_PLACES,ratingText,UNRATED_STARS,directionsLink,bookingSearchLink,EVENT_KINDS,tripAreas} from './trip-features.js';
 import {activeSteps} from './timing.js';
 import {askPhoneWhereItIs} from './geo.js';
-import {photoUrl} from './PhotoDay.jsx';
+import {photoUrl} from './api-urls.js';
 import {SuggestDeck,PartyMatch} from './SuggestDeck.jsx';
 const kindLabel=id=>(PROPOSAL_KINDS.find(([key])=>key===id)||PROPOSAL_KINDS.at(-1))[1];
 const flavourLabel=id=>(SUGGEST_KINDS.find(([key])=>key===id)||SUGGEST_KINDS[1])[1];

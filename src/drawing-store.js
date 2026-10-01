@@ -50,5 +50,3 @@ export async function markShared(id,pathname){
 }
 export async function saveDesign(design){try{await withStore(DESIGNS,'readwrite',store=>{store.put(design);});return design.id;}catch{return null;}}
 export async function listDesigns(){try{return await readAll(DESIGNS);}catch{return [];}}
-export async function dropDesign(id){try{await withStore(DESIGNS,'readwrite',store=>{store.delete(id);});return true;}catch{return false;}}
-export async function artStorageWorks(){try{const db=await open();db.close();return true;}catch{return false;}}

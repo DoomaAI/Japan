@@ -1,5 +1,5 @@
-import {AppError} from './model.mjs';
-export const coachReady=()=>!!process.env.ANTHROPIC_API_KEY;
+import {AppError,modelReady} from './model.mjs';
+export const coachReady=modelReady;
 const MEDIA_TYPES=['image/jpeg','image/png','image/webp'];
 const MAX_BASE64=3_000_000;
 const SCHEMA={

@@ -1,12 +1,7 @@
 import React,{useState,useRef} from 'react';
 import {FileText,Copy,Check,AlertCircle,Clock} from 'lucide-react';
 import {shrinkPhoto} from './MenuReader.jsx';
-const readAsBase64=file=>new Promise((resolve,reject)=>{
- const reader=new FileReader();
- reader.onload=()=>resolve(String(reader.result));
- reader.onerror=()=>reject(new Error('That file could not be opened.'));
- reader.readAsDataURL(file);
-});
+import {readDataUrl as readAsBase64} from './browser.js';
 // A letter from a hotel, a form from a school, a notice on a door. Photograph it or pick the
 // PDF, and get it back in English with the parts that matter pulled out.
 export default function DocumentReader({config,busy,setBusy,request,notice,mutate}){

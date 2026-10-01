@@ -62,4 +62,3 @@ export function splitWarnings(split,children=[]){
  if(!split.meet)out.push('Nothing after the split has everyone on it — add where we meet back up.');
  return out;
 }
-export const laneName=lane=>`${lane.option} · ${lane.members.join(' + ')}`;

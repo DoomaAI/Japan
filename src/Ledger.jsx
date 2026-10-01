@@ -1,15 +1,15 @@
 import React,{useState} from 'react';
 import {Plus,Trash2,Pencil,Download,X,Receipt,Scale,CreditCard,Paperclip} from 'lucide-react';
 import {upload} from '@vercel/blob/client';
-import {balanceBetween,settlements,icCards,icBalance,icLow,IC_MAX,RECEIPT_TYPES,receiptUrl} from './ledger-data.js';
+import {balanceBetween,settlements,icBalance,icLow,IC_MAX,RECEIPT_TYPES,receiptUrl} from './ledger-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenses,expenseSummary,expensesCsv,expenseCategoryLabel,payMethodLabel,yenToAud,rateIsSet} from './trip-features.js';
 import {yen,aud,rateText} from './Currency.jsx';
 import {dayLabel} from './AdventurePages.jsx';
 import Runway from './Runway.jsx';
 import {japanDate} from './timing.js';
+import {download} from './browser.js';
 // What Damien and Lauren spend, in yen as the receipt says, with dollars at the shared rate.
 // Adding one works with no signal, because a payment happens at a till, not near a router.
-function download(name,data,type){const u=URL.createObjectURL(new Blob([data],{type})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
 function Breakdown({title,values,label,total,rate}){
  const rows=Object.entries(values).sort((a,b)=>b[1]-a[1]);
  if(!rows.length)return null;

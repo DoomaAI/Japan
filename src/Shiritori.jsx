@@ -1,14 +1,14 @@
 import React,{useState,useMemo,useRef,useEffect} from 'react';
 import {useStored} from './stored.js';
-import {Trophy,RotateCcw,X} from 'lucide-react';
+import {RotateCcw,X} from 'lucide-react';
 import {WORDS,OPENER,LEVELS,levelById,optionsFor,phoneReply,shiritoriScore,DEAD} from './shiritori-data.js';
 import {bestScore} from './trip-features.js';
 import {useKanaVoice} from './SayIt.jsx';
 import {WinBurst} from './Win.jsx';
+import {rng} from './random.js';
 // Shiritori. The chain opens on the word しりとり itself, which is how it is really started,
 // and the letter you owe is always the last sound of whatever was just said — so the game
 // makes a child look at the end of a word, which is the half of it nobody ever reads.
-const rng=seed=>{let n=seed>>>0||1;return()=>{n^=n<<13;n>>>=0;n^=n>>17;n^=n<<5;n>>>=0;return n/4294967296;};};
 export default function Shiritori({user,state,mutate,busy}){
  const [levelId,setLevelId]=useStored('japan.shiritori.level','pictures');
  const [chain,setChain]=useStored('japan.shiritori.chain',[OPENER]);

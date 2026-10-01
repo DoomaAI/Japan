@@ -1,13 +1,14 @@
 // After dinner: a nightcap, a drink, a night out or a late treat near tonight's hotel, found on the
 // web for whoever asked, with what they are after and who is coming in mind, in the guide's voice.
 // The moods and what each asks for live in src/night-out-data.js.
-import {AppError} from './model.mjs';
+import {AppError,modelReady} from './model.mjs';
 import {japanDate} from '../src/timing.js';
 import {withGuide} from '../src/guide-data.js';
 import {partyBrief} from '../src/trip-features.js';
 import {nightAnchor,moodOf,moodsFor,whoFor,cleanNightOption,rankNight,VIBES,PAYS,NIGHT_PER_MOOD} from '../src/night-out-data.js';
 import {seenHosts,checkedLink} from './links.mjs';
-export const nightOutReady=()=>!!process.env.ANTHROPIC_API_KEY;
+import {clamp} from '../src/text.js';
+export const nightOutReady=modelReady;
 const SEARCH={type:'web_search_20260209',name:'web_search',max_uses:6,user_location:{type:'approximate',country:'JP',timezone:'Asia/Tokyo'}};
 const ids=list=>list.map(([id])=>id);
 const OPTION={type:'object',additionalProperties:false,
@@ -43,7 +44,6 @@ const SYSTEM=`You find somewhere to go after dinner tonight for one family on ho
 - Set every field honestly: null, "unknown" or empty where you have not seen it.
 - Links only exactly as search results showed them. Never invent a phone number.
 - Call record_night_out exactly once.`;
-const clamp=(v,n)=>String(v??'').trim().slice(0,n);
 export function nightRequest(b,state,user){
  const day=String(b?.day||''),mood=moodOf(b?.mood);
  if(!(state.days||[]).some(d=>d.date===day))throw new AppError('Choose a trip day.');

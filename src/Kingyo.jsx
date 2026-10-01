@@ -1,4 +1,4 @@
-import React,{useState,useEffect,useRef} from 'react';
+import React,{useEffect,useRef} from 'react';
 import {useStored} from './stored.js';
 import {Trophy,RotateCcw} from 'lucide-react';
 import {TANK,TICK,POI_R,FISH,fishById,LEVELS,levelById,newTank,kingyoTick,bowlWorth,kingyoScore,rng} from './kingyo.js';

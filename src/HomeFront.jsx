@@ -1,6 +1,6 @@
 import React from 'react';
 import {House,PlaneLanding,ListChecks,Check,Clock} from 'lucide-react';
-import {AWAY_LIST,LANDING_LIST,onTodoList,clockShift,HOME_ZONE} from './home-front.js';
+import {AWAY_LIST,LANDING_LIST,onTodoList,clockShift} from './home-front.js';
 import {japanDate} from './timing.js';
 // The house while we are away and the first day back: two short lists, each line one tap from
 // the family to-do list, and the clocks-change note for a trip that crosses daylight saving.

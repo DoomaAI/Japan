@@ -20,6 +20,9 @@ export class AppError extends Error { constructor(message,status=400){super(mess
 const text = (v,max=1000) => typeof v === 'string' && v.length <= max;
 const shortDate=d=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(`${d}T12:00:00Z`));
 const clock = v => v === null || (typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v));
+// Whether the Claude API is switched on for this deployment. Every feature that asks the model
+// reports this as its own ready flag, so the app can say which ones are on.
+export const modelReady=()=>!!process.env.ANTHROPIC_API_KEY;
 export function safeLink(v){try{const u=new URL(v);return u.protocol==='https:';}catch{return false;}}
 export function documentDetails(p){
  const category=p.category||'ticket',reference=p.reference||'',notes=p.notes||'',tags=p.tags||[];

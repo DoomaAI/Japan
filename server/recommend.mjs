@@ -2,6 +2,7 @@ import {AppError} from './model.mjs';
 import {PROPOSAL_KINDS,tripAreas} from '../src/trip-features.js';
 import {researchReady} from './research.mjs';
 import {RECOMMEND_TEXT,MAX_RECOMMEND_ITEMS,RECOMMENDER_SAID,MAX_RECOMMEND_SHOTS} from '../src/recommend-data.js';
+import {clampLine as clamp} from '../src/text.js';
 // Reads a message from a friend or relative ("you HAVE to get the katsu sando at…, and if you're
 // in Kyoto go early to…") into the separate things they recommended. No web search: it is only
 // reading what they wrote, so it is quick and cheap, and nothing is saved here. The list comes
@@ -31,7 +32,6 @@ const SYSTEM=`You read a message, or screenshots of one, that a friend or relati
 - Never add anything the message does not say, and never correct a name you are unsure of: copy it.
 
 Call record_recommendations exactly once.`;
-const clamp=(v,max)=>String(v??'').replace(/\s+/g,' ').trim().slice(0,max);
 export function normaliseRecommendations(items,areas=[]){
  const list=(Array.isArray(items)?items:[]).map(i=>({title:clamp(i?.title,250),place:clamp(i?.place,250),
   category:PROPOSAL_KINDS.some(([id])=>id===i?.category)?i.category:'place',said:clamp(i?.said,RECOMMENDER_SAID),

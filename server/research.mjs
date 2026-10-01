@@ -1,6 +1,7 @@
-import {AppError,MEMBERS} from './model.mjs';
+import {AppError,MEMBERS,modelReady} from './model.mjs';
 import {PROPOSAL_KINDS,PROPOSAL_TIMING,proposalDraft} from '../src/trip-features.js';
-export const researchReady=()=>!!process.env.ANTHROPIC_API_KEY;
+import {clamp,httpsUrl as https,mapSearch} from '../src/text.js';
+export const researchReady=modelReady;
 // Eight searches is enough to reach an official site, its hours page and its ticket page, and
 // bounds what one lookup can cost. Asked from Japan, so a search for "the aquarium in Osaka"
 // returns the Japanese pages rather than the English travel-blog ones.
@@ -54,12 +55,9 @@ How to work:
 You are gathering what is published. You are not booking anything and you are not promising anything. Never state that a price is current, a ticket is available or a place is open on a given date as a settled fact — that is what checkFirst is for.
 
 Search first, then call record_findings exactly once. Everything you report goes in that call, not in a message.`;
-const https=v=>{try{return new URL(v).protocol==='https:'?new URL(v):null;}catch{return null;}};
 // The same hosts the app already treats as a real map link, checked here so a made-up short
 // link never reaches a phone. Anything else is dropped and a plain Maps search is built instead.
 const mapLink=v=>{const u=https(v);return u&&(['maps.app.goo.gl','maps.google.com','goo.gl'].includes(u.hostname)||(u.hostname==='www.google.com'&&u.pathname.startsWith('/maps')))?u.href:'';};
-const mapSearch=q=>q?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`:'';
-const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 // Nothing a model returns is trusted. Every field is cut to the length the planning board
 // already enforces, every link has to be HTTPS, and anything out of range is dropped rather
 // than corrected into something that looks researched but is not.

@@ -53,9 +53,4 @@ export function nextStreak(streak,day,days){
  if(streak.last&&streak.last===before&&!recent)return {count:streak.count+1,last:day,frozen:[...frozen,prev].slice(-4),forgiven:prev};
  return {count:1,last:day,frozen:[]};
 }
-// Whether a missed morning would be forgiven today, for the line under the checklist.
-export function freezeReady(streak,day){
- const frozen=Array.isArray(streak?.frozen)?streak.frozen:[];
- return !frozen.some(f=>daysBetween(f,day)<FREEZE_DAYS);
-}
 export const streakWords=(n,forgiven=null)=>n>=2?`${n} mornings in a row${forgiven?' · one missed morning forgiven this week':''}`:n===1?'First morning done':'';

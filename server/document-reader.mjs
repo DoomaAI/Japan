@@ -1,5 +1,5 @@
-import {AppError} from './model.mjs';
-export const readerReady=()=>!!process.env.ANTHROPIC_API_KEY;
+import {AppError,modelReady} from './model.mjs';
+export const readerReady=modelReady;
 const IMAGE_TYPES=['image/jpeg','image/png','image/webp'];
 const PDF='application/pdf';
 // About 4.5 MB of base64. The phone shrinks photographs before sending; this cap stops an

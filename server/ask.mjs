@@ -1,11 +1,12 @@
-import {AppError,MEMBERS} from './model.mjs';
+import {AppError,MEMBERS,modelReady} from './model.mjs';
 import {guidePrompt} from '../src/guide-data.js';
 import {proposals,proposalPlacement,todos} from '../src/trip-features.js';
 import {tripProject,notOn} from '../src/trip-project.js';
 import {activeSteps,japanDate,japanClock,windowText} from '../src/timing.js';
 import {cleanDraft,DRAFT_ACTION_IDS} from '../src/day-check.js';
 import {describe,forecastFor,hoursFor,daySummary,forecastAge,ageLabel} from '../src/weather-data.js';
-export const askReady=()=>!!process.env.ANTHROPIC_API_KEY;
+import {clamp,httpsUrl as https} from '../src/text.js';
+export const askReady=modelReady;
 // One question, asked out loud on the day, so it is short on purpose. Anything longer than this
 // is two questions, and two questions get one muddled answer.
 export const MAX_QUESTION=600;
@@ -74,8 +75,6 @@ Search if it helps, then call record_answer exactly once. Everything you say goe
 // Asked out loud from the assistant, with the answer read back to someone walking: the verdict
 // and the answer are what is heard, so they have to work as speech.
 export const SPOKEN='They asked this out loud and will hear "verdict" and "answer" read back while walking, without looking at the screen. Keep the answer to two or three short spoken sentences, with no lists, brackets, web addresses or symbols, and say times as a person would ("half past twelve"). If you put a change in "draft", say what it does in one sentence, because they will be asked to say yes to it.';
-const clamp=(v,max)=>String(v??'').trim().slice(0,max);
-const https=v=>{try{return new URL(v).protocol==='https:'?new URL(v):null;}catch{return null;}};
 const clock=h=>`${String(h).padStart(2,'0')}:00`;
 // The forecast as one clause on the end of the day's own line, because that is how it is read:
 // nobody wants a weather report, they want to know whether this is the day for the garden.

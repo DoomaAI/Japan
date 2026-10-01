@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {Lock,Check} from 'lucide-react';
+import {Lock} from 'lucide-react';
 import {PREDICTIONS,PREDICTION_MAX,predictionPhase,predictionsOf,predictionCount} from './prediction-data.js';
 // Sealed predictions: write them before we fly, see them sealed during, and open them together
 // when we are home. A parent can write for a boy who would rather say his out loud.

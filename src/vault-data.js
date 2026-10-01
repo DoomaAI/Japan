@@ -10,7 +10,6 @@ export const VAULT_FILE_TYPES=['image/jpeg','image/png','image/webp','applicatio
 export const VAULT_FILE_MAX=4*1024*1024;
 export const VAULT_FILES_PER_DOC=6,VAULT_LIMIT=40;
 const DATE=/^\d{4}-\d{2}-\d{2}$/;
-const PARENTS=['Damien','Lauren'];
 class VaultError extends Error{constructor(message){super(message);this.status=400;}}
 // Only the known fields, each trimmed and cut to length; anything else sent along is dropped.
 export function cleanVaultRecord(input,members=[]){
@@ -30,7 +29,6 @@ export function cleanVaultRecord(input,members=[]){
  if(out.issued&&out.expires&&out.expires<out.issued)throw new VaultError('The expiry date is before the issue date.');
  return out;
 }
-export const canUseVault=user=>user?.role==='parent'&&PARENTS.includes(user?.name);
 // Only the end of a number is shown until someone asks to see it: enough to tell two passports
 // apart across a hotel desk, not enough to read over a shoulder.
 export function maskNumber(value){

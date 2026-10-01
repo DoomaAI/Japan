@@ -4,7 +4,7 @@
 // sheet, where a print-and-post app (TouchNote, Australia Post's cards) or plain Messages takes
 // it. The provider to build in is logged in the Trip shop as a keepsake with none chosen yet.
 import {photoOwner} from './trip-features.js';
-const cut=(s,n)=>{s=String(s||'').replace(/\s+/g,' ').trim();return s.length>n?`${s.slice(0,n-1)}…`:s;};
+import {cut} from './text.js';
 export function postcardText(state,photo,{to='Grandma and Grandpa'}={}){
  const days=state?.days||[],i=days.findIndex(d=>d.date===photo?.day),day=days[i];
  const by=photoOwner(photo),said=(state?.voiceNotes||[]).find(v=>v.day===photo?.day&&v.by===by&&v.transcript)?.transcript
