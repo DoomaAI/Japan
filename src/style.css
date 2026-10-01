@@ -696,12 +696,9 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 @media(max-width:600px){.choose-weight{grid-template-columns:minmax(0,8rem) 1fr;}.choose-weight small{display:none}}
 .deck{margin:.4rem 0 .8rem;outline:none}.deck:focus-visible{outline:2px solid var(--green);outline-offset:4px;border-radius:18px}.deck-count{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;margin:.2rem 0 .6rem;font-weight:650;font-size:.9rem}.deck-count small{color:var(--muted);font-weight:400;text-align:right}.deck-stack{display:grid;padding-bottom:10px}.deck-card{grid-area:1/1;position:relative;min-width:0}.deck-card .suggest-card{margin:0;box-shadow:0 10px 30px #16383b14}.deck-card.top{touch-action:pan-y;user-select:none;-webkit-user-select:none;cursor:grab;z-index:1;transition:transform .22s ease,opacity .22s ease}.deck-card.held{cursor:grabbing}.deck-card.under{transform:translateY(10px) scale(.96);opacity:.55;pointer-events:none;overflow:hidden;max-height:100%}.deck-stamp{position:absolute;top:-.5rem;z-index:2;padding:.2rem .6rem;border:3px solid;border-radius:8px;font-weight:800;font-size:1.05rem;letter-spacing:.06em;text-transform:uppercase;background:#fffffff2;pointer-events:none;transition:opacity .1s}.deck-stamp.keep{left:1rem;color:var(--green);transform:rotate(-12deg)}.deck-stamp.pass{right:1rem;color:var(--accent);transform:rotate(12deg)}.deck-actions{display:flex;justify-content:center;align-items:center;gap:1.4rem;margin:.9rem 0 .4rem}.deck-actions button{display:grid;place-items:center;border-radius:50%;padding:0;background:var(--paper);border:1px solid var(--border);box-shadow:0 6px 18px #16383b14}.deck-pass,.deck-keep{width:62px;height:62px}.deck-pass{color:var(--accent)}.deck-keep{color:var(--green)}.deck-undo{width:44px;height:44px;color:var(--muted)}.deck-actions button:disabled{opacity:.4}.deck-done p{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}.deck-kept{list-style:none;padding:0;margin:.3rem 0 .8rem}.deck-kept li{display:flex;align-items:center;gap:.4rem;padding:.25rem 0;color:var(--green);font-weight:600}
 @media(prefers-reduced-motion:reduce){.deck-card.top{transition:none}}
-/* More: favourites on top, then folding sections of cards. */
-.more-fav-head{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin:0 0 .5rem}
-.more-fav-head h2,.more-fold span{font-size:.78rem;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-family:inherit;font-weight:700;margin:0}
+/* More: a line for the favourites, then folding sections of cards. */
+.more-fold span{font-size:.78rem;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-family:inherit;font-weight:700;margin:0}
 .more-edit{display:inline-flex;align-items:center;gap:.35rem;min-height:36px;padding:.35rem .75rem;font-size:.8rem;border-radius:18px}
-.more-edit.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
-.more-hint{font-size:.85rem;color:var(--muted);margin:-.2rem 0 .7rem}
 .more-section{margin-bottom:.6rem}
 .more-section h2{margin:0}
 .more-fold{display:flex;width:100%;align-items:center;gap:.5rem;min-height:48px;padding:.6rem .9rem;background:var(--paper);border:1px solid var(--border);border-radius:14px;text-align:left}
@@ -715,25 +712,7 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .right-now-tile .more-tags{display:flex;gap:.2rem;flex-wrap:wrap;justify-content:center}
 .right-now-tile .more-tags .tag{font-size:.75rem;padding:.05rem .35rem}
 .right-now-tile.more-elsewhere{opacity:.6}
-/* More, being edited (fav-wobble.js): every card wobbles, a badge in its corner adds or removes
-   it, and the card being dragged is a ghost under the finger while the card it came from waits,
-   dimmed, where it was — or where it will land, if that is in the row. The page still scrolls
-   under a quick swipe, so the cards keep the page's own touch handling rather than wobble.js's. */
-.more-page[data-editing] .more-card-wrap{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-.more-page [data-wobbling]>[data-link]{touch-action:manipulation;border-radius:14px}
 .more-page .right-now-tile{-webkit-touch-callout:none}
-.more-card-wrap.lifting{opacity:.3}
-.more-card-wrap.lifting>.right-now-tile{border-style:dashed}
-.more-badge{position:absolute;top:-6px;left:-6px;z-index:2;display:grid;place-items:center;width:26px;height:26px;min-height:26px;padding:0;border-radius:50%;background:var(--ink);border-color:var(--ink);color:var(--paper);box-shadow:0 2px 6px #0003}
-.more-badge.minus{background:var(--muted);border-color:var(--muted)}
-.more-badge.on{background:var(--green);border-color:var(--green)}
-.more-badge:disabled{opacity:.3}
-.right-now.more-drop{display:grid;place-items:center;grid-template-columns:1fr;min-height:72px;border:2px dashed var(--border);border-radius:14px;color:var(--muted);font-size:.85rem}
-.more-done{position:sticky;bottom:calc(90px + env(safe-area-inset-bottom));z-index:6;margin:.8rem 0;padding:.55rem .6rem .55rem .9rem;background:var(--cream);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 30px #0002}
-.more-ghost{position:fixed;z-index:60;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.35rem;width:104px;min-height:72px;padding:.6rem .4rem;background:var(--paper);border:1px solid var(--border);border-radius:14px;font-weight:600;font-size:.82rem;line-height:1.15;text-align:center;transform:translate(-50%,-50%) scale(1.1);box-shadow:0 12px 30px #0003;transition:opacity .15s}
-.more-ghost svg{color:var(--accent)}
-.more-ghost.leaving,.more-ghost.full{opacity:.7}
-.more-ghost i{position:absolute;top:-6px;left:-6px;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--paper)}
 .booked-via{display:inline-flex;align-items:center;gap:.3rem;font-weight:600;color:var(--ink);text-decoration:none;border:1px solid var(--border);border-radius:999px;padding:.15rem .6rem;background:var(--paper)}a.booked-via{text-decoration:underline;text-underline-offset:2px}.booked-via.button{border-radius:8px;padding:.5rem .8rem;text-decoration:none}
 .food-rate{margin:.2rem 0 .8rem;padding:.7rem .9rem}
 .food-rate .food-people{margin:.7rem 0 0}
@@ -953,9 +932,6 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .fav-sheet-empty button{display:inline;min-height:0;padding:0;border:0;background:transparent;color:var(--accent);font:inherit;font-weight:600;text-decoration:underline}
 .fav-sheet-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;margin:0 -1rem;padding:0 1rem 1rem}
 .fav-chosen{display:flex;flex-wrap:wrap;gap:.4rem;padding:.6rem;border:1px solid var(--tint-border);background:var(--tint);border-radius:14px;min-height:52px;align-items:center}
-.fav-chip{min-height:36px;padding:.3rem .55rem .3rem .65rem;gap:.35rem;font-size:.8rem;border-radius:18px;background:var(--paper);border-color:var(--accent)}
-.fav-chip svg:first-child{color:var(--accent)}
-.fav-chip svg:last-child{color:var(--muted)}
 .fav-chosen-none{color:var(--muted);font-size:.85rem;padding:0 .3rem}
 .fav-sheet-hint{margin:.55rem 0 .6rem;color:var(--muted);font-size:.8rem}
 .fav-find{width:100%;font-size:16px;min-height:44px;padding:.5rem .8rem;border:1px solid var(--border);border-radius:12px;background:var(--paper);color:var(--ink);margin-bottom:.4rem}
@@ -971,6 +947,23 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .fav-pick.on>svg{color:var(--accent)}
 .fav-pick.on i{background:var(--accent);border-color:var(--accent);color:var(--paper)}
 .fav-pick:disabled{opacity:.45;cursor:not-allowed}
+/* More: one line for the favourites, which live in the sheet now, and a word when a hold stars a card. */
+.more-fav-line{display:flex;align-items:center;gap:.7rem;padding:.7rem .8rem;margin:0 0 1rem;background:var(--paper);border:1px solid var(--border);border-radius:14px}
+.more-fav-line>svg{flex:0 0 auto;color:var(--gold-ink);fill:var(--gold)}
+.more-fav-line>span{flex:1;min-width:0;display:grid;gap:.1rem}
+.more-fav-line strong{font-size:.92rem}
+.more-fav-line small{color:var(--muted);font-size:.78rem;line-height:1.3}
+.more-said{position:sticky;bottom:calc(96px + env(safe-area-inset-bottom));margin:.6rem auto 0;width:fit-content;max-width:100%;padding:0 .9rem;border-radius:18px;background:var(--ink);color:var(--paper);font-size:.82rem;line-height:2.2;text-align:center}
+.more-said:empty{display:none}
+.more-card-wrap{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.fav-chip{display:inline-flex;align-items:stretch;min-height:36px;border:1px solid var(--accent);border-radius:18px;background:var(--paper);touch-action:none;overflow:hidden}
+.fav-chip.picked{box-shadow:0 0 0 2px var(--accent)}
+.fav-chip.dragging{opacity:.6}
+.fav-chip button{min-height:36px;border:0;border-radius:0;background:transparent;font-size:.8rem;padding:.3rem .5rem}
+.fav-chip-name{gap:.35rem;padding-left:.65rem!important;cursor:grab}
+.fav-chip-name svg{color:var(--accent)}
+.fav-chip-tool{padding:.3rem .4rem!important;color:var(--muted)}
+.fav-chip-tool:disabled{opacity:.3}
 .right-now-tile .more-fav-mark{position:absolute;top:6px;right:6px;width:13px;height:13px;color:var(--gold-ink);fill:var(--gold)}
 @keyframes fav-rise{from{transform:translate(-50%,24px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
 @keyframes fav-veil{from{opacity:0}to{opacity:1}}
