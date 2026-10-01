@@ -34,7 +34,7 @@ import {PHRASES} from './phrases.js';
 import {readSettings,writeSetting,settingOn} from './settings.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
 import {primaryNav,moreIds,PAGES,cleanNav,emptyNav,setAvailable,isAvailable,setHeldBack,setPlan} from './nav-data.js';
-import {homeShown,homeRuns,emptyHome,cleanHome} from './home-widgets.js';
+import {HOME_WIDGETS,homeShown,homeRuns,emptyHome,cleanHome,homeDay,foldWidget,awayToday,backToday} from './home-widgets.js';
 import {linkOrder,emptyLinks,cleanLinks} from './card-links.js';
 import StopButtons from './StopButtons.jsx';
 import Reports from './Reports.jsx';
@@ -90,7 +90,7 @@ import {MascotBadge} from './Mascot.jsx';
 import React,{useEffect,useMemo,useRef,useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
-import {Sparkles,Radio,MessageCircleQuestion,Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Archive,ArchiveRestore,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
+import {EyeOff,Sparkles,Radio,MessageCircleQuestion,Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,LifeBuoy,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Users,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,FileText,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,GripVertical,ArrowUp,ArrowDown,Inbox,Archive,ArchiveRestore,Trophy,ShoppingBag,Heart,Phone,MessageCircle,Eye,RefreshCw,FerrisWheel,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
 import {activeSteps,dayProgress,dayBehind,tripCountdown,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent,scheduleVariance,stayPlan,spanWords,setPlanZone,planZone,zonedInstant,windowText,WINDOW_CHOICES} from './timing.js';
 import {todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,ticketList,isArchived,attachmentsOf,documentSteps,documentStepList,documentServesStep} from './trip-features.js';
 import {armPlayback} from './speech.js';
@@ -179,6 +179,19 @@ async function request(path,data){
  let b;try{b=await r.json();}catch{throw new Error('The connection was interrupted. Please try again.');}if(!r.ok){const e=new Error(b.error||'Please try again.');e.status=r.status;throw e;}return b;}
 function Link({href,children,...props}){return <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;}
 function Button({icon:Icon,children,...props}){return <button {...props}>{Icon&&<Icon size={18}/>} {children}</button>;}
+// Each card on Home carries a slim label with two buttons: fold it to that label, or put it away,
+// both until tomorrow. The card's own content is always drawn, folded or not, so a card with
+// nothing to say right now (dinner before four, the run-up after we land) still draws nothing,
+// label and all — the stylesheet hides a card whose body is empty.
+function HomeCard({label,folded,fold,away,children}){
+ return <section className={`home-card${folded?' folded':''}`} aria-label={label}>
+  <div className="home-card-bar"><span>{label}</span>
+   <button type="button" className="icon" aria-expanded={!folded} aria-label={folded?`Open ${label}`:`Fold ${label} for today`} onClick={fold}><ChevronDown size={16}/></button>
+   <button type="button" className="icon" aria-label={`Put ${label} away until tomorrow`} onClick={away}><EyeOff size={15}/></button>
+  </div>
+  <div className="home-card-body">{children}</div>
+ </section>;
+}
 // Anything typed into a sheet is asked about before a stray tap on the backdrop, or Escape,
 // throws it away. A sheet with nothing changed in it still closes on the tap as it always has,
 // and the Close button never asks: pressing it is the answer.
@@ -267,6 +280,14 @@ function App(){
   const clean=cleanHome(next);
   setHomePrefs(clean);
   try{localStorage.setItem(`japan.home.${user.name}`,JSON.stringify(clean));}catch{}
+ }
+ // Folded or put away for today only, kept beside the arrangement and dropped at the end of the
+ // day in Japan, so tomorrow's Home is the one in Customise again.
+ const [homeToday,setHomeToday]=useState(null);
+ useEffect(()=>{if(user?.name)setHomeToday(stored(`japan.homeday.${user.name}`,null));},[user?.name]);
+ function saveHomeToday(next){
+  setHomeToday(next);
+  try{localStorage.setItem(`japan.homeday.${user.name}`,JSON.stringify(next));}catch{}
  }
  // And so are the buttons under each stop: the order they come in is this person's, on this phone.
  const [linkPrefs,setLinkPrefs]=useState(emptyLinks());
@@ -649,6 +670,7 @@ function App(){
  // Home is a stack of widgets, in the order this person has put them and without the ones they
  // have put away. Each one is written here once and drawn by id, so the arrangement lives in
  // one list on the phone rather than in the shape of this screen.
+ const todayKey=japanDate(now),todayHome=homeDay(homeToday,todayKey);
  const homeWidgets=tab==='today'&&{
   rings:<Rings state={visibleState} user={user} day={day}/>,
   find:<FindBox state={visibleState} user={user} go={go} selectStep={selectStep} open={setModal} selectDay={selectDay}/>,
@@ -784,8 +806,9 @@ function App(){
    {dayStrip(selectDay)}
    <MomentBanner day={japanDate(now)} now={now} go={go}/>
    <QuizLine state={visibleState} open={()=>setModal({type:'quiz'})}/>
-   {homeRuns(homeShown(homePrefs).filter(id=>awarenessAllows(visibleState,user.name,id))).map(run=>Array.isArray(run)?<div className="home-actions" key={run.join()}>{run.map(id=><React.Fragment key={id}>{homeWidgets[id]}</React.Fragment>)}</div>:<React.Fragment key={run}>{homeWidgets[run]}</React.Fragment>)}
+   {homeRuns(homeShown(homePrefs).filter(id=>awarenessAllows(visibleState,user.name,id)&&!todayHome.away.includes(id))).map(run=>Array.isArray(run)?<div className="home-actions" key={run.join()}>{run.map(id=><React.Fragment key={id}>{homeWidgets[id]}</React.Fragment>)}</div>:<HomeCard key={run} label={HOME_WIDGETS[run].label} folded={todayHome.folded.includes(run)} fold={()=>saveHomeToday(foldWidget(homeToday,todayKey,run))} away={()=>saveHomeToday(awayToday(homeToday,todayKey,run))}>{homeWidgets[run]}</HomeCard>)}
    {!homeShown(homePrefs).length&&<div className="empty"><h2>Home is clear.</h2><p>Every widget is put away. Bring back the ones you want from Customise.</p></div>}
+   {todayHome.away.length>0&&<div className="home-away"><EyeOff size={15}/><span>{todayHome.away.length===1?`${HOME_WIDGETS[todayHome.away[0]].label} is`:`${todayHome.away.length} cards are`} put away until tomorrow.</span><button type="button" onClick={()=>saveHomeToday(backToday(homeToday,todayKey))}><Eye size={15}/> Show {todayHome.away.length===1?'it':'them'}</button><button type="button" onClick={()=>go('settings')}><SlidersHorizontal size={15}/> Put away for good</button></div>}
    <div className="home-customise"><Button icon={SlidersHorizontal} onClick={()=>go('personalise')}>Customise Home</Button></div>
   </div>}
   {tab==='glance'&&<>
@@ -830,7 +853,7 @@ function App(){
   {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><h1>Food we want to try</h1><div className="row wrap page-links"><button onClick={()=>go('allergy')}><AlertCircle size={16}/>Allergy card</button><button onClick={()=>go('hunts')}><ListChecks size={16}/>Hunts & lists</button></div><FoodList state={visibleState} user={user} speak={speak} openPage={openPage} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal} request={online?request:null}/></>}
   {tab==='thanks'&&user.name===THANK_YOU_FROM&&<ThankYouEditor state={state} mutate={mutate} busy={busy}/>}
-  {tab==='settings'&&<Settings config={config} accept={accept} state={visibleState} mutate={mutate} busy={busy} hand={parent?handTo:null} user={user} settings={settings} change={changeSetting} request={request} notice={notice} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav}/>}
+  {tab==='settings'&&<Settings config={config} accept={accept} state={visibleState} mutate={mutate} busy={busy} hand={parent?handTo:null} user={user} settings={settings} change={changeSetting} request={request} notice={notice} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav} home={homePrefs} setHome={saveHome} held={heldBack(visibleState,user.name)}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
   {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go} day={day} remove={removeThen} request={request} online={online&&!!config?.capture} sayFirst={sayFirst} clearSayFirst={()=>setSayFirst(null)}/>}

@@ -95,7 +95,7 @@ export function BarShortcuts({user,prefs,setPrefs}){
 // Home is a column of widgets, and this is where they are put in order or put away. The same
 // arrows as the bar, for the same reasons, plus an eye: a widget put away is still listed here,
 // greyed, so there is never anything to go looking for to bring it back.
-function HomeWidgets({home,setHome,held=[]}){
+export function HomeWidgets({home,setHome,held=[]}){
  if(!setHome)return null;
  // A widget the awareness dial holds back on this phone is not offered to arrange either.
  const {hidden}=cleanHome(home),order=homeOrder(home).filter(id=>!held.includes(id));
@@ -104,7 +104,8 @@ function HomeWidgets({home,setHome,held=[]}){
   <p>Home shows these, top to bottom, under the day and its dates. Move them into the order you
    want and put away the ones you do not need. The day’s buttons — the day at a glance, adjust the
    day, we’re tired, useful apps — live on Today and start put away here; tap the eye to add any of
-   them to Home too. It changes Home on this phone only.</p>
+   them to Home too. It changes Home on this phone only. To put a card away just for today, use the
+   eye on the card itself on Home; it comes back tomorrow by itself.</p>
   <ol className="menu-order home-widgets">{order.map((id,i)=>{const off=hidden.includes(id);
    return <li key={id} className={off?'is-hidden':undefined}>
     <span><strong>{HOME_WIDGETS[id].label}</strong><small>{off?'Put away · ':''}{HOME_WIDGETS[id].note}</small></span>
