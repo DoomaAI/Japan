@@ -11396,3 +11396,161 @@ test('after the trip: notes to open next year, the show-and-tell page, sound pos
  const tonight=await readFile(new URL('../src/Tonight.jsx',import.meta.url),'utf8');
  assert.match(tonight,/capsuleWritable\(state,today\)&&!capsuleFor\(state,user\.name\)\?\.text&&/,'the last days invite the note');
 });
+test('every coin and note is drawn on both sides, priced in both currencies, and can be heard',async()=>{
+ const {COINS,NOTES,OLD_NOTES,MONEY,moneyAloud,audAloud,kindOf,MONEY_ALOUD}=await import('../src/money-data.js');
+ const {DEFAULT_YEN_PER_AUD}=await import('../src/trip-features.js');
+ assert.equal(COINS.length,6,'the six coins that actually come out of a pocket');
+ assert.equal(NOTES.length,4,'the four notes, the rare two thousand included');
+ assert.equal(OLD_NOTES.length,3,'and the older set, still spendable and still everywhere');
+ assert.equal(new Set(MONEY.map(m=>m.id)).size,MONEY.length,'no piece of money is listed twice');
+ // The whole point is the two sides: a child holding a coin can only see one of them, and the
+ // number he can read is usually on the other one.
+ for(const item of MONEY){
+  for(const side of ['front','back']){
+   assert.ok(item[side]?.shows,`${item.id} does not say what is on its ${side}`);
+   assert.ok(item[side].why?.length>20,`${item.id} does not explain its ${side}`);
+  }
+  assert.ok(item.spot&&item.worth,`${item.id} has no way to tell it apart and no idea what it buys`);
+  assert.match(item.say,/^[a-z ]+$/,`${item.id} has to be sayable by somebody who cannot read a word of Japanese`);
+  assert.ok(item.yen>0);
+ }
+ // Coins stop at five hundred and notes start at a thousand, and nothing lives in between.
+ assert.equal(Math.max(...COINS.map(c=>c.yen)),500);
+ assert.equal(Math.min(...[...NOTES,...OLD_NOTES].map(n=>n.yen)),1000);
+ assert.equal(kindOf(COINS[0]),'coin');assert.equal(kindOf(NOTES[0]),'note');
+ // A note is longer the more it is worth, which is the one thing a child can check with his
+ // own two hands, so the drawing has to be honest about it.
+ const sizes=[...NOTES].sort((a,b)=>a.yen-b.yen).map(n=>n.mm);
+ assert.deepEqual(sizes,[...sizes].sort((a,b)=>a-b),'a bigger number has to be a longer note');
+ // Said to a five-year-old holding the thing, so: plain English, both sides, and short enough
+ // that he is still listening at the end. Japanese script read by an Australian voice is noise.
+ for(const item of MONEY){
+  const said=moneyAloud(item,DEFAULT_YEN_PER_AUD);
+  assert.doesNotMatch(said,/[　-ヿ一-鿿]/,`${item.id} would have the phone mangling Japanese`);
+  assert.doesNotMatch(said,/\p{Extended_Pictographic}/u,`${item.id} would be read out as a picture`);
+  assert.doesNotMatch(said,/[¥$—–]/,`${item.id} leaves a symbol for the voice to guess at`);
+  assert.ok(said.includes(item.front.shows)&&said.includes(item.back.shows),`${item.id} is only spoken on one side`);
+  assert.ok(said.length<=360,`${item.id} is too long to be read to a five-year-old`);
+ }
+ assert.ok(MONEY_ALOUD.length>200&&MONEY_ALOUD.length<900,'the whole lesson in one press, and no longer');
+ assert.doesNotMatch(MONEY_ALOUD,/[¥$—–]|[　-ヿ一-鿿]/);
+ // Dollars in words rather than in figures: a phone reading a dollar sign aloud is a lottery.
+ assert.equal(audAloud(1,98),'less than five cents');
+ assert.equal(audAloud(100,98),'about 1 dollar');
+ assert.equal(audAloud(500,98),'about 5 dollars 10');
+ assert.equal(audAloud(1000,98),'about 10 dollars');
+ assert.equal(audAloud(10000,98),'about 102 dollars');
+ assert.equal(audAloud(50,98),'about 50 cents');
+ // A rate nobody has set yet must not turn the whole lesson into a division by zero.
+ assert.equal(audAloud(100,0),'about 1 dollar');
+});
+
+test('the money pictures are our own drawing, both sides, and Nate can press one and be told',async()=>{
+ const {COINS,NOTES,OLD_NOTES}=await import('../src/money-data.js');
+ const art=await readFile(new URL('../src/MoneyArt.jsx',import.meta.url),'utf8');
+ const page=await readFile(new URL('../src/MoneyPictures.jsx',import.meta.url),'utf8');
+ const spending=await readFile(new URL('../src/Spending.jsx',import.meta.url),'utf8');
+ // Drawn in the app rather than fetched, so it works on a phone with no signal in a shop.
+ assert.doesNotMatch(art,/<img|fetch\(|https?:\/\//,'nothing here is downloaded or photographed');
+ // Every coin needs its picture side, and every note needs the side worth looking at.
+ for(const coin of COINS)assert.ok(art.includes(`'${coin.id}':c=>`),`${coin.id} has no picture side drawn`);
+ for(const note of [...NOTES,...OLD_NOTES])
+  assert.ok(art.includes(`'${note.id}':ink=>`),`${note.id} has no back drawn`);
+ // The hole in a five or a fifty is a hole, not a white circle painted on: it has to still be
+ // a hole against whatever the card behind it is doing.
+ assert.match(art,/<mask id=\{id\}>/);
+ assert.match(art,/const BACK_LAYOUT=/,'the number goes under the hole on the coins that have one');
+ // Both sides of everything, every time.
+ assert.match(page,/\['front','back'\]\.map\(side=>/);
+ assert.match(page,/side==='front'\?'The picture side':'The number side'/,'a coin is not a note');
+ // Yen for the shop and dollars for working out whether it was worth it, the same as the rest
+ // of the page, at the family's own rate rather than a made-up one.
+ assert.match(page,/\{yen\(item\.yen\)\}/);assert.match(page,/\{dollars\(item\.yen,rate\)\}/);
+ assert.match(spending,/<MoneyPictures state=\{state\} user=\{user\} rate=\{rate\} person=\{person\} mine=\{mine\}/,'the spending page carries it, for whichever boy is on screen');
+ // Nate is why the speaker is there, so he gets the story speed and a button he cannot miss.
+ assert.match(page,/const young=user\?\.name==='Nate'/);
+ assert.match(page,/rate:young\?YOUNG_RATE:undefined/);
+ assert.match(page,/young=\{aloud\.young\}/);
+ assert.match(page,/text=\{MONEY_ALOUD\}/,'and one press that tells him about the money as a whole');
+ assert.match(page,/text=\{moneyAloud\(item,rate\)\}/,'and one on every single piece of it');
+ // It says so when the phone stays silent, like everywhere else that speaks.
+ assert.match(page,/const \{supported:canRead,reading,read,problem\}=useReadAloud\(\)/);
+ assert.match(page,/\{SILENT_HINT\}/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/\.money-hear\.young\{/,'the button he presses is bigger than the one a parent presses');
+});
+
+test('the boys tick off each coin and note as they get one or see one, and it is their own set',async()=>{
+ const {ensureFeatures,moneyFind,moneyTally}=await import('../src/trip-features.js');
+ const {MONEY,COINS}=await import('../src/money-data.js');
+ const boston={name:'Boston',role:'child'};
+ const base=ensureFeatures(structuredClone(seed));
+ assert.deepEqual(base.money,{},'nobody has found anything before the trip starts');
+ // Seeing one and getting one are different things, and a ten thousand yen note is only ever
+ // going to be one of them, so the set records which it was rather than flattening it to a tick.
+ const saw=applyOperation(base,{type:'moneyFound',id:'note-10000',person:'Nate',state:'saw'},child);
+ assert.equal(moneyFind(saw,'note-10000','Nate').had,false);
+ const had=applyOperation(saw,{type:'moneyFound',id:'coin-500',person:'Nate',state:'had'},child);
+ assert.equal(moneyFind(had,'coin-500','Nate').had,true);
+ assert.deepEqual(moneyTally(had,'Nate'),{total:MONEY.length,found:2,had:1,saw:1});
+ assert.deepEqual(moneyTally(had,'Nate',COINS),{total:6,found:1,had:1,saw:0});
+ // One boy's collection is his own: what Nate has found says nothing about Boston.
+ assert.deepEqual(moneyTally(had,'Boston'),{total:MONEY.length,found:0,had:0,saw:0});
+ // A coin seen in a shop window in Tokyo and finally handed over in Kyoto is still first seen
+ // in Tokyo, so moving it up from seen to had keeps the day it was first found.
+ const first=moneyFind(had,'note-10000','Nate').at;
+ const kept=applyOperation(had,{type:'moneyFound',id:'note-10000',person:'Nate',state:'had'},child);
+ assert.equal(moneyFind(kept,'note-10000','Nate').at,first,'the day he first saw it is not restamped');
+ assert.equal(moneyFind(kept,'note-10000','Nate').had,true);
+ // A mis-tap by a five-year-old has to be undoable, and an empty entry is not left lying about.
+ const undone=applyOperation(kept,{type:'moneyFound',id:'note-10000',person:'Nate',state:'no'},child);
+ assert.equal(moneyFind(undone,'note-10000','Nate'),null);
+ assert.ok(!('note-10000'in undone.money),'the last boy to un-tick it takes the entry with him');
+ // It is the boys' own money, so a boy ticks his own and a parent can tick for either of them.
+ assert.throws(()=>applyOperation(base,{type:'moneyFound',id:'coin-100',person:'Boston',state:'had'},child),e=>e.status===403);
+ assert.equal(moneyFind(applyOperation(base,{type:'moneyFound',id:'coin-100',person:'Boston',state:'had'},boston),'coin-100','Boston').had,true);
+ assert.equal(moneyFind(applyOperation(base,{type:'moneyFound',id:'coin-100',person:'Nate',state:'saw'},parent),'coin-100','Nate').had,false);
+ // Nobody else has a set to fill, and nothing can be ticked that is not really money.
+ assert.throws(()=>applyOperation(base,{type:'moneyFound',id:'coin-100',person:'Damien',state:'had'},parent),e=>e.status===403);
+ assert.throws(()=>applyOperation(base,{type:'moneyFound',id:'coin-3',person:'Nate',state:'had'},parent),e=>e.status===404);
+ assert.throws(()=>applyOperation(base,{type:'moneyFound',id:'coin-100',person:'Nate',state:'maybe'},parent),/Invalid money tick/);
+});
+
+test('a coin ticked off in a shop with no signal shows up at once and lands when it syncs',async()=>{
+ const {ensureFeatures,pendingProgress,moneyFind,moneyTally}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed)),at='2026-09-25T04:10:00.000Z';
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ // A shop is the one place on this trip with no signal worth relying on, so this is exactly
+ // the tick that has to survive it.
+ assert.match(main,/const OFFLINE_OPS=\[[^\]]*'moneyFound'/s,'ticking a coin off is queued rather than lost');
+ const queued=[{operation:{type:'moneyFound',id:'coin-5',person:'Nate',state:'had',at}},
+  {operation:{type:'moneyFound',id:'coin-50',person:'Nate',state:'saw',at}}];
+ const shown=pendingProgress(state,queued);
+ assert.equal(moneyFind(shown,'coin-5','Nate').had,true);
+ assert.equal(moneyFind(shown,'coin-5','Nate').pending,true,'and it says so until it lands');
+ assert.deepEqual(moneyTally(shown,'Nate').found,2);
+ assert.deepEqual(moneyTally(state,'Nate').found,0,'the queue does not touch the trip until it syncs');
+ // And taking one back off works the same way round.
+ const off=pendingProgress(state,[...queued,{operation:{type:'moneyFound',id:'coin-5',person:'Nate',state:'no',at}}]);
+ assert.equal(moneyFind(off,'coin-5','Nate'),null);
+});
+
+test('the ticks are two buttons a five-year-old can press, and the set has a bar to fill',async()=>{
+ const page=await readFile(new URL('../src/MoneyPictures.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // Pressing the one that is already on takes it back off: that is how a five-year-old undoes
+ // a mis-tap without finding a menu.
+ assert.match(page,/const set=want=>mutate\(\{type:'moneyFound',id:item\.id,person,state:on\(want\)\?'no':want\}\)/);
+ assert.match(page,/aria-pressed=\{on\('had'\)\}/);assert.match(page,/aria-pressed=\{on\('saw'\)\}/);
+ // A boy looking at his brother's page sees how his brother is going and cannot touch it.
+ assert.match(page,/if\(!mine\)return found\?/,'the other boy reads it rather than ticks it');
+ // Having one in your hand counts as having seen it, so the bar fills once and the darker part
+ // of it is the money that actually turned up.
+ assert.match(page,/className="money-had" style=\{\{width:`\$\{\(whole\.had\/whole\.total\)\*100\}%`\}\}/);
+ assert.match(page,/className="money-saw" style=\{\{width:`\$\{\(whole\.saw\/whole\.total\)\*100\}%`\}\}/);
+ assert.match(page,/full=whole\.found===whole\.total/,'and finishing the set is worth saying');
+ // The meter's stripe and the button must not share a class, or the stripe paints the button.
+ assert.doesNotMatch(page,/className=\{`money-saw\$/);
+ assert.match(css,/\.money-tick button\.on\{/);
+ assert.match(css,/\.money-progress\.full\{/);
+});

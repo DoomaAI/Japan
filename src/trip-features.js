@@ -2,6 +2,7 @@ import {recommenders,withRecommender,cleanRecommenders,matchProposal} from './re
 import {isChild,defaultReading,ageOf,gentleOnly} from './child-levels.js';
 import {nextTimeBrief} from './next-time.js';
 import {learnedBrief} from './taste-data.js';
+import {MONEY} from './money-data.js';
 import {isDeveloping} from './film-data.js';
 import {activeSteps,minutes,asClock,japanDate,japanClock,latestStart,windowText} from './timing.js';
 import {stepsFor} from './split.js';
@@ -149,6 +150,19 @@ export const EYE_SPY=[
  {id:'bow',icon:'🧹',title:'The cleaning team bowing on the platform',hint:'They bow to the train before and after they clean it.'},
  {id:'asleep',icon:'💤',title:'Someone fast asleep',hint:'Very common. Be kind about it.'}
 ];
+// The boys' own collection of the money itself. Two ways to find a coin: one turns up in your
+// change and you keep it, and one you only ever get to look at — a ¥10,000 note is not going in
+// a five-year-old's purse. Both count as found, and which of the two it was is the whole
+// interest of it, so it is remembered rather than flattened into a tick.
+export const MONEY_STATES=['had','saw'];
+export const moneyFind=(state,id,person)=>state.money?.[id]?.[person]||null;
+// How far through the set a boy is, over whichever pieces are in front of him. Having one in
+// your hand is also having seen it, so `found` is the total and `had` is the better half of it.
+export function moneyTally(state,person,list=MONEY){
+ const finds=list.map(m=>moneyFind(state,m.id,person));
+ return {total:list.length,found:finds.filter(Boolean).length,
+  had:finds.filter(f=>f?.had).length,saw:finds.filter(f=>f&&!f.had).length};
+}
 export const isTrainLeg=step=>/nozomi|shinkansen/i.test(step?.title||'');
 export const trainLegs=state=>state.steps.filter(isTrainLeg);
 export const eyeSpyKey=(stepId,itemId)=>`${stepId}|${itemId}`;
@@ -472,7 +486,7 @@ export function seededChallenges(state){
 }
 export function ensureFeatures(input){
  const state=windowsSeeded(disneySeaSeeded(disneySeeded(timesSeeded(notesSeeded(splitSeeded({...input,...expressSeeded(input)}))))));
- return {...state,allergies:state.allergies||{},checkIns:state.checkIns||[],readiness:state.readiness||{},stages:state.stages||{},bin:state.bin||[],settlements:state.settlements||[],icCards:state.icCards||{},askThread:state.askThread||[],mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},bingo:state.bingo??{},shopLog:state.shopLog??{},stays:state.stays??{},localChecks:state.localChecks??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},noticed:state.noticed??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},dayRatings:state.dayRatings??{},dayThoughts:state.dayThoughts??{},predictions:state.predictions??{},bookingWindows:state.bookingWindows??[],dpa:state.dpa??[],mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:normaliseThankYou(state.thankYou),plan:planOf(state),people:peopleOf(state),invitation:invitationOf(state),rsvps:state.rsvps??{}};
+ return {...state,allergies:state.allergies||{},checkIns:state.checkIns||[],readiness:state.readiness||{},stages:state.stages||{},bin:state.bin||[],settlements:state.settlements||[],icCards:state.icCards||{},askThread:state.askThread||[],mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],money:state.money??{},shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},bingo:state.bingo??{},shopLog:state.shopLog??{},stays:state.stays??{},localChecks:state.localChecks??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},noticed:state.noticed??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},dayRatings:state.dayRatings??{},dayThoughts:state.dayThoughts??{},predictions:state.predictions??{},bookingWindows:state.bookingWindows??[],dpa:state.dpa??[],mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:normaliseThankYou(state.thankYou),plan:planOf(state),people:peopleOf(state),invitation:invitationOf(state),rsvps:state.rsvps??{}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -1453,6 +1467,15 @@ export function pendingProgress(state,queue){
    if(o.status==='done')next.documents=next.documents.map(d=>documentServesStep(d,s.id)&&documentSpent(next.steps,d)&&d.category!=='memory'&&!d.archivedAt?{...d,archivedAt:o.at,archivedWith:s.id,pending:!live}:d);
    if(o.status==='todo')next.documents=next.documents.map(d=>d.archivedWith&&documentServesStep(d,s.id)?{...d,archivedAt:null,archivedBy:null,archivedWith:null,pending:!live}:d);
   }}
+  // A coin is ticked off in a shop, which is the one place on this trip with no signal worth
+  // relying on, so the collection has to fill in on the phone and land later.
+  if(o.type==='moneyFound'){
+   const found={...(next.money?.[o.id]||{})};
+   if(o.state==='no')delete found[o.person];
+   else found[o.person]={at:found[o.person]?.at||o.at,had:o.state==='had',pending:true};
+   next.money={...(next.money||{}),[o.id]:found};
+   if(!Object.keys(found).length)delete next.money[o.id];
+  }
   if(o.type==='phraseSeen'){
    if(o.day){const e={...(next.phraseSeen[o.day]||{})};e[o.person]=e[o.person]||o.at;next.phraseSeen={...next.phraseSeen,[o.day]:e};}
    if(o.phraseIds?.length){const log={...(next.phraseLog[o.person]||{})};for(const id of o.phraseIds)log[id]=log[id]||o.at;next.phraseLog={...next.phraseLog,[o.person]:log};}

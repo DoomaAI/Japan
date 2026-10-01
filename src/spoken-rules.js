@@ -90,7 +90,7 @@ export const PAGE_RULES={
  memorymap:'Memory map. A map of Japan with our photos and voice notes on it, in the places where we took them. You can see where Mum and Dad are too.',
  trackers:'Tracker tags. Some of our bags have a little tag inside that tells Mum and Dad where the bag is. If a bag gets lost, they can find it.',
  packing:'Packing list. Everything that goes in the bags. Tick each thing when it is in. There are ideas too, like a hat when it is hot, and you can add your own things.',
- spending:'Spending money. How much money you have left, what you have spent it on, and how much is still there. You can ask for something, and Mum or Dad says yes or no.',
+ spending:'Spending money. How much money you have left, what you have spent it on, and how much is still there. You can ask for something, and Mum or Dad says yes or no. Right at the bottom of this page there are pictures of every Japanese coin and every note. Each one is drawn on both sides, so you can see what it looks like and what it is worth. Press the speaker under any of them and it will tell you about it. When you get one, press the purse under it. When you only see one, press the eye. Try to find all of them.',
  weather:'Weather. What the weather is doing, so we know whether to take an umbrella or a jumper.',
  parks:'Theme park rides. A list of every ride, and whether you are tall enough for it. Tick the ones you have been on.',
  shopping:'Shopping list. Presents and souvenirs we want to buy. Tick something when we have got it.',
