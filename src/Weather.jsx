@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
 import {CloudSun,RefreshCw,X,ChevronRight,ChevronDown,ChevronUp,Sunrise,Sunset} from 'lucide-react';
 import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
-import {pointFor,forecastUrl,areaForecastUrl,AREAS_PER_REQUEST,stepTargets,stepReadings,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,morningNeeds,isMorning,hoursFor,stepWeather,iconAt,skyPhase,skyFor,hourLabel} from './weather-data.js';
+import {pointFor,forecastUrl,areaForecastUrl,AREAS_PER_REQUEST,stepTargets,stepReadings,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,morningNeeds,isMorning,hoursFor,stepWeather,iconAt,skyPhase,skyFor,hourLabel,nowWeather} from './weather-data.js';
 import {japanDate,japanClock} from './timing.js';
 import {isOpen,setOpen} from './fold.js';
 import SkyIcon from './SkyIcon.jsx';
@@ -56,6 +56,13 @@ export function StepWeather({state,step,steps,compact,pill,onOpen}){
   <span><strong>{w.temp}°{label&&` · ${label}`}</strong>{[feels,rain].filter(Boolean).length>0&&<> · {[feels,rain].filter(Boolean).join(' · ')}</>}
    <small>{w.approx?'Around ':'At '}{hourLabel(w.h)} · {w.local?w.area:`${w.area}, the city forecast`}{w.dark?' · after dark':''}</small></span>
  </p>;
+}
+// The sky now, in the top bar beside the clock: the icon and the number, and a tap opens the day's weather.
+export function NowWeather({state,day,clock,onOpen}){
+ const w=state&&nowWeather(state,day,clock);
+ if(!w)return null;
+ const detail=[`${w.temp}°${w.label?` ${w.label}`:''}`,Number.isFinite(w.rain)&&w.rain>=20?`${w.rain}% rain`:''].filter(Boolean).join(' · ');
+ return <button type="button" className="now-weather" title={detail} aria-label={`Weather now: ${detail}. Open the weather`} onClick={onOpen}><span aria-hidden="true"><SkyIcon icon={w.icon}/></span>{w.temp}°</button>;
 }
 // The forecast for the days we are actually here, kept in the trip so one phone's lookup
 // serves everyone and the numbers are still on screen with no signal.

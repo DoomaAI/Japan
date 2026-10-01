@@ -258,6 +258,16 @@ export function stepWeather(state,step,steps){
  const hour=hoursFor(state,step.day)?.find(x=>x.h===at.h);
  return hour?{...hour,area:day?.city||pointFor(state.days?.find(d=>d.date===step.day)?.city).name,approx:at.approx,local:false,dark,phase}:null;
 }
+// The sky right now, for the top bar beside the clock: this hour's reading for today's city when
+// the hours are saved, or the day's forecast when only that is. Nothing on a day off the trip.
+export function nowWeather(state,day,clock){
+ const f=forecastFor(state,day),h=Number(String(clock||'').slice(0,2));
+ const hours=hoursFor(state,day),hour=Number.isFinite(h)&&hours?.length?hours.reduce((a,b)=>Math.abs(b.h-h)<Math.abs(a.h-h)?b:a):null;
+ const code=hour?.code??f?.code??null,temp=hour?.temp??f?.max;
+ if(!Number.isFinite(temp))return null;
+ const phase=Number.isFinite(h)?skyPhase(skyFor(state,day),h*60+Number(String(clock).slice(3,5)||0)):'day';
+ return {temp,code,icon:code===null?'🌡️':iconAt(code,phase),label:code===null?'':describe(code)[0],rain:hour?.rain??f?.rain??null};
+}
 // A forecast more than a few days out is a guess, and a stale one is worse than none. This is
 // what the screen uses to say how much to trust what it is showing.
 export function forecastAge(state,now=new Date()){

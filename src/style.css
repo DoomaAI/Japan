@@ -931,3 +931,5 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .rearrange-tools{display:flex;align-items:center;gap:.25rem}.rearrange-tools select{width:auto}
 .stop-picker{border:1px solid var(--border);border-radius:12px;padding:.4rem .7rem;margin:.5rem 0;max-height:40vh;overflow:auto}.stop-picker .checkline{margin:.35rem 0}.stop-picker svg{margin-left:.3rem;vertical-align:-1px}
 .rearrange-preview{padding:.7rem .9rem;background:var(--tint);border-radius:12px;margin:.7rem 0}.rearrange-preview ul{margin:.3rem 0 0;padding-left:1.1rem}.rearrange-empty{color:var(--muted)}
+
+.now-weather{display:inline-flex;align-items:center;gap:.25rem;border:0;background:transparent;padding:.3rem .2rem;min-height:44px;font-size:.95rem;font-weight:700;color:var(--ink);white-space:nowrap}.now-weather:hover{background:transparent}.now-weather span{font-size:1.15rem;line-height:1}.now-weather+.local-clock{margin-left:-.4rem}@media(max-width:600px){.now-weather{font-size:.8rem;padding:.3rem .1rem}.now-weather span{font-size:1rem}.now-weather+.local-clock{margin-left:0}}
