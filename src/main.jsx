@@ -98,6 +98,7 @@ import SplitDay,{WhoseDay} from './SplitDay.jsx';
 import './style.css';
 import './stages.css';
 import './guide-theme.css';
+import './house-theme.css';
 import './travel-guide.css';
 // Tomorrow's check and Plan B are read with no signal, on the stop card and the day, so they are in the shell.
 import DayCheck,{StopPlanB} from './DayCheck.jsx';

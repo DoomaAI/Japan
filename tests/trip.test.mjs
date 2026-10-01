@@ -11202,7 +11202,7 @@ test('one line under each title, and the rest of the why behind How this works',
  assert.match(css,/\.how-this-works summary\{[^}]*min-height:40px/,'the fold is a proper tap target');
 });
 
-test('a look is chosen by the person or left to the destination, and there is one look so far',async()=>{
+test('a look is chosen by the person or left to the destination, and Japan wears Washi',async()=>{
  const {LOOKS,LOOK_CHOICES,BY_COUNTRY,COUNTRY_LOOKS,TRIP_COUNTRY,readLook,saveLook,resolveLook,applyLook}=await import('../src/theme.js');
  const store=(saved={})=>({getItem:k=>saved[k]??null,setItem:(k,v)=>{saved[k]=v;},saved});
  // Left to the destination until someone chooses, however it was stored, and when storage is refused.
@@ -11220,10 +11220,11 @@ test('a look is chosen by the person or left to the destination, and there is on
  for(const look of Object.values(COUNTRY_LOOKS))assert.ok(LOOKS.some(([id])=>id===look),`${look} is a real look`);
  assert.deepEqual(LOOK_CHOICES.map(([id])=>id),[BY_COUNTRY,...LOOKS.map(([id])=>id)]);
  const doc={documentElement:{dataset:{}}};
- assert.equal(applyLook(BY_COUNTRY,'JP',doc),'guide');assert.equal(doc.documentElement.dataset.look,'guide');
- assert.equal(applyLook(BY_COUNTRY,'JP',null),'guide','no document, nothing to do');
+ assert.equal(applyLook(BY_COUNTRY,'JP',doc),'washi');assert.equal(doc.documentElement.dataset.look,'washi');
+ assert.equal(applyLook(BY_COUNTRY,'JP',null),'washi','no document, nothing to do');
+ assert.equal(applyLook('guide','JP',doc),'guide','the printed guide is still one choice away');
  const read=async f=>readFile(new URL(`../src/${f}`,import.meta.url),'utf8');
- // Put on the page before the first paint, and no picker in Settings while there is nothing to pick.
+ // Put on the page before the first paint; Settings shows the picker once there is more than one look.
  assert.match(await read('main.jsx'),/applyLook\(readLook\(\)\);\napplyTheme\(readTheme\(\)\);/);
  assert.match(await read('Settings.jsx'),/\{LOOKS\.length>1&&<div className="segmented theme-picker" role="radiogroup" aria-label="Look">/);
 });
