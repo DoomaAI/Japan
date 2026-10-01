@@ -80,3 +80,12 @@ test('long answers go out a few sentences at a time, in an English voice',()=>{
  assert.equal(englishVoice([{lang:'ja-JP'},{lang:'en-US',name:'us'}]).name,'us');
  assert.equal(englishVoice([{lang:'ja-JP'}]),null);
 });
+
+test('the assistant is a button on every page, switched on by default and off per person',async()=>{
+ const {DEFAULTS,SETTINGS}=await import('../src/settings.js');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.equal(DEFAULTS.voiceAssistant,true);
+ assert.equal(SETTINGS.find(s=>s.id==='voiceAssistant').group,'assistant');
+ assert.match(main,/config\?\.ask&&isAvailable\('ask'\)&&settingOn\(settings,'voiceAssistant'\)&&tab!=='ask'&&!modal&&<button type="button" className="assistant-fab"/,'only where Ask works, and not over Ask or a sheet');
+ assert.match(main,/modal\.type==='assistant'&&<AskTrip assistant /);
+});
