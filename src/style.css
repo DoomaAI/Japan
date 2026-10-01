@@ -933,6 +933,50 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .rearrange-preview{padding:.7rem .9rem;background:var(--tint);border-radius:12px;margin:.7rem 0}.rearrange-preview ul{margin:.3rem 0 0;padding-left:1.1rem}.rearrange-empty{color:var(--muted)}
 
 .now-weather{display:inline-flex;align-items:center;gap:.25rem;border:0;background:transparent;padding:.3rem .2rem;min-height:44px;font-size:.95rem;font-weight:700;color:var(--ink);white-space:nowrap}.now-weather:hover{background:transparent}.now-weather span{font-size:1.15rem;line-height:1}.now-weather+.local-clock{margin-left:-.4rem}@media(max-width:600px){.now-weather{font-size:.8rem;padding:.3rem .1rem}.now-weather span{font-size:1rem}.now-weather+.local-clock{margin-left:0}}
+
+/* Favourites, one swipe up the bar. As tall as the rows in it, sitting on the bar's top edge. */
+.fav-sheet-veil{position:fixed;inset:0;z-index:8;background:#092b3240;animation:fav-veil .18s ease-out}
+.fav-sheet{position:fixed;left:50%;transform:translateX(-50%);z-index:9;width:100%;max-width:640px;display:flex;flex-direction:column;background:var(--cream);border:1px solid var(--border);border-bottom:0;border-radius:22px 22px 0 0;box-shadow:0 -12px 40px #183f3224;padding:.35rem 1rem 1rem;animation:fav-rise .22s cubic-bezier(.2,.8,.3,1)}
+.fav-sheet.choosing{height:calc(100dvh - var(--fav-bottom,80px) - 3.5rem);max-height:calc(100dvh - var(--fav-bottom,80px) - 3.5rem)}
+.fav-sheet-head{display:flex;align-items:center;flex-wrap:wrap;gap:.45rem;padding:.9rem 0 .7rem;position:relative;touch-action:none}
+.fav-sheet-grabber{position:absolute;top:.3rem;left:50%;transform:translateX(-50%);width:40px;height:5px;border-radius:3px;background:var(--stone);opacity:.4}
+.fav-sheet-head h2{margin:0;font-size:1.05rem}
+.fav-sheet-head small{color:var(--muted);font-size:.8rem;margin-right:auto;font-variant-numeric:tabular-nums}
+.fav-sheet-head small.full{color:var(--accent);font-weight:600}
+.fav-sheet-action{min-height:40px;padding:.45rem .75rem;font-size:.82rem;gap:.35rem;border-radius:20px}
+.fav-sheet-action.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.fav-sheet-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(var(--fav-rows,1),minmax(76px,auto));gap:.5rem}
+.fav-tile{flex-direction:column;gap:.35rem;min-height:76px;padding:.55rem .3rem;border-radius:14px;font-size:.78rem;line-height:1.15;text-align:center;overflow-wrap:anywhere}
+.fav-tile svg{color:var(--accent);flex:0 0 auto}
+.fav-tile.current{border-color:var(--dark)}
+.fav-sheet-empty{margin:.2rem 0 .4rem;color:var(--muted);font-size:.9rem}
+.fav-sheet-empty button{display:inline;min-height:0;padding:0;border:0;background:transparent;color:var(--accent);font:inherit;font-weight:600;text-decoration:underline}
+.fav-sheet-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;margin:0 -1rem;padding:0 1rem 1rem}
+.fav-chosen{display:flex;flex-wrap:wrap;gap:.4rem;padding:.6rem;border:1px solid var(--tint-border);background:var(--tint);border-radius:14px;min-height:52px;align-items:center}
+.fav-chip{min-height:36px;padding:.3rem .55rem .3rem .65rem;gap:.35rem;font-size:.8rem;border-radius:18px;background:var(--paper);border-color:var(--accent)}
+.fav-chip svg:first-child{color:var(--accent)}
+.fav-chip svg:last-child{color:var(--muted)}
+.fav-chosen-none{color:var(--muted);font-size:.85rem;padding:0 .3rem}
+.fav-sheet-hint{margin:.55rem 0 .6rem;color:var(--muted);font-size:.8rem}
+.fav-find{width:100%;font-size:16px;min-height:44px;padding:.5rem .8rem;border:1px solid var(--border);border-radius:12px;background:var(--paper);color:var(--ink);margin-bottom:.4rem}
+.fav-pick-section h3{margin:1rem 0 .45rem;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.fav-pick-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem}
+@media(min-width:560px){.fav-pick-grid{grid-template-columns:repeat(3,1fr)}}
+.fav-pick{justify-content:flex-start;gap:.5rem;min-height:48px;padding:.45rem .55rem;font-size:.82rem;font-weight:500;text-align:left;border-radius:12px;position:relative}
+.fav-pick svg{flex:0 0 auto;color:var(--muted)}
+.fav-pick span{flex:1;min-width:0;line-height:1.2}
+.fav-pick i{display:grid;place-items:center;flex:0 0 22px;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);color:var(--muted);font-style:normal}
+.fav-pick i svg{color:inherit}
+.fav-pick.on{background:var(--blush);border-color:var(--accent);font-weight:600}
+.fav-pick.on>svg{color:var(--accent)}
+.fav-pick.on i{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+.fav-pick:disabled{opacity:.45;cursor:not-allowed}
+.right-now-tile .more-fav-mark{position:absolute;top:6px;right:6px;width:13px;height:13px;color:var(--gold-ink);fill:var(--gold)}
+@keyframes fav-rise{from{transform:translate(-50%,24px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+@keyframes fav-veil{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.fav-sheet,.fav-sheet-veil{animation:none}}
+@media print{.fav-sheet,.fav-sheet-veil{display:none}}
+
 /* Once the trip is ready the screen waits for the card to finish; Go in now skips it. The tips
    choice sits quietly at the foot so it is there without competing with the card. */
 .opening-track.ready{color:inherit}.opening-go{min-height:0;padding:.15rem .55rem;margin-left:.2rem;font-size:.8rem;letter-spacing:.04em;color:inherit;background:#ffffff26;border:1px solid #ffffff55;border-radius:999px}.opening-go:hover{background:#ffffff40}

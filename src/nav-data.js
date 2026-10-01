@@ -143,6 +143,20 @@ export const toggleFavourite=(user,saved,id)=>{
  const now=favourites(user,saved);
  return now.includes(id)?now.filter(x=>x!==id):now.length<FAV_MAX?[...now,id]:now;
 };
+// The same favourites open as a sheet from the bar: a swipe up it, or the handle on top of it.
+// One list, kept in one place, so a card starred on More is in the sheet and one chosen in the
+// sheet is in the row on More. The sheet is only as tall as the favourites in it — rows of
+// FAV_COLS, so the default six are two rows and a full dozen three — and never a scroll.
+export const FAV_COLS=4;
+export const favRows=n=>Math.max(1,Math.ceil(Math.max(0,n|0)/FAV_COLS));
+// Choosing favourites in the sheet lists every screen this person can open, the bar's own
+// included, in the sections More uses, so it is plain which are chosen and where the rest are.
+// Typing narrows it by name or by what the screen is for; sections with nothing left drop out.
+export const pickerSections=(user,prefs,find='')=>{
+ const q=String(find||'').trim().toLowerCase();
+ const hit=id=>!q||PAGES[id].label.toLowerCase().includes(q)||PAGES[id].note.toLowerCase().includes(q);
+ return moreSections(user,prefs,true).map(([title,ids])=>[title,ids.filter(hit)]).filter(([,ids])=>ids.length);
+};
 // Where a card dragged about on More lands in the row. Onto another favourite it takes that
 // one's place, whether it was already in the row or has come up from a section; onto the row's
 // empty end it goes last; dropped anywhere else (null) it leaves the row. A new card is turned
