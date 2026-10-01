@@ -46,7 +46,7 @@ export const threadFor=(state,user,local)=>sharesThread(user)?mergeThreads(state
 // What of an answer is worth the trip carrying: the words, not the token counts.
 export const askItem=(item,by)=>({id:String(item.id),at:item.at,by,question:item.question,verdict:item.verdict||'',answer:item.answer||'',
  because:item.because||[],days:item.days||[],checkFirst:item.checkFirst||'',sources:item.sources||[],about:item.about||null,step:item.step||null,
- searches:item.usage?.searches||item.searches||0});
+ searches:item.usage?.searches||item.searches||0,...(item.draft?{draft:item.draft}:{})});
 // What goes back with the next question: whole exchanges, oldest first, as plain text. The
 // model's own blocks are never replayed — nothing a previous answer carried can come back round.
 export const askHistory=thread=>thread.slice(0,ASK_HISTORY).reverse()

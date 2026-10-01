@@ -230,6 +230,10 @@ Steps stay in the plan's JSON as today so the run sheet, the timeline, the day m
 | Allergy card, safety card, lost card | Family safety modules |
 | Looks per plan | `LOOKS` and `applyLook` in `src/theme.js` |
 
+## Dress code and what to wear
+
+Added 1 October 2026. A gathering has a dress code; a day out has weather. The two answer one question a guest asks the night before, *what do I wear?*, so they are one module. The dress code is the organiser's: a choice from a short list and a free note ("garden party, flat shoes for the lawn"). The clothing line is worked out, not written: the forecast for the venue at the event's hours (`src/weather-data.js`), whether the plan says it is outdoors, and the walking the run sheet implies, turned into one or two lines ("Light rain from 18:00 and 14°C by the end: bring a jacket and an umbrella; the ceremony is on grass"). It reads the dress code, so a black-tie evening in the rain gets an umbrella, not a raincoat. For the family trip the same line goes in each morning's day in brief, reading each person's profile for the boys. Step 11 below.
+
 ## Build order
 
 Sits inside the modular build order in commercialisation.md, and brings tenancy and open membership forward.
@@ -246,6 +250,7 @@ Sits inside the modular build order in commercialisation.md, and brings tenancy 
 | 8 | Messages, nudges, outbound email and SMS | 3 | Organiser communication |
 | 9 | Printables, wallet passes, door check-in | 3, 6 | The day itself |
 | 10 | Child plans (a wedding inside a trip) | 1, 2 | Destination weddings, conferences |
+| 11 | Dress code and what to wear | 1, 3 | A dress code on the plan and the invitation (casual, smart casual, cocktail, black tie, themed, plus the organiser's note), and a what-to-wear line for the day read off the forecast for the venue's place and hours: rain, heat, cold, indoors or out, a walk from the car park. Shown on the invitation, in the RSVP confirmation and on the morning of the event; for a trip, the same line in each day's brief |
 
 The second fixture for testing is a **dinner for six in Sydney**, then a **wedding of 120 in three households' worth of test data**; each step must pass with the family trip and both.
 

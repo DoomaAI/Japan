@@ -26,6 +26,7 @@ export const HOME_WIDGETS={
  needs:{label:'Before we head out',note:'A tick for each thing to carry out the door, fresh each morning, with a streak'},
  links:{label:'Next fixed time',note:'The next time that cannot move, one tap from its stop'},
  stay:{label:'Tonight’s stay',note:'The hotel, which night, check-in and check-out, the confirmation number, directions and the taxi card'},
+ move:{label:'Hotel move',note:'The evening before and the morning of a move: bags to the desk, the forwarding label in Japanese, the overnight bag, check-out and check-in'},
  running:{label:'Is everything running?',note:'Service status for today’s trains, and flight status on a flight day'},
  weather:{label:'Weather',note:'The day’s forecast, folded or open',page:'weather'},
  glance:{label:'The day at a glance',note:'A button to the day’s stops in order',off:true,action:true,page:'glance'},

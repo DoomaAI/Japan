@@ -5,6 +5,7 @@ import {ASK_LIMIT,askDayLabel,askHistory,askItem,askStarters,readThread,sharesTh
 import Dictate from './Dictate.jsx';
 import {joinSpoken} from './dictation.js';
 import {profileFilled} from './trip-features.js';
+import {DraftChange} from './DayCheck.jsx';
 // Asking about the trip. It reads the plan and answers; it cannot touch it. That line is on the
 // screen rather than only in the prompt, because a box that answers questions looks like a box
 // that does things, and nobody should find out otherwise by asking it to move a booking.
@@ -73,14 +74,18 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
    {item.answer&&<p>{item.answer}</p>}
    {!!item.because?.length&&<ul className="ask-because">{item.because.map((line,i)=><li key={i}><Check size={15}/>{line}</li>)}</ul>}
    {!!item.days?.length&&<div className="row wrap ask-days">{item.days.map(date=><button key={date} onClick={()=>selectDay?.(date)}><CalendarDays size={15}/>{askDayLabel(date)}</button>)}</div>}
+   {item.draft&&<DraftChange state={state} draft={item.draft} canApply={user?.role==='parent'&&!!mutate&&online} apply={async()=>{
+    const ok=await mutate({type:'askDraftApply',itemId:item.id,changes:item.draft.changes});
+    if(ok){keep(local.map(x=>x.id===item.id?{...x,draft:{...x.draft,appliedAt:new Date().toISOString(),appliedBy:user.name}}:x));notice?.('Applied. The day is updated on every phone.');}
+    return ok;}}/>}
    {item.checkFirst&&<p className="callout"><AlertCircle size={18}/>Check first: {item.checkFirst}</p>}
    {!!item.sources?.length&&<details className="ask-sources"><summary>Where it looked ({item.sources.length})</summary>
     {item.sources.map(s=><a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer">{s.title||s.url} <ExternalLink size={13}/></a>)}</details>}
-   <small>{item.step&&!step?`About ${state.steps.find(s=>s.id===item.step)?.title||'a stop'} · `:''}{item.about?`About ${askDayLabel(item.about)}`:'About the whole trip'} · {item.usage?.searches??item.searches??0} web {(item.usage?.searches??item.searches)===1?'search':'searches'} · nothing was changed</small>
+   <small>{item.step&&!step?`About ${state.steps.find(s=>s.id===item.step)?.title||'a stop'} · `:''}{item.about?`About ${askDayLabel(item.about)}`:'About the whole trip'} · {item.usage?.searches??item.searches??0} web {(item.usage?.searches??item.searches)===1?'search':'searches'} · {item.draft?.appliedAt?`change applied by ${item.draft.appliedBy||'a parent'}`:'nothing was changed'}</small>
   </article>)}
   {!thread.length&&ready&&<div className="empty"><MessageCircleQuestion/><h2>Nothing asked yet</h2><p>Tap one of the questions above, or write your own. {shared?'Answers are kept in the trip, so both of you can read them again, and on this phone for when there is no signal.':'Answers are kept on this phone so you can read them again with no signal.'}</p></div>}
   {!!thread.length&&<div className="row wrap"><button onClick={()=>{clear();notice?.(step?'The questions about this stop are cleared.':shared?'The shared questions are cleared.':'Your questions on this phone are cleared.');}}><Trash2 size={16}/>{step?'Clear these questions':shared?'Clear our questions':'Clear my questions'}</button>
    {!step&&<button onClick={()=>go?.('planning')}>Planning board</button>}</div>}
-  {ready&&<p className="callout"><AlertCircle size={18}/>This reads the plan and gives an opinion. It cannot move a stop, change a booking or tell anybody anything — every change is still made by one of us, on the day it belongs to. It can be wrong about what is open, what a ticket costs and what is on, so check anything you are about to rely on.</p>}
+  {ready&&<p className="callout"><AlertCircle size={18}/>This reads the plan and gives an opinion. It never moves a stop, changes a booking or tells anybody anything by itself: when the answer is to move a stop, it hands back the move as a draft {user?.role==='parent'?'for you to look over and apply':'for a parent to apply'}. It can be wrong about what is open, what a ticket costs and what is on, so check anything you are about to rely on.</p>}
  </div>;
 }

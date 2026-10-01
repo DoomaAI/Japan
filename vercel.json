@@ -45,5 +45,11 @@
       "includeFiles": "data/**",
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/tomorrow-check",
+      "schedule": "30 10 * * *"
+    }
+  ]
 }

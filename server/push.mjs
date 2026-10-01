@@ -81,4 +81,13 @@ export async function tellChange(alert,by,send=sendOne){
  const subs=(await subscriptions()).filter(s=>s.name!==by);
  return deliver({key:`change|${alert.id}`,kind:'changes',title:`${by} changed the plan`,body:alert.summary,url:alert.stepId?`/?step=${alert.stepId}`:'/?tab=updates',to:null},subs,send);
 }
+// Tomorrow's check, told to the parents when it found something to do before morning. Once a
+// day at most: the key is the day checked, so a second run of the check is not a second buzz.
+export async function tellTomorrow(check,parents,send=sendOne){
+ if(!pushReady()&&send===sendOne)return 0;
+ const act=(check?.notes||[]).filter(n=>n.act&&n.status==='open');
+ if(!act.length||!(await claim(`tomorrow|${check.day}`)))return 0;
+ return deliver({key:`tomorrow|${check.day}`,kind:'tomorrow',title:`Tomorrow: ${act[0].title}`,
+  body:act.length>1?`And ${act.length-1} more thing${act.length>2?'s':''} to look at before morning.`:act[0].detail||check.summary,url:`/?tab=glance&day=${check.day}`,to:parents},await subscriptions(),send);
+}
 export const resetDemoPush=()=>{demoSubs=new Map();demoSent=new Set();demoLast=0;};

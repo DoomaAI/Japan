@@ -99,6 +99,9 @@ import './style.css';
 import './stages.css';
 import './guide-theme.css';
 import './travel-guide.css';
+// Tomorrow's check and Plan B are read with no signal, on the stop card and the day, so they are in the shell.
+import DayCheck,{StopPlanB} from './DayCheck.jsx';
+import HotelMove from './HotelMove.jsx';
 // The map library is only fetched when the map is opened, so every other screen stays as quick.
 const MemoryMap=lazy(()=>import('./MemoryMap.jsx'));
 const WeatherPage=lazy(()=>import('./WeatherPage.jsx'));
@@ -661,6 +664,7 @@ function App(){
      share:<button aria-label="Share this stop" onClick={()=>shareStep(current)}><Share2 size={15}/>Share</button>
     }}/>
     {current.status==='done'&&<StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>}
+    <StopPlanB state={visibleState} step={current}/>
     <details className="step-more" key={current.id}>
      <summary><span className="step-more-label">More about this stop</span><span className="step-more-lead">{current.notes||resolveLocation(state,current)?.address||current.participants.join(', ')}</span><ChevronDown size={17}/></summary>
      {current.notes&&<p className="step-notes">{current.notes}</p>}
@@ -687,6 +691,7 @@ function App(){
   weather:<Weather state={visibleState} day={day} now={now} mutate={mutate} busy={busy} online={online} notice={notice} dayLabel={fmtDay} go={go}/>,
   running:<Running state={visibleState} day={day}/>,
   packing:<PackingNudge state={visibleState} user={user} day={day} go={go}/>,
+  move:<HotelMove state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} accept={accept} notice={notice} busy={busy} go={go}/>,
   todos:<DayTodos state={visibleState} user={user} day={day} mutate={mutate} busy={busy} go={go}/>,
   finds:<DayFinds state={visibleState} day={day} go={go}/>,
   local:<LikeALocalCard state={visibleState} today={japanDate(now)} day={day} go={go}/>
@@ -726,6 +731,7 @@ function App(){
    {dayStrip(d=>go('glance',d))}
    {/* The day's own buttons sit here, over the stops they change, rather than on Home. */}
    <div className="home-actions day-actions">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
+   <DayCheck state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} accept={accept} notice={notice} selectStep={selectStep} busy={busy}/>
    {awarenessAllows(visibleState,user.name,'spare')&&<SpareTime state={visibleState} day={day} now={now} user={user} parent={parent} busy={busy} mutate={mutate} selectStep={selectStep} openPark={p=>setModal({type:'park',park:p})}/>}
    <DayTimeline steps={steps} allSteps={allSteps} splits={splits} lens={lens} setLens={follow} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/>
    <DayMap key={day} state={visibleState} day={day} selectStep={selectStep}/>
