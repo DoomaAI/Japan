@@ -3,6 +3,7 @@ import {cleanGuideName,GUIDE_VOICES} from '../src/guide-data.js';
 import {findRide} from '../src/park-data.js';
 import {MONEY} from '../src/money-data.js';
 import {GIFT,shoppingFor} from '../src/shopping-groups.js';
+import {cleanGiftPerson,giftPersonProblem} from '../src/gift-data.js';
 import {FOOD,FOOD_KINDS} from '../src/food-data.js';
 import {ALL_PHRASES,findPhrase} from '../src/phrasebook-data.js';
 import {ALL_FACTS,findFact} from '../src/fact-data.js';
@@ -837,6 +838,9 @@ export function extraOperation(state,op,user,fail,now){
   const item={title:op.title.trim(),day:op.day??null,person:op.person||'Family',store:op.store||'',notes:op.notes||'',url:op.url||'',quantity:op.quantity??1,budget:op.budget??null,taxFree:op.taxFree===true};
   if(!shoppingFor(state.members).includes(item.person))fail('Choose who it is for.');
   item.giftFor=item.person===GIFT?String(op.giftFor||'').trim():'';requireText(item.giftFor,250,'gift name');
+  // Bought for someone on the people-to-buy-for list: tied to them, and named as they are named there.
+  item.giftPersonId=null;
+  if(item.person===GIFT&&op.giftPersonId){const p=(state.giftPeople||[]).find(p=>p.id===op.giftPersonId);if(!p)fail('That person is no longer on the list.',404);item.giftPersonId=p.id;item.giftFor=p.name;}
   for(const key of ['store','notes','url'])requireText(item[key],key==='notes'?2000:2000,key);
   if(item.url){try{if(new URL(item.url).protocol!=='https:')fail('Use an HTTPS shopping link.');}catch{fail('Use an HTTPS shopping link.');}}
   if(!Number.isInteger(item.quantity)||item.quantity<1||item.quantity>999)fail('Quantity must be 1–999.');
@@ -1162,6 +1166,32 @@ export function extraOperation(state,op,user,fail,now){
    return {summary:null,important:false,title:item.title};
   }
   fail('Unknown spending action.');
+ }else if(typeof op.type==='string'&&op.type.startsWith('giftPerson')){
+  // People to buy for back home (src/gift-data.js). Anyone adds someone, because a boy has
+  // friends of his own to bring something back for; changing or taking them off is for whoever
+  // added them and for a parent.
+  const found=()=>{const p=state.giftPeople.find(p=>p.id===op.id);if(!p)fail('That person is no longer on the list.',404);return p;};
+  const mine=p=>parent||p.createdBy===user.name;
+  if(op.type==='giftPersonAdd'||op.type==='giftPersonEdit'){
+   const person=cleanGiftPerson(op),problem=giftPersonProblem(person);if(problem)fail(problem);
+   if(op.type==='giftPersonAdd'){
+    if(state.giftPeople.length>=150)fail('That is a hundred and fifty people already.');
+    state.giftPeople.push({id:randomUUID(),...person,createdBy:user.name,createdAt:now});
+   }else{
+    const p=found();if(!mine(p))fail('Whoever added them, or a parent, can change their details.',403);
+    Object.assign(p,person);
+    // Their gifts on the shopping list carry the name for when they are gone, so it follows a rename.
+    for(const s of state.shopping)if(s.giftPersonId===p.id)s.giftFor=p.name;
+   }
+   return {summary:null,important:false,title:person.name};
+  }
+  if(op.type==='giftPersonRemove'){
+   const p=found();if(!mine(p))fail('Whoever added them, or a parent, can take them off.',403);
+   state.giftPeople=state.giftPeople.filter(x=>x.id!==p.id);
+   if(state.giftIdeas?.[p.id]){const {[p.id]:gone,...rest}=state.giftIdeas;state.giftIdeas=rest;}
+   return {summary:null,important:false,title:p.name};
+  }
+  fail('Unknown gift list action.');
  }else if(typeof op.type==='string'&&op.type.startsWith('todo')){
   // The to-do list. Anyone adds one and anyone ticks it off, the way the shopping list works;
   // changing somebody else's wording or removing it is a parent's.

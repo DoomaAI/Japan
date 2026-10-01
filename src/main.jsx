@@ -833,7 +833,7 @@ function App(){
    {awarenessAllows(visibleState,user.name,'spare')&&<SpareTime state={visibleState} day={day} now={now} user={user} parent={parent} busy={busy} mutate={mutate} selectStep={selectStep} openPark={p=>setModal({type:'park',park:p})}/>}
   </>}
   {tab==='challenges'&&<Challenges key={day+(focus||'')} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy}/>}
-  {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy} go={go} remove={removeThen}/>}
+  {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy} go={go} remove={removeThen} request={request} accept={accept} config={config} notice={notice}/>}
   {tab==='shortlist'&&<Shortlist key={focus||'shortlist'} initialId={focus} state={visibleState} user={user} day={day} config={config} busy={busy} setBusy={setBusy} mutate={mutate} request={request} accept={accept} notice={notice} go={go} selectStep={selectStep}/>}
   {tab==='meeting'&&<><MeetingCard key={day} state={state} user={user} day={day} mutate={mutate} busy={busy}/><LostCards state={visibleState} user={user} day={day}/></>}
   {tab==='allergy'&&<AllergyCard state={visibleState} user={user} mutate={mutate} busy={busy} speak={speak} who={new URLSearchParams(location.search).get('who')}/>}
