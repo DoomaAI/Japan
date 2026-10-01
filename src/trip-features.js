@@ -1,3 +1,4 @@
+import {recommenders,withRecommender,cleanRecommenders,matchProposal} from './recommend-data.js';
 import {isChild,defaultReading,ageOf,gentleOnly} from './child-levels.js';
 import {nextTimeBrief} from './next-time.js';
 import {learnedBrief} from './taste-data.js';
@@ -1247,17 +1248,44 @@ export function proposalDraft(op){
   suitableFor:[...new Set(Array.isArray(op.suitableFor)?op.suitableFor:[])],
   tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))],
   day:op.day||null,availability:String(op.availability??'').trim(),timing:op.timing??'flex',
-  time:op.time||null,duration:number(op.duration,60),source:op.source==='suggested'?'suggested':'typed',
-  setting:['indoor','outdoor','mixed'].includes(op.setting)?op.setting:''};
+  time:op.time||null,duration:number(op.duration,60),source:['suggested','recommended'].includes(op.source)?op.source:'typed',
+  setting:['indoor','outdoor','mixed'].includes(op.setting)?op.setting:'',
+  // Where it sits: the base it is reached from ("a day trip from Kyoto"), how long getting there
+  // takes, and the bigger idea it is part of ("Kegon Falls" is part of "Nikko").
+  accessibleFrom:String(op.accessibleFrom??'').trim(),travel:String(op.travel??'').trim(),
+  parentId:typeof op.parentId==='string'&&op.parentId?op.parentId:null};
+}
+// One level only: a place and the things in it. Anything deeper is a note, not a tree.
+export const proposalParent=(state,p)=>p?.parentId?proposals(state).find(x=>x.id===p.parentId)||null:null;
+export const proposalChildren=(state,p)=>p?proposals(state).filter(x=>x.parentId===p.id):[];
+// The base an idea is reached from: its own, or the place it is part of.
+export const proposalBase=(state,p)=>p?.accessibleFrom||proposalParent(state,p)?.accessibleFrom||'';
+// Ideas by the base they are reached from, in the order the trip reaches those bases, with a base
+// the trip has finished with last and marked as behind us, and anything with no base at the end.
+// Within a group, the things that are part of a place sit under it rather than beside it.
+export function ideasByBase(state,list,today=''){
+ const areas=tripAreas(state),days=state.days||[];
+ const last=area=>days.filter(d=>dayAreas(d).includes(area)).map(d=>d.date).sort().at(-1)||'';
+ const first=area=>days.filter(d=>dayAreas(d).includes(area)&&d.date>=today).map(d=>d.date).sort()[0]||'';
+ const ids=new Set(list.map(p=>p.id)),groups=new Map();
+ for(const p of list){
+  // A child shows under its parent when the parent is in the list too.
+  if(p.parentId&&ids.has(p.parentId))continue;
+  const base=proposalBase(state,p);
+  if(!groups.has(base))groups.set(base,[]);
+  groups.get(base).push({idea:p,children:list.filter(c=>c.parentId===p.id)});
+ }
+ return [...groups.entries()].map(([base,items])=>({base,items,behind:!!(base&&today&&last(base)&&last(base)<today),next:base?first(base):''}))
+  .sort((a,b)=>(!a.base)-(!b.base)||a.behind-b.behind||String(a.next||'9').localeCompare(String(b.next||'9'))||areas.indexOf(a.base)-areas.indexOf(b.base));
 }
 // What a scheduled step carries over from the board: the opening hours and the price the family
 // agreed on are exactly what someone standing outside the place will want to read.
-export function proposalStepNotes(p){
- const lines=[p.notes,p.availability?`Available: ${p.availability}`:'',
+export function proposalStepNotes(p,children=[]){
+ const lines=[p.notes,children.length?`While there: ${children.map(c=>c.title).join(', ')}`:'',p.travel?`Getting there${p.accessibleFrom?` from ${p.accessibleFrom}`:''}: ${p.travel}`:'',...recommenders(p).map(r=>`Recommended by ${r.name}${r.said?`: ${r.said}`:''}`),p.availability?`Available: ${p.availability}`:'',
   p.cost===null||p.cost===undefined?'':`Estimated cost ¥${p.cost.toLocaleString('en-AU')}${p.costNote?` · ${p.costNote}`:''}`];
  return lines.filter(Boolean).join('\n').slice(0,4000);
 }
-export function rankedProposals(state,{query='',category='',suits='',by='',placement='',day='',sort='top'}={}){
+export function rankedProposals(state,{query='',category='',suits='',by='',placement='',day='',base='',sort='top'}={}){
  const q=query.trim().toLowerCase();
  const list=proposals(state).filter(p=>{
   const where=proposalPlacement(state,p);
@@ -1265,8 +1293,9 @@ export function rankedProposals(state,{query='',category='',suits='',by='',place
   if(category&&p.category!==category)return false;
   if(day&&(where.day||p.day)!==day)return false;
   if(suits&&(p.suitableFor||[]).length&&!p.suitableFor.includes(suits))return false;
+  if(base&&proposalBase(state,p)!==(base==='none'?'':base))return false;
   if(by&&p.addedBy!==by&&(p.votes||{})[by]===undefined&&!(p.musts||{})[by])return false;
-  return !q||[p.title,p.place,p.japanese,p.notes,p.availability,p.costNote,p.addedBy,...(p.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(q);
+  return !q||[p.title,p.place,p.japanese,p.notes,p.availability,p.costNote,p.addedBy,...(p.tags||[]),...recommenders(p).map(r=>r.name),p.accessibleFrom,proposalParent(state,p)?.title].filter(Boolean).join(' ').toLowerCase().includes(q);
  });
  const musts=p=>proposalMusts(p).length,age=p=>String(p.createdAt||'');
  const order={top:(a,b)=>proposalScore(b)-proposalScore(a)||musts(b)-musts(a)||age(a).localeCompare(age(b)),
@@ -1460,6 +1489,14 @@ export function pendingProgress(state,queue){
   // An idea thought of on a train with no signal, and the votes cast on one, are additions:
   // they are still right whenever they land, so the board shows them straight away.
   if(o.type==='proposalAdd')next.proposals=[...next.proposals,{id:`pending-${o.operationId}`,...proposalDraft(o),addedBy:o.person,createdAt:o.at,votes:{},musts:{},parked:false,stepId:null,pending:!live}];
+  // A friend's recommendation is an addition too: onto the idea it matches, or a new one.
+  if(o.type==='proposalRecommend'&&String(o.name||'').trim()){
+   const hit=o.id?next.proposals.find(p=>p.id===o.id):o.remove?null:matchProposal(next.proposals,o.title);
+   const up=String(o.within||'').trim()?matchProposal(next.proposals,o.within):null,upId=up?(up.parentId||up.id):null;
+   if(hit)next.proposals=next.proposals.map(p=>p===hit?{...p,recommendedBy:withRecommender(p.recommendedBy,{name:o.name,said:o.said,via:o.via,at:o.at,by:o.person,remove:o.remove}),
+    ...(o.remove?{}:{accessibleFrom:p.accessibleFrom||String(o.accessibleFrom||'').trim(),travel:p.travel||String(o.travel||'').trim(),parentId:p.parentId||(upId&&upId!==p.id?upId:null)}),pending:!live}:p);
+   else if(!o.remove&&String(o.title||'').trim())next.proposals=[...next.proposals,{id:`pending-${o.operationId}`,...proposalDraft({...o,source:'recommended',parentId:upId}),recommendedBy:cleanRecommenders([{name:o.name,said:o.said,via:o.via,at:o.at,by:o.person}]),addedBy:o.person,createdAt:o.at,votes:{},musts:{},parked:false,stepId:null,pending:!live}];
+  }
   if(o.type==='proposalVote'){const p=next.proposals.find(p=>p.id===o.id);if(p){const votes={...(p.votes||{})};if(o.vote===0)delete votes[o.person];else votes[o.person]=o.vote;p.votes=votes;p.pending=!live;}}
   if(o.type==='proposalMust'){const p=next.proposals.find(p=>p.id===o.id);if(p){const musts={...(p.musts||{})};if(o.must)musts[o.person]=musts[o.person]||o.at;else delete musts[o.person];p.musts=musts;p.pending=!live;}}
   if(o.type==='stepRating'||o.type==='stepThought'){

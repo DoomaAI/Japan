@@ -1,28 +1,33 @@
 import React,{useRef,useState} from 'react';
 import HowThisWorks from './HowThisWorks.jsx';
-import {ThumbsUp,ThumbsDown,Star,MapPin,ExternalLink,CalendarDays,LockKeyhole,LockKeyholeOpen,Clock,Coins,Plus,Inbox,Trash2,ChevronRight,Users,Ticket,Search,AlertCircle} from 'lucide-react';
+import {ThumbsUp,ThumbsDown,Star,MapPin,ExternalLink,CalendarDays,LockKeyhole,LockKeyholeOpen,Clock,Coins,Plus,Inbox,Trash2,ChevronRight,Users,Ticket,Search,AlertCircle,MessageSquareQuote,X} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
+import {japanDate} from './timing.js';
 import {TravelParty,PickedFor,Suggestions} from './PlanningParty.jsx';
 import ChooseTogether from './ChooseTogether.jsx';
+import Recommendations from './Recommendations.jsx';
+import {recommenders,viaLabel} from './recommend-data.js';
 import {SETTINGS} from './decide-data.js';
-import {PROPOSAL_KINDS,PROPOSAL_TIMING,PROPOSAL_SORTS,PLACEMENT_LABEL,rankedProposals,proposalPlacement,proposalScore,proposalVoters,proposalMusts,yenPerAud,yenToAud} from './trip-features.js';
+import {PROPOSAL_KINDS,PROPOSAL_TIMING,PROPOSAL_SORTS,PLACEMENT_LABEL,rankedProposals,tripAreas,ideasByBase,proposalParent,proposalChildren,proposalBase,proposalPlacement,proposalScore,proposalVoters,proposalMusts,yenPerAud,yenToAud} from './trip-features.js';
 const labelFor=(list,id,fallback)=>(list.find(([key])=>key===id)||fallback)[1];
 const kindLabel=id=>labelFor(PROPOSAL_KINDS,id,PROPOSAL_KINDS.at(-1));
 const timingLabel=id=>labelFor(PROPOSAL_TIMING,id,PROPOSAL_TIMING[0]);
 const mapsLink=p=>p.mapUrl||(p.place?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.place+' Japan')}`:'');
-const blank={source:'typed',title:'',place:'',japanese:'',website:'',ticketUrl:'',mapUrl:'',notes:'',cost:'',costNote:'',category:'place',suitableFor:[],tags:[],day:'',availability:'',timing:'flex',time:'',duration:60,setting:''};
-const toForm=p=>({...blank,...p,cost:p.cost??'',day:p.day||'',time:p.time||''});
+const blank={source:'typed',title:'',place:'',japanese:'',website:'',ticketUrl:'',mapUrl:'',notes:'',cost:'',costNote:'',category:'place',suitableFor:[],tags:[],day:'',availability:'',timing:'flex',time:'',duration:60,setting:'',accessibleFrom:'',travel:'',parentId:''};
+const toForm=p=>({...blank,...p,cost:p.cost??'',day:p.day||'',time:p.time||'',parentId:p.parentId||''});
 const readForm=el=>{const f=new FormData(el);return {...blank,
  source:f.get('source')||'typed',title:f.get('title'),place:f.get('place'),japanese:f.get('japanese'),website:f.get('website'),ticketUrl:f.get('ticketUrl'),
  mapUrl:f.get('mapUrl'),notes:f.get('notes'),cost:f.get('cost'),costNote:f.get('costNote'),category:f.get('category'),
  timing:f.get('timing'),setting:f.get('setting')||'',availability:f.get('availability'),day:f.get('day'),time:f.get('time'),duration:Number(f.get('duration')),
+ accessibleFrom:f.get('accessibleFrom')||'',travel:f.get('travel')||'',parentId:f.get('parentId')||'',
  suitableFor:f.getAll('suitableFor'),tags:String(f.get('tags')||'').split(',').map(t=>t.trim()).filter(Boolean)};};
 const fromForm=v=>({source:v.source,title:v.title,place:v.place,japanese:v.japanese,website:v.website,ticketUrl:v.ticketUrl,mapUrl:v.mapUrl,
  notes:v.notes,cost:v.cost,costNote:v.costNote,category:v.category,suitableFor:v.suitableFor,tags:v.tags,
- day:v.day||null,availability:v.availability,timing:v.timing,setting:v.setting,time:v.time||null,duration:Number(v.duration)});
+ day:v.day||null,availability:v.availability,timing:v.timing,setting:v.setting,time:v.time||null,duration:Number(v.duration),
+ accessibleFrom:v.parentId?'':v.accessibleFrom,travel:v.travel,parentId:v.parentId||null});
 const FIELD_LABEL={title:'Name',place:'Where',japanese:'Japanese',website:'Website',ticketUrl:'Tickets',mapUrl:'Map',
  availability:'Available times',cost:'Cost',costNote:'Cost note',duration:'How long',category:'Kind',timing:'Timing',
- notes:'Notes',tags:'Tags',suitableFor:'Suits',day:'Day',time:'Time',setting:'Indoors or out'};
+ notes:'Notes',tags:'Tags',suitableFor:'Suits',day:'Day',time:'Time',setting:'Indoors or out',accessibleFrom:'Accessible from',travel:'Getting there',parentId:'Part of'};
 // The form opens on defaults nobody chose — sixty minutes, a place, any time — so a lookup is
 // free to replace those. Anything a person actually typed is offered back rather than overwritten.
 const UNCHOSEN={duration:60,category:'place',timing:'flex'};
@@ -42,12 +47,14 @@ function merge(held,draft){
 export default function Planning({state,user,day,mutate,busy,selectStep,go,request,config,initialId}){
  const initial=(state.proposals||[]).find(p=>p.id===initialId);
  const [query,setQuery]=useState(initial?.title||''),[category,setCategory]=useState(''),[suits,setSuits]=useState(''),[by,setBy]=useState('');
- const [placement,setPlacement]=useState(initial?'':'open'),[date,setDate]=useState(''),[sort,setSort]=useState('top');
+ const [placement,setPlacement]=useState(initial?'':'open'),[date,setDate]=useState(''),[sort,setSort]=useState('top'),[base,setBase]=useState('');
  const [edit,setEdit]=useState(null),[scheduling,setScheduling]=useState(null),[moving,setMoving]=useState(null);
  const [rev,setRev]=useState(0),[looking,setLooking]=useState(false),[found,setFound]=useState(null),[lookupError,setLookupError]=useState('');
  const form=useRef();
  const parent=user.role==='parent',rate=yenPerAud(state),canLook=parent&&!!config?.research;
- const list=rankedProposals(state,{query,category,suits,by,placement,day:date,sort});
+ const areas=tripAreas(state),grouped=sort==='base';
+ const list=rankedProposals(state,{query,category,suits,by,placement,day:date,base,sort:grouped?'top':sort});
+ const groups=grouped?ideasByBase(state,list,japanDate()):null;
  const counts=Object.fromEntries(Object.keys(PLACEMENT_LABEL).map(key=>[key,(state.proposals||[]).filter(p=>proposalPlacement(state,p).state===key).length]));
  function open(values){setEdit(values);setFound(null);setLookupError('');setRev(n=>n+1);}
  // Looks the place up on the web and fills in the blanks. Nothing is saved: it comes back as a
@@ -86,6 +93,8 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
  <HowThisWorks><p>Put it up, and the rest of the family can back it, pass on it or star it as a must-do. A parent puts the ones we agree on onto a day — locked to a booked time, or left flexible.</p></HowThisWorks>
  <button className="primary" onClick={()=>open({...blank,day:date||'',suitableFor:[]})}><Plus size={18}/>Add an idea</button>
  <TravelParty state={state} user={user} mutate={mutate} busy={busy}/>
+ <Recommendations state={state} user={user} mutate={mutate} busy={busy} request={request} canRead={canLook}
+  onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('');}}/>
  <PickedFor state={state} user={user} mutate={mutate} busy={busy} onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('open');}}/>
  <ChooseTogether state={state} user={user} day={date||day} mutate={mutate} busy={busy}
   onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('open');}}/>
@@ -102,18 +111,22 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
   </div>
   <div className="form-row">
    <label>Day<select value={date} onChange={e=>setDate(e.target.value)}><option value="">Any day</option>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.city}</option>)}</select></label>
-   <label>Order<select value={sort} onChange={e=>setSort(e.target.value)}>{PROPOSAL_SORTS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
+   <label>Reached from<select value={base} onChange={e=>setBase(e.target.value)}><option value="">Anywhere</option>{areas.map(a=><option key={a} value={a}>{a}</option>)}<option value="none">Not sure where</option></select></label>
+   <label>Order<select value={sort} onChange={e=>setSort(e.target.value)}>{PROPOSAL_SORTS.map(([id,label])=><option key={id} value={id}>{label}</option>)}<option value="base">By where it is reached from</option></select></label>
   </div>
-  {(category||suits||by||date||query)&&<button onClick={()=>{setCategory('');setSuits('');setBy('');setDate('');setQuery('');}}>Clear filters</button>}
+  {(category||suits||by||date||query||base)&&<button onClick={()=>{setCategory('');setSuits('');setBy('');setDate('');setQuery('');setBase('');}}>Clear filters</button>}
  </div>
  <p><strong>{list.length} idea{list.length===1?'':'s'}</strong>{counts.parked?` · ${counts.parked} parked`:''}{counts.options?` · ${counts.options} in Options`:''}</p>
- <div className="feature-grid">{list.map(p=>{
+ {(()=>{const card=(p,part=false)=>{
   const where=proposalPlacement(state,p),up=proposalVoters(p,1),down=proposalVoters(p,-1),musts=proposalMusts(p),score=proposalScore(p);
   const mine=(p.votes||{})[user.name],myMust=!!(p.musts||{})[user.name],canEdit=parent||p.addedBy===user.name;
-  return <article className={`feature-card plan-card ${where.state}`} key={p.id}>
+  const up_=proposalParent(state,p),parts=proposalChildren(state,p),reached=proposalBase(state,p);
+  return <article className={`feature-card plan-card ${where.state}${part?' part':''}`} key={p.id}>
    <div className="section-heading"><div><span className="eyebrow">{kindLabel(p.category)}</span><h2>{p.title}</h2></div><span className={`plan-score ${score>0?'for':score<0?'against':''}`} aria-label={`${score} net votes`}>{score>0?'+':''}{score}</span></div>
    {p.place&&<p className="place-line"><MapPin size={16}/>{p.place}{p.japanese&&<small lang="ja"> · {p.japanese}</small>}</p>}
    {p.notes&&<p>{p.notes}</p>}
+   {recommenders(p).map(r=><blockquote key={r.name}><MessageSquareQuote size={14}/> <span><strong>{r.name}</strong>{r.via&&viaLabel(r.via)?<span className="recommend-via"> · {viaLabel(r.via)}</span>:null}{r.said?` — ${r.said}`:' recommended this'}</span>
+    {(parent||r.by===user.name)&&<button className="recommend-link" aria-label={`Take ${r.name}'s recommendation off`} disabled={busy} onClick={()=>mutate({type:'proposalRecommend',id:p.id,person:user.name,name:r.name,remove:true})}> <X size={13}/></button>}</blockquote>)}
    <div className="plan-facts">
     <span><Clock size={15}/>{where.state==='scheduled'?`${dayLabel(where.day)}${where.time?` · ${where.time}`:' · any time'} · ${where.locked?'Locked':'Flexible'}`:timingLabel(p.timing)}</span>
     {p.availability&&<span>Available {p.availability}</span>}
@@ -123,7 +136,11 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
    </div>
    <div className="row wrap plan-tags">
     <span className={`tag placement ${where.state}`}>{PLACEMENT_LABEL[where.state]}</span>
-    <button className="tag" onClick={()=>setBy(p.addedBy)}>{p.source==='suggested'?'Suggested, put up by':'Added by'} {p.addedBy}</button>
+    {up_&&<button className="tag" onClick={()=>setQuery(up_.title)}>Part of {up_.title}</button>}
+    {reached&&!up_&&<button className="tag" onClick={()=>setBase(reached)}><MapPin size={12}/>From {reached}{p.travel?` · ${p.travel}`:''}</button>}
+    {!reached&&p.travel&&<span className="tag">{p.travel}</span>}
+    {!part&&parts.map(c=><button className="tag" key={c.id} onClick={()=>setQuery(c.title)}>Includes {c.title}</button>)}
+    <button className="tag" onClick={()=>setBy(p.addedBy)}>{p.source==='suggested'?'Suggested, put up by':p.source==='recommended'?'Recommended, put up by':'Added by'} {p.addedBy}</button>
     {p.suitableFor?.length?p.suitableFor.map(n=><button className="tag" key={n} onClick={()=>setSuits(n)}><Users size={12}/>Suits {n}</button>):<span className="tag"><Users size={12}/>Suits everyone</span>}
     {musts.map(n=><span className="tag must" key={n}><Star size={12}/>{n}’s must-do</span>)}
     {up.map(n=><span className="tag up" key={n}><ThumbsUp size={12}/>{n}</span>)}
@@ -164,8 +181,14 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
     <div className="form-row"><label>Day<select name="day" defaultValue={where.day||day}>{state.days.map(d=><option key={d.date} value={d.date}>{dayLabel(d.date)} · {d.title}</option>)}</select></label><label>Japan time<input name="time" type="time" defaultValue={where.time||''}/></label></div>
     <div className="row wrap"><button className="primary" disabled={busy||where.locked}>Move it</button><button type="button" onClick={()=>setMoving(null)}>Cancel</button></div>
    </form>}
-  </article>;})}
- </div>
+  </article>;};
+  // Grouped, the parts of a place sit under it; in any other order every idea is its own card.
+  return grouped?groups.map(g=><section key={g.base||'none'}>
+   <h3 className="plan-group-heading">{g.base?`Accessible from ${g.base}`:'Not sure where'}{g.behind?' · behind us':''} · {g.items.reduce((n,i)=>n+1+i.children.length,0)}</h3>
+   <div className="feature-grid">{g.items.map(({idea,children})=><React.Fragment key={idea.id}>{card(idea)}
+    {!!children.length&&<div className="plan-children">{children.map(c=>card(c,true))}</div>}</React.Fragment>)}</div>
+  </section>)
+  :<div className="feature-grid">{list.map(p=>card(p))}</div>;})()}
  {!list.length&&<div className="empty"><Inbox/><h2>{(state.proposals||[]).length?'Nothing here to look at.':'The board is empty.'}</h2><p>{(state.proposals||[]).length?'Every idea we have is somewhere else. Try Everything, or clear the filters.':'Add somewhere you want to go, something you want to eat, or an event we should try to catch. The rest of us will vote on it.'}</p></div>}
  {edit&&<form ref={form} key={`${edit.id||'new'}-${rev}`} className="feature-card plan-form" onSubmit={save}>
   <h2>{edit.id?'Edit this idea':'Add an idea'}</h2>
@@ -193,6 +216,15 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
   </div>
   <label>Indoors or out<select name="setting" defaultValue={edit.setting||''}>{SETTINGS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
   <label>Where<input name="place" maxLength={250} defaultValue={edit.place} placeholder="Place name, address or area"/></label>
+  <div className="form-row">
+   <label>Part of<select name="parentId" defaultValue={edit.parentId||''} disabled={!!edit.id&&proposalChildren(state,edit).length>0}>
+    <option value="">Stands on its own</option>
+    {(state.proposals||[]).filter(x=>!x.parentId&&x.id!==edit.id&&!x.pending).map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select></label>
+   <label>Accessible from<select name="accessibleFrom" defaultValue={edit.accessibleFrom||''}>
+    <option value="">Not sure where</option>{areas.map(a=><option key={a} value={a}>{a}</option>)}</select></label>
+  </div>
+  {edit.id&&proposalChildren(state,edit).length>0&&<small>{proposalChildren(state,edit).map(c=>c.title).join(', ')} {proposalChildren(state,edit).length===1?'is':'are'} part of this one, so it cannot go under another idea.</small>}
+  <label>Getting there<input name="travel" maxLength={120} defaultValue={edit.travel} placeholder="2 hrs by train from Asakusa · a day trip"/></label>
   <label>Japanese name or address (if we know it)<input name="japanese" maxLength={250} defaultValue={edit.japanese}/></label>
   <div className="form-row">
    <label>Website<input name="website" type="url" maxLength={2000} placeholder="https://…" defaultValue={edit.website}/></label>

@@ -16,6 +16,7 @@ import {readMenu,readPacket,menuReaderReady} from './menu.mjs';
 import {translatePhrase,translatorReady,translateTicketText,TICKET_FIELDS,TICKET_DIRECTIONS,ticketTranslationKey} from './translate.mjs';
 import {researchPlace,researchReady} from './research.mjs';
 import {researchPayMethod} from './pay-research.mjs';
+import {readRecommendations} from './recommend.mjs';
 import {checkLocal} from './local-check.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {findEvents,eventsReady} from './events.mjs';
@@ -61,7 +62,7 @@ export default async function handler(req,res){
   const post=req.method==='POST',base=route.split('/')[0];
   // A forwarded email carries its attachments inline. Vercel stops a request body at about
   // 4.5 MB, so this is the real ceiling on what can arrive by email at all.
-  let b=post?await body(req,['menu','packet','read-document','photo-feedback','vault-file'].includes(base)?6000000:base==='email-in'?4400000:1000000):{};
+  let b=post?await body(req,['menu','packet','read-document','photo-feedback','vault-file','recommend-read'].includes(base)?6000000:base==='email-in'?4400000:1000000):{};
   // Blob callbacks carry a signature verified by the SDK. They do not mutate itinerary data.
   if(route==='upload'&&post&&b.type==='blob.upload-completed'){
    const result=await handleUpload({body:b,request:req,onBeforeGenerateToken:async()=>{throw new Error('Not a token request');},onUploadCompleted:async()=>{}});return json(res,result);
@@ -375,6 +376,12 @@ export default async function handler(req,res){
   if(route==='pay-research'&&post){
    parent(user);
    return json(res,await researchPayMethod(b));
+  }
+  // A friend's message read into separate recommendations. Reads nothing from the trip and
+  // writes nothing: the list comes back to be ticked through and saved through mutate.
+  if(route==='recommend-read'&&post){
+   parent(user);const {state}=await readTrip();
+   return json(res,await readRecommendations(b,state));
   }
   if(route==='research'&&post){
    parent(user);const {state}=await readTrip();

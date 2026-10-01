@@ -25,6 +25,7 @@ import Phrasebook,{PhraseOfDay} from './Phrasebook.jsx';
 import {phraseForDay} from './phrasebook-data.js';
 import {phraseSeenBy,phraseQueue} from './trip-features.js';
 import {deepLinkAction,withoutDeepLink} from './deep-links.js';
+import {handRecommendation} from './recommend-data.js';
 import {readTheme,applyTheme,readLook,applyLook} from './theme.js';
 import FunFacts,{FactOfDay,CardFacts,factAloudFor} from './FunFacts.jsx';
 import {factForDay,factsForStep,gentleFacts} from './fact-data.js';
@@ -187,7 +188,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
 const OFFLINE_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','bingoCard','parkRide','parkWant','foodTried','foodRating','phraseSeen','factSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove','voiceNoteWords',
- 'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntPick','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','dayRating','dayThought','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','bookingWindowBooked','shopLog'];
+ 'proposalAdd','proposalVote','proposalMust','proposalRecommend','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntPick','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','dayRating','dayThought','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','bookingWindowBooked','shopLog'];
 // Taps that only record what just happened — a tick, a rating, a vote — show on the screen the
 // moment they are made and go to the family behind it, so the next tap is never kept waiting on
 // the last one's round trip. They ride the same queue as a tap made with no signal, which already
@@ -319,6 +320,7 @@ function App(){
    else if(action.type==='todoSay'){setSayFirst({focus:true});setTab('todo');}
    else if(action.type==='nearby')setModal({type:'nearby',need:action.need});
    else if(action.type==='capture')setModal({type:'capture'});
+   else if(action.type==='recommend'){handRecommendation({text:action.text,from:action.from,via:'message'});setFocus(null);setTab('planning');}
    else if(action.type==='hotel'){const d=s.days.find(x=>x.date===nearestDay(s.days,japanDate()));if(d?.hotel)location.assign(directions(d.hotel));else setTab('help');}
   }
   function land(s){

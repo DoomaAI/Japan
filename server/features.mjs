@@ -6,7 +6,7 @@ import {ALL_FACTS,findFact} from '../src/fact-data.js';
 import {THROWS,jankenWinner} from '../src/kana-data.js';
 const JANKEN_THROWS=THROWS.map(t=>t.id);
 import {PRIORITIES,validPriorities} from '../src/decide-data.js';
-import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_FOR,normaliseThankYou,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem} from '../src/trip-features.js';
+import {SUMO_DIVISIONS,sumo,wrestlerKey,BOYS,SHORTLIST_STATUS,SHORTLIST_STARS,isStarRating,validPin,delayForDay,initialThankYou,generatedMissions,nextExtraMission,GENERATED_PER_DAY,EYE_SPY,isTrainLeg,eyeSpyKey,THANK_YOU_FROM,THANK_YOU_FOR,normaliseThankYou,PROPOSAL_KINDS,PROPOSAL_TIMING,INTERESTS,PACES,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,proposalDraft,proposalPlacement,proposalStepNotes,packItem,tripAreas,proposalChildren} from '../src/trip-features.js';
 import {IC_MAX,RECEIPT_TYPES} from '../src/ledger-data.js';
 import {isChild,validReading,validAwareness} from '../src/child-levels.js';
 import {MAX_NEXT_TIME} from '../src/next-time.js';
@@ -27,6 +27,7 @@ import {MAX_NOTICED,NOTICED_TEXT,noticedFields} from '../src/noticed-data.js';
 import {findReportKind} from '../src/report-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {findRule} from '../src/booking-window-data.js';
+import {cleanRecommenders,withRecommender,matchProposal,RECOMMENDER_NAME,RECOMMENDER_SAID,RECOMMEND_VIA} from '../src/recommend-data.js';
 import {findShopItem,SHOP_VERDICTS,SHOP_NOTE_MAX} from '../src/shop-data.js';
 import {cleanStay} from '../src/stay-data.js';
 import {PREDICTION_MAX,findPrediction,predictionPhase} from '../src/prediction-data.js';
@@ -273,6 +274,18 @@ export function extraOperation(state,op,user,fail,now){
   const board=state.proposals,found=()=>{const p=board.find(p=>p.id===op.id);if(!p)fail('That idea is no longer on the planning board.',404);return p;};
   const ownVote=person=>{if(!state.members.includes(person))fail('Choose a family member.');if(!parent&&person!==user.name)fail('Vote as yourself.',403);};
   const when=label=>{if(!op.at)return now;if(!Number.isFinite(Date.parse(op.at))||Date.parse(op.at)>Date.now()+60000)fail(`Invalid ${label} time.`);return new Date(op.at).toISOString();};
+  // Where an idea sits: reached from one of our bases, and part of at most one other idea, which is
+  // not itself part of anything. One level keeps the board a list with things tucked under places.
+  const placed=(draft,self=null)=>{
+   if(draft.accessibleFrom&&!tripAreas(state).includes(draft.accessibleFrom))fail('Choose one of the places we are staying, or leave it open.');
+   if(!string(draft.travel,120))fail('Keep how to get there under 120 characters.');
+   if(draft.parentId){
+    const parentIdea=board.find(x=>x.id===draft.parentId);
+    if(!parentIdea)fail('That idea is no longer on the planning board.',404);
+    if(self&&(parentIdea.id===self.id||board.some(x=>x.parentId===self.id)))fail('An idea with things under it cannot go under another one.');
+    if(parentIdea.parentId)fail('That idea is already part of another one. Put this under the bigger one.');
+   }
+  };
   if(op.type==='proposalAdd'||op.type==='proposalEdit'){
    const draft=proposalDraft(op);
    if(!draft.title)fail('Give the idea a name.');
@@ -286,6 +299,7 @@ export function extraOperation(state,op,user,fail,now){
    if(draft.cost!==null&&(!Number.isFinite(draft.cost)||draft.cost<0||draft.cost>10000000))fail('Enter a cost in yen.');
    if(draft.suitableFor.some(n=>!state.members.includes(n)))fail('Choose family members.');
    if(draft.tags.length>20||draft.tags.some(t=>!string(t,50)))fail('Use up to 20 tags, each under 50 characters.');
+   placed(draft,op.type==='proposalEdit'?found():null);
    if(op.type==='proposalAdd'){
     if(board.length>=MAX_PROPOSALS)fail(`That is ${MAX_PROPOSALS} ideas already. Schedule or park a few first.`);
     board.push({id:randomUUID(),...draft,addedBy:user.name,createdAt:when('idea'),votes:{},musts:{},parked:false,stepId:null,scheduledBy:null,scheduledAt:null});
@@ -295,6 +309,52 @@ export function extraOperation(state,op,user,fail,now){
    if(!parent&&p.addedBy!==user.name)fail('You can change the ideas you added.',403);
    Object.assign(p,draft);
    return {summary:null,important:false,title:draft.title};
+  }
+  // A friend or relative's recommendation. It goes onto the idea already on the board for that
+  // place, adding their name, or puts a new idea up with their name on it. Anyone can do it, as
+  // anyone can add an idea; taking a name off is for whoever put it there, or a parent.
+  if(op.type==='proposalRecommend'){
+   const name=String(op.name??'').trim(),said=String(op.said??'').trim();
+   if(!name)fail('Say who recommended it.');
+   if(name.length>RECOMMENDER_NAME)fail(`Keep the name under ${RECOMMENDER_NAME} characters.`);
+   if(said.length>RECOMMENDER_SAID)fail(`Keep what they said under ${RECOMMENDER_SAID} characters.`);
+   const at=when('recommendation'),via=op.via??'message';
+   if(!op.remove&&!RECOMMEND_VIA.some(([k])=>k===via))fail('Say how the recommendation reached us.');
+   if(op.remove){
+    const p=found(),r=(p.recommendedBy||[]).find(x=>x.name.toLowerCase()===name.toLowerCase());
+    if(!r)return {summary:null,important:false,title:p.title};
+    if(!parent&&r.by!==user.name)fail('You can take off the recommendations you added.',403);
+    p.recommendedBy=withRecommender(p.recommendedBy,{name,remove:true});
+    return {summary:null,important:false,title:p.title};
+   }
+   // "Part of" comes as the bigger idea's name, since it may have been added a moment ago in the
+   // same batch; it is looked up on the board as it is now.
+   const within=String(op.within??'').trim(),parentIdea=within?matchProposal(board,within):null;
+   const p=op.id?found():matchProposal(board,op.title);
+   if(p){
+    p.recommendedBy=withRecommender(p.recommendedBy,{name,said,via,at,by:user.name});
+    // What the new recommendation says about where it is fills gaps; it does not overrule the board.
+    const fill={accessibleFrom:p.accessibleFrom||String(op.accessibleFrom??'').trim(),travel:p.travel||String(op.travel??'').trim(),
+     parentId:p.parentId||(parentIdea&&parentIdea.id!==p.id&&!parentIdea.parentId&&!board.some(x=>x.parentId===p.id)?parentIdea.id:null)};
+    placed(fill,p);Object.assign(p,fill);
+    return {summary:`${user.name} added ${name}'s recommendation to ${p.title}`,important:false,title:p.title};
+   }
+   const draft=proposalDraft({...op,source:'recommended',parentId:parentIdea?(parentIdea.parentId||parentIdea.id):null});
+   if(!draft.title)fail('Give the idea a name.');
+   for(const [key,max] of [['title',250],['place',250],['japanese',250],['notes',4000]])if(!string(draft[key],max))fail(`Keep the ${key} under ${max} characters.`);
+   for(const key of ['website','ticketUrl','mapUrl'])if(draft[key]&&!https(draft[key]))fail('Use an HTTPS link.');
+   if(!PROPOSAL_KINDS.some(([id])=>id===draft.category))fail('Choose what kind of idea this is.');
+   if(!PROPOSAL_TIMING.some(([id])=>id===draft.timing))fail('Say whether it is flexible, only at certain times, or a fixed time.');
+   if(draft.day!==null&&!state.days.some(d=>d.date===draft.day))fail('Choose a trip day, or leave the day open.');
+   if(draft.time!==null&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.time))fail('Use a valid time.');
+   if(!Number.isInteger(draft.duration)||draft.duration<0||draft.duration>1440)fail('How long it takes must be 0–1440 minutes.');
+   if(draft.cost!==null&&(!Number.isFinite(draft.cost)||draft.cost<0||draft.cost>10000000))fail('Enter a cost in yen.');
+   if(draft.suitableFor.some(n=>!state.members.includes(n)))fail('Choose family members.');
+   if(draft.tags.length>20||draft.tags.some(t=>!string(t,50)))fail('Use up to 20 tags, each under 50 characters.');
+   placed(draft);
+   if(board.length>=MAX_PROPOSALS)fail(`That is ${MAX_PROPOSALS} ideas already. Schedule or park a few first.`);
+   board.push({id:randomUUID(),...draft,recommendedBy:cleanRecommenders([{name,said,via,at,by:user.name}]),addedBy:user.name,createdAt:at,votes:{},musts:{},parked:false,stepId:null,scheduledBy:null,scheduledAt:null});
+   return {summary:`${user.name} put ${name}'s recommendation, ${draft.title}, on the planning board`,important:true,title:draft.title};
   }
   if(op.type==='proposalVote'){
    const p=found();ownVote(op.person);
@@ -325,13 +385,15 @@ export function extraOperation(state,op,user,fail,now){
    if(!parent&&p.addedBy!==user.name)fail('You can remove the ideas you added.',403);
    if(proposalPlacement(state,p).step)fail('This idea is on the itinerary. Remove the activity first.');
    state.proposals=board.filter(x=>x.id!==p.id);
+   // The things that were part of it stay on the board, on their own.
+   for(const x of state.proposals)if(x.parentId===p.id)x.parentId=null;
    return {summary:null,important:false,title:p.title};
   }
   // A board idea becomes a step on a day. One shape whether it goes on a day of its own or as the
   // other lane of a split, so the two cannot drift apart.
   const stepFromProposal=(p,{day,time,kind,locked,participants,group,option,order})=>{
    state.steps.push({id:randomUUID(),title:p.title,day,time,originalTime:time,duration:p.duration||30,
-    notes:proposalStepNotes(p),place:p.place,japanese:p.japanese,website:p.ticketUrl||p.website,phone:'',
+    notes:proposalStepNotes(p,proposalChildren(state,p)),place:p.place,japanese:p.japanese,website:p.ticketUrl||p.website,phone:'',
     page:state.days.find(d=>d.date===day)?.pages?.[0]||1,kind,group,option,participants,order,
     travelMinutes:20,arrivalBuffer:15,locationId:null,locked,bookingTime:locked?time:null,status:'todo',
     fromProposalId:p.id});
