@@ -1,5 +1,6 @@
 import {thankYouForDay,thankYouList,THANK_YOU_FROM,THANK_YOU_FOR} from '../src/trip-features.js';
 import {japanDate} from '../src/timing.js';
+import {isDeveloping,developingStub} from '../src/film-data.js';
 import {visiblePredictions} from '../src/prediction-data.js';
 import {visibleCapsule} from '../src/capsule-data.js';
 import {visibleRsvps,guestSummary} from '../src/rsvp-data.js';
@@ -35,6 +36,9 @@ export function visibleTrip(state,user,now=new Date()){
  // The invitation key is the same again: the public link's key, handed to a parent by one route.
  const {calendarKey,followKey,inviteKey,...rest}=state;
  state=hideExpenses(hideTrackerLinks(hideInbox(hideUnthrownHands(rest,user),user),user),user);
+ // A film photo still developing goes to no phone, the photographer's included: only that it is
+ // there, and whose. The picture itself arrives at seven the next morning.
+ if(state.photos?.some(p=>isDeveloping(p,+now)))state={...state,photos:state.photos.map(p=>isDeveloping(p,+now)?developingStub(p):p)};
  // The answers to the invitation: a guest gets their own whole, the others' status only when the
  // organiser shares names, and the counts either way, worked out here so they are right without
  // the records behind them (src/rsvp-data.js).

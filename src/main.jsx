@@ -104,6 +104,7 @@ import DayCheck,{StopPlanB} from './DayCheck.jsx';
 import HotelMove from './HotelMove.jsx';
 import FindBox from './FindBox.jsx';
 import Rings from './Rings.jsx';
+import MomentBanner from './MomentBanner.jsx';
 import BlendCard,{BlendLine} from './BlendCard.jsx';
 import {StopInsider,StopEtiquette} from './StopGuide.jsx';
 // The map library is only fetched when the map is opened, so every other screen stays as quick.
@@ -751,6 +752,7 @@ function App(){
   {tab==='today'&&<div className="home">
    {dayHeading}
    {dayStrip(selectDay)}
+   <MomentBanner day={japanDate(now)} now={now} go={go}/>
    {homeRuns(homeShown(homePrefs).filter(id=>awarenessAllows(visibleState,user.name,id))).map(run=>Array.isArray(run)?<div className="home-actions" key={run.join()}>{run.map(id=><React.Fragment key={id}>{homeWidgets[id]}</React.Fragment>)}</div>:<React.Fragment key={run}>{homeWidgets[run]}</React.Fragment>)}
    {!homeShown(homePrefs).length&&<div className="empty"><h2>Home is clear.</h2><p>Every widget is put away. Bring back the ones you want from Customise.</p></div>}
    <div className="home-customise"><Button icon={SlidersHorizontal} onClick={()=>go('personalise')}>Customise Home</Button></div>
