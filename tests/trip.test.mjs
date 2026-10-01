@@ -293,7 +293,7 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  // Home no longer splits into two columns, so the step card has the screen to itself and the
  // timeline is not rendered twice.
  assert.equal((main.match(/<DayTimeline /g)||[]).length,1,'the timeline is rendered once, on its own screen');
- assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayTimeline /,'it opens with the day it is about, then the day\u2019s buttons');
+ assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*(?:\{awarenessAllows\(visibleState,user\.name,'spare'\)&&<SpareTime [^\n]*\}\s*)?<DayTimeline /,'it opens with the day it is about, then the day\u2019s buttons');
  assert.doesNotMatch(main,/today-layout/,'Home is one column now');
  assert.doesNotMatch(css,/today-layout/,'and the grid that made two of them is gone with it');
  // Choosing a day on the day at a glance stays on the day at a glance. selectDay goes Home, so
@@ -9858,6 +9858,41 @@ test('each of us stars the rides we want, and a boy stars only his own',async()=
  const at='2026-10-01T01:00:00.000Z';
  assert.deepEqual(wantedBy(pendingProgress(state,[{operation:{type:'parkWant',rideId:id,person:'Nate',want:true,at}}]),id),['Nate'],'a star made with no signal shows at once');
 });
+test('if we have time: rides near us that fit before the next stop, starred first, nothing extra when behind',async()=>{
+ const {spareTime,landOf}=await import('../src/spare-time.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {parkById}=await import('../src/park-data.js');
+ const tds=parkById('tds'),base=ensureFeatures(structuredClone(seed)),day='2026-10-01';
+ const jst=t=>new Date(`${day}T${t}:00+09:00`);
+ const through=(state,title,at)=>{const steps=state.steps.filter(s=>s.day===day).sort((a,b)=>a.order-b.order),end=steps.findIndex(s=>s.title===title);
+  return {...state,steps:state.steps.map(s=>s.day===day&&steps.indexOf(s)>=0&&steps.indexOf(s)<=end?{...s,status:'done',completedAt:jst(at).toISOString()}:s)};};
+ const rapunzel=base.steps.find(s=>s.id==='2026-10-01-06');
+ assert.equal(landOf(base,tds,rapunzel),'Fantasy Springs');
+ assert.equal(landOf(base,tds,base.steps.find(s=>s.id==='2026-10-01-07')),'Fantasy Springs','an area named in the title');
+ // Done with Rapunzel at 11:35, Tinker Bell is at 12:00: 25 minutes, so gentle rides one port over.
+ const early=through(base,'Rapunzel\'s Lantern Festival','11:35');
+ const t=spareTime(early,tds,day,jst('11:35'));
+ assert.equal(t.status,'ahead');assert.equal(t.room,25);assert.equal(t.where,'Fantasy Springs');assert.equal(t.next.title,'Fairy Tinker Bell\'s Busy Buggies');
+ assert.ok(t.picks.length>0&&t.picks.every(p=>p.allow<=25),t.picks.map(p=>p.ride.id).join());
+ assert.ok(t.picks.every(p=>!p.ride.closed&&p.ride.id!=='tds-tinkerbell'&&p.ride.id!=='tds-sindbad'),'nothing closed or already on the day');
+ assert.ok(t.picks[0].why.includes('next door'));
+ // A star lifts a ride to the top.
+ const starred={...early,parkRides:{...early.parkRides,'tds-carpets':{wants:{Nate:'x'}}}};
+ assert.equal(spareTime(starred,tds,day,jst('11:35')).picks[0].ride.id,'tds-carpets');
+ assert.ok(!t.picks.some(p=>p.ride.land==='Mediterranean Harbor'),'nothing across the park in a short gap');
+ // Ridden already: not suggested again.
+ const ridden={...early,parkRides:{'tds-carpets':{ridden:{Nate:'x'}}}};
+ assert.ok(!spareTime(ridden,tds,day,jst('11:35')).picks.some(p=>p.ride.id==='tds-carpets'));
+ // Lunch was due at 12:30 and it is 13:00 with Tinker Bell still to do: behind, and it could go.
+ const late=spareTime(early,tds,day,jst('13:00'));
+ assert.equal(late.status,'behind');assert.deepEqual(late.picks,[]);
+ assert.ok(late.skippable.some(s=>s.title==='Fairy Tinker Bell\'s Busy Buggies'));
+ assert.match(late.headline,/behind/);
+ // A lot of room: bigger rides come in, but not one too tall for both boys.
+ const short={...early,heights:{Nate:100,Boston:110}};
+ const roomy=spareTime({...short,steps:short.steps.map(s=>s.day===day&&s.status!=='done'&&s.order<130?{...s,status:'skipped'}:s)},tds,day,jst('13:00'));
+ assert.ok(roomy.room>=60);assert.ok(!roomy.picks.some(p=>p.ride.height>110),roomy.picks.map(p=>p.ride.id).join());
+});
 test('a stop reached by several legs is ticked leg by leg, and the last leg ticks the stop',async()=>{
  const {legCount,legsTicked}=await import('../src/route-data.js');
  const {pendingProgress}=await import('../src/trip-features.js');
@@ -11054,7 +11089,7 @@ test('what each boy is ready for is two dials a parent sets, starting from his a
  assert.deepEqual(readingHelp(state,'Boston'),{reading:'reads',young:false,pictures:false,rate:undefined});
  assert.equal(readingHelp(state,'Lauren').young,false);
  // How much of the trip's machinery his phone shows.
- assert.deepEqual(heldBack(state,'Nate').sort(),['ask','checkin','links','nextup','report','reports','running','safety','weather']);
+ assert.deepEqual(heldBack(state,'Nate').sort(),['ask','checkin','links','nextup','report','reports','running','safety','spare','weather']);
  assert.deepEqual(heldBack(state,'Boston').sort(),['ask','links','nextup','report','running']);
  assert.deepEqual(heldBack(state,'Damien'),[]);
  assert.ok(awarenessAllows(state,'Nate','step')&&awarenessAllows(state,'Nate','meeting'),'his own things and the meeting card are never held back');
