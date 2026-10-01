@@ -34,7 +34,7 @@ function SettingRow({s,settings,change}){
 // The buttons under each stop, in order, with arrows. The same order the wobble-and-drag on a
 // stop changes, for anybody who would rather tap than hold and drag, or cannot find the hold.
 const LINK_ICONS={website:ExternalLink,tickets:Ticket,photos:Image,voice:Mic,ask:MessageCircleQuestion,guide:BookOpen,remind:Bell,nearby:Compass,share:Share2};
-const LINK_EMOJI={park:'🎢',sumo:'🥋',eyespy:'🗻'};
+const LINK_EMOJI={park:'🎢',waits:'⏱️',sumo:'🥋',eyespy:'🗻'};
 function StopButtonOrder({prefs,setPrefs}){
  const order=linkOrder(prefs),set=list=>setPrefs({order:list});
  return <>
