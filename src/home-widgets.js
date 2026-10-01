@@ -103,3 +103,22 @@ export function homeRuns(ids){
  }
  return runs;
 }
+// What has been folded up or put away just for today. Arranging Home is for good; this is for
+// the afternoon — the countdown read once at breakfast, the weather already known — so it is
+// kept with the day it was done on and starts fresh the next morning (Japan time), without
+// anybody having to remember to bring it back. Kept on the phone like the rest of Home.
+export const emptyHomeDay=day=>({day,folded:[],away:[]});
+export function homeDay(prefs,day){
+ if(!prefs||prefs.day!==day)return emptyHomeDay(day);
+ const ids=list=>[...new Set((Array.isArray(list)?list:[]).filter(id=>Object.hasOwn(HOME_WIDGETS,id)))];
+ return {day,folded:ids(prefs.folded),away:ids(prefs.away)};
+}
+export function foldWidget(prefs,day,id){
+ const t=homeDay(prefs,day),on=t.folded.includes(id);
+ return {...t,folded:on?t.folded.filter(x=>x!==id):[...t.folded,id]};
+}
+export function awayToday(prefs,day,id){
+ const t=homeDay(prefs,day);
+ return t.away.includes(id)?t:{...t,away:[...t.away,id],folded:t.folded.filter(x=>x!==id)};
+}
+export const backToday=(prefs,day,id)=>{const t=homeDay(prefs,day);return {...t,away:id?t.away.filter(x=>x!==id):[]};};

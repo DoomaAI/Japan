@@ -1905,7 +1905,7 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
  assert.match(css,/\.bottom-nav \.nav-more,\.bottom-nav \.nav-home\{flex:0 0 auto/);
  const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
  assert.match(settings,/<BarShortcuts user=\{user\} prefs=\{navPrefs\} setPrefs=\{setNavPrefs\}\/>/);
- assert.match(main,/<Settings [^>]*navPrefs=\{navPrefs\} setNavPrefs=\{saveNav\}\/>/);
+ assert.match(main,/<Settings [^>]*navPrefs=\{navPrefs\} setNavPrefs=\{saveNav\} home=\{homePrefs\} setHome=\{saveHome\}/);
 });
 
 test('Home is a column of widgets each phone orders and puts away for itself',async()=>{
@@ -1948,7 +1948,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  // Side by side they share one grid; apart, each is its own.
  assert.deepEqual(homeRuns(['step','tired','apps','weather','glance']),['step',['tired','apps'],'weather',['glance']]);
  // Home draws them by id, the day heading and strip stay put, and the phone keeps the choice.
- assert.match(main,/\{dayStrip\(selectDay\)\}\s*<MomentBanner [^\n]*\/>\s*<QuizLine [^\n]*\/>\s*\{homeRuns\(homeShown\(homePrefs\)\.filter\(id=>awarenessAllows\(visibleState,user\.name,id\)\)\)\.map\(run=>/);
+ assert.match(main,/\{dayStrip\(selectDay\)\}\s*<MomentBanner [^\n]*\/>\s*<QuizLine [^\n]*\/>\s*\{homeRuns\(homeShown\(homePrefs\)\.filter\(id=>awarenessAllows\(visibleState,user\.name,id\)&&!todayHome\.away\.includes\(id\)\)\)\.map\(run=>/);
  // Today carries the day's buttons above its stops.
  assert.match(main,/\{dayStrip\(d=>go\('glance',d\)\)\}[\s\S]{0,200}<div className="home-actions day-actions">[\s\S]*?We’re tired[\s\S]*?Useful apps[\s\S]*?<DayTimeline/);
  for(const id of HOME_DEFAULT)assert.match(main,new RegExp(`\\n  ${id}:`),`${id} is drawn`);
@@ -11769,4 +11769,16 @@ test('crowds and waits: a park day’s stops show live waits for that stop and t
  assert.match(sheet,/Park updated/);assert.match(sheet,/Checked \{at\(data\.checkedAt\)\}/);assert.match(sheet,/WAITS_CREDIT/);assert.match(sheet,/href=\{park\.app\}/);
  assert.match(await readFile(new URL('../src/ParkGuide.jsx',import.meta.url),'utf8'),/<LiveWaits key=\{park\.id\} park=\{park\} request=\{request\} onData=\{setWaits\}\/>/);
  assert.match(await readFile(new URL('../docs/roadmap.md',import.meta.url),'utf8'),/Crowd and timing intelligence — Built 1 October 2026/);
+});
+test('a Home card folded or put away stays so for the rest of the day and is back the next morning',async()=>{
+ const {homeDay,foldWidget,awayToday,backToday}=await import('../src/home-widgets.js');
+ let t=foldWidget(null,'2026-10-01','weather');
+ assert.deepEqual(t.folded,['weather']);
+ t=awayToday(t,'2026-10-01','countdown');t=awayToday(t,'2026-10-01','weather');
+ assert.deepEqual(t.away,['countdown','weather']);assert.deepEqual(t.folded,[],'putting away unfolds');
+ assert.deepEqual(foldWidget(foldWidget(t,'2026-10-01','stay'),'2026-10-01','stay').folded,[]);
+ assert.deepEqual(backToday(t,'2026-10-01','weather').away,['countdown']);
+ assert.deepEqual(backToday(t,'2026-10-01').away,[]);
+ assert.deepEqual(homeDay(t,'2026-10-02'),{day:'2026-10-02',folded:[],away:[]},'a new day starts clear');
+ assert.deepEqual(homeDay({day:'2026-10-01',folded:['nope','stay','stay'],away:'x'},'2026-10-01'),{day:'2026-10-01',folded:['stay'],away:[]});
 });
