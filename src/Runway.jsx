@@ -2,7 +2,7 @@ import React from 'react';
 import {TrendingUp} from 'lucide-react';
 import {runway} from './runway-data.js';
 import {japanDate} from './timing.js';
-// One line about what happens next with the money, on the Yen page and above the ledger.
+// One line about what happens next with the money, on the FX page and above the ledger.
 export default function Runway({state,user}){
  if(user?.role!=='parent')return null;
  const r=runway(state,japanDate());

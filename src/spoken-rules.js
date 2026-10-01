@@ -45,7 +45,7 @@ export const PAGE_RULES={
  tickets:'Tickets. All our booking tickets and codes are kept here, so we can show somebody at a gate even if there is no internet.',
  inbox:'Forwarded email. Booking emails that have been sent in to the app, waiting for Mum or Dad to file them where they belong.',
  food:'Food. All the Japanese food we want to try, with how to say it. When you have eaten something, tick it, and give it stars for how much you liked it.',
- money:'Yen. Type in a Japanese price and this tells you what it is in our money, so you know if something is a lot or not.',
+ money:'FX. Type in a Japanese price and this tells you what it is in our money, so you know if something is a lot or not.',
  challenges:'Missions. These are your jobs for today. Each one has a picture, and a read to me button if you want to hear it. When you have done one, tick it off.',
  games:'Games. All the games are in here. Press the name of the one you want at the top. Some of them are real Japanese games and they have a little dot next to them.',
  photos:'Photos. All the photos everyone has taken. You can add yours, and at the end of the day everybody votes for the best one.',
