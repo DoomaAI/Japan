@@ -2,12 +2,15 @@
 // so the first thing anyone sees is the book Lauren made, with the day's count over it. It can
 // be a blink on hotel Wi-Fi or twenty seconds on a train, so there is something to do in the
 // wait: petals fall across the cover and a tap catches one, and the facts from today's guide
-// pages turn over one by one. Everything here is on the phone already — the cover is in the
+// pages turn over one by one, taking turns with a Japanese word from the phrasebook. Every
+// open starts on the next card along, and on the other kind from last time, so the wait never
+// opens on the same thing twice. Everything here is on the phone already — the cover is in the
 // offline shell, the facts are in the bundle, the dates are in the last saved copy — so it
 // works with no signal, which is exactly when the wait is longest.
 import React,{useEffect,useRef,useState} from 'react';
 import {tripCountdown,japanDate} from './timing.js';
 import {factsForDay,ANYTIME_FACTS} from './fact-data.js';
+import {phraseForDay,ORDERED_PHRASES} from './phrasebook-data.js';
 
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
@@ -20,14 +23,26 @@ const petal=(first=false)=>({id:nextId++,left:Math.random()*96,size:14+Math.rand
  delay:first?-Math.random()*10:Math.random()*1.5,sway:(Math.random()<.5?-1:1)*(20+Math.random()*40),spin:Math.random()*360});
 const PETALS=12;
 
-// Today's facts first when today is a trip day, then the ones that fit any day; shuffled from a
-// point that changes each open so the same fact is not always first.
+// Today's facts first when today is a trip day, then the ones that fit any day; and the same
+// for words, today's phrase from the daily rota first, then the rest of the book.
 function factsNow(days){
- const today=factsForDay(days,japanDate()),rest=ANYTIME_FACTS().filter(f=>!today.includes(f));
- const list=[...today,...rest];
- if(!list.length)return [];
- const start=today.length?0:Math.floor(Math.random()*list.length);
- return [...list.slice(start),...list.slice(0,start)];
+ const today=factsForDay(days||[],japanDate()),rest=ANYTIME_FACTS().filter(f=>!today.includes(f));
+ return [...today,...rest].map(f=>({...f,kind:'fact'}));
+}
+function wordsNow(days){
+ const today=days?.length?phraseForDay(days,japanDate()):null,all=ORDERED_PHRASES();
+ return [...(today?[today]:[]),...all.filter(p=>p.id!==today?.id)].map(p=>({...p,kind:'word'}));
+}
+// Where the last open got to: the next fact, the next word, and which kind goes first. A new
+// day starts both lists again from the top, so today's own cards come round first.
+const PLACE='japan.opening.place';
+function deckNow(days){
+ const facts=factsNow(days),words=wordsNow(days),date=japanDate();
+ let {date:was,fact=0,word=0,first='fact'}=read(PLACE,{})||{};
+ if(was!==date){fact=0;word=0;}
+ const order=first==='word'?[words,facts]:[facts,words],at=first==='word'?[word,fact]:[fact,word],deck=[];
+ for(let i=0;i<Math.max(facts.length,words.length);i++)order.forEach((list,k)=>{if(list.length)deck.push(list[(at[k]+i)%list.length]);});
+ return {deck,facts:facts.length,words:words.length,fact,word,first};
 }
 
 function Countdown({days}){const c=tripCountdown(days);if(!c)return null;
@@ -48,15 +63,21 @@ function Petals({onCatch}){
 }
 
 export default function Opening({days}){
- const [facts]=useState(()=>factsNow(days));
+ const [{deck,facts,words,fact:f0,word:w0,first}]=useState(()=>deckNow(days));
  const [at,setAt]=useState(0);
  const [count,setCount]=useState(0),[total,setTotal]=useState(()=>read('japan.petals',0));
  const [still]=useState(calm);
- // A fact stays up long enough to read aloud to a six-year-old, and a tap moves on sooner.
- useEffect(()=>{if(facts.length<2)return;const t=setTimeout(()=>setAt(i=>(i+1)%facts.length),8000);return()=>clearTimeout(t);},[at,facts.length]);
- const next=()=>setAt(i=>(i+1)%facts.length);
+ // A card stays up long enough to read aloud to a six-year-old, and a tap moves on sooner.
+ useEffect(()=>{if(deck.length<2)return;const t=setTimeout(()=>setAt(i=>(i+1)%deck.length),8000);return()=>clearTimeout(t);},[at,deck.length]);
+ // Every card put on screen counts as seen, so the next open starts on the one after the last
+ // fact and the last word shown here, and leads with the other kind.
+ useEffect(()=>{
+  const shown=deck.slice(0,at+1),f=shown.filter(c=>c.kind==='fact').length,w=shown.filter(c=>c.kind==='word').length;
+  write(PLACE,{date:japanDate(),fact:facts?(f0+f)%facts:0,word:words?(w0+w)%words:0,first:first==='word'?'fact':'word'});
+ },[at]);
+ const next=()=>setAt(i=>(i+1)%deck.length);
  const onCatch=()=>{setCount(n=>n+1);setTotal(n=>{write('japan.petals',n+1);return n+1;});};
- const fact=facts[at];
+ const card=deck[at];
  return <main className={`opening${still?' still':''}`}>
   <div className="opening-backdrop" aria-hidden="true"/>
   <div className="opening-stage">
@@ -65,11 +86,18 @@ export default function Opening({days}){
    <div className="opening-panel">
     <Countdown days={days}/>
     {!still&&<p className="opening-catch" aria-live="polite">{count?<><b>🌸 {count}</b> caught{total>count?<span> · {total} all trip</span>:null}</>:'Tap a falling petal to catch it'}</p>}
-    {fact&&<button className="opening-fact" onClick={next} aria-label={`Fun fact: ${fact.title}. ${fact.text} Tap for another.`}>
-     <span className="opening-fact-top"><span>{fact.icon}</span><small>FROM THE GUIDE · PAGE {fact.page}</small></span>
-     <strong key={`t${fact.id}`}>{fact.title}</strong>
-     <span key={`x${fact.id}`} className="opening-fact-text">{fact.text}</span>
-     {facts.length>1&&<i key={`b${at}`} className="opening-fact-timer" aria-hidden="true"/>}
+    {card?.kind==='fact'&&<button className="opening-fact" onClick={next} aria-label={`Fun fact: ${card.title}. ${card.text} Tap for another.`}>
+     <span className="opening-fact-top"><span>{card.icon}</span><small>FROM THE GUIDE · PAGE {card.page}</small></span>
+     <strong key={`t${card.id}`}>{card.title}</strong>
+     <span key={`x${card.id}`} className="opening-fact-text">{card.text}</span>
+     {deck.length>1&&<i key={`b${at}`} className="opening-fact-timer" aria-hidden="true"/>}
+    </button>}
+    {card?.kind==='word'&&<button className="opening-fact opening-word" onClick={next} aria-label={`Japanese word: ${card.en}. ${card.ja}, said ${card.say}. Tap for another.`}>
+     <span className="opening-fact-top"><span>{card.icon||'🗣️'}</span><small>SAY IT IN JAPANESE</small></span>
+     <strong key={`t${card.id}`}>{card.en}</strong>
+     <span key={`j${card.id}`} className="opening-word-ja" lang="ja">{card.ja}</span>
+     <span key={`x${card.id}`} className="opening-fact-text">“{card.say}”{card.note?<> · {card.note}</>:null}</span>
+     {deck.length>1&&<i key={`b${at}`} className="opening-fact-timer" aria-hidden="true"/>}
     </button>}
     <div className="opening-track" role="status"><span className="opening-rail" aria-hidden="true"><span className="opening-train">🚅</span></span><span>Opening your family trip…</span></div>
    </div>
