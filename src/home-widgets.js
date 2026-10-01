@@ -22,6 +22,7 @@ export const HOME_WIDGETS={
  reports:{label:'Reports from the family',note:'What the other phones said in the last two hours: the queue, the toilets, sold out'},
  codes:{label:'Codes found',note:'Parents: a ticket’s QR code has been read; add it to the Wallet, or leave it out'},
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},
+ spare:{label:'If we have time',note:'On a park day: rides near us worth fitting in, from our stars and how the day is going'},
  needs:{label:'Before we head out',note:'A tick for each thing to carry out the door, fresh each morning, with a streak'},
  links:{label:'Next fixed time',note:'The next time that cannot move, one tap from its stop'},
  stay:{label:'Tonight’s stay',note:'The hotel, which night, check-in and check-out, the confirmation number, directions and the taxi card'},

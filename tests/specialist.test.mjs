@@ -238,7 +238,7 @@ test('the hotel-move concierge shows the evening before and the morning of a mov
  assert.equal(label['品名'],'衣類（スーツケース）');
  assert.ok(card.bag.length>=6);
  const morning=moveCard(state,'2026-10-01');
- assert.equal(morning.phase,'morning');assert.match(morning.steps.find(s=>s.id==='checkout').text,/Fantasy Springs Hotel by 07:00/);
+ assert.equal(morning.phase,'morning');assert.match(morning.steps.find(s=>s.id==='checkout').text,/Fantasy Springs Hotel by 07:30/);
  assert.match(cleanMoveCheck({}).error,/nothing/);
  assert.deepEqual(cleanMoveCheck({forwardingCutoff:'6pm',checkIn:'15:00',notes:'x',sources:[{title:'a',url:'http://a.jp'}]}).value,
   {forwardingCutoff:'',forwardingWhere:'',forwardingArrives:'',forwardingCost:'',checkOut:'',bagDrop:'',checkIn:'15:00',earlyCheckIn:'',notes:'x',sources:[]});

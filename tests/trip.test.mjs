@@ -12,7 +12,7 @@ const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url
 const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'},child_=child;
 
 test('every day, activity and alternative is linked to a real guide page',()=>{
- assert.equal(seed.days.length,16);assert.equal(seed.steps.length,251);assert.equal(new Set(seed.steps.map(s=>s.id)).size,251);
+ assert.equal(seed.days.length,16);assert.equal(seed.steps.length,254);assert.equal(new Set(seed.steps.map(s=>s.id)).size,254);
  for(const s of seed.steps){assert.ok(seed.days.some(d=>d.date===s.day));assert.ok(s.page>=1&&s.page<=72);assert.equal(Boolean(s.group),Boolean(s.option));}
  for(const [g,o]of Object.entries(seed.choices))assert.ok(seed.steps.some(s=>s.group===g&&s.option===o));
 });
@@ -94,6 +94,24 @@ test('reorder moves only active steps and preserves all target times and alterna
  assert.throws(()=>applyOperation(seed,{type:'reorder',day,ids:ids.slice(1)},parent),/Reload/);
  assert.throws(()=>applyOperation(seed,{type:'reorder',day,ids},child),e=>e.status===403);
 });
+test('a stop dropped on a new line can be undone from the toast, back to the order it had',async()=>{
+ const tl=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
+ assert.match(tl,/ids\.splice\(at,0,id\);moved\(id,ids\);/,'a drag-drop goes through the undoable move');
+ assert.match(tl,/const was=\(allSteps\|\|steps\)\.map\(s=>s\.id\)/,'the whole day’s order is kept, hidden stops included');
+ assert.match(tl,/undo:async\(\)=>\{if\(await mutate\(\{type:'reorder',day:today\.date,ids:was\}\)\)/);
+ // The handle is the handle all the way across: the tap zones of the buttons beside it grow
+ // only outward, so a thumb on its right half no longer lands on Move up or Options.
+ const theme=await readFile(new URL('../src/guide-theme.css',import.meta.url),'utf8');
+ assert.match(theme,/\.reorder-tools \.drag-handle::after\{inset:-8px 0 -8px -10px\}/);
+ assert.match(theme,/\.reorder-tools button\[aria-label\^="Move "\]::after\{inset:-8px 0 0\}/);
+ assert.match(theme,/\.reorder-tools \.to-options::after,\.reorder-tools \.remove-stop::after\{inset:0 0 -8px\}/);
+ // Put back exactly: the same reorder operation, handed the order from before, restores it.
+ const day=seed.days[0].date,before=activeSteps(seed,day).map(s=>s.id);
+ const after=applyOperation(seed,{type:'reorder',day,ids:[...before.slice(1),before[0]]},parent);
+ const back=applyOperation(after,{type:'reorder',day,ids:before},parent);
+ assert.deepEqual(activeSteps(back,day).map(s=>s.id),before);
+});
+
 test('a stop added from a gap in the day timeline lands in that gap and survives a reorder',()=>{
  const day='2026-10-02',active=activeSteps(seed,day),target=active[1];
  const state=applyOperation(seed,{type:'add',step:{title:'Coffee before the train',day,order:target.order-0.5}},parent);
@@ -275,7 +293,7 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  // Home no longer splits into two columns, so the step card has the screen to itself and the
  // timeline is not rendered twice.
  assert.equal((main.match(/<DayTimeline /g)||[]).length,1,'the timeline is rendered once, on its own screen');
- assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayCheck [^\n]*\/>\s*<DayTimeline /,'it opens with the day it is about, then the day\u2019s buttons, then what was checked the night before');
+ assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayCheck [^\n]*\/>\s*(?:\{awarenessAllows\(visibleState,user\.name,'spare'\)&&<SpareTime [^\n]*\}\s*)?<DayTimeline /,'it opens with the day it is about, then the day\u2019s buttons, then what was checked the night before');
  assert.doesNotMatch(main,/today-layout/,'Home is one column now');
  assert.doesNotMatch(css,/today-layout/,'and the grid that made two of them is gone with it');
  // Choosing a day on the day at a glance stays on the day at a glance. selectDay goes Home, so
@@ -916,7 +934,7 @@ test('every stop in the plan has Japanese to show, even where the catalogue leav
 test('address matches preserve exact branches and leave ambiguous areas or station entrances alone',async()=>{
  const {locations}=JSON.parse(await readFile(new URL('../data/map-locations.json',import.meta.url)));
  const {resolveLocation,destinationFor,locationsForPage}=await import('../src/locations.js');const state={...seed,locations};
- assert.equal(seed.steps.filter(s=>resolveLocation(state,s)).length,199);
+ assert.equal(seed.steps.filter(s=>resolveLocation(state,s)).length,202);
  const harry=resolveLocation(state,'HARRY Harajuku Terrace');assert.match(harry.name,/Terrace/);assert.doesNotMatch(harry.name,/Station Front/);
  assert.equal(resolveLocation(state,'Harajuku Tokyo'),null);assert.equal(resolveLocation(state,'Tokyo Station Yaesu entrance'),null);
  assert.equal(resolveLocation(state,'THE MATCHA TOKYO Omotesando').name,'THE MATCHA TOKYO Omotesando');
@@ -9196,12 +9214,12 @@ test('a stop that named several places is split once into its own stops, keeping
   old.steps=old.steps.filter(s=>!s.id.startsWith(`${id}-`));
   Object.assign(first,{title:plan.title,duration:30});
  }
- assert.equal(old.steps.length,242);
+ assert.equal(old.steps.length,245);
  const bridge=old.steps.find(s=>s.id==='2026-09-26-06');
  Object.assign(bridge,{status:'done',completedAt:'2026-09-26T01:00:00.000Z',time:'10:00'});
  const hachiko=old.steps.find(s=>s.id==='2026-09-22-13');hachiko.title='Hachiko only';
  const state=upgraded(old);
- assert.equal(state.steps.length,242+8);
+ assert.equal(state.steps.length,245+8);
  const day=activeSteps(state,'2026-09-26').map(s=>[s.title,s.time,s.status]);
  assert.deepEqual(day.filter(([t])=>['Togetsukyo Bridge','% Arabica'].includes(t)),[['Togetsukyo Bridge','10:00','done'],['% Arabica','10:20','done']]);
  // A stop the family renamed is theirs now, and a second read does not split again.
@@ -9791,6 +9809,91 @@ test('30 September follows the family\'s own Disneyland plan, and the live trip 
  const moved={...out,steps:out.steps.map(s=>s.id==='2026-09-30-12'?{...s,time:'13:15'}:s)};
  assert.deepEqual(disneySeeded(moved),moved,'and it only ever runs once');
  assert.equal(disneySeeded(out).steps.length,out.steps.length);
+});
+test('1 October follows the family\'s own DisneySea plan, and the live trip picks it up once',async()=>{
+ const {DISNEYSEA_PLAN,disneySeaSeeded,DISNEYSEA_SEED}=await import('../src/disneysea-day.js');
+ const day=seed.steps.filter(s=>s.day==='2026-10-01').sort((a,b)=>a.order-b.order);
+ const at=title=>day.find(s=>s.title===title)?.time;
+ assert.equal(at('Journey to the Center of the Earth'),'09:00');assert.equal(at('Raging Spirits'),'14:00');
+ assert.equal(at('Soaring: Fantastic Flight'),'15:30');assert.equal(at('Begin exit and journey to Hilton'),'17:45');
+ assert.ok(day.find(s=>s.title==='Peter Pan\'s Never Land Adventure').locked,'package rides stay booked');
+ assert.ok(!day.some(s=>s.title==='Little Green Dumplings'));
+ assert.deepEqual(day.map(s=>s.time),[...day.map(s=>s.time)].sort(),'in time order');
+ const live={bin:[],steps:[
+  {id:'2026-10-01-11',day:'2026-10-01',title:'Journey to the Center of the Earth',time:'14:45',originalTime:'14:45',duration:30,status:'todo',kind:'optional',order:100,page:52,notes:'DPA target only.'},
+  {id:'2026-10-01-04',day:'2026-10-01',title:'Peter Pan\'s Never Land Adventure',time:'09:30',duration:30,status:'done',kind:'fixed',locked:true,bookingTime:'09:30',order:30,page:52},
+  {id:'2026-10-01-09',day:'2026-10-01',title:'Arabian Coast and churros',time:'13:00',duration:30,status:'todo',order:80,page:52},
+  {id:'2026-10-01-08',day:'2026-10-01',title:'Little Green Dumplings',time:'12:45',duration:30,status:'todo',order:70,page:52},
+  {id:'2026-10-01-14',day:'2026-10-01',title:'Begin exit and journey to Hilton',time:'17:30',originalTime:'17:30',duration:30,status:'todo',order:130,page:55,place:'Hilton Tokyo',notes:'Route'},
+ ]};
+ const out=disneySeaSeeded(live),get=id=>out.steps.find(s=>s.id===id);
+ assert.deepEqual([get('2026-10-01-11').time,get('2026-10-01-11').kind],['09:00','flexible']);
+ assert.deepEqual([get('2026-10-01-04').status,get('2026-10-01-04').locked],['done',true],'progress stays');
+ assert.equal(get('2026-10-01-09').title,'Arabian Coast and churros','a stop the family renamed is theirs');
+ assert.deepEqual([get('2026-10-01-14').time,get('2026-10-01-14').notes,get('2026-10-01-14').place],['17:45','Route','Hilton Tokyo']);
+ assert.equal(get('2026-10-01-08'),undefined);assert.equal(out.bin[0].item.title,'Little Green Dumplings');
+ for(const p of DISNEYSEA_PLAN.filter(p=>!p.was&&!p.move))assert.equal(get(p.id).title,p.title,`${p.title} is added`);
+ assert.equal(out.disneySeaSeed,DISNEYSEA_SEED);
+ assert.deepEqual(disneySeaSeeded(out),out,'and it only ever runs once');
+});
+test('every DisneySea ride is listed with its thrill level, height and what is closed on our day',async()=>{
+ const {parkById,openRides,THRILL,findRide}=await import('../src/park-data.js');
+ const tds=parkById('tds');
+ assert.ok(tds.rides.length>=25);
+ for(const r of tds.rides)assert.ok(THRILL[r.thrill],r.name);
+ for(const id of ['tds-tinkerbell','tds-20000','tds-scuttle','tds-railway','tds-carpets'])assert.ok(findRide(id),id);
+ assert.deepEqual(tds.rides.filter(r=>r.closed).map(r=>r.id).sort(),['tds-aquatopia','tds-indiana','tds-steamer','tds-tower']);
+ assert.equal(openRides(tds).length,tds.rides.length-4);
+ assert.equal(findRide('tds-peterpan').height,102);assert.equal(findRide('tds-frozen').height,null);
+ assert.equal(findRide('tds-raging').thrill,'big');
+});
+test('each of us stars the rides we want, and a boy stars only his own',async()=>{
+ const {ensureFeatures,pendingProgress,wantedBy,isMustDo}=await import('../src/trip-features.js');
+ const state=ensureFeatures(structuredClone(seed)),nate={name:'Nate',role:'child'},id='tds-raging';
+ const one=applyOperation(state,{type:'parkWant',rideId:id,person:'Nate',want:true},nate);
+ assert.deepEqual(wantedBy(one,id),['Nate']);assert.equal(isMustDo(one,id),true);
+ const two=applyOperation(one,{type:'parkWant',rideId:id,person:'Boston',want:true},parent);
+ assert.deepEqual(wantedBy(two,id).sort(),['Boston','Nate']);
+ assert.throws(()=>applyOperation(state,{type:'parkWant',rideId:id,person:'Boston',want:true},nate),e=>e.status===403);
+ assert.throws(()=>applyOperation(state,{type:'parkWant',rideId:'nope',person:'Nate',want:true},nate),e=>e.status===404);
+ assert.deepEqual(wantedBy(applyOperation(two,{type:'parkWant',rideId:id,person:'Nate',want:false},nate),id),['Boston']);
+ const at='2026-10-01T01:00:00.000Z';
+ assert.deepEqual(wantedBy(pendingProgress(state,[{operation:{type:'parkWant',rideId:id,person:'Nate',want:true,at}}]),id),['Nate'],'a star made with no signal shows at once');
+});
+test('if we have time: rides near us that fit before the next stop, starred first, nothing extra when behind',async()=>{
+ const {spareTime,landOf}=await import('../src/spare-time.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ const {parkById}=await import('../src/park-data.js');
+ const tds=parkById('tds'),base=ensureFeatures(structuredClone(seed)),day='2026-10-01';
+ const jst=t=>new Date(`${day}T${t}:00+09:00`);
+ const through=(state,title,at)=>{const steps=state.steps.filter(s=>s.day===day).sort((a,b)=>a.order-b.order),end=steps.findIndex(s=>s.title===title);
+  return {...state,steps:state.steps.map(s=>s.day===day&&steps.indexOf(s)>=0&&steps.indexOf(s)<=end?{...s,status:'done',completedAt:jst(at).toISOString()}:s)};};
+ const rapunzel=base.steps.find(s=>s.id==='2026-10-01-06');
+ assert.equal(landOf(base,tds,rapunzel),'Fantasy Springs');
+ assert.equal(landOf(base,tds,base.steps.find(s=>s.id==='2026-10-01-07')),'Fantasy Springs','an area named in the title');
+ // Done with Rapunzel at 11:35, Tinker Bell is at 12:00: 25 minutes, so gentle rides one port over.
+ const early=through(base,'Rapunzel\'s Lantern Festival','11:35');
+ const t=spareTime(early,tds,day,jst('11:35'));
+ assert.equal(t.status,'ahead');assert.equal(t.room,25);assert.equal(t.where,'Fantasy Springs');assert.equal(t.next.title,'Fairy Tinker Bell\'s Busy Buggies');
+ assert.ok(t.picks.length>0&&t.picks.every(p=>p.allow<=25),t.picks.map(p=>p.ride.id).join());
+ assert.ok(t.picks.every(p=>!p.ride.closed&&p.ride.id!=='tds-tinkerbell'&&p.ride.id!=='tds-sindbad'),'nothing closed or already on the day');
+ assert.ok(t.picks[0].why.includes('next door'));
+ // A star lifts a ride to the top.
+ const starred={...early,parkRides:{...early.parkRides,'tds-carpets':{wants:{Nate:'x'}}}};
+ assert.equal(spareTime(starred,tds,day,jst('11:35')).picks[0].ride.id,'tds-carpets');
+ assert.ok(!t.picks.some(p=>p.ride.land==='Mediterranean Harbor'),'nothing across the park in a short gap');
+ // Ridden already: not suggested again.
+ const ridden={...early,parkRides:{'tds-carpets':{ridden:{Nate:'x'}}}};
+ assert.ok(!spareTime(ridden,tds,day,jst('11:35')).picks.some(p=>p.ride.id==='tds-carpets'));
+ // Lunch was due at 12:30 and it is 13:00 with Tinker Bell still to do: behind, and it could go.
+ const late=spareTime(early,tds,day,jst('13:00'));
+ assert.equal(late.status,'behind');assert.deepEqual(late.picks,[]);
+ assert.ok(late.skippable.some(s=>s.title==='Fairy Tinker Bell\'s Busy Buggies'));
+ assert.match(late.headline,/behind/);
+ // A lot of room: bigger rides come in, but not one too tall for both boys.
+ const short={...early,heights:{Nate:100,Boston:110}};
+ const roomy=spareTime({...short,steps:short.steps.map(s=>s.day===day&&s.status!=='done'&&s.order<130?{...s,status:'skipped'}:s)},tds,day,jst('13:00'));
+ assert.ok(roomy.room>=60);assert.ok(!roomy.picks.some(p=>p.ride.height>110),roomy.picks.map(p=>p.ride.id).join());
 });
 test('a stop reached by several legs is ticked leg by leg, and the last leg ticks the stop',async()=>{
  const {legCount,legsTicked}=await import('../src/route-data.js');
@@ -10988,7 +11091,7 @@ test('what each boy is ready for is two dials a parent sets, starting from his a
  assert.deepEqual(readingHelp(state,'Boston'),{reading:'reads',young:false,pictures:false,rate:undefined});
  assert.equal(readingHelp(state,'Lauren').young,false);
  // How much of the trip's machinery his phone shows.
- assert.deepEqual(heldBack(state,'Nate').sort(),['ask','checkin','links','nextup','report','reports','running','safety','weather']);
+ assert.deepEqual(heldBack(state,'Nate').sort(),['ask','checkin','links','nextup','report','reports','running','safety','spare','weather']);
  assert.deepEqual(heldBack(state,'Boston').sort(),['ask','links','nextup','report','running']);
  assert.deepEqual(heldBack(state,'Damien'),[]);
  assert.ok(awarenessAllows(state,'Nate','step')&&awarenessAllows(state,'Nate','meeting'),'his own things and the meeting card are never held back');

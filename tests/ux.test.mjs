@@ -99,7 +99,7 @@ test('a stay is worked out from the plan: the run of nights, check-in and out, a
  assert.equal(fsh.from,'2026-09-29');assert.equal(fsh.to,'2026-10-01');
  assert.equal(fsh.night,2);assert.equal(fsh.total,2);assert.ok(fsh.leaving);
  assert.equal(fsh.checkIn,'15:00','from the plan’s check-in stop');
- assert.equal(fsh.checkOut,'07:00','from the plan’s check-out stop the morning after');
+ assert.equal(fsh.checkOut,'07:30','from the plan’s check-out stop the morning after');
  assert.match(fsh.address,/Maihama/,'the address comes from our map');
  assert.ok(fsh.japanese,'and the Japanese name for the taxi card');
  const hilton=stayFor(state,'2026-10-05');

@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
-import {Check,Star,MapPin,ExternalLink,Ticket,AlertCircle,Ruler} from 'lucide-react';
-import {PARKS,parkLands,ridePlanned} from './park-data.js';
-import {BOYS,riddenBy,isMustDo,heightCheck,parkProgress} from './trip-features.js';
+import {Check,Star,MapPin,ExternalLink,Ticket,AlertCircle,Ruler,Ban} from 'lucide-react';
+import {PARKS,THRILL,parkLands,openRides,ridePlanned} from './park-data.js';
+import {BOYS,riddenBy,wantedBy,isMustDo,heightCheck,parkProgress} from './trip-features.js';
 import {CardFacts,factAloudFor} from './FunFacts.jsx';
 import ExpressPass from './ExpressPass.jsx';
 import {factsForItem} from './fact-data.js';
@@ -9,14 +9,17 @@ const mapSearch=(ride,park)=>`https://www.google.com/maps/search/?api=1&query=${
 export default function ParkGuide({state,user,speak,openPage,park:initial,mutate,busy,open}){
  const [parkId,setParkId]=useState(initial?.id||PARKS[0].id);
  const park=PARKS.find(p=>p.id===parkId)||PARKS[0];
- const [land,setLand]=useState(''),[only,setOnly]=useState('');
+ const [land,setLand]=useState(''),[only,setOnly]=useState(''),[thrill,setThrill]=useState('');
  const parent=user.role==='parent',heights=state.heights||{};
  // A ride is its name and the land it stands in, which is enough for the facts about it: the
  // honey pots that steer themselves, the volcano the ride runs through, the ports the lands
  // are called. Queueing is when anybody has time to read one.
  const aloud=factAloudFor(speak,user.name);
  const [editHeights,setEditHeights]=useState(false);
- const rides=park.rides.filter(r=>(!land||r.land===land)&&(only!=='must'||isMustDo(state,r.id))&&(only!=='todo'||!Object.keys(riddenBy(state,r.id)).length));
+ // Each of us stars the rides we want to do; the card says whose stars it has. A star from the
+ // older family-wide must-do still counts, and a parent can clear it.
+ const show={must:r=>isMustDo(state,r.id),mine:r=>wantedBy(state,r.id).includes(user.name),todo:r=>!Object.keys(riddenBy(state,r.id)).length,open:r=>!r.closed};
+ const rides=park.rides.filter(r=>(!land||r.land===land)&&(!only||show[only](r))&&(!thrill||r.thrill===thrill));
  const mapDoc=state.documents.find(d=>d.category!=='memory'&&(d.tags||[]).some(t=>t.toLowerCase()==='park map')&&(d.title||'').toLowerCase().includes(park.short.toLowerCase()));
  async function saveHeights(e){
   e.preventDefault();const f=new FormData(e.currentTarget),next={};
@@ -47,18 +50,25 @@ export default function ParkGuide({state,user,speak,openPage,park:initial,mutate
     :<p>{BOYS.every(n=>!heights[n])?'Add each boy’s height and every ride will say plainly whether he is tall enough.':BOYS.map(n=>heights[n]?`${n} ${heights[n]}cm`:`${n} — not set`).join(' · ')}</p>}
   </section>
 
-  <div className="quest-progress">{BOYS.map(n=><strong key={n}>{n}: {parkProgress(state,park,n)} / {park.rides.length}</strong>)}<span>Tick a ride once it is done. Star the ones we must not miss.</span></div>
+  <div className="quest-progress">{BOYS.map(n=><strong key={n}>{n}: {parkProgress(state,park,n)} / {openRides(park).length}</strong>)}<span>Star the rides you want to do. Tick a ride once it is done.</span></div>
   <div className="document-filters"><div className="form-row">
    <label>Area<select value={land} onChange={e=>setLand(e.target.value)}><option value="">Everywhere</option>{parkLands(park).map(l=><option key={l}>{l}</option>)}</select></label>
-   <label>Show<select value={only} onChange={e=>setOnly(e.target.value)}><option value="">All rides</option><option value="must">Must-do only</option><option value="todo">Not ridden yet</option></select></label>
+   <label>Show<select value={only} onChange={e=>setOnly(e.target.value)}><option value="">All rides</option><option value="open">Open today</option><option value="must">Starred by anyone</option><option value="mine">My stars</option><option value="todo">Not ridden yet</option></select></label>
+   <label>Thrill<select value={thrill} onChange={e=>setThrill(e.target.value)}><option value="">Any</option>{Object.entries(THRILL).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
   </div></div>
 
   <div className="ride-list">{rides.map(ride=>{
-   const ridden=riddenBy(state,ride.id),must=isMustDo(state,ride.id),planned=ridePlanned(state,park,ride);
-   return <article className={`ride-card${Object.keys(ridden).length?' ridden':''}`} key={ride.id}>
+   const ridden=riddenBy(state,ride.id),wants=wantedBy(state,ride.id),mine=wants.includes(user.name),family=!!state.parkRides?.[ride.id]?.must,planned=ridePlanned(state,park,ride);
+   return <article className={`ride-card${Object.keys(ridden).length?' ridden':''}${ride.closed?' closed':''}`} key={ride.id}>
     <div className="ride-top">
      <div><strong>{ride.name}</strong><small>{ride.land}{planned?' · in our plan':''}</small></div>
-     {parent&&<button className={`icon star${must?' on':''}`} aria-label={must?`Remove ${ride.name} from must-do`:`Mark ${ride.name} must-do`} aria-pressed={must} disabled={busy} onClick={()=>mutate({type:'parkMust',rideId:ride.id,must:!must})}><Star size={19}/></button>}
+     <button className={`icon star${mine?' on':''}`} aria-label={mine?`Unstar ${ride.name}`:`Star ${ride.name}: I want to do it`} aria-pressed={mine} disabled={busy} onClick={()=>mutate({type:'parkWant',rideId:ride.id,person:user.name,want:!mine})}><Star size={19} fill={mine?'currentColor':'none'}/></button>
+    </div>
+    <div className="ride-tags">
+     {ride.thrill&&<span className={`ride-thrill ${ride.thrill}`}>{THRILL[ride.thrill]}</span>}
+     {ride.closed&&<span className="ride-closed"><Ban size={13}/>{ride.closed}</span>}
+     {(wants.length>0||family)&&<span className="ride-stars"><Star size={13} fill="currentColor"/>{[...wants,...(family?['Family must-do']:[])].join(', ')}</span>}
+     {family&&parent&&<button className="linkish" disabled={busy} onClick={()=>mutate({type:'parkMust',rideId:ride.id,must:false})}>Clear family star</button>}
     </div>
     <p>{ride.note}</p>
     <CardFacts facts={factsForItem(ride.name,ride.land)} openPage={openPage} aloud={aloud}/>

@@ -649,6 +649,14 @@ export function extraOperation(state,op,user,fail,now){
   const entry=state.parkRides[op.rideId]||{},ridden={...(entry.ridden||{})};
   if(op.done)ridden[op.person]=ridden[op.person]||at;else delete ridden[op.person];
   state.parkRides={...state.parkRides,[op.rideId]:{...entry,ridden}};
+ }else if(op.type==='parkWant'){
+  const ride=findRide(op.rideId);if(!ride)fail('Unknown ride.',404);
+  if(!state.members.includes(op.person))fail('Choose a family member.');
+  if(!parent&&op.person!==user.name)fail('Star only your own rides.',403);
+  if(typeof op.want!=='boolean')fail('Invalid star.');
+  const entry=state.parkRides[op.rideId]||{},wants={...(entry.wants||{})};
+  if(op.want)wants[op.person]=wants[op.person]||now;else delete wants[op.person];
+  state.parkRides={...state.parkRides,[op.rideId]:{...entry,wants}};
  }else if(op.type==='parkMust'){
   const ride=findRide(op.rideId);if(!ride)fail('Unknown ride.',404);
   if(typeof op.must!=='boolean')fail('Invalid must-do.');
