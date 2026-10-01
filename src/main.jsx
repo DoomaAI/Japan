@@ -143,6 +143,7 @@ const Predictions=lazy(()=>import('./Predictions.jsx'));
 const Photobook=lazy(()=>import('./Photobook.jsx'));
 const RecapStory=lazy(()=>import('./RecapStory.jsx'));
 const Highlights=lazy(()=>import('./Highlights.jsx'));
+import DinnerTonight from './DinnerTonight.jsx';
 const WhichCard=lazy(()=>import('./WhichCard.jsx'));
 const Trackers=lazy(()=>import('./Trackers.jsx'));
 const Noticed=lazy(()=>import('./Noticed.jsx'));
@@ -645,6 +646,7 @@ function App(){
   reports:<Reports state={visibleState} user={user} day={day} now={now} selectStep={selectStep}/>,
   codes:<CodePrompt state={state} parent={parent} busy={busy} mutate={mutate} notice={notice} onShow={doc=>setModal({type:'tickets',initialSearch:doc.title})}/>,
   countdown:(c=>c&&<section className={`countdown-card ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span><b>{c.days===1?'day to go':'days to go'}</b><small>{c.days===1?'Tomorrow we fly to Japan!':`Until Day 1 · ${fmtDay(state.days[0].date)}`}</small></span></>:c.phase==='during'?<><strong>{c.day}</strong><span><b>{c.text}</b><small>{c.sub}</small></span></>:<><Check size={28}/><span><b>{c.text}</b><small>All {c.total} days of Japan behind us</small></span></>}</section>)(tripCountdown(state.days,todayJapan)),
+  dinner:<DinnerTonight key={`dinner-${day}`} state={visibleState} user={user} day={day} today={japanDate(now)} clock={japanClock(now)} config={config} request={request} accept={accept} mutate={mutate} busy={busy} notice={notice} openNearby={()=>setModal({type:'nearby',need:'food'})}/>,
   tonight:<Tonight state={visibleState} user={user} day={day} today={japanDate(now)} clock={japanClock(now)} mutate={mutate} busy={busy} openVoice={()=>setModal({type:'voice',day})} go={go} addStop={parent?()=>setModal({type:'edit',step:null}):null} notice={notice}/>,
   dailyjapan:<DailyJapan state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy}/>,
   bookingwindows:<BookingWindowsCard state={visibleState} now={now} go={go}/>,
