@@ -4,7 +4,7 @@ import {destinationFor,resolveLocation,showLocationDetails} from './locations.js
 import {ensureFeatures,pendingProgress,phoneLinks,isTrainLeg,EYE_SPY,eyeSpySpotted,PIN_PLACES,stepPin,pinText} from './trip-features.js';
 import {askPhoneWhereItIs} from './geo.js';
 import RouteCard from './RouteCard.jsx';
-import {routeFor,legCount,legsTicked} from './route-data.js';
+import {routeFor,legCount,legsTicked,routeMinutes} from './route-data.js';
 import {Challenges,Shopping,SpeakRules,useReadAloud} from './AdventurePages.jsx';
 import Shortlist,{DayFinds} from './Shortlist.jsx';
 import {NextUp,RunningLate,OfflineReadiness,Updates} from './HomeFeatures.jsx';
@@ -498,8 +498,13 @@ function App(){
  }
  // A stop on the way (a bag pickup, a shop) added to the route as a leg of its own, or taken off.
  async function routeWaypoint(w){
-  const s=current,ok=await mutate({type:'waypoint',id:s.id,...w});
-  if(ok)notice(w.action==='add'?`Added to the way: ${w.text}.`:'Stop on the way removed.');
+  const s=current,before=routeMinutes(routeFor(s)),was=(s.waypoints||[]).find(x=>x.id===w.waypointId);
+  const ok=await mutate({type:'waypoint',id:s.id,...w});
+  if(!ok)return ok;
+  // Says what the change did to the journey as a whole, so nobody has to add it up.
+  const after=before+(w.action==='remove'?0:w.minutes||0)-(was?.minutes||0);
+  const what=w.action==='add'?`Added to the journey: ${w.text}.`:w.action==='update'?`Changed: ${w.text}.`:`Taken off the journey: ${was?.text||w.text}.`;
+  notice(`${what}${after!==before?` The journey is now about ${after} min${s.time?`, there about ${asClock((minutes(s.time)+after)%1440)}`:''}.`:''}`);
   return ok;
  }
  // The one time it would be alarming to miss, kept in the top bar wherever the family is in the

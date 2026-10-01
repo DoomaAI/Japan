@@ -5,7 +5,7 @@ import {expressOperation} from './express.mjs';
 import {dpaOperation} from './dpa.mjs';
 import { randomUUID } from 'node:crypto';
 import {activeSteps,MAX_WINDOW} from '../src/timing.js';
-import {legCount,tickLeg,routeFor,rekeyLegs,ROUTES,MAX_WAYPOINTS} from '../src/route-data.js';
+import {legCount,tickLeg,routeFor,rekeyLegs,ROUTES,MAX_WAYPOINTS,WAYPOINT_KINDS,addedMinutes} from '../src/route-data.js';
 import {ENTRY_TYPE_IDS} from '../src/entry-types.js';
 import {guessPlatform} from '../src/booked-via.js';
 import {BIN_KINDS,binEntries,binTitle} from '../src/bin-data.js';
@@ -158,21 +158,31 @@ export function applyOperation(input,op,user){
   // A stop on the way, added to a route or taken off it by anyone who may tick the route.
   if(!parent&&!step.participants.includes(user.name))throw new AppError('This activity is assigned to other family members.',403);
   if(!routeFor(step))throw new AppError('Only a stop with a route can have a stop on the way.');
-  const was=structuredClone(step),list=step.waypoints||[];
+  const was=structuredClone(step),list=step.waypoints||[],route=ROUTES[step.id].length;
+  // What a stop or leg says, where it goes and how long it takes, checked the same way whether
+  // it is new or being changed.
+  const details=(o,base={})=>{
+   const w={...base};
+   if('text'in o||!base.id){w.text=typeof o.text==='string'?o.text.trim():'';if(!w.text||w.text.length>160)throw new AppError('Say what the stop is for, in under 160 characters.');}
+   if('kind'in o||!base.id){w.kind=o.kind??'stop';if(!WAYPOINT_KINDS[w.kind])throw new AppError('Choose a stop, a walk or a taxi.');}
+   if('after'in o||!base.id){if(!Number.isInteger(o.after)||o.after<0||o.after>route)throw new AppError('Choose where on the way the stop goes.');w.after=o.after;}
+   if('minutes'in o||!base.id){if(o.minutes!=null&&!(Number.isInteger(o.minutes)&&o.minutes>0&&o.minutes<=180))throw new AppError('Use up to 180 minutes for the stop.');w.minutes=o.minutes??null;}
+   return w;
+  };
   if(op.action==='add'){
-   const text=typeof op.text==='string'?op.text.trim():'',route=ROUTES[step.id].length;
-   if(!text||text.length>160)throw new AppError('Say what the stop is for, in under 160 characters.');
-   if(!Number.isInteger(op.after)||op.after<0||op.after>route)throw new AppError('Choose where on the way the stop goes.');
-   if(op.minutes!=null&&!(Number.isInteger(op.minutes)&&op.minutes>0&&op.minutes<=180))throw new AppError('Use up to 180 minutes for the stop.');
    if(list.length>=MAX_WAYPOINTS)throw new AppError(`Add at most ${MAX_WAYPOINTS} stops on the way.`);
-   step.waypoints=[...list,{id:randomUUID().slice(0,8),text,after:op.after,minutes:op.minutes??null,by:user.name,at:now}];
-  }else if(op.action==='remove'){
-   if(!list.some(w=>w.id===op.waypointId))throw new AppError('That stop on the way is already gone.',404);
-   step.waypoints=list.filter(w=>w.id!==op.waypointId);
+   step.waypoints=[...list,{id:randomUUID().slice(0,8),...details(op),by:user.name,at:now}];
+  }else if(op.action==='update'||op.action==='remove'){
+   const old=list.find(w=>w.id===op.waypointId);
+   if(!old)throw new AppError('That stop on the way is already gone.',404);
+   step.waypoints=op.action==='remove'?list.filter(w=>w.id!==op.waypointId):list.map(w=>w===old?{...details(op,old),updatedBy:user.name,updatedAt:now}:w);
    if(!step.waypoints.length)delete step.waypoints;
   }else throw new AppError('Invalid action.');
   step.updatedBy=user.name;
   rekeyLegs(was,step);
+  // The journey takes as much longer (or shorter) in the day as the stops and legs added to it.
+  const grew=addedMinutes(step)-addedMinutes(was);
+  if(grew)step.duration=Math.min(1440,Math.max(5,(step.duration||30)+grew));
  }else if(op.type==='patch'){
   const patch=validatePatch(op.patch,state);
   if(step.locked && patch.locked!==false && (('time' in patch && patch.time!==step.time)||('day'in patch&&patch.day!==step.day)||('bookingTime'in patch&&patch.bookingTime!==(step.bookingTime??null))))throw new AppError('Unlock this time before moving it.');

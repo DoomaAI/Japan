@@ -153,9 +153,18 @@ export function routeFor(step){
  for(const w of added)if(w.after>=base.length)legs.push(waypointLeg(w));
  return legs;
 }
-const waypointLeg=w=>({mode:'stop',text:w.text,minutes:w.minutes||null,key:`w:${w.id}`,added:{id:w.id,by:w.by||null}});
+// What the family can add: a stop (bags, a shop), or a leg of their own on foot or by taxi.
+export const WAYPOINT_KINDS={stop:'Stop on the way',walk:'Walk',taxi:'Taxi'};
+const waypointLeg=w=>({mode:WAYPOINT_KINDS[w.kind]?w.kind:'stop',text:w.text,minutes:w.minutes||null,key:`w:${w.id}`,added:{id:w.id,by:w.by||null,kind:w.kind||'stop',after:w.after}});
+// How long the whole journey takes, door to door, from its legs: a ride with options counts
+// the first (usual) one. Legs without a time count as nothing rather than a guess.
+export const legMinutes=l=>l.minutes||l.options?.[0]?.minutes||0;
+export const routeMinutes=legs=>(legs||[]).reduce((n,l)=>n+legMinutes(l),0);
+// The minutes the family's own stops and legs add to a journey, so its place in the day grows
+// and shrinks with them.
+export const addedMinutes=step=>(step?.waypoints||[]).reduce((n,w)=>n+(w.minutes||0),0);
 const legKeys=step=>(routeFor(step)||[]).map((l,k)=>l.key||`r${k}`);
-// Moves the legs already ticked onto their new places after a waypoint is added or removed.
+// Moves the legs already ticked onto their new places after a waypoint is added, moved or removed.
 // A removed waypoint takes its tick with it; a stop that was done stays done.
 export function rekeyLegs(before,after){
  if(!before.legsDone)return;
@@ -177,7 +186,7 @@ export function legStrip(legs,step,showing){
  const now=legToDo(step,legs.length);
  return legs.map((leg,k)=>{
   const done=legDone(step,k),line=leg.mode==='ride'?LINES[leg.line]:null;
-  return {k,mode:leg.mode,label:line?line.name:leg.mode==='stop'?'Stop on the way':'Walk',colour:line?.colour||null,done,showing:k===showing,status:done?'done':k===now?'now':'to come'};
+  return {k,mode:leg.mode,label:line?line.name:WAYPOINT_KINDS[leg.mode]||'Walk',colour:line?.colour||null,done,showing:k===showing,status:done?'done':k===now?'now':'to come'};
  });
 }
 // Applies one leg's tick to the stop, in place, and says what that did to the stop as a whole:

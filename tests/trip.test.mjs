@@ -10139,12 +10139,47 @@ test('a stop on the way is a leg of the journey: the bags today, and any the fam
  assert.throws(()=>applyOperation(full,{type:'waypoint',id:s.id,action:'add',text:'One more',after:0},parent),/at most 6/);
  // On the card: an added stop shows with who added it and can be taken off; the form offers every place on the way.
  const card=await readFile(new URL('../src/RouteCard.jsx',import.meta.url),'utf8');
- assert.match(card,/Add a stop on the way/);
- assert.match(card,/onWaypoint\(\{action:'remove',waypointId:leg\.added\.id\}\)/);
+ assert.match(card,/Add a stop or leg on the way/);
+ assert.match(card,/onWaypoint\(\{action:'remove',waypointId:leg\.added\.id,text:leg\.text\}\)/);
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/onWaypoint=\{routeWaypoint\}/);
 });
 const AppErrorLike=e=>e.status===400;
+test('adding, changing or taking off a stop or leg updates the journey: its legs, its time and its place in the day',async()=>{
+ const {routeFor,routeMinutes,ROUTES,legStrip}=await import('../src/route-data.js');
+ const s=seed.steps.find(s=>s.id==='2026-09-26-01'),base=routeMinutes(ROUTES[s.id]);
+ assert.ok(base>0);
+ // A walk and a taxi are legs of their own; each adds its minutes to the journey and the day.
+ let state=applyOperation(seed,{type:'waypoint',id:s.id,action:'add',kind:'walk',text:'Walk to the bakery',after:0,minutes:10},child);
+ state=applyOperation(state,{type:'waypoint',id:s.id,action:'add',kind:'taxi',text:'Taxi to the station',after:1,minutes:8},child);
+ let step=state.steps.find(x=>x.id===s.id);
+ assert.deepEqual(routeFor(step).map(l=>l.mode),['walk','walk','taxi','ride','ride']);
+ assert.deepEqual(legStrip(routeFor(step),step,0).map(l=>l.label).slice(0,3),['Walk','Walk','Taxi']);
+ assert.equal(routeMinutes(routeFor(step)),base+18);
+ assert.equal(step.duration,s.duration+18);
+ // Changing one moves it, renames it or retimes it, keeps who added it, and the ticks follow the legs.
+ const taxi=step.waypoints.find(w=>w.kind==='taxi');
+ state=applyOperation(state,{type:'legStatus',id:s.id,leg:3,done:true,at:'2026-09-26T01:00:00.000Z'},child);
+ state=applyOperation(state,{type:'waypoint',id:s.id,action:'update',waypointId:taxi.id,kind:'stop',text:'Pick up bags',after:3,minutes:20},parent);
+ step=state.steps.find(x=>x.id===s.id);
+ assert.deepEqual(routeFor(step).map(l=>l.mode),['walk','walk','ride','ride','stop']);
+ assert.equal(step.waypoints.find(w=>w.id===taxi.id).by,'Nate');
+ assert.deepEqual(Object.keys(step.legsDone),['2'],'the Karasuma tick moved with the Karasuma leg');
+ assert.equal(step.duration,s.duration+30);
+ // A change that leaves out a field keeps it.
+ step=applyOperation(state,{type:'waypoint',id:s.id,action:'update',waypointId:taxi.id,minutes:5},parent).steps.find(x=>x.id===s.id);
+ assert.equal(step.waypoints.find(w=>w.id===taxi.id).text,'Pick up bags');assert.equal(step.duration,s.duration+15);
+ // Taking them off gives the time back.
+ for(const w of step.waypoints)state=applyOperation(state,{type:'waypoint',id:s.id,action:'remove',waypointId:w.id},parent);
+ assert.equal(state.steps.find(x=>x.id===s.id).duration,s.duration);
+ assert.throws(()=>applyOperation(seed,{type:'waypoint',id:s.id,action:'add',kind:'helicopter',text:'Up',after:0},parent),/stop, a walk or a taxi/);
+ assert.throws(()=>applyOperation(state,{type:'waypoint',id:s.id,action:'update',waypointId:'gone',text:'x'},parent),e=>e.status===404);
+ // The card shows the whole journey's time and when it gets there, and an added leg can be changed.
+ const card=await readFile(new URL('../src/RouteCard.jsx',import.meta.url),'utf8');
+ assert.match(card,/<JourneyTime legs=\{legs\} step=\{step\}\/>/);
+ assert.match(card,/action:'update',waypointId:form\.editing\.id/);
+});
+
 test('things we noticed: said out loud, tagged to where it was and what it was about, and in the diary and on the map',async()=>{
  const {ensureFeatures,pendingProgress,searchTrip,diaryDays}=await import('../src/trip-features.js');
  const {noticedWhere,noticedItem,noticedFor}=await import('../src/noticed-data.js');
