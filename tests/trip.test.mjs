@@ -10486,14 +10486,18 @@ test('the allergy card says what somebody cannot eat in the words on a Japanese 
  assert.equal(upgraded(seed).allergies&&typeof upgraded(seed).allergies,'object','an older plan gets an empty set of cards');
 });
 
-test('More opens on a Favourites row, and Safety on the two numbers that dial',async()=>{
+test('More points to the favourites in one line, and Safety opens on the two numbers that dial',async()=>{
  const {RIGHT_NOW,rightNow,PAGES}=await import('../src/nav-data.js');
  for(const id of RIGHT_NOW)assert.ok(PAGES[id],`${id} is a page`);
  assert.deepEqual(rightNow({name:'Nate',role:'child'}),RIGHT_NOW,'a child gets the same row');
  assert.ok(rightNow({name:'Damien',role:'parent'}).includes('safety')&&rightNow({name:'Damien',role:'parent'}).includes('allergy'));
  const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8'),safety=await readFile(new URL('../src/Safety.jsx',import.meta.url),'utf8');
- assert.match(nav,/aria-label="Favourites" data-wobbling=\{editing\|\|undefined\}>\{shown\.length\?shown\.map/,'the row is rendered from the saved favourites, or the order being dragged');
- assert.ok(nav.indexOf('aria-label="Favourites"')<nav.indexOf('className={`more-where'),'and it comes before everything else on More');
+ // The favourites are one swipe up the bar, so More does not repeat them as a row: one line
+ // counts them and opens the sheet to change them, before everything else on the page.
+ assert.match(nav,/<strong>Favourites · \{favs\.length\}<\/strong>/);
+ assert.match(nav,/className="more-edit" onClick=\{openFavourites\}/);
+ assert.ok(nav.indexOf('className="more-fav-line"')<nav.indexOf('className={`more-where'),'and it comes before everything else on More');
+ assert.doesNotMatch(nav,/aria-label="Favourites" data-wobbling/,'no second row of them');
  assert.match(safety,/className="call-row"/);assert.ok(safety.indexOf('call-row')<safety.indexOf('Everything on this page works'),'the numbers come before the first sentence');
  assert.match(safety,/\['police','ambulance'\]\.includes\(e\.id\)/,'110 and 119, from the same list the page already keeps');
 });
@@ -10514,12 +10518,13 @@ test('favourites start as Right now, are starred in and out, and are cleaned on 
  assert.deepEqual(toggleFavourite(damien,full,spare),full,'the row stops at the cap');
  assert.equal(favourites(damien,pagesFor(damien)).length,FAV_MAX);
  const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
- assert.match(nav,/useStored\('japan\.more\.favourites',null\)/,'kept on the phone, null until somebody chooses');
+ assert.match(nav,/const FAV_KEY='japan\.more\.favourites'/,'kept on the phone');
+ assert.match(nav,/return s===null\?null:JSON\.parse\(s\)/,'null until somebody chooses');
  // Every section folds, remembers it on the phone, and opens on its own for the screen you came from.
  assert.match(nav,/isOpen\(`more\.\$\{title\}`,undefined,ids\.includes\(tab\)\)/);
  assert.match(nav,/setOpen\(`more\.\$\{title\}`,!o\[title\]\)/);
  assert.match(nav,/aria-expanded=\{!shut\}/);
- assert.match(nav,/const shut=!\(open\[title\]\?\?false\)&&!editing/,'choosing favourites opens every section so any card can be starred');
+ assert.match(nav,/const shut=!\(open\[title\]\?\?false\);/);
 });
 
 test('the favourites sheet: one swipe up the bar, as tall as its rows, and the same list as More',async()=>{
@@ -10540,22 +10545,26 @@ test('the favourites sheet: one swipe up the bar, as tall as its rows, and the s
  assert.deepEqual(pickerSections(damien,null,'zzzz-nothing'),[]);
  const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
- // One list: the sheet reads and writes the same key More does.
- assert.equal((nav.match(/useStored\('japan\.more\.favourites',null\)/g)||[]).length,2);
- assert.match(nav,/const toggle=id=>setSaved\(favourites\(user,toggleFavourite\(user,saved,id\)\)\);/);
- // Never over More, and put away whenever the screen changes.
- assert.match(nav,/\{sheet&&!moreOn&&<FavSheet /);
+ // One list: the sheet and More read and write it through the same hook, and each change is
+ // announced, so the stars on More follow the sheet even with the sheet open over More.
+ assert.equal((nav.match(/=useSavedFavourites\(\);/g)||[]).length,2);
+ assert.match(nav,/setSaved\(next\);window\.dispatchEvent\(new Event\(FAV_EVENT\)\);/);
+ assert.match(nav,/window\.addEventListener\(FAV_EVENT,sync\)/);
+ assert.match(nav,/const toggle=id=>save\(toggleFavourite\(user,saved,id\)\);/);
+ // Edit on More opens it straight on Choose; otherwise it is put away whenever the screen changes.
+ assert.match(nav,/\{sheet&&<FavSheet [^>]*startChoosing=\{sheet==='choose'\}\/>\}/);
+ assert.match(nav,/window\.addEventListener\('japan:choose-favourites',choose\)/);
  assert.match(nav,/useEffect\(\(\)=>\{setSheet\(false\);\},\[tab\]\);/);
  // Each screen in the chooser says whether it is chosen, and a full list turns new ones away.
  assert.match(nav,/className=\{`fav-pick\$\{on\?' on':''\}`\} aria-pressed=\{on\} disabled=\{!on&&full\}/);
  assert.match(nav,/\{favs\.length\} of \{FAV_MAX\}/);
  // And down on More, a favourite is marked in its section.
- assert.match(nav,/\{!inFavs&&on&&!editing&&<Star className="more-fav-mark"/);
+ assert.match(nav,/\{on&&<Star className="more-fav-mark"/);
  assert.match(css,/\.fav-sheet-grid\{display:grid;grid-template-columns:repeat\(4,1fr\);grid-template-rows:repeat\(var\(--fav-rows,1\)/);
  assert.match(css,/\.fav-find\{width:100%;font-size:16px/,'16px, or iOS zooms the page when it is tapped');
 });
 
-test('favourites are edited like a home screen: hold to wobble, drag to reorder, drag in to add and out to remove',async()=>{
+test('favourites are put in order in the sheet, by drag, arrows or keys, and starred on More by a hold',async()=>{
  const {dropFavourite,FAV_MAX}=await import('../src/nav-data.js');
  // Along the row a favourite takes the place of the one it is dropped on, either way.
  assert.deepEqual(dropFavourite(['a','b','c','d'],'a','c'),['b','c','a','d']);
@@ -10571,13 +10580,20 @@ test('favourites are edited like a home screen: hold to wobble, drag to reorder,
  assert.deepEqual(dropFavourite(full,'x','p0'),full);
  assert.deepEqual(dropFavourite(full,'p1','p0').slice(0,2),['p1','p0']);
  const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
- const fw=await readFile(new URL('../src/fav-wobble.js',import.meta.url),'utf8');
- assert.match(nav,/useFavWobble\(\{favs,onChange:next=>setSaved\(favourites\(user,next\)\)\}\)/,'a drop is cleaned and kept like a star');
- assert.match(nav,/\{\.\.\.w\.item\(id,inFavs\)\}/,'every card, in the row or a section, can be picked up');
- // A held card does not scroll the page, and a tap on a wobbling card does not open it.
- assert.match(fw,/touch\?\.addEventListener\('touchmove',still,\{passive:false\}\)/,'on the element the finger landed on, which a favourite dragged out of the row leaves behind');
- assert.match(fw,/onClickCapture:e=>\{if\(editing\|\|eat\.current\)/);
- assert.match(fw,/if\(d&&d\.list\.join\(\)!==d\.base\.join\(\)\)onChange\(d\.list\)/,'saved once, on the drop');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // A chip dragged along the row takes the place of the one it is let go on, saved once on the drop.
+ assert.match(nav,/if\(onto&&onto!==h\.id\)\{h\.list=dropFavourite\(h\.list,h\.id,onto\);setLive\(h\.list\);\}/);
+ assert.match(nav,/if\(h\.list\.join\(\)!==favs\.join\(\)\)save\(h\.list\);/);
+ assert.match(css,/\.fav-chip\{[^}]*touch-action:none/,'a chip being dragged does not scroll the sheet');
+ // A tap gives it arrows instead, and the arrow keys move a focused one.
+ assert.match(nav,/aria-label=\{`Move \$\{PAGES\[id\]\.label\} earlier`\} disabled=\{i===0\}/);
+ assert.match(nav,/aria-label=\{`Move \$\{PAGES\[id\]\.label\} later`\} disabled=\{i===order\.length-1\}/);
+ assert.match(nav,/\{ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1\}\[e\.key\];if\(by\)\{e\.preventDefault\(\);shift\(id,by\);\}/);
+ // On More a hold stars or unstars a card, says so, and the tap that ends it does not open it.
+ assert.match(nav,/timer:setTimeout\(\(\)=>\{press\.current=null;eat\.current=true;star\(id\);\},HOLD\)/);
+ assert.match(nav,/onClickCapture:e=>\{if\(eat\.current\)\{e\.preventDefault\(\);e\.stopPropagation\(\);eat\.current=false;\}\}/);
+ assert.match(nav,/if\(!on&&full\)\{setSaid\(`Favourites are full at \$\{FAV_MAX\}\. Take one out first\.`\);return;\}/);
+ assert.match(nav,/className="more-said" role="status" aria-live="polite"/);
 });
 
 test('nothing taken off a list is gone for thirty days, and comes back exactly as it was',async()=>{
