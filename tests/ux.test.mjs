@@ -387,7 +387,7 @@ test('kudos from home: a clap, a heart or a wow from the follow-along link, one 
  const row=view.days.flatMap(d=>d.stops).find(x=>x.id===step.id);
  assert.deepEqual(row.kudos,{Pop:'❤️'},'the follower sees who gave what');
  const handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8'),page=await source('FollowAlong.jsx');
- assert.match(handler,/route==='follow-react'&&post/);assert.match(handler,/hash\(key\)!==hash\(trip\.state\.followKey\)\)throw new AppError\('This follow-along link is not valid any more\.',403\);\n   if\(!applyKudos/,'the same key as the view, nothing more');
+ assert.match(handler,/route==='follow-react'&&post/);assert.match(handler,/if\(!keyAccess\(trip\.state,key,hash\)\)throw new AppError\('This follow-along link is not valid any more\.',403\);\n   if\(!applyKudos/,'the same keys as the view, nothing more');
  assert.match(page,/localStorage\.getItem\('japan\.follow\.name'\)/,'a first name typed once');
  assert.doesNotMatch(page,/<textarea/,'still nothing to type into');
 });

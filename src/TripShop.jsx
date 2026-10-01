@@ -2,6 +2,7 @@ import React,{useState} from 'react';
 import HowThisWorks from './HowThisWorks.jsx';
 import {ExternalLink,ArrowRight,Check,ThumbsUp,ThumbsDown} from 'lucide-react';
 import {keepsakeFund,BOYS} from './trip-features.js';
+import {POSTCARD_PROVIDERS} from './postcard-providers.js';
 import {ESSENTIALS,KEEPSAKES,essentialDue,daysUntil,keepsakeMaterial,keepsakeReady,shopLink,partnered,shopEntry,shopLogged,SHOP_NOTE_MAX} from './shop-data.js';
 // The trip shop: the essentials pack to sort before the flight, and keepsakes made from the trip,
 // before it and after. Every link goes out through shopLink(), so a partner tag added in
@@ -36,7 +37,11 @@ export default function TripShop({state,user,today,go,mutate,busy}){
  </li>;};
  const keepsake=item=>{const r=keepsakeReady(item,material);return <li key={item.id} className="shop-item">
   <h3><span aria-hidden="true">{item.emoji}</span> {item.title}<small>{r.ready?'Ready to make':`${r.have} of ${r.need} ${item.from} so far`}</small></h3>
-  <p>{item.why}</p><Links buy={item.buy}/>
+  <p>{item.why}</p>
+  {item.id==='postcard'?<details className="shop-providers"><summary>No print-and-post service chosen yet: the ones to compare</summary>
+   <ul>{POSTCARD_PROVIDERS.map(p=><li key={p.id}><a href={shopLink(p.url)} target="_blank" rel="noopener noreferrer"><strong>{p.name}</strong> <ExternalLink size={13}/></a> <small>{p.kind==='api'?'Could post from the app':'Its own app, through Share'}</small><p>{p.fit}</p></li>)}</ul>
+   <small>Prices and terms from the providers’ own pages on 1 October 2026; confirm them before signing up.</small>
+  </details>:<Links buy={item.buy}/>}
   {item.page&&<button type="button" className="hunt-link" onClick={()=>go(item.page)}>What it is made from <ArrowRight size={14}/></button>}
   {logRow(item,'Ordered')}
  </li>;};

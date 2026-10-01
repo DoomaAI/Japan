@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import HowThisWorks from './HowThisWorks.jsx';
-import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv} from 'lucide-react';
+import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
 import {BarShortcuts} from './Personalise.jsx';
@@ -9,7 +9,7 @@ import {DEEP_LINKS,deepLinkUrl} from './deep-links.js';
 import {THEMES,readTheme,saveTheme,applyTheme,LOOKS,LOOK_CHOICES,readLook,saveLook,applyLook} from './theme.js';
 import {READING,AWARENESS,childLevels,defaultReading,defaultAwareness,readingLabel,awarenessLabel,isChild} from './child-levels.js';
 import {HandOver} from './HandOver.jsx';
-import {frameUrl} from './frame-data.js';
+import {FRAME_SERVICES,frameService} from './frame-mail-data.js';
 import {PLAN_TYPES,planOf,modulesOff,validTimeZone} from './plan-context.js';
 import {PAGES} from './nav-data.js';
 const ICONS={voiceAssistant:Sparkles,dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
@@ -74,7 +74,7 @@ function TripCalendar({request,notice}){
 // photos, the stars and the diary, and none of the tickets, places, hotels or money. A parent
 // makes it, copies it to whoever should have it, and can stop it at any time.
 export const followMessage=url=>`We're in Japan! Follow along with our trip: the photos, what we did each day and the diary, updated as we go. No login needed.\n\n${url}\n\nIt's a private link, so please don't pass it on.`;
-function FollowLink({request,notice}){
+function FollowLink({state,config,request,accept,notice}){
  const [busy,setBusy]=useState(false),[link,setLink]=useState('');
  const make=async()=>{setBusy(true);try{const r=await request('follow-link',{});setLink(r.url);await navigator.clipboard?.writeText(r.url).catch(()=>{});notice('Follow-along link copied. Send it to family at home.');}catch(e){notice(e.message);}finally{setBusy(false);}};
  // Sending it is the point, so the phone's own share sheet opens with the message written:
@@ -95,10 +95,41 @@ function FollowLink({request,notice}){
   </div>
   {link&&<textarea readOnly value={link} rows={2}/>}
   <p><small>Anyone holding the link can see the photos, so send it only to people you would show them to.</small></p>
-  <h3><Tv size={16}/> The frame</h3>
-  <p>The same link with <code>frame=1</code> on the end, opened on an old iPad on a stand, a laptop or a TV browser: one photo at a time, filling the screen, with the day and the city in a corner. The photo of the day is on it; put any other photo on from the Photos page. It keeps the screen awake, dims after ten at night, and a tap on the photo claps.</p>
-  <div className="row wrap"><button type="button" disabled={busy} onClick={async()=>{setBusy(true);try{const url=link||(await request('follow-link',{})).url;setLink(url);await navigator.clipboard.writeText(frameUrl(url));notice('Frame link copied. Open it on the frame and add it to the home screen or bookmarks.');}catch(e){notice(e.message);}finally{setBusy(false);}}}><Copy size={16}/> Copy the frame link</button></div>
+  <Frames state={state} config={config} request={request} accept={accept} notice={notice}/>
  </section>;
+}
+// The frames at home. Each screen frame has a key and a name of its own, so taking one off
+// leaves the follow link and the other frames working; a real photo frame is sent its photos by
+// email instead, every night and on request.
+function Frames({state,config,request,accept,notice}){
+ const [busy,setBusy]=useState(false),[frames,setFrames]=useState(null),[service,setService]=useState('aura');
+ const list=frames||state?.frameKeys||[],mailed=state?.frameEmails||[];
+ const run=async fn=>{setBusy(true);try{await fn();}catch(e){notice(e.message);}finally{setBusy(false);}};
+ const copy=url=>navigator.clipboard?.writeText(url).then(()=>notice('Frame link copied. Open it on the frame and add it to the home screen or bookmarks.'),()=>notice(url));
+ const addKey=e=>{e.preventDefault();const form=e.currentTarget,label=new FormData(form).get('label');run(async()=>{const r=await request('frame-link',{action:'add',label});setFrames(r.frames);form.reset();if(r.url)await copy(r.url);});};
+ const addMail=e=>{e.preventDefault();const form=e.currentTarget,f=new FormData(form);run(async()=>{accept(await request('frame-email',{action:'add',service,label:f.get('label'),address:f.get('address'),fromNow:f.get('fromNow')==='on'}));form.reset();notice('Frame added. It gets its photos tonight, or press Send now.');});};
+ return <>
+  <h3><Tv size={16}/> Screen frames</h3>
+  <p>An old iPad on a stand, a laptop or a TV browser, showing one photo at a time with the day and the city in a corner. The photo of the day is on it; put any other photo on from the Photos page. It keeps the screen awake, dims after ten at night, and a tap on the photo claps. Each frame has its own link, so taking one off leaves the others and the follow link working.</p>
+  {!!list.length&&<ul className="frame-list">{list.map(f=><li key={f.id}><span><strong>{f.label}</strong><small>Added by {f.createdBy||'a parent'}</small></span>
+   <button type="button" disabled={busy} onClick={()=>run(async()=>{const r=await request('frame-link',{action:'url',id:f.id});await copy(r.url);})}><Copy size={15}/> Copy link</button>
+   <button type="button" className="icon danger" aria-label={`Take ${f.label} off`} disabled={busy} onClick={()=>confirm(`Take “${f.label}” off? Its link stops working at once.`)&&run(async()=>setFrames((await request('frame-link',{action:'remove',id:f.id})).frames))}><Trash2 size={15}/></button></li>)}</ul>}
+  <form className="row wrap frame-add" onSubmit={addKey}><input name="label" maxLength={40} required placeholder="Name it: Nana’s kitchen iPad" aria-label="Frame name"/><button disabled={busy}><Plus size={16}/> Add a frame and copy its link</button></form>
+  <h3><Mail size={16}/> Photo frames that take email</h3>
+  <p>Aura, Nixplay and Skylight frames each have an email address for photos. The app sends the same photos as the screen frames — the photo of the day and the ones you put on — each one once, every night and when you press Send now.</p>
+  {!config?.frameMail&&<p className="notice-line"><small>Needs an email service to send from: set <code>RESEND_API_KEY</code> and <code>FRAME_MAIL_FROM</code> in the deployment settings. Frames can be added now and will be sent to once it is set.</small></p>}
+  {!!mailed.length&&<ul className="frame-list">{mailed.map(m=><li key={m.id}><span><strong>{m.label}</strong><small>{frameService(m.service).label} · {m.address}{m.lastSentAt?` · last sent ${new Date(m.lastSentAt).toLocaleDateString('en-AU',{day:'numeric',month:'short'})}`:' · nothing sent yet'}</small></span>
+   {config?.frameMail&&<button type="button" disabled={busy} onClick={()=>run(async()=>{const r=await request('frame-email',{action:'send',id:m.id});accept(r);notice(r.sent?`${r.sent} photo${r.sent===1?'':'s'} sent to ${m.label}.`:`${m.label} already has every photo.`);})}><Send size={15}/> Send now</button>}
+   <button type="button" className="icon danger" aria-label={`Take ${m.label} off`} disabled={busy} onClick={()=>confirm(`Stop sending photos to “${m.label}”?`)&&run(async()=>accept(await request('frame-email',{action:'remove',id:m.id})))}><Trash2 size={15}/></button></li>)}</ul>}
+  <form className="frame-add frame-mail" onSubmit={addMail}>
+   <label>Frame<select value={service} onChange={e=>setService(e.target.value)}>{FRAME_SERVICES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
+   <p><small>{frameService(service).hint}</small></p>
+   <label>Its email address<input name="address" type="email" required maxLength={120} placeholder="the frame’s own address"/></label>
+   <label>Name<input name="label" maxLength={40} placeholder="Grandpa’s Aura"/></label>
+   <label className="checkline"><input type="checkbox" name="fromNow"/> Only photos from now on</label>
+   <button className="primary" disabled={busy}><Plus size={16}/> Add the frame</button>
+  </form>
+ </>;
 }
 // The addresses a Shortcut can open. iOS gives a web app no widget and no share-sheet entry,
 // but the Shortcuts app opens an address, Siri runs a Shortcut by name, and the Action button
@@ -189,7 +220,7 @@ export function ChildLevels({state,mutate,busy}){
   <p><small>Held on the trip, so {boys.join(' and ')}’s own phones follow it the next time they refresh. Nothing already ticked, rated or written is touched.</small></p>
  </section>;
 }
-export default function Settings({user,state,mutate,busy,hand,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice,config}){
+export default function Settings({user,state,mutate,busy,hand,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,request,notice,config,accept}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR CHOICE</p>
   <h1>Settings</h1>
@@ -217,7 +248,7 @@ export default function Settings({user,state,mutate,busy,hand,settings,change,na
   {user?.role==='parent'&&state&&hand&&<HandOver state={state} user={user} hand={hand}/>}
   {request&&<Notifications config={config} request={request} notice={notice} user={user}/>}
   {user?.role==='parent'&&request&&<TripCalendar request={request} notice={notice}/>}
-  {user?.role==='parent'&&request&&<FollowLink request={request} notice={notice}/>}
+  {user?.role==='parent'&&request&&<FollowLink state={state} config={config} request={request} accept={accept} notice={notice}/>}
   <DeepLinks notice={notice}/>
   {setNavPrefs&&<section className="settings-section"><BarShortcuts user={user} prefs={navPrefs} setPrefs={setNavPrefs}/></section>}
   {setLinkPrefs&&<section className="settings-section"><StopButtonOrder prefs={linkPrefs} setPrefs={setLinkPrefs}/></section>}
