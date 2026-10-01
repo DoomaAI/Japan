@@ -1,6 +1,7 @@
 import {isChild,defaultReading,ageOf,gentleOnly} from './child-levels.js';
 import {nextTimeBrief} from './next-time.js';
 import {learnedBrief} from './taste-data.js';
+import {isDeveloping} from './film-data.js';
 import {activeSteps,minutes,asClock,japanDate,japanClock,latestStart,windowText} from './timing.js';
 import {stepsFor} from './split.js';
 import {expressSeeded} from './park-data.js';
@@ -192,7 +193,8 @@ export const voiceLength=seconds=>`${Math.floor(seconds/60)}:${String(Math.round
 // Who has already seen a given day's phrase, so it pops up once each.
 export const phraseSeenBy=(state,day)=>state.phraseSeen?.[day]||{};
 // The boys' own photographs, newest first, and the vote for the day's best.
-export const photosFor=(state,day)=>(state.photos||[]).filter(p=>!day||p.day===day)
+// A film photo still developing is in nobody's list until seven the next morning (film-data.js).
+export const photosFor=(state,day)=>(state.photos||[]).filter(p=>(!day||p.day===day)&&!p.developing&&!isDeveloping(p))
  .sort((a,b)=>String(b.at).localeCompare(String(a.at)));
 // Whose photo it is, which is not always who put it on: a parent photographs something a boy
 // did, on their own phone, and hands it to him. Anything written before photos could be handed

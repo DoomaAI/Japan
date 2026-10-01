@@ -1,4 +1,5 @@
 import React,{useState,useRef} from 'react';
+import {developingCount,inMoment,momentFor} from './film-data.js';
 import {photoPosition} from './exif-gps.js';
 import {upload} from '@vercel/blob/client';
 import {Camera,Trophy,Trash2,Check,Sparkles,Users,AlertCircle,Tv,Mail} from 'lucide-react';
@@ -37,11 +38,14 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
  const parent=user.role==='parent';
  const whole=!!person;
  // A named person is their whole trip; nobody named is today, which is what the vote is about.
- const entries=whole?photosOf(state,person):photosFor(state,day);
+ // The moment's photos sit together at the top of the day's vote, as a set.
+ const entries=(whole?photosOf(state,person):photosFor(state,day)).slice().sort((a,b)=>(b.moment?1:0)-(a.moment?1:0));
  const votes=photoVotesFor(state,day),result=photoOfTheDay(state,day);
  const myVote=votes[user.name];
  const counts=photoCounts(state);
  const mine=photosOf(state,belongsTo,day);
+ const [film,setFilm]=React.useState(false);
+ const developing=developingCount(state,day),moment=momentFor(day),momentNow=inMoment(day);
  async function add(file){
   if(!file)return;
   if(!config?.uploads)return notice('Photos need private file storage connected.');
@@ -60,9 +64,9 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
    setWorking('Saving it for the family…');
    const blob=await upload(`photos/${user.id}/${crypto.randomUUID()}.jpg`,
     await (await fetch(shot.preview)).blob(),{access:'private',contentType:'image/jpeg',handleUploadUrl:'/api/upload'});
-   accept(await request('photo',{pathname:blob.pathname,day,for:belongsTo,title:feedback?.title||'',feedback,gps:await photoPosition(file)}));
+   accept(await request('photo',{pathname:blob.pathname,day,for:belongsTo,title:feedback?.title||'',feedback,gps:await photoPosition(file),film,moment:inMoment(day)}));
    setPreview(null);
-   notice(feedback?`${feedback.title} — ${feedback.score}/10`:`Photo added${belongsTo===user.name?'':` for ${belongsTo}`}.`);
+   notice(film?'On the film. It develops at seven tomorrow morning.':feedback?`${feedback.title} — ${feedback.score}/10`:`Photo added${belongsTo===user.name?'':` for ${belongsTo}`}.`);
   }catch(e){setFailed(e.message||'That photo could not be added.');setPreview(null);}
   finally{setBusy(false);setWorking('');}
  }
@@ -85,6 +89,8 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
    {parent&&<label className="photo-owner">Whose photo is this?
     <select value={belongsTo} disabled={busy} onChange={e=>setBelongsTo(e.target.value)}>
      {state.members.map(name=><option key={name}>{name}</option>)}</select></label>}
+   {momentNow&&<p className="photo-moment-now">⏱ <b>It’s the moment.</b> Two minutes: a photo of whatever you are doing, right now.</p>}
+   <label className="checkline photo-film"><input type="checkbox" checked={film} onChange={e=>setFilm(e.target.checked)}/>Film · nobody sees it until seven tomorrow morning</label>
    <label className="menu-shoot button primary">
     <Camera size={16}/> {working||`Add a photo${mine.length?` (${mine.length} of 12)`:''}`}
     <input type="file" accept="image/*" capture="environment" disabled={busy} onChange={e=>{add(e.target.files?.[0]);e.target.value='';}}/>
@@ -97,6 +103,7 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
   {failed&&!working&&<p className="callout"><AlertCircle size={16}/> {failed}<button type="button" className="try-again" disabled={busy} onClick={()=>add(last.current)}>Try again</button></p>}
   {!whole&&result?.winners?.length===1&&<p className="photo-winner"><Trophy size={16}/> <strong>{photoOwner(result.winners[0])}</strong> has photo of the day with {result.votes} vote{result.votes===1?'':'s'}.</p>}
   {!whole&&result?.winners?.length>1&&<p className="photo-winner"><Trophy size={16}/> A tie on {result.votes} vote{result.votes===1?'':'s'} — {result.winners.map(photoOwner).join(' and ')}.</p>}
+  {!whole&&developing>0&&<p className="photo-developing">🎞️ {developing} photo{developing===1?'':'s'} on the film, developing until seven tomorrow morning.</p>}
   {!entries.length&&<p className="callout">{whole?`Nothing of ${person}’s yet.`:'No photos yet today. First one in sets the bar.'}</p>}
   <div className="photo-grid">{entries.map(p=>{
    const count=Object.values(votes).filter(id=>id===p.id).length;
@@ -105,6 +112,7 @@ export default function PhotoDay({state,user,day,config,busy,setBusy,request,acc
     <img loading="lazy" src={photoUrl(p)} alt={p.feedback?.subject||`A photo by ${owner}`}/>
     <div className="photo-body">
      <strong>{owner}{p.feedback?.title?` · ${p.feedback.title}`:''}</strong>
+     {(p.moment||p.film)&&<small className="photo-badges">{p.moment?`⏱ The moment · ${moment.clock}`:''}{p.moment&&p.film?' · ':''}{p.film?'🎞️ From the film':''}</small>}
      {whole&&<small>{dayLabel(p.day)}</small>}
      {p.by!==owner&&<small>Added by {p.by}</small>}
      {kudosFor(state,'photo',p.id).total>0&&<small className="photo-kudos">{kudosLine(kudosFor(state,'photo',p.id))} · from {Object.keys(kudosFor(state,'photo',p.id).names).join(', ')}</small>}

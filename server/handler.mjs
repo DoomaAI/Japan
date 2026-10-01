@@ -34,6 +34,8 @@ import {followView,followPhoto} from '../src/follow-data.js';
 import {applyKudos} from '../src/kudos-data.js';
 import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange,tellTomorrow} from './push.mjs';
 import {tomorrowReady,tomorrowOf,nightly} from './tomorrow.mjs';
+import {isDeveloping,momentAccepts} from '../src/film-data.js';
+import {quizAction} from '../src/quiz-data.js';
 import {vaultReady,listVault,saveVault,addVaultFile,readVaultFile,vaultView} from './vault.mjs';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
 // A photo's own position, if the phone read one out of it, kept to about ten metres. Anything
@@ -420,6 +422,14 @@ export default async function handler(req,res){
    if(failed.length===parts.length)throw new AppError(failed[0],502);
    return json(res,{...result,...visibleEnvelope(await readTrip(),user)});
   }
+  // The dinner quiz. Answers arrive from every phone at once, so each one is applied to the trip as
+  // it stands (updateTrip) rather than refused for not knowing the latest revision.
+  if(route==='quiz'&&post){
+   let problem=null;
+   const saved=await updateTrip(state=>{const r=quizAction(state,b,user,new Date());if(r.error){problem=r.error;return null;}return r.state;});
+   if(problem)throw new AppError(problem,409);
+   return json(res,visibleEnvelope(saved,user));
+  }
   if(route==='ask'&&post){
    const {state}=await readTrip();
    return json(res,await askTrip(b,visibleTrip(state,user),user));
@@ -475,11 +485,13 @@ export default async function handler(req,res){
     score:Number.isInteger(b.feedback.score)?Math.max(1,Math.min(10,b.feedback.score)):null
    }:null;
    current.state.photos=[...current.state.photos,{id:randomUUID(),by:user.name,for:owner,day:b.day,
-    title:(b.title||'').trim(),pathname:b.pathname,type:blob.contentType,size:blob.size,feedback,gps:photoGps(b.gps),at:new Date().toISOString()}];
+    title:(b.title||'').trim(),pathname:b.pathname,type:blob.contentType,size:blob.size,feedback,gps:photoGps(b.gps),at:new Date().toISOString(),
+    // Film: hidden until seven tomorrow. The moment: only inside today's window, give or take an upload.
+    ...(b.film===true?{film:true}:{}),...(b.moment===true&&momentAccepts(b.day)?{moment:true}:{})}];
    return json(res,visibleEnvelope(await writeTrip(current.state,current.revision),user));
   }
   if(route==='photo'&&req.method==='GET'){
-   const {state}=await readTrip();const shot=state.photos?.find(p=>p.id===url.searchParams.get('id')&&p.pathname);
+   const {state}=await readTrip();const shot=state.photos?.find(p=>p.id===url.searchParams.get('id')&&p.pathname&&!isDeveloping(p));
    if(!shot)throw new AppError('Photo not found.',404);
    const result=await get(shot.pathname,{access:'private',useCache:false});
    if(!result||!result.stream)throw new AppError('Photo unavailable.',404);

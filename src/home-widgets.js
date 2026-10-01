@@ -11,6 +11,7 @@
 // come after.
 export const HOME_WIDGETS={
  countdown:{label:'Trip countdown',note:'Days to go before we fly, then which day of the trip it is',off:true},
+ find:{label:'Type anything',note:'One box at the top: a stop, hotel, ticket, phrase, person or screen, found as you type, with no signal'},
  onthisday:{label:'On this day',note:'After the trip: a day of it brought back a month, a year, on from when it happened'},
  runup:{label:'The run-up',note:'Before we fly: days to go, and a family task unlocked at 100, 50, 30, 14 and 7 days'},
  dailyjapan:{label:'A little Japan each day',note:'Before we fly: one phrase to say and one fact to read, every day of the run-up'},
@@ -24,6 +25,7 @@ export const HOME_WIDGETS={
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},
  spare:{label:'If we have time',note:'On a park day: rides near us worth fitting in, from our stars and how the day is going'},
  needs:{label:'Before we head out',note:'A tick for each thing to carry out the door, fresh each morning, with a streak'},
+ rings:{label:'Three rings',note:'Your stops, five photos and the day’s phrase, closing as you go; the rings closed are the day’s score'},
  links:{label:'Next fixed time',note:'The next time that cannot move, one tap from its stop'},
  stay:{label:'Tonight’s stay',note:'The hotel, which night, check-in and check-out, the confirmation number, directions and the taxi card'},
  move:{label:'Hotel move',note:'The evening before and the morning of a move: bags to the desk, the forwarding label in Japanese, the overnight bag, check-out and check-in'},

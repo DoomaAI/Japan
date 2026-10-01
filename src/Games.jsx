@@ -1,4 +1,5 @@
 import DailyPuzzle from './DailyPuzzle.jsx';
+import DinnerQuiz from './DinnerQuiz.jsx';
 import React,{useState,useMemo,useEffect,useRef} from 'react';
 import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Check,X,Wifi,WifiOff,ChevronLeft,ChevronRight} from 'lucide-react';
@@ -1013,6 +1014,9 @@ export default function Games(props){
  const band=BANDS.find(([level])=>level===current.ease);
  return <>
   <p className="eyebrow">SOMETHING TO DO IN A QUEUE</p><h1>Games</h1>
+  {/* The one the whole table plays: one phone hosts, the others are buzzers. */}
+  <details className="quiz-entry" open={!!props.state?.quiz&&!props.state.quiz.done||undefined}><summary>🎯 Dinner quiz · the whole table, phones as buzzers</summary>
+   <DinnerQuiz state={props.state} user={props.user} day={props.day} request={props.request} accept={props.accept} refresh={props.refresh} notice={props.notice}/></details>
   <div className="game-filter" role="group" aria-label="Which games">{FILTERS.map(([id,icon,label])=>
    <button key={id} type="button" className={filter===id?'selected':''} aria-pressed={filter===id} onClick={()=>pick(id)}>
     <span className="game-filter-icon" aria-hidden="true">{icon}</span><small>{label}</small></button>)}</div>

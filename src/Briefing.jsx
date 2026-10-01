@@ -2,6 +2,7 @@ import React from 'react';
 import {ChevronRight,LockKeyhole,BedDouble,PlaneTakeoff,Smartphone,Clock,ShieldAlert} from 'lucide-react';
 import {openNotes} from './day-check.js';
 import WhatToWear from './WhatToWear.jsx';
+import {rollFor} from './film-data.js';
 import {readingBumps,dismissBump} from './level-nudge.js';
 import {useStored} from './stored.js';
 import {dayBriefing,briefingGreeting} from './briefing-data.js';
@@ -37,6 +38,8 @@ export default function Briefing({state,day,today,clock,go,user,mutate,busy,open
    {low&&<div className="readiness-low"><p><b>{low.person} is at {low.level} of 5</b>, so the easier version of today is ready before anyone needs it.</p><div className="row wrap"><button type="button" onClick={()=>open?.({type:'tired'})}>Take it easier</button>{parent&&<button type="button" onClick={()=>open?.({type:'reschedule'})}>Adjust the day</button>}</div></div>}
   </div>}
   {b.fixed.length>0&&<ul className="briefing-fixed">{b.fixed.map(f=><li key={f.id}><LockKeyhole size={14}/><b>{f.time}</b> {f.title}</li>)}</ul>}
+  {/* Last night's film, developed at seven: the roll is in. */}
+  {day===today&&rollFor(state,today).length>0&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('photos')}><span aria-hidden="true">🎞️</span>Last night’s roll is in: {rollFor(state,today).length} photo{rollFor(state,today).length===1?'':'s'} from the film.</button>}
   {/* What the night-before check found and nobody has dealt with yet, one tap from the notes. */}
   {openNotes(state,day).length>0&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('glance')}><ShieldAlert size={15}/>Checked the night before: {openNotes(state,day)[0].title}{openNotes(state,day).length>1?`, and ${openNotes(state,day).length-1} more`:''}.</button>}
   {(b.moving||b.last)&&<p className="briefing-note"><BedDouble size={15}/>{b.last?'Last day: everything comes home with us.':`Hotel move today, to ${b.hotel}.`}</p>}
