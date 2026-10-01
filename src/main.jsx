@@ -637,7 +637,7 @@ function App(){
   reports:<Reports state={visibleState} user={user} day={day} now={now} selectStep={selectStep}/>,
   codes:<CodePrompt state={state} parent={parent} busy={busy} mutate={mutate} notice={notice} onShow={doc=>setModal({type:'tickets',initialSearch:doc.title})}/>,
   countdown:(c=>c&&<section className={`countdown-card ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span><b>{c.days===1?'day to go':'days to go'}</b><small>{c.days===1?'Tomorrow we fly to Japan!':`Until Day 1 · ${fmtDay(state.days[0].date)}`}</small></span></>:c.phase==='during'?<><strong>{c.day}</strong><span><b>{c.text}</b><small>{c.sub}</small></span></>:<><Check size={28}/><span><b>{c.text}</b><small>All {c.total} days of Japan behind us</small></span></>}</section>)(tripCountdown(state.days,todayJapan)),
-  tonight:<Tonight state={visibleState} user={user} day={day} today={japanDate(now)} clock={japanClock(now)} mutate={mutate} busy={busy} openVoice={()=>setModal({type:'voice',day})} go={go}/>,
+  tonight:<Tonight state={visibleState} user={user} day={day} today={japanDate(now)} clock={japanClock(now)} mutate={mutate} busy={busy} openVoice={()=>setModal({type:'voice',day})} go={go} addStop={parent?()=>setModal({type:'edit',step:null}):null} notice={notice}/>,
   dailyjapan:<DailyJapan state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy}/>,
   bookingwindows:<BookingWindowsCard state={visibleState} now={now} go={go}/>,
   runup:<RunUp state={visibleState} today={japanDate(now)} go={go}/>,
