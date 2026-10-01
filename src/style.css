@@ -924,6 +924,7 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .fav-sheet-head{display:flex;align-items:center;flex-wrap:wrap;gap:.45rem;padding:.9rem 0 .7rem;position:relative;touch-action:none}
 .fav-sheet-grabber{position:absolute;top:.3rem;left:50%;transform:translateX(-50%);width:40px;height:5px;border-radius:3px;background:var(--stone);opacity:.4}
 .fav-sheet-head h2{margin:0;font-size:1.05rem}
+.fav-sheet.choosing .fav-sheet-head h2{margin-right:auto}
 .fav-sheet-head small{color:var(--muted);font-size:.8rem;margin-right:auto;font-variant-numeric:tabular-nums}
 .fav-sheet-head small.full{color:var(--accent);font-weight:600}
 .fav-sheet-action{min-height:40px;padding:.45rem .75rem;font-size:.82rem;gap:.35rem;border-radius:20px}
@@ -940,17 +941,34 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .fav-sheet-hint{margin:.55rem 0 .6rem;color:var(--muted);font-size:.8rem}
 .fav-find{width:100%;font-size:16px;min-height:44px;padding:.5rem .8rem;border:1px solid var(--border);border-radius:12px;background:var(--paper);color:var(--ink);margin-bottom:.4rem}
 .fav-pick-section h3{margin:1rem 0 .45rem;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.fav-pick-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem}
-@media(min-width:560px){.fav-pick-grid{grid-template-columns:repeat(3,1fr)}}
-.fav-pick{justify-content:flex-start;gap:.5rem;min-height:48px;padding:.45rem .55rem;font-size:.82rem;font-weight:500;text-align:left;border-radius:12px;position:relative}
-.fav-pick svg{flex:0 0 auto;color:var(--muted)}
-.fav-pick span{flex:1;min-width:0;line-height:1.2}
-.fav-pick i{display:grid;place-items:center;flex:0 0 22px;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);color:var(--muted);font-style:normal}
-.fav-pick i svg{color:inherit}
-.fav-pick.on{background:var(--blush);border-color:var(--accent);font-weight:600}
-.fav-pick.on>svg{color:var(--accent)}
-.fav-pick.on i{background:var(--accent);border-color:var(--accent);color:var(--paper)}
-.fav-pick:disabled{opacity:.45;cursor:not-allowed}
+/* Bar and favourites side by side in the sheet: the bar in ink, like the bar itself; favourites
+   in the gold of their star. A screen is in one or the other, so one look says where it lives. */
+.fav-zones{display:grid;gap:.6rem}
+.fav-zone h3{display:flex;align-items:baseline;gap:.5rem;margin:.2rem 0 .35rem;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.fav-zone h3 small{letter-spacing:0;text-transform:none;font-variant-numeric:tabular-nums}
+.fav-zone h3 small.full{color:var(--accent);font-weight:600}
+.fav-zone-bar .fav-chosen{background:var(--paper);border-color:var(--border)}
+.fav-zone-bar .fav-chip{border-color:var(--ink)}
+.fav-zone-bar .fav-chip-name svg{color:var(--ink)}
+.fav-chip.fixed{border-style:dashed}
+.fav-chip.fixed .fav-chip-name{cursor:default;padding-right:.7rem!important}
+.fav-pick-grid{display:grid;grid-template-columns:1fr;gap:.4rem}
+@media(min-width:420px){.fav-pick-grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:700px){.fav-pick-grid{grid-template-columns:repeat(3,1fr)}}
+.fav-pick{display:flex;align-items:center;gap:.5rem;min-height:48px;padding:.3rem .35rem .3rem .55rem;font-size:.82rem;font-weight:500;border:1px solid var(--border);border-radius:12px;background:var(--paper)}
+.fav-pick>svg{flex:0 0 auto;color:var(--muted)}
+.fav-pick>span:first-of-type{flex:1;min-width:0;line-height:1.2;display:grid}
+.fav-pick small{font-size:.75rem;font-weight:600;color:var(--muted)}
+.fav-pick.bar{border-color:var(--ink);font-weight:600}
+.fav-pick.bar>svg{color:var(--ink)}
+.fav-pick.fav{background:var(--blush);border-color:var(--accent);font-weight:600}
+.fav-pick.fav>svg{color:var(--accent)}
+.fav-pick-where{display:flex;flex:0 0 auto;gap:.25rem}
+.fav-pick-where button{min-height:40px;min-width:40px;padding:0 .5rem;gap:.25rem;border-radius:10px;font-size:.75rem;font-weight:600;color:var(--muted)}
+.fav-pick-where button[aria-pressed="true"]:first-child{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.fav-pick-where button[aria-pressed="true"]:last-child{background:var(--gold);border-color:var(--gold-ink);color:var(--gold-ink)}
+.fav-pick-where button[aria-pressed="true"]:last-child svg{fill:currentColor}
+.fav-pick-where button:disabled{opacity:.35;cursor:not-allowed}
 /* More: one line for the favourites, which live in the sheet now, and a word when a hold stars a card. */
 .more-fav-line{display:flex;align-items:center;gap:.7rem;padding:.7rem .8rem;margin:0 0 1rem;background:var(--paper);border:1px solid var(--border);border-radius:14px}
 .more-fav-line>svg{flex:0 0 auto;color:var(--gold-ink);fill:var(--gold)}

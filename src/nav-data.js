@@ -137,14 +137,21 @@ export const rightNow=user=>{const ok=new Set(pagesFor(user));return RIGHT_NOW.f
 // way out of storage: unknown or no-longer-allowed screens are dropped, repeats collapse, and the
 // row stops at a dozen so it stays a row of shortcuts rather than a second menu. An empty list is
 // a real choice — somebody who unstars everything gets no row, not the defaults back.
+//
+// A screen is on the bar or in favourites, never both: the bar is already one tap away, so a
+// favourite that is also on the bar is a wasted place in the sheet. Whatever the bar holds is
+// left out of the favourites as they are read, so no way of putting a screen on the bar —
+// the sheet, Customise, an old saved list — can make a double.
 export const FAV_MAX=12;
-export const favourites=(user,saved)=>{
- if(!Array.isArray(saved))return rightNow(user);
+export const favourites=(user,saved,bar=[])=>{
+ const off=new Set(bar||[]);
+ if(!Array.isArray(saved))return rightNow(user).filter(id=>!off.has(id));
  const ok=new Set(pagesFor(user));
- return [...new Set(saved.filter(id=>typeof id==='string'&&ok.has(id)))].slice(0,FAV_MAX);
+ return [...new Set(saved.filter(id=>typeof id==='string'&&ok.has(id)&&!off.has(id)))].slice(0,FAV_MAX);
 };
-export const toggleFavourite=(user,saved,id)=>{
- const now=favourites(user,saved);
+export const toggleFavourite=(user,saved,id,bar=[])=>{
+ const now=favourites(user,saved,bar);
+ if((bar||[]).includes(id))return now;
  return now.includes(id)?now.filter(x=>x!==id):now.length<FAV_MAX?[...now,id]:now;
 };
 // The same favourites open as a sheet from the bar: a swipe up it, or the handle on top of it.
@@ -165,15 +172,51 @@ export const pickerSections=(user,prefs,find='')=>{
 // one's place, whether it was already in the row or has come up from a section; onto the row's
 // empty end it goes last; dropped anywhere else (null) it leaves the row. A new card is turned
 // away once the row is full, the same cap as starring.
-export const dropFavourite=(list,id,onto)=>{
+export const dropFavourite=(list,id,onto,max=FAV_MAX)=>{
  const had=list.includes(id),rest=list.filter(x=>x!==id);
  if(onto===null)return rest;
- if(!had&&list.length>=FAV_MAX)return [...list];
+ if(!had&&list.length>=max)return [...list];
  const at=onto===id?list.indexOf(id):onto===undefined?rest.length:list.indexOf(onto);
  if(at<0)return [...rest,id];
  rest.splice(at,0,id);
  return rest;
 };
+// The bar and the favourites, arranged together in the sheet. Each screen is in one place:
+// the bar, the favourites, or neither. placeScreen moves one screen to 'bar', 'fav' or null
+// (out of both), next to `onto` if it is given and at the end if not, and hands back both
+// lists. The bar's own rules still hold — Home first and never moved, Customise never taken
+// off, no fewer than BAR_MIN and no more than BAR_MAX — and each list keeps its cap. A move
+// that would break one comes back unchanged with `refused` saying why, for the sheet to show.
+export const menuLayout=(user,prefs,saved)=>{
+ const bar=primaryNav(user,prefs);
+ return {bar,favs:favourites(user,saved,bar)};
+};
+export function placeScreen(user,prefs,saved,id,to,onto){
+ const layout=menuLayout(user,prefs,saved);
+ if(!PAGES[id]||!pagesFor(user).includes(id))return layout;
+ return moveScreen(layout,id,to,onto);
+}
+// The same move on lists already in hand, so a drag can show where a chip will land as it goes.
+export function moveScreen({bar,favs},id,to,onto){
+ const same={bar,favs};
+ const from=bar.includes(id)?'bar':favs.includes(id)?'fav':null;
+ if(id===bar[0]&&to!=='bar')return {...same,refused:`${PAGES[id].label} is always first on the bar.`};
+ if(from==='bar'&&to!=='bar'){
+  if(FIXED.includes(id))return {...same,refused:`${PAGES[id].label} stays on the bar.`};
+  if(bar.length<=BAR_MIN)return {...same,refused:`The bar needs at least ${BAR_MIN-1} shortcuts.`};
+ }
+ if(to==='bar'&&from!=='bar'&&bar.length>=BAR_MAX)return {...same,refused:`The bar is full at ${BAR_MAX-1} shortcuts.`};
+ if(to==='fav'&&from!=='fav'&&favs.length>=FAV_MAX)return {...same,refused:`Favourites are full at ${FAV_MAX}.`};
+ let nextBar=to==='bar'?bar:bar.filter(x=>x!==id),nextFavs=to==='fav'?favs:favs.filter(x=>x!==id);
+ if(to==='bar'){
+  // Nothing goes in front of Home: dropped on it, a screen lands just after.
+  const at=onto===bar[0]?bar[1]:onto;
+  nextBar=dropFavourite(bar,id,at===undefined||at===null?undefined:at,BAR_MAX);
+  if(nextBar[0]!==bar[0])nextBar=[bar[0],...nextBar.filter(x=>x!==bar[0])];
+ }
+ if(to==='fav')nextFavs=dropFavourite(favs,id,onto===null?undefined:onto);
+ return {bar:nextBar,favs:nextFavs};
+}
 // The menu, as this person has arranged it. Four of us carry the same app and want different
 // things out of it: Lauren lives on tickets and the plan, Boston on his missions and his money,
 // and Nate opens three screens in the whole trip. So the bar is theirs to set — which screens

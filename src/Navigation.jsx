@@ -1,6 +1,6 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
-import {LocateFixed,Clapperboard,Printer,Smartphone,BookLock,PlaneLanding,AlarmClock,MailQuestion,BookImage,Stamp,Crown,GalleryHorizontalEnd,History,Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid,ChevronDown,Star,Check,Plus,Store,Footprints,DoorOpen,PlaneTakeoff,SearchX,Repeat,Hourglass,GraduationCap,X,ChevronLeft,EyeOff,Undo2} from 'lucide-react';
-import {PAGES,FIXED,moveInMore,hideInMore,primaryNav,moreSections,navActive,hiddenNav,favourites,toggleFavourite,dropFavourite,FAV_MAX,favRows,pickerSections} from './nav-data.js';
+import {LocateFixed,Clapperboard,Printer,Smartphone,BookLock,PlaneLanding,AlarmClock,MailQuestion,BookImage,Stamp,Crown,GalleryHorizontalEnd,History,Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid,ChevronDown,Star,Check,Plus,Store,Footprints,DoorOpen,PlaneTakeoff,SearchX,Repeat,Hourglass,GraduationCap,X,ChevronLeft,EyeOff,Undo2,PanelBottom} from 'lucide-react';
+import {PAGES,FIXED,BAR_MAX,moveInMore,hideInMore,primaryNav,moreSections,navActive,hiddenNav,favourites,toggleFavourite,FAV_MAX,favRows,pickerSections,menuLayout,placeScreen,moveScreen} from './nav-data.js';
 import {isOpen,setOpen} from './fold.js';
 import {useWobble} from './wobble.js';
 import {homePages} from './home-widgets.js';
@@ -119,7 +119,7 @@ export function BottomNav({tab,user,go,unread,prefs,setPrefs}){
   </button>;
  };
  return <>
- {sheet&&<FavSheet user={user} prefs={prefs} tab={tab} go={go} close={closeSheet} all={allScreens} bottom={navH} drop={drop} startChoosing={sheet==='choose'}/>}
+ {sheet&&<FavSheet user={user} prefs={prefs} setPrefs={setPrefs} tab={tab} go={go} close={closeSheet} all={allScreens} bottom={navH} drop={drop} startChoosing={sheet==='choose'}/>}
  <nav className="bottom-nav" aria-label="Main navigation" ref={nav}
   style={{'--nav-n':bar.length+1,...drop?{transform:`translate(-50%,${drop}px)`}:{}}}
   onTouchStart={e=>{drag.current=w.editing?null:{x:e.touches[0].clientX,y:e.touches[0].clientY};}}
@@ -173,15 +173,27 @@ export function useSavedFavourites(){
 // Anything that wants the sheet open on Choose — Edit on More — asks for it by name.
 export const openFavourites=()=>window.dispatchEvent(new Event('japan:choose-favourites'));
 // The favourites, over whatever screen you are on, so a look at the yen or a phrase does not
-// lose your place. Choosing is in the sheet too, because a list you can only change on another
-// screen is a list nobody changes. It opens out to every screen, by section, each one plainly
-// ticked or not, with the chosen ones along the top in their order and a count against the cap.
-function FavSheet({user,prefs,tab,go,close,all,bottom,drop,startChoosing}){
+// lose your place. Arranging is in the sheet too, because a list you can only change on another
+// screen is a list nobody changes — and it arranges the bar as well as the favourites, as two
+// rows that never share a screen. Every screen is listed by section with two switches, Bar and
+// a star, so where each one lives is plain and a tap moves it; the chips along the top can also
+// be dragged within a row or from one row to the other. Tapping is the main way because it
+// works one-handed, with a screen reader and in a long scrolled list; dragging is the quick way
+// for order.
+function FavSheet({user,prefs,setPrefs,tab,go,close,all,bottom,drop,startChoosing}){
  const [saved,setSaved]=useSavedFavourites();
- const favs=favourites(user,saved),chosen=new Set(favs),full=favs.length>=FAV_MAX;
+ const layout=menuLayout(user,prefs,saved),{bar}=layout;
+ const favs=layout.favs,full=favs.length>=FAV_MAX;
  const [choosing,setChoosing]=useState(!!startChoosing),[find,setFind]=useState('');
- const save=next=>setSaved(favourites(user,next));
- const toggle=id=>save(toggleFavourite(user,saved,id));
+ const [said,setSaid]=useState('');
+ useEffect(()=>{if(!said)return;const t=setTimeout(()=>setSaid(''),2600);return ()=>clearTimeout(t);},[said]);
+ const save=next=>{
+  if(next.refused){setSaid(next.refused);return;}
+  if(next.bar.join()!==bar.join())setPrefs?.({bar:next.bar,hidden:hiddenNav(user,prefs)});
+  if(next.favs.join()!==favs.join()||!Array.isArray(saved))setSaved(next.favs);
+ };
+ const place=(id,to,onto)=>save(placeScreen(user,prefs,saved,id,to,onto));
+ const toggle=(id,to)=>place(id,(to==='bar'?bar:favs).includes(id)?null:to);
  const sections=choosing?pickerSections(user,prefs,find):[];
  const sheet=useRef(null),drag=useRef(null);
  useEffect(()=>{
@@ -192,7 +204,7 @@ function FavSheet({user,prefs,tab,go,close,all,bottom,drop,startChoosing}){
  useEffect(()=>{sheet.current?.querySelector('button')?.focus({preventScroll:true});},[choosing]);
  const open=id=>{close();go(id);};
  // The top of the sheet swipes like the bar: up for the whole menu, down to put it away (or,
- // while choosing, back to the favourites). The list underneath is left to scroll.
+ // while arranging, back to the favourites). The list underneath is left to scroll.
  const head={
   onTouchStart:e=>{drag.current={x:e.touches[0].clientX,y:e.touches[0].clientY};},
   onTouchEnd:e=>{
@@ -202,38 +214,61 @@ function FavSheet({user,prefs,tab,go,close,all,bottom,drop,startChoosing}){
    else if(way===-1)choosing?setChoosing(false):close();
   }
  };
- // The order is set here now that More has no row of its own. A chip is dragged along the row
- // and takes the place of the one it is let go on; a tap picks one out and gives it arrows for
- // anybody who would rather press, and the arrow keys do the same on a focused chip.
+ // A chip is dragged within its row or across to the other one, and takes the place of the chip
+ // it is let go on (or goes last, let go on a row's empty space). Home is first on the bar and
+ // does not move. A tap picks a chip out and gives it arrows for anybody who would rather press,
+ // and the arrow keys do the same on a focused chip.
  const [picked,setPicked]=useState(null),[live,setLive]=useState(null),hold=useRef(null);
- const order=live||favs;
- const shift=(id,by)=>{const next=order[order.indexOf(id)+by];if(next)save(dropFavourite(favs,id,next));};
+ const shown=live||layout;
+ const shift=(id,by)=>{const row=bar.includes(id)?'bar':'fav',list=row==='bar'?bar:favs,next=list[list.indexOf(id)+by];
+  if(next&&!(row==='bar'&&next===bar[0]))place(id,row,next);};
  const chip={
-  onPointerDown:e=>{const el=e.target.closest('[data-chip]');if(!el||e.button>0||e.target.closest('.fav-chip-tool'))return;
-   hold.current={id:el.dataset.chip,x:e.clientX,y:e.clientY,moving:false,list:favs};
+  onPointerDown:e=>{const el=e.target.closest('[data-chip]');if(!el||e.button>0||e.target.closest('.fav-chip-tool')||el.dataset.chip===bar[0])return;
+   hold.current={id:el.dataset.chip,x:e.clientX,y:e.clientY,moving:false,next:null};
    try{el.setPointerCapture(e.pointerId);}catch{}},
   onPointerMove:e=>{const h=hold.current;if(!h)return;
    if(!h.moving&&Math.hypot(e.clientX-h.x,e.clientY-h.y)<8)return;
    h.moving=true;setPicked(h.id);
-   const onto=document.elementFromPoint(e.clientX,e.clientY)?.closest?.('[data-chip]')?.dataset.chip;
-   if(onto&&onto!==h.id){h.list=dropFavourite(h.list,h.id,onto);setLive(h.list);}},
+   const under=document.elementFromPoint(e.clientX,e.clientY),zone=under?.closest?.('[data-zone]')?.dataset.zone;
+   if(!zone)return;
+   const onto=under.closest('[data-chip]')?.dataset.chip;
+   if(onto===h.id)return;
+   const next=moveScreen(layout,h.id,zone,onto);
+   if(!next.refused){h.next=next;setLive(next);}},
   onPointerUp:()=>{const h=hold.current;hold.current=null;if(!h)return;
-   if(h.moving){setLive(null);setPicked(null);if(h.list.join()!==favs.join())save(h.list);}
+   if(h.moving){setLive(null);setPicked(null);if(h.next)save(h.next);}
    else setPicked(p=>p===h.id?null:h.id);},
   onPointerCancel:()=>{hold.current=null;setLive(null);setPicked(null);}
  };
+ const row=(zone,ids,title,cap,none)=><div className={`fav-zone fav-zone-${zone}`}>
+  <h3>{title}<small className={ids.length>=cap?'full':undefined}>{zone==='bar'?ids.length-1:ids.length} of {zone==='bar'?cap-1:cap}</small></h3>
+  <div className="fav-chosen" data-zone={zone} aria-label={`${title}, in order`}>
+   {ids.length?ids.map((id,i)=>{const Icon=iconFor(id),on=picked===id,home=zone==='bar'&&i===0;
+    const first=zone==='bar'?i<=1:i===0;
+    return <span key={id} data-chip={id} className={`fav-chip${on?' picked':''}${live&&on?' dragging':''}${home?' fixed':''}`}>
+     {on&&<button type="button" className="fav-chip-tool" aria-label={`Move ${PAGES[id].label} earlier`} disabled={first} onClick={()=>shift(id,-1)}><ChevronLeft size={15}/></button>}
+     <button type="button" className="fav-chip-name" aria-pressed={home?undefined:on} aria-label={home?`${PAGES[id].label}, always first`:`${PAGES[id].label}, ${zone==='bar'?i:i+1} of ${zone==='bar'?ids.length-1:ids.length}`}
+      onKeyDown={e=>{const by={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];if(by&&!home){e.preventDefault();shift(id,by);}}}>
+      <Icon size={15}/><span>{PAGES[id].label}</span>
+     </button>
+     {on&&<button type="button" className="fav-chip-tool" aria-label={`Move ${PAGES[id].label} later`} disabled={i===ids.length-1} onClick={()=>shift(id,1)}><ChevronRight size={15}/></button>}
+     {!home&&<button type="button" className="fav-chip-tool fav-chip-x" aria-label={`Take ${PAGES[id].label} off ${zone==='bar'?'the bar':'favourites'}`} onClick={()=>{setPicked(null);place(id,null);}}><X size={14}/></button>}
+    </span>;})
+    :<span className="fav-chosen-none">{none}</span>}
+  </div>
+ </div>;
  const style={bottom,'--fav-bottom':`${bottom}px`,'--fav-rows':favRows(favs.length),...drop?{transform:`translate(-50%,${drop}px)`}:{}};
  return <>
   <div className="fav-sheet-veil" aria-hidden="true" onClick={close}/>
-  <section ref={sheet} className={`fav-sheet${choosing?' choosing':''}`} style={style} role="dialog" aria-label={choosing?'Choose favourites':'Favourites'}>
+  <section ref={sheet} className={`fav-sheet${choosing?' choosing':''}`} style={style} role="dialog" aria-label={choosing?'Arrange the bar and favourites':'Favourites'}>
    <div className="fav-sheet-head" {...head}>
     <span className="fav-sheet-grabber" aria-hidden="true"/>
-    <h2>{choosing?'Choose favourites':'Favourites'}</h2>
-    <small className={full?'full':undefined}>{favs.length} of {FAV_MAX}</small>
+    <h2>{choosing?'Bar & favourites':'Favourites'}</h2>
+    {!choosing&&<small className={full?'full':undefined}>{favs.length} of {FAV_MAX}</small>}
     {choosing
      ?<button type="button" className="fav-sheet-action primary" onClick={()=>{setChoosing(false);setFind('');setPicked(null);}}><Check size={15}/>Done</button>
      :<>
-      <button type="button" className="fav-sheet-action" onClick={()=>setChoosing(true)}><Star size={15}/>Choose</button>
+      <button type="button" className="fav-sheet-action" onClick={()=>setChoosing(true)}><Star size={15}/>Arrange</button>
       <button type="button" className="fav-sheet-action" onClick={all}><LayoutGrid size={15}/>All screens</button>
      </>}
    </div>
@@ -244,27 +279,24 @@ function FavSheet({user,prefs,tab,go,close,all,bottom,drop,startChoosing}){
      </button>;})}</nav>
     :<p className="fav-sheet-empty">Nothing here yet. <button type="button" onClick={()=>setChoosing(true)}>Choose up to {FAV_MAX} screens</button> to keep one swipe away.</p>)}
    {choosing&&<div className="fav-sheet-body">
-    <div className="fav-chosen" aria-label="Chosen, in order" {...chip}>
-     {order.length?order.map((id,i)=>{const Icon=iconFor(id),on=picked===id;
-      return <span key={id} data-chip={id} className={`fav-chip${on?' picked':''}${live&&on?' dragging':''}`}>
-       {on&&<button type="button" className="fav-chip-tool" aria-label={`Move ${PAGES[id].label} earlier`} disabled={i===0} onClick={()=>shift(id,-1)}><ChevronLeft size={15}/></button>}
-       <button type="button" className="fav-chip-name" aria-pressed={on} aria-label={`${PAGES[id].label}, ${i+1} of ${order.length}`}
-        onKeyDown={e=>{const by={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];if(by){e.preventDefault();shift(id,by);}}}>
-        <Icon size={15}/><span>{PAGES[id].label}</span>
-       </button>
-       {on&&<button type="button" className="fav-chip-tool" aria-label={`Move ${PAGES[id].label} later`} disabled={i===order.length-1} onClick={()=>shift(id,1)}><ChevronRight size={15}/></button>}
-       <button type="button" className="fav-chip-tool fav-chip-x" aria-label={`Take ${PAGES[id].label} out of favourites`} onClick={()=>{setPicked(null);toggle(id);}}><X size={14}/></button>
-      </span>;})
-      :<span className="fav-chosen-none">None chosen yet. Tap any screen below.</span>}
+    <div className="fav-zones" {...chip}>
+     {row('bar',shown.bar,'On the bar',BAR_MAX,'')}
+     {row('fav',shown.favs,'Favourites',FAV_MAX,'None yet. Star a screen below, or drag one here.')}
     </div>
-    <p className="fav-sheet-hint">{full?`That’s all ${FAV_MAX}. Take one out to add another.`:'Tap a screen below to add or remove it. Drag the ones above into order, or tap one for arrows.'}</p>
+    <p className="fav-sheet-hint" role="status" aria-live="polite">{said||'Each screen goes on the bar or in favourites, not both. Tap Bar or the star below, or drag a chip within a row or across to the other.'}</p>
     <input type="search" className="fav-find" placeholder="Find a screen" aria-label="Find a screen" value={find} onChange={e=>setFind(e.target.value)}/>
     {sections.length?sections.map(([title,ids])=><section key={title} className="fav-pick-section">
      <h3>{title}</h3>
-     <div className="fav-pick-grid">{ids.map(id=>{const Icon=iconFor(id),on=chosen.has(id);
-      return <button type="button" key={id} className={`fav-pick${on?' on':''}`} aria-pressed={on} disabled={!on&&full} onClick={()=>toggle(id)}>
-       <Icon size={18}/><span>{PAGES[id].label}</span><i aria-hidden="true">{on?<Check size={13}/>:<Plus size={13}/>}</i>
-      </button>;})}</div>
+     <div className="fav-pick-grid">{ids.map(id=>{const Icon=iconFor(id),label=PAGES[id].label;
+      const where=bar.includes(id)?'bar':favs.includes(id)?'fav':null;
+      const why=to=>moveScreen(layout,id,where===to?null:to).refused;
+      return <div key={id} className={`fav-pick${where?` on ${where}`:''}`}>
+       <Icon size={18}/><span>{label}{where&&<small>{where==='bar'?'On the bar':'Favourite'}</small>}</span>
+       <span className="fav-pick-where" role="group" aria-label={`Where ${label} goes`}>
+        <button type="button" aria-pressed={where==='bar'} aria-label={`${label} on the bar`} title={why('bar')} disabled={!!why('bar')} onClick={()=>toggle(id,'bar')}><PanelBottom size={15}/><span>Bar</span></button>
+        <button type="button" aria-pressed={where==='fav'} aria-label={`${label} in favourites`} title={why('fav')} disabled={!!why('fav')} onClick={()=>toggle(id,'fav')}><Star size={15}/></button>
+       </span>
+      </div>;})}</div>
     </section>):<p className="fav-sheet-hint">No screen called that.</p>}
    </div>}
   </section>
@@ -285,8 +317,8 @@ export function MorePage({user,tab,go,children,prefs,home,setPrefs}){
  const [where,setWhere]=useState(false);
  const [undo,setUndo]=useState(null);
  const [saved,setSaved]=useSavedFavourites();
- const favs=favourites(user,saved),starred=new Set(favs),full=favs.length>=FAV_MAX;
- const onBar=new Set(primaryNav(user,prefs)),onHome=homePages(home);
+ const barIds=primaryNav(user,prefs),onBar=new Set(barIds),onHome=homePages(home);
+ const favs=favourites(user,saved,barIds),starred=new Set(favs),full=favs.length>=FAV_MAX;
  const sections=moreSections(user,prefs,where);
  // Every section starts folded. The one holding the screen you came from opens on its own,
  // so going back to More lands where you left it rather than on a wall of shut headings.
@@ -296,8 +328,10 @@ export function MorePage({user,tab,go,children,prefs,home,setPrefs}){
  const [said,setSaid]=useState(''),press=useRef(null),eat=useRef(false);
  const star=id=>{
   const on=starred.has(id);
+  // On the bar already, so a star would be a second way to the same screen.
+  if(onBar.has(id)){setSaid(`${PAGES[id].label} is on your bar. Swipe up the bar and tap Arrange to move it.`);return;}
   if(!on&&full){setSaid(`Favourites are full at ${FAV_MAX}. Take one out first.`);return;}
-  setSaved(favourites(user,toggleFavourite(user,saved,id)));
+  setSaved(toggleFavourite(user,saved,id,barIds));
   try{navigator.vibrate?.(12);}catch{}
   setSaid(on?`${PAGES[id].label} taken out of favourites`:`${PAGES[id].label} added to favourites`);
  };
@@ -342,7 +376,7 @@ export function MorePage({user,tab,go,children,prefs,home,setPrefs}){
   <h1>More</h1>
   <div className="more-fav-line">
    <Star size={16}/>
-   <span><strong>Favourites · {favs.length}</strong><small>One swipe up the bar, from any screen. Hold a card below to star it.</small></span>
+   <span><strong>Favourites · {favs.length}</strong><small>One swipe up the bar, from any screen. Hold a card below to star it; Edit arranges the bar too.</small></span>
    <button type="button" className="more-edit" onClick={openFavourites}>Edit</button>
   </div>
   <button type="button" className={`more-where${where?' on':''}`} aria-pressed={where} onClick={()=>setWhere(!where)}>
