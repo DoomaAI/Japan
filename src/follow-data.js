@@ -3,6 +3,7 @@
 // they receive is built here and nowhere else, as an allow-list: every field below is one we
 // chose to send. Tickets, bookings, hotels, places, pins, positions, phone numbers, money and
 // anything still to come are never in it, because they are never copied into it.
+import {isDeveloping} from './film-data.js';
 import {activeSteps} from './timing.js';
 import {photosFor,photoOfTheDay,stepRatings,stepThoughts,photoOwner} from './trip-features.js';
 import {noticedFor} from './noticed-data.js';
@@ -27,4 +28,4 @@ export function followView(state,today){
 }
 // Whether a photo may be sent to a follower: one of the family's own day photos, from a day
 // that has already begun. Tickets and documents are a different list and are never looked in.
-export const followPhoto=(state,id,today)=>(state.photos||[]).find(p=>p.id===id&&p.pathname&&p.day&&p.day<=today)||null;
+export const followPhoto=(state,id,today)=>(state.photos||[]).find(p=>p.id===id&&p.pathname&&p.day&&p.day<=today&&!isDeveloping(p))||null;

@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import {gentleOnly} from './child-levels.js';
-import {Check,Languages,Plus,Trash2,Copy,AlertCircle,Compass} from 'lucide-react';
+import {Check,Languages,Plus,Trash2,Copy,AlertCircle,Compass,Star} from 'lucide-react';
 import {FOOD,FOOD_KINDS,FOOD_KIND_LABEL,ORDERING,SAY_TIP} from './food-data.js';
 import SayIt from './SayIt.jsx';
 import {PHRASES} from './phrases.js';

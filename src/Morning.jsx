@@ -13,7 +13,7 @@ export default function MorningChecklist({state,day,today}){
   if(items.every(i=>next.includes(i.id))){const s=nextStreak(streak,day,state.days);setStreak(s);writeStreak(s);}
  };
  const reset=()=>{setTicks([]);writeTicks(day,[]);};
- const streakLine=streak.count>0&&(complete||streak.last!==day)?streakWords(streak.count):'';
+ const streakLine=streak.count>0&&(complete||streak.last!==day)?streakWords(streak.count,streak.forgiven&&streak.last===day?streak.forgiven:null):'';
  return <section className={`morning${complete?' complete':''}`}>
   <div className="morning-head">
    <div><h2 className="eyebrow">Before we head out</h2><strong>{complete?'Out the door.':`${done} of ${items.length} in the bag`}</strong></div>

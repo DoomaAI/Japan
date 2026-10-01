@@ -9,7 +9,7 @@ import {Challenges,Shopping,SpeakRules,useReadAloud} from './AdventurePages.jsx'
 import Shortlist,{DayFinds} from './Shortlist.jsx';
 import {NextUp,RunningLate,OfflineReadiness,Updates} from './HomeFeatures.jsx';
 import {ThankYouNote,ThankYouEditor} from './ThankYou.jsx';
-import {readingHelp,awarenessAllows,heldBack} from './child-levels.js';
+import {readingHelp,awarenessAllows,heldBack,gentleOnly} from './child-levels.js';
 import {handedUser,readHanded,writeHanded} from './hand-over.js';
 import {HandedBanner} from './HandOver.jsx';
 import TicketViewer from './TicketViewer.jsx';
@@ -103,6 +103,11 @@ import './travel-guide.css';
 // Tomorrow's check and Plan B are read with no signal, on the stop card and the day, so they are in the shell.
 import DayCheck,{StopPlanB} from './DayCheck.jsx';
 import HotelMove from './HotelMove.jsx';
+import FindBox from './FindBox.jsx';
+import Rings from './Rings.jsx';
+import MomentBanner from './MomentBanner.jsx';
+import DinnerQuiz,{QuizLine} from './DinnerQuiz.jsx';
+import BlendCard,{BlendLine} from './BlendCard.jsx';
 import {StopInsider,StopEtiquette} from './StopGuide.jsx';
 // The map library is only fetched when the map is opened, so every other screen stays as quick.
 const MemoryMap=lazy(()=>import('./MemoryMap.jsx'));
@@ -624,8 +629,10 @@ function App(){
  // have put away. Each one is written here once and drawn by id, so the arrangement lives in
  // one list on the phone rather than in the shape of this screen.
  const homeWidgets=tab==='today'&&{
+  rings:<Rings state={visibleState} user={user} day={day}/>,
+  find:<FindBox state={visibleState} user={user} go={go} selectStep={selectStep} open={setModal} selectDay={selectDay}/>,
   checkin:<CheckInCard state={visibleState} user={user} now={now} request={request} mutate={mutate} busy={busy} go={go}/>,
-  halfway:<HalfwayLine state={visibleState} open={()=>setModal({type:'halfway'})}/>,
+  halfway:<><HalfwayLine state={visibleState} open={()=>setModal({type:'halfway'})}/><BlendLine state={visibleState} open={()=>setModal({type:'blend'})}/></>,
   puzzle:<PuzzleLine state={visibleState} user={user} open={()=>setModal({type:'puzzle'})}/>,
   reports:<Reports state={visibleState} user={user} day={day} now={now} selectStep={selectStep}/>,
   codes:<CodePrompt state={state} parent={parent} busy={busy} mutate={mutate} notice={notice} onShow={doc=>setModal({type:'tickets',initialSearch:doc.title})}/>,
@@ -748,6 +755,8 @@ function App(){
   {tab==='today'&&<div className="home">
    {dayHeading}
    {dayStrip(selectDay)}
+   <MomentBanner day={japanDate(now)} now={now} go={go}/>
+   <QuizLine state={visibleState} open={()=>setModal({type:'quiz'})}/>
    {homeRuns(homeShown(homePrefs).filter(id=>awarenessAllows(visibleState,user.name,id))).map(run=>Array.isArray(run)?<div className="home-actions" key={run.join()}>{run.map(id=><React.Fragment key={id}>{homeWidgets[id]}</React.Fragment>)}</div>:<React.Fragment key={run}>{homeWidgets[run]}</React.Fragment>)}
    {!homeShown(homePrefs).length&&<div className="empty"><h2>Home is clear.</h2><p>Every widget is put away. Bring back the ones you want from Customise.</p></div>}
    <div className="home-customise"><Button icon={SlidersHorizontal} onClick={()=>go('personalise')}>Customise Home</Button></div>
@@ -844,11 +853,13 @@ function App(){
   <BottomNav tab={tab} user={user} go={navGo} prefs={navPrefs} setPrefs={saveNav} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
   {toast&&!modal&&toastBar}
-  {modal&&<Dialog title={{edit:modal.step?'Edit stop':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',report:'Tell the other phones',checkin:'Check In',puzzle:'Today’s puzzle',halfway:'Halfway there',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Japan bingo',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',assistant:'AI assistant',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo','ask','assistant'].includes(modal.type)}>
+  {modal&&<Dialog title={{edit:modal.step?'Edit stop':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',blend:'The Blend',quiz:'Dinner quiz',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',report:'Tell the other phones',checkin:'Check In',puzzle:'Today’s puzzle',halfway:'Halfway there',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Japan bingo',park:modal.park?.name||'Theme park rides',foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',assistant:'AI assistant',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','voice','nearby','sumo','ask','assistant'].includes(modal.type)}>
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} mode={modal.mode} wishlist={modal.wishlist} need={modal.need} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)} available={!!config?.nearby}/>}
    {modal.type==='ask'&&<AskTrip state={visibleState} user={user} day={modal.step?.day||day} step={modal.step} config={config} online={online} request={request} mutate={mutate} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
    {modal.type==='assistant'&&<AskTrip assistant state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} go={id=>{setModal(null);go(id);}} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
+   {modal.type==='quiz'&&<DinnerQuiz state={visibleState} user={user} day={japanDate(now)} request={request} accept={accept} refresh={refresh} notice={notice}/>}
+   {modal.type==='blend'&&<BlendCard state={visibleState} notice={notice}/>}
    {modal.type==='halfway'&&<HalfwayCard state={visibleState} notice={notice} go={id=>{setModal(null);go(id);}}/>}
    {modal.type==='puzzle'&&<DailyPuzzle state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice}/>}
    {modal.type==='checkin'&&<CheckInSheet state={visibleState} user={user} day={day} now={now} mutate={mutate} busy={busy} close={()=>setModal(null)} notice={notice}/>}
@@ -856,7 +867,7 @@ function App(){
    {modal.type==='voice'&&<VoiceNotes state={visibleState} user={user} day={modal.day} step={modal.step} config={config} busy={busy} setBusy={setBusy} request={request} accept={accept} mutate={mutate} notice={notice} dayLabel={fmtDay} transcribe={settingOn(settings,'transcribeVoice')}/>}
    {modal.type==='foodcard'&&<FoodCard item={modal.item} notice={notice}/>}
    {modal.type==='park'&&<ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={modal.park} mutate={mutate} busy={busy} open={setModal}/>}
-   {modal.type==='phrase'&&<PhraseOfDay queue={phraseQueue(visibleState,user.name,modal.day)} day={modal.day} dateLabel={fmtDay(modal.day)} busy={busy} dismiss={ids=>seePhrase(modal.day,ids)}/>}
+   {modal.type==='phrase'&&<PhraseOfDay queue={modal.phrase?[modal.phrase]:phraseQueue(visibleState,user.name,modal.day)} day={modal.day} dateLabel={modal.day?fmtDay(modal.day):'Found'} busy={busy} dismiss={ids=>modal.phrase?setModal(null):seePhrase(modal.day,ids)}/>}
    {modal.type==='fact'&&<FactOfDay queue={factQueue(visibleState,user.name,modal.day)} dateLabel={fmtDay(modal.day)} busy={busy} young={help.young} dismiss={ids=>seeFact(modal.day,ids)} openPage={async(page,ids)=>{await seeFact(modal.day,ids);openPage(page);}}/>}
    {modal.type==='stepfact'&&<FactOfDay queue={modal.facts} heading={`FUN FACT · ${modal.step.title.toUpperCase()}`} busy={busy} young={help.young} dismiss={()=>setModal(null)} openPage={page=>openPage(page)}/>}
    {modal.type==='eyespy'&&<Bingo state={visibleState} user={user} step={modal.step} mutate={mutate} busy={busy}/>}

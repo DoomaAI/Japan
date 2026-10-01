@@ -1,8 +1,9 @@
 import React,{useState} from 'react';
-import {RefreshCw,Check,AlertCircle,ArrowLeftRight,ChevronDown} from 'lucide-react';
+import {RefreshCw,Check,AlertCircle,ArrowUpDown,ChevronDown,Delete} from 'lucide-react';
 import {yenPerAud,rateIsSet,yenToAud,audToYen,DEFAULT_YEN_PER_AUD} from './trip-features.js';
 import {japanClock,japanDate} from './timing.js';
 import Runway from './Runway.jsx';
+import {press,KEYS,shown} from './numpad-data.js';
 // European Central Bank reference rates, free and no key. Strictly optional: the converter
 // works from the saved rate alone, so if this is unreachable nothing breaks.
 const RATE_SOURCE='https://api.frankfurter.dev/v1/latest?base=AUD&symbols=JPY';
@@ -13,13 +14,11 @@ export const aud=n=>`$${n.toFixed(2)}`;
 const COMMON=[100,300,500,1000,2000,3000,5000,10000];
 export default function Currency({state,user,mutate,busy,notice}){
  const rate=yenPerAud(state),set=rateIsSet(state);
- const [amount,setAmount]=useState('1000'),[from,setFrom]=useState('JPY');
+ const [amount,setAmount]=useState(''),[from,setFrom]=useState('JPY');
  const [checking,setChecking]=useState(false),[found,setFound]=useState(null),[failed,setFailed]=useState('');
  // Collapsed to one line by default; opens itself while no one has set a rate yet.
  const [open,setOpen]=useState(!set);
  const parent=user.role==='parent';
- const value=Number(String(amount).replace(/[^\d.]/g,''))||0;
- const converted=from==='JPY'?aud(yenToAud(value,rate)):yen(audToYen(value,rate));
  async function check(){
   setChecking(true);setFailed('');setFound(null);setOpen(true);
   try{
@@ -37,13 +36,7 @@ export default function Currency({state,user,mutate,busy,notice}){
  return <>
   {/* The tool comes first; the rate it uses and how it works sit under it. */}
   <section className="converter">
-   <div className="segmented">
-    <button className={from==='JPY'?'selected':''} onClick={()=>setFrom('JPY')}>Yen → dollars</button>
-    <button className={from==='AUD'?'selected':''} onClick={()=>setFrom('AUD')}>Dollars → yen</button>
-   </div>
-   <label>{from==='JPY'?'Price in yen':'Amount in dollars'}
-    <input id="convert-amount" value={amount} inputMode="decimal" onChange={e=>setAmount(e.target.value)} placeholder={from==='JPY'?'1000':'20'}/></label>
-   <p className="converted"><ArrowLeftRight size={18}/><strong>{converted}</strong></p>
+   <NumberPad amount={amount} setAmount={setAmount} from={from} setFrom={setFrom} rate={rate}/>
   </section>
   <Runway state={state} user={user}/>
   {!set&&<p className="callout"><AlertCircle size={18}/><span><strong>Using an estimate of {rateText(DEFAULT_YEN_PER_AUD)} to the dollar.</strong> {parent?'Set the real rate below.':'Ask Damien or Lauren to set the real rate.'}</span></p>}
@@ -78,4 +71,23 @@ export default function Currency({state,user,mutate,busy,notice}){
   <div className="rate-table">{COMMON.map(n=><div className="rate-row" key={n}><span>{yen(n)}</span><strong>{aud(yenToAud(n,rate))}</strong></div>)}</div>
   <p><small>Handy rule of thumb: drop two zeros from the yen price and you are within a few cents of the dollar amount at around {yen(100)} to the dollar.</small></p>
  </>;
+}
+// The pad: the amount large, its conversion under it, a flip that swaps the direction and carries
+// the answer across, and twelve keys. Each digit rolls in as it lands; with reduced motion it
+// simply appears.
+function NumberPad({amount,setAmount,from,setFrom,rate}){
+ const value=Number(String(amount).replace(/[^\d.]/g,''))||0;
+ const other=from==='JPY'?'AUD':'JPY';
+ const converted=from==='JPY'?yenToAud(value,rate):audToYen(value,rate);
+ const flip=()=>{setFrom(other);setAmount(value?(other==='JPY'?String(Math.round(converted)):converted.toFixed(2).replace(/\.00$/,'')):'');};
+ const text=shown(amount,from);
+ return <div className="numpad">
+  <p className="numpad-label">{from==='JPY'?'Price in yen':'Amount in dollars'}</p>
+  <output className="numpad-amount" aria-live="polite" aria-label={text}>{[...text].map((c,i)=><span key={`${i}-${c}-${text.length}`} className="numpad-digit">{c}</span>)}</output>
+  <div className="numpad-result"><strong>{from==='JPY'?aud(converted):yen(converted)}</strong>
+   <button type="button" className="numpad-flip" onClick={flip} aria-label={`Switch to ${other==='JPY'?'yen to dollars':'dollars to yen'}`}><ArrowUpDown size={18}/>{from==='JPY'?'Yen → dollars':'Dollars → yen'}</button></div>
+  <div className="numpad-keys">{KEYS(from).map(k=><button type="button" key={k} className="numpad-key" aria-label={k==='back'?'Delete the last digit':k} onClick={()=>setAmount(a=>press(a,k,from))}
+   onContextMenu={k==='back'?e=>{e.preventDefault();setAmount('');}:undefined}>{k==='back'?<Delete size={22}/>:k}</button>)}</div>
+  {amount&&<button type="button" className="linkish numpad-clear" onClick={()=>setAmount('')}>Clear</button>}
+ </div>;
 }
