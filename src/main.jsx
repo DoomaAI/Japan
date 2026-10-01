@@ -183,6 +183,13 @@ const TABS=[...Object.keys(PAGES),'more'];
 const OFFLINE_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','bingoCard','parkRide','parkWant','foodTried','foodRating','phraseSeen','factSeen','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove','voiceNoteWords',
  'proposalAdd','proposalVote','proposalMust','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntPick','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','dayRating','dayThought','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','bookingWindowBooked','shopLog'];
+// Taps that only record what just happened — a tick, a rating, a vote — show on the screen the
+// moment they are made and go to the family behind it, so the next tap is never kept waiting on
+// the last one's round trip. They ride the same queue as a tap made with no signal, which already
+// draws itself on the screen (pendingProgress) and replays against whatever the plan has become.
+// Adding things stays a plain save: the screens that add read the new item back from the answer.
+const INSTANT_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','parkRide','parkWant','foodTried','foodRating','phraseSeen','factSeen','gameScore',
+ 'todoStatus','packStatus','packDismiss','shortlistStatus','shortlistRating','spendBought','stepRating','dayRating','proposalVote','proposalMust','huntRate','huntRank','huntTried','expressPick','expressUsed','sumoPredict','sumoResult'];
 // Where the app opens. The address wins, then the place this phone was last looking — unless
 // that day is behind us, in which case the phone was put down overnight and Home should open on
 // today, not on last night's hotel. A stop restored this way is checked once the plan arrives:
@@ -207,7 +214,7 @@ function App(){
  // Whose day the screen follows on a split: null is your own, '' is everyone, or a name. Changing
  // it lets go of the stop being looked at, which may not be on the day being switched to.
  const [lensChoice,setLensChoice]=useState(null),follow=p=>{setLensChoice(p);setSelected(null);};
- const [updateReady,setUpdateReady]=useState(false),[modal,setModalState]=useState(null),[busy,setBusy]=useState(false),[online,setOnline]=useState(navigator.onLine),[now,setNow]=useState(new Date()),[queue,setQueue]=useState(stored('japan.queue',[])),[conflict,setConflict]=useState(false),[syncedAt,setSyncedAt]=useState(null),[syncing,setSyncing]=useState(false);
+ const [updateReady,setUpdateReady]=useState(false),[modal,setModalState]=useState(null),[busy,setBusy]=useState(false),[online,setOnline]=useState(navigator.onLine),[now,setNow]=useState(new Date()),[queue,setQueue]=useState(()=>stored('japan.queue',[]).map(({live,...q})=>q)),[conflict,setConflict]=useState(false),[sending,setSending]=useState(false),[syncedAt,setSyncedAt]=useState(null),[syncing,setSyncing]=useState(false);
  // One speaking voice for the whole screen, handed to whatever on it can be read out, so the
  // fact on a step card reads aloud for Nate the same way the pop-up does and two of them can
  // never talk over each other.
@@ -255,8 +262,8 @@ function App(){
  }
  const directions=(place,mode='transit')=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(target)+'&travelmode='+mode;};
  const maps=place=>{const target=destinationFor(state||{},place);return isMapLink(target)?target:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(target);};
- const envRef=useRef(envelope),queueRef=useRef(queue),working=useRef(false),touch=useRef(null),guideFlip=useRef(null),noteShown=useRef(''),stepFactShown=useRef(new Set()),landed=useRef(false);
- envRef.current=envelope;queueRef.current=queue;
+ const envRef=useRef(envelope),queueRef=useRef(queue),working=useRef(false),touch=useRef(null),guideFlip=useRef(null),noteShown=useRef(''),stepFactShown=useRef(new Set()),landed=useRef(false),conflictRef=useRef(false);
+ envRef.current=envelope;queueRef.current=queue;conflictRef.current=conflict;
  function notice(s){setToast(s);}
  // Every envelope accepted here came over the network a moment ago, so accepting one is also the
  // proof that the phone is back in touch: the Offline line clears on its own, without waiting for
@@ -380,10 +387,12 @@ function App(){
   const kept=result.state?.bin?.find(e=>e.item?.id===op.id);
   setToast({text,undo:async()=>{if(await mutate(kept?{type:'binRestore',id:kept.id}:restore))notice(kept?'Back exactly as it was.':'Back on the list.');}});
  }
- async function flush(force=false){
+ // A quiet flush is the one that follows a tap: it starts from the plan already on the phone
+ // rather than reading it again first, and says nothing unless something could not be saved.
+ async function flush(force=false,quiet=false){
   if(working.current||!queueRef.current.length||!navigator.onLine)return;
-  working.current=true;
-  try{let e=await request('state');
+  working.current=true;if(quiet)setSending(true);
+  try{let e=quiet?envRef.current:await request('state');
    // The queue only ever holds things that happened — ticks, ratings, notes, purchases — and
    // they stay true whatever else the family changed while this phone was out of signal, so a
    // plan that has moved on is replayed against, not stopped at. A single stale revision on the
@@ -402,8 +411,12 @@ function App(){
     }
    }
    setConflict(false);
+   if(quiet&&!dropped.length&&!moved)return;
    notice(dropped.length?`Synced, except ${dropped.length} update${dropped.length>1?'s':''} the family plan had moved past: ${dropped[0]}`:moved?'Your updates are synced. The family changed the plan while you were out of signal, so have a look at today.':'Your updates are synced with the family.');
-  }catch(e){if(e.status===409)setConflict(true);notice(e.message);}finally{working.current=false;}
+  }catch(e){if(e.status===409){setConflict(true);conflictRef.current=true;}if(quiet&&!e.status){setOnline(false);saveQueue(queueRef.current.map(({live,...q})=>q));notice('Progress saved on this phone; waiting to sync.');}else notice(e.message);}
+  finally{working.current=false;setSending(false);
+   // A tap made while this one was finishing its last answer goes now, not in fifteen seconds.
+   if(quiet&&queueRef.current.length&&navigator.onLine&&!conflictRef.current)setTimeout(()=>flush(false,true),0);}
  }
  // The plan is confirmed every fifteen seconds whatever the bar says, because the bar can only
  // report the last thing it heard: a phone that opened from its saved copy in a tunnel has no
@@ -413,8 +426,17 @@ function App(){
  // fifteen seconds but now, that the morning's ticks have gone through.
  async function syncNow(){if(working.current||syncing)return;setSyncing(true);try{if(queueRef.current.length)await flush();else await refresh();}catch(e){notice(e.message);}finally{setSyncing(false);}}
  async function mutate(operation){
-  if(working.current){notice('Finishing the previous change. Try again in a moment.');return false;}
   operation={...operation,operationId:crypto.randomUUID()};
+  if(INSTANT_OPS.includes(operation.type)&&!conflictRef.current){
+   operation.at=operation.at||new Date().toISOString();
+   const live=navigator.onLine;
+   saveQueue([...queueRef.current,{revision:envRef.current.revision,operation,live}]);
+   if(live)flush(false,true);else notice('Progress saved on this phone. It will sync when connected.');
+   return true;
+  }
+  // A change to the plan itself waits for the taps ahead of it to land, rather than being turned away.
+  if(navigator.onLine&&queueRef.current.length&&!conflictRef.current){while(working.current)await new Promise(r=>setTimeout(r,100));await flush(false,true);}
+  if(working.current){notice('Finishing the previous change. Try again in a moment.');return false;}
   const rev=envRef.current.revision;
   if(!navigator.onLine||queueRef.current.length){
    if(!OFFLINE_OPS.includes(operation.type)){notice('Reconnect and sync pending updates before editing the plan.');return false;}
@@ -710,7 +732,7 @@ function App(){
   <header className="topbar"><a className="brand" href="/" onClick={e=>{e.preventDefault();setTab('today');}}><span className="brand-mark" aria-hidden="true">✿</span><span>Japan <b>2026</b><small>THE PASFIELD FAMILY</small></span></a><div className="top-actions">{noteForMe&&<button className="icon thank-you-button" aria-label={`A note from ${NOTE_BOYS.includes(user.name)?'Dad':THANK_YOU_FROM}`} onClick={()=>setModal({type:'thankyou',note:noteForMe})}><Heart size={20}/>{!noteRead&&<i/>}</button>}<button className="icon" aria-label="Search everything" onClick={()=>go('search')}><Search size={20}/></button><button className="icon notification-button" aria-label="Family updates" onClick={()=>go('updates')}><Bell size={20}/>{state.alerts.some(a=>!a.seenBy?.[user.name])&&<i/>}</button>{/* Read aloud for the boys; on a parent's phone the top edge keeps to search, updates, the clock and the family. */}{!parent&&<SpeakRules id={`page-${tab}`} text={pageRule(tab)} label="What is this page?" compact/>}{leave?<button type="button" className={`local-clock leave-chip${leave.minutes<=0?' now':''}`} aria-label={`${leave.minutes>0?`Leave in ${spanWords(leave.minutes)}`:'Leave now'} for ${leave.fixed.title} at ${leave.fixed.time}. Open it.`} onClick={()=>selectStep(leave.fixed)}><Clock size={14}/>{leave.minutes>0?spanWords(leave.minutes):'Now'}<small>LEAVE {japanClock(leave.departure)}</small></button>:<span className="local-clock"><Clock size={14}/>{japanClock(now)}<small>JAPAN</small></span>}<button className="avatar" aria-label="Family settings" onClick={()=>setModal({type:'family'})}><MascotBadge state={state} person={user.name} size={38}/></button></div></header>
   {/* On Home, the line that only says all is well gives its room to the step card; offline, a
       queue or a local preview still say so there as everywhere else. */}
-  <div className={`syncbar${tab==='today'&&online&&!user.demo&&!queue.length?' quiet':''}`}>{!online?<><WifiOff size={14}/> Offline · saved on this phone</>:user.demo?<><AlertCircle size={14}/> Local preview · family sharing needs setup</>:queue.length?<><Clock size={14}/>{queue.length} update{queue.length!==1?'s':''} waiting to sync</>:<><Cloud size={14}/> Shared family plan <span>Signed in as {user.name}</span></>}{!user.demo&&<button type="button" className="sync-now" disabled={syncing} onClick={syncNow}>{syncing?'Syncing…':'Sync now'}{syncedAt&&!syncing&&<small>{japanClock(new Date(syncedAt))}</small>}</button>}</div>
+  <div className={`syncbar${tab==='today'&&online&&!user.demo&&(!queue.length||sending)?' quiet':''}`}>{!online?<><WifiOff size={14}/> Offline · saved on this phone</>:user.demo?<><AlertCircle size={14}/> Local preview · family sharing needs setup</>:queue.length&&!sending?<><Clock size={14}/>{queue.length} update{queue.length!==1?'s':''} waiting to sync</>:<><Cloud size={14}/> Shared family plan <span>Signed in as {user.name}</span></>}{!user.demo&&<button type="button" className="sync-now" disabled={syncing} onClick={syncNow}>{syncing?'Syncing…':'Sync now'}{syncedAt&&!syncing&&<small>{japanClock(new Date(syncedAt))}</small>}</button>}</div>
   {user.expiresAt&&new Date(user.expiresAt)-now<14*86400000&&<div className="expiry-note"><AlertCircle size={14}/><span>Your link to the family plan ends {fmtDay(japanDate(new Date(user.expiresAt)))}. {parent?'Make a fresh link in Family settings before then.':'Ask a parent for a fresh link before then.'}</span></div>}
   {conflict&&<div className="conflict"><strong>The family changed the plan while you were offline.</strong><p>Your {queue.length} progress update(s) are still saved. Review them against the latest itinerary.</p><div className="row"><Button onClick={()=>setModal({type:'pending'})}>Review updates</Button><Button onClick={()=>{if(confirm(`Throw away ${queue.length} unsynced update${queue.length===1?'':'s'}? They cannot be brought back.`)){saveQueue([]);setConflict(false);}}}>Discard my pending updates</Button></div></div>}
   <HandedBanner user={user} handed={handed} takeBack={takeBack}/>
