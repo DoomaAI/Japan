@@ -1872,12 +1872,15 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
  assert.equal(swipeVertical({x:0,y:200},{x:SWIPE_UP.across+1,y:200-SWIPE_UP.up-1}),0,'a diagonal is a scroll');
  assert.equal(swipeVertical(null,{x:0,y:0}),0);
  assert.match(nav,/const way=swipeVertical\(from,/);
- assert.match(nav,/if\(way===1&&!moreOn\)go\('more'\);/);
+ // Two steps up, like a map's sheet: favourites over the screen you are on, then everything.
+ assert.match(nav,/if\(way===1&&!moreOn\)sheet\?allScreens\(\):setSheet\(true\);/);
+ assert.match(nav,/else if\(way===-1&&sheet\)setSheet\(false\);/);
  assert.match(nav,/else if\(way===-1&&moreOn\)go\(bar\[0\]\);/);
  // A gesture nobody can see is a gesture nobody uses, and it is never the only way through:
- // the handle is a button, and the More button beside it still does the same job.
+ // the handle is a button for the favourites, and More is still the whole menu.
  assert.match(nav,/className="nav-grip"/);
- assert.match(nav,/aria-label=\{moreOn\?'Close the menu':'Open the whole menu'\}/);
+ assert.match(nav,/aria-label=\{moreOn\?'Close the menu':sheet\?'Close favourites':'Open favourites'\}/);
+ assert.match(nav,/onClick=\{\(\)=>moreOn\?go\(bar\[0\]\):setSheet\(!sheet\)\}/);
  assert.match(nav,/className=\{`nav-more\$\{moreOn\?' active':''\}`\}/);
  assert.match(css,/\.bottom-nav \.nav-grip\{position:absolute/);
  // The bar is the one this person arranged, and so is what More has left to show.
@@ -1984,7 +1987,7 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  for(const id of Object.keys(PAGES))assert.ok(icons.has(id),`${id} has no icon, so its row cannot render`);
  // And a page added tomorrow without one falls back rather than blanking the menu.
  assert.match(nav,/export const iconFor=id=>ICONS\[id\]\|\|Circle;/);
- assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,2,'the bar and every More card, favourites included, go through the fallback');
+ assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,5,'the bar, every More card and every card in the favourites sheet go through the fallback');
  assert.ok(!/const Icon=ICONS\[id\]/.test(nav),'nothing indexes ICONS directly any more');
  // Every button, Home and More included, gets the same cell: the bar's width shared by the
  // number of buttons, capped at 150px and never below a thumb; past that the tabs scroll like
@@ -10517,6 +10520,39 @@ test('favourites start as Right now, are starred in and out, and are cleaned on 
  assert.match(nav,/setOpen\(`more\.\$\{title\}`,!o\[title\]\)/);
  assert.match(nav,/aria-expanded=\{!shut\}/);
  assert.match(nav,/const shut=!\(open\[title\]\?\?false\)&&!editing/,'choosing favourites opens every section so any card can be starred');
+});
+
+test('the favourites sheet: one swipe up the bar, as tall as its rows, and the same list as More',async()=>{
+ const {favRows,FAV_COLS,FAV_MAX,pickerSections,menuOrder,PAGES}=await import('../src/nav-data.js');
+ const damien={name:'Damien',role:'parent'},nate={name:'Nate',role:'child'};
+ // Sized by what is in it: the default six are two rows, a full dozen three, and empty is one.
+ assert.equal(FAV_COLS,4);
+ assert.equal(favRows(0),1);assert.equal(favRows(4),1);assert.equal(favRows(6),2);assert.equal(favRows(FAV_MAX),3);
+ // Choosing lists every screen this person can open, the bar's included, once each.
+ const all=pickerSections(damien,null).flatMap(([,ids])=>ids);
+ assert.deepEqual([...new Set(all)],all,'nothing listed twice');
+ assert.ok(all.includes('money')&&all.includes('glance'),'screens on the bar can be chosen too');
+ assert.deepEqual([...all].sort(),menuOrder(damien).filter(id=>id!=='today').sort(),'everything but Home, which is always on the bar');
+ assert.ok(!pickerSections(nate,null).flatMap(([,ids])=>ids).includes('ledger'),'nor anything this person cannot open');
+ // Finding narrows by name or by what it is for, and drops empty sections.
+ const yen=pickerSections(damien,null,'  YEN ');
+ assert.ok(yen.length>0&&yen.every(([,ids])=>ids.every(id=>`${PAGES[id].label} ${PAGES[id].note}`.toLowerCase().includes('yen'))));
+ assert.deepEqual(pickerSections(damien,null,'zzzz-nothing'),[]);
+ const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ // One list: the sheet reads and writes the same key More does.
+ assert.equal((nav.match(/useStored\('japan\.more\.favourites',null\)/g)||[]).length,2);
+ assert.match(nav,/const toggle=id=>setSaved\(favourites\(user,toggleFavourite\(user,saved,id\)\)\);/);
+ // Never over More, and put away whenever the screen changes.
+ assert.match(nav,/\{sheet&&!moreOn&&<FavSheet /);
+ assert.match(nav,/useEffect\(\(\)=>\{setSheet\(false\);\},\[tab\]\);/);
+ // Each screen in the chooser says whether it is chosen, and a full list turns new ones away.
+ assert.match(nav,/className=\{`fav-pick\$\{on\?' on':''\}`\} aria-pressed=\{on\} disabled=\{!on&&full\}/);
+ assert.match(nav,/\{favs\.length\} of \{FAV_MAX\}/);
+ // And down on More, a favourite is marked in its section.
+ assert.match(nav,/\{!inFavs&&on&&!editing&&<Star className="more-fav-mark"/);
+ assert.match(css,/\.fav-sheet-grid\{display:grid;grid-template-columns:repeat\(4,1fr\);grid-template-rows:repeat\(var\(--fav-rows,1\)/);
+ assert.match(css,/\.fav-find\{width:100%;font-size:16px/,'16px, or iOS zooms the page when it is tapped');
 });
 
 test('favourites are edited like a home screen: hold to wobble, drag to reorder, drag in to add and out to remove',async()=>{

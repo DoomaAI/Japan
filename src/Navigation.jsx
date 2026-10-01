@@ -1,6 +1,6 @@
-import React,{useEffect,useRef,useState} from 'react';
-import {LocateFixed,Clapperboard,Printer,Smartphone,BookLock,PlaneLanding,AlarmClock,MailQuestion,BookImage,Stamp,Crown,GalleryHorizontalEnd,History,Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid,ChevronDown,Star,Check,Plus,Minus,Store,Footprints,DoorOpen,PlaneTakeoff,SearchX,Repeat,Hourglass,GraduationCap} from 'lucide-react';
-import {PAGES,primaryNav,moreSections,navActive,hiddenNav,favourites,toggleFavourite,dropFavourite,FAV_MAX} from './nav-data.js';
+import React,{useCallback,useEffect,useRef,useState} from 'react';
+import {LocateFixed,Clapperboard,Printer,Smartphone,BookLock,PlaneLanding,AlarmClock,MailQuestion,BookImage,Stamp,Crown,GalleryHorizontalEnd,History,Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,MessageCircleQuestion,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid,ChevronDown,Star,Check,Plus,Minus,Store,Footprints,DoorOpen,PlaneTakeoff,SearchX,Repeat,Hourglass,GraduationCap,X} from 'lucide-react';
+import {PAGES,primaryNav,moreSections,navActive,hiddenNav,favourites,toggleFavourite,dropFavourite,FAV_MAX,favRows,pickerSections} from './nav-data.js';
 import {useStored} from './stored.js';
 import {isOpen,setOpen} from './fold.js';
 import {useWobble} from './wobble.js';
@@ -85,11 +85,28 @@ export function BottomNav({tab,user,go,unread,prefs,setPrefs}){
   soon();
   return ()=>{for(const [on,type] of events)on.removeEventListener(type,soon);document.removeEventListener('focusout',settle);if(frame)cancelAnimationFrame(frame);};
  },[]);
- // Up the bar for everything else, down to come back. The bar is already a sideways swipe
- // between the screens on it, so up and down are the two directions it was not using, and
- // they are the two a thumb resting there can do without looking. The More button does the
- // same thing for anybody who would rather press something.
- const drag=useRef(null);
+ // Up the bar for your favourites, up again for everything, down to come back. The bar is
+ // already a sideways swipe between the screens on it, so up and down are the two directions it
+ // was not using, and they are the two a thumb resting there can do without looking. The handle
+ // and the More button were both opening More, two controls for one job; now the handle opens
+ // the favourites over the screen you are on, and More is still the whole menu.
+ const drag=useRef(null),[sheet,setSheet]=useState(false);
+ const closeSheet=useCallback(()=>setSheet(false),[]);
+ const allScreens=useCallback(()=>{setSheet(false);go('more');},[go]);
+ // Wherever you end up, the sheet is done with.
+ useEffect(()=>{setSheet(false);},[tab]);
+ // The sheet sits on top of the bar, so it needs to know how tall the bar is today: the
+ // safe area, the wobble note and the text size all change it.
+ const [navH,setNavH]=useState(0);
+ useEffect(()=>{
+  const box=nav.current;
+  if(!box)return;
+  const mark=()=>setNavH(box.offsetHeight);
+  mark();
+  const watch=window.ResizeObserver&&new ResizeObserver(mark);
+  watch?.observe(box);
+  return ()=>watch?.disconnect();
+ },[]);
  const tab_=(id,extra)=>{
   const Icon=iconFor(id),active=navActive(tab,id,user,prefs);
   const {held,...item}=extra?{}:w.item(id);
@@ -97,7 +114,9 @@ export function BottomNav({tab,user,go,unread,prefs,setPrefs}){
    <Icon size={22}/><span>{PAGES[id].label}</span>
   </button>;
  };
- return <nav className="bottom-nav" aria-label="Main navigation" ref={nav}
+ return <>
+ {sheet&&!moreOn&&<FavSheet user={user} prefs={prefs} tab={tab} go={go} close={closeSheet} all={allScreens} bottom={navH} drop={drop}/>}
+ <nav className="bottom-nav" aria-label="Main navigation" ref={nav}
   style={{'--nav-n':bar.length+1,...drop?{transform:`translate(-50%,${drop}px)`}:{}}}
   onTouchStart={e=>{drag.current=w.editing?null:{x:e.touches[0].clientX,y:e.touches[0].clientY};}}
   onTouchEnd={e=>{
@@ -105,13 +124,15 @@ export function BottomNav({tab,user,go,unread,prefs,setPrefs}){
    const from=drag.current;drag.current=null;
    if(!from||w.editing)return;
    const way=swipeVertical(from,{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY});
-   if(way===1&&!moreOn)go('more');
+   // Two steps up, like a map's sheet: favourites first, then the whole menu.
+   if(way===1&&!moreOn)sheet?allScreens():setSheet(true);
+   else if(way===-1&&sheet)setSheet(false);
    else if(way===-1&&moreOn)go(bar[0]);
   }}>
   {/* Something to aim at, and the only sign on the screen that the bar does anything but sit
       there. It is drawn rather than written because it is under the thumb at all times. */}
-  <button type="button" className="nav-grip" aria-label={moreOn?'Close the menu':'Open the whole menu'}
-   onClick={()=>go(moreOn?bar[0]:'more')}><ChevronUp size={14}/></button>
+  <button type="button" className="nav-grip" aria-label={moreOn?'Close the menu':sheet?'Close favourites':'Open favourites'}
+   aria-expanded={moreOn?undefined:sheet} onClick={()=>moreOn?go(bar[0]):setSheet(!sheet)}>{sheet?<ChevronDown size={14}/>:<ChevronUp size={14}/>}</button>
   {tab_(pinned,'nav-home')}
   <div className="nav-tabs" data-swipe={swipe||undefined} data-wobbling={w.editing||undefined} {...w.rowProps}>
    {w.order.map(id=>tab_(id))}
@@ -124,7 +145,82 @@ export function BottomNav({tab,user,go,unread,prefs,setPrefs}){
    <small>Drag the shortcuts into the order you want. Home and More stay at the ends.</small>
    <button type="button" onClick={w.finish}>Done</button>
   </div>}
- </nav>;
+ </nav>
+ </>;
+}
+// The favourites, over whatever screen you are on, so a look at the yen or a phrase does not
+// lose your place. It reads the list fresh each time it opens, and it is never open at the same
+// time as More (the only other screen that changes the list), so the two cannot disagree.
+//
+// Choosing is in the sheet too, because a list you can only change on another screen is a list
+// nobody changes. It opens out to every screen, by section, each one plainly ticked or not,
+// with the chosen ones along the top in their order and a count against the cap.
+function FavSheet({user,prefs,tab,go,close,all,bottom,drop}){
+ const [saved,setSaved]=useStored('japan.more.favourites',null);
+ const favs=favourites(user,saved),chosen=new Set(favs),full=favs.length>=FAV_MAX;
+ const [choosing,setChoosing]=useState(false),[find,setFind]=useState('');
+ const toggle=id=>setSaved(favourites(user,toggleFavourite(user,saved,id)));
+ const sections=choosing?pickerSections(user,prefs,find):[];
+ const sheet=useRef(null),drag=useRef(null);
+ useEffect(()=>{
+  const key=e=>{if(e.key==='Escape')choosing?setChoosing(false):close();};
+  document.addEventListener('keydown',key);
+  return ()=>document.removeEventListener('keydown',key);
+ },[choosing,close]);
+ useEffect(()=>{sheet.current?.querySelector('button')?.focus({preventScroll:true});},[choosing]);
+ const open=id=>{close();go(id);};
+ // The top of the sheet swipes like the bar: up for the whole menu, down to put it away (or,
+ // while choosing, back to the favourites). The list underneath is left to scroll.
+ const head={
+  onTouchStart:e=>{drag.current={x:e.touches[0].clientX,y:e.touches[0].clientY};},
+  onTouchEnd:e=>{
+   const from=drag.current;drag.current=null;
+   const way=swipeVertical(from,{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY});
+   if(way===1&&!choosing)all();
+   else if(way===-1)choosing?setChoosing(false):close();
+  }
+ };
+ const style={bottom,'--fav-bottom':`${bottom}px`,'--fav-rows':favRows(favs.length),...drop?{transform:`translate(-50%,${drop}px)`}:{}};
+ return <>
+  <div className="fav-sheet-veil" aria-hidden="true" onClick={close}/>
+  <section ref={sheet} className={`fav-sheet${choosing?' choosing':''}`} style={style} role="dialog" aria-label={choosing?'Choose favourites':'Favourites'}>
+   <div className="fav-sheet-head" {...head}>
+    <span className="fav-sheet-grabber" aria-hidden="true"/>
+    <h2>{choosing?'Choose favourites':'Favourites'}</h2>
+    <small className={full?'full':undefined}>{favs.length} of {FAV_MAX}</small>
+    {choosing
+     ?<button type="button" className="fav-sheet-action primary" onClick={()=>{setChoosing(false);setFind('');}}><Check size={15}/>Done</button>
+     :<>
+      <button type="button" className="fav-sheet-action" onClick={()=>setChoosing(true)}><Star size={15}/>Choose</button>
+      <button type="button" className="fav-sheet-action" onClick={all}><LayoutGrid size={15}/>All screens</button>
+     </>}
+   </div>
+   {!choosing&&(favs.length
+    ?<nav className="fav-sheet-grid" aria-label="Favourites">{favs.map(id=>{const Icon=iconFor(id);
+     return <button type="button" key={id} className={`fav-tile${tab===id?' current':''}`} title={PAGES[id].note} onClick={()=>open(id)}>
+      <Icon size={22}/><span>{PAGES[id].label}</span>
+     </button>;})}</nav>
+    :<p className="fav-sheet-empty">Nothing here yet. <button type="button" onClick={()=>setChoosing(true)}>Choose up to {FAV_MAX} screens</button> to keep one swipe away.</p>)}
+   {choosing&&<div className="fav-sheet-body">
+    <div className="fav-chosen" aria-label="Chosen">
+     {favs.length?favs.map(id=>{const Icon=iconFor(id);
+      return <button type="button" key={id} className="fav-chip" aria-label={`Take ${PAGES[id].label} out of favourites`} onClick={()=>toggle(id)}>
+       <Icon size={15}/><span>{PAGES[id].label}</span><X size={14}/>
+      </button>;})
+      :<span className="fav-chosen-none">None chosen yet. Tap any screen below.</span>}
+    </div>
+    <p className="fav-sheet-hint">{full?`That’s all ${FAV_MAX}. Take one out to add another.`:'Tap a screen to add or remove it. Hold and drag on More to change the order.'}</p>
+    <input type="search" className="fav-find" placeholder="Find a screen" aria-label="Find a screen" value={find} onChange={e=>setFind(e.target.value)}/>
+    {sections.length?sections.map(([title,ids])=><section key={title} className="fav-pick-section">
+     <h3>{title}</h3>
+     <div className="fav-pick-grid">{ids.map(id=>{const Icon=iconFor(id),on=chosen.has(id);
+      return <button type="button" key={id} className={`fav-pick${on?' on':''}`} aria-pressed={on} disabled={!on&&full} onClick={()=>toggle(id)}>
+       <Icon size={18}/><span>{PAGES[id].label}</span><i aria-hidden="true">{on?<Check size={13}/>:<Plus size={13}/>}</i>
+      </button>;})}</div>
+    </section>):<p className="fav-sheet-hint">No screen called that.</p>}
+   </div>}
+  </section>
+ </>;
 }
 // More lists every screen the bar does not, as cards in folding sections so the whole menu fits
 // on one screen with everything shut. Favourites sit on top: the Right now six to begin with,
@@ -151,6 +247,9 @@ export function MorePage({user,tab,go,children,prefs,home}){
   return <div className={`more-card-wrap${lifted?' lifting':''}`} key={id} {...w.item(id,inFavs)}>
    <button type="button" className={`right-now-tile${tab===id?' current':''}${where&&!inFavs&&!bar&&!widget?' more-elsewhere':''}`} title={PAGES[id].note} onClick={()=>go(id)}>
     <Icon size={22}/><span>{PAGES[id].label}</span>
+    {/* Down in the sections a favourite is marked, so it is plain which are chosen without
+        scrolling back up to the row. */}
+    {!inFavs&&on&&!editing&&<Star className="more-fav-mark" size={13} aria-label="In favourites"/>}
     {where&&!inFavs&&(bar||widget)&&<span className="more-tags">{bar&&<span className="tag">Bar</span>}{widget&&<span className="tag">Home</span>}</span>}
    </button>
    {editing&&(inFavs
@@ -172,7 +271,7 @@ export function MorePage({user,tab,go,children,prefs,home}){
    </button>
   </div>
   {editing?<p className="more-hint">Drag to reorder. Drag a card up from below to add it, or out of the row to remove it.</p>
-   :shown.length>0&&<p className="more-hint">Press and hold any card to rearrange your favourites.</p>}
+   :shown.length>0&&<p className="more-hint">Press and hold any card to rearrange your favourites. They are also one swipe up the bar, from any screen.</p>}
   {shown.length||editing?<nav ref={w.row} className={`right-now${shown.length?'':' more-drop'}`} aria-label="Favourites" data-wobbling={editing||undefined}>{shown.length?shown.map(id=>card(id,true)):<span>Drag a card here</span>}</nav>
    :<p className="more-hint">No favourites yet. Press and hold any card below, then drag it up here.</p>}
   <button type="button" className={`more-where${where?' on':''}`} aria-pressed={where} onClick={()=>setWhere(!where)}>
