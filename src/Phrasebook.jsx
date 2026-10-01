@@ -81,7 +81,7 @@ function OurPhrases({state,user,mutate,busy,request,notice,config,q}){
     </div>
     {!config?.translator&&<p className="callout">Translation is not switched on for this trip yet. You can still type a phrase in yourself.</p>}
     {form&&<form key={form.id||form.en} onSubmit={save} className="phrase-draft">
-     {form.literal&&<p className="callout">This says, literally: <strong>{form.literal}</strong></p>}
+     {form.literal&&<p className="callout"><span>This says, literally: <strong>{form.literal}</strong></span></p>}
      <label>English<input name="en" defaultValue={form.en} required maxLength={200}/></label>
      <label>Japanese<input name="ja" defaultValue={form.ja} required maxLength={200} lang="ja" placeholder="窓から離れた席はありますか？"/></label>
      <div className="form-row">

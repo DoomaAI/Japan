@@ -17,7 +17,7 @@ export default function InvitationEditor({state,mutate,busy,request,notice}){
  const makeLink=async stop=>{setLinking(true);try{const r=await request('invite-link',stop?{stop:true}:{});setLink(r.url);notice(stop?'The invitation link is withdrawn. Anyone opening it now sees nothing.':'The invitation link is ready to send.');}catch(e){notice(e.message);}finally{setLinking(false);}};
  return <>
   <p className="eyebrow">THE INVITATION</p><h1>{state.plan?.title||'The plan'}</h1>
-  <p className="callout">{w.date?<>Guests will read: <strong>{w.title}</strong>{w.time?` at ${w.time}`:''} on {w.date}{w.place?`, ${w.place}`:''}{w.city?`, ${w.city}`:''}. That comes from the first fixed stop on the plan; change the stop to change it.</>:'Add a day and a stop to the plan first: the invitation reads the when and the where from them.'}</p>
+  <p className="callout">{w.date?<span>Guests will read: <strong>{w.title}</strong>{w.time?` at ${w.time}`:''} on {w.date}{w.place?`, ${w.place}`:''}{w.city?`, ${w.city}`:''}. That comes from the first fixed stop on the plan; change the stop to change it.</span>:'Add a day and a stop to the plan first: the invitation reads the when and the where from them.'}</p>
   <section className="settings-section">
    <h2>The words</h2>
    <label>From<input value={inv.hosts} maxLength={250} placeholder="Sam and Priya" onChange={e=>field('hosts',e.target.value)}/></label>
