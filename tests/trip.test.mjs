@@ -205,6 +205,12 @@ test('the bin on a stop asks before anything happens, and only a parent is offer
  assert.match(main,/aria-label="Edit, lock, move or remove this stop"/);
  assert.match(main,/onOption=\{s=>\{setModal\(null\);optionStop\(s\);\}\}/);
  assert.match(main,/className="row wrap step-quick"/);
+ // Adding a stop asks for the name and time first, with Save right under them; the rest of the
+ // form opens on one tap, and Save stays pinned in view however long the form runs.
+ assert.match(main,/const \[full,setFull\]=useState\(!!step\)/);
+ assert.match(main,/onClick=\{\(\)=>setFull\(true\)\}>Add more detail/);
+ assert.match(main,/className="row wrap step-save"/);
+ assert.match(css,/\.step-save\{position:sticky;bottom:0/);
  assert.match(main,/onSave\(\{type:'lock',id:step\.id,locked:!step\.locked\}\)/);
  assert.match(css,/\.to-options,\.remove-stop\{color:#8b7a76\}/);
  // Both ways in — the bin on the timeline and the button in the edit form — open the same
