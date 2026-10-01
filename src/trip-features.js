@@ -1,5 +1,6 @@
 import {isChild,defaultReading,ageOf} from './child-levels.js';
 import {nextTimeBrief} from './next-time.js';
+import {learnedBrief} from './taste-data.js';
 import {activeSteps,minutes,asClock,japanDate,japanClock,latestStart,windowText} from './timing.js';
 import {stepsFor} from './split.js';
 import {expressSeeded} from './park-data.js';
@@ -1206,6 +1207,8 @@ export function partyBrief(state){
  if(p.notes)lines.push(`Worth knowing: ${p.notes}`);
  // What the family wrote on stops for next time, so a suggestion carries the lesson.
  const lessons=nextTimeBrief(state);if(lessons)lines.push(lessons);
+ // And what the trip itself has shown so far, which outweighs what the profiles guessed.
+ const learned=learnedBrief(state);if(learned)lines.push(learned);
  return lines.join('\n');
 }
 // The planning board. Before anything is on a day, anyone in the family can put a place, a meal

@@ -2,6 +2,7 @@ import {BOYS,party,personProfile,interestLabel,paceLabel,partyInterests,partyLik
 import {allergyOf,allergenById} from './allergy-data.js';
 import {PRIORITIES,PRIORITY_LEVELS} from './decide-data.js';
 import {localBrief} from './local-data.js';
+import {learnedBrief} from './taste-data.js';
 import {isChild,levelsBrief} from './child-levels.js';
 // Each person's project: everything Claude knows about the trip besides the day-by-day plan,
 // built live from the trip as it stands every time somebody asks, and centred on whoever is
@@ -87,6 +88,7 @@ function feedback(state){
   const by=v=>Object.entries(p.votes||{}).filter(([,x])=>x===v).map(([n])=>n),musts=Object.keys(p.musts||{}).filter(n=>p.musts[n]);
   out.push(`- ${line(p.title)}${p.place?` · ${line(p.place)}`:''} — yes: ${by(1).join(', ')||'—'}; no: ${by(-1).join(', ')||'—'}${musts.length?`; a must for ${musts.join(', ')}`:''}`);
  }
+ const learned=learnedBrief(state);if(learned)out.push('',learned);
  out.push('','How the stops so far were rated:');
  const rated=Object.entries(state.stepReviews||{}).map(([id,e])=>({step:(state.steps||[]).find(s=>s.id===id),e}))
   .filter(r=>r.step&&Object.keys(r.e.ratings||{}).length).sort((a,b)=>a.step.day.localeCompare(b.step.day));

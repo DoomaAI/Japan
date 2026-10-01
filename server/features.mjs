@@ -15,6 +15,8 @@ import {LOCAL_EXPERIENCES,cleanLocalCheck} from '../src/local-data.js';
 import {ASK_LIMIT,SHARED_KEEP} from '../src/ask-thread.js';
 import {NOTE_STATUS,acceptedLine,applyDraft,cleanDraft} from '../src/day-check.js';
 import {movesOf} from '../src/move-data.js';
+import {findEtiquette} from '../src/etiquette-data.js';
+import {INSIDER_FIELDS,INSIDER_STATUS,INSIDER_MAX} from '../src/insider-data.js';
 import {addStep,validatePatch} from './model.mjs';
 import {PACK_CATEGORIES} from '../src/packing-data.js';
 import {EXPENSE_CATEGORIES,PAY_METHODS,PAYERS,expenseFields} from '../src/trip-features.js';
@@ -164,6 +166,28 @@ export function extraOperation(state,op,user,fail,now){
   if(typeof op.forwarding!=='boolean')fail('Say whether the bags are being forwarded.');
   state.moves={...(state.moves||{}),[op.date]:{...(state.moves?.[op.date]||{}),forwarding:op.forwarding}};
   return {summary:null,important:false,title:`${move.from} to ${move.to}: ${op.forwarding?'forwarding the bags':'taking the bags'}`};
+ }
+ // A stop's manners made into a mission for one of the boys, on that stop's day. Anyone can do
+ // it for themselves; a parent can do it for either. The same mission is not added twice.
+ if(op.type==='etiquetteMission'){
+  if(!isChild(state,op.person))fail('Missions are for the boys.');
+  if(!parent&&op.person!==user.name)fail('Choose your own missions.',403);
+  const rule=findEtiquette(op.rule);if(!rule?.mission)fail('That has no mission.',404);
+  const step=state.steps.find(s=>s.id===op.stepId);if(!step?.day)fail('Choose a stop on a day.',404);
+  const [title,notes,icon]=rule.mission;
+  if(state.challenges.some(c=>c.day===step.day&&c.title===title&&c.participants.includes(op.person)))fail('That mission is already on the day.');
+  state.challenges.push({id:randomUUID(),title,notes:`${notes} (${step.title})`,icon,diagram:'',day:step.day,participants:[op.person],completions:{},responses:{},skips:{},etiquette:rule.id,stepId:step.id,createdBy:user.name,createdAt:now});
+  return {summary:null,important:false,title};
+ }
+ // A parent reads an insider note over: corrects any line, passes it for everyone, or drops it.
+ if(op.type==='insiderReview'){
+  if(!parent)fail('A parent can make this change.',403);
+  const note=state.insider?.[op.stepId];if(!note)fail('There is no insider note for that stop.',404);
+  if(!INSIDER_STATUS.includes(op.status))fail('Pass it or dismiss it.');
+  const patch={};
+  for(const [key] of INSIDER_FIELDS)if(op.patch?.[key]!==undefined){const v=String(op.patch[key]??'').trim();if(v.length>INSIDER_MAX)fail('Keep each line short.');patch[key]=v;}
+  state.insider={...state.insider,[op.stepId]:{...note,...patch,status:op.status,reviewedBy:op.status==='draft'?null:user.name,reviewedAt:op.status==='draft'?null:now}};
+  return {summary:null,important:false,title:state.steps.find(s=>s.id===op.stepId)?.title||'Insider note'};
  }
  if(op.type==='dayCheckNote'){
   if(!parent)fail('A parent can make this change.',403);

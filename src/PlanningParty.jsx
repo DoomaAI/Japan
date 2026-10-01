@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import {tasteLines} from './taste-data.js';
 import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split,MapPin,LocateFixed,Tag,Star,Navigation,Globe,Ticket,ExternalLink,CalendarDays,Train} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import {INTERESTS,PACES,SUGGEST_KINDS,PROPOSAL_KINDS,MAX_LIKES,MAX_LIKE_LENGTH,cleanLikes,party,personProfile,partyInterests,partyLikes,profileFilled,interestLabel,paceLabel,recommendIdeas,proposals,sitOutStops,rejoinAt,BOYS,yenPerAud,yenToAud,photosOf,rankByParty,travelText,COORD_PLACES,ratingText,UNRATED_STARS,directionsLink,bookingSearchLink,EVENT_KINDS,tripAreas} from './trip-features.js';
@@ -75,6 +76,8 @@ export function TravelParty({state,user,mutate,busy}){
      {me.avoid&&<p><small><strong>Would rather avoid:</strong> {me.avoid}</small></p>}
      {me.dietary&&<p><small><strong>Food:</strong> {me.dietary}</small></p>}
      {me.notes&&<p><small>{me.notes}</small></p>}
+     {/* What the trip has shown so far, from their own stars and foods: it goes to every suggestion with the profile. */}
+     {tasteLines(state,name).length>0&&<p className="taste-learned"><small><strong>The trip so far:</strong> {tasteLines(state,name).join('; ')}.</small></p>}
      <PersonPhotos state={state} name={name}/>
     </>}
     {editing===name&&<form onSubmit={e=>savePerson(e,name)}>
