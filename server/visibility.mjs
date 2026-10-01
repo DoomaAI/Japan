@@ -1,3 +1,4 @@
+import {googleFrameView} from '../src/google-frame-data.js';
 import {frameKeyView} from '../src/frame-mail-data.js';
 import {thankYouForDay,thankYouList,THANK_YOU_FROM,THANK_YOU_FOR} from '../src/trip-features.js';
 import {japanDate} from '../src/timing.js';
@@ -42,6 +43,8 @@ export function visibleTrip(state,user,now=new Date()){
  // addresses are the grandparents', and go to the parents only.
  if(rest.frameKeys)rest.frameKeys=user?.role==='parent'?rest.frameKeys.map(frameKeyView):[];
  if(rest.frameEmails&&user?.role!=='parent')rest.frameEmails=[];
+ // A Nest Hub frame's Google token (sealed) and its link's secret go to no phone at all.
+ if(rest.googleFrames)rest.googleFrames=user?.role==='parent'?rest.googleFrames.map(googleFrameView):[];
  state=hideExpenses(hideTrackerLinks(hideInbox(hideUnthrownHands(rest,user),user),user),user);
  // The dinner quiz: a buzzer phone is not sent the right answer, or anyone else's, until the
  // question has closed. The host's phone has them; it is the one showing the scores.

@@ -39,6 +39,8 @@ import {isDeveloping,momentAccepts} from '../src/film-data.js';
 import {quizAction} from '../src/quiz-data.js';
 import {planHighlights,highlightsReady} from './highlights.mjs';
 import {mailFrames,recordSent,frameMailReady,frameMailFrom} from './frame-mail.mjs';
+import {googleReady,authUrl,exchangeCode,createAlbum,sealToken,sendGoogleFrames} from './google-photos.mjs';
+import {googleFrameView,recordGoogleSent,MAX_GOOGLE_FRAMES,CONNECT_DAYS,GOOGLE_ALBUM} from '../src/google-frame-data.js';
 import {postcardReady,sendPostcard,postcardProviderId} from './postcard.mjs';
 import {photosToFeed,recordFed,keyAccess,frameKeyView,cleanLabel,validFrameEmail,frameService,MAX_FRAME_KEYS,MAX_FRAME_EMAILS} from '../src/frame-mail-data.js';
 import {postcardJob} from '../src/postcard-providers.js';
@@ -51,6 +53,12 @@ import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailI
 const photoGps=g=>validPosition(g)&&Object.keys(g).length===2?roundedPosition(Number(g.lat),Number(g.lng),PHOTO_PLACES):null;
 const json=(res,data,status=200)=>{res.statusCode=status;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));};
 async function body(req,max=1000000){if(req.body&&typeof req.body==='object')return req.body;let s='';for await(const c of req){s+=c;if(Buffer.byteLength(s)>max)throw new AppError('Request too large.',413);}try{return JSON.parse(s||'{}');}catch{throw new AppError('Invalid request.');}}
+// A plain page for someone who is not in the app: the grandparents, back from signing in to Google.
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function page(res,title,text){
+ res.statusCode=200;res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('Cache-Control','no-store');
+ res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>body{font:18px/1.5 system-ui,sans-serif;margin:0;padding:2rem 1.2rem;background:#f6efe2;color:#1d2a2b}main{max-width:32rem;margin:0 auto}h1{font-size:1.6rem}</style></head><body><main><p>日 · Japan 2026</p><h1>${esc(title)}</h1><p>${esc(text)}</p></main></body></html>`);
+}
 const parent=u=>{if(u.role!=='parent')throw new AppError('A parent can do this.',403);};
 // A drawing each is fine; a hundred each is somebody holding the shutter down.
 const DRAWING_LIMIT=60;
@@ -153,6 +161,28 @@ export default async function handler(req,res){
    if(url.searchParams.get('format')==='json')return json(res,{photos:shots.map((p,i)=>({id:p.id,url:links[i],day:p.day,by:p.by}))});
    res.statusCode=200;res.setHeader('Content-Type','text/plain; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(links.join('\n'));return;
   }
+  // Google Photos for a Nest Hub: the grandparents open the link a parent sent, sign in with the
+  // Google account the Hub uses, and come back here. No session: the link's secret (kept only as a
+  // hash, for a week, used once) is what says which frame this is.
+  if(route==='google-connect'&&req.method==='GET'){
+   const c=url.searchParams.get('c')||'',{state}=await readTrip(),origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
+   const g=/^[a-f0-9]{64}$/.test(c)&&(state.googleFrames||[]).find(x=>x.nonce&&x.nonce===hash(c)&&Date.parse(x.nonceUntil)>Date.now());
+   if(!googleReady()||!g)return page(res,'This link has run out','Ask for a new one: it works for a week, once.');
+   res.statusCode=302;res.setHeader('Location',authUrl(origin,c));res.setHeader('Cache-Control','no-store');res.end();return;
+  }
+  if(route==='google-callback'&&req.method==='GET'){
+   const c=url.searchParams.get('state')||'',code=url.searchParams.get('code')||'',origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
+   const {state}=await readTrip(),g=/^[a-f0-9]{64}$/.test(c)&&(state.googleFrames||[]).find(x=>x.nonce&&x.nonce===hash(c)&&Date.parse(x.nonceUntil)>Date.now());
+   if(!g)return page(res,'This link has run out','Ask for a new one: it works for a week, once.');
+   if(!code)return page(res,'Not connected','Google was not given permission, so no photos can be added. Open the link again to try once more.');
+   try{
+    const t=await exchangeCode(code,origin);
+    if(!t.refresh_token)return page(res,'Nearly','Google did not hand over a lasting permission. Open the link again and choose Allow.');
+    const albumId=await createAlbum(t.access_token);
+    await updateTrip(next=>({...next,googleFrames:(next.googleFrames||[]).map(x=>x.id===g.id?{...x,status:'connected',token:sealToken(t.refresh_token,x.id),albumId,connectedAt:new Date().toISOString(),nonce:null,nonceUntil:null,sent:{}}:x)}));
+   }catch(e){return page(res,'Not connected',e.message||'Something went wrong with Google. Open the link again.');}
+   return page(res,'Connected',`An album called “${GOOGLE_ALBUM}” is now in your Google Photos, and the trip’s photos will arrive in it every evening. In the Google Home app, tap your Nest Hub → Settings → Photo Frame → Google Photos, and choose “${GOOGLE_ALBUM}”.`);
+  }
   // Kudos from home: a follower's clap, heart or wow on a photo or a stop, let in on the same
   // key as the follow-along view and nothing else. It can add or take back one reaction under a
   // first name; it cannot write a word. The trip's revision moves, so the phones see it on their
@@ -181,12 +211,14 @@ export default async function handler(req,res){
    // The mailed frames get the day's photos on the same nightly run, key or no key.
    const framed=await mailFrames((await readTrip()).state,japanDate()).catch(()=>[]);
    if(framed.length)await updateTrip(state=>recordSent(state,framed));
+   const googled=await sendGoogleFrames((await readTrip()).state,japanDate()).catch(()=>[]);
+   if(googled.length)await updateTrip(state=>recordGoogleSent(state,googled));
    if(!tomorrowReady())return json(res,{ok:true,ready:false,framed:framed.length});
    const {state}=await readTrip(),day=tomorrowOf(state);
    if(!day)return json(res,{ok:true,ready:true,day:null});
    return json(res,{ok:true,ready:true,...await nightly(state,day,undefined,{onCheck:check=>tellTomorrow(check,parentsOf(state)).catch(()=>0)})});
   }
-  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),tomorrow:tomorrowReady(),highlights:highlightsReady(),frameMail:frameMailReady(),postcard:postcardReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
+  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),tomorrow:tomorrowReady(),highlights:highlightsReady(),frameMail:frameMailReady(),googleFrames:googleReady(),postcard:postcardReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id,kind,role,household,max_uses,uses FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -280,6 +312,29 @@ export default async function handler(req,res){
     const saved=await readTrip();return json(res,{...visibleEnvelope(saved,user),sent:sent.length});
    }
    return json(res,visibleEnvelope(await readTrip(),user));
+  }
+  // A Nest Hub frame: made by a parent, who is handed the link to send the grandparents; the link
+  // can be made again (the old one stops), the frame taken off, or sent its photos now.
+  if(route==='google-frame'&&post){
+   parent(user);const origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
+   if(!googleReady())throw new AppError('Google Photos frames need GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the deployment settings.',501);
+   let link=null,problem='';
+   const fresh=()=>{const c=token();link=`${origin}/api/google-connect?c=${c}`;return {nonce:hash(c),nonceUntil:new Date(Date.now()+CONNECT_DAYS*86400000).toISOString()};};
+   if(b.action==='add'){
+    const label=cleanLabel(b.label);if(!label)throw new AppError('Name the frame, like “Grandma’s Nest Hub”.');
+    await updateTrip(state=>{const list=state.googleFrames||[];if(list.length>=MAX_GOOGLE_FRAMES){problem=`Up to ${MAX_GOOGLE_FRAMES} Google frames.`;return null;}
+     return {...state,googleFrames:[...list,{id:randomUUID(),label,status:'waiting',addedBy:user.name,addedAt:new Date().toISOString(),...fresh()}]};});
+   }else if(b.action==='link'){
+    await updateTrip(state=>(state.googleFrames||[]).some(g=>g.id===b.id)?{...state,googleFrames:state.googleFrames.map(g=>g.id===b.id?{...g,...fresh()}:g)}:(problem='That frame has been taken off.',null));
+   }else if(b.action==='remove'){
+    await updateTrip(state=>(state.googleFrames||[]).some(g=>g.id===b.id)?{...state,googleFrames:state.googleFrames.filter(g=>g.id!==b.id)}:null);
+   }else if(b.action==='send'){
+    const sent=await sendGoogleFrames((await readTrip()).state,japanDate(),{only:b.id||null});
+    if(sent.length)await updateTrip(state=>recordGoogleSent(state,sent));
+    return json(res,{...visibleEnvelope(await readTrip(),user),sent:sent.length});
+   }
+   if(problem)throw new AppError(problem,409);
+   return json(res,{...visibleEnvelope(await readTrip(),user),link});
   }
   // Posting a postcard from the app, once a provider is connected (server/postcard.mjs). Until
   // then this says so, and the Postcard button's share sheet does the sending.
