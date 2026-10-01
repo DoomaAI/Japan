@@ -9416,7 +9416,8 @@ test('every train and transfer has its route: line, direction, each station and 
   const step=seed.steps.find(s=>s.id===id);
   assert.ok(step?.day,id);
   for(const leg of legs){
-   if(leg.mode==='walk'||leg.mode==='stop'){assert.ok(leg.text&&leg.minutes>0,id);continue;}
+   // Walks, stops on the way and taxis are told in words, with no line to ride.
+   if(['walk','stop','taxi'].includes(leg.mode)){assert.ok(leg.text&&leg.minutes>0,id);continue;}
    const stops=legStops(leg);
    assert.ok(stops.length>=2&&leg.towards&&leg.exit&&leg.minutes>0&&LINES[leg.line].status.startsWith('https://'),`${id} ${leg.line}`);
    // Whose line it is, its sign colour and what to look for on the way.

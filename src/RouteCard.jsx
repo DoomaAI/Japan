@@ -85,7 +85,7 @@ const LEG_ICON={stop:Luggage,walk:Footprints,taxi:CarTaxiFront};
 const PLACEHOLDER={stop:'Pick up bags at the hotel',walk:'Walk to the station',taxi:'Taxi to the station'};
 function WaypointForm({step,busy,editing,onSave,onClose}){
  const base=ROUTES[step.id]||[],[kind,setKind]=useState(editing?.kind||'stop'),[text,setText]=useState(editing?.text||''),[after,setAfter]=useState(editing?editing.after:Math.min(1,base.length)),[minutes,setMinutes]=useState(String(editing?editing.minutes??'':15));
- const legName=l=>l.mode==='ride'?`${LINES[l.line].name} to ${l.to}`:l.mode==='stop'?'the stop on the way':'the walk';
+ const legName=l=>l.mode==='ride'?`${LINES[l.line].name} to ${l.to}`:l.mode==='stop'?'the stop on the way':l.mode==='taxi'?'the taxi':'the walk';
  const submit=async e=>{e.preventDefault();const m=parseInt(minutes,10);if(await onSave({kind,text:text.trim(),after,minutes:m>0?m:null}))onClose();};
  return <form className="route-waypoint-form" onSubmit={submit}>
   <fieldset className="route-waypoint-kinds"><legend>Add</legend>{Object.entries(WAYPOINT_KINDS).map(([k,label])=>{const Icon=LEG_ICON[k];return <label key={k} className={kind===k?'is-on':''}><input type="radio" name="waypoint-kind" value={k} checked={kind===k} onChange={()=>setKind(k)}/><Icon size={14}/>{k==='stop'?'A stop':label}</label>;})}</fieldset>
