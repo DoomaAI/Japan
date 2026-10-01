@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';
+import {cleanGuideName,GUIDE_VOICES} from '../src/guide-data.js';
 import {findRide} from '../src/park-data.js';
 import {MONEY} from '../src/money-data.js';
 import {FOOD,FOOD_KINDS} from '../src/food-data.js';
@@ -192,6 +193,14 @@ export function extraOperation(state,op,user,fail,now){
   for(const [key] of INSIDER_FIELDS)if(op.patch?.[key]!==undefined){const v=String(op.patch[key]??'').trim();if(v.length>INSIDER_MAX)fail('Keep each line short.');patch[key]=v;}
   state.insider={...state.insider,[op.stepId]:{...note,...patch,status:op.status,reviewedBy:op.status==='draft'?null:user.name,reviewedAt:op.status==='draft'?null:now}};
   return {summary:null,important:false,title:state.steps.find(s=>s.id===op.stepId)?.title||'Insider note'};
+ }
+ // The guide's name and voice, a parent's to set; every call that speaks to the family uses them.
+ if(op.type==='guideSet'){
+  if(!parent)fail('A parent can make this change.',403);
+  const name=cleanGuideName(op.name);if(!name)fail('Give the guide a name.');
+  if(!GUIDE_VOICES.some(v=>v.id===op.voice))fail('Choose one of the voices.');
+  state.guide={name,voice:op.voice,by:user.name,at:new Date().toISOString()};
+  return {summary:`The guide is now ${name}`,important:false,title:name};
  }
  // The ledger's shopping line a parent says is already on a list, so Flying home counts it once.
  if(op.type==='expenseCounted'){

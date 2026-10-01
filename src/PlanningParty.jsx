@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import GuideByline from './GuideByline.jsx';
 import {tasteLines} from './taste-data.js';
 import {Users,Sparkles,Search,Plus,Check,AlertCircle,Coins,Clock,X,Camera,ChevronRight,Heart,ThumbsUp,Split,MapPin,LocateFixed,Tag,Star,Navigation,Globe,Ticket,ExternalLink,CalendarDays,Train} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
@@ -330,6 +331,7 @@ export function Suggestions({state,user,day,request,mutate,busy,onLookUp,onAdded
   </div>}
   {result?.suggestions&&<div className="suggest-results">
    <h3>{result.instead?`${result.suggestions.length} things ${result.instead.who.join(' and ')} could do instead of ${result.instead.title}`:`${result.suggestions.length} ideas for ${result.forWhom?`${result.forWhom} in `:''}${result.where}`}</h3>
+   <GuideByline state={state} verb='Picked by'/>
    {result.note&&<p className="callout"><AlertCircle size={18}/>{result.note}</p>}
    <SuggestDeck key={round} items={ranked} keyOf={item=>item.draft.title} kept={added} busy={busy}
     onKeep={splitting?splitOff:item=>add(item,false)}

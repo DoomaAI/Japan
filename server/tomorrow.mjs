@@ -10,6 +10,7 @@
 // The two are separate calls, run side by side, each saved as it lands: the function has sixty
 // seconds, and a check that finishes should not be lost because the fallbacks ran long.
 import {AppError} from './model.mjs';
+import {withGuide} from '../src/guide-data.js';
 import {updateTrip} from './store.mjs';
 import {seenHosts,checkedLink} from './links.mjs';
 import {weatherLine} from './ask.mjs';
@@ -122,7 +123,7 @@ Leaving: ${move.from}${from?.address?`, ${from.address}`:''}${from?.japanese?` (
 Going to: ${move.to}${to?.address?`, ${to.address}`:''}${to?.japanese?` (${to.japanese})`:''} — ${to?.city||''}.
 The plan has check-out ${from?.checkOut||'not set'} and check-in ${to?.checkIn||'not set'}. ${forwardingPlanned(state,move)?'They plan to forward the cases the evening before.':'They have not said whether they will forward the cases.'}`;
  try{
-  const {input,hosts,searches}=await run(MOVE_SYSTEM,MOVE,ask,5);
+  const {input,hosts,searches}=await run(withGuide(MOVE_SYSTEM,state,japanDate()),MOVE,ask,5);
   const {value,error}=cleanMoveCheck({...input,sources:(input.sources||[]).map(s=>({title:s?.title,url:checkedLink(s?.url,hosts)}))});
   if(error)throw new AppError(error,502);
   return {check:value,at:now.toISOString(),searches};
@@ -177,7 +178,7 @@ const checkedSources=(notes,hosts)=>(Array.isArray(notes)?notes:[]).map(n=>({...
 export async function checkDay(state,day,now=new Date()){
  const brief=dayBrief(state,day);if(!brief)throw new AppError('Choose a trip day.');
  try{
-  const {input,hosts,searches}=await run(CHECK_SYSTEM,CHECK,`Check this day for them.\n\n${brief}`,6);
+  const {input,hosts,searches}=await run(withGuide(CHECK_SYSTEM,state,japanDate()),CHECK,`Check this day for them.\n\n${brief}`,6);
   return {check:cleanDayCheck({...input,notes:checkedSources(input.notes,hosts)},state,day,now.toISOString()),searches};
  }catch(e){throw apiError(e);}
 }
@@ -186,7 +187,7 @@ export async function planBDay(state,day,now=new Date()){
  try{
   const spare=spareIdeas(state,day);
   const list=spare.length?`\n\nTheir own list, not on any day yet or missed:\n${spare.map(x=>`  [${x.ref}] ${[x.title,x.place,x.note].filter(Boolean).join(' · ')}`).join('\n')}`:'';
-  const {input,searches}=await run(PLANB_SYSTEM,PLANB,`Make the Plan B for this day.\n\n${brief}${list}`,4);
+  const {input,searches}=await run(withGuide(PLANB_SYSTEM,state,japanDate()),PLANB,`Make the Plan B for this day.\n\n${brief}${list}`,4);
   return {planB:cleanPlanB(input,state,day,now.toISOString()),searches};
  }catch(e){throw apiError(e);}
 }
