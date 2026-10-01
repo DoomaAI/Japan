@@ -1902,7 +1902,7 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
  assert.match(nav,/\{tab_\(pinned,'nav-home'\)\}\s*<div className="nav-tabs"/);
  assert.match(nav,/useWobble\(\{ids:shortcuts,/);
  assert.match(nav,/\{w\.order\.map\(id=>tab_\(id\)\)\}/);
- assert.match(css,/\.bottom-nav \.nav-more,\.bottom-nav \.nav-home\{flex:0 0 auto/);
+ assert.match(css,/\.bottom-nav \.nav-more,\.bottom-nav \.nav-home\{flex:0 0 var\(--nav-cell\)/);
  const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
  assert.match(settings,/<BarShortcuts user=\{user\} prefs=\{navPrefs\} setPrefs=\{setNavPrefs\}\/>/);
  assert.match(main,/<Settings [^>]*navPrefs=\{navPrefs\} setNavPrefs=\{saveNav\} home=\{homePrefs\} setHome=\{saveHome\}/);
@@ -1986,11 +1986,14 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  assert.match(nav,/export const iconFor=id=>ICONS\[id\]\|\|Circle;/);
  assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,2,'the bar and every More card, favourites included, go through the fallback');
  assert.ok(!/const Icon=ICONS\[id\]/.test(nav),'nothing indexes ICONS directly any more');
- // The tabs share the bar while they fit, never shrink below their own label, and scroll
- // like the days along the top once there are more of them than fit.
- assert.match(css,/\.nav-tabs\{position:relative;flex:1;min-width:0;display:flex;[^}]*overflow-x:auto/);
- assert.match(css,/\.nav-tabs button\{flex:1 0 auto;min-width:68px;scroll-snap-align:center\}/);
- assert.match(css,/@media\(max-width:600px\)\{[^@]*\.nav-tabs button\{min-width:48px;/);
+ // Every button, Home and More included, gets the same cell: the bar's width shared by the
+ // number of buttons, capped at 150px and never below a thumb; past that the tabs scroll like
+ // the days along the top.
+ assert.match(nav,/'--nav-n':bar\.length\+1/);
+ assert.match(css,/\.bottom-nav\{[^}]*--nav-floor:64px;--nav-cell:max\(var\(--nav-floor\),min\(150px,calc\(100cqw \/ var\(--nav-n,7\)\)\)\)/);
+ assert.match(css,/\.nav-tabs\{position:relative;flex:0 1 calc\(var\(--nav-cell\) \* \(var\(--nav-n,7\) - 2\)\);min-width:0;display:flex;[^}]*overflow-x:auto/);
+ assert.match(css,/\.bottom-nav \.nav-tabs button\{flex:0 0 var\(--nav-cell\);[^}]*scroll-snap-align:center\}/);
+ assert.match(css,/@media\(max-width:600px\)\{[^@]*\.bottom-nav\{[^}]*--nav-floor:48px\}/);
  assert.match(css,/\.nav-tabs::-webkit-scrollbar\{display:none\}/);
  // Auto margins centre the strip while it fits and fall to zero when it overflows, so the
  // first tab stays reachable — which is exactly what justify-content:center would clip.
@@ -1999,7 +2002,7 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  // More is not in the scroller. It is the way to every other screen, so it is pinned to the
  // end of the bar and cannot be swiped off the edge the way the reported bug had it.
  assert.match(nav,/<\/div>\s*\n\s*<button className=\{`nav-more/,'More sits outside the scrolling strip');
- assert.match(css,/\.bottom-nav \.nav-more,\.bottom-nav \.nav-home\{flex:0 0 auto/);
+ assert.match(css,/\.bottom-nav \.nav-more,\.bottom-nav \.nav-home\{flex:0 0 var\(--nav-cell\)/);
  // A tab stopped by a hard edge reads as the end of the bar, so the side with more on it fades.
  assert.match(nav,/data-swipe=\{swipe\|\|undefined\}/);
  for(const side of ['end','start','both'])assert.match(css,new RegExp(`\\.nav-tabs\\[data-swipe="${side}"\\]\\{-webkit-mask-image:linear-gradient`),side);
@@ -2014,7 +2017,7 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  // the page. The bar follows the visual viewport down to the glass, and never up over the keyboard.
  assert.match(nav,/const bottom=box\.getBoundingClientRect\(\)\.bottom-current,seen=vv\.offsetTop\+vv\.height;/);
  assert.match(nav,/const gap=seen-bottom>1\?Math\.round\(seen-bottom\):0;/);
- assert.match(nav,/style=\{drop\?\{transform:`translate\(-50%,\$\{drop\}px\)`\}:undefined\}/);
+ assert.match(nav,/\.\.\.drop\?\{transform:`translate\(-50%,\$\{drop\}px\)`\}:\{\}/);
  assert.match(nav,/document\.addEventListener\('focusout',settle\)/);
 });
 
@@ -9416,7 +9419,8 @@ test('every train and transfer has its route: line, direction, each station and 
   const step=seed.steps.find(s=>s.id===id);
   assert.ok(step?.day,id);
   for(const leg of legs){
-   if(leg.mode==='walk'||leg.mode==='stop'){assert.ok(leg.text&&leg.minutes>0,id);continue;}
+   // Walks, stops on the way and taxis are told in words, with no line to ride.
+   if(['walk','stop','taxi'].includes(leg.mode)){assert.ok(leg.text&&leg.minutes>0,id);continue;}
    const stops=legStops(leg);
    assert.ok(stops.length>=2&&leg.towards&&leg.exit&&leg.minutes>0&&LINES[leg.line].status.startsWith('https://'),`${id} ${leg.line}`);
    // Whose line it is, its sign colour and what to look for on the way.
