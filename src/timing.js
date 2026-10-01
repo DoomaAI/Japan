@@ -25,6 +25,21 @@ export function zonedInstant(day,time,z=zone){
 }
 export const minutes=t=>t?Number(t.slice(0,2))*60+Number(t.slice(3)):null;
 export const asClock=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+// A timed entry: a booked time that opens a window rather than naming a minute. A Vacation
+// Package ride or a DPA return time lets us in at any point in the hour from the time printed on
+// it, so the stop is on time until the window closes. `windowMinutes` is that length (0 or none
+// for a time that is exact, like a restaurant table), and it counts from the booking time.
+export const WINDOW_CHOICES=[0,15,30,45,60,90,120];
+export const MAX_WINDOW=240;
+export const windowOf=step=>{
+ const n=Number(step?.windowMinutes)||0,from=step?.bookingTime||step?.time;
+ if(n<=0||!from)return null;
+ const start=minutes(from),end=Math.min(start+n,1439);
+ return {start,end,minutes:n,from:asClock(start),until:asClock(end)};
+};
+export const windowText=step=>{const w=windowOf(step);return w?`${w.from}–${w.until}`:'';};
+// The latest a stop can begin and still be on time: the end of its window, else its own time.
+export const latestStart=step=>windowOf(step)?.end??minutes(step?.bookingTime||step?.time);
 // A group is either alternatives, where only the chosen option is on the day, or a split, where
 // every option is on the day because each is somebody's (see split.js).
 export const activeSteps=(state,day)=>state.steps.filter(s=>s.day===day&&(!s.group||state.groupModes?.[s.group]==='split'||!state.choices[s.group]||state.choices[s.group]===s.option)).sort((a,b)=>a.order-b.order);
@@ -40,7 +55,7 @@ export function scheduleProposal(steps,delta){
  for(const [i,s]of steps.entries()){
   if(!changed.has(s.id))continue;
   const next=steps.slice(i+1).find(n=>n.locked&&n.time&&!['done','skipped'].includes(n.status));
-  if(next&&minutes(changed.get(s.id))+(s.duration||0)>minutes(next.time))conflicts.push(`${s.title} may overlap ${next.title} at ${next.time}. Shorten or skip it first.`);
+  if(next&&minutes(changed.get(s.id))+(s.duration||0)>latestStart(next))conflicts.push(`${s.title} may overlap ${next.title} at ${windowText(next)||next.time}. Shorten or skip it first.`);
   const previous=steps.slice(0,i).reverse().find(n=>n.locked&&n.time&&n.status!=='skipped');
   if(previous&&minutes(changed.get(s.id))<minutes(previous.time)+(previous.duration||0))conflicts.push(`${s.title} would overlap or move before ${previous.title}. Keep it after the fixed activity.`);
  }
@@ -71,7 +86,7 @@ export function calendarFeed(state,origin=''){
    if(!s.locked||!s.time||s.status==='skipped')continue;
    const start=zonedInstant(s.day,s.time),end=new Date(+start+Math.max(s.duration||30,5)*60000),lead=(s.travelMinutes??20)+(s.arrivalBuffer??15);
    lines.push('BEGIN:VEVENT',`UID:${s.id}@pasfield-japan`,`DTSTAMP:${now}`,`DTSTART:${icsStamp(start)}`,`DTEND:${icsStamp(end)}`,`SUMMARY:${icsEsc(s.title)}`,`LOCATION:${icsEsc(s.place)}`,
-    `DESCRIPTION:${icsEsc(`Fixed booking. Leave by ${japanClock(new Date(+start-lead*60000))}.${s.notes?`\n${s.notes}`:''}`)}`,`URL:${origin}/?day=${s.day}&step=${s.id}`,
+    `DESCRIPTION:${icsEsc(`Fixed booking${windowOf(s)?`, entry window ${windowText(s)}`:''}. Leave by ${japanClock(new Date(+start-lead*60000))}.${s.notes?`\n${s.notes}`:''}`)}`,`URL:${origin}/?day=${s.day}&step=${s.id}`,
     'BEGIN:VALARM',`TRIGGER:-PT${lead}M`,'ACTION:DISPLAY',`DESCRIPTION:${icsEsc(`Leave now for ${s.title}`)}`,'END:VALARM',
     'BEGIN:VALARM','TRIGGER:-PT10M','ACTION:DISPLAY',`DESCRIPTION:${icsEsc(`${s.title} in 10 minutes`)}`,'END:VALARM','END:VEVENT');
   }

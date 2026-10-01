@@ -4,6 +4,7 @@ import {PARKS,THRILL,parkLands,openRides,ridePlanned} from './park-data.js';
 import {BOYS,riddenBy,wantedBy,isMustDo,heightCheck,parkProgress} from './trip-features.js';
 import {CardFacts,factAloudFor} from './FunFacts.jsx';
 import ExpressPass from './ExpressPass.jsx';
+import DpaLog from './DpaLog.jsx';
 import {factsForItem} from './fact-data.js';
 const mapSearch=(ride,park)=>`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${ride.name} ${park.name}`)}`;
 export default function ParkGuide({state,user,speak,openPage,park:initial,mutate,busy,open}){
@@ -42,6 +43,7 @@ export default function ParkGuide({state,user,speak,openPage,park:initial,mutate
   </section>
 
   <ExpressPass state={state} user={user} park={park} mutate={mutate} busy={busy}/>
+  <DpaLog state={state} user={user} park={park} mutate={mutate} busy={busy}/>
 
   <section className="park-heights">
    <div className="section-heading"><h3><Ruler size={16}/> How tall are the boys?</h3>{parent&&<button onClick={()=>setEditHeights(v=>!v)}>{editHeights?'Cancel':'Set heights'}</button>}</div>

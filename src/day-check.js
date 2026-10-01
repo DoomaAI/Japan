@@ -6,7 +6,7 @@
 //
 // Every shape here is cleaned the same way on the server, where it is written, and on the phone,
 // where it is drawn, so a stored check from an older version never draws something half-formed.
-import {activeSteps,minutes} from './timing.js';
+import {activeSteps,minutes,latestStart,windowText} from './timing.js';
 const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 const https=v=>{try{const u=new URL(String(v||'').trim());return u.protocol==='https:'&&!u.username&&!u.password?u.href.slice(0,500):'';}catch{return '';}};
 const isClock=v=>typeof v==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(v);
@@ -200,8 +200,10 @@ export function draftPreview(state,draft){
   for(const other of activeSteps(state,s.day)){
    if(other.id===id||gone.has(other.id)||moved.has(other.id)||other.status==='skipped'||!other.time)continue;
    if(!(other.locked||other.bookingTime))continue;
+   // A timed entry can be taken any time in its window, so a stop only runs into it when it
+   // leaves no room either before the window closes or after the earliest finish.
    const o=minutes(other.bookingTime||other.time),oe=o+(other.duration||0);
-   if(start<oe&&o<end)conflicts.push(`${s.title} at ${s.time} would run into ${other.title} (booked for ${other.bookingTime||other.time}).`);
+   if(start<oe&&latestStart(other)<end)conflicts.push(`${s.title} at ${s.time} would run into ${other.title} (${windowText(other)?`entry window ${windowText(other)}`:`booked for ${other.bookingTime||other.time}`}).`);
   }
   for(const [otherId,t] of moved){
    if(otherId<=id||t.day!==s.day||!t.time)continue;
