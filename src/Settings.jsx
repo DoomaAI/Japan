@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import HowThisWorks from './HowThisWorks.jsx';
-import {MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv} from 'lucide-react';
+import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
 import {BarShortcuts} from './Personalise.jsx';
@@ -12,7 +12,7 @@ import {HandOver} from './HandOver.jsx';
 import {frameUrl} from './frame-data.js';
 import {PLAN_TYPES,planOf,modulesOff,validTimeZone} from './plan-context.js';
 import {PAGES} from './nav-data.js';
-const ICONS={dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
+const ICONS={voiceAssistant:Sparkles,dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
 // off is not knowing what else goes with it. Nothing here is lost by turning it off: the
@@ -199,6 +199,10 @@ export default function Settings({user,state,mutate,busy,hand,settings,change,na
   <section className="settings-section">
    <h2>What opens on its own</h2>
    {SETTINGS.filter(s=>!s.group).map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
+  </section>
+  <section className="settings-section">
+   <h2>AI assistant</h2>
+   {SETTINGS.filter(s=>s.group==='assistant').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
   <section className="settings-section">
    <h2>Voice notes</h2>

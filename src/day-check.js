@@ -127,15 +127,36 @@ export const planBFor=(state,day,stepId)=>(planBOf(state,day)?.stops||[]).filter
 // hand back the move itself, as a draft a parent looks over and applies in one tap. It is only
 // ever a draft: nothing is written until a parent applies it, and applying it goes through the
 // same checks as moving a stop by hand.
-export const DRAFT_ACTIONS=[['move','Move'],['skip','Skip'],['later','Back to Options']];
+// An added stop is the one change that names no stop: it is a new one, said in words ("add
+// ramen near the hotel at half past twelve"), and it lands on the day as an ordinary flexible
+// stop that can be edited, moved or removed like any other.
+export const DRAFT_ACTIONS=[['move','Move'],['skip','Skip'],['later','Back to Options'],['add','Add a stop']];
 export const DRAFT_ACTION_IDS=DRAFT_ACTIONS.map(([id])=>id);
 export const MAX_DRAFT=12;
+export const ADD_MINUTES=60;
+const sameTitle=(a,b)=>clamp(a,120).toLowerCase()===clamp(b,120).toLowerCase();
+// A stop with the same name already on that day means the addition is there: applied once
+// already, or added by hand since. Either way it is not added twice.
+const alreadyOn=(state,c)=>(state.steps||[]).some(s=>s.day===c.day&&sameTitle(s.title,c.title));
+function cleanAdd(c,state,n){
+ const title=clamp(c?.title,120);
+ if(!title||!state.days.some(d=>d.date===c?.day))return null;
+ const minutes=Number.isInteger(c?.minutes)&&c.minutes>0&&c.minutes<=600?c.minutes:ADD_MINUTES;
+ const add={id:`add-${n}`,action:'add',day:c.day,time:isClock(c?.time)?c.time:null,title,place:clamp(c?.place,200),minutes};
+ return alreadyOn(state,add)?null:add;
+}
 // A stop that is booked, locked, under way or finished is not the model's to move.
 export const movable=s=>!!s&&!s.locked&&!s.bookingTime&&!['done','started','skipped'].includes(s.status);
 export function cleanDraft(found,state){
  if(!found||typeof found!=='object')return null;
  const changes=[],seen=new Set();
  for(const c of Array.isArray(found.changes)?found.changes:[]){
+  if(c?.action==='add'){
+   const add=cleanAdd(c,state,changes.length+1);
+   if(add&&!changes.some(x=>x.action==='add'&&x.day===add.day&&sameTitle(x.title,add.title)))changes.push(add);
+   if(changes.length>=MAX_DRAFT)break;
+   continue;
+  }
   const id=typeof c?.stepId==='string'?c.stepId:typeof c?.id==='string'?c.id:'';
   const step=state.steps.find(s=>s.id===id);
   if(!movable(step)||seen.has(id)||!DRAFT_ACTION_IDS.includes(c.action))continue;
@@ -159,6 +180,13 @@ export function draftPreview(state,draft){
  const rows=[],conflicts=[];let stale=false;
  const moved=new Map();
  for(const c of draft?.changes||[]){
+  if(c.action==='add'){
+   const there=alreadyOn(state,c);
+   rows.push({id:c.id,title:c.title,place:c.place||'',action:'add',from:null,to:{day:c.day,time:c.time},stale:there});
+   if(there)stale=true;
+   else moved.set(c.id,{id:c.id,title:c.title,day:c.day,time:c.time,duration:c.minutes||ADD_MINUTES});
+   continue;
+  }
   const step=state.steps.find(s=>s.id===c.id);
   if(!movable(step)){stale=true;rows.push({id:c.id,title:step?.title||'A stop no longer on the plan',action:c.action,from:step?{day:step.day,time:step.time}:null,to:{day:c.day,time:c.time},stale:true});continue;}
   rows.push({id:c.id,title:step.title,action:c.action,from:{day:step.day,time:step.time},to:{day:c.day,time:c.time},stale:false});
@@ -197,8 +225,10 @@ function slotOrder(state,step,day,time){
  return (prev+others[after].order)/2;
 }
 // Applying it: every stop is checked again against the plan as it stands on the server, and one
-// that is no longer movable fails the whole draft rather than half of it going through.
-export function applyDraft(state,changes){
+// that is no longer movable fails the whole draft rather than half of it going through. A new
+// stop is made by `make`, the same way the Add a stop form makes one, so it is checked by the
+// same rules and shaped like every other stop.
+export function applyDraft(state,changes,make=null){
  if(!Array.isArray(changes)||!changes.length||changes.length>MAX_DRAFT)return {error:'Nothing to apply.'};
  const clean=cleanDraft({changes:changes.map(c=>({...c,stepId:c.id}))},state);
  if(!clean||clean.changes.length!==changes.length)return {error:'The plan has moved on since this was suggested. Ask again for a fresh one.'};
@@ -207,6 +237,13 @@ export function applyDraft(state,changes){
  if(preview.conflicts.length)return {error:preview.conflicts[0]};
  const lines=[];
  for(const c of clean.changes){
+  if(c.action==='add'){
+   if(!make)return {error:'A new stop cannot be added here.'};
+   const step=make({title:c.title,day:c.day,time:c.time,duration:c.minutes||ADD_MINUTES,...(c.place?{place:c.place}:{}),kind:'flexible'});
+   if(c.time)step.order=slotOrder(state,step,c.day,c.time);
+   lines.push(`${c.title} added on ${c.day}${c.time?` ${c.time}`:''}`);
+   continue;
+  }
   const step=state.steps.find(s=>s.id===c.id);
   if(c.action==='move'){
    if(c.day!==step.day)step.order=slotOrder(state,step,c.day,c.time);

@@ -33,13 +33,16 @@ const RECORD={
    because:{type:'array',items:{type:'string'},description:'The reasons, strongest first, each a short line that stands on its own.'},
    days:{type:'array',items:{type:'string'},description:'The trip dates the answer turns on, as YYYY-MM-DD, so the app can offer a button to them. Empty if none.'},
    checkFirst:{type:'string',description:'What they must confirm themselves before relying on this, and where. Empty if there is genuinely nothing.'},
-   draft:{type:'object',additionalProperties:false,required:['summary','changes'],description:'When your answer is to move, skip or put aside particular stops, the change itself, for a parent to look over and apply. Empty changes when the answer is not a change to the plan.',properties:{
+   draft:{type:'object',additionalProperties:false,required:['summary','changes'],description:'When your answer is to move, retime, skip or put aside particular stops, or to add a new one, the change itself, for a parent to look over and apply. Empty changes when the answer is not a change to the plan.',properties:{
     summary:{type:'string',description:'The change in one line: "Fushimi Inari to Thursday morning, the garden to Friday".'},
-    changes:{type:'array',items:{type:'object',additionalProperties:false,required:['stepId','action','day','time'],properties:{
-     stepId:{type:'string',description:'The id in square brackets of the stop, exactly as given in the plan.'},
-     action:{type:'string',enum:DRAFT_ACTION_IDS,description:'move to another day or time; skip it; later puts it back in Options, off every day.'},
-     day:{type:'string',description:'For move: the trip date it goes to, YYYY-MM-DD. Otherwise empty.'},
-     time:{type:'string',description:'For move: the new time, HH:MM, 24-hour. Empty for no set time.'}}}}}},
+    changes:{type:'array',items:{type:'object',additionalProperties:false,required:['stepId','action','day','time','title','place','minutes'],properties:{
+     stepId:{type:'string',description:'The id in square brackets of the stop, exactly as given in the plan. Empty for add.'},
+     action:{type:'string',enum:DRAFT_ACTION_IDS,description:'move to another day or time (the same day with a new time adjusts it within the day); skip it; later puts it back in Options, off every day; add puts a new stop on a day.'},
+     day:{type:'string',description:'For move and add: the trip date it goes to, YYYY-MM-DD. Otherwise empty.'},
+     time:{type:'string',description:'For move and add: the time, HH:MM, 24-hour. Empty for no set time.'},
+     title:{type:'string',description:'For add: the new stop\'s name, short, as it would read on the day ("Ramen lunch at Ichiran Shibuya"). Otherwise empty.'},
+     place:{type:'string',description:'For add: where it is, as a map search would find it. Empty if not known, and for every other action.'},
+     minutes:{type:'integer',description:'For add: roughly how long it takes, in minutes. 0 for every other action.'}}}}}},
    sources:{type:'array',description:'Only pages you actually opened, best first.',items:{
     type:'object',additionalProperties:false,required:['title','url'],
     properties:{title:{type:'string'},url:{type:'string'}}}}}}
@@ -62,11 +65,14 @@ How to answer:
 
 What you cannot do: you cannot change their plan yourself, book anything or send anything to anybody. Never claim you have done any of it, and never say a place is open, a price is current or a ticket is available as a settled fact.
 
-What you can do: when your answer is to move a stop to another day or time, skip one, or put one back in Options, put that change in "draft" as well as saying it. A parent sees it as a draft and applies it in one tap, or does not. The stops written out in full have their id in square brackets; use it exactly. Only stops that are not booked, not locked and not already under way or done can go in a draft. Keep a draft to what the answer actually recommends, and leave its changes empty when the answer is not a change to the plan. If a boy is asking, leave the changes empty.
+What you can do: when your answer is to move a stop to another day or time, shift stops within a day, skip one, put one back in Options, or add a new stop to a day, put that change in "draft" as well as saying it. When they ask you to add something, add it; when they ask you to adjust a day ("push the afternoon back an hour", "make Thursday easier"), draft the moves and skips that do it. A parent sees it as a draft and applies it in one tap, or does not. The stops written out in full have their id in square brackets; use it exactly. Only stops that are not booked, not locked and not already under way or done can be moved, skipped or put back. A new stop must not run into anything booked; give it a realistic length, and the place as a map would find it. Keep a draft to what the answer actually recommends, and leave its changes empty when the answer is not a change to the plan. If a boy is asking, leave the changes empty.
 
 Never invent a web address. Only list a page you actually opened.
 
 Search if it helps, then call record_answer exactly once. Everything you say goes in that call, not in a message.`;
+// Asked out loud from the assistant, with the answer read back to someone walking: the verdict
+// and the answer are what is heard, so they have to work as speech.
+export const SPOKEN='They asked this out loud and will hear "verdict" and "answer" read back while walking, without looking at the screen. Keep the answer to two or three short spoken sentences, with no lists, brackets, web addresses or symbols, and say times as a person would ("half past twelve"). If you put a change in "draft", say what it does in one sentence, because they will be asked to say yes to it.';
 const clamp=(v,max)=>String(v??'').trim().slice(0,max);
 const https=v=>{try{return new URL(v).protocol==='https:'?new URL(v):null;}catch{return null;}};
 const clock=h=>`${String(h).padStart(2,'0')}:00`;
@@ -139,7 +145,7 @@ export function tripBrief(state,{day,step,person=null,now=new Date()}={}){
 export function normaliseAnswer(found,state,user=null){
  // A draft is a parent's to apply, so only a parent is handed one; the boys get the answer.
  const draft=user?.role==='parent'?cleanDraft({summary:found?.draft?.summary,changes:(Array.isArray(found?.draft?.changes)?found.draft.changes:[])
-  .map(c=>({...c,time:c?.time===''?null:c?.time}))},state):null;
+  .map(c=>({...c,time:c?.time===''?null:c?.time,minutes:c?.minutes||null}))},state):null;
  return {...(draft?{draft}:{}),
   verdict:clamp(found?.verdict,240),
   answer:clamp(found?.answer,4000),
@@ -163,7 +169,7 @@ export function conversation(history){
  for(const turn of recent.slice(start))if(!out.length||out.at(-1).role!==turn.role)out.push(turn);
  return out.at(-1).role==='assistant'?out:out.slice(0,-1);
 }
-export async function askTrip({question,day,step:stepId,history},state,user,now=new Date()){
+export async function askTrip({question,day,step:stepId,history,spoken},state,user,now=new Date()){
  if(!askReady())throw new AppError('Asking about the trip is not switched on. Add an Anthropic API key to the deployment.',503);
  const asked=clamp(question,MAX_QUESTION+1);
  if(!asked)throw new AppError('Type a question first.');
@@ -179,7 +185,7 @@ export async function askTrip({question,day,step:stepId,history},state,user,now=
  const ask=`${tripBrief(state,{day,step,person,now})}
 
 ${user?.role==='child'?`${who} is asking, and he is one of the boys. Keep it short and kind, in words he can follow, and never talk about money he does not have or a booking he cannot change.`:`${who} is asking.`}
-
+${spoken?`\n${SPOKEN}\n`:''}
 Their question: ${asked}`;
  // The rules and the tools never change; the shared part of the project changes only when the
  // trip does; the personal part is this person's. Each is cached for an hour in that order, so a
