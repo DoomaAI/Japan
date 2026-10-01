@@ -29,6 +29,10 @@ export function morningList(state,day){
 const KEY=day=>`japan.morning.${day}`,STREAK='japan.morning.streak';
 export const readTicks=day=>{try{const v=JSON.parse(localStorage.getItem(KEY(day)));return Array.isArray(v)?v:[];}catch{return [];}};
 export const writeTicks=(day,ticks)=>{try{localStorage.setItem(KEY(day),JSON.stringify(ticks));}catch{}};
+// Closed for the day: put away from Home until tomorrow, when the new day's key brings it back.
+const CLOSED=day=>`japan.morning.closed.${day}`;
+export const readClosed=day=>{try{return localStorage.getItem(CLOSED(day))==='closed';}catch{return false;}};
+export const writeClosed=day=>{try{localStorage.setItem(CLOSED(day),'closed');}catch{}};
 export const readStreak=()=>{try{return {count:0,last:null,...(JSON.parse(localStorage.getItem(STREAK))||{})};}catch{return {count:0,last:null};}};
 export const writeStreak=s=>{try{localStorage.setItem(STREAK,JSON.stringify(s));}catch{}};
 // A morning finished the day after the last one finished carries the streak on; a gap starts it
