@@ -98,7 +98,7 @@ export function BottomNav({tab,user,go,unread,prefs,setPrefs}){
   </button>;
  };
  return <nav className="bottom-nav" aria-label="Main navigation" ref={nav}
-  style={drop?{transform:`translate(-50%,${drop}px)`}:undefined}
+  style={{'--nav-n':bar.length+1,...drop?{transform:`translate(-50%,${drop}px)`}:{}}}
   onTouchStart={e=>{drag.current=w.editing?null:{x:e.touches[0].clientX,y:e.touches[0].clientY};}}
   onTouchEnd={e=>{
    // A shortcut dragged about while the bar wobbles is not a swipe to open the menu.
