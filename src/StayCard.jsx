@@ -19,7 +19,9 @@ export default function StayCard({state,day,parent,busy,mutate,notice,directions
   if(await mutate({type:'stayEdit',hotel:stay.hotel,patch})){setEditing(false);notice('Saved for everyone.');}
  }
  return <section className="stay-card" aria-label="Tonight’s stay">
-  {stay.photo&&photoFailed!==stay.photo&&<img className="stay-photo" src={stay.photo} alt={stay.hotel} loading="lazy" referrerPolicy="no-referrer" onError={()=>setPhotoFailed(stay.photo)}/>}
+  {stay.photo&&photoFailed!==stay.photo
+   ?<img className="stay-photo" src={stay.photo} alt={stay.hotel} loading="lazy" referrerPolicy="no-referrer" onError={()=>setPhotoFailed(stay.photo)}/>
+   :stay.guidePage&&<div className="stay-photo stay-photo-guide" role="img" aria-label={`${stay.hotel}, from our travel guide`} style={{backgroundImage:`url(/api/guide?page=${stay.guidePage})`}}/>}
   <div className="stay-head">
    <span className="stay-icon" aria-hidden="true"><BedDouble size={20}/></span>
    <div><p className="eyebrow">{stay.checkingOut?'CHECKING OUT TODAY':stay.moving?'CHECKING IN TODAY':stay.leaving?'LAST NIGHT HERE':'TONIGHT’S STAY'}{stay.checkingOut?'':` · NIGHT ${stay.night} OF ${stay.total}`}</p>

@@ -47,3 +47,16 @@ test('Washi has an answer for every solid colour written into the stylesheets, a
  assert.equal(washiFor('#16383b14'),null,'see-through colours are shadows and washes, and stay as written');
  assert.match(await readFile(new URL('../src/main.jsx',import.meta.url),'utf8'),/import '\.\/house-theme\.css';\nimport '\.\/house-colours\.css';/);
 });
+
+test('a stay needs nobody to find a photo: the guide page for the night we arrive stands in until a parent adds one',async()=>{
+ const {stayFor,cleanStay}=await import('../src/stay-data.js');
+ const state={days:[{date:'2026-09-24',hotel:'Hotel Kanra Kyoto',pages:[28,29]},{date:'2026-09-25',hotel:'Hotel Kanra Kyoto',pages:[32]}],steps:[],stays:{}};
+ assert.equal(stayFor(state,'2026-09-25').guidePage,28,'the first page of the first night, on every night of the stay');
+ assert.equal(stayFor(state,'2026-09-25').photo,'');
+ assert.equal(stayFor({...state,stays:{'Hotel Kanra Kyoto':{photo:'https://example.com/kanra.jpg'}}},'2026-09-24').photo,'https://example.com/kanra.jpg');
+ assert.equal(stayFor({...state,days:state.days.map(d=>({...d,pages:[]}))},'2026-09-24').guidePage,null);
+ assert.match(cleanStay({photo:'http://example.com/x.jpg'}).error,/https/);
+ assert.deepEqual(cleanStay({photo:''}).value,{photo:''});
+ const card=await readFile(new URL('../src/StayCard.jsx',import.meta.url),'utf8');
+ assert.match(card,/backgroundImage:`url\(\/api\/guide\?page=\$\{stay\.guidePage\}\)`/);
+});

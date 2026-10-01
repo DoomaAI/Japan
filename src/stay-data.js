@@ -13,8 +13,9 @@ export const STAY_FIELDS=[
  ['checkIn','Check-in from (HH:MM)',5],
  ['checkOut','Check-out by (HH:MM)',5],
  ['notes','Notes (breakfast, wifi, room)',600],
- // A photograph of the hotel, as a hotel app leads with one: a link to an image, from the
- // hotel's own site or our own photos. Shown at the top of the card; left out if it will not load.
+ // A photograph of the hotel, as a hotel app leads with one. Nobody has to find one: until a
+ // parent adds a link (the hotel's own site, or our own photos), the card shows the picture from
+ // the guide's first page for the night we arrive, which is already saved for offline use.
  ['photo','Photo of the hotel (a link to the image)',600]
 ];
 export const CLOCK=/^([01]\d|2[0-3]):[0-5]\d$/;
@@ -52,7 +53,7 @@ export function stayFor(state,date){
   night:night||stay.nights.length,total:stay.nights.length,checkingOut:!night,
   checkIn:saved.checkIn||inStop?.time||'',checkOut:saved.checkOut||outStop?.time||'',
   checkInStop:inStop,checkOutStop:outStop,
-  reference:saved.reference||inStop?.bookingReference||'',guest:saved.guest||'',notes:saved.notes||'',photo:saved.photo||'',
+  reference:saved.reference||inStop?.bookingReference||'',guest:saved.guest||'',notes:saved.notes||'',photo:saved.photo||'',guidePage:(state?.days||[]).find(d=>d.date===stay.from)?.pages?.[0]||null,
   phone:where.phone,address:where.address,japanese:where.japanese,japaneseAddress:where.japaneseAddress,
   place,moving:stay.from===date,leaving:!night||stay.nights.at(-1)===date,
   by:saved.by||null,at:saved.at||null
