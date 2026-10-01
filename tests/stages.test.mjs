@@ -38,7 +38,35 @@ test('tonight asks for stars, a photo vote and a memory, and counts what is left
  assert.equal(tonightFor(state,day,'Damien',true).tasks.memory,true);
  state.voiceNotes=[{id:'v',day,by:'Nate',at:'2026-09-22T11:00:00Z'}];
  state.stepReviews={...state.stepReviews,...Object.fromEntries(ids.slice(1,3).map(id=>[id,{ratings:{Nate:5}}]))};
- t=tonightFor(state,day,'Nate');assert.equal(t.complete,true);assert.equal(t.finished,3);
+ t=tonightFor(state,day,'Nate');assert.equal(t.complete,true);assert.equal(t.finished,4);
+});
+test('tonight has a parent catch up the stops nobody ticked, at the time they were planned',async()=>{
+ const {tonightFor,caughtUpAt}=await import('../src/tonight-data.js');
+ const day='2026-09-22',state=upgraded(seed);
+ const steps=state.steps.filter(s=>s.day===day);
+ assert.ok(steps.length>2);
+ assert.equal(tonightFor(state,day,'Nate').open.length,0,'the boys are not asked to catch up');
+ assert.equal(tonightFor(state,day,'Nate').tasks.catchUp,true);
+ let t=tonightFor(state,day,'Damien',true);
+ assert.ok(t.open.length>0);assert.equal(t.tasks.catchUp,false);
+ state.steps=state.steps.map(s=>s.day===day?{...s,status:s.id===steps[0].id?'skipped':'done'}:s);
+ t=tonightFor(state,day,'Damien',true);
+ assert.equal(t.open.length,0,'done and skipped are both dealt with');assert.equal(t.tasks.catchUp,true);
+ const later=new Date('2026-09-23T00:00:00Z');
+ assert.equal(caughtUpAt({time:'09:30'},day,later),'2026-09-22T00:30:00.000Z','at its planned time, Japan time');
+ assert.equal(caughtUpAt({time:null},day,later),'2026-09-22T03:00:00.000Z','midday when it had no time');
+ const early=new Date('2026-09-22T00:00:00Z');
+ assert.equal(caughtUpAt({time:'18:00'},day,early),early.toISOString(),'never in the future');
+});
+test('tonight says whether tomorrow has been checked the night before',async()=>{
+ const {tomorrowCheck}=await import('../src/tonight-data.js');
+ const state=upgraded(seed),day=state.days[1].date,next=state.days[2].date;
+ let t=tomorrowCheck(state,day);
+ assert.equal(t.day,next);assert.equal(t.checked,false);assert.equal(t.open.length,0);
+ state.dayChecks={[next]:{day:next,at:'2026-09-22T10:00:00Z',notes:[{id:'a',title:'Closed for a festival',status:'open'},{id:'b',title:'Seen',status:'dismissed'}]}};
+ t=tomorrowCheck(state,day);
+ assert.equal(t.checked,true);assert.deepEqual(t.open.map(n=>n.id),['a'],'only what nobody has dealt with');assert.equal(t.planB,false);
+ assert.equal(tomorrowCheck(state,state.days.at(-1).date),null,'no tomorrow on the last day');
 });
 test('the stamp book is earned from what is ticked off, with milestones per person',async()=>{
  const {familyStamps,personalStamps,cityNames,MILESTONES}=await import('../src/stamp-data.js');
