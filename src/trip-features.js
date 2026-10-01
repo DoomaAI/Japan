@@ -794,7 +794,7 @@ export const todos=state=>state.todos||[];
 // The packing list: what we are taking, whose it is, and whether it is in the case yet. The
 // suggestions are worked out in packing-data.js; what lives in the trip is only what we chose
 // and which suggestions we turned down, so a turned-down one stays gone on every phone.
-export const EMPTY_PACKING={items:[],dismissed:{}};
+export const EMPTY_PACKING={items:[],dismissed:{},before:{}};
 export const packing=state=>({...EMPTY_PACKING,...(state.packing||{})});
 export const packItem=(o,id)=>({id,title:String(o.title||'').trim(),category:String(o.category||'other'),person:o.person||'Family',
  qty:Number.isInteger(o.qty)&&o.qty>0?o.qty:1,notes:String(o.notes||'').trim(),suggestionId:o.suggestionId??null});
@@ -1562,6 +1562,7 @@ export function pendingProgress(state,queue){
     createdBy:o.by||'',createdAt:o.at,packedAt:null,packedBy:null,pending:!live}))]};
   }
   if(o.type==='packStatus')next.packing={...next.packing,items:next.packing.items.map(i=>i.id!==o.id?i:{...i,packedAt:o.packed?o.at:null,packedBy:o.packed?o.by||i.packedBy:null,pending:!live})};
+  if(o.type==='packBefore'){const before={...next.packing.before};if(o.done)before[o.id]={by:o.by||'',at:o.at};else delete before[o.id];next.packing={...next.packing,before};}
   if(o.type==='packDismiss'){const dismissed={...next.packing.dismissed};if(o.dismissed)dismissed[o.suggestionId]={by:o.by||'',at:o.at};else delete dismissed[o.suggestionId];next.packing={...next.packing,dismissed};}
   if(o.type==='todoStatus'){const t=next.todos.find(t=>t.id===o.id);if(t){t.doneAt=o.done?o.at:null;t.doneBy=o.done?o.by||t.doneBy:null;t.pending=!live;}}
   // Something wanted, and something bought, both with no signal: additions and a record of what

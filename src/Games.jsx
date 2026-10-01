@@ -147,7 +147,7 @@ function Decoder({user,mutate,busy,state}){
    return <button key={o.en} className={`decoder-option${state_}`} disabled={!!answer} onClick={()=>choose(o)}>
     {o.en}{answer&&o.en===word.en&&<Check size={16}/>}{answer&&!answer.right&&answer.option.en===o.en&&<X size={16}/>}</button>;
   })}</div>
-  {answer&&<p className="callout">{answer.right?'Yes — ':'It was '}<strong>{word.en}</strong>. {word.where}</p>}
+  {answer&&<p className="callout"><span>{answer.right?'Yes — ':'It was '}<strong>{word.en}</strong>. {word.where}</span></p>}
   <p className="game-status">{score} in a row · {asked} tried{bestScore(state,user.name,'katakana-decoder')>0?` · best ${bestScore(state,user.name,'katakana-decoder')}`:''}</p>
   <button className="primary" onClick={next}>{answer?'Next word':'Skip this one'}</button>
  </>;
@@ -857,7 +857,7 @@ function Stable({user,state,mutate,busy}){
     Fight {rankAt(challenger)?.icon} {shortRank(rankAt(challenger))}</button>
   </div>
   {best>0&&<p className="game-odds">Your {rankAt(best).en.toLowerCase()} has a <strong>{Math.round(odds*100)}%</strong> chance against this one.</p>}
-  {last?.promoted&&<p className="callout">Promoted to <strong>{last.promoted.icon} {last.promoted.en}</strong> <small lang="ja">{last.promoted.ja} · {last.promoted.romaji}</small></p>}
+  {last?.promoted&&<p className="callout"><span>Promoted to <strong>{last.promoted.icon} {last.promoted.en}</strong> <small lang="ja">{last.promoted.ja} · {last.promoted.romaji}</small></span></p>}
   {last?.note&&<p className="callout">{last.note}</p>}
   <WinBurst on={!!last?.bout?.won} label="He won!" sub={last?.bout?.won?`${last.mine.en} takes it`:''}/>
   {last?.bout&&<div className={`stable-bout${last.bout.won?' won':''}`}>

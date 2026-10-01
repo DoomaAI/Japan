@@ -175,7 +175,7 @@ export default function SpotDifference({state,user,mutate,busy,online}){
  </div>;
  if(!photos.length)return <>
   <p>This one is made out of our own photos: one of the two pictures is quietly changed in a few places, and you tap wherever you can see it.</p>
-  <p className="callout"><Camera size={16}/> There are no photos yet. Take some under <strong>Photo of the day</strong> and they will show up here — the more you take, the more rounds there are.</p>
+  <p className="callout"><Camera size={16}/><span>There are no photos yet. Take some under <strong>Photo of the day</strong> and they will show up here — the more you take, the more rounds there are.</span></p>
  </>;
  const others=scoresFor(state,game);
  return <>

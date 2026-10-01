@@ -63,6 +63,6 @@ export default function WeatherPage({state,day,now,check,checking,busy,online}){
  {!state.days.some(d=>has(d.date))&&<p className="callout">No forecast saved yet. {online?'Tap Check the forecast and the next fortnight fills in for every phone.':'It fills in the next time somebody checks with signal.'}</p>}
  {earlier.length>0&&<details className="weather-earlier" open={earlier.some(d=>d.date===open)||undefined}><summary>Earlier days ({earlier.length})</summary><div className="weather-list">{earlier.map(row)}</div></details>}
  <div className="weather-list">{ahead.map(row)}</div>
- <p className="callout"><CloudSun size={18}/>From <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">Open-Meteo</a>, which is free and needs no account. Asked once per place the trip visits, not once per day.</p>
+ <p className="callout"><CloudSun size={18}/><span>From <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">Open-Meteo</a>, which is free and needs no account. Asked once per place the trip visits, not once per day.</span></p>
  </>;
 }
