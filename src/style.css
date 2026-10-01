@@ -959,7 +959,7 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .more-said{position:sticky;bottom:calc(96px + env(safe-area-inset-bottom));margin:.6rem auto 0;width:fit-content;max-width:100%;padding:0 .9rem;border-radius:18px;background:var(--ink);color:var(--paper);font-size:.82rem;line-height:2.2;text-align:center}
 .more-said:empty{display:none}
 .more-said .more-undo{display:inline-flex;align-items:center;gap:.25rem;min-height:32px;margin-left:.4rem;padding:0 .6rem;border-radius:16px;background:transparent;border:1px solid currentColor;color:inherit;font-size:.8rem}
-.more-arrange-hint{margin:-.4rem 0 1rem;color:var(--muted);font-size:.82rem}
+.more-arrange-hint{margin:0 0 1rem;color:var(--muted);font-size:.82rem}
 .more-card-wrap.arranging{flex-direction:column;gap:.25rem}
 .more-card-tools{display:flex;justify-content:space-between;gap:.2rem}
 .more-card-tools button{flex:1;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0;border-radius:10px}

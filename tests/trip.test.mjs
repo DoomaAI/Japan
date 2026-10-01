@@ -11904,9 +11904,11 @@ test('More can be arranged and put away card by card, and its order survives the
  for(const id of FIXED)assert.equal(hideInMore(moved,id),moved,`${id} cannot be put away`);
  // An order full of screens that are gone or not allowed is cleaned on the way in.
  assert.deepEqual(cleanNav({order:['nope','vault',ids[1]]},{name:'Nate',role:'child'}).order.includes('nope'),false);
- // The bar's own saves do not wipe the order, and the card still opens its screen while arranging.
+ // The bar's own saves do not wipe the order, and the card still opens its screen.
  assert.match(main,/cleanNav\(\{order:navPrefs\.order,\.\.\.next\},user\)/);
- assert.match(nav,/\{\.\.\.\(arranging\?\{\}:holdProps\(id\)\)\}/);
+ // Always there, with no mode to switch on, and holding an arrow is not holding the card.
+ assert.doesNotMatch(nav,/arranging\?/);
+ assert.match(nav,/<button type="button" \{\.\.\.holdProps\(id\)\}/);
  assert.match(nav,/onClick=\{\(\)=>go\(id\)\}/);
  assert.match(nav,/aria-label=\{`Put \$\{label\} away`\}/);
 });
