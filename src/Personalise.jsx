@@ -2,6 +2,7 @@ import React from 'react';
 import {ArrowUp,ArrowDown,Plus,X,Eye,EyeOff,RotateCcw} from 'lucide-react';
 import {PAGES,BAR_MIN,BAR_MAX,FIXED,pagesFor,primaryNav,hiddenNav,addableNav,cleanNav,emptyNav} from './nav-data.js';
 import {iconFor} from './Navigation.jsx';
+import {TIP_OPTIONS,readTips,writeTips} from './opening-tips.js';
 import {HOME_WIDGETS,homeOrder,cleanHome,moveWidget,toggleWidget,emptyHome} from './home-widgets.js';
 // Four of us carry the same app. Lauren opens tickets and the plan; Boston opens his missions
 // and his money; Nate opens three screens in sixteen days and would open two if the third one
@@ -28,6 +29,7 @@ export default function Personalise({user,prefs,setPrefs,home,setHome,held=[]}){
   <p>This is your phone only. Nobody else's menu changes, and nothing here changes the trip.</p>
   <HomeWidgets home={home} setHome={setHome} held={held}/>
   <BarShortcuts user={user} prefs={prefs} setPrefs={setPrefs}/>
+  <OpeningTips/>
   <h2>Put away what you never open</h2>
   <p>A screen you put away disappears from the bar and from More. It is still here, at the
    bottom of this page, whenever you want it back.</p>
@@ -45,6 +47,18 @@ export default function Personalise({user,prefs,setPrefs,home,setHome,held=[]}){
   </>}
   <button type="button" onClick={()=>{if(confirm('Put the menu back the way it started?'))setPrefs(emptyNav());}}>
    <RotateCcw size={16}/> Start again</button>
+ </>;
+}
+// What the opening screen shows while the trip loads. The same choice is on the opening screen.
+function OpeningTips(){
+ const [tips,setTips]=React.useState(readTips);
+ return <>
+  <h2>While the app opens</h2>
+  <p>The opening screen shows a fact from the guide or a Japanese word while the trip loads, and
+   stays until that card has finished. Choose what it shows, or turn the tips off to go straight in.</p>
+  <div className="menu-add" role="radiogroup" aria-label="Tips while the app opens">{TIP_OPTIONS.map(o=>
+   <button key={o.id} type="button" role="radio" aria-checked={tips===o.id} className={tips===o.id?'primary':undefined}
+    onClick={()=>setTips(writeTips(o.id))}>{o.label}</button>)}</div>
  </>;
 }
 // The shortcuts along the bottom, in order, with what else could go on. Used here and in
