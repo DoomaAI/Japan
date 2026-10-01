@@ -133,12 +133,12 @@
 :root[data-look=washi] main[data-kids] .mark-emoji{display:inline}
 :root[data-look=washi] main[data-kids] .mark-line{display:none}
 
-/* How everyone is this morning: the word, not the face, for the grown-ups. A boy on his own
-   phone still sees the faces, since the youngest is not reading yet. */
+/* How everyone is this morning: a line face, not the emoji, for the grown-ups. A boy on his own
+   phone still sees the emoji faces. */
 :root[data-look=washi] .app[data-viewer=parent] .readiness-face{display:none}
-:root[data-look=washi] .app[data-viewer=parent] .readiness-word{display:inline}
+:root[data-look=washi] .app[data-viewer=parent] .readiness-line-icon{display:inline-flex}
 :root[data-look=washi] .app[data-viewer=parent] .readiness-row div{flex:1;justify-content:flex-end}
-:root[data-look=washi] .app[data-viewer=parent] .readiness-row button{width:auto;flex:1;max-width:4.2rem;min-width:0;padding:0 .2rem;font-size:.75rem;letter-spacing:.02em;opacity:1;color:var(--muted)}
+:root[data-look=washi] .app[data-viewer=parent] .readiness-row button{width:auto;flex:1;max-width:4.2rem;min-width:0;padding:0 .2rem;opacity:1;color:var(--muted)}
 :root[data-look=washi] .app[data-viewer=parent] .readiness-row button.is-on{transform:none;background:var(--ink);border-color:var(--ink);color:var(--paper)}
 :root[data-look=washi] .app[data-viewer=parent] .feeling{color:var(--muted)}
 
