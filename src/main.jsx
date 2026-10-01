@@ -9,7 +9,7 @@ import {Challenges,Shopping,SpeakRules,useReadAloud} from './AdventurePages.jsx'
 import Shortlist,{DayFinds} from './Shortlist.jsx';
 import {NextUp,RunningLate,OfflineReadiness,Updates} from './HomeFeatures.jsx';
 import {ThankYouNote,ThankYouEditor} from './ThankYou.jsx';
-import {readingHelp,awarenessAllows,heldBack} from './child-levels.js';
+import {readingHelp,awarenessAllows,heldBack,gentleOnly} from './child-levels.js';
 import {handedUser,readHanded,writeHanded} from './hand-over.js';
 import {HandedBanner} from './HandOver.jsx';
 import TicketViewer from './TicketViewer.jsx';
