@@ -139,7 +139,7 @@ export default function Vault({state,user,request,notice,online}){
   <p className="vault-intro"><ShieldCheck size={18}/> Details and photos are encrypted before they are stored, and only a parent’s phone can open them.</p>
  <HowThisWorks><p>They are never part of the trip the boys’ phones are sent, and never read by Ask.</p></HowThisWorks>
   {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
-  {data&&!data.ready&&<p className="callout"><AlertCircle size={18}/>The vault is not switched on yet. Add a <code>VAULT_KEY</code> to the server’s environment (64 hex characters) and redeploy.</p>}
+  {data&&!data.ready&&<p className="callout"><AlertCircle size={18}/><span>The vault is not switched on yet. Add a <code>VAULT_KEY</code> to the server’s environment (64 hex characters) and redeploy.</span></p>}
   {fromPhone&&<p className="callout"><Download size={18}/>No signal: this is the copy saved on this phone. Changes need signal.</p>}
   {!data&&!error&&<p>Opening…</p>}
   {working&&<p className="vault-working">{working}</p>}

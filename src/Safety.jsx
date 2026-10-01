@@ -27,7 +27,7 @@ export function LostCards({state,user,day}){
   <p>Each boy shows his card to a station attendant, a shop worker or a police officer at a police box. It has his name, both phone numbers and tonight’s hotel in Japanese. Screenshot it onto his phone or print it for his pocket.</p>
   {!mine&&<div className="row wrap">{names.map(n=><button key={n} className={who===n?'primary':''} onClick={()=>setWho(n)}>{n}</button>)}</div>}
   {who&&<LostCard state={state} name={who} day={day}/>}
-  <button onClick={()=>{document.body.classList.add('print-lost');window.print();document.body.classList.remove('print-lost');}}>Print / save PDF</button>
+  <p><button onClick={()=>{document.body.classList.add('print-lost');window.print();document.body.classList.remove('print-lost');}}>Print / save PDF</button></p>
  </section>;
 }
 export default function Safety({state,user,day,go}){
