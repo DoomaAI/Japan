@@ -1409,18 +1409,18 @@ export function diaryDays(state,day){
 }
 export function pendingProgress(state,queue){
  const next=ensureFeatures(structuredClone(state));
- for(const {operation:o}of queue){
+ for(const {operation:o,live}of queue){
   // A leg ticked with no signal is replayed the same way the server will apply it, so the stop
   // it finishes shows as finished, and its tickets leave the list, straight away.
-  if(o.type==='legStatus'){const s=next.steps.find(s=>s.id===o.id);if(s){s.pending=true;const outcome=tickLeg(s,o.leg,o.done,o.at);
-   if(outcome==='done')next.documents=next.documents.map(d=>documentServesStep(d,s.id)&&documentSpent(next.steps,d)&&d.category!=='memory'&&!d.archivedAt?{...d,archivedAt:o.at,archivedWith:s.id,pending:true}:d);
-   if(outcome==='undone')next.documents=next.documents.map(d=>d.archivedWith&&documentServesStep(d,s.id)?{...d,archivedAt:null,archivedBy:null,archivedWith:null,pending:true}:d);
+  if(o.type==='legStatus'){const s=next.steps.find(s=>s.id===o.id);if(s){s.pending=!live;const outcome=tickLeg(s,o.leg,o.done,o.at);
+   if(outcome==='done')next.documents=next.documents.map(d=>documentServesStep(d,s.id)&&documentSpent(next.steps,d)&&d.category!=='memory'&&!d.archivedAt?{...d,archivedAt:o.at,archivedWith:s.id,pending:!live}:d);
+   if(outcome==='undone')next.documents=next.documents.map(d=>d.archivedWith&&documentServesStep(d,s.id)?{...d,archivedAt:null,archivedBy:null,archivedWith:null,pending:!live}:d);
   }}
-  if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=true;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;delete s.legsDone;}
+  if(o.type==='status'){const s=next.steps.find(s=>s.id===o.id);if(s){s.status=o.status;s.pending=!live;if(o.status==='done')s.completedAt=o.at;if(o.status==='started')s.startedAt=o.at;if(o.status==='todo'){delete s.startedAt;delete s.completedAt;delete s.legsDone;}
    // The tickets for an activity ticked off on a train with no signal leave the list there and
    // then, exactly as they will when the change lands, rather than lingering until it syncs.
-   if(o.status==='done')next.documents=next.documents.map(d=>documentServesStep(d,s.id)&&documentSpent(next.steps,d)&&d.category!=='memory'&&!d.archivedAt?{...d,archivedAt:o.at,archivedWith:s.id,pending:true}:d);
-   if(o.status==='todo')next.documents=next.documents.map(d=>d.archivedWith&&documentServesStep(d,s.id)?{...d,archivedAt:null,archivedBy:null,archivedWith:null,pending:true}:d);
+   if(o.status==='done')next.documents=next.documents.map(d=>documentServesStep(d,s.id)&&documentSpent(next.steps,d)&&d.category!=='memory'&&!d.archivedAt?{...d,archivedAt:o.at,archivedWith:s.id,pending:!live}:d);
+   if(o.status==='todo')next.documents=next.documents.map(d=>d.archivedWith&&documentServesStep(d,s.id)?{...d,archivedAt:null,archivedBy:null,archivedWith:null,pending:!live}:d);
   }}
   if(o.type==='phraseSeen'){
    if(o.day){const e={...(next.phraseSeen[o.day]||{})};e[o.person]=e[o.person]||o.at;next.phraseSeen={...next.phraseSeen,[o.day]:e};}
@@ -1430,25 +1430,25 @@ export function pendingProgress(state,queue){
    if(o.day){const e={...(next.factSeen[o.day]||{})};e[o.person]=e[o.person]||o.at;next.factSeen={...next.factSeen,[o.day]:e};}
    if(o.factIds?.length){const log={...(next.factLog[o.person]||{})};for(const id of o.factIds)log[id]=log[id]||o.at;next.factLog={...next.factLog,[o.person]:log};}
   }
-  if(o.type==='stageSet')next.stages={...(next.stages||{}),[o.id]:{reached:o.reached,by:o.by||'',at:o.at,pending:true}};
+  if(o.type==='stageSet')next.stages={...(next.stages||{}),[o.id]:{reached:o.reached,by:o.by||'',at:o.at,pending:!live}};
   if(o.type==='gameScore'){
    const mine={...(next.games.scores[o.person]||{})};
    mine[o.game]=Math.max(mine[o.game]||0,o.score);
    next.games={...next.games,scores:{...next.games.scores,[o.person]:mine}};
   }
   if(o.type==='foodTried'){const e=next.food[o.itemId]||{},tried={...(e.tried||{})};if(o.done)tried[o.person]=tried[o.person]||o.at;else delete tried[o.person];next.food={...next.food,[o.itemId]:{...e,tried}};}
-  if(o.type==='huntAdd'){const h={custom:[],entries:[],...(next.hunts||{})};const ratings=isStarRating(o.rating)&&o.by?{[o.by]:o.rating}:{};next.hunts={...h,entries:[...h.entries,{id:`pending-${o.operationId}`,hunt:o.hunt,title:String(o.title||'').trim(),place:String(o.place||'').trim(),day:o.stepId?null:(o.day??null),yen:Number.isInteger(o.yen)?o.yen:null,note:String(o.note||'').trim(),status:o.status==='want'?'want':'tried',shortlistId:o.shortlistId||null,stepId:o.stepId||null,locationId:o.locationId||null,pin:validPin(o.pin??null)?(o.pin??null):null,ratings:o.status==='want'?{}:ratings,by:o.by||'',at:o.at,pending:true}]};}
-  if(o.type==='voiceNoteWords'){next.voiceNotes=(next.voiceNotes||[]).map(v=>v.id===o.id?{...v,transcript:String(o.transcript||'').trim()||undefined,pending:true}:v);}
-  if(o.type==='noticedAdd'){next.noticed=[...(next.noticed||[]),{id:`pending-${o.operationId}`,...noticedFields(o),by:o.by||'',at:o.at,pending:true}];}
-  if(o.type==='huntTried'){const h={custom:[],entries:[],rankings:{},...(next.hunts||{})};next.hunts={...h,entries:h.entries.map(e=>e.id===o.id?{...e,status:o.done?'tried':'want',pending:true}:e)};}
+  if(o.type==='huntAdd'){const h={custom:[],entries:[],...(next.hunts||{})};const ratings=isStarRating(o.rating)&&o.by?{[o.by]:o.rating}:{};next.hunts={...h,entries:[...h.entries,{id:`pending-${o.operationId}`,hunt:o.hunt,title:String(o.title||'').trim(),place:String(o.place||'').trim(),day:o.stepId?null:(o.day??null),yen:Number.isInteger(o.yen)?o.yen:null,note:String(o.note||'').trim(),status:o.status==='want'?'want':'tried',shortlistId:o.shortlistId||null,stepId:o.stepId||null,locationId:o.locationId||null,pin:validPin(o.pin??null)?(o.pin??null):null,ratings:o.status==='want'?{}:ratings,by:o.by||'',at:o.at,pending:!live}]};}
+  if(o.type==='voiceNoteWords'){next.voiceNotes=(next.voiceNotes||[]).map(v=>v.id===o.id?{...v,transcript:String(o.transcript||'').trim()||undefined,pending:!live}:v);}
+  if(o.type==='noticedAdd'){next.noticed=[...(next.noticed||[]),{id:`pending-${o.operationId}`,...noticedFields(o),by:o.by||'',at:o.at,pending:!live}];}
+  if(o.type==='huntTried'){const h={custom:[],entries:[],rankings:{},...(next.hunts||{})};next.hunts={...h,entries:h.entries.map(e=>e.id===o.id?{...e,status:o.done?'tried':'want',pending:!live}:e)};}
   if(o.type==='huntRate'&&o.rating){const h=next.hunts||{};if(h.entries)next.hunts={...h,entries:h.entries.map(e=>e.id===o.id&&e.status==='want'?{...e,status:'tried'}:e)};}
   if(o.type==='huntRank'&&Array.isArray(o.order)){const h={custom:[],entries:[],rankings:{},...(next.hunts||{})};next.hunts={...h,rankings:{...h.rankings,[o.hunt]:{...(h.rankings[o.hunt]||{}),[o.person]:o.order}}};}
-  if(o.type==='huntRate'){const h={custom:[],entries:[],...(next.hunts||{})};next.hunts={...h,entries:h.entries.map(e=>{if(e.id!==o.id)return e;const ratings={...(e.ratings||{})};if(o.rating)ratings[o.person]=o.rating;else delete ratings[o.person];return {...e,ratings,pending:true};})};}
+  if(o.type==='huntRate'){const h={custom:[],entries:[],...(next.hunts||{})};next.hunts={...h,entries:h.entries.map(e=>{if(e.id!==o.id)return e;const ratings={...(e.ratings||{})};if(o.rating)ratings[o.person]=o.rating;else delete ratings[o.person];return {...e,ratings,pending:!live};})};}
   if(o.type==='foodRating'){const e=next.food[o.itemId]||{},ratings={...(e.ratings||{})};if(o.rating)ratings[o.person]=o.rating;else delete ratings[o.person];next.food={...next.food,[o.itemId]:{...e,ratings}};}
   if(o.type==='expressPick'||o.type==='expressUsed'){const slot=next.expressSlots.find(s=>s.id===o.id);if(slot){
    if(o.type==='expressPick'){const picks={...(slot.picks||{})};if(o.rideId)picks[o.person]=o.rideId;else delete picks[o.person];slot.picks=picks;}
    else{const used={...(slot.used||{})};if(o.done)used[o.person]=used[o.person]||o.at;else delete used[o.person];slot.used=used;}
-   slot.pending=true;
+   slot.pending=!live;
   }}
   if(o.type==='parkRide'){const e=next.parkRides[o.rideId]||{},ridden={...(e.ridden||{})};if(o.done)ridden[o.person]=ridden[o.person]||o.at;else delete ridden[o.person];next.parkRides={...next.parkRides,[o.rideId]:{...e,ridden}};}
   if(o.type==='parkWant'){const e=next.parkRides[o.rideId]||{},wants={...(e.wants||{})};if(o.want)wants[o.person]=wants[o.person]||o.at;else delete wants[o.person];next.parkRides={...next.parkRides,[o.rideId]:{...e,wants}};}
@@ -1457,9 +1457,9 @@ export function pendingProgress(state,queue){
   if(o.type==='eyeSpy'){const key=eyeSpyKey(o.stepId,o.item),found={...(next.eyeSpy[key]||{})};if(o.done)found[o.person]=found[o.person]||o.at;else delete found[o.person];next.eyeSpy={...next.eyeSpy,[key]:found};}
   // An idea thought of on a train with no signal, and the votes cast on one, are additions:
   // they are still right whenever they land, so the board shows them straight away.
-  if(o.type==='proposalAdd')next.proposals=[...next.proposals,{id:`pending-${o.operationId}`,...proposalDraft(o),addedBy:o.person,createdAt:o.at,votes:{},musts:{},parked:false,stepId:null,pending:true}];
-  if(o.type==='proposalVote'){const p=next.proposals.find(p=>p.id===o.id);if(p){const votes={...(p.votes||{})};if(o.vote===0)delete votes[o.person];else votes[o.person]=o.vote;p.votes=votes;p.pending=true;}}
-  if(o.type==='proposalMust'){const p=next.proposals.find(p=>p.id===o.id);if(p){const musts={...(p.musts||{})};if(o.must)musts[o.person]=musts[o.person]||o.at;else delete musts[o.person];p.musts=musts;p.pending=true;}}
+  if(o.type==='proposalAdd')next.proposals=[...next.proposals,{id:`pending-${o.operationId}`,...proposalDraft(o),addedBy:o.person,createdAt:o.at,votes:{},musts:{},parked:false,stepId:null,pending:!live}];
+  if(o.type==='proposalVote'){const p=next.proposals.find(p=>p.id===o.id);if(p){const votes={...(p.votes||{})};if(o.vote===0)delete votes[o.person];else votes[o.person]=o.vote;p.votes=votes;p.pending=!live;}}
+  if(o.type==='proposalMust'){const p=next.proposals.find(p=>p.id===o.id);if(p){const musts={...(p.musts||{})};if(o.must)musts[o.person]=musts[o.person]||o.at;else delete musts[o.person];p.musts=musts;p.pending=!live;}}
   if(o.type==='stepRating'||o.type==='stepThought'){
    const entry={...(next.stepReviews[o.id]||{})};
    if(o.type==='stepRating'){const ratings={...(entry.ratings||{})};if(o.rating)ratings[o.person]=o.rating;else delete ratings[o.person];entry.ratings=ratings;}
@@ -1478,7 +1478,7 @@ export function pendingProgress(state,queue){
    next.sumo=next_sumo;}
   // A character is only ever your own to design, so one made with no signal can stand beside
   // your name straight away rather than waiting for the family plan to catch up.
-  if(o.type==='mascotSave')next.mascots={...next.mascots,[o.person]:{...o.mascot,updatedAt:o.at,pending:true}};
+  if(o.type==='mascotSave')next.mascots={...next.mascots,[o.person]:{...o.mascot,updatedAt:o.at,pending:!live}};
   if(o.type==='mascotRemove'){const {[o.person]:removed,...rest}=next.mascots;next.mascots=rest;}
   // Something seen in a shop with no signal in it, which is most shops: the find is words and is
   // still exactly as true whenever it lands, so it goes on the shortlist at once. Its photograph
@@ -1489,29 +1489,29 @@ export function pendingProgress(state,queue){
    person:o.person||'Family',day:o.stepId?null:(o.day??null),price:o.price??null,tags:Array.isArray(o.tags)?o.tags:[],
    stepId:o.stepId??null,locationId:o.locationId??null,pin:validPin(o.pin??null)?(o.pin??null):null,
    rating:shortlistRating(o),shoppingId:null,
-   status:'thinking',photo:null,addedBy:o.by||'',createdAt:o.at,decidedBy:null,decidedAt:null,pending:true}];
+   status:'thinking',photo:null,addedBy:o.by||'',createdAt:o.at,decidedBy:null,decidedAt:null,pending:!live}];
   // How much we want it is an opinion formed standing in front of the thing, which is exactly
   // where there is no signal, so it is given on the spot and lands whenever the phone does.
-  if(o.type==='shortlistRating'){const f=next.shortlist.find(f=>f.id===o.id);if(f){f.rating=shortlistRating(o);f.pending=true;}}
-  if(o.type==='shortlistStatus'){const f=next.shortlist.find(f=>f.id===o.id);if(f){f.status=o.status;f.decidedBy=o.status==='thinking'?null:(o.by||f.decidedBy);f.decidedAt=o.status==='thinking'?null:o.at;f.pending=true;}}
-  if(o.type==='expenseAdd')next.expenses=[...(next.expenses||[]),{id:`pending-${o.operationId}`,...expenseFields(o),createdBy:o.by||'',createdAt:o.at,pending:true}];
-  if(o.type==='todoAdd')next.todos=[...next.todos,{id:`pending-${o.operationId}`,title:String(o.title||'').trim(),kind:o.kind==='buy'?'buy':'do',day:o.day??null,person:o.person||'Family',notes:String(o.notes||''),createdBy:o.by||'',createdAt:o.at,doneAt:null,doneBy:null,pending:true}];
+  if(o.type==='shortlistRating'){const f=next.shortlist.find(f=>f.id===o.id);if(f){f.rating=shortlistRating(o);f.pending=!live;}}
+  if(o.type==='shortlistStatus'){const f=next.shortlist.find(f=>f.id===o.id);if(f){f.status=o.status;f.decidedBy=o.status==='thinking'?null:(o.by||f.decidedBy);f.decidedAt=o.status==='thinking'?null:o.at;f.pending=!live;}}
+  if(o.type==='expenseAdd')next.expenses=[...(next.expenses||[]),{id:`pending-${o.operationId}`,...expenseFields(o),createdBy:o.by||'',createdAt:o.at,pending:!live}];
+  if(o.type==='todoAdd')next.todos=[...next.todos,{id:`pending-${o.operationId}`,title:String(o.title||'').trim(),kind:o.kind==='buy'?'buy':'do',day:o.day??null,person:o.person||'Family',notes:String(o.notes||''),createdBy:o.by||'',createdAt:o.at,doneAt:null,doneBy:null,pending:!live}];
   // Something put in the case on a train, and a suggestion added or turned down there, are all
   // still right whenever they land, so the list shows them at once.
   if(o.type==='packAdd'||o.type==='packAddAll'){
    const list=o.type==='packAdd'?[o]:(Array.isArray(o.items)?o.items:[]);
    next.packing={...next.packing,items:[...next.packing.items,...list.map((item,i)=>({...packItem(item,`pending-${o.operationId}-${i}`),
-    createdBy:o.by||'',createdAt:o.at,packedAt:null,packedBy:null,pending:true}))]};
+    createdBy:o.by||'',createdAt:o.at,packedAt:null,packedBy:null,pending:!live}))]};
   }
-  if(o.type==='packStatus')next.packing={...next.packing,items:next.packing.items.map(i=>i.id!==o.id?i:{...i,packedAt:o.packed?o.at:null,packedBy:o.packed?o.by||i.packedBy:null,pending:true})};
+  if(o.type==='packStatus')next.packing={...next.packing,items:next.packing.items.map(i=>i.id!==o.id?i:{...i,packedAt:o.packed?o.at:null,packedBy:o.packed?o.by||i.packedBy:null,pending:!live})};
   if(o.type==='packDismiss'){const dismissed={...next.packing.dismissed};if(o.dismissed)dismissed[o.suggestionId]={by:o.by||'',at:o.at};else delete dismissed[o.suggestionId];next.packing={...next.packing,dismissed};}
-  if(o.type==='todoStatus'){const t=next.todos.find(t=>t.id===o.id);if(t){t.doneAt=o.done?o.at:null;t.doneBy=o.done?o.by||t.doneBy:null;t.pending=true;}}
+  if(o.type==='todoStatus'){const t=next.todos.find(t=>t.id===o.id);if(t){t.doneAt=o.done?o.at:null;t.doneBy=o.done?o.by||t.doneBy:null;t.pending=!live;}}
   // Something wanted, and something bought, both with no signal: additions and a record of what
   // happened, so the purse on the screen is right long before it reaches the family plan.
-  if(o.type==='spendAdd')next.spending={...next.spending,items:[...next.spending.items,{id:`pending-${o.operationId}`,person:o.person,title:String(o.title||'').trim(),estimate:Number.isFinite(o.estimate)?o.estimate:null,spent:null,day:o.day??null,notes:String(o.notes||''),todoId:o.todoId??null,createdBy:o.by||'',createdAt:o.at,boughtAt:null,boughtBy:null,pending:true}]};
+  if(o.type==='spendAdd')next.spending={...next.spending,items:[...next.spending.items,{id:`pending-${o.operationId}`,person:o.person,title:String(o.title||'').trim(),estimate:Number.isFinite(o.estimate)?o.estimate:null,spent:null,day:o.day??null,notes:String(o.notes||''),todoId:o.todoId??null,createdBy:o.by||'',createdAt:o.at,boughtAt:null,boughtBy:null,pending:!live}]};
   // Asking is an addition and is still a fair question whenever it lands, so it shows at once.
-  if(o.type==='spendRequest')next.spending={...next.spending,requests:[...next.spending.requests,{id:`pending-${o.operationId}`,person:o.person,yen:Number.isFinite(o.yen)?o.yen:0,reason:String(o.reason||'').trim(),at:o.at,by:o.by||'',status:'open',decidedBy:null,decidedAt:null,approvedYen:null,reply:'',pending:true}]};
-  if(o.type==='spendBought')next.spending={...next.spending,items:next.spending.items.map(i=>i.id!==o.id?i:{...i,boughtAt:o.done?o.at:null,boughtBy:o.done?o.by||i.boughtBy:null,spent:o.done&&Number.isFinite(o.spent)?o.spent:o.done?i.spent:null,pending:true})};
+  if(o.type==='spendRequest')next.spending={...next.spending,requests:[...next.spending.requests,{id:`pending-${o.operationId}`,person:o.person,yen:Number.isFinite(o.yen)?o.yen:0,reason:String(o.reason||'').trim(),at:o.at,by:o.by||'',status:'open',decidedBy:null,decidedAt:null,approvedYen:null,reply:'',pending:!live}]};
+  if(o.type==='spendBought')next.spending={...next.spending,items:next.spending.items.map(i=>i.id!==o.id?i:{...i,boughtAt:o.done?o.at:null,boughtBy:o.done?o.by||i.boughtBy:null,spent:o.done&&Number.isFinite(o.spent)?o.spent:o.done?i.spent:null,pending:!live})};
   if(o.type==='challengeSkip'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.skips={...(c.skips||{})};if(o.done){c.skips[o.person]=c.skips[o.person]||o.at;delete c.completions[o.person];}else delete c.skips[o.person];}}
   if(o.type==='challengeStatus'){const c=next.challenges.find(c=>c.id===o.id);if(c){c.completions={...c.completions};if(o.done)c.completions[o.person]=c.completions[o.person]||o.at;else delete c.completions[o.person];if(o.response!==undefined)c.responses={...(c.responses||{}),[o.person]:o.response};}}
  }
