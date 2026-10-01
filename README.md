@@ -6,6 +6,10 @@ A private iPhone Home Screen web app, prepared for a new GitHub repository and V
 
 The production frontend builds and the automated model/API checks pass. No GitHub repository, Vercel deployment, Neon database or Blob store has been created or connected yet. Live family sharing and uploads must be checked after those connections are made. The internal browser preview was blocked by the browser environment (`ERR_BLOCKED_BY_CLIENT`), so visual, touch, iPhone installation, calendar import, alarm Shortcut and offline browser checks remain outstanding. Do not treat this as a deployed or fully device-tested release.
 
+## Changed on the road, 1 October 2026
+
+- **Recommendations from friends and family.** On the planning board, under the travel party: paste what somebody sent (a WhatsApp list, an email, notes from a phone call), say who it was from, and tick through what it recommends. **One per line** works anywhere with no signal: bullets and numbers come off, anything after a dash or colon is kept as their tip, and greetings and questions are left out. **Read it for me** (parents, with the Anthropic key) picks the recommendations out of a chatty message instead, keeping their tips; it reads only what was pasted and searches nothing. Each ticked item goes onto the board as an ordinary idea for the family to vote on; a place already on the board gets the new name added rather than a second copy, matched however it is spelt. The card shows each recommender and what they said, the panel lists the most recommended ideas and everyone who has sent something, a name searches the board for what they gave, and the tips go into the stop's notes when it is put on a day. Anyone can add them, the boys included, and they queue offline; a name comes off for whoever added it or a parent. Logic in `src/recommend-data.js`, tests in `tests/recommend.test.mjs`. Not yet tried on a phone.
+
 ## Changed on the road, 30 September 2026
 
 Borrowed from apps outside travel, from the review in [docs/ux-adjacent-apps.md](docs/ux-adjacent-apps.md), for the seven days left.

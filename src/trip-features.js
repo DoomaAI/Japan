@@ -1,3 +1,4 @@
+import {recommenders,withRecommender,cleanRecommenders,matchProposal} from './recommend-data.js';
 import {isChild,defaultReading,ageOf,gentleOnly} from './child-levels.js';
 import {nextTimeBrief} from './next-time.js';
 import {learnedBrief} from './taste-data.js';
@@ -1245,13 +1246,13 @@ export function proposalDraft(op){
   suitableFor:[...new Set(Array.isArray(op.suitableFor)?op.suitableFor:[])],
   tags:[...new Set((Array.isArray(op.tags)?op.tags:[]).map(t=>String(t).trim()).filter(Boolean))],
   day:op.day||null,availability:String(op.availability??'').trim(),timing:op.timing??'flex',
-  time:op.time||null,duration:number(op.duration,60),source:op.source==='suggested'?'suggested':'typed',
+  time:op.time||null,duration:number(op.duration,60),source:['suggested','recommended'].includes(op.source)?op.source:'typed',
   setting:['indoor','outdoor','mixed'].includes(op.setting)?op.setting:''};
 }
 // What a scheduled step carries over from the board: the opening hours and the price the family
 // agreed on are exactly what someone standing outside the place will want to read.
 export function proposalStepNotes(p){
- const lines=[p.notes,p.availability?`Available: ${p.availability}`:'',
+ const lines=[p.notes,...recommenders(p).map(r=>`Recommended by ${r.name}${r.said?`: ${r.said}`:''}`),p.availability?`Available: ${p.availability}`:'',
   p.cost===null||p.cost===undefined?'':`Estimated cost ¥${p.cost.toLocaleString('en-AU')}${p.costNote?` · ${p.costNote}`:''}`];
  return lines.filter(Boolean).join('\n').slice(0,4000);
 }
@@ -1264,7 +1265,7 @@ export function rankedProposals(state,{query='',category='',suits='',by='',place
   if(day&&(where.day||p.day)!==day)return false;
   if(suits&&(p.suitableFor||[]).length&&!p.suitableFor.includes(suits))return false;
   if(by&&p.addedBy!==by&&(p.votes||{})[by]===undefined&&!(p.musts||{})[by])return false;
-  return !q||[p.title,p.place,p.japanese,p.notes,p.availability,p.costNote,p.addedBy,...(p.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(q);
+  return !q||[p.title,p.place,p.japanese,p.notes,p.availability,p.costNote,p.addedBy,...(p.tags||[]),...recommenders(p).map(r=>r.name)].filter(Boolean).join(' ').toLowerCase().includes(q);
  });
  const musts=p=>proposalMusts(p).length,age=p=>String(p.createdAt||'');
  const order={top:(a,b)=>proposalScore(b)-proposalScore(a)||musts(b)-musts(a)||age(a).localeCompare(age(b)),
@@ -1458,6 +1459,12 @@ export function pendingProgress(state,queue){
   // An idea thought of on a train with no signal, and the votes cast on one, are additions:
   // they are still right whenever they land, so the board shows them straight away.
   if(o.type==='proposalAdd')next.proposals=[...next.proposals,{id:`pending-${o.operationId}`,...proposalDraft(o),addedBy:o.person,createdAt:o.at,votes:{},musts:{},parked:false,stepId:null,pending:!live}];
+  // A friend's recommendation is an addition too: onto the idea it matches, or a new one.
+  if(o.type==='proposalRecommend'&&String(o.name||'').trim()){
+   const hit=o.id?next.proposals.find(p=>p.id===o.id):o.remove?null:matchProposal(next.proposals,o.title);
+   if(hit)next.proposals=next.proposals.map(p=>p===hit?{...p,recommendedBy:withRecommender(p.recommendedBy,{name:o.name,said:o.said,at:o.at,by:o.person,remove:o.remove}),pending:!live}:p);
+   else if(!o.remove&&String(o.title||'').trim())next.proposals=[...next.proposals,{id:`pending-${o.operationId}`,...proposalDraft({...o,source:'recommended'}),recommendedBy:cleanRecommenders([{name:o.name,said:o.said,at:o.at,by:o.person}]),addedBy:o.person,createdAt:o.at,votes:{},musts:{},parked:false,stepId:null,pending:!live}];
+  }
   if(o.type==='proposalVote'){const p=next.proposals.find(p=>p.id===o.id);if(p){const votes={...(p.votes||{})};if(o.vote===0)delete votes[o.person];else votes[o.person]=o.vote;p.votes=votes;p.pending=!live;}}
   if(o.type==='proposalMust'){const p=next.proposals.find(p=>p.id===o.id);if(p){const musts={...(p.musts||{})};if(o.must)musts[o.person]=musts[o.person]||o.at;else delete musts[o.person];p.musts=musts;p.pending=!live;}}
   if(o.type==='stepRating'||o.type==='stepThought'){

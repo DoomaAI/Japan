@@ -1,9 +1,11 @@
 import React,{useRef,useState} from 'react';
 import HowThisWorks from './HowThisWorks.jsx';
-import {ThumbsUp,ThumbsDown,Star,MapPin,ExternalLink,CalendarDays,LockKeyhole,LockKeyholeOpen,Clock,Coins,Plus,Inbox,Trash2,ChevronRight,Users,Ticket,Search,AlertCircle} from 'lucide-react';
+import {ThumbsUp,ThumbsDown,Star,MapPin,ExternalLink,CalendarDays,LockKeyhole,LockKeyholeOpen,Clock,Coins,Plus,Inbox,Trash2,ChevronRight,Users,Ticket,Search,AlertCircle,MessageSquareQuote,X} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import {TravelParty,PickedFor,Suggestions} from './PlanningParty.jsx';
 import ChooseTogether from './ChooseTogether.jsx';
+import Recommendations from './Recommendations.jsx';
+import {recommenders} from './recommend-data.js';
 import {SETTINGS} from './decide-data.js';
 import {PROPOSAL_KINDS,PROPOSAL_TIMING,PROPOSAL_SORTS,PLACEMENT_LABEL,rankedProposals,proposalPlacement,proposalScore,proposalVoters,proposalMusts,yenPerAud,yenToAud} from './trip-features.js';
 const labelFor=(list,id,fallback)=>(list.find(([key])=>key===id)||fallback)[1];
@@ -86,6 +88,8 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
  <HowThisWorks><p>Put it up, and the rest of the family can back it, pass on it or star it as a must-do. A parent puts the ones we agree on onto a day — locked to a booked time, or left flexible.</p></HowThisWorks>
  <button className="primary" onClick={()=>open({...blank,day:date||'',suitableFor:[]})}><Plus size={18}/>Add an idea</button>
  <TravelParty state={state} user={user} mutate={mutate} busy={busy}/>
+ <Recommendations state={state} user={user} mutate={mutate} busy={busy} request={request} canRead={canLook}
+  onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('');}}/>
  <PickedFor state={state} user={user} mutate={mutate} busy={busy} onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('open');}}/>
  <ChooseTogether state={state} user={user} day={date||day} mutate={mutate} busy={busy}
   onOpen={p=>{setQuery(p.title);setCategory('');setSuits('');setBy('');setDate('');setPlacement('open');}}/>
@@ -114,6 +118,8 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
    <div className="section-heading"><div><span className="eyebrow">{kindLabel(p.category)}</span><h2>{p.title}</h2></div><span className={`plan-score ${score>0?'for':score<0?'against':''}`} aria-label={`${score} net votes`}>{score>0?'+':''}{score}</span></div>
    {p.place&&<p className="place-line"><MapPin size={16}/>{p.place}{p.japanese&&<small lang="ja"> · {p.japanese}</small>}</p>}
    {p.notes&&<p>{p.notes}</p>}
+   {recommenders(p).map(r=><blockquote key={r.name}><MessageSquareQuote size={14}/> <strong>{r.name}</strong>{r.said?`: ${r.said}`:' recommended this'}
+    {(parent||r.by===user.name)&&<button className="recommend-link" aria-label={`Take ${r.name}'s recommendation off`} disabled={busy} onClick={()=>mutate({type:'proposalRecommend',id:p.id,person:user.name,name:r.name,remove:true})}> <X size={13}/></button>}</blockquote>)}
    <div className="plan-facts">
     <span><Clock size={15}/>{where.state==='scheduled'?`${dayLabel(where.day)}${where.time?` · ${where.time}`:' · any time'} · ${where.locked?'Locked':'Flexible'}`:timingLabel(p.timing)}</span>
     {p.availability&&<span>Available {p.availability}</span>}
@@ -123,7 +129,7 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
    </div>
    <div className="row wrap plan-tags">
     <span className={`tag placement ${where.state}`}>{PLACEMENT_LABEL[where.state]}</span>
-    <button className="tag" onClick={()=>setBy(p.addedBy)}>{p.source==='suggested'?'Suggested, put up by':'Added by'} {p.addedBy}</button>
+    <button className="tag" onClick={()=>setBy(p.addedBy)}>{p.source==='suggested'?'Suggested, put up by':p.source==='recommended'?'Recommended, put up by':'Added by'} {p.addedBy}</button>
     {p.suitableFor?.length?p.suitableFor.map(n=><button className="tag" key={n} onClick={()=>setSuits(n)}><Users size={12}/>Suits {n}</button>):<span className="tag"><Users size={12}/>Suits everyone</span>}
     {musts.map(n=><span className="tag must" key={n}><Star size={12}/>{n}’s must-do</span>)}
     {up.map(n=><span className="tag up" key={n}><ThumbsUp size={12}/>{n}</span>)}

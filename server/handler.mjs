@@ -16,6 +16,7 @@ import {readMenu,readPacket,menuReaderReady} from './menu.mjs';
 import {translatePhrase,translatorReady,translateTicketText,TICKET_FIELDS,TICKET_DIRECTIONS,ticketTranslationKey} from './translate.mjs';
 import {researchPlace,researchReady} from './research.mjs';
 import {researchPayMethod} from './pay-research.mjs';
+import {readRecommendations} from './recommend.mjs';
 import {checkLocal} from './local-check.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {findEvents,eventsReady} from './events.mjs';
@@ -373,6 +374,12 @@ export default async function handler(req,res){
   if(route==='pay-research'&&post){
    parent(user);
    return json(res,await researchPayMethod(b));
+  }
+  // A friend's message read into separate recommendations. Reads nothing from the trip and
+  // writes nothing: the list comes back to be ticked through and saved through mutate.
+  if(route==='recommend-read'&&post){
+   parent(user);
+   return json(res,await readRecommendations(b));
   }
   if(route==='research'&&post){
    parent(user);const {state}=await readTrip();

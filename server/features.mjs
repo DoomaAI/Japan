@@ -27,6 +27,7 @@ import {MAX_NOTICED,NOTICED_TEXT,noticedFields} from '../src/noticed-data.js';
 import {findReportKind} from '../src/report-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
 import {findRule} from '../src/booking-window-data.js';
+import {cleanRecommenders,withRecommender,matchProposal,RECOMMENDER_NAME,RECOMMENDER_SAID} from '../src/recommend-data.js';
 import {findShopItem,SHOP_VERDICTS,SHOP_NOTE_MAX} from '../src/shop-data.js';
 import {cleanStay} from '../src/stay-data.js';
 import {PREDICTION_MAX,findPrediction,predictionPhase} from '../src/prediction-data.js';
@@ -295,6 +296,43 @@ export function extraOperation(state,op,user,fail,now){
    if(!parent&&p.addedBy!==user.name)fail('You can change the ideas you added.',403);
    Object.assign(p,draft);
    return {summary:null,important:false,title:draft.title};
+  }
+  // A friend or relative's recommendation. It goes onto the idea already on the board for that
+  // place, adding their name, or puts a new idea up with their name on it. Anyone can do it, as
+  // anyone can add an idea; taking a name off is for whoever put it there, or a parent.
+  if(op.type==='proposalRecommend'){
+   const name=String(op.name??'').trim(),said=String(op.said??'').trim();
+   if(!name)fail('Say who recommended it.');
+   if(name.length>RECOMMENDER_NAME)fail(`Keep the name under ${RECOMMENDER_NAME} characters.`);
+   if(said.length>RECOMMENDER_SAID)fail(`Keep what they said under ${RECOMMENDER_SAID} characters.`);
+   const at=when('recommendation');
+   if(op.remove){
+    const p=found(),r=(p.recommendedBy||[]).find(x=>x.name.toLowerCase()===name.toLowerCase());
+    if(!r)return {summary:null,important:false,title:p.title};
+    if(!parent&&r.by!==user.name)fail('You can take off the recommendations you added.',403);
+    p.recommendedBy=withRecommender(p.recommendedBy,{name,remove:true});
+    return {summary:null,important:false,title:p.title};
+   }
+   const p=op.id?found():matchProposal(board,op.title);
+   if(p){
+    p.recommendedBy=withRecommender(p.recommendedBy,{name,said,at,by:user.name});
+    return {summary:`${user.name} added ${name}'s recommendation to ${p.title}`,important:false,title:p.title};
+   }
+   const draft=proposalDraft({...op,source:'recommended'});
+   if(!draft.title)fail('Give the idea a name.');
+   for(const [key,max] of [['title',250],['place',250],['japanese',250],['notes',4000]])if(!string(draft[key],max))fail(`Keep the ${key} under ${max} characters.`);
+   for(const key of ['website','ticketUrl','mapUrl'])if(draft[key]&&!https(draft[key]))fail('Use an HTTPS link.');
+   if(!PROPOSAL_KINDS.some(([id])=>id===draft.category))fail('Choose what kind of idea this is.');
+   if(!PROPOSAL_TIMING.some(([id])=>id===draft.timing))fail('Say whether it is flexible, only at certain times, or a fixed time.');
+   if(draft.day!==null&&!state.days.some(d=>d.date===draft.day))fail('Choose a trip day, or leave the day open.');
+   if(draft.time!==null&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.time))fail('Use a valid time.');
+   if(!Number.isInteger(draft.duration)||draft.duration<0||draft.duration>1440)fail('How long it takes must be 0–1440 minutes.');
+   if(draft.cost!==null&&(!Number.isFinite(draft.cost)||draft.cost<0||draft.cost>10000000))fail('Enter a cost in yen.');
+   if(draft.suitableFor.some(n=>!state.members.includes(n)))fail('Choose family members.');
+   if(draft.tags.length>20||draft.tags.some(t=>!string(t,50)))fail('Use up to 20 tags, each under 50 characters.');
+   if(board.length>=MAX_PROPOSALS)fail(`That is ${MAX_PROPOSALS} ideas already. Schedule or park a few first.`);
+   board.push({id:randomUUID(),...draft,recommendedBy:cleanRecommenders([{name,said,at,by:user.name}]),addedBy:user.name,createdAt:at,votes:{},musts:{},parked:false,stepId:null,scheduledBy:null,scheduledAt:null});
+   return {summary:`${user.name} put ${name}'s recommendation, ${draft.title}, on the planning board`,important:true,title:draft.title};
   }
   if(op.type==='proposalVote'){
    const p=found();ownVote(op.person);
