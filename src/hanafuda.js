@@ -39,7 +39,6 @@ export const DECK=[
   card(11,TAN,'plain','Plain ribbon'),...plains(11,1),
  card(12,HIKARI,'phoenix','Phoenix'),...plains(12,3)
 ];
-export const cardById=id=>DECK.find(c=>c.id===id);
 const has=(pile,tag)=>pile.some(c=>c.tag===tag);
 const count=(pile,kind)=>pile.filter(c=>c.kind===kind).length;
 const brights=pile=>pile.filter(c=>c.kind===HIKARI);

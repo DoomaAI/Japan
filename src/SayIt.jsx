@@ -4,7 +4,6 @@ import {useReadAloud} from './AdventurePages.jsx';
 import {voiceState,settled,canOffer,speechKey,speechRate,SLOW_RATE,phonicChunks} from './speech.js';
 import {PhraseAudio,PhraseClipControls} from './PhraseAudio.jsx';
 const voices=()=>{try{return window.speechSynthesis?.getVoices()||null;}catch{return null;}};
-export const hasJapaneseVoice=()=>voiceState(voices())==='yes';
 // The voice list arrives late, and on some phones the voiceschanged event never comes at all,
 // so look again a few times before settling on an answer.
 export function useJapaneseVoice(){

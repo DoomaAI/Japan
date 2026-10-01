@@ -128,7 +128,6 @@ export const PICTURES=[
 export const SIZES=[5,10];
 export const pictureById=id=>PICTURES.find(p=>p.id===id)||PICTURES[0];
 export const picturesOf=size=>PICTURES.filter(p=>p.art.length===size);
-export const sizeOf=picture=>picture.art.length;
 // Filling a square that is not in the picture is not punished while you play — you work it out
 // and cross it back off — but it is counted, because a child who guesses should not out-score
 // one who worked it out. Time matters less than that, and never takes a solve below its size.

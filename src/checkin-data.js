@@ -17,7 +17,6 @@ export const ARRIVED_SHOWN_MIN=30;
 export const SHARE_EVERY_MS=120000;
 export const checkIns=state=>state.checkIns||[];
 export const liveCheckIns=(state,now=new Date())=>checkIns(state).filter(c=>!c.closedAt&&(!c.arrivedAt||+now-Date.parse(c.arrivedAt)<ARRIVED_SHOWN_MIN*60000));
-export const myCheckIn=(state,name,now=new Date())=>liveCheckIns(state,now).find(c=>c.from===name&&!c.arrivedAt)||null;
 export const dueClock=c=>japanClock(new Date(c.due));
 // Where somebody could be heading: the stops still to do today, tonight's hotel, the day's
 // meeting point. Anything else is typed.

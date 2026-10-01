@@ -1,8 +1,7 @@
 import {AppError,MEMBERS} from './model.mjs';
 import {japanDate} from '../src/timing.js';
 import {withGuide} from '../src/guide-data.js';
-import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MEAL_KINDS,PRICE_BANDS,PROPOSAL_KINDS,proposalDraft,roundCoord,validCoords,partyBrief,matchDish,MAX_DISH_HUNT,
- MIN_RATING_VOTES,MINUTES_PER_STAR,isRatedKind,placeScore,rankNearby,ratingText,validRating} from '../src/trip-features.js';
+import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MEAL_KINDS,PRICE_BANDS,proposalDraft,roundCoord,validCoords,partyBrief,matchDish,MAX_DISH_HUNT,MIN_RATING_VOTES,MINUTES_PER_STAR,isRatedKind,placeScore,rankNearby,ratingText,validRating} from '../src/trip-features.js';
 import {seenHosts,checkedLink} from './links.mjs';
 export const nearbyReady=()=>!!process.env.ANTHROPIC_API_KEY;
 export const MAX_NEARBY=8;

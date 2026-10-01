@@ -4,7 +4,7 @@ import {Check,Languages,Plus,Trash2,Copy,AlertCircle,Compass,Star} from 'lucide-
 import {FOOD,FOOD_KINDS,FOOD_KIND_LABEL,ORDERING,SAY_TIP} from './food-data.js';
 import SayIt from './SayIt.jsx';
 import {PHRASES} from './phrases.js';
-import {triedFood,foodRatings,foodAverage,isFavourite,FAVOURITE_AT,searchText,MAX_DISH_HUNT} from './trip-features.js';
+import {triedFood,foodRatings,foodAverage,isFavourite,searchText,MAX_DISH_HUNT} from './trip-features.js';
 import MenuReader from './MenuReader.jsx';
 import {Stars} from './StepReview.jsx';
 import {CardFacts,factAloudFor} from './FunFacts.jsx';

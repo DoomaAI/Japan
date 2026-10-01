@@ -13,7 +13,6 @@ export const VJW_STEPS=[
  ['Have the codes on the phone','Show each code on the phone at immigration, then again at customs, or once at a combined kiosk. A printout is not accepted.']
 ];
 export const TRAVEL_DECLARATION='https://www.abf.gov.au/entering-and-leaving-australia/crossing-the-border/at-the-border/incoming-passenger-card-(ipc)';
-export const ATD_HOURS=72;
 export const ATD_STEPS=[
  ['Up to 72 hours before the flight home','In the Qantas app, fill in the Australia Travel Declaration for each of us. The QR codes come to the app and by email.'],
  ['Where it works','Qantas flights into Brisbane and selected flights into Sydney and Melbourne so far; every Australian airport over the next year or so. The Qantas app offers it if our flight is included.'],

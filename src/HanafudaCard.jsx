@@ -1,5 +1,5 @@
 import React from 'react';
-import {HIKARI,TANE,TAN,KASU,monthOf} from './hanafuda.js';
+import {HIKARI,monthOf} from './hanafuda.js';
 const INK='#2b2119';
 // The twelve flowers, one per month, drawn simply enough to tell apart at the size a phone
 // shows a card. They are not reproductions of a real deck — nothing here is traced from

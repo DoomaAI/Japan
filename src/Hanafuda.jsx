@@ -1,4 +1,4 @@
-import React,{useState,useEffect,useRef} from 'react';
+import React,{useEffect,useRef} from 'react';
 import {useStored} from './stored.js';
 import {Trophy,RotateCcw} from 'lucide-react';
 import {YAKU,HIKARI,TANE,TAN,KASU,deal,step,stop,koikoi,hisMove,heStops,scoreOf,payout,monthOf} from './hanafuda.js';

@@ -123,8 +123,6 @@ export function recommenderList(proposals){
 // The ideas that came from outside the family, the most recommended first.
 export const recommendedProposals=proposals=>(Array.isArray(proposals)?proposals:[]).filter(p=>recommenders(p).length)
  .sort((a,b)=>recommenders(b).length-recommenders(a).length||String(a.title).localeCompare(String(b.title)));
-// One line for the card and for the stop's notes once it is on a day.
-export const recommendedLine=p=>{const r=recommenders(p);return r.length?`Recommended by ${r.map(x=>x.name).join(', ')}`:'';};
 // Who a forwarded email was first from. A parent forwards Sue's email to the trip address, so the
 // inbox says it came from the parent; the "From:" line inside the forward says it was Sue.
 // Her name, or the part of her address before the @, or nothing for a person to type in.

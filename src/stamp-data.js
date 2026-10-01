@@ -55,7 +55,6 @@ export function personalStamps(state,person){
   return {id,...c,stamps:MILESTONES.filter(m=>m<=c.count).map(m=>({id:`${id}-${m}`,label:`${m} ${c.label.toLowerCase()}`,icon:c.icon,milestone:m,earned:true})),next};
  });
 }
-export const stampTotal=(state,person,today)=>familyStamps(state,today).reduce((n,c)=>n+c.earned,0)+personalStamps(state,person).reduce((n,c)=>n+c.stamps.length,0);
 // Every stamp a person has, as a list rather than a count: the family's earned ones (places,
 // sights, rides, trains) and his own milestones. Show and tell reads it for its one line.
 export function stampsFor(state,person,today){

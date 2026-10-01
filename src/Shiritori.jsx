@@ -1,6 +1,6 @@
 import React,{useState,useMemo,useRef,useEffect} from 'react';
 import {useStored} from './stored.js';
-import {Trophy,RotateCcw,X} from 'lucide-react';
+import {RotateCcw,X} from 'lucide-react';
 import {WORDS,OPENER,LEVELS,levelById,optionsFor,phoneReply,shiritoriScore,DEAD} from './shiritori-data.js';
 import {bestScore} from './trip-features.js';
 import {useKanaVoice} from './SayIt.jsx';

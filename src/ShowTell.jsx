@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {Printer,Camera,Trophy,Eye,MessageSquare,Star} from 'lucide-react';
+import {Printer,Trophy,Eye,MessageSquare,Star} from 'lucide-react';
 import {showTellFor,showTellSpeech} from './show-tell.js';
 import {readingHelp,isChild} from './child-levels.js';
 import {photoUrl} from './PhotoDay.jsx';

@@ -1,7 +1,7 @@
 import React,{useState,useMemo,useEffect,useRef} from 'react';
 import {useStored} from './stored.js';
 import {Trophy,RotateCcw,Check,X} from 'lucide-react';
-import {PICTURES,SIZES,picturesOf,pictureById,puzzleFor,picrossScore} from './picross.js';
+import {SIZES,picturesOf,pictureById,puzzleFor,picrossScore} from './picross.js';
 import {bestScore} from './trip-features.js';
 import {WinBurst} from './Win.jsx';
 // Picross. The numbers say how many squares in that line are filled and in what order; working

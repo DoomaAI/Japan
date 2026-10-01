@@ -1,7 +1,7 @@
-import React,{useState,useEffect,useRef} from 'react';
+import React,{useEffect,useRef} from 'react';
 import {useStored} from './stored.js';
 import {Trophy,RotateCcw} from 'lucide-react';
-import {SIZES,EMPTY,BLACK,WHITE,newBoard,place,winsAt,full,aiMove,LEVELS,levelById,gomokuWorth,idx} from './gomoku.js';
+import {SIZES,EMPTY,BLACK,WHITE,newBoard,place,winsAt,full,aiMove,LEVELS,levelById,gomokuWorth} from './gomoku.js';
 import {bestScore} from './trip-features.js';
 import {WinBurst} from './Win.jsx';
 // Gomoku. You are black and you go first, which is how it is played and is also a real

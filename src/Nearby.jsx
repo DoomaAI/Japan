@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import GuideByline from './GuideByline.jsx';
-import {MapPin,Navigation,Search,Plus,Check,AlertCircle,Clock,Coins,ExternalLink,Inbox,Users,LocateFixed,UtensilsCrossed,Star} from 'lucide-react';
+import {MapPin,Navigation,Search,Check,AlertCircle,Clock,Coins,ExternalLink,Inbox,Users,LocateFixed,UtensilsCrossed,Star} from 'lucide-react';
 import {NEARBY_KINDS,FOOD_NEARBY_KINDS,MAX_DISH_HUNT,MINUTES_PER_STAR,isRatedKind,nearbyKindLabel,priceBandLabel,ratingText,walkingLink,COORD_PLACES,MAPS_NEARBY,mapsNearbyLink,partyFit,rankNearby} from './trip-features.js';
 import {SuggestDeck,PartyMatch} from './SuggestDeck.jsx';
 import {Globe,Ticket} from 'lucide-react';

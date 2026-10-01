@@ -17,7 +17,6 @@ export const lateNotices=state=>state?.lateNotices||[];
 export const liveLate=(state,now=new Date())=>lateNotices(state).filter(n=>!n.clearedAt&&+now<Date.parse(n.eta)+LATE_SHOWN_MIN*60000);
 // What one phone shows: the ones it was told, and the one it sent.
 export const lateFor=(state,name,now=new Date())=>liveLate(state,now).filter(n=>n.from===name||n.with.includes(name)||n.to.includes(name));
-export const myLate=(state,name,now=new Date())=>liveLate(state,now).find(n=>n.from===name)||null;
 // The new time. Late for something with a time is that time plus the minutes; late with nothing
 // in particular to be late for is the minutes from now. Either way in Japan time.
 export function lateEta({minutes:m,time,day},now=new Date()){

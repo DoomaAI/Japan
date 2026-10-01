@@ -5,7 +5,7 @@ import {SUBJECTS,CATEGORIES,subjectById,stepFrames,lineArt,pathOf,drawGame,PENS,
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
 import {scoresFor,bestScore,drawingsFor,drawingOwner} from './trip-features.js';
 import {shrinkPhoto} from './MenuReader.jsx';
-import {saveDrawing,listDrawings,dropDrawing,markShared,saveDesign,listDesigns,dropDesign} from './drawing-store.js';
+import {saveDrawing,listDrawings,dropDrawing,markShared,saveDesign,listDesigns} from './drawing-store.js';
 const INK='#16383b',GHOST='#c8d4d2',GUIDE='#b9c6c4';
 export const drawingUrl=drawing=>`/api/drawing?id=${encodeURIComponent(drawing.id)}`;
 // One step of a drawing. Everything already on the page is drawn flat; the lines belonging to

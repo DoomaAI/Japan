@@ -146,7 +146,6 @@ export function foldSpec(fold){
  const move=sideOf(moving,crease[0],crease[1]);
  return move?{crease,move}:null;
 }
-export const creaseOf=fold=>foldSpec(fold)?.crease||null;
 // The crease trimmed to the edges of the picture. A perpendicular bisector is an infinite
 // line, and drawn as one it runs off the card and stops looking like a fold in a piece of paper.
 export function creaseInBox(crease,bounds,over=0){

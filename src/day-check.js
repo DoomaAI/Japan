@@ -120,7 +120,6 @@ export function cleanPlanB(found,state,day,now=new Date().toISOString()){
  return {day,at:now,stops,rest};
 }
 export const planBOf=(state,day)=>state?.planB?.[day]||null;
-export const planBFor=(state,day,stepId)=>(planBOf(state,day)?.stops||[]).filter(s=>s.stepId===stepId);
 
 // A draft change from Ask ---------------------------------------------------------------------
 // Ask reads the plan and gives an opinion. When the opinion is "move this to tomorrow", it can

@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import {PlaneTakeoff,ClipboardCheck,Scale,Package,ExternalLink} from 'lucide-react';
-import {declareGroups,dutyFree,weightBudget,DECLARE_LABEL} from './flying-home.js';
+import {declareGroups,dutyFree,weightBudget} from './flying-home.js';
 import {BORDER_LINKS,DECLARE_RULE} from './going-home.js';
 import {yenToAud} from './trip-features.js';
 const yen=n=>`¥${Math.round(n||0).toLocaleString('en-AU')}`,dollars=(n,rate)=>`$${yenToAud(Math.abs(n||0),rate).toFixed(2)}`;

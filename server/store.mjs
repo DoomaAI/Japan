@@ -63,7 +63,7 @@ export async function updateTrip(change,attempts=4){
 // which outlasts the trip and the looking-back after it. A link in use never runs out on its own,
 // because every open of the app inside the last month of its life pushes it out another six; the
 // only way to lose access is to be revoked or to stay away for half a year.
-export const LINK_LIFE='6 months',LINK_SECONDS=182*86400,RENEW_WITHIN=150*86400000;
+export const LINK_SECONDS=182*86400,RENEW_WITHIN=150*86400000;
 export const cookieOf=req=>{const c=(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('japan_session='))?.slice(14);return c&&/^[a-f0-9]{64}$/.test(c)?c:null;};
 export async function session(req){
  if(localDemo())return {id:'preview',name:'Damien',role:'parent',demo:true};

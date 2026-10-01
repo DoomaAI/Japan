@@ -42,7 +42,7 @@ import {TRACKER_KINDS,MAX_TRACKERS,trackerItem,validShareUrl} from '../src/track
 import {validPlanPatch,applyPlanPatch,planType} from '../src/plan-context.js';
 import {PAGES} from '../src/nav-data.js';
 import {joinMember,changeRole,changeHousehold,cleanName,roleLabel} from '../src/people.js';
-import {invitationProblem,invitationOf,applyRsvp,STATUS_IDS} from '../src/rsvp-data.js';
+import {invitationProblem,invitationOf,applyRsvp} from '../src/rsvp-data.js';
 const MAX_PROPOSALS=300;
 // A shortlist is a list you can still read. Past a couple of hundred finds it is an archive of
 // shops, and the answer to that is to decide on some rather than to keep adding.

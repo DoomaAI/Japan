@@ -81,7 +81,5 @@ export function levelsBrief(state,name){
   trusted:`${name} can be trusted with the plan and its timings; money, bookings and going anywhere alone are still a parent’s.`}[l.awareness];
  return `${reading} ${awareness}`;
 }
-// The short form for the party brief: only what changes how a suggestion should be written.
-export const readingNote=(state,name)=>({none:'not reading yet',sounding:'sounding words out',reads:''}[childLevels(state,name).reading]||'');
 // Whether this person gets only the gentle facts: a child who is always with a grown-up.
 export const gentleOnly=(state,name)=>{const l=childLevels(state,name);return l.child&&l.awareness==='with';};

@@ -154,7 +154,6 @@ export const EYE_SPY=[
 // change and you keep it, and one you only ever get to look at — a ¥10,000 note is not going in
 // a five-year-old's purse. Both count as found, and which of the two it was is the whole
 // interest of it, so it is remembered rather than flattened into a tick.
-export const MONEY_STATES=['had','saw'];
 export const moneyFind=(state,id,person)=>state.money?.[id]?.[person]||null;
 // How far through the set a boy is, over whichever pieces are in front of him. Having one in
 // your hand is also having seen it, so `found` is the total and `had` is the better half of it.
@@ -791,7 +790,6 @@ export function currentBout(state,clock){
 // day on them: post the postcards, buy a SIM at the airport, charge the power banks, return the
 // coin locker key. Anyone adds one, anyone ticks it off, and the day it belongs to shows it.
 export const TODO_KINDS=[['do','Something to do'],['buy','Something to buy']];
-export const todoKindLabel=id=>(TODO_KINDS.find(([key])=>key===id)||TODO_KINDS[0])[1];
 export const todos=state=>state.todos||[];
 // The packing list: what we are taking, whose it is, and whether it is in the case yet. The
 // suggestions are worked out in packing-data.js; what lives in the trip is only what we chose
@@ -821,7 +819,6 @@ export const shortlist=state=>state.shortlist||[];
 // worth looking at; then whatever we said yes to and have not bought; then newest first inside
 // each, because the thing just photographed is the thing being looked at.
 const SHORTLIST_ORDER={thinking:0,yes:1,bought:2,no:3};
-export const sortShortlist=list=>sortShortlistBy(list,'decide');
 // Where a find actually was. Three answers to one question, because a shop has three kinds of
 // name depending on what you are trying to do with it later: the shop's own name, which is what
 // you say out loud; a place off the trip's own map, which is what gets you walking directions and
@@ -1239,7 +1236,6 @@ export const PROPOSAL_TIMING=[['flex','Flexible · any time'],['window','Availab
 export const PROPOSAL_SORTS=[['top','Most wanted'],['musts','Must-do first'],['new','Newest first'],['cost','Cheapest first']];
 export const PLACEMENT_LABEL={open:'Up for a vote',scheduled:'On the itinerary',options:'Moved to Options',parked:'Parked'};
 export const proposals=state=>state.proposals||[];
-export const findProposal=(state,id)=>proposals(state).find(p=>p.id===id)||null;
 export const proposalVoters=(p,vote)=>Object.entries(p.votes||{}).filter(([,v])=>v===vote).map(([name])=>name).sort();
 export const proposalMusts=p=>Object.keys(p.musts||{}).sort();
 export const proposalScore=p=>proposalVoters(p,1).length-proposalVoters(p,-1).length;
