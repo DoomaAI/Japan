@@ -1,5 +1,5 @@
 import React from 'react';
-import {ChevronRight,LockKeyhole,BedDouble,PlaneTakeoff,Smartphone,Clock,ShieldAlert} from 'lucide-react';
+import {ChevronRight,ChevronDown,ChevronUp,X,LockKeyhole,BedDouble,PlaneTakeoff,Smartphone,Clock,ShieldAlert} from 'lucide-react';
 import {openNotes} from './day-check.js';
 import WhatToWear from './WhatToWear.jsx';
 import {rollFor} from './film-data.js';
@@ -10,21 +10,33 @@ import {READINESS,readinessOf,lowest,answered,faceOf} from './readiness-data.js'
 import {useState} from 'react';
 // The morning briefing widget: the day read in one card, with a tap through to its stops.
 // The phrase and the fun fact of the day are a widget of their own, TodaysJapan, just below.
+// Once read, it can be folded to its first two lines (and stays folded on this phone until
+// opened again), or put away for the day, leaving one slim line to bring it back; tomorrow's
+// briefing comes back open on its own.
 export default function Briefing({state,day,today,clock,go,user,mutate,busy,open}){
  const [installed]=useStored('japan.apps.installed',{});
+ const [folded,setFolded]=useStored('japan.briefing.folded',false),[putAway,setPutAway]=useStored('japan.briefing.dismissed','');
  // Readiness: the faces fold to one line once everyone has answered, and open again on a tap.
  const members=state.members||[],parent=user?.role==='parent',[changing,setChanging]=useState(false);
  const done=answered(state,day,members),low=lowest(state,day),asking=day===today&&(changing||(parent?done.length<members.length:!done.includes(user?.name)));
  const b=dayBriefing(state,day);if(!b)return null;
  const apps=b.apps.filter(a=>!installed[a.id]);
  const span=b.starts&&b.ends&&b.starts!==b.ends?`${b.starts}–${b.ends}`:b.starts||'';
- return <section className="briefing" aria-label="The day in brief">
-  <div className="briefing-head"><p className="eyebrow">{briefingGreeting(day,today,clock)} · Day {b.dayNumber} of {b.total}</p>
-   {b.weather&&<span className="briefing-sky" title={b.weather.sky}><span aria-hidden="true">{b.weather.icon}</span> {b.weather.max}°<small>/{b.weather.min}°</small>{b.weather.rain!=null&&b.weather.rain>=30&&<small> · {b.weather.rain}% rain</small>}</span>}</div>
-  <button type="button" className="briefing-stops" onClick={()=>go('glance')}>
+ if(putAway===day)return <button type="button" className="briefing-restore" onClick={()=>setPutAway('')}><ChevronDown size={15}/>Show the day in brief · Day {b.dayNumber} of {b.total}</button>;
+ const head=<div className="briefing-head"><p className="eyebrow">{briefingGreeting(day,today,clock)} · Day {b.dayNumber} of {b.total}</p>
+   {b.weather&&<span className="briefing-sky" title={b.weather.sky}><span aria-hidden="true">{b.weather.icon}</span> {b.weather.max}°<small>/{b.weather.min}°</small>{b.weather.rain!=null&&b.weather.rain>=30&&<small> · {b.weather.rain}% rain</small>}</span>}
+   <span className="briefing-tools">
+    <button type="button" className="icon" aria-expanded={!folded} aria-label={folded?'Open the day in brief':'Fold the day in brief'} onClick={()=>setFolded(f=>!f)}>{folded?<ChevronDown size={18}/>:<ChevronUp size={18}/>}</button>
+    <button type="button" className="icon" aria-label="Put the day in brief away for today" onClick={()=>setPutAway(day)}><X size={18}/></button>
+   </span></div>;
+ const stops=<button type="button" className="briefing-stops" onClick={()=>go('glance')}>
    <strong>{b.stops?`${b.stops} stop${b.stops===1?'':'s'}${span?` · ${span}`:''}`:'A free day'}</strong>
    <span>{b.done?`${b.done} done so far`:b.city}</span><ChevronRight size={18}/>
-  </button>
+  </button>;
+ if(folded)return <section className="briefing folded" aria-label="The day in brief">{head}{stops}</section>;
+ return <section className="briefing" aria-label="The day in brief">
+  {head}
+  {stops}
   <WhatToWear state={state} day={day}/>
   {/* A boy reading the kana: the offer to move his reading dial up, for a parent to take or leave. */}
   {parent&&day===today&&<ReadingBumps state={state} today={today} mutate={mutate} busy={busy}/>}
