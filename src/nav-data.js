@@ -94,6 +94,10 @@ export const MORE_SECTIONS=[
  ['Just for you',['nightstand','personalise','settings','thanks']],
  ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot','showtell']]
 ];
+// The boys' own pages. Under a quiet look (Washi) these keep their colour and their rounder
+// corners, since a game board or a stamp book is meant to be bright.
+export const KIDS_PAGES=MORE_SECTIONS.find(([label])=>label==='For the boys')[1];
+export const isKidsPage=id=>KIDS_PAGES.includes(id);
 // Some screens only exist where the deployment can do the thing they are about. Forwarded email
 // needs a mail provider connected to it; until there is one the screen would be a page about a
 // setting nobody has set, so it is not offered at all — not on the bar, not in the menu, not in

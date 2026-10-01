@@ -24,3 +24,14 @@ test('Washi is a whole look: its own fonts, both nights, square corners, and the
  assert.match(css,/@media \(prefers-color-scheme:dark\)\{:root\[data-look=washi\]\[data-theme=auto\]\{--ink:#/);
  assert.match(await readFile(new URL('../vite.config.js',import.meta.url),'utf8'),/themeCss\(cornersCss\(code\)\)/);
 });
+
+test('the boys’ pages keep their colour and soft corners inside the house look',async()=>{
+ const {KIDS_PAGES,isKidsPage,MORE_SECTIONS}=await import('../src/nav-data.js');
+ assert.deepEqual(KIDS_PAGES,MORE_SECTIONS.find(([l])=>l==='For the boys')[1]);
+ assert.ok(isKidsPage('games')&&isKidsPage('stamps')&&!isKidsPage('today')&&!isKidsPage('ledger'));
+ assert.match(await readFile(new URL('../src/main.jsx',import.meta.url),'utf8'),/<main data-kids=\{isKidsPage\(tab\)\?'':undefined\}>/);
+ const css=await readFile(new URL('../src/house-theme.css',import.meta.url),'utf8');
+ assert.match(css,/:root\[data-look=washi\] main\[data-kids\]\{[^}]*--accent:#[^}]*--round:\.8;--pill:999px\}/);
+ assert.match(css,/:root\[data-look=washi\]\[data-theme=dark\] main\[data-kids\]\{--accent:#/);
+ assert.match(css,/\[data-theme=auto\] main\[data-kids\]\{--accent:#/);
+});

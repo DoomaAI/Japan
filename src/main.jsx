@@ -31,7 +31,7 @@ import {factForDay,factsForStep,gentleFacts} from './fact-data.js';
 import {PHRASES} from './phrases.js';
 import {readSettings,writeSetting,settingOn} from './settings.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
-import {PAGES,cleanNav,emptyNav,setAvailable,isAvailable,setHeldBack,setPlan} from './nav-data.js';
+import {PAGES,cleanNav,emptyNav,setAvailable,isAvailable,setHeldBack,setPlan,isKidsPage} from './nav-data.js';
 import {HOME_WIDGETS,homeShown,homeRuns,emptyHome,cleanHome,homeDay,foldWidget,awayToday,backToday} from './home-widgets.js';
 import {linkOrder,emptyLinks,cleanLinks} from './card-links.js';
 import StopButtons from './StopButtons.jsx';
@@ -805,7 +805,7 @@ function App(){
   {user.expiresAt&&new Date(user.expiresAt)-now<14*86400000&&<div className="expiry-note"><AlertCircle size={14}/><span>Your link to the family plan ends {fmtDay(japanDate(new Date(user.expiresAt)))}. {parent?'Make a fresh link in Family settings before then.':'Ask a parent for a fresh link before then.'}</span></div>}
   {conflict&&<div className="conflict"><strong>The family changed the plan while you were offline.</strong><p>Your {queue.length} progress update(s) are still saved. Review them against the latest itinerary.</p><div className="row"><Button onClick={()=>setModal({type:'pending'})}>Review updates</Button><Button onClick={()=>{if(confirm(`Throw away ${queue.length} unsynced update${queue.length===1?'':'s'}? They cannot be brought back.`)){saveQueue([]);setConflict(false);}}}>Discard my pending updates</Button></div></div>}
   <HandedBanner user={user} handed={handed} takeBack={takeBack}/>
-  <main>
+  <main data-kids={isKidsPage(tab)?'':undefined}>
   {/* The pages opened now and then load when they are opened, so the shell that has to be
       on screen at a station stays small; every chunk is still put in the offline shell by
       the build, so a page opened for the first time in a tunnel still opens. */}

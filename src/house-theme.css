@@ -98,3 +98,31 @@
 :root[data-look=washi] :is(.opening-fact small,.opening-catch){color:#e3d4b2;font-weight:400}
 :root[data-look=washi] .opening-fact-timer{height:1px;background:#d9c69a}
 :root[data-look=washi] :is(.opening-go,.opening-tips select){border-radius:2px}
+
+/* The boys' pages (KIDS_PAGES in nav-data.js, marked on <main> as data-kids) keep their colour.
+   The bars around them stay in the house look, so it is still one app; inside, the palette turns
+   to Japan's own bright traditional colours (shu vermilion, matcha, yamabuki gold, sakura, a
+   clearer ai), tints come back behind panels, selected things are coloured rather than inked,
+   and the corners and pills are soft again. A game board or a stamp book is meant to be bright. */
+:root[data-look=washi] main[data-kids]{--accent:#c63d22;--green:#4a7a2c;--green-deep:#3a6322;--mint:#bcd9a8;--gold:#f0b429;--gold-ink:#8a5a00;--amber:#e89a1c;
+ --tint:#eef4e8;--tint-deep:#e1edd6;--tint-border:#c9dcb9;--sand:#fdf1d2;--sand-border:#efd28a;--sand-ink:#7a5200;--blush:#fde6ea;--blush-border:#f2b8c4;
+ --kids-ai:#2f5aa8;--kids-sakura:#f4c4cf;--round:.8;--pill:999px}
+:root[data-look=washi][data-theme=dark] main[data-kids]{--accent:#f07a5a;--green:#8cc46a;--green-deep:#a9d98c;--mint:#2f4426;--gold:#f0b429;--gold-ink:#f5cd6a;--amber:#f0aa3c;
+ --tint:#1f2a1b;--tint-deep:#263421;--tint-border:#3b5130;--sand:#2e2614;--sand-border:#5c4a1f;--sand-ink:#f2d58c;--blush:#33202a;--blush-border:#5e3442;--kids-ai:#86a8e8;--kids-sakura:#6e3a47}
+@media (prefers-color-scheme:dark){:root[data-look=washi][data-theme=auto] main[data-kids]{--accent:#f07a5a;--green:#8cc46a;--green-deep:#a9d98c;--mint:#2f4426;--gold:#f0b429;--gold-ink:#f5cd6a;--amber:#f0aa3c;
+ --tint:#1f2a1b;--tint-deep:#263421;--tint-border:#3b5130;--sand:#2e2614;--sand-border:#5c4a1f;--sand-ink:#f2d58c;--blush:#33202a;--blush-border:#5e3442;--kids-ai:#86a8e8;--kids-sakura:#6e3a47}}
+:root[data-look=washi] main[data-kids] .segmented .selected{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+:root[data-look=washi] main[data-kids] :is(.chip:has(input:checked),.chip.on){background:var(--tint-deep);border-color:var(--green)}
+:root[data-look=washi] main[data-kids] :is(details,.callout){background:var(--tint)}
+:root[data-look=washi] main[data-kids] .callout{border-color:var(--sand-border);border-left-color:var(--gold);background:var(--sand);color:var(--sand-ink)}
+:root[data-look=washi] main[data-kids] .primary,:root[data-look=washi] main[data-kids] .primary:hover{background:var(--kids-ai);border-color:var(--kids-ai);color:var(--paper)}
+:root[data-look=washi] main[data-kids] :is(button,.button):hover{border-color:var(--green)}
+:root[data-look=washi] main[data-kids] a{color:var(--kids-ai)}
+:root[data-look=washi] main[data-kids] h1{color:var(--ink)}
+:root[data-look=washi] main[data-kids] h1::after{content:'';display:block;width:2.5rem;height:3px;margin-top:.5rem;border-radius:calc(3px * var(--round,1));background:linear-gradient(90deg,var(--accent) 0 33%,var(--gold) 33% 66%,var(--green) 66%)}
+/* Whatever is written small inside a selected button takes the button's own colour, and the
+   stamp count sits on a tint, so it reads by day and by night alike. */
+:root[data-look=washi] :is(.segmented,[role=radiogroup]) :is(.selected,[aria-checked=true]) small{color:inherit;opacity:.85}
+:root[data-look=washi] main[data-kids] .stamp-summary{background:var(--tint-deep);color:var(--ink)}
+:root[data-look=washi] main[data-kids] .stamp-summary strong{color:var(--accent)}
+:root[data-look=washi] main[data-kids] .stamp-summary small{color:var(--muted)}
