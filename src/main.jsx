@@ -231,7 +231,7 @@ function startingPosition(){
 // day once we are home, so the diary is what opens after the trip rather than day one again.
 const nearestDay=(days,d)=>days.some(x=>x.date===d)?d:d>days.at(-1).date?days.at(-1).date:days[0].date;
 function App(){
- const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[toast,setToast]=useState('');
+ const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[opened,setOpened]=useState(false),[error,setError]=useState(''),[toast,setToast]=useState('');
  // A link anyone can join with has asked who this is; the screen that asks is shown instead of the plan.
  const [joining,setJoining]=useState(null);
  const [start]=useState(startingPosition);
@@ -671,7 +671,8 @@ function App(){
   if(navigator.onLine&&!state.thankYou.seen?.[note.day])await mutate({type:'thankYouSeen',day:note.day});
   setModal(null);
  }
- if(loading)return <Opening days={stored('japan.snapshot',null)?.state?.days}/>;
+ // The opening screen stays after the trip has come in until the card on it has finished.
+ if(loading||(state&&!opened))return <Opening days={stored('japan.snapshot',null)?.state?.days} ready={!loading} onDone={()=>setOpened(true)}/>;
  if(joining&&!state)return <JoinScreen invite={joining} onJoined={()=>location.replace(location.pathname)}/>;
  if(!state)return <main className="entry"><img className="entry-photo" src="/cover.jpg" alt="Pasfield family Japan Travel Guide 2026 cover"/><div className="brand-mark">日</div><p className="eyebrow">THE PASFIELD FAMILY</p><h1>Japan, together.</h1><p>Open your private family link to join the trip. No email or password needed.</p>{error&&<p className="callout">{error}</p>}<p>The private parent link is prepared when the app is deployed. No setup key is required.</p></main>;
  // A screen about one day opens the same way wherever you are: which day it is, and the strip
