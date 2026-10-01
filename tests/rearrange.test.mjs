@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {applyOperation} from '../server/model.mjs';
-import {undoOrder} from '../src/day-moves.js';
+import {undoOrder,positionsOn} from '../src/day-moves.js';
 const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url)));
 const parent={name:'Damien',role:'parent'},child={name:'Nate',role:'child'};
 const dates=seed.days.map(d=>d.date);
@@ -77,4 +77,31 @@ test('ticked stops can be swapped for ticked stops on the other day; booked and 
  assert.throws(()=>applyOperation(seed,{type:'moveSteps',ids:[x.id,y.id],to:b},parent),/one day/);
  assert.throws(()=>applyOperation(seed,{type:'moveSteps',ids:[x.id],to:a},parent),/different day/);
  assert.throws(()=>applyOperation(seed,{type:'moveSteps',ids:[x.id],to:b},child),e=>e.status===403);
+});
+
+// A day arranged by hand, out of time order: its last stop dragged to the top.
+const activeIds=(state,date)=>state.steps.filter(s=>s.day===date&&(!s.group||state.choices[s.group]===s.option)).sort((a,b)=>a.order-b.order).map(s=>s.id);
+const handOrdered=(state,date)=>{const ids=activeIds(state,date);return applyOperation(state,{type:'reorder',day:date,ids:[ids.at(-1),...ids.slice(0,-1)]},parent);};
+const layout=state=>Object.fromEntries(state.steps.map(s=>[s.id,`${s.day}|${s.order}`]));
+const sequence=(state,date)=>on(state,date).sort((a,b)=>a.order-b.order).map(s=>s.id);
+
+test('a day moved whole keeps the order it was arranged in, even out of time order',()=>{
+ const [a,b]=['2026-09-26','2026-09-28'],start=handOrdered(seed,a);
+ const before=sequence(start,a);
+ const next=applyOperation(start,{type:'orderDays',order:swap(a,b)},parent);
+ assert.deepEqual(sequence(next,b),before);
+});
+
+test('undoing a day swap or a stop move puts every stop back exactly where it was',()=>{
+ const [a,b]=['2026-09-25','2026-09-27'],start=handOrdered(handOrdered(seed,a),b),order=swap(a,b);
+ const positions=positionsOn(start,[a,b]);
+ const moved=applyOperation(start,{type:'orderDays',order},parent);
+ const back=applyOperation(moved,{type:'orderDays',order:undoOrder(dates,order),positions},parent);
+ assert.deepEqual(layout(back),layout(start));
+ const x=on(start,'2026-09-26').filter(s=>!s.locked&&!s.group).map(s=>s.id).slice(1,3),y=on(start,'2026-09-28').filter(s=>!s.locked&&!s.group)[0].id;
+ const pos=positionsOn(start,['2026-09-26','2026-09-28']);
+ const went=applyOperation(start,{type:'moveSteps',ids:x,to:'2026-09-28',swapIds:[y]},parent);
+ const undone=applyOperation(went,{type:'moveSteps',ids:x,to:'2026-09-26',swapIds:[y],positions:pos},parent);
+ assert.deepEqual(layout(undone),layout(start));
+ assert.throws(()=>applyOperation(went,{type:'moveSteps',ids:x,to:'2026-09-26',swapIds:[y],positions:[{id:'nope',day:'2026-09-26',order:10}]},parent),/Reload/);
 });
