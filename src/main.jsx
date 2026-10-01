@@ -4,7 +4,7 @@ import {destinationFor,resolveLocation,showLocationDetails} from './locations.js
 import {ensureFeatures,pendingProgress,phoneLinks,isTrainLeg,EYE_SPY,eyeSpySpotted,PIN_PLACES,stepPin,pinText} from './trip-features.js';
 import {askPhoneWhereItIs} from './geo.js';
 import RouteCard from './RouteCard.jsx';
-import {routeFor,legCount,legsTicked} from './route-data.js';
+import {routeFor,legCount,legsTicked,routeMinutes} from './route-data.js';
 import {Challenges,Shopping,SpeakRules,useReadAloud} from './AdventurePages.jsx';
 import Shortlist,{DayFinds} from './Shortlist.jsx';
 import {NextUp,RunningLate,OfflineReadiness,Updates} from './HomeFeatures.jsx';
@@ -497,6 +497,17 @@ function App(){
   const variance=scheduleVariance(s,at);
   notice(`All ${total} legs done: ${s.title} completed ${japanClock(at)}${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used.`:''}`);
  }
+ // A stop on the way (a bag pickup, a shop) added to the route as a leg of its own, or taken off.
+ async function routeWaypoint(w){
+  const s=current,before=routeMinutes(routeFor(s)),was=(s.waypoints||[]).find(x=>x.id===w.waypointId);
+  const ok=await mutate({type:'waypoint',id:s.id,...w});
+  if(!ok)return ok;
+  // Says what the change did to the journey as a whole, so nobody has to add it up.
+  const after=before+(w.action==='remove'?0:w.minutes||0)-(was?.minutes||0);
+  const what=w.action==='add'?`Added to the journey: ${w.text}.`:w.action==='update'?`Changed: ${w.text}.`:`Taken off the journey: ${was?.text||w.text}.`;
+  notice(`${what}${after!==before?` The journey is now about ${after} min${s.time?`, there about ${asClock((minutes(s.time)+after)%1440)}`:''}.`:''}`);
+  return ok;
+ }
  // The one time it would be alarming to miss, kept in the top bar wherever the family is in the
  // app: from two hours before the leave-by time until a quarter of an hour after it, the clock
  // gives its place to a countdown, and tapping it opens that booking. It always reads today's
@@ -685,7 +696,7 @@ function App(){
      // now stands as well: ticking off is the one moment we know both what was planned and what
      // actually happened, and twelve minutes in hand is worth hearing before the next step.
      setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);}}}>Done</Button></>}{parent&&<button className="icon completion-more" aria-label="Edit, lock, move or remove this stop" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal size={18}/></button>}</div>
-    {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg} lookOpen={settingOn(settings,'routeLookOpen')}/>}
+    {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg} onWaypoint={routeWaypoint} lookOpen={settingOn(settings,'routeLookOpen')}/>}
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore stop</button></p>}
     {/* One row rather than three that stack. Untouched, what only this day has (the park, the
         sumo, the train window) comes first, then everything every stop has; press and hold any

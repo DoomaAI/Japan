@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
-import {X,ArrowLeft,ArrowRight,Volume2,Footprints,TrainFront,Check,Maximize2} from 'lucide-react';
+import {X,ArrowLeft,ArrowRight,Volume2,Footprints,TrainFront,Check,Maximize2,Luggage,CarTaxiFront} from 'lucide-react';
 import {LINES,legStops,legDone} from './route-data.js';
 import {useReadAloud} from './AdventurePages.jsx';
 // A route as a cook-mode recipe (Kitchen Stories, Paprika): one thing to do per screen, in type
@@ -11,6 +11,8 @@ import {useReadAloud} from './AdventurePages.jsx';
 export function bigSteps(legs){
  const out=[];
  legs.forEach((leg,k)=>{
+  if(leg.mode==='taxi'){out.push({leg:k,kind:'walk',taxi:true,title:'Taxi',text:leg.text,minutes:leg.minutes,say:`Taxi. ${leg.text}${leg.minutes?` About ${leg.minutes} minutes.`:''}`});return;}
+  if(leg.mode==='stop'){out.push({leg:k,kind:'walk',stop:true,title:'Stop on the way',text:leg.text,minutes:leg.minutes,say:`Stop on the way. ${leg.text}${leg.minutes?` About ${leg.minutes} minutes.`:''}`});return;}
   if(leg.mode==='walk'){out.push({leg:k,kind:'walk',title:'Walk',text:leg.text,minutes:leg.minutes,say:`Walk. ${leg.text}${leg.minutes?` About ${leg.minutes} minutes.`:''}`});return;}
   const line=LINES[leg.line],stops=legStops(leg),from=stops[0],to=stops[stops.length-1],n=stops.length-1;
   out.push({leg:k,kind:'board',title:`Board the ${line.name}`,station:from,text:`Towards ${leg.towards}`,detail:`${line.kind} · ${line.operator}${leg.minutes?` · about ${leg.minutes} min`:''}`,look:line.look,
@@ -38,7 +40,7 @@ export default function BigSteps({legs,step,canTick,busy,onTick,onClose}){
  return <div className="big-steps" role="dialog" aria-modal="true" aria-label={`${step.title}: step by step`} onPointerDown={press} onPointerUp={lift}>
   <header><div><small>{step.title}</small><strong>Step {at+1} of {n}{done?' · done':''}</strong></div><button type="button" aria-label="Close" onClick={onClose}><X/></button></header>
   <div className={`big-step is-${s.kind}`} key={at}>
-   <p className="big-step-kind">{s.kind==='walk'?<Footprints size={28}/>:<TrainFront size={28}/>}{s.title}</p>
+   <p className="big-step-kind">{s.taxi?<CarTaxiFront size={28}/>:s.stop?<Luggage size={28}/>:s.kind==='walk'?<Footprints size={28}/>:<TrainFront size={28}/>}{s.title}</p>
    {s.station&&<><p className="big-step-ja" lang="ja">{s.station.ja}</p><p className="big-step-station">{s.station.name}{s.station.code?<span> {s.station.code}</span>:''}</p></>}
    <p className="big-step-text">{s.text}{s.kind==='walk'&&s.minutes?<> About <b>{s.minutes} min</b>.</>:''}</p>
    {s.detail&&<p className="big-step-detail">{s.detail}</p>}
