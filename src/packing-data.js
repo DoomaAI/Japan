@@ -251,3 +251,28 @@ export function packingProgress(state,scope='all',who=''){
  const items=packing(state).items.filter(i=>inPackScope(i,scope,who)),packed=items.filter(i=>i.packedAt).length;
  return {packed,total:items.length,left:items.length-packed};
 }
+// Before we go: the things done rather than packed on the way out of a hotel, shared like the
+// packing list so a tick on one phone is a tick on all of them. Which lines show follows the
+// next pack-up: a change of hotel asks about the bags, the tickets and the bill; going home adds
+// the flight, the airport and the house. Starting the next pack-up clears these with the ticks.
+export const BEFORE_WE_GO=[
+ {id:'forward',when:'move',title:'Bags to forward handed in at the desk',note:'The day before, with the forwarding label filled in and the next hotel’s name on it.'},
+ {id:'tickets',when:'move',title:'Tickets for the journey on the phone',note:'Seats checked. A case over 160 cm all round needs a seat with the oversized-baggage space on the Shinkansen.'},
+ {id:'ic',when:'any',title:'IC cards topped up',note:'Enough on each for the trip over and the first day, so nobody queues at a machine with the cases.'},
+ {id:'address',when:'move',title:'Next hotel’s address in Japanese to hand',note:'For a taxi driver, from the stay card.'},
+ {id:'bill',when:'any',title:'Room bill settled',note:'Minibar, laundry, and the city accommodation tax where it is charged at checkout.'},
+ {id:'charged',when:'any',title:'Phones and the power bank charged',note:'Overnight, before the plugs come out of the wall.'},
+ {id:'route',when:'move',title:'The way to the next hotel looked over',note:'Big steps on the route card, and who carries what.'},
+ {id:'checkin',when:'home',title:'Online check-in done, seats together',note:'Boarding passes in the Wallet on both parents’ phones.'},
+ {id:'batteries',when:'home',title:'Power banks and spare batteries in hand luggage',note:'Never in a checked case.'},
+ {id:'liquids',when:'home',title:'Liquids sorted between the bags',note:'Under 100 ml in the carry-on; the sake and anything bigger wrapped in the case.'},
+ {id:'taxfree',when:'home',title:'Tax-free shopping sealed and to hand',note:'Anything bought tax-free stays in its sealed bag until we are out of Japan, and the airport can ask to see it.'},
+ {id:'declare',when:'home',title:'What to declare looked over',note:'The coming-home card on this page, before the Incoming Passenger Card on the plane.'},
+ {id:'yen',when:'home',title:'Leftover yen decided on',note:'Spent at the airport, put on an IC card, or kept for next time.'},
+ {id:'ride',when:'home',title:'The ride home from the airport arranged',note:'The car park booking, or whoever is collecting us and when we land.'}
+];
+export const beforeWeGo=next=>next?BEFORE_WE_GO.filter(b=>b.when==='any'||b.when===(next.home?'home':'move')):[];
+export function beforeProgress(state,next){
+ const list=beforeWeGo(next),ticked=packing(state).before||{},done=list.filter(b=>ticked[b.id]).length;
+ return {done,total:list.length,left:list.length-done};
+}

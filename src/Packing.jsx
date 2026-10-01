@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
-import {Radar,Luggage,Plus,X,Pencil,Trash2,RotateCcw,Inbox,MapPin,CloudSun,Compass,User,CalendarDays,Sparkles,DoorOpen,Check} from 'lucide-react';
+import {Radar,Luggage,Plus,X,Pencil,Trash2,RotateCcw,Inbox,MapPin,CloudSun,Compass,User,CalendarDays,Sparkles,DoorOpen,Check,ClipboardCheck} from 'lucide-react';
 import {packing} from './trip-features.js';
-import {PACK_CATEGORIES,PACK_PRIORITY,PACK_SOURCES,PACK_SCOPES,inPackScope,packCategoryLabel,packingSuggestions,dismissedSuggestions,nextPackUp,packingProgress,daysAhead,packingWeather} from './packing-data.js';
+import {PACK_CATEGORIES,PACK_PRIORITY,PACK_SOURCES,PACK_SCOPES,inPackScope,packCategoryLabel,packingSuggestions,dismissedSuggestions,nextPackUp,packingProgress,daysAhead,packingWeather,beforeWeGo,beforeProgress} from './packing-data.js';
 import {forwardedTrackers,linkState} from './trackers.js';
 import {japanDate,japanClock} from './timing.js';
 import GoingHome from './GoingHome.jsx';
@@ -48,6 +48,21 @@ function PackRow({item,user,mutate,busy,onEdit,remove}){
   </div>}
  </div>;
 }
+// The things done rather than packed before we leave, for the next pack-up: shared, so a tick on
+// one phone shows on all of them, and cleared with the packing ticks when the next one starts.
+function BeforeWeGo({state,user,mutate,busy,next}){
+ const ticked=packing(state).before||{},list=beforeWeGo(next),{done,total}=beforeProgress(state,next);
+ if(!next)return <div className="empty"><ClipboardCheck/><h2>No more moves on this trip.</h2><p>The list comes back with the next pack-up.</p></div>;
+ return <section className="todo-group">
+  <h2>{next.home?`Before we fly home · ${fmt(next.date)}`:`Before we leave for ${next.to} · ${fmt(next.date)}`}</h2>
+  <p><small>{done===total?'All done. Nothing left but the bags.':`${done} of ${total} done.`} Anyone can tick, with no signal needed.</small></p>
+  {list.map(b=>{const t=ticked[b.id];return <div key={b.id} className={`todo-row ${t?'done':''}`}>
+   <label className="todo-tick"><input type="checkbox" checked={!!t} disabled={busy}
+    onChange={e=>mutate({type:'packBefore',id:b.id,done:e.target.checked,by:user.name})} aria-label={`${t?'Not done':'Done'}: ${b.title}`}/></label>
+   <div className="todo-body"><strong>{b.title}</strong><small>{t?`Done by ${t.by}${t.at?` at ${japanClock(new Date(t.at))}`:''}`:b.note}</small></div>
+  </div>;})}
+ </section>;
+}
 // The line on the day screen the evening before the cases have to be closed, and on the morning
 // itself: where we are going, and how much is still out of the case.
 // A forwarded suitcase with a tracker in it is the one bag we will want to find while it is not
@@ -62,7 +77,7 @@ export function CheckoutSweep({day}){
  </details>;
 }
 export function PackingNudge({state,user,day,go}){
- const next=nextPackUp(state,day),{left,total}=packingProgress(state);
+ const next=nextPackUp(state,day),{left,total}=packingProgress(state),before=beforeProgress(state,next);
  if(!next||!go)return null;
  const tomorrow=state.days[state.days.findIndex(d=>d.date===day)+1]?.date;
  if(next.date!==day&&next.date!==tomorrow)return null;
@@ -71,7 +86,7 @@ export function PackingNudge({state,user,day,go}){
  return <>
  <button className="callout pack-nudge" onClick={()=>go('packing')}>
   <Luggage size={18}/><span><strong>{next.date===day?'Packing up today':'Packing up tomorrow'}</strong> · {next.home?'going home':`to ${next.to}`}.
-   {' '}{total?(left?`${left} of ${total} still to pack.`:'Everything is packed.'):'Open the packing list.'}</span>
+   {' '}{total?(left?`${left} of ${total} still to pack.`:'Everything is packed.'):'Open the packing list.'}{before.left?` ${before.left} ${before.left===1?'thing':'things'} to do before we go.`:''}</span>
  </button>
  {next.date===day&&<CheckoutSweep key={day} day={day}/>}
  {!!forwarded.length&&<button className="callout pack-nudge" onClick={()=>go('trackers')}>
@@ -107,7 +122,7 @@ export default function Packing({state,user,mutate,busy,remove}){
  return <><p className="eyebrow">WHAT GOES IN THE CASE</p><h1>Packing list</h1><GoingHome open={goingHomeSoon(state,today)}/>
  <p>Our own list, ticked off as it goes in — and suggestions worked out from where we are going, the weather, what is on the days ahead and who is coming. Add what suits us, turn down what does not, and write in anything it missed. Anyone can add and tick, with no signal needed.</p>
  {next&&<p className="callout"><Luggage size={18}/><span><strong>Next pack-up: {fmt(next.date)}</strong> · {next.from} → {next.home?'home':next.to}.
-  {parent&&!!packed&&<> <button disabled={busy} onClick={()=>{if(confirm('Untick everything, ready to pack again for the next move?'))mutate({type:'packReset'});}}><RotateCcw size={14}/>Start this pack-up again</button></>}</span></p>}
+  {parent&&(!!packed||!!beforeProgress(state,next).done)&&<> <button disabled={busy} onClick={()=>{if(confirm('Untick everything, the before-we-go list too, ready to pack again for the next move?'))mutate({type:'packReset'});}}><RotateCcw size={14}/>Start this pack-up again</button></>}</span></p>}
  <div className="segmented pack-scope" role="group" aria-label="Whose list">
   {PACK_SCOPES.map(([id,label])=><button key={id} className={scope===id?'selected':''} aria-pressed={scope===id} onClick={()=>setScope(id)}>{label} · {scopeCount(id)}</button>)}
  </div>
@@ -116,13 +131,15 @@ export default function Packing({state,user,mutate,busy,remove}){
  <div className="segmented pack-tabs">
   <button className={view==='list'?'selected':''} onClick={()=>setView('list')}>{scope==='own'?(who===user.name?'My list':`${who}’s list`):scope==='joint'?'Joint list':'Our list'} · {total}</button>
   <button className={view==='suggest'?'selected':''} onClick={()=>setView('suggest')}>Suggested · {suggestions.filter(forPerson).length}</button>
+  <button className={view==='before'?'selected':''} onClick={()=>setView('before')}>Before we go{next?` · ${beforeProgress(state,next).left}`:''}</button>
  </div>
- <div className="document-filters"><div className="form-row">
+ {view!=='before'&&<div className="document-filters"><div className="form-row">
   {scope==='own'&&<label>Whose<select value={who} onChange={e=>setWho(e.target.value)}>{state.members.map(n=><option key={n} value={n}>{n===user.name?`${n} (me)`:n}</option>)}</select></label>}
   {view==='list'
    ?<label>Show<select value={show} onChange={e=>setShow(e.target.value)}><option value="open">Still to pack</option><option value="packed">Packed</option><option value="all">Everything</option></select></label>
    :<label>Because of<select value={source} onChange={e=>setSource(e.target.value)}><option value="">Everything</option>{Object.entries(PACK_SOURCES).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>}
- </div></div>
+ </div></div>}
+ {view==='before'&&<BeforeWeGo state={state} user={user} mutate={mutate} busy={busy} next={next}/>}
  {view==='list'&&<>
   <button className="primary" onClick={()=>setEdit({title:'',category:'other',person:scope==='own'?who:scope==='joint'||parent?'Family':me,qty:1,notes:''})}><Plus size={18}/>{scope==='own'?(who===user.name?'Add something of my own':`Add something for ${who}`):scope==='joint'?'Add something we share':'Add something of our own'}</button>
   {byCategory.map(g=><section className="todo-group" key={g.id}>
