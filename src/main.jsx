@@ -690,6 +690,9 @@ function App(){
         of them to wobble the row and drag them into your own order. */}
     <StopButtons label="For this stop" order={linkOrder(linkPrefs)} setOrder={order=>saveLinks({order})} buttons={{
      park:parkForDay(day)&&<button className="card-link-special" onClick={()=>setModal({type:'park',park:parkForDay(day)})}><span aria-hidden="true">🎢</span>Rides &amp; park map</button>,
+     // Live waits stay in the parks' own apps (decided 1 October; a live check in this app is
+     // parked in the roadmap): one tap opens the right one.
+     waits:parkForDay(day)&&<Link className="button card-link-special" href={parkForDay(day).app}><span aria-hidden="true">⏱️</span>Wait times</Link>,
      sumo:day===SUMO_DAY&&<button className="card-link-special" onClick={()=>setModal({type:'sumo'})}><span aria-hidden="true">🥋</span>Sumo card{sumoState(state).bouts.length?` · ${sumoState(state).bouts.length} bouts`:''}</button>,
      eyespy:isTrainLeg(current)&&<button className="card-link-special" onClick={()=>setModal({type:'eyespy',step:current})}><span aria-hidden="true">🎱</span>Japan bingo</button>,
      website:<Link className="button" href={current.website||`https://www.google.com/search?q=${encodeURIComponent((current.place||current.title)+' official website Japan')}`}><ExternalLink size={15}/>{current.website?'Website':'Find website'}</Link>,

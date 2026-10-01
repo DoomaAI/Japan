@@ -10224,7 +10224,7 @@ test('the buttons under each stop come in each person’s own order, rearranged 
  const {mergeVisible}=await import('../src/wobble.js');
  // Untouched, the day's own buttons lead and Share ends the row.
  assert.deepEqual(linkOrder(emptyLinks()),LINKS_DEFAULT);
- assert.deepEqual(LINKS_DEFAULT,['park','sumo','eyespy','tickets','guide','website','ask','nearby','report','photos','voice','remind','share']);
+ assert.deepEqual(LINKS_DEFAULT,['park','waits','sumo','eyespy','tickets','guide','website','ask','nearby','report','photos','voice','remind','share']);
  for(const id of LINKS_DEFAULT)assert.ok(CARD_LINKS[id].label&&CARD_LINKS[id].note,id);
  // Dragged onto another, a button takes its place and the rest shuffle along, either way.
  assert.deepEqual(dropLink(['a','b','c','d'],'a','c'),['b','c','a','d']);
@@ -11647,4 +11647,12 @@ test('the ticks are two buttons a five-year-old can press, and the set has a bar
  assert.doesNotMatch(page,/className=\{`money-saw\$/);
  assert.match(css,/\.money-tick button\.on\{/);
  assert.match(css,/\.money-progress\.full\{/);
+});
+test('crowds and waits: a park day’s stops open that park’s own app for live waits; a live check is parked',async()=>{
+ const {CARD_LINKS}=await import('../src/card-links.js');
+ const {PARKS}=await import('../src/park-data.js');
+ assert.ok(CARD_LINKS.waits);for(const p of PARKS)assert.match(p.app,/^https:\/\/www\.(usj\.co\.jp|tokyodisneyresort\.jp)\//);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/waits:parkForDay\(day\)&&<Link className="button card-link-special" href=\{parkForDay\(day\)\.app\}>/);
+ assert.match(await readFile(new URL('../docs/roadmap.md',import.meta.url),'utf8'),/\*\*Parked \(backlog\):\*\* a live wait-time check/);
 });

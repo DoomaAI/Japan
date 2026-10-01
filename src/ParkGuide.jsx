@@ -36,7 +36,7 @@ export default function ParkGuide({state,user,speak,openPage,park:initial,mutate
    <h3><MapPin size={16}/> {park.name} map</h3>
    <p>{park.mapNote}</p>
    <div className="row wrap">
-    <a className="button primary" href={park.app} target="_blank" rel="noopener noreferrer"><ExternalLink size={16}/>Official app</a>
+    <a className="button primary" href={park.app} target="_blank" rel="noopener noreferrer"><ExternalLink size={16}/>Wait times &amp; map (official app)</a>
     <a className="button" href={park.site} target="_blank" rel="noopener noreferrer"><ExternalLink size={16}/>Park website</a>
     {open&&<button onClick={()=>open({type:'tickets',initialSearch:'park map'})}><Ticket size={16}/>{mapDoc?'Our saved map':'Save our own copy'}</button>}
    </div>
