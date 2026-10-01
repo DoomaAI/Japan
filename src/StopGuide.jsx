@@ -39,9 +39,9 @@ export function StopEtiquette({state,step,user,mutate,busy,city}){
  const boys=(state.members||[]).filter(n=>isChild(state,n));
  const taken=(rule,person)=>(state.challenges||[]).some(c=>c.day===step.day&&c.participants?.includes(person)&&c.title===rule.mission?.[0]);
  return <details className="stop-etiquette">
-  <summary><span aria-hidden="true">{rules[0].icon}</span>How to do it here</summary>
+  <summary><span aria-hidden="true">{rules[0].icon}</span>How to do it here{rules.length===1?`: ${rules[0].label}`:''}</summary>
   {rules.map(r=><div key={r.id} className="etiquette-rule">
-   <h4><span aria-hidden="true">{r.icon}</span> {r.label}</h4>
+   {rules.length>1&&<h4><span aria-hidden="true">{r.icon}</span> {r.label}</h4>}
    <ul>{(child?r.boys:r.grown).map(line=><li key={line}>{line}</li>)}</ul>
    {!child&&r.boys?.length>0&&<p className="etiquette-boys"><small><b>For the boys:</b> {r.boys.join(' ')}</small></p>}
    {r.mission&&step.day&&<div className="row wrap">{(child?[user.name]:parent?boys:[]).map(p=>taken(r,p)
