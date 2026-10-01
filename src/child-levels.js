@@ -59,7 +59,7 @@ export const readTo=state=>(state?.members||[]).filter(n=>readingHelp(state,n).y
 // one action on the list, because a report goes to every phone.
 const RANK={with:0,told:1,trusted:2,grownup:3};
 export const AWARENESS_GATES={
- checkin:'told',reports:'told',spare:'told',weather:'told',safety:'told',
+ checkin:'told',late:'told',reports:'told',spare:'told',weather:'told',safety:'told',
  nextup:'trusted',links:'trusted',running:'trusted',ask:'trusted',report:'trusted'
 };
 export const awarenessAllows=(state,name,id)=>{

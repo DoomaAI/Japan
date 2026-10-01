@@ -27,6 +27,7 @@ export const PAGES={
  book:{label:'Photobook',note:'A page for each day, with the photo of the day, the stops we loved and the diary, to print'},
  places:{label:'Places & our map',note:'Directions and our Google My Map'},
  meeting:{label:'Meeting card',note:'If we get separated'},
+ whereabouts:{label:'Where we are',note:'The family on a map, sharing where you are for a while, and telling the others you’re running late'},
  allergy:{label:'Allergy card',note:'What each of us cannot eat, in Japanese, to show the waiter'},
  safety:{label:'Safety & emergencies',note:'Emergency numbers, the boys\u2019 lost cards, the embassy, earthquakes and typhoons'},
  lost:{label:'Lost something',note:'The Japanese to hand over, the right desk for today’s trains and parks, the kōban report and what the insurer asks for'},
@@ -85,7 +86,7 @@ export const PRIMARY={
 // memories now; the app's own housekeeping (updates, the bin, search, the original guide) has
 // a shelf of its own rather than sitting among the photos.
 export const MORE_SECTIONS=[
- ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','meeting','safety','lost','help','apps']],
+ ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','whereabouts','meeting','safety','lost','help','apps']],
  ['Money',['money','paying','ledger','shopping','shortlist','shop']],
  ['The plan',['glance','days','guests','invitation','todo','packing','trackers','windows','arrival','flyinghome','homefront','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
  ['Looking back',['noticed','nexttime','photos','memorymap','diary','recap','highlights','book','capsule']],

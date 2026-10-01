@@ -6,6 +6,7 @@ import webpush from 'web-push';
 import {database,localDemo} from './store.mjs';
 import {AppError} from './model.mjs';
 import {duePushes,wants,PUSH_KIND_IDS} from '../src/push-data.js';
+import {latePush} from '../src/late-data.js';
 export const pushReady=()=>!!(process.env.VAPID_PUBLIC_KEY&&process.env.VAPID_PRIVATE_KEY);
 export const pushPublicKey=()=>process.env.VAPID_PUBLIC_KEY||null;
 let tables,demoSubs=new Map(),demoSent=new Set(),demoLast=0;
@@ -80,6 +81,14 @@ export async function tellChange(alert,by,send=sendOne){
  if(!(await claim(`change|${alert.id}`)))return 0;
  const subs=(await subscriptions()).filter(s=>s.name!==by);
  return deliver({key:`change|${alert.id}`,kind:'changes',title:`${by} changed the plan`,body:alert.summary,url:alert.stepId?`/?step=${alert.stepId}`:'/?tab=updates',to:null},subs,send);
+}
+// Running late, told to the people it was for and nobody else. A second message from the same
+// person is a new notice with its own key, so "later still" buzzes again.
+export async function tellLate(notice,send=sendOne){
+ if(!pushReady()&&send===sendOne)return 0;
+ const key=`late|${notice.id}`;
+ if(!(await claim(key)))return 0;
+ return deliver({key,kind:'late',...latePush(notice),url:'/?tab=whereabouts',to:notice.to},await subscriptions(),send);
 }
 // Tomorrow's check, told to the parents when it found something to do before morning. Once a
 // day at most: the key is the day checked, so a second run of the check is not a second buzz.

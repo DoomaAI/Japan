@@ -11,6 +11,7 @@ export const PUSH_KINDS=[
  ['leave','Time to leave','The leave-by time for each fixed booking'],
  ['windows','Booking windows','15 minutes before a booking opens, and when it opens (parents)'],
  ['changes','Plan changes','When someone else changes the plan'],
+ ['late','Running late','When someone says they are running late for you, and how late'],
  ['morning','Morning briefing','At 7:30 each trip morning, the day in a line'],
  ['apps','Apps to set up','A week before we fly, and the evening before the parks and the Shinkansen (parents)'],
  ['tomorrow','Tomorrow’s check','The evening before, when the check finds something to act on (parents)'],
