@@ -476,6 +476,6 @@ test('halfway there: from the middle of the trip, the numbers so far on one squa
  assert.deepEqual(wrapLine(t=>t.length*10,'Tokyo Kyoto Osaka Nara',120,2),['Tokyo Kyoto','Osaka Nara']);
  assert.deepEqual(wrapLine(t=>t.length*10,'Tokyo Kyoto Osaka Nara Disney',120,2),['Tokyo Kyoto','Osaka…'],'at most two lines, the last ended with an ellipsis');
  const main=await source('main.jsx'),widgets=await source('home-widgets.js'),page=await source('HalfwayCard.jsx');
- assert.match(main,/halfway:<HalfwayLine state=\{visibleState\}/);assert.match(widgets,/halfway:\{label:'Halfway there'/);
+ assert.match(main,/halfway:<><HalfwayLine state=\{visibleState\}/);assert.match(widgets,/halfway:\{label:'Halfway there'/);
  assert.match(page,/navigator\.canShare\?\.\(\{files:\[file\]\}\)/,'the square goes to the share sheet as a picture');
 });
