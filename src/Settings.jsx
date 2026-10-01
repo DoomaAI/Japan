@@ -107,7 +107,7 @@ function GuideSettings({state,mutate,busy}){
  const changed=name.trim()!==g.name||voice!==g.voice;
  return <section className="settings-section guide-settings">
   <h2><Compass size={18}/> Your guide</h2>
-  <p>Ask about our trip, What’s near here, the suggestions and the night-before check are one guide, with one voice and the same memory of the trip so far: what we loved, what we skipped, what we ate and what we last asked.</p>
+  <p>The Concierge, What’s near here, the suggestions and the night-before check are one guide, with one voice and the same memory of the trip so far: what we loved, what we skipped, what we ate and what we last asked.</p>
   <form className="guide-form" onSubmit={e=>{e.preventDefault();mutate({type:'guideSet',name,voice});}}>
    <label>Name<input value={name} maxLength={20} onChange={e=>setName(e.target.value)} placeholder="Tabi"/></label>
    <fieldset><legend>How it talks</legend>{GUIDE_VOICES.map(v=><label key={v.id} className="checkline"><input type="radio" name="voice" value={v.id} checked={voice===v.id} onChange={()=>setVoice(v.id)}/> <span><strong>{v.label}</strong> <small>{v.line}</small></span></label>)}</fieldset>
@@ -272,7 +272,7 @@ export default function Settings({user,state,mutate,busy,hand,settings,change,na
    {SETTINGS.filter(s=>!s.group).map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
   <section className="settings-section">
-   <h2>AI assistant</h2>
+   <h2>Concierge</h2>
    {SETTINGS.filter(s=>s.group==='assistant').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
   <section className="settings-section">

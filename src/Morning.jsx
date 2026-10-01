@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import Mark from './Mark.jsx';
 import {Check,Flame,RotateCcw,X} from 'lucide-react';
 import {morningList,readTicks,writeTicks,readStreak,writeStreak,nextStreak,streakWords,readClosed,writeClosed} from './morning-data.js';
 // The Before we head out widget: one tap per thing to carry, reset each morning by itself, and
@@ -23,8 +24,8 @@ export default function MorningChecklist({state,day,today}){
     <button type="button" className="morning-close" aria-label="Hide for the rest of today" title="Hide for the rest of today" onClick={close}><X size={18}/></button>
    </div>
   </div>
-  {!complete&&<div className="chips morning-chips">{items.map(i=><button type="button" key={i.id} className={`chip${ticks.includes(i.id)?' on':''}`} aria-pressed={ticks.includes(i.id)} title={i.why||''} onClick={()=>toggle(i.id)}>{ticks.includes(i.id)?<Check size={14}/>:<span aria-hidden="true">{i.emoji}</span>}{i.label}</button>)}</div>}
-  {!complete&&items.some(i=>i.why&&!['passports','ic'].includes(i.id))&&<p className="morning-why">{items.filter(i=>i.why&&!['passports','ic'].includes(i.id)).map(i=>`${i.emoji} ${i.why}`).join(' ')}</p>}
+  {!complete&&<div className="chips morning-chips">{items.map(i=><button type="button" key={i.id} className={`chip${ticks.includes(i.id)?' on':''}`} aria-pressed={ticks.includes(i.id)} title={i.why||''} onClick={()=>toggle(i.id)}>{ticks.includes(i.id)?<Check size={14}/>:<Mark emoji={i.emoji}/>}{i.label}</button>)}</div>}
+  {!complete&&items.some(i=>i.why&&!['passports','ic'].includes(i.id))&&<p className="morning-why">{items.filter(i=>i.why&&!['passports','ic'].includes(i.id)).map(i=><span key={i.id}><Mark emoji={i.emoji} size={13}/> {i.why} </span>)}</p>}
   {complete&&<button type="button" className="linkish" onClick={reset}><RotateCcw size={13}/> Check again</button>}
  </section>;
 }

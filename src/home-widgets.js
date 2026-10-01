@@ -34,7 +34,7 @@ export const HOME_WIDGETS={
  weather:{label:'Weather',note:'The day’s forecast, folded or open',page:'weather'},
  glance:{label:'The day at a glance',note:'A button to the day’s stops in order',off:true,action:true,page:'glance'},
  adjust:{label:'Adjust the day',note:'Move the rest of the day on (parents only)',off:true,action:true},
- tired:{label:'We’re tired',note:'Ways to take the rest of the day easier',off:true,action:true},
+ tired:{label:'Slow the day',note:'Ways to take the rest of the day easier',off:true,action:true},
  apps:{label:'Useful apps',note:'Maps, translation, trains and the rest',off:true,action:true,page:'help'},
  todos:{label:'To-dos for the day',note:'Things to do or buy that are on this day',page:'todo'},
  packing:{label:'Packing reminder',note:'What is still out of the case before a hotel move',page:'packing'},

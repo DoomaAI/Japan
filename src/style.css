@@ -988,3 +988,13 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 :where(main,main section,main article)>:where(button:not([class]),button.primary,button.danger,a.button,.row.wrap):where(:not(:last-child)){margin-bottom:.9rem}
 .gift-people{margin-top:1.6rem}.gift-people h2 svg{vertical-align:-3px}.gift-asks small{display:block;margin-top:.25rem}.gift-tips ul{margin:.4rem 0 0;padding-left:1.1rem;font-size:.85rem}.gift-status{display:inline-flex;align-items:center;color:var(--muted);padding:0 .2rem}.finished .gift-status{color:var(--green)}.gift-idea a{display:inline-flex;gap:.25rem;align-items:center;font-size:.8rem;margin-top:.2rem}.gift-declare{color:var(--danger);font-weight:600}.gift-ask{display:flex;flex-wrap:wrap;gap:.6rem;align-items:flex-end;margin:.8rem 0}.gift-ask label{flex:1 1 14rem}.shop-more h3{font-size:.95rem;margin:1rem 0 .3rem;display:flex;gap:.3rem;align-items:center}
 .gift-form .chip{flex-direction:row;padding:.4rem .7rem;min-height:40px}.gift-form .chip input{width:16px;height:16px;flex:none}
+/* A Mark (Mark.jsx) carries an emoji and its line icon; the look decides which one shows. */
+.mark{display:inline-flex;align-items:center}.mark-line{display:none}
+.readiness-word{display:none}
+/* Arrange Home only means something in a look that tucks the card buttons away (house-theme.css). */
+.home-arrange{display:none}
+/* The hotel's photograph runs to the card's edges, above everything else on it. */
+.stay-photo{display:block;width:calc(100% + 2.4rem);max-width:none;margin:-1.1rem -1.2rem 0;aspect-ratio:16/9;object-fit:cover;border-radius:16px 16px 0 0;background:var(--tint)}
+/* Until a parent adds the hotel's own photo, the guide's page for the night we arrive stands in,
+   cropped to the photograph across its top and clear of the headline on its left. */
+.stay-photo-guide{background-size:230% auto;background-position:86% 4%;background-repeat:no-repeat}

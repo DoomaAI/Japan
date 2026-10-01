@@ -1,0 +1,188 @@
+/* Washi: the house look. A quieter dress for the same app, taken from how the great hotels
+   present themselves (Aman, Four Seasons, Park Hyatt, Mandarin Oriental, Hoshinoya): sumi ink on
+   washi paper, one colour of our own (ai, Japanese indigo) kept to what is selected and what has
+   focus, a light serif for what is read and a quiet geometric sans for what is used, hairlines
+   instead of shadows and tinted panels, and corners that are all but square. Everything here sits
+   under :root[data-look=washi] (theme.js), so the printed guide's look is one setting away. */
+
+/* Two open families (SIL OFL, licences beside the files): Cormorant Garamond for display, Jost
+   for everything else. Each face is declared with a capped weight range, and font-synthesis is
+   off, so the hundreds of 700s and 800s written for the guide's condensed sans arrive as a
+   refined medium rather than a slab, without touching any of them. Figures are lining
+   throughout: the serif's old-style figures make a date strip or a time read as 'o1' and '3o'.
+   And proportional in the serif, where a tabular 1 sits in a 0's width and 11 reads as 'I I'. */
+@font-face{font-family:Washi Serif;src:url('./fonts/cormorant-latin-400-normal.woff2') format('woff2');font-weight:300 449;font-style:normal;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Washi Serif;src:url('./fonts/cormorant-latin-ext-400-normal.woff2') format('woff2');font-weight:300 449;font-style:normal;font-display:swap;unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Washi Serif;src:url('./fonts/cormorant-latin-500-normal.woff2') format('woff2');font-weight:450 900;font-style:normal;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Washi Serif;src:url('./fonts/cormorant-latin-ext-500-normal.woff2') format('woff2');font-weight:450 900;font-style:normal;font-display:swap;unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Washi Serif;src:url('./fonts/cormorant-latin-400-italic.woff2') format('woff2');font-weight:300 900;font-style:italic;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Washi Serif;src:url('./fonts/cormorant-latin-ext-400-italic.woff2') format('woff2');font-weight:300 900;font-style:italic;font-display:swap;unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Washi Sans;src:url('./fonts/jost-latin.woff2') format('woff2');font-weight:300 520;font-style:normal;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Washi Sans;src:url('./fonts/jost-latin-ext.woff2') format('woff2');font-weight:300 520;font-style:normal;font-display:swap;unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Washi Sans;src:url('./fonts/jost-latin-italic.woff2') format('woff2');font-weight:300 520;font-style:italic;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Washi Sans;src:url('./fonts/jost-latin-ext-italic.woff2') format('woff2');font-weight:300 520;font-style:italic;font-display:swap;unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+
+/* The palette: the same names as every other sheet, so nothing downstream has to know which look
+   it is in. Sumi ink, washi paper, one indigo accent; success is a quiet moss, warnings a brick. */
+:root[data-look=washi]{font-family:'Washi Sans','Hiragino Sans','Helvetica Neue',Arial,sans-serif;font-synthesis:none;-webkit-font-smoothing:antialiased;font-variant-numeric:lining-nums proportional-nums;
+ --serif:'Washi Serif','Hiragino Mincho ProN','Yu Mincho',Georgia,serif;--sans:'Washi Sans','Hiragino Sans','Helvetica Neue',Arial,sans-serif;
+ --ink:#1f1e1c;--ink-deep:#141413;--dark:#141413;--muted:#67635b;--stone:#8d877b;--border:#e4dfd5;--accent:#2c3a54;--green:#3e5a4c;--green-deep:#2f4a3d;--mint:#d5ddd3;
+ --paper:#fbfaf7;--page:#f3f0e9;--tint:#f4f1ea;--tint-deep:#ebe7de;--tint-border:#dcd6ca;
+ --cream:#f7f5f0;--sand:#f2ede2;--sand-border:#ddd3c0;--sand-ink:#5f5034;--gold:#b39668;--gold-ink:#7a6240;--amber:#a98a5a;
+ --blush:#f2ebe7;--blush-border:#dfd0c8;--danger:#8a3b2e;--danger-bright:#9d4433;--shadow:none;
+ --round:.15;--pill:2px}
+:root[data-look=washi][data-theme=dark]{--ink:#ebe7de;--ink-deep:#f5f2ea;--dark:#0b0b0a;--muted:#a9a497;--stone:#8a8579;--border:#2f2e2a;--accent:#9fb0cf;--green:#8fb3a0;--green-deep:#a9c9b8;--mint:#2c3631;
+ --paper:#1a1a18;--page:#121211;--tint:#1f1f1c;--tint-deep:#262622;--tint-border:#3a3934;--cream:#1c1b18;--sand:#24211b;--sand-border:#3d372b;--sand-ink:#d6c6a3;--gold:#b39668;--gold-ink:#d2bb8f;--amber:#b39668;
+ --blush:#2a2220;--blush-border:#45372f;--danger:#d68f7c;--danger-bright:#e09a86}
+@media (prefers-color-scheme:dark){:root[data-look=washi][data-theme=auto]{--ink:#ebe7de;--ink-deep:#f5f2ea;--dark:#0b0b0a;--muted:#a9a497;--stone:#8a8579;--border:#2f2e2a;--accent:#9fb0cf;--green:#8fb3a0;--green-deep:#a9c9b8;--mint:#2c3631;
+ --paper:#1a1a18;--page:#121211;--tint:#1f1f1c;--tint-deep:#262622;--tint-border:#3a3934;--cream:#1c1b18;--sand:#24211b;--sand-border:#3d372b;--sand-ink:#d6c6a3;--gold:#b39668;--gold-ink:#d2bb8f;--amber:#b39668;
+ --blush:#2a2220;--blush-border:#45372f;--danger:#d68f7c;--danger-bright:#e09a86}}
+
+/* Type. Display is the light serif, set larger than the guide's slab because its x-height is
+   smaller, and never tracked tight; everything that is used rather than read is the sans. */
+:root[data-look=washi] :is(h1,h2,.brand,.time-display,.date-strip strong,.next-title,.phrase-en,.rate-headline,.converted strong,.thank-you-note blockquote,.weather-today strong,.fact-title,.opening .opening-countdown strong,.opening-fact strong,.gauge-number,.money-worth strong,.purse-headline,.pb-words blockquote,.briefing-stops strong){font-family:var(--serif);font-weight:500;letter-spacing:-.005em;font-variant-numeric:lining-nums proportional-nums}
+:root[data-look=washi] ol.recap-top li:before{font-family:var(--serif)}
+:root[data-look=washi] :is(h3,h4,.suggest-card h4,.ask-card h3,.nearby-card h4,.step-review h3,.choose-card h4,.rings-head h3,.brand b,.brand small,.time-display span,.opening,.day-guide>p,.step-notes,.feature-card.menu-card p,.day-tile>small,.help-card p,.document-row>div>strong){font-family:var(--sans);letter-spacing:0}
+:root[data-look=washi] h1{font-weight:400;font-size:clamp(2.5rem,6vw,4rem);line-height:1.04}
+:root[data-look=washi] h2{line-height:1.1}
+:root[data-look=washi] h3{font-weight:500}
+:root[data-look=washi] p{line-height:1.65}
+:root[data-look=washi] .eyebrow{font-size:.75rem;letter-spacing:.22em;font-weight:400;color:var(--stone)}
+:root[data-look=washi] .place-japanese{font-family:'Hiragino Mincho ProN','Yu Mincho',serif;letter-spacing:.08em}
+:root[data-look=washi] .home .day-heading h1{font-size:1.7rem;font-weight:500}
+:root[data-look=washi] .home .time-display{font-size:2.2rem;font-weight:400}
+:root[data-look=washi] .home .step-card h2{font-size:1.7rem}
+:root[data-look=washi] .date-strip strong{font-size:1.45rem;font-weight:400}
+:root[data-look=washi] .home .date-strip strong{font-size:1.25rem}
+
+/* Icons: the same set, drawn with a finer pen. */
+:root[data-look=washi] svg.lucide{stroke-width:1.4}
+
+/* Rules, not ornaments: one hairline wherever the guide drew a double rule, a thick top border
+   or a flourish, and no shadows at all. */
+:root[data-look=washi] .app{box-shadow:none}
+:root[data-look=washi] .topbar{border-bottom:1px solid var(--border)}
+:root[data-look=washi] .bottom-nav{border-top:1px solid var(--border);box-shadow:none;background:var(--paper)}
+:root[data-look=washi] dialog>header{border-bottom:1px solid var(--border)}
+:root[data-look=washi] .day-heading .eyebrow:after{display:none}
+:root[data-look=washi] :is(.next-up,.step-card,.day-tile){border-top:1px solid var(--ink)}
+:root[data-look=washi] .day-guide{border-top:1px solid var(--border)}
+:root[data-look=washi] :is(.step-card,.day-guide-page,dialog){box-shadow:none}
+:root[data-look=washi] :is(.next-up,details,.callout){background:var(--paper)}
+:root[data-look=washi] .callout{border-color:var(--border);border-left:2px solid var(--accent);color:var(--ink)}
+
+/* Controls. The primary action is solid sumi; everything else is a hairline outline. Selected
+   is ink, never a colour wash; the one accent marks focus and the tab we are on. */
+:root[data-look=washi] :is(button,.button){font-weight:500;letter-spacing:.01em}
+:root[data-look=washi] :is(button,.button):hover{background:var(--tint);border-color:var(--ink)}
+:root[data-look=washi] .primary,:root[data-look=washi] .primary:hover{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+:root[data-look=washi] .primary:not(:disabled):active{background:var(--ink-deep);border-color:var(--ink-deep)}
+:root[data-look=washi] :is(a,button,input,select,textarea,summary):focus-visible{outline:1px solid var(--accent);outline-offset:3px}
+:root[data-look=washi] .segmented .selected{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+:root[data-look=washi] :is(.chip:has(input:checked),.chip.on){background:var(--tint-deep);border-color:var(--ink)}
+:root[data-look=washi] .status-pill.done-button{background:var(--paper);border-color:var(--green);color:var(--green)}
+:root[data-look=washi] .home .card-link-slot>*{background:var(--paper);font-weight:500}
+:root[data-look=washi] .home .card-links .card-link-special{background:var(--paper);border-color:var(--border);color:var(--ink)}
+:root[data-look=washi] a{color:var(--ink);text-decoration-color:var(--stone);text-decoration-thickness:1px}
+
+/* The tab bar: no tile behind the tab we are on, just ink and a short indigo rule under it. */
+:root[data-look=washi] .bottom-nav button{color:var(--stone);font-weight:400;letter-spacing:.04em}
+:root[data-look=washi] .bottom-nav .active{background:transparent;color:var(--ink)}
+:root[data-look=washi] .bottom-nav .active svg{stroke:var(--ink)}
+:root[data-look=washi] .bottom-nav .active:after{width:16px;height:1px;background:var(--accent)}
+
+/* The opening: the cover keeps its photograph; the type over it takes the house serif and sans,
+   and the blossom pink gives way to a pale champagne. */
+:root[data-look=washi] .opening .opening-countdown strong{font-size:4rem;font-weight:400;letter-spacing:-.01em}
+:root[data-look=washi] .opening .opening-countdown span{color:#ece2cc;font-weight:400;letter-spacing:.24em}
+:root[data-look=washi] :is(.opening-fact small,.opening-catch){color:#e3d4b2;font-weight:400}
+:root[data-look=washi] .opening-fact-timer{height:1px;background:#d9c69a}
+:root[data-look=washi] :is(.opening-go,.opening-tips select){border-radius:2px}
+
+/* The boys' pages (KIDS_PAGES in nav-data.js, marked on <main> as data-kids) keep their colour.
+   The bars around them stay in the house look, so it is still one app; inside, the palette turns
+   to Japan's own bright traditional colours (shu vermilion, matcha, yamabuki gold, sakura, a
+   clearer ai), tints come back behind panels, selected things are coloured rather than inked,
+   and the corners and pills are soft again. A game board or a stamp book is meant to be bright. */
+:root[data-look=washi] main[data-kids]{--accent:#c63d22;--green:#4a7a2c;--green-deep:#3a6322;--mint:#bcd9a8;--gold:#f0b429;--gold-ink:#8a5a00;--amber:#e89a1c;
+ --tint:#eef4e8;--tint-deep:#e1edd6;--tint-border:#c9dcb9;--sand:#fdf1d2;--sand-border:#efd28a;--sand-ink:#7a5200;--blush:#fde6ea;--blush-border:#f2b8c4;
+ --kids-ai:#2f5aa8;--kids-sakura:#f4c4cf;--round:.8;--pill:999px}
+:root[data-look=washi][data-theme=dark] main[data-kids]{--accent:#f07a5a;--green:#8cc46a;--green-deep:#a9d98c;--mint:#2f4426;--gold:#f0b429;--gold-ink:#f5cd6a;--amber:#f0aa3c;
+ --tint:#1f2a1b;--tint-deep:#263421;--tint-border:#3b5130;--sand:#2e2614;--sand-border:#5c4a1f;--sand-ink:#f2d58c;--blush:#33202a;--blush-border:#5e3442;--kids-ai:#86a8e8;--kids-sakura:#6e3a47}
+@media (prefers-color-scheme:dark){:root[data-look=washi][data-theme=auto] main[data-kids]{--accent:#f07a5a;--green:#8cc46a;--green-deep:#a9d98c;--mint:#2f4426;--gold:#f0b429;--gold-ink:#f5cd6a;--amber:#f0aa3c;
+ --tint:#1f2a1b;--tint-deep:#263421;--tint-border:#3b5130;--sand:#2e2614;--sand-border:#5c4a1f;--sand-ink:#f2d58c;--blush:#33202a;--blush-border:#5e3442;--kids-ai:#86a8e8;--kids-sakura:#6e3a47}}
+:root[data-look=washi] main[data-kids] .segmented .selected{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+:root[data-look=washi] main[data-kids] :is(.chip:has(input:checked),.chip.on){background:var(--tint-deep);border-color:var(--green)}
+:root[data-look=washi] main[data-kids] :is(details,.callout){background:var(--tint)}
+:root[data-look=washi] main[data-kids] .callout{border-color:var(--sand-border);border-left-color:var(--gold);background:var(--sand);color:var(--sand-ink)}
+:root[data-look=washi] main[data-kids] .primary,:root[data-look=washi] main[data-kids] .primary:hover{background:var(--kids-ai);border-color:var(--kids-ai);color:var(--paper)}
+:root[data-look=washi] main[data-kids] :is(button,.button):hover{border-color:var(--green)}
+:root[data-look=washi] main[data-kids] a{color:var(--kids-ai)}
+:root[data-look=washi] main[data-kids] h1{color:var(--ink)}
+:root[data-look=washi] main[data-kids] h1::after{content:'';display:block;width:2.5rem;height:3px;margin-top:.5rem;border-radius:calc(3px * var(--round,1));background:linear-gradient(90deg,var(--accent) 0 33%,var(--gold) 33% 66%,var(--green) 66%)}
+/* Whatever is written small inside a selected button takes the button's own colour, and the
+   stamp count sits on a tint, so it reads by day and by night alike. */
+:root[data-look=washi] :is(.segmented,[role=radiogroup]) :is(.selected,[aria-checked=true]) small{color:inherit;opacity:.85}
+:root[data-look=washi] main[data-kids] .stamp-summary{background:var(--tint-deep);color:var(--ink)}
+:root[data-look=washi] main[data-kids] .stamp-summary strong{color:var(--accent)}
+:root[data-look=washi] main[data-kids] .stamp-summary small{color:var(--muted)}
+
+/* Marks: the line icon instead of the emoji, except on the boys' pages. */
+:root[data-look=washi] .mark-emoji{display:none}
+:root[data-look=washi] .mark-line{display:inline-block}
+:root[data-look=washi] main[data-kids] .mark-emoji{display:inline}
+:root[data-look=washi] main[data-kids] .mark-line{display:none}
+
+/* How everyone is this morning: the word, not the face, for the grown-ups. A boy on his own
+   phone still sees the faces, since the youngest is not reading yet. */
+:root[data-look=washi] .app[data-viewer=parent] .readiness-face{display:none}
+:root[data-look=washi] .app[data-viewer=parent] .readiness-word{display:inline}
+:root[data-look=washi] .app[data-viewer=parent] .readiness-row div{flex:1;justify-content:flex-end}
+:root[data-look=washi] .app[data-viewer=parent] .readiness-row button{width:auto;flex:1;max-width:4.2rem;min-width:0;padding:0 .2rem;font-size:.75rem;letter-spacing:.02em;opacity:1;color:var(--muted)}
+:root[data-look=washi] .app[data-viewer=parent] .readiness-row button.is-on{transform:none;background:var(--ink);border-color:var(--ink);color:var(--paper)}
+:root[data-look=washi] .app[data-viewer=parent] .feeling{color:var(--muted)}
+
+/* Home reads as the day. Each card's label is the section's title, in the serif and in sentence
+   case; a heading inside the card that only repeats it is left out; the outer frame gives way to
+   one hairline, so a box inside a card is the only box. Fold and put away wait behind Arrange
+   Home, except the button that opens a folded card, which has to stay reachable. */
+:root[data-look=washi] .home-card{margin-top:1.4rem}
+:root[data-look=washi] .home-card-bar{min-height:40px;margin-bottom:.5rem;border-bottom:1px solid var(--border)}
+:root[data-look=washi] .home-card-bar>span{font-family:var(--serif);font-size:1.4rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink)}
+:root[data-look=washi] .home:not(.arranging) .home-card-bar .icon{display:none}
+:root[data-look=washi] .home:not(.arranging) .home-card.folded .home-card-bar .icon:first-of-type{display:inline-flex}
+:root[data-look=washi] .home-card.folded .home-card-bar{padding:0;background:transparent;border:0;border-bottom:1px solid var(--border);border-radius:0}
+:root[data-look=washi] .home.arranging .home-card-bar{background:var(--tint);padding-left:.6rem}
+:root[data-look=washi] .home-arrange{display:inline-flex}
+:root[data-look=washi] .home-card-body .eyebrow[data-repeats-label]{display:none}
+:root[data-look=washi] .home .home-card-body>:is(section,article,div,details,aside):not(.home-actions){border:0;border-radius:0;background:transparent;box-shadow:none;padding-left:0;padding-right:0}
+
+/* Section titles in sentence case, in the serif: capitals are for small labels and the tab bar. */
+:root[data-look=washi] .timeline .section-heading h2{text-transform:none;font-size:1.6rem;letter-spacing:0}
+:root[data-look=washi] .more-fold{border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent;padding-left:0;padding-right:0}
+:root[data-look=washi] .more-fold span{font-family:var(--serif);font-size:1.45rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink)}
+:root[data-look=washi] .more-fold small{background:transparent;color:var(--stone);font-weight:400;font-family:var(--sans);font-size:.8rem}
+:root[data-look=washi] .more-fold svg{color:var(--stone)}
+
+/* Tonight's stay leads with the hotel's photograph, then the name; Directions is the one solid
+   action, the taxi card a hairline button, and Call and Booking quiet text links. */
+:root[data-look=washi] .home .stay-photo{width:100%;margin:0}
+:root[data-look=washi] .stay-card h2{font-size:2rem;font-weight:400}
+:root[data-look=washi] .stay-actions .stay-quiet{border-color:transparent;background:transparent;text-decoration:underline;text-decoration-color:var(--stone);text-underline-offset:4px}
+
+/* Motion that settles rather than bounces: a press dims a little instead of shrinking, and a
+   screen or a sheet arrives as a short fade with a few pixels of rise. Off for anyone who asks
+   the phone for less motion. */
+:root[data-look=washi] :is(button:not(:disabled),.button,.chip):active{transform:none;filter:none;opacity:.72;transition:opacity .18s ease-out}
+:root[data-look=washi] .primary:not(:disabled):active{background:var(--ink);border-color:var(--ink)}
+@keyframes washi-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+:root[data-look=washi] main>:not(.page-loading){animation:washi-in .28s ease-out both}
+:root[data-look=washi] dialog[open]{animation:washi-in .24s ease-out both}
+@media (prefers-reduced-motion:reduce){:root[data-look=washi] :is(main>*,dialog[open]){animation:none}:root[data-look=washi] :is(button,.button,.chip):active{transition:none}}
+
+/* A stop's type icon: the shape says meal, train or ride; Washi draws it in stone, unboxed. */
+:root[data-look=washi] .entry-type{--entry:var(--stone);--entry-bg:transparent}
+
+/* The cover's falling petals stay sakura pink: they are part of the photograph, not the page.
+   Written in hsl() so the build's colour step leaves them exactly as they are. */
+:root[data-look=washi] .opening-petal i{background:radial-gradient(circle at 30% 30%,hsl(345 100% 98%),hsl(343 80% 84%) 55%,hsl(341 70% 74%))}

@@ -120,7 +120,7 @@ export default function Highlights({state,user,config,request,accept,notice,busy
   <p className="empty">Nothing to make a video from yet. Photos of the day, the boys’ photos and the gallery all feed into it.</p></div>;
  return <div className="highlights">
   <p className="eyebrow">LOOKING BACK</p><h1>Highlights video</h1>
-  <p>{material.shots} photos and clips over {material.days} days{material.sounds?`, and ${material.sounds} sound postcard${material.sounds===1?'':'s'}`:''}. {list.by==='claude'?'Claude chose the moments and wrote the captions':'The best of each day, chosen automatically'}{state.highlights?.by?` · kept by ${state.highlights.by}`:''}.</p>
+  <p>{material.shots} photos and clips over {material.days} days{material.sounds?`, and ${material.sounds} sound postcard${material.sounds===1?'':'s'}`:''}. {list.by==='claude'?'Chosen and captioned for us':'The best of each day, chosen automatically'}{state.highlights?.by?` · kept by ${state.highlights.by}`:''}.</p>
   <canvas ref={canvas} width={W} height={H} className="highlights-canvas" aria-label="The highlights video"/>
   <input type="range" min="0" max={Math.round(total*10)} value={Math.round(t*10)} aria-label="Where in the video" disabled={recording} onChange={e=>{clock.current.t=+e.target.value/10;setPlaying(false);}}/>
   <div className="row wrap highlights-controls">
@@ -139,7 +139,7 @@ export default function Highlights({state,user,config,request,accept,notice,busy
   {parent&&<section className="highlights-plan">
    <h2>The plan</h2>
    <div className="row wrap">
-    {config?.highlights&&<button type="button" className="primary" disabled={planning||busy} onClick={()=>plan({})}><Sparkles size={16}/>{planning?'Choosing…':'Let Claude choose the moments'}</button>}
+    {config?.highlights&&<button type="button" className="primary" disabled={planning||busy} onClick={()=>plan({})}><Sparkles size={16}/>{planning?'Choosing…':'Choose the moments for us'}</button>}
     <button type="button" disabled={planning||busy} onClick={()=>plan({auto:true})}><Wand2 size={16}/>Automatic plan</button>
     {draft&&<button type="button" className="primary" disabled={planning} onClick={()=>plan({list:draft})}>Save these changes</button>}
     {draft&&<button type="button" onClick={()=>setDraft(null)}>Undo changes</button>}
