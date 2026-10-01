@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
-import {Clock,Check,MapPin,Send,LocateFixed,EyeOff} from 'lucide-react';
-import {lateFor,lateDefaults,lateTargets,lateLine,etaText,lateEta,whoText,LATE_MINUTES,LATE_NOTE_MAX} from './late-data.js';
+import {Clock,Check,MapPin,Send,LocateFixed,EyeOff,X,SkipForward,TimerReset} from 'lucide-react';
+import {lateFor,lateDefaults,lateTargets,lateLine,etaText,lateEta,whoText,askLine,canDelay,canAgree,meetAfter,pushedBack,LATE_MINUTES,LATE_NOTE_MAX} from './late-data.js';
 import {ageText,checkinAge} from './memory-map.js';
 import {japanClock,japanDate} from './timing.js';
 import {SHARE_FOR} from './live-share.js';
@@ -17,11 +17,13 @@ export function LateCards({state,user,now,mutate,busy,go,open,live}){
    return <div key={n.id} className={`late${mine?' mine':''}`}>
     <p className="eyebrow"><Clock size={13}/> Running late · {ageText(checkinAge({at:n.at},now))}</p>
     <strong>{lateLine(n,user.name)}</strong>
-    <small>{etaText(n)}{mine?` · told ${whoText(n.to,user.name)}`:''}</small>
+    <small>{n.ask==='skip'?'':`${etaText(n)} · `}{mine?`told ${whoText(n.to,user.name)}`:`from ${n.from}`}</small>
+    {askLine(n,user.name)&&<p className={`late-ask is-${n.ask==='delay'?n.proposal.status:'skip'}`}>{n.ask==='skip'?<SkipForward size={15}/>:<TimerReset size={15}/>}{askLine(n,user.name)}</p>}
     {n.note&&<p className="late-note">“{n.note}”{!mine&&<small> · {n.from}</small>}</p>}
     {mine&&<small>{seen.length?`Seen by ${whoText(seen,user.name)}`:'Not seen yet'}</small>}
     <div className="row wrap">
-     {toMe&&!n.seenBy?.[user.name]&&<button type="button" className="primary" disabled={busy} onClick={()=>mutate({type:'lateSeen',id:n.id})}><Check size={15}/>Got it</button>}
+     {toMe&&n.ask==='delay'&&n.proposal.status==='open'&&<>{canAgree(state,n,user.name)?<button type="button" className="primary" disabled={busy} onClick={()=>mutate({type:'lateAnswer',id:n.id,accept:true})}><Check size={15}/>Start at {n.proposal.to}</button>:<small>Mum or Dad says yes to moving the plan.</small>}<button type="button" disabled={busy} onClick={()=>mutate({type:'lateAnswer',id:n.id,accept:false})}><X size={15}/>Keep {n.proposal.from}</button></>}
+     {toMe&&!(n.ask==='delay'&&n.proposal.status==='open')&&!n.seenBy?.[user.name]&&<button type="button" className="primary" disabled={busy} onClick={()=>mutate({type:'lateSeen',id:n.id})}><Check size={15}/>Got it</button>}
      {!mine&&<button type="button" onClick={()=>go('whereabouts')}><MapPin size={15}/>Where are they?</button>}
      {mine&&<button type="button" disabled={busy} onClick={()=>open({type:'latemsg'})}><Clock size={15}/>Later still</button>}
      {(mine||parent)&&<button type="button" disabled={busy} onClick={()=>mutate({type:'lateClear',id:n.id})}><Check size={15}/>{mine?'We’re here':'They’re here'}</button>}
@@ -39,12 +41,18 @@ export function LateSheet({state,user,day,now,mutate,busy,close,notice,live}){
  const today=japanDate(now),onDay=day===today?day:today;
  const start=lateDefaults(state,onDay,user.name,now),targets=lateTargets(state,onDay,user.name,now);
  const [withUs,setWith]=useState(start.with),[to,setTo]=useState(start.to),[mins,setMins]=useState(10),[key,setKey]=useState(start.target?.key||''),[note,setNote]=useState('');
+ const [ask,setAsk]=useState('');
  const [share,setShare]=useState(SHARE_FOR.includes(60)?60:SHARE_FOR.at(-1)||0);
  const target=targets.find(t=>t.key===key)||null,eta=lateEta({minutes:mins,time:target?.time,day:onDay},now);
  const parent=user.role==='parent';
- const preview={with:withUs.includes(user.name)?withUs:[user.name,...withUs],minutes:mins,target:target?.label||null,eta:eta.toISOString(),time:target?.time&&+eta!==+now+mins*60000?target.time:null};
+ // What else can be asked about the stop chosen: pushing it back if it can move, skipping it if
+ // there is a later stop today to meet at. Only about today, because a message is about now.
+ const step=target?.stepId&&onDay===today?state.steps.find(s=>s.id===target.stepId):null;
+ const delayable=canDelay(step,mins),meet=step?meetAfter(state,onDay,step.id,to):null;
+ const asking=ask==='delay'&&delayable?'delay':ask==='skip'&&meet?'skip':null;
+ const preview={from:user.name,ask:asking,meet:meet?.title||null,meetTime:meet?.time||null,proposal:asking==='delay'?{status:'open',from:step.time,to:pushedBack(step.time,mins)}:null,with:withUs.includes(user.name)?withUs:[user.name,...withUs],minutes:mins,target:target?.label||null,eta:eta.toISOString(),time:target?.time&&+eta!==+now+mins*60000?target.time:null};
  async function send(){
-  const ok=await mutate({type:'lateSend',minutes:mins,with:preview.with,to,target:target?.label||null,stepId:target?.stepId||null,time:target?.time||null,note:note.trim()||null});
+  const ok=await mutate({type:'lateSend',minutes:mins,with:preview.with,to,target:target?.label||null,stepId:target?.stepId||null,time:target?.time||null,note:note.trim()||null,ask:asking});
   if(!ok)return;
   if(share&&live){live.start(share);}
   notice?.(`Told ${whoText(to,user.name)}: ${mins} min late.`);close();
@@ -70,9 +78,15 @@ export function LateSheet({state,user,day,now,mutate,busy,close,notice,live}){
    {targets.map(t=><button type="button" key={t.key} role="radio" aria-checked={key===t.key} className={key===t.key?'is-on':''} onClick={()=>setKey(t.key)}><MapPin size={14}/>{t.time?`${t.time} · `:''}{t.label}</button>)}
    <button type="button" role="radio" aria-checked={!key} className={!key?'is-on':''} onClick={()=>setKey('')}>Nothing in particular</button>
   </div>
+  {step&&<><p className="eyebrow">And</p>
+  <div className="checkin-options late-asks" role="radiogroup" aria-label="What to ask">
+   <button type="button" role="radio" aria-checked={!asking} className={!asking?'is-on':''} onClick={()=>setAsk('')}>Just tell them</button>
+   <button type="button" role="radio" aria-checked={asking==='delay'} className={asking==='delay'?'is-on':''} disabled={!delayable} onClick={()=>setAsk('delay')}><TimerReset size={14}/>{delayable?`Ask to start it at ${pushedBack(step.time,mins)}`:step.locked||step.kind==='fixed'?'A fixed time: it cannot wait':'Ask to start it later'}</button>
+   <button type="button" role="radio" aria-checked={asking==='skip'} className={asking==='skip'?'is-on':''} disabled={!meet} onClick={()=>setAsk('skip')}><SkipForward size={14}/>{meet?`Skip it, meet at ${meet.time?`${meet.time} · `:''}${meet.title}`:'Skip it: no later stop to meet at'}</button>
+  </div></>}
   <label>A word with it (optional)<input value={note} maxLength={LATE_NOTE_MAX} onChange={e=>setNote(e.target.value)} placeholder="Train was full, on the next one"/></label>
   <label className="checkline"><input type="checkbox" checked={!!share} onChange={e=>setShare(e.target.checked?(SHARE_FOR.includes(60)?60:SHARE_FOR.at(-1)):0)}/><span>Share where I am for the next {share||60} min<small>{parent?'Everyone in the family can see where a parent is.':'Mum and Dad see where you are.'} Rounded to about 100 m, while the app is open.</small></span></label>
-  <p className="late-preview"><strong>{lateLine(preview,user.name)}</strong><small>{etaText(preview)}</small></p>
+  <p className="late-preview"><strong>{lateLine(preview,user.name)}</strong><small>{asking==='skip'?askLine(preview,user.name):asking==='delay'?`${askLine(preview,user.name)} · the stop moves only if they agree`:etaText(preview)}</small></p>
   <div className="row wrap"><button type="button" className="primary" disabled={busy||!to.length} onClick={send}><Send size={16}/>Tell {to.length?whoText(to,user.name):'…'}</button><button type="button" onClick={close}>Not now</button></div>
  </div>;
 }
