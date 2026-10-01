@@ -40,7 +40,7 @@ import {quizAction} from '../src/quiz-data.js';
 import {planHighlights,highlightsReady} from './highlights.mjs';
 import {mailFrames,recordSent,frameMailReady,frameMailFrom} from './frame-mail.mjs';
 import {postcardReady,sendPostcard,postcardProviderId} from './postcard.mjs';
-import {keyAccess,frameKeyView,cleanLabel,validFrameEmail,frameService,MAX_FRAME_KEYS,MAX_FRAME_EMAILS} from '../src/frame-mail-data.js';
+import {photosToFeed,recordFed,keyAccess,frameKeyView,cleanLabel,validFrameEmail,frameService,MAX_FRAME_KEYS,MAX_FRAME_EMAILS} from '../src/frame-mail-data.js';
 import {postcardJob} from '../src/postcard-providers.js';
 import {postcardText} from '../src/postcard-data.js';
 import {cleanEditList,defaultEditList} from '../src/highlights-data.js';
@@ -140,6 +140,19 @@ export default async function handler(req,res){
    res.setHeader('Content-Type',shot.type);res.setHeader('Content-Disposition','inline');res.setHeader('Cache-Control','private, max-age=3600');
    const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
   }
+  // The album feed for an Apple frame: the new photos as a list of links, one a line, for a
+  // Shortcut to fetch and save into an album. Only a frame's own key opens it, and each photo is
+  // handed over once (a parent can start the album again from Settings).
+  if(route==='frame-feed'&&req.method==='GET'){
+   const key=url.searchParams.get('key')||'',trip=await readTrip(),access=keyAccess(trip.state,key,hash);
+   if(access?.kind!=='frame')throw new AppError('This frame link is not valid any more.',403);
+   const frame=trip.state.frameKeys.find(f=>f.id===access.id),shots=photosToFeed(trip.state,frame,japanDate());
+   const origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
+   if(shots.length)await updateTrip(state=>recordFed(state,frame.id,shots.map(p=>p.id)));
+   const links=shots.map(p=>`${origin}/api/follow-photo?key=${key}&id=${encodeURIComponent(p.id)}`);
+   if(url.searchParams.get('format')==='json')return json(res,{photos:shots.map((p,i)=>({id:p.id,url:links[i],day:p.day,by:p.by}))});
+   res.statusCode=200;res.setHeader('Content-Type','text/plain; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(links.join('\n'));return;
+  }
   // Kudos from home: a follower's clap, heart or wow on a photo or a stop, let in on the same
   // key as the follow-along view and nothing else. It can add or take back one reaction under a
   // first name; it cannot write a word. The trip's revision moves, so the phones see it on their
@@ -235,14 +248,16 @@ export default async function handler(req,res){
    if(b.action==='add'){
     const label=cleanLabel(b.label);if(!label)throw new AppError('Name the frame, like “Nana’s kitchen iPad”.');
     await updateTrip(state=>{const list=state.frameKeys||[];if(list.length>=MAX_FRAME_KEYS){problem=`Up to ${MAX_FRAME_KEYS} frames.`;return null;}
-     made={id:randomUUID(),label,key:token(),createdAt:new Date().toISOString(),createdBy:user.name};return {...state,frameKeys:[...list,made]};});
+     made={id:randomUUID(),label,kind:b.kind==='album'?'album':'screen',key:token(),createdAt:new Date().toISOString(),createdBy:user.name};return {...state,frameKeys:[...list,made]};});
     if(problem)throw new AppError(problem,409);
    }else if(b.action==='remove'){
     await updateTrip(state=>(state.frameKeys||[]).some(f=>f.id===b.id)?{...state,frameKeys:state.frameKeys.filter(f=>f.id!==b.id)}:null);
+   }else if(b.action==='restart'){
+    await updateTrip(state=>(state.frameKeys||[]).some(f=>f.id===b.id)?{...state,frameKeys:state.frameKeys.map(f=>f.id===b.id?{...f,fed:{},fedAt:null}:f)}:null);
    }
    const {state}=await readTrip(),want=made||(b.action==='url'?(state.frameKeys||[]).find(f=>f.id===b.id):null);
    if(b.action==='url'&&!want)throw new AppError('That frame has been taken off.',404);
-   return json(res,{frames:(state.frameKeys||[]).map(frameKeyView),url:want?`${origin}/?follow=${want.key}&frame=1`:null});
+   return json(res,{frames:(state.frameKeys||[]).map(frameKeyView),url:want?(want.kind==='album'?`${origin}/api/frame-feed?key=${want.key}`:`${origin}/?follow=${want.key}&frame=1`):null});
   }
   // A real photo frame's email address (Aura, Nixplay, Skylight): added and taken off by a parent,
   // and sent the frame's photos now on request as well as every night.

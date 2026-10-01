@@ -1,4 +1,5 @@
 import {AppError,MEMBERS} from './model.mjs';
+import {guidePrompt} from '../src/guide-data.js';
 import {proposals,proposalPlacement,todos} from '../src/trip-features.js';
 import {tripProject,notOn} from '../src/trip-project.js';
 import {activeSteps,japanDate,japanClock,windowText} from '../src/timing.js';
@@ -197,7 +198,9 @@ Their question: ${asked}`;
    message=await client.messages.create({
     model:'claude-opus-5',
     max_tokens:6000,
-    system:[{type:'text',text:SYSTEM},{type:'text',text:project.shared,cache_control:CACHE},{type:'text',text:project.personal,cache_control:CACHE}],
+    // The guide's voice and memory go last and uncached: the memory moves with every question, and
+    // ahead of the cached blocks it would empty the cache each time.
+    system:[{type:'text',text:SYSTEM},{type:'text',text:project.shared,cache_control:CACHE},{type:'text',text:project.personal,cache_control:CACHE},{type:'text',text:guidePrompt(state,japanDate(now))}],
     thinking:{type:'adaptive'},
     output_config:{effort:'medium'},
     tools:[SEARCH,RECORD],

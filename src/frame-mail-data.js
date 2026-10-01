@@ -26,7 +26,23 @@ export function keyAccess(state,key,hash){
  return frame?{kind:'frame',id:frame.id,label:frame.label}:null;
 }
 // A frame as a phone sees it: never the key itself, which a parent is handed by its own route.
-export const frameKeyView=f=>({id:f.id,label:f.label,createdAt:f.createdAt,createdBy:f.createdBy||''});
+export const frameKeyView=f=>({id:f.id,label:f.label,kind:f.kind==='album'?'album':'screen',createdAt:f.createdAt,createdBy:f.createdBy||'',fedAt:f.fedAt||null,fed:Object.keys(f.fed||{}).length});
+// An Apple album frame (an Apple TV's screensaver, a Mac, a digital frame that shows an iCloud
+// album): Apple lets no other app add to an iCloud Shared Album, so the grandparents' own iPhone
+// or iPad fetches the new photos each night with a Shortcut and saves them into an album in their
+// iCloud Photos, which their Apple TV or Mac then shows. The feed hands each photo over once.
+export const ALBUM_NAME='Japan 2026';
+export const MAX_FEED=20;
+export const photosToFeed=(state,frame,today,{all=false}={})=>photosToMail(state,{sent:all?{}:frame?.fed},today,MAX_FEED);
+export const recordFed=(state,id,ids,at=new Date().toISOString())=>ids.length?{...state,frameKeys:(state.frameKeys||[]).map(f=>f.id===id?{...f,fedAt:at,fed:{...(f.fed||{}),...Object.fromEntries(ids.map(x=>[x,at]))}}:f)}:null;
+export const SHORTCUT_STEPS=[
+ 'On their iPhone or iPad, in Photos, make an album called “Japan 2026”.',
+ 'Open Shortcuts → Automation → New Automation → Time of Day: 7:00 pm, Daily, and choose Run Immediately.',
+ 'Add “Get Contents of URL” and paste the feed link below.',
+ 'Add “Split Text”, split by New Lines.',
+ 'Add “Repeat with Each”. Inside it, add “Get Contents of URL” (the Repeat Item), then “Save to Photo Album”: Japan 2026.',
+ 'On the Apple TV: Settings → General → Screen Saver → My Photos, and choose Japan 2026. On a Mac: System Settings → Screen Saver → Photos, the same album.'
+];
 // The photos a mailed frame has not had yet: the frame's curated set (newest day first), oldest of
 // those first so the frame fills in order, at most a few a run so a long gap does not flood it.
 export function photosToMail(state,entry,today,limit=MAX_PER_SEND){

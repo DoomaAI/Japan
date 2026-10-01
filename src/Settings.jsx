@@ -9,7 +9,8 @@ import {DEEP_LINKS,deepLinkUrl} from './deep-links.js';
 import {THEMES,readTheme,saveTheme,applyTheme,LOOKS,LOOK_CHOICES,readLook,saveLook,applyLook} from './theme.js';
 import {READING,AWARENESS,childLevels,defaultReading,defaultAwareness,readingLabel,awarenessLabel,isChild} from './child-levels.js';
 import {HandOver} from './HandOver.jsx';
-import {FRAME_SERVICES,frameService} from './frame-mail-data.js';
+import {FRAME_SERVICES,frameService,SHORTCUT_STEPS,ALBUM_NAME} from './frame-mail-data.js';
+import {guideOf,GUIDE_VOICES} from './guide-data.js';
 import {PLAN_TYPES,planOf,modulesOff,validTimeZone} from './plan-context.js';
 import {PAGES} from './nav-data.js';
 const ICONS={voiceAssistant:Sparkles,dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
@@ -98,23 +99,46 @@ function FollowLink({state,config,request,accept,notice}){
   <Frames state={state} config={config} request={request} accept={accept} notice={notice}/>
  </section>;
 }
+// The guide: one name and one voice for Ask, What's near here, the suggestions and the night-
+// before check. A parent names it and picks how it talks; everyone sees the name on what it says.
+function GuideSettings({state,mutate,busy}){
+ const g=guideOf(state),[name,setName]=useState(g.name),[voice,setVoice]=useState(g.voice);
+ const changed=name.trim()!==g.name||voice!==g.voice;
+ return <section className="settings-section guide-settings">
+  <h2><Compass size={18}/> Your guide</h2>
+  <p>Ask about our trip, What’s near here, the suggestions and the night-before check are one guide, with one voice and the same memory of the trip so far: what we loved, what we skipped, what we ate and what we last asked.</p>
+  <form className="guide-form" onSubmit={e=>{e.preventDefault();mutate({type:'guideSet',name,voice});}}>
+   <label>Name<input value={name} maxLength={20} onChange={e=>setName(e.target.value)} placeholder="Tabi"/></label>
+   <fieldset><legend>How it talks</legend>{GUIDE_VOICES.map(v=><label key={v.id} className="checkline"><input type="radio" name="voice" value={v.id} checked={voice===v.id} onChange={()=>setVoice(v.id)}/> <span><strong>{v.label}</strong> <small>{v.line}</small></span></label>)}</fieldset>
+   <button className="primary" disabled={busy||!changed||!name.trim()}>Save</button>
+  </form>
+ </section>;
+}
 // The frames at home. Each screen frame has a key and a name of its own, so taking one off
 // leaves the follow link and the other frames working; a real photo frame is sent its photos by
 // email instead, every night and on request.
 function Frames({state,config,request,accept,notice}){
- const [busy,setBusy]=useState(false),[frames,setFrames]=useState(null),[service,setService]=useState('aura');
+ const [busy,setBusy]=useState(false),[frames,setFrames]=useState(null),[service,setService]=useState('aura'),[kind,setKind]=useState('screen');
  const list=frames||state?.frameKeys||[],mailed=state?.frameEmails||[];
  const run=async fn=>{setBusy(true);try{await fn();}catch(e){notice(e.message);}finally{setBusy(false);}};
- const copy=url=>navigator.clipboard?.writeText(url).then(()=>notice('Frame link copied. Open it on the frame and add it to the home screen or bookmarks.'),()=>notice(url));
- const addKey=e=>{e.preventDefault();const form=e.currentTarget,label=new FormData(form).get('label');run(async()=>{const r=await request('frame-link',{action:'add',label});setFrames(r.frames);form.reset();if(r.url)await copy(r.url);});};
+ const copy=(url,album)=>navigator.clipboard?.writeText(url).then(()=>notice(album?'Feed link copied. Paste it into the Shortcut on their iPhone or iPad.':'Frame link copied. Open it on the frame and add it to the home screen or bookmarks.'),()=>notice(url));
+ const addKey=e=>{e.preventDefault();const form=e.currentTarget,label=new FormData(form).get('label');run(async()=>{const r=await request('frame-link',{action:'add',label,kind});setFrames(r.frames);form.reset();if(r.url)await copy(r.url,kind==='album');});};
  const addMail=e=>{e.preventDefault();const form=e.currentTarget,f=new FormData(form);run(async()=>{accept(await request('frame-email',{action:'add',service,label:f.get('label'),address:f.get('address'),fromNow:f.get('fromNow')==='on'}));form.reset();notice('Frame added. It gets its photos tonight, or press Send now.');});};
  return <>
   <h3><Tv size={16}/> Screen frames</h3>
   <p>An old iPad on a stand, a laptop or a TV browser, showing one photo at a time with the day and the city in a corner. The photo of the day is on it; put any other photo on from the Photos page. It keeps the screen awake, dims after ten at night, and a tap on the photo claps. Each frame has its own link, so taking one off leaves the others and the follow link working.</p>
-  {!!list.length&&<ul className="frame-list">{list.map(f=><li key={f.id}><span><strong>{f.label}</strong><small>Added by {f.createdBy||'a parent'}</small></span>
-   <button type="button" disabled={busy} onClick={()=>run(async()=>{const r=await request('frame-link',{action:'url',id:f.id});await copy(r.url);})}><Copy size={15}/> Copy link</button>
+  {!!list.length&&<ul className="frame-list">{list.map(f=><li key={f.id}><span><strong>{f.label}</strong><small>{f.kind==='album'?`Apple album · ${f.fed?`${f.fed} photo${f.fed===1?'':'s'} fetched${f.fedAt?`, last ${new Date(f.fedAt).toLocaleDateString('en-AU',{day:'numeric',month:'short'})}`:''}`:'nothing fetched yet'}`:`Screen · added by ${f.createdBy||'a parent'}`}</small></span>
+   <button type="button" disabled={busy} onClick={()=>run(async()=>{const r=await request('frame-link',{action:'url',id:f.id});await copy(r.url,f.kind==='album');})}><Copy size={15}/> {f.kind==='album'?'Copy feed':'Copy link'}</button>
+   {f.kind==='album'&&f.fed>0&&<button type="button" disabled={busy} onClick={()=>confirm(`Send every photo to “${f.label}” again on its next fetch?`)&&run(async()=>setFrames((await request('frame-link',{action:'restart',id:f.id})).frames))}><RotateCcw size={15}/> Again</button>}
    <button type="button" className="icon danger" aria-label={`Take ${f.label} off`} disabled={busy} onClick={()=>confirm(`Take “${f.label}” off? Its link stops working at once.`)&&run(async()=>setFrames((await request('frame-link',{action:'remove',id:f.id})).frames))}><Trash2 size={15}/></button></li>)}</ul>}
-  <form className="row wrap frame-add" onSubmit={addKey}><input name="label" maxLength={40} required placeholder="Name it: Nana’s kitchen iPad" aria-label="Frame name"/><button disabled={busy}><Plus size={16}/> Add a frame and copy its link</button></form>
+  <form className="row wrap frame-add" onSubmit={addKey}>
+   <select value={kind} onChange={e=>setKind(e.target.value)} aria-label="Kind of frame"><option value="screen">A screen with a browser</option><option value="album">Apple TV or Mac (iCloud album)</option></select>
+   <input name="label" maxLength={40} required placeholder={kind==='album'?'Name it: Nana’s Apple TV':'Name it: Nana’s kitchen iPad'} aria-label="Frame name"/><button disabled={busy}><Plus size={16}/> {kind==='album'?'Add it and copy its feed':'Add a frame and copy its link'}</button></form>
+  {(kind==='album'||list.some(f=>f.kind==='album'))&&<details className="frame-shortcut" open={kind==='album'||undefined}><summary>Setting up an Apple TV or Mac</summary>
+   <p><small>Apple does not let another app add to an iCloud shared album, so their own iPhone or iPad fetches the new photos every evening with a Shortcut and saves them into an album, “{ALBUM_NAME}”, which their Apple TV or Mac shows. It needs their iCloud Photos turned on, and the same Apple account on the TV.</small></p>
+   <ol>{SHORTCUT_STEPS.map(t=><li key={t}>{t}</li>)}</ol>
+   <p><small>Each photo is handed over once. If the album is deleted, press Again and the next fetch brings them all back.</small></p>
+  </details>}
   <h3><Mail size={16}/> Photo frames that take email</h3>
   <p>Aura, Nixplay and Skylight frames each have an email address for photos. The app sends the same photos as the screen frames — the photo of the day and the ones you put on — each one once, every night and when you press Send now.</p>
   {!config?.frameMail&&<p className="notice-line"><small>Needs an email service to send from: set <code>RESEND_API_KEY</code> and <code>FRAME_MAIL_FROM</code> in the deployment settings. Frames can be added now and will be sent to once it is set.</small></p>}
@@ -248,6 +272,7 @@ export default function Settings({user,state,mutate,busy,hand,settings,change,na
   {user?.role==='parent'&&state&&hand&&<HandOver state={state} user={user} hand={hand}/>}
   {request&&<Notifications config={config} request={request} notice={notice} user={user}/>}
   {user?.role==='parent'&&request&&<TripCalendar request={request} notice={notice}/>}
+  {user?.role==='parent'&&mutate&&<GuideSettings state={state} mutate={mutate} busy={busy}/>}
   {user?.role==='parent'&&request&&<FollowLink state={state} config={config} request={request} accept={accept} notice={notice}/>}
   <DeepLinks notice={notice}/>
   {setNavPrefs&&<section className="settings-section"><BarShortcuts user={user} prefs={navPrefs} setPrefs={setNavPrefs}/></section>}

@@ -1,4 +1,5 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
+import GuideByline from './GuideByline.jsx';
 import HowThisWorks from './HowThisWorks.jsx';
 import {AlertCircle,CalendarDays,Check,ExternalLink,MessageCircleQuestion,Search,Trash2,WifiOff} from 'lucide-react';
 import {ASK_LIMIT,askDayLabel,askHistory,askItem,askStarters,readThread,sharesThread,stepStarters,threadFor,writeThread} from './ask-thread.js';
@@ -86,6 +87,7 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
   {thread.map(item=><article className="feature-card ask-card" key={item.id}>
    <p className="ask-question"><MessageCircleQuestion size={17}/>{item.question}</p>
    {item.by&&item.by!==user?.name&&<p className="ask-by"><small>Asked by {item.by}</small></p>}
+   <GuideByline state={state}/>
    {item.verdict&&<h3>{item.verdict}</h3>}
    {item.answer&&<p>{item.answer}</p>}
    {!!item.because?.length&&<ul className="ask-because">{item.because.map((line,i)=><li key={i}><Check size={15}/>{line}</li>)}</ul>}
