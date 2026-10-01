@@ -100,6 +100,7 @@ import './style.css';
 import './stages.css';
 import './guide-theme.css';
 import './house-theme.css';
+import './house-colours.css';
 import './travel-guide.css';
 // Tomorrow's check and Plan B are read with no signal, on the stop card and the day, so they are in the shell.
 import DayCheck,{StopPlanB} from './DayCheck.jsx';
@@ -700,7 +701,7 @@ function App(){
   puzzle:<PuzzleLine state={visibleState} user={user} open={()=>setModal({type:'puzzle'})}/>,
   reports:<Reports state={visibleState} user={user} day={day} now={now} selectStep={selectStep}/>,
   codes:<CodePrompt state={state} parent={parent} busy={busy} mutate={mutate} notice={notice} onShow={doc=>setModal({type:'tickets',initialSearch:doc.title})}/>,
-  countdown:(c=>c&&<section className={`countdown-card ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span><b>{c.days===1?'day to go':'days to go'}</b><small>{c.days===1?'Tomorrow we fly to Japan!':`Until Day 1 · ${fmtDay(state.days[0].date)}`}</small></span></>:c.phase==='during'?<><strong>{c.day}</strong><span><b>{c.text}</b><small>{c.sub}</small></span></>:<><Check size={28}/><span><b>{c.text}</b><small>All {c.total} days of Japan behind us</small></span></>}</section>)(tripCountdown(state.days,todayJapan)),
+  countdown:(c=>c&&<section className={`countdown-card ${c.phase}`} aria-label="Trip countdown">{c.phase==='before'?<><strong>{c.days}</strong><span><b>{c.days===1?'day to go':'days to go'}</b><small>{c.days===1?'Tomorrow we fly to Japan.':`Until Day 1 · ${fmtDay(state.days[0].date)}`}</small></span></>:c.phase==='during'?<><strong>{c.day}</strong><span><b>{c.text}</b><small>{c.sub}</small></span></>:<><Check size={28}/><span><b>{c.text}</b><small>All {c.total} days of Japan behind us</small></span></>}</section>)(tripCountdown(state.days,todayJapan)),
   dinner:<DinnerTonight key={`dinner-${day}`} state={visibleState} user={user} day={day} today={japanDate(now)} clock={japanClock(now)} config={config} request={request} accept={accept} mutate={mutate} busy={busy} notice={notice} openNearby={()=>setModal({type:'nearby',need:'food'})}/>,
   nightout:<NightOut key={`nightout-${day}`} state={visibleState} user={user} day={day} today={japanDate(now)} clock={japanClock(now)} config={config} request={request} accept={accept} mutate={mutate} busy={busy} notice={notice} openNearby={()=>setModal({type:'nearby',need:'izakaya'})}/>,
   tonight:<Tonight state={visibleState} user={user} day={day} today={japanDate(now)} clock={japanClock(now)} mutate={mutate} busy={busy} openVoice={()=>setModal({type:'voice',day})} go={go} addStop={parent?()=>setModal({type:'edit',step:null}):null} notice={notice}/>,
@@ -785,7 +786,7 @@ function App(){
   stay:<StayCard state={visibleState} day={day} parent={parent} busy={busy} mutate={mutate} notice={notice} directions={directions} onShow={place=>setModal({type:'show',step:{...place,title:place.place}})} onTickets={hotel=>setModal({type:'tickets',initialSearch:hotel})}/>,
   glance:<Button icon={ListOrdered} onClick={()=>go('glance')}>The day at a glance</Button>,
   adjust:parent&&<><Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button><Button icon={ArrowLeftRight} onClick={()=>setModal({type:'rearrange'})}>Move or swap days</Button></>,
-  tired:<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button>,
+  tired:<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>Slow the day</Button>,
   apps:<Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button>,
   spare:<SpareTime state={visibleState} day={day} now={now} user={user} parent={parent} busy={busy} mutate={mutate} selectStep={selectStep} openPark={p=>setModal({type:'park',park:p})}/>,
   nextup:<NextUp state={visibleState} day={day} person={lens||null} after={current?.id||null} now={now} selectStep={selectStep} open={setModal} go={go} user={user} mutate={mutate} busy={busy} parent={parent}/>,
@@ -836,7 +837,7 @@ function App(){
    {dayHeading}
    {dayStrip(d=>go('glance',d))}
    {/* The day's own buttons sit here, over the stops they change, rather than on Home. */}
-   <div className="home-actions day-actions">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}{parent&&<Button icon={ArrowLeftRight} onClick={()=>setModal({type:'rearrange'})}>Move or swap days</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>We’re tired</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
+   <div className="home-actions day-actions">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}{parent&&<Button icon={ArrowLeftRight} onClick={()=>setModal({type:'rearrange'})}>Move or swap days</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>Slow the day</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
    <DayCheck state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} accept={accept} notice={notice} selectStep={selectStep} busy={busy}/>
    <DayTimeline steps={steps} allSteps={allSteps} splits={splits} lens={lens} setLens={follow} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/>
    <DayMap key={day} state={visibleState} day={day} selectStep={selectStep}/>

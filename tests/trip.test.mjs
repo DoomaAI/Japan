@@ -1954,7 +1954,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  // Home draws them by id, the day heading and strip stay put, and the phone keeps the choice.
  assert.match(main,/\{dayStrip\(selectDay\)\}\s*<MomentBanner [^\n]*\/>\s*<QuizLine [^\n]*\/>\s*\{homeRuns\(homeShown\(homePrefs\)\.filter\(id=>awarenessAllows\(visibleState,user\.name,id\)&&!todayHome\.away\.includes\(id\)\)\)\.map\(run=>/);
  // Today carries the day's buttons above its stops.
- assert.match(main,/\{dayStrip\(d=>go\('glance',d\)\)\}[\s\S]{0,200}<div className="home-actions day-actions">[\s\S]*?We’re tired[\s\S]*?Useful apps[\s\S]*?<DayTimeline/);
+ assert.match(main,/\{dayStrip\(d=>go\('glance',d\)\)\}[\s\S]{0,200}<div className="home-actions day-actions">[\s\S]*?Slow the day[\s\S]*?Useful apps[\s\S]*?<DayTimeline/);
  for(const id of HOME_DEFAULT)assert.match(main,new RegExp(`\\n  ${id}:`),`${id} is drawn`);
  assert.match(main,/localStorage\.setItem\(`japan\.home\.\$\{user\.name\}`/);
  assert.match(main,/onClick=\{\(\)=>go\('personalise'\)\}>Customise Home<\/Button>/);

@@ -169,3 +169,20 @@
 :root[data-look=washi] .home .stay-photo{width:100%;margin:0}
 :root[data-look=washi] .stay-card h2{font-size:2rem;font-weight:400}
 :root[data-look=washi] .stay-actions .stay-quiet{border-color:transparent;background:transparent;text-decoration:underline;text-decoration-color:var(--stone);text-underline-offset:4px}
+
+/* Motion that settles rather than bounces: a press dims a little instead of shrinking, and a
+   screen or a sheet arrives as a short fade with a few pixels of rise. Off for anyone who asks
+   the phone for less motion. */
+:root[data-look=washi] :is(button:not(:disabled),.button,.chip):active{transform:none;filter:none;opacity:.72;transition:opacity .18s ease-out}
+:root[data-look=washi] .primary:not(:disabled):active{background:var(--ink);border-color:var(--ink)}
+@keyframes washi-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+:root[data-look=washi] main>:not(.page-loading){animation:washi-in .28s ease-out both}
+:root[data-look=washi] dialog[open]{animation:washi-in .24s ease-out both}
+@media (prefers-reduced-motion:reduce){:root[data-look=washi] :is(main>*,dialog[open]){animation:none}:root[data-look=washi] :is(button,.button,.chip):active{transition:none}}
+
+/* A stop's type icon: the shape says meal, train or ride; Washi draws it in stone, unboxed. */
+:root[data-look=washi] .entry-type{--entry:var(--stone);--entry-bg:transparent}
+
+/* The cover's falling petals stay sakura pink: they are part of the photograph, not the page.
+   Written in hsl() so the build's colour step leaves them exactly as they are. */
+:root[data-look=washi] .opening-petal i{background:radial-gradient(circle at 30% 30%,hsl(345 100% 98%),hsl(343 80% 84%) 55%,hsl(341 70% 74%))}
