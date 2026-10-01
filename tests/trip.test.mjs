@@ -11724,11 +11724,49 @@ test('the ticks are two buttons a five-year-old can press, and the set has a bar
  assert.match(css,/\.money-tick button\.on\{/);
  assert.match(css,/\.money-progress\.full\{/);
 });
-test('crowds and waits: a park day’s stops open that park’s own app for live waits; a live check is parked',async()=>{
+test('crowds and waits: a park day’s stops show live waits for that stop and the park, with when they were updated',async()=>{
  const {CARD_LINKS}=await import('../src/card-links.js');
  const {PARKS}=await import('../src/park-data.js');
- assert.ok(CARD_LINKS.waits);for(const p of PARKS)assert.match(p.app,/^https:\/\/www\.(usj\.co\.jp|tokyodisneyresort\.jp)\//);
+ const W=await import('../src/wait-times.js');
+ assert.ok(CARD_LINKS.waits);for(const p of PARKS){assert.match(p.app,/^https:\/\/www\.(usj\.co\.jp|tokyodisneyresort\.jp)\//);assert.match(W.queueTimesUrl(p.id),/^https:\/\/queue-times\.com\/parks\/\d+\/queue_times\.json$/);}
+ // The feed read flat, junk dropped, times kept.
+ const feed={lands:[{name:'Fantasyland',rides:[{id:1,name:'Pooh\'s Hunny Hunt',is_open:true,wait_time:85,last_updated:'2026-10-01T03:10:00.000Z'},{id:2,name:'Peter Pan\'s Flight',is_open:false,wait_time:0,last_updated:'2026-10-01T02:20:00.000Z'},{id:3,name:''}]}],
+  rides:[{id:4,name:'The Flying Dinosaur™',is_open:true,wait_time:0,last_updated:'2026-10-01T03:12:00.000Z'},{id:1,name:'Pooh\'s Hunny Hunt'}]};
+ const rides=W.readQueueTimes(feed);
+ assert.equal(rides.length,3);assert.equal(W.latestUpdate(rides),'2026-10-01T03:12:00.000Z');
+ assert.deepEqual(W.byWait(rides).map(r=>r.name),['Pooh\'s Hunny Hunt','The Flying Dinosaur™','Peter Pan\'s Flight']);
+ assert.deepEqual(W.readQueueTimes(null),[]);
+ // Our ride names and a stop's title find their live entry despite curly quotes and trademarks,
+ // and a similar name does not.
+ assert.equal(W.liveFor(rides,{name:'Pooh’s Hunny Hunt'}).wait,85);
+ assert.equal(W.liveFor(rides,{name:'Peter Pan’s Never Land Adventure'}),null);
+ assert.deepEqual(W.liveForStop(rides,{title:'The Flying Dinosaur — Express Choice A'}).map(r=>r.name),['The Flying Dinosaur™']);
+ assert.deepEqual(W.liveForStop(rides,{title:'Lunch at the Grand Emporium'}),[]);
+ assert.deepEqual(rides.map(W.waitLabel),['85 min','Closed now','Walk on']);
+ // How old, and when it stops counting as live.
+ const now=new Date('2026-10-01T03:15:00.000Z');
+ assert.equal(W.ago('2026-10-01T03:12:00.000Z',now),'3 min ago');assert.equal(W.ago('2026-10-01T03:14:50.000Z',now),'just now');
+ assert.equal(W.isStale('2026-10-01T03:12:00.000Z',now),false);assert.equal(W.isStale('2026-10-01T02:20:00.000Z',now),true);assert.equal(W.isStale(null,now),true);
+ // The server reads the feed once a minute per park and says when it checked; a feed that stops
+ // answering falls back to the last read, marked, and an unknown park is refused.
+ const {parkWaits}=await import('../server/waits.mjs');
+ const real=globalThis.fetch;let calls=0,fail=false;
+ globalThis.fetch=async url=>{calls++;assert.equal(url,'https://queue-times.com/parks/274/queue_times.json');if(fail)throw new Error('down');return {ok:true,json:async()=>feed};};
+ try{
+  const t=Date.parse('2026-10-01T03:15:00.000Z'),a=await parkWaits('tdl',t);
+  assert.equal(a.checkedAt,'2026-10-01T03:15:00.000Z');assert.equal(a.updatedAt,'2026-10-01T03:12:00.000Z');assert.equal(a.rides.length,3);assert.match(a.source.url,/queue-times\.com/);
+  await parkWaits('tdl',t+30000);assert.equal(calls,1);
+  fail=true;const b=await parkWaits('tdl',t+90000);assert.equal(calls,2);assert.equal(b.stale,true);assert.equal(b.checkedAt,a.checkedAt);
+  await assert.rejects(parkWaits('nope',t),/No live wait times/);
+ }finally{globalThis.fetch=real;}
+ // Wired: the stop button opens the sheet, the route needs a session, and every view credits the feed.
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
- assert.match(main,/waits:parkForDay\(day\)&&<Link className="button card-link-special" href=\{parkForDay\(day\)\.app\}>/);
- assert.match(await readFile(new URL('../docs/roadmap.md',import.meta.url),'utf8'),/\*\*Parked \(backlog\):\*\* a live wait-time check/);
+ assert.match(main,/waits:parkForDay\(day\)&&<button className="card-link-special" onClick=\{\(\)=>setModal\(\{type:'waits',park:parkForDay\(day\),step:current\}\)\}>/);
+ assert.match(main,/modal\.type==='waits'&&<LiveWaits park=\{modal\.park\} step=\{modal\.step\}/);
+ const handler=await readFile(new URL('../server/handler.mjs',import.meta.url),'utf8');
+ assert.ok(handler.indexOf("route==='waits'")>handler.indexOf('const user=await session(req);'));
+ const sheet=await readFile(new URL('../src/LiveWaits.jsx',import.meta.url),'utf8');
+ assert.match(sheet,/Park updated/);assert.match(sheet,/Checked \{at\(data\.checkedAt\)\}/);assert.match(sheet,/WAITS_CREDIT/);assert.match(sheet,/href=\{park\.app\}/);
+ assert.match(await readFile(new URL('../src/ParkGuide.jsx',import.meta.url),'utf8'),/<LiveWaits key=\{park\.id\} park=\{park\} request=\{request\} onData=\{setWaits\}\/>/);
+ assert.match(await readFile(new URL('../docs/roadmap.md',import.meta.url),'utf8'),/Crowd and timing intelligence — Built 1 October 2026/);
 });

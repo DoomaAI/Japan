@@ -12,7 +12,7 @@
 // the door — then everything else, with Share last.
 export const CARD_LINKS={
  park:{label:'Rides & park map',note:'On a theme park day'},
- waits:{label:'Wait times',note:'Live waits in the park’s official app, on a park day'},
+ waits:{label:'Wait times',note:'Live waits for this stop and the whole park, on a park day'},
  sumo:{label:'Sumo card',note:'On sumo day'},
  eyespy:{label:'Japan bingo',note:'On a train'},
  tickets:{label:'Tickets',note:'Bookings and documents for the stop'},
