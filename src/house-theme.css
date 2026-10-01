@@ -126,3 +126,46 @@
 :root[data-look=washi] main[data-kids] .stamp-summary{background:var(--tint-deep);color:var(--ink)}
 :root[data-look=washi] main[data-kids] .stamp-summary strong{color:var(--accent)}
 :root[data-look=washi] main[data-kids] .stamp-summary small{color:var(--muted)}
+
+/* Marks: the line icon instead of the emoji, except on the boys' pages. */
+:root[data-look=washi] .mark-emoji{display:none}
+:root[data-look=washi] .mark-line{display:inline-block}
+:root[data-look=washi] main[data-kids] .mark-emoji{display:inline}
+:root[data-look=washi] main[data-kids] .mark-line{display:none}
+
+/* How everyone is this morning: the word, not the face, for the grown-ups. A boy on his own
+   phone still sees the faces, since the youngest is not reading yet. */
+:root[data-look=washi] .app[data-viewer=parent] .readiness-face{display:none}
+:root[data-look=washi] .app[data-viewer=parent] .readiness-word{display:inline}
+:root[data-look=washi] .app[data-viewer=parent] .readiness-row div{flex:1;justify-content:flex-end}
+:root[data-look=washi] .app[data-viewer=parent] .readiness-row button{width:auto;flex:1;max-width:4.2rem;min-width:0;padding:0 .2rem;font-size:.75rem;letter-spacing:.02em;opacity:1;color:var(--muted)}
+:root[data-look=washi] .app[data-viewer=parent] .readiness-row button.is-on{transform:none;background:var(--ink);border-color:var(--ink);color:var(--paper)}
+:root[data-look=washi] .app[data-viewer=parent] .feeling{color:var(--muted)}
+
+/* Home reads as the day. Each card's label is the section's title, in the serif and in sentence
+   case; a heading inside the card that only repeats it is left out; the outer frame gives way to
+   one hairline, so a box inside a card is the only box. Fold and put away wait behind Arrange
+   Home, except the button that opens a folded card, which has to stay reachable. */
+:root[data-look=washi] .home-card{margin-top:1.4rem}
+:root[data-look=washi] .home-card-bar{min-height:40px;margin-bottom:.5rem;border-bottom:1px solid var(--border)}
+:root[data-look=washi] .home-card-bar>span{font-family:var(--serif);font-size:1.4rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink)}
+:root[data-look=washi] .home:not(.arranging) .home-card-bar .icon{display:none}
+:root[data-look=washi] .home:not(.arranging) .home-card.folded .home-card-bar .icon:first-of-type{display:inline-flex}
+:root[data-look=washi] .home-card.folded .home-card-bar{padding:0;background:transparent;border:0;border-bottom:1px solid var(--border);border-radius:0}
+:root[data-look=washi] .home.arranging .home-card-bar{background:var(--tint);padding-left:.6rem}
+:root[data-look=washi] .home-arrange{display:inline-flex}
+:root[data-look=washi] .home-card-body .eyebrow[data-repeats-label]{display:none}
+:root[data-look=washi] .home .home-card-body>:is(section,article,div,details,aside):not(.home-actions){border:0;border-radius:0;background:transparent;box-shadow:none;padding-left:0;padding-right:0}
+
+/* Section titles in sentence case, in the serif: capitals are for small labels and the tab bar. */
+:root[data-look=washi] .timeline .section-heading h2{text-transform:none;font-size:1.6rem;letter-spacing:0}
+:root[data-look=washi] .more-fold{border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent;padding-left:0;padding-right:0}
+:root[data-look=washi] .more-fold span{font-family:var(--serif);font-size:1.45rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink)}
+:root[data-look=washi] .more-fold small{background:transparent;color:var(--stone);font-weight:400;font-family:var(--sans);font-size:.8rem}
+:root[data-look=washi] .more-fold svg{color:var(--stone)}
+
+/* Tonight's stay leads with the hotel's photograph, then the name; Directions is the one solid
+   action, the taxi card a hairline button, and Call and Booking quiet text links. */
+:root[data-look=washi] .home .stay-photo{width:100%;margin:0}
+:root[data-look=washi] .stay-card h2{font-size:2rem;font-weight:400}
+:root[data-look=washi] .stay-actions .stay-quiet{border-color:transparent;background:transparent;text-decoration:underline;text-decoration-color:var(--stone);text-underline-offset:4px}

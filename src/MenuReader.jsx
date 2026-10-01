@@ -109,7 +109,7 @@ export default function MenuReader({state,user,request,mutate,busy,setBusy,notic
      </div>}
     </article>;})}</div>
    {!!(result.avoid||[]).length&&<div className="callout menu-avoid"><AlertCircle size={18}/><div><strong>Worth knowing before you order</strong>{result.avoid.map((a,i)=><p key={i}>{a.en} — {a.why}</p>)}</div></div>}
-   <p><small>Read from your photo by Claude. It can misread a menu, and it cannot tell you what is in a dish — <strong>confirm anything allergy-related with the staff</strong>. Prices and availability are whatever the menu says on the day. <strong>See a picture</strong> looks the dish up on Wikipedia and shows a photograph of it in general: what arrives at this restaurant may look nothing like it. <strong>See ingredients</strong> is what a dish of that name usually contains, worked out from the name rather than read off the menu, and the spice warnings are how the dish is normally served — a kitchen can always do it differently.</small></p>
+   <p><small>Read from your photo. It can misread a menu, and it cannot tell you what is in a dish — <strong>confirm anything allergy-related with the staff</strong>. Prices and availability are whatever the menu says on the day. <strong>See a picture</strong> looks the dish up on Wikipedia and shows a photograph of it in general: what arrives at this restaurant may look nothing like it. <strong>See ingredients</strong> is what a dish of that name usually contains, worked out from the name rather than read off the menu, and the spice warnings are how the dish is normally served — a kitchen can always do it differently.</small></p>
   </>}
  </section>;
 }
@@ -151,6 +151,6 @@ function PacketCard({item,state,user,busy,saved,shot,open,onShow,onPicture,onIng
   </article>
   {!!warnings.length&&<div className="callout menu-avoid"><AlertCircle size={18}/><div><strong>Worth knowing before you hand it over</strong>{warnings.map((w,i)=><p key={i}>{w}</p>)}</div></div>}
   {!ingredients.length&&<p className="menu-note">The ingredients were not in the photo. Turn the packet over and photograph the back to see what the label says is in it.</p>}
-  <p><small>Read from your photo by Claude. It can misread a label, and a missing allergen is never proof it is not there — <strong>confirm anything allergy-related with the staff or the maker</strong>. <strong>See a picture</strong> shows this kind of food in general from Wikipedia, not this product.</small></p>
+  <p><small>Read from your photo. It can misread a label, and a missing allergen is never proof it is not there — <strong>confirm anything allergy-related with the staff or the maker</strong>. <strong>See a picture</strong> shows this kind of food in general from Wikipedia, not this product.</small></p>
  </>;
 }

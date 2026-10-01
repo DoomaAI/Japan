@@ -15,6 +15,8 @@ import AskVoice from './AskVoice.jsx';
 // questions offered are about it, and only what was asked about it is shown and sent back.
 // `assistant` is the same box opened from the microphone in the corner of any page: only the
 // voice panel and what was asked in it this time, so it is a quick word, not the whole screen.
+// The page opens the way a concierge greets you: by the time of day where we are, which is Japan.
+const greeting=(now=new Date())=>{const h=Number(new Intl.DateTimeFormat('en-AU',{timeZone:'Asia/Tokyo',hour:'numeric',hourCycle:'h23'}).format(now));return h>=5&&h<12?'Good morning':h>=12&&h<18?'Good afternoon':'Good evening';};
 export default function AskTrip({state,user,day,step,config,online=true,request,mutate,go,selectDay,notice,assistant=false}){
  const [local,setThread]=useState(()=>readThread(user?.name));
  // A parent sees the trip's thread and this phone's together; a boy sees only his own phone's.
@@ -58,9 +60,9 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
  }
  return <div className="ask">
   {assistant?<p className="ask-assistant-about">{about?`About ${askDayLabel(about)} and the days around it.`:'About the whole trip.'} {go&&<button className="linkish" onClick={()=>go('ask')}>Type a question instead</button>}</p>:step?<p>Ask anything about {step.title} — how long it takes, what to eat, what the boys will like. It reads this stop and the rest of the day, and searches for what the plan cannot say.</p>:<>
-  <p className="eyebrow">ASK ABOUT OUR TRIP</p>
-  <h1>Better today or tomorrow?</h1>
-  <p>Ask anything about the trip in your own words. Answers are for you first.</p>
+  <p className="eyebrow">CONCIERGE</p>
+  <h1>{greeting()}. How can we help?</h1>
+  <p>Ask anything about the trip in your own words: better today or tomorrow, what to do if it rains. Answers are for you first.</p>
  <HowThisWorks><p>Every question is answered from the trip as it is right now: every day and what is booked, the forecast we last checked, the board and its votes, the places we saved, how each stop was rated, and everyone’s profile, with yours first. Change any of those and the next answer knows. It searches only for what the plan cannot say.</p></HowThisWorks></>}
   {!step&&!assistant&&ready&&user?.name&&state.members?.includes(user.name)&&!profileFilled(state,user.name)&&<p className="callout"><AlertCircle size={18}/><span>Your profile is empty, so recommendations can only go by the whole family. {go&&<button className="linkish" onClick={()=>go('planning')}>Fill it in on the Planning board</button>}</span></p>}
   {!ready&&<p className="callout"><AlertCircle size={18}/>Asking is not switched on for this deployment. Anything already answered is still below.</p>}

@@ -133,7 +133,7 @@ export default function TodoList({state,user,mutate,busy,go,day=null,remove,requ
  {!loose.length&&!byDay.length&&<div className="empty"><Inbox/><h2>{all.length?'Nothing matches those filters.':'Nothing on the list.'}</h2><p>{all.length?'Try Everything, or a different kind.':'Write down the small things — post the postcards, buy a SIM at the airport, charge the power banks — and put a day on the ones that belong to one.'}</p></div>}
  {edit&&<form key={edit.id||'new'} className="feature-card" onSubmit={save}>
   <h2>{edit.id?'Edit this one':edit.said?'Check it, then add it':'Add something'}</h2>
-  {edit.said&&<p className="hint"><small>You said “{edit.said}”. {edit.via==='claude'?'Filled in by Claude — change anything it got wrong.':'Filled in on this phone — change anything it got wrong.'}</small></p>}
+  {edit.said&&<p className="hint"><small>You said “{edit.said}”. {edit.via==='claude'?'Filled in for you — change anything it got wrong.':'Filled in on this phone — change anything it got wrong.'}</small></p>}
   <label>What needs doing?<input name="title" required maxLength={250} defaultValue={edit.title||''} placeholder="Post the postcards · buy a SIM at the airport"/></label>
   <div className="form-row">
    <label>Kind<select name="kind" defaultValue={edit.kind}>{TODO_KINDS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>

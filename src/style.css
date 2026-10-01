@@ -980,3 +980,10 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 /* A button, or a row of them, set straight on a page, a section or a card keeps a clear gap from
    whatever follows it. :where() keeps this at no weight, so anything that sets its own margins wins. */
 :where(main,main section,main article)>:where(button:not([class]),button.primary,button.danger,a.button,.row.wrap):where(:not(:last-child)){margin-bottom:.9rem}
+/* A Mark (Mark.jsx) carries an emoji and its line icon; the look decides which one shows. */
+.mark{display:inline-flex;align-items:center}.mark-line{display:none}
+.readiness-word{display:none}
+/* Arrange Home only means something in a look that tucks the card buttons away (house-theme.css). */
+.home-arrange{display:none}
+/* The hotel's photograph runs to the card's edges, above everything else on it. */
+.stay-photo{display:block;width:calc(100% + 2.4rem);max-width:none;margin:-1.1rem -1.2rem 0;aspect-ratio:16/9;object-fit:cover;border-radius:16px 16px 0 0;background:var(--tint)}

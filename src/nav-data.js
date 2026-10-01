@@ -47,7 +47,7 @@ export const PAGES={
  guests:{label:'Who’s coming',note:'Your answer to the invitation, who is in, and what the organiser needs to know'},
  invitation:{label:'Invitation',note:'What guests read at the link, the questions they are asked, and the link itself'},
  planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, and voting on them'},
- ask:{label:'Ask about our trip',note:'Better today or tomorrow? Ask, and get an answer out of our own plan'},
+ ask:{label:'Concierge',note:'Better today or tomorrow? Ask, and get an answer from our own plan'},
  todo:{label:'To-do list',note:'Things to do or buy, on the day we will do them'},
  trackers:{label:'Tracker tags',note:'Which AirTag is in which bag, and the Find My link to where it is'},
  shop:{label:'Trip shop',note:'Adapters, cash, eSIMs and the rest to sort before we fly, and keepsakes made from the trip'},
