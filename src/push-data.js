@@ -5,6 +5,7 @@
 // same thing twice. Each has a key that names it for good; a key already sent is not sent again.
 import {activeSteps,japanClock} from './timing.js';
 import {dayBriefing} from './briefing-data.js';
+import {momentFor} from './film-data.js';
 import {appReminders,APP_REMIND_AT} from './apps-data.js';
 export const PUSH_KINDS=[
  ['leave','Time to leave','The leave-by time for each fixed booking'],
@@ -12,7 +13,8 @@ export const PUSH_KINDS=[
  ['changes','Plan changes','When someone else changes the plan'],
  ['morning','Morning briefing','At 7:30 each trip morning, the day in a line'],
  ['apps','Apps to set up','A week before we fly, and the evening before the parks and the Shinkansen (parents)'],
- ['tomorrow','Tomorrow’s check','The evening before, when the check finds something to act on (parents)']
+ ['tomorrow','Tomorrow’s check','The evening before, when the check finds something to act on (parents)'],
+ ['moment','The moment','Once a day, the same two minutes on every phone: a photo of whatever you are doing']
 ];
 export const PUSH_KIND_IDS=PUSH_KINDS.map(([id])=>id);
 export const MORNING_AT='07:30';
@@ -28,6 +30,7 @@ export function pushMoments(state){
    out.push({key:`leave|${s.id}|${d.date}|${s.time}`,kind:'leave',at:start-lead*60000,title:`Time to leave for ${s.title}`,
     body:`It starts at ${s.time}. Leave now to be there with ${s.arrivalBuffer??15} minutes to spare.`,url:`/?day=${d.date}&step=${s.id}`,to:s.participants?.length?[...s.participants]:null});
   }
+  out.push({key:`moment|${d.date}`,kind:'moment',at:momentFor(d.date).start,title:'⏱ It’s the moment',body:'Two minutes, every phone at once: a photo of whatever you are doing right now.',url:`/?tab=photos&day=${d.date}`,to:null});
   const b=dayBriefing(state,d.date);
   if(b)out.push({key:`morning|${d.date}`,kind:'morning',at:at(d.date,MORNING_AT),title:`Day ${b.dayNumber} of ${b.total} · ${b.city}`,
    body:[b.stops?`${b.stops} stop${b.stops===1?'':'s'}${b.starts?`, from ${b.starts}`:''}`:'A free day',b.fixed.length?`fixed: ${b.fixed.map(f=>`${f.time} ${f.title}`).join(', ')}`:'',b.weather?`${b.weather.icon} ${b.weather.max}°`:''].filter(Boolean).join(' · '),url:`/?day=${d.date}`,to:null});

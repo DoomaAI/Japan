@@ -1,5 +1,6 @@
 import {destinationFor} from './locations.js';
-import {ChevronDown,ChevronUp,LockKeyhole} from 'lucide-react';
+import {ChevronDown,ChevronUp,Clock,LockKeyhole} from 'lucide-react';
+import {timeLeft} from './time-left.js';
 import {isOpen,setOpen} from './fold.js';
 import React,{useEffect,useState} from 'react';
 import {nextSummary,delayForDay,offlineManifest,isArchived,documentServesStep} from './trip-features.js';
@@ -34,6 +35,8 @@ export function NextUp({state,day,person=null,after=null,now,selectStep,open,go,
   </div>
   {/* The booking that cannot move is its own small card, folded or not: it is the one line on
       the tile it would be alarming to miss. */}
+  {/* Time left in today, from what is still to do and how fast the day has actually gone. */}
+  {isToday&&current&&(t=>t&&<p className="time-left"><Clock size={14}/>{t.text}{t.paceWord?` · ${t.paceWord}`:''}</p>)(timeLeft(state,day,now,person))}
   {fixed&&<div className={`departure${passed?' passed':isToday&&remaining<0?' late':''}`}>
    <span className="eyebrow"><LockKeyhole size={12}/>Next fixed booking</span>
    <button className="next-title" onClick={()=>selectStep(fixed)}>{fixed.time} · {fixed.title}</button>

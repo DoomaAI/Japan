@@ -1,4 +1,5 @@
 import React,{useState,useRef,useEffect} from 'react';
+import SyncedPhrase from './SyncedPhrase.jsx';
 import {MessageSquare,Search,ArrowLeft,ArrowRight,Sparkles,Check,Languages,Trash2,Layers,List,Baby} from 'lucide-react';
 import {PHRASEBOOK,ALL_PHRASES} from './phrasebook-data.js';
 import {japanDate} from './timing.js';
@@ -146,6 +147,7 @@ function PhraseDeck({phrases,onList,young=false}){
      <p className="eyebrow">{phrase.icon?`${phrase.icon} `:''}{phrase.section||'Phrase'} · {at+1} of {phrases.length}</p>
      <strong className="phrase-en">{phrase.en}</strong>
      <SayIt phrase={{...phrase,en:''}}/>
+     <SyncedPhrase phrase={phrase}/>
      {phrase.note&&<p className="callout">{phrase.note}</p>}
     </div>}
   <div className="swipe-controls">
@@ -234,6 +236,7 @@ export function PhraseOfDay({queue,day,dateLabel,busy,dismiss}){
   {phrase.icon&&<span className="phrase-picture small" role="img" aria-label={phrase.en}>{phrase.icon}</span>}
   <strong className="phrase-en">{phrase.en}</strong>
   <SayIt phrase={{...phrase,en:''}}/>
+  <SyncedPhrase phrase={phrase}/>
   {phrase.note&&<p className="callout">{phrase.note}</p>}
   {queue.length>1&&<div className="swipe-controls">
    <button type="button" disabled={index<=0} onClick={()=>move(-1)}><ArrowLeft size={16}/> Back</button>

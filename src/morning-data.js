@@ -33,9 +33,25 @@ export const readStreak=()=>{try{return {count:0,last:null,...(JSON.parse(localS
 export const writeStreak=s=>{try{localStorage.setItem(STREAK,JSON.stringify(s));}catch{}};
 // A morning finished the day after the last one finished carries the streak on; a gap starts it
 // again at one; finishing the same morning twice (untick, tick) changes nothing.
+//
+// The streak freeze: one missed morning a week is forgiven — a hotel-move day, a rain day, the
+// morning everyone overslept — so a streak that is otherwise unbroken carries on over a single
+// gap, and says so. Two gaps, or a second gap inside a week of the last forgiven one, start it
+// again. A freeze is the day it covered, kept with the streak.
+export const FREEZE_DAYS=7;
+const daysBetween=(a,b)=>Math.round((Date.parse(`${b}T12:00:00Z`)-Date.parse(`${a}T12:00:00Z`))/86400000);
 export function nextStreak(streak,day,days){
  if(streak.last===day)return streak;
- const i=days.findIndex(d=>d.date===day),prev=i>0?days[i-1].date:null;
- return {count:streak.last&&streak.last===prev?streak.count+1:1,last:day};
+ const i=days.findIndex(d=>d.date===day),prev=i>0?days[i-1].date:null,before=i>1?days[i-2].date:null;
+ const frozen=Array.isArray(streak.frozen)?streak.frozen:[];
+ if(streak.last&&streak.last===prev)return {...streak,count:streak.count+1,last:day,frozen};
+ const recent=frozen.some(f=>daysBetween(f,day)<FREEZE_DAYS);
+ if(streak.last&&streak.last===before&&!recent)return {count:streak.count+1,last:day,frozen:[...frozen,prev].slice(-4),forgiven:prev};
+ return {count:1,last:day,frozen:[]};
 }
-export const streakWords=n=>n>=2?`${n} mornings in a row`:n===1?'First morning done':'';
+// Whether a missed morning would be forgiven today, for the line under the checklist.
+export function freezeReady(streak,day){
+ const frozen=Array.isArray(streak?.frozen)?streak.frozen:[];
+ return !frozen.some(f=>daysBetween(f,day)<FREEZE_DAYS);
+}
+export const streakWords=(n,forgiven=null)=>n>=2?`${n} mornings in a row${forgiven?' · one missed morning forgiven this week':''}`:n===1?'First morning done':'';
