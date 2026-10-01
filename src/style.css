@@ -925,3 +925,9 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .home-away{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.8rem 0 0;padding:.6rem .8rem;border:1px dashed var(--border);border-radius:12px;font-size:.82rem;color:var(--muted)}
 .home-away span{flex:1;min-width:10rem}.home-away button{min-height:36px;padding:.4rem .7rem;font-size:.82rem}
 @media(prefers-reduced-motion:reduce){.home-card-bar .icon svg{transition:none}}
+/* Moving or swapping whole days, or some of a day's stops, from selects and tick boxes. */
+.rearrange .form-row{display:flex;align-items:flex-end;gap:.6rem;flex-wrap:wrap}.rearrange .form-row label{flex:1;min-width:min(100%,200px)}
+.rearrange-order{list-style:none;padding:0;margin:.6rem 0;display:grid;gap:.4rem}.rearrange-order li{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.55rem .7rem;border:1px solid var(--border);border-radius:12px;background:var(--paper)}.rearrange-order li.moved{border-color:var(--green);background:var(--tint)}.rearrange-order li>span:first-child{display:grid;min-width:0}.rearrange-order small{color:var(--muted)}
+.rearrange-tools{display:flex;align-items:center;gap:.25rem}.rearrange-tools select{width:auto}
+.stop-picker{border:1px solid var(--border);border-radius:12px;padding:.4rem .7rem;margin:.5rem 0;max-height:40vh;overflow:auto}.stop-picker .checkline{margin:.35rem 0}.stop-picker svg{margin-left:.3rem;vertical-align:-1px}
+.rearrange-preview{padding:.7rem .9rem;background:var(--tint);border-radius:12px;margin:.7rem 0}.rearrange-preview ul{margin:.3rem 0 0;padding-left:1.1rem}.rearrange-empty{color:var(--muted)}
