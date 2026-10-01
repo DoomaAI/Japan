@@ -217,7 +217,7 @@ Each essential links to the shop or the official page and to the screen in the a
 
 | Category | Candidates | Notes |
 |---|---|---|
-| eSIM | Airalo, Ubigi, Holafly; Telstra and Optus roaming | Most eSIM sellers run affiliate programmes; check terms and payout. |
+| eSIM | Airalo, Ubigi, Holafly, Saily; Telstra and Optus roaming | Affiliate at about 10% (Saily 15%), or white label through a reseller API; assessed under [eSIMs](#esims-logging-them-and-selling-them). |
 | Cash and cards | Wise, Travelex; Seven Bank ATMs (information only) | Financial product referral: check whether it is general advice under the Corporations Act (s 766B) and whether an AFSL or authorised representative arrangement is needed. |
 | Insurance | Direct insurers or a comparison service | Arranging or recommending insurance is a financial service; link to Smartraveller guidance only unless licensed. |
 | Adapters, power banks | JB Hi-Fi, Officeworks, Amazon AU | Retail affiliate programmes vary by retailer. |
@@ -254,6 +254,69 @@ Queued 30 September 2026 (roadmap backlog item 13). Light and dark is already a 
 - The country from the trip context, and per leg once a trip spans several countries (layer 8).
 - A per-client look (logo, colours, fonts) for white label (layer 6); the same `data-look` hook carries it, set by the client rather than the person.
 - Whether the choice follows the person across phones (kept with their profile) rather than staying on one phone.
+
+## eSIMs: logging them, and selling them
+
+Queued 1 October 2026 (roadmap backlog item 14). Today the eSIM is one line in the [Trip shop](#trip-shop-the-essentials-pack-and-keepsakes) essentials pack, with plain links to Airalo, Ubigi and Telstra roaming and a `shopLog` tick and note. This section logs two things: a record of each phone's eSIM, and whether a commercial version should sell eSIMs itself (white label) or send people to the seller's website (affiliate).
+
+### Logging each phone's eSIM
+
+Not built. The essentials pack records whether the family sorted an eSIM, not which phone has what. A record per phone would hold:
+
+| Field | Why |
+|---|---|
+| Person and phone | Who it is on; a boy's phone may have none |
+| Seller and plan | e.g. Airalo *Moshi Moshi* 10 GB, 15 days |
+| Data allowance and valid from / to | Days left and a warning before it runs out on a long trip |
+| Installed, switched on | Install at home on wi-fi; switch on at landing (arrival checklist) |
+| Install code (LPA string or QR) | Kept in Passports & visas (`VAULT_KEY`), parent-only, not in the plan |
+| Top-up link, support contact | One tap when data runs low or the line drops |
+| Worth it, note | Already in `shopLog`; moves onto the record |
+
+A sold eSIM (white label, below) would fill the record itself from the order; a bought-elsewhere eSIM is typed in or read from the seller's confirmation email by the existing document reader.
+
+### Two ways to earn from it
+
+| | Affiliate link to the seller's website | White label through a reseller API |
+|---|---|---|
+| How it works | The existing link carries a tracking tag; the person buys on Airalo's, Saily's or Holafly's site | The app shows plans, takes payment and installs the eSIM; a wholesaler (Airalo Partners, eSIM Access, Telna, 1GLOBAL) supplies it at a net price |
+| Income per sale | About **10%** (Airalo and Ubigi 10%; Holafly 10%, up to 20% at volume; Saily 15% on new customers). One-off, 30-day cookie | The margin between our price and the net price. Airalo sets a minimum selling price; the net price is not published, so get a quote |
+| Family of four, Japan, ~15 days | About A$140 of eSIMs → **about A$14** | Illustrative only: at a 25–35% margin, **about A$35–50** |
+| Who is the seller | The eSIM company: payment, refunds, support, GST | **Us**: payment, refunds, chargebacks, first-line support (Airalo offers 24/7 support behind partners), GST on the full price once registered |
+| Experience | Leaves the app; the plan is not recorded unless typed in | Bought, installed and recorded in the app; can be bundled into the trip pass |
+| Install | The seller's QR or app | In app: from iOS 17.4 an install link can open the iPhone's own eSIM setup (verify with the wholesaler); Android has an equivalent carrier-app flow |
+| Branding | Seller's | Ours. Some phones still show the wholesaler (e.g. "Airalo") as the network name |
+| Build effort | One line per host in `PARTNERS` (`src/shop-data.js`); the disclosure line already appears | Order, payment (Stripe), webhook, refund and support flows; per-trip records; reconciliation |
+| Upfront cost | None | None at Airalo (no sign-up or subscription fee); others vary |
+
+Airalo Partners offers three tiers that sit between these: **Trusted Reseller** (Airalo-branded eSIMs through a dashboard, no developer), **white label** (our brand and price on Airalo's platform) and **API or SDK** (the store embedded in the app). The Airalo-branded tiers keep more of the telecommunications duties with Airalo.
+
+### Australian rules to check before selling eSIMs ourselves
+
+- **Telecommunications:** supplying a carriage service to the public may make the business a carriage service provider under the Telecommunications Act 1997. Eligible providers serving residential or small-business customers must join the **TIO scheme** (TCPSS Act 1999 ss 128 and 132) and follow the Telecommunications Consumer Protections Code. Whether a reseller of overseas data-only eSIMs is caught, or exempt, needs advice from ACMA guidance or a telecoms lawyer. Affiliate links avoid the question.
+- **App stores:** data used outside the app is a service consumed outside the app, so Apple likely allows card or Apple Pay payment rather than in-app purchase (guideline 3.1.3(e)); confirm before building. Bundling an eSIM into the trip pass mixes a digital service (in-app purchase) with a physical-world one; price them separately.
+- **Consumer law:** the seller carries ACL consumer guarantees (a line that does not work is a refund). Under affiliate, that is the eSIM company's; under white label, ours.
+- **GST:** as the seller, GST is on the full sale price; as an affiliate, only on the commission.
+- **Disclosure:** as for every partnered link (ACL s 18, s 29); recommendations of which eSIM to buy must not be ranked by commission.
+
+### Recommendation
+
+1. **Now (this trip):** nothing to sell. Optionally log each phone's eSIM by hand in the essentials note.
+2. **First commercial step:** affiliate links. Add Airalo (Impact network), Saily and Holafly to `PARTNERS`; no build beyond that, no telecoms or refund exposure. About A$14 a family trip.
+3. **With the multi-tenant build and the trip pass:** pilot white label through the Airalo Partner API (or eSIM Access as a comparison quote), starting on the Airalo-branded tier to keep telecoms duties with Airalo. Take the TIO and carriage-service advice first. This also builds the per-phone eSIM record above from each order, and is a natural extra for white-label agency clients.
+4. **Decide on numbers:** get Airalo's net prices for Japan and compare margin against affiliate income at the expected volume; white label only pays once support and refunds are costed.
+
+Sources consulted:
+- [Airalo Partners: guide to becoming an eSIM reseller in 2026](https://blog.partners.airalo.com/blog/guide-to-becoming-an-esim-reseller-in-2026)
+- [Airalo Partner API FAQ](https://developers.partners.airalo.com/faq-752238m0)
+- [Can I build a complete white label experience using the Airalo Partner API?](https://airalopartners.zendesk.com/hc/en-us/articles/21068014955293-Can-I-build-a-complete-white-label-experience-using-the-Airalo-Partner-API)
+- [Airalo affiliate programme FAQs](https://www.airalo.com/blog/airalo-affiliate-program-faqs)
+- [Holafly affiliate programme](https://esim.holafly.com/affiliate-program/)
+- [Ubigi affiliate programme](https://cellulardata.ubigi.com/pro/what-is-the-ubigi-affiliate-program/)
+- [eSIM affiliate programmes compared, 2026 (Roamzy)](https://roamzy.io/blog/best-esim-affiliate-programs)
+- [eSIM Access reseller platform](https://esimaccess.com/)
+- [Telna: how to sell eSIMs for travelling](https://www.telna.com/how-to-sell-esims-for-travelling)
+- [ACMA: TIO scheme requirements and exemptions](https://www.acma.gov.au/tio-scheme-requirements-and-exemptions)
 
 ## Open questions
 
