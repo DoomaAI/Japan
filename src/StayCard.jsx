@@ -2,6 +2,7 @@ import React,{useState} from 'react';
 import {BedDouble,Navigation,Languages,Phone,Copy,Pencil,Ticket,LogIn,LogOut} from 'lucide-react';
 import {stayFor,STAY_FIELDS} from './stay-data.js';
 import {phoneLinks} from './trip-features.js';
+import ConciergeDesk from './ConciergeDesk.jsx';
 const fmt=d=>new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(d+'T12:00:00+09:00'));
 // Tonight's stay as a hotel app shows one: the hotel, which night, when we can get in and when we
 // must be out, the confirmation number, and the three things you want at the kerb — directions,
@@ -37,6 +38,7 @@ export default function StayCard({state,day,parent,busy,mutate,notice,directions
    {tel&&<a className="button" href={tel}><Phone size={17}/>Call</a>}
    <button type="button" onClick={()=>onTickets(stay.hotel)}><Ticket size={17}/>Booking</button>
   </div>
+  {parent&&<ConciergeDesk state={state} day={day} notice={notice}/>}
   {parent&&!editing&&<button type="button" className="link-button stay-edit" onClick={()=>setEditing(true)}><Pencil size={14}/>{stay.reference||stay.phone?'Edit stay details':'Add the confirmation number and front desk phone'}</button>}
   {parent&&editing&&<form className="stay-form" onSubmit={save}>
    {STAY_FIELDS.map(([k,label,max])=>k==='notes'

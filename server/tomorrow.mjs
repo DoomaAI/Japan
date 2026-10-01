@@ -15,6 +15,7 @@ import {seenHosts,checkedLink} from './links.mjs';
 import {weatherLine} from './ask.mjs';
 import {movesOf,cleanMoveCheck,forwardingPlanned} from '../src/move-data.js';
 import {stayFor} from '../src/stay-data.js';
+import {INSIDER_FIELDS,insiderWanted,cleanInsider} from '../src/insider-data.js';
 import {activeSteps,japanDate,windowText} from '../src/timing.js';
 import {NOTE_KIND_IDS,PLAN_B_REASONS,REST_KINDS,cleanDayCheck,cleanPlanB,keepChecks,spareIdeas} from '../src/day-check.js';
 export const tomorrowReady=()=>!!process.env.ANTHROPIC_API_KEY;
@@ -197,10 +198,56 @@ export const savePlanB=(day,planB)=>updateTrip(state=>({...state,planB:keepCheck
 // reported rather than thrown, because the scheduler only needs to know it ran.
 // A move tomorrow is looked up the night before, once: hotels' forwarding rules do not change
 // overnight, and a parent can look again by hand.
+const INSIDER={
+ name:'record_insider',
+ description:'Record the insider notes for the stops, once, at the end.',
+ strict:true,
+ input_schema:{type:'object',additionalProperties:false,required:['stops'],properties:{
+  stops:{type:'array',items:{type:'object',additionalProperties:false,required:['stepId',...INSIDER_FIELDS.map(([k])=>k),'sources'],properties:{
+   stepId:{type:'string',description:'The id in square brackets, exactly as given.'},
+   queue:{type:'string',description:'How getting in works: a ticket machine or numbered ticket first, a timed entry, a list to write your name on, which queue is which. Empty if nothing particular.'},
+   payment:{type:'string',description:'What is taken: cash only, IC cards, cards, a ticket machine that wants notes. Empty if unknown.'},
+   access:{type:'string',description:'Stroller access (steps, lifts, stroller parking) and where the toilets are. Empty if unknown.'},
+   lockers:{type:'string',description:'Lockers or bag rules: coin lockers nearby, bags not allowed in, a cloakroom. Empty if unknown.'},
+   bestTime:{type:'string',description:'The best hour to arrive and why (opening, before the tour groups, the light). Empty if unknown.'},
+   mistake:{type:'string',description:'The one mistake visitors commonly make here. Empty if you do not know one.'},
+   sources:{type:'array',items:source,description:'Pages you actually opened.'}}}}}}
+};
+const INSIDER_SYSTEM=`You write the insider notes for a family's stops in Japan — the working details someone who has been would tell them at the door. ${FAMILY}
+
+For each stop given (each with an id in square brackets): how the queue or entry works, payment, stroller access and toilets, lockers and bag rules, the best time to arrive, and the mistake visitors commonly make. Prefer the venue's own pages, then official tourism pages; recent visitor reports only for how the queue really works.
+
+Rules:
+- Each line short and practical, one or two sentences. An unknown field is empty, never guessed.
+- Skip a stop entirely if there is nothing useful to say (a hotel breakfast, a generic street).
+- Never state hours or prices as settled; that is not what these notes are for.
+
+Search, then call record_insider exactly once.`;
+export async function insiderDay(state,day){
+ const stops=insiderWanted(state,day);
+ if(!stops.length)return {notes:{},searches:0};
+ const d=state.days.find(x=>x.date===day);
+ const ask=`Their stops on ${day}, in ${d?.city||'Japan'}:\n${stops.map(s=>`  [${s.id}] ${[s.title,s.place,s.japanese].filter(Boolean).join(' · ')}`).join('\n')}`;
+ try{
+  const {input,hosts,searches}=await run(INSIDER_SYSTEM,INSIDER,ask,6);
+  const notes={};
+  for(const raw of Array.isArray(input.stops)?input.stops:[]){
+   if(!stops.some(s=>s.id===raw?.stepId)||notes[raw.stepId])continue;
+   const n=cleanInsider({...raw,sources:(raw.sources||[]).map(x=>({title:x?.title,url:checkedLink(x?.url,hosts)}))});
+   if(n)notes[raw.stepId]=n;
+  }
+  return {notes,searches};
+ }catch(e){throw apiError(e);}
+}
+// Saved as drafts for a parent to read over; a note a parent has already passed or dismissed is
+// never overwritten by a later run.
+export const saveInsider=(notes,at=new Date().toISOString())=>updateTrip(state=>({...state,insider:{...(state.insider||{}),
+ ...Object.fromEntries(Object.entries(notes).filter(([id])=>!state.insider?.[id]&&state.steps.some(s=>s.id===id)).map(([id,n])=>[id,{...n,status:'draft',at}]))}}));
 export const moveTomorrow=(state,day)=>movesOf(state).some(m=>m.date===day)&&!state.moves?.[day]?.check;
-export async function nightly(state,day,parts=['check','planb',...(moveTomorrow(state,day)?['move']:[])],{onCheck}={}){
+export async function nightly(state,day,parts=['check','planb',...(moveTomorrow(state,day)?['move']:[]),...(insiderWanted(state,day).length?['insider']:[])],{onCheck}={}){
  const out={day};
  await Promise.all([
+  parts.includes('insider')&&insiderDay(state,day).then(async({notes,searches})=>{if(Object.keys(notes).length)await saveInsider(notes);out.insider={stops:Object.keys(notes).length,searches};}).catch(e=>{out.insiderError=e.message;}),
   parts.includes('move')&&moveDay(state,day).then(async found=>{await saveMove(day,found);out.move={searches:found.searches};}).catch(e=>{out.moveError=e.message;}),
   parts.includes('check')&&checkDay(state,day).then(async({check,searches})=>{await saveCheck(day,check);out.check={notes:check.notes.length,act:check.notes.filter(n=>n.act).length,searches};await onCheck?.(check);}).catch(e=>{out.checkError=e.message;}),
   parts.includes('planb')&&planBDay(state,day).then(async({planB,searches})=>{await savePlanB(day,planB);out.planB={stops:planB.stops.length,rest:planB.rest.length,searches};}).catch(e=>{out.planBError=e.message;})

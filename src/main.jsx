@@ -102,6 +102,7 @@ import './travel-guide.css';
 // Tomorrow's check and Plan B are read with no signal, on the stop card and the day, so they are in the shell.
 import DayCheck,{StopPlanB} from './DayCheck.jsx';
 import HotelMove from './HotelMove.jsx';
+import {StopInsider,StopEtiquette} from './StopGuide.jsx';
 // The map library is only fetched when the map is opened, so every other screen stays as quick.
 const MemoryMap=lazy(()=>import('./MemoryMap.jsx'));
 const WeatherPage=lazy(()=>import('./WeatherPage.jsx'));
@@ -665,6 +666,8 @@ function App(){
     }}/>
     {current.status==='done'&&<StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>}
     <StopPlanB state={visibleState} step={current}/>
+    <StopInsider state={visibleState} step={current} user={user} mutate={mutate} busy={busy}/>
+    <StopEtiquette state={visibleState} step={current} user={user} mutate={mutate} busy={busy} city={today?.city}/>
     <details className="step-more" key={current.id}>
      <summary><span className="step-more-label">More about this stop</span><span className="step-more-lead">{current.notes||resolveLocation(state,current)?.address||current.participants.join(', ')}</span><ChevronDown size={17}/></summary>
      {current.notes&&<p className="step-notes">{current.notes}</p>}
