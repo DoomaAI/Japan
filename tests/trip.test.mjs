@@ -10549,13 +10549,16 @@ test('the favourites sheet: one swipe up the bar, as tall as its rows, and the s
  assert.equal((nav.match(/=useSavedFavourites\(\);/g)||[]).length,2);
  assert.match(nav,/setSaved\(next\);window\.dispatchEvent\(new Event\(FAV_EVENT\)\);/);
  assert.match(nav,/window\.addEventListener\(FAV_EVENT,sync\)/);
- assert.match(nav,/const toggle=id=>save\(toggleFavourite\(user,saved,id\)\);/);
+ assert.match(nav,/const place=\(id,to,onto\)=>save\(placeScreen\(user,prefs,saved,id,to,onto\)\);/);
  // Edit on More opens it straight on Choose; otherwise it is put away whenever the screen changes.
  assert.match(nav,/\{sheet&&<FavSheet [^>]*startChoosing=\{sheet==='choose'\}\/>\}/);
  assert.match(nav,/window\.addEventListener\('japan:choose-favourites',choose\)/);
  assert.match(nav,/useEffect\(\(\)=>\{setSheet\(false\);\},\[tab\]\);/);
- // Each screen in the chooser says whether it is chosen, and a full list turns new ones away.
- assert.match(nav,/className=\{`fav-pick\$\{on\?' on':''\}`\} aria-pressed=\{on\} disabled=\{!on&&full\}/);
+ // Each screen in the chooser says where it lives, bar or favourites, and a move the rules turn
+ // away (a full row, the bar's last shortcuts, Home) is a switch that cannot be pressed.
+ assert.match(nav,/className=\{`fav-pick\$\{where\?` on \$\{where\}`:''\}`\}/);
+ assert.match(nav,/aria-pressed=\{where==='bar'\}[^>]*disabled=\{!!why\('bar'\)\}/);
+ assert.match(nav,/aria-pressed=\{where==='fav'\}[^>]*disabled=\{!!why\('fav'\)\}/);
  assert.match(nav,/\{favs\.length\} of \{FAV_MAX\}/);
  // And down on More, a favourite is marked in its section.
  assert.match(nav,/\{on&&<Star className="more-fav-mark"/);
@@ -10581,18 +10584,60 @@ test('favourites are put in order in the sheet, by drag, arrows or keys, and sta
  const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  // A chip dragged along the row takes the place of the one it is let go on, saved once on the drop.
- assert.match(nav,/if\(onto&&onto!==h\.id\)\{h\.list=dropFavourite\(h\.list,h\.id,onto\);setLive\(h\.list\);\}/);
- assert.match(nav,/if\(h\.list\.join\(\)!==favs\.join\(\)\)save\(h\.list\);/);
+ assert.match(nav,/const next=moveScreen\(layout,h\.id,zone,onto\);/,'within a row or across to the other');
+ assert.match(nav,/if\(h\.moving\)\{setLive\(null\);setPicked\(null\);if\(h\.next\)save\(h\.next\);\}/);
  assert.match(css,/\.fav-chip\{[^}]*touch-action:none/,'a chip being dragged does not scroll the sheet');
  // A tap gives it arrows instead, and the arrow keys move a focused one.
- assert.match(nav,/aria-label=\{`Move \$\{PAGES\[id\]\.label\} earlier`\} disabled=\{i===0\}/);
- assert.match(nav,/aria-label=\{`Move \$\{PAGES\[id\]\.label\} later`\} disabled=\{i===order\.length-1\}/);
- assert.match(nav,/\{ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1\}\[e\.key\];if\(by\)\{e\.preventDefault\(\);shift\(id,by\);\}/);
+ assert.match(nav,/aria-label=\{`Move \$\{PAGES\[id\]\.label\} earlier`\} disabled=\{first\}/,'nothing goes in front of Home on the bar');
+ assert.match(nav,/aria-label=\{`Move \$\{PAGES\[id\]\.label\} later`\} disabled=\{i===ids\.length-1\}/);
+ assert.match(nav,/\{ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1\}\[e\.key\];if\(by&&!home\)\{e\.preventDefault\(\);shift\(id,by\);\}/);
  // On More a hold stars or unstars a card, says so, and the tap that ends it does not open it.
  assert.match(nav,/timer:setTimeout\(\(\)=>\{press\.current=null;eat\.current=true;star\(id\);\},HOLD\)/);
  assert.match(nav,/onClickCapture:e=>\{if\(eat\.current\)\{e\.preventDefault\(\);e\.stopPropagation\(\);eat\.current=false;\}\}/);
  assert.match(nav,/if\(!on&&full\)\{setSaid\(`Favourites are full at \$\{FAV_MAX\}\. Take one out first\.`\);return;\}/);
  assert.match(nav,/className="more-said" role="status" aria-live="polite"/);
+});
+
+test('the bar and favourites are arranged together, and a screen is only ever in one of them',async()=>{
+ const {favourites,toggleFavourite,menuLayout,placeScreen,moveScreen,rightNow,primaryNav,BAR_MIN,BAR_MAX,FAV_MAX,pagesFor}=await import('../src/nav-data.js');
+ const damien={name:'Damien',role:'parent'};
+ // Whatever is on the bar is left out of favourites as they are read, however it got there.
+ assert.deepEqual(favourites(damien,null,['today','safety']),rightNow(damien).filter(id=>id!=='safety'));
+ assert.deepEqual(favourites(damien,['money','safety'],primaryNav(damien,null)),['safety'],'Yen is on the bar, so not a favourite too');
+ assert.deepEqual(toggleFavourite(damien,['safety'],'money',['today','money']),['safety'],'a bar screen cannot be starred');
+ const start=menuLayout(damien,null,null);
+ assert.ok(start.bar.every(id=>!start.favs.includes(id)));
+ // To the bar: out of favourites, onto the bar where it was dropped, never in front of Home.
+ const up=placeScreen(damien,null,null,'safety','bar','money');
+ assert.deepEqual(up.bar,['today','glance','tickets','safety','money']);
+ assert.ok(!up.favs.includes('safety'));
+ assert.deepEqual(placeScreen(damien,null,null,'safety','bar','today').bar.slice(0,2),['today','safety']);
+ assert.deepEqual(placeScreen(damien,null,null,'safety','bar').bar.at(-1),'safety','no drop target, so last');
+ // To favourites: off the bar and into the row.
+ const down=placeScreen(damien,null,null,'money','fav','safety');
+ assert.deepEqual(down.bar,['today','glance','tickets']);
+ assert.deepEqual(down.favs.slice(0,2),['money','safety']);
+ // Out of both.
+ const out=placeScreen(damien,null,null,'safety',null);
+ assert.ok(!out.bar.includes('safety')&&!out.favs.includes('safety'));
+ // The bar's rules and both caps still hold, and say why when they turn a move away.
+ assert.match(placeScreen(damien,null,null,'today','fav').refused,/always first/);
+ assert.match(placeScreen(damien,{bar:['today','glance','money']},null,'money','fav').refused,new RegExp(`at least ${BAR_MIN-1}`));
+ assert.match(placeScreen(damien,{bar:['today','personalise','glance','money']},null,'personalise',null).refused,/stays on the bar/);
+ const wide=pagesFor(damien).filter(id=>id!=='today').slice(0,BAR_MAX-1);
+ const spare=pagesFor(damien).find(id=>id!=='today'&&!wide.includes(id));
+ assert.match(placeScreen(damien,{bar:['today',...wide]},[],spare,'bar').refused,/full/);
+ const lots=pagesFor(damien).filter(id=>!start.bar.includes(id)),favFull=lots.slice(0,FAV_MAX);
+ assert.match(placeScreen(damien,null,favFull,lots[FAV_MAX],'fav').refused,/full/);
+ // Moving within a row is a reorder, not a refusal, even when the row is full.
+ assert.equal(moveScreen({bar:start.bar,favs:favFull},favFull[1],'fav',favFull[0]).refused,undefined);
+ const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
+ // The sheet saves the bar through the same prefs Customise uses, and the star on More points a
+ // bar screen to the sheet rather than making a second copy of it.
+ assert.match(nav,/setPrefs\?\.\(\{bar:next\.bar,hidden:hiddenNav\(user,prefs\)\}\)/);
+ assert.match(nav,/\{row\('bar',shown\.bar,'On the bar',BAR_MAX,''\)\}/);
+ assert.match(nav,/\{row\('fav',shown\.favs,'Favourites',FAV_MAX,/);
+ assert.match(nav,/if\(onBar\.has\(id\)\)\{setSaid\(/);
 });
 
 test('nothing taken off a list is gone for thirty days, and comes back exactly as it was',async()=>{
