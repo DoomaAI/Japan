@@ -44,6 +44,7 @@ export const HOME_WIDGETS={
  halfway:{label:'Halfway there',note:'From the middle of the trip: the numbers so far on one square, to share',page:'recap'},
  puzzle:{label:'Today’s puzzle',note:'One puzzle a day, the same on every phone: katakana, a photo, or a price',page:'games'},
  dinner:{label:'Dinner tonight',note:'From four in the afternoon, when nothing is planned for dinner: places near the last stop and the hotel, with a booking message in Japanese'},
+ nightout:{label:'After dinner',note:'In the evening: a nightcap, a drink, a night out or a late treat near the hotel, chosen by what each of us is after, to add as an option'},
  tonight:{label:'Tonight',note:'From five in the evening: star the best bits, vote for the photo of the day, leave a voice note'},
  guide:{label:'This day in the guide',note:'The original guide pages for the day',page:'guide'}
 };
