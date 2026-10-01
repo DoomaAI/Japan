@@ -10108,7 +10108,7 @@ test('a stop on the way is a leg of the journey: the bags today, and any the fam
  const {ROUTES,routeFor,legCount,legStrip}=await import('../src/route-data.js');
  // Today the bags left at the Fantasy Springs Hotel are picked up on the way out, inside the one journey card.
  const home=seed.steps.find(s=>s.id==='2026-10-01-14');
- assert.deepEqual(ROUTES[home.id].map(l=>l.mode),['walk','stop','walk','ride','ride','ride']);
+ assert.deepEqual(ROUTES[home.id].map(l=>l.mode),['walk','stop','walk','ride','ride','taxi']);
  assert.match(ROUTES[home.id][1].text,/bags.*Fantasy Springs Hotel/);
  assert.equal(legStrip(ROUTES[home.id],{},1)[1].label,'Stop on the way');
  assert.match(home.notes,/pick up our bags/);
