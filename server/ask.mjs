@@ -6,6 +6,7 @@ import {activeSteps,japanDate,japanClock,windowText} from '../src/timing.js';
 import {cleanDraft,DRAFT_ACTION_IDS} from '../src/day-check.js';
 import {describe,forecastFor,hoursFor,daySummary,forecastAge,ageLabel} from '../src/weather-data.js';
 import {clamp,httpsUrl as https} from '../src/text.js';
+import {claude,OPUS} from './usage.mjs';
 export const askReady=modelReady;
 // One question, asked out loud on the day, so it is short on purpose. Anything longer than this
 // is two questions, and two questions get one muddled answer.
@@ -178,8 +179,7 @@ export async function askTrip({question,day,step:stepId,history,spoken},state,us
  const step=stepId?state.steps.find(s=>s.id===stepId):null;
  if(stepId&&!step)throw new AppError('That stop is no longer on the plan.');
  if(step&&!day)day=step.day;
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('ask');
  const who=user?.name&&MEMBERS.includes(user.name)?user.name:'someone in the family';
  const person=state.members?.includes(user?.name)?user.name:null;
  const ask=`${tripBrief(state,{day,step,person,now})}
@@ -195,7 +195,7 @@ Their question: ${asked}`;
  try{
   for(let attempt=0;attempt<4;attempt++){
    message=await client.messages.create({
-    model:'claude-opus-5',
+    model:OPUS,
     max_tokens:6000,
     // The guide's voice and memory go last and uncached: the memory moves with every question, and
     // ahead of the cached blocks it would empty the cache each time.

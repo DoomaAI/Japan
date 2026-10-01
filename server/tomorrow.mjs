@@ -20,6 +20,7 @@ import {INSIDER_FIELDS,insiderWanted,cleanInsider} from '../src/insider-data.js'
 import {activeSteps,japanDate,windowText} from '../src/timing.js';
 import {NOTE_KIND_IDS,PLAN_B_REASONS,REST_KINDS,cleanDayCheck,cleanPlanB,keepChecks,spareIdeas} from '../src/day-check.js';
 import {clamp} from '../src/text.js';
+import {claude,OPUS} from './usage.mjs';
 export const tomorrowReady=modelReady;
 const SEARCH={type:'web_search_20260209',name:'web_search',user_location:{type:'approximate',country:'JP',timezone:'Asia/Tokyo'}};
 const source={type:'object',additionalProperties:false,required:['title','url'],properties:{title:{type:'string'},url:{type:'string'}}};
@@ -153,11 +154,10 @@ export function tomorrowOf(state,now=new Date()){
  return state.days.some(d=>d.date===date)?date:null;
 }
 async function run(system,tool,ask,maxUses){
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('tomorrow');
  let message,messages=[{role:'user',content:ask}];const contents=[];
  for(let attempt=0;attempt<3;attempt++){
-  message=await client.messages.create({model:'claude-opus-5-5',max_tokens:6000,system,thinking:{type:'adaptive'},output_config:{effort:'low'},
+  message=await client.messages.create({model:OPUS,max_tokens:6000,system,thinking:{type:'adaptive'},output_config:{effort:'low'},
    tools:[{...SEARCH,max_uses:maxUses},tool],messages});
   contents.push(message.content);
   if(message.stop_reason!=='pause_turn')break;

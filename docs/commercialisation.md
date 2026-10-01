@@ -375,12 +375,12 @@ Added 29 September 2026. How a commercial version would make money, what one tri
 A trip here means one family of four using the app from about three months before departure to a month after they get home.
 
 **AI calls** are most of the cost. They are priced at September 2026 API rates:
-- Opus 5: US$5 input / US$25 output per million tokens. This is the model the server uses today.
-- Opus 5.5: US$4 / US$20.
+- Opus 5: US$5 input / US$25 output per million tokens. The figures below are at this rate.
+- Opus 5.5: US$4 / US$20. Every call has used this since 1 October 2026 (one setting, `OPUS` in `server/usage.mjs`), which takes about a fifth off the Opus 5 column.
 - Sonnet 5.5: US$2 / US$10.
 - Web search: US$10 per 1,000 searches.
 
-Per-call figures are estimated from each call's `max_tokens` and search limits in `server/*.mjs`. The app does not yet keep a record of its usage.
+Per-call figures are estimated from each call's `max_tokens` and search limits in `server/*.mjs`. Since 1 October 2026 every call is recorded by feature in `japan_usage` (tokens in and out, cache reads and writes, searches; nothing of the question or answer), and a parent can read the last 30 days at `GET /api/usage`. Replace these estimates with those figures once a trip's worth has built up.
 
 | Feature | US$ per call (Opus 5) | Calls per trip (typical) | US$ per trip (Opus 5) | US$ per trip (Sonnet 5.5) |
 |---|---|---|---|---|

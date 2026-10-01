@@ -1,6 +1,7 @@
 import {AppError,MEMBERS,modelReady} from './model.mjs';
 import {PROPOSAL_KINDS,PROPOSAL_TIMING,proposalDraft} from '../src/trip-features.js';
 import {clamp,httpsUrl as https,mapSearch} from '../src/text.js';
+import {claude,OPUS} from './usage.mjs';
 export const researchReady=modelReady;
 // Eight searches is enough to reach an official site, its hours page and its ticket page, and
 // bounds what one lookup can cost. Asked from Japan, so a search for "the aquarium in Osaka"
@@ -98,8 +99,7 @@ export async function researchPlace({title,place,notes},state){
  if(!researchReady())throw new AppError('Looking things up is not switched on. Add an Anthropic API key to the deployment.',503);
  if(typeof title!=='string'||!title.trim())throw new AppError('Type what you want looked up first.');
  if(title.length>250||(place&&String(place).length>250)||(notes&&String(notes).length>2000))throw new AppError('Keep the name and note short.');
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('research');
  const days=state.days.map(d=>`${d.date} · ${d.city} · ${d.title}`).join('\n');
  const ask=`Look this up for them.
 
@@ -113,7 +113,7 @@ ${days}`;
   // conversation back unchanged — a "carry on" message of our own would confuse it.
   for(let attempt=0;attempt<4;attempt++){
    message=await client.messages.create({
-    model:'claude-opus-5',
+    model:OPUS,
     max_tokens:8000,
     system:SYSTEM,
     thinking:{type:'adaptive'},

@@ -1,4 +1,5 @@
 import {AppError,modelReady} from './model.mjs';
+import {claude,OPUS} from './usage.mjs';
 export const readerReady=modelReady;
 const IMAGE_TYPES=['image/jpeg','image/png','image/webp'];
 const PDF='application/pdf';
@@ -32,12 +33,11 @@ Rules:
 - If the file is not a document at all, or has no readable text, set readable to false.
 - You are translating, not advising. Do not give legal, medical or immigration advice; say what the document says and who it tells them to contact.`;
 async function ask(content){
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('document-reader');
  let response;
  try{
   response=await client.messages.create({
-   model:'claude-opus-5',
+   model:OPUS,
    max_tokens:16000,
    system:SYSTEM,
    thinking:{type:'adaptive'},

@@ -2,6 +2,7 @@ import {AppError} from './model.mjs';
 import {researchReady} from './research.mjs';
 import {LOCAL_EXPERIENCES,LOCAL_KIND_LABEL,localDays,cleanLocalCheck} from '../src/local-data.js';
 import {clamp} from '../src/text.js';
+import {claude,OPUS} from './usage.mjs';
 // Checking one Like a local card against the web: is it open on the days we could go, what does
 // it cost now, has anything changed since the card was written. The card's own figures were
 // written in September 2026 from memory of the place, so a parent presses Check the details
@@ -53,14 +54,13 @@ export async function checkLocal({id,today},state){
  const from=typeof today==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(today)?today:'';
  const days=localDays(state,item,from);
  const dates=(days.length?days:localDays(state,item)).map(fmt);
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('local-check');
  const card=[`Title: ${item.title} (${item.ja})`,`Kind: ${LOCAL_KIND_LABEL(item.kind)}`,`Where: ${item.where}`,`What the card says: ${item.why}`,`How: ${item.how}`,`Cost on the card: ${item.cost}`,item.when?`When on the card: ${item.when}`:'',
   `Dates the family could go: ${dates.join('; ')||'no dates left in '+item.area}`,`Base: ${item.area}`].filter(Boolean).join('\n');
  let message,messages=[{role:'user',content:`Check this card against the web.\n\n${card}`}];
  try{
   for(let attempt=0;attempt<4;attempt++){
-   message=await client.messages.create({model:'claude-opus-5-5',max_tokens:6000,system:SYSTEM,thinking:{type:'adaptive'},output_config:{effort:'medium'},tools:[SEARCH,RECORD],messages});
+   message=await client.messages.create({model:OPUS,max_tokens:6000,system:SYSTEM,thinking:{type:'adaptive'},output_config:{effort:'medium'},tools:[SEARCH,RECORD],messages});
    if(message.stop_reason!=='pause_turn')break;
    messages=[...messages,{role:'assistant',content:message.content}];
   }

@@ -9,6 +9,7 @@ import {handleUpload} from '@vercel/blob/client';
 import {AppError,applyOperation,documentDetails,documentAssociation,ticketParent} from './model.mjs';
 import {database,readTrip,writeTrip,updateTrip,session,localDemo,hash,token,setCookie,cookieOf,renewSession,renewAllLinks,RENEW_WITHIN} from './store.mjs';
 import {visibleEnvelope,visibleTrip} from './visibility.mjs';
+import {usageSummary} from './usage.mjs';
 import {roleOf,joinMember,cleanName,MEMBER_ROLES,householdProblem,parentsOf} from '../src/people.js';
 import {planOf} from '../src/plan-context.js';
 import {invitationView,applyRsvp,invitationOf} from '../src/rsvp-data.js';
@@ -757,6 +758,9 @@ export default async function handler(req,res){
    res.setHeader('Content-Type',found.photo.type);res.setHeader('Content-Disposition','inline');
    const length=result.headers.get('content-length');if(length)res.setHeader('content-length',length);
    const stream=Readable.fromWeb(result.stream);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
+  }
+  if(route==='usage'&&req.method==='GET'){
+   parent(user);return json(res,{since:30,usage:await usageSummary(30)});
   }
   if(route==='invites'&&req.method==='GET'){
    parent(user);if(localDemo())return json(res,{invites:[]});const db=await database();return json(res,{invites:await db`SELECT id,name,role,kind,household,max_uses,uses,revoked,expires_at FROM japan_grants ORDER BY created_at`});

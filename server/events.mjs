@@ -1,6 +1,7 @@
 import {AppError,MEMBERS,modelReady} from './model.mjs';
 import {proposalDraft,partyBrief,proposals,EVENT_KINDS,tripAreas,dayAreas,eventDays} from '../src/trip-features.js';
 import {clamp} from '../src/text.js';
+import {claude,OPUS} from './usage.mjs';
 export const eventsReady=modelReady;
 export const MAX_EVENTS=10;
 // Finding what is on is almost all searching — league fixtures, festival calendars, concert
@@ -130,13 +131,12 @@ ${partyBrief(state)}
 
 Already on their plan or their planning board — leave these out:
 ${alreadyHave(state).join(' · ')||'nothing yet'}`;
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('events');
  let messages=[{role:'user',content:ask}],content=[],message;
  try{
   for(let attempt=0;attempt<4;attempt++){
    message=await client.messages.create({
-    model:'claude-opus-5',max_tokens:12000,system:SYSTEM,
+    model:OPUS,max_tokens:12000,system:SYSTEM,
     thinking:{type:'adaptive'},output_config:{effort:'medium'},
     tools:[SEARCH,recordTool(tripAreas(state))],messages
    });

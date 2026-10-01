@@ -4,6 +4,7 @@ import {activeSteps,japanDate} from '../src/timing.js';
 import {seenHosts,checkedLink} from './links.mjs';
 import {PROPOSAL_KINDS,PROPOSAL_TIMING,SUGGEST_KINDS,TRAVEL_MODES,MIN_RATING_VOTES,validRating,ratingText,proposalDraft,partyBrief,proposals,rejoinAt,BOYS} from '../src/trip-features.js';
 import {clamp} from '../src/text.js';
+import {claude,OPUS} from './usage.mjs';
 export const suggestReady=modelReady;
 export const MAX_SUGGESTIONS=8;
 // Enough searching to check what is actually on in that city while they are there, and to drop
@@ -124,8 +125,7 @@ export async function suggestIdeas({city,day,kinds,count,forWhom,near,instead:as
  // every idea has to answer something that person said they like.
  const members=state.members||MEMBERS;
  if(forWhom&&!members.includes(forWhom))throw new AppError('Choose a family member, or everyone.');
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('suggest');
  const cityDays=state.days.filter(d=>d.city===where);
  // Somewhere to start from — tonight's hotel, a stop on the day, or where the phone is — turns
  // "ideas for Tokyo" into "what should we do around here", and every card says how far it is.
@@ -151,7 +151,7 @@ ${alreadyHave(state).join(' · ')||'nothing yet'}`;
  try{
   for(let attempt=0;attempt<4;attempt++){
    message=await client.messages.create({
-    model:'claude-opus-5',
+    model:OPUS,
     max_tokens:12000,
     system:withGuide(SYSTEM,state,japanDate()),
     thinking:{type:'adaptive'},

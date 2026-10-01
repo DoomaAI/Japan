@@ -8,6 +8,7 @@ import {withGuide} from '../src/guide-data.js';
 import {findGiftPerson,giftBrief,cleanGuideIdea} from '../src/gift-data.js';
 import {seenHosts,checkedLink} from './links.mjs';
 import {clamp} from '../src/text.js';
+import {claude,OPUS} from './usage.mjs';
 export const giftIdeasReady=modelReady;
 export const GUIDE_IDEAS=6;
 const SEARCH={type:'web_search_20260209',name:'web_search',max_uses:6,user_location:{type:'approximate',country:'JP',timezone:'Asia/Tokyo'}};
@@ -42,11 +43,10 @@ export async function findGiftIdeas({person,want},state,user,now=new Date()){
  const today=japanDate(now);
  const ahead=(state.days||[]).filter(d=>d.date>=today).map(d=>`${d.date}: ${d.city||''} — ${d.title||''}`).join('\n')||'The trip is over; suggest things that can be bought at the airport or ordered online from Japan.';
  const ask=`Gift ideas for:\n${giftBrief(person)}${want?`\nIn particular: ${want}`:''}\n\nWhere the family is still going:\n${ahead}`;
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();let message,messages=[{role:'user',content:ask}];
+ const client=await claude('gift-ideas');let message,messages=[{role:'user',content:ask}];
  try{
   for(let attempt=0;attempt<3;attempt++){
-   message=await client.messages.create({model:'claude-opus-5-5',max_tokens:8000,system:withGuide(SYSTEM,state,today),thinking:{type:'adaptive'},output_config:{effort:'low'},tools:[SEARCH,RECORD],messages});
+   message=await client.messages.create({model:OPUS,max_tokens:8000,system:withGuide(SYSTEM,state,today),thinking:{type:'adaptive'},output_config:{effort:'low'},tools:[SEARCH,RECORD],messages});
    if(message.stop_reason!=='pause_turn')break;
    messages=[...messages,{role:'assistant',content:message.content}];
   }

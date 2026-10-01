@@ -1,6 +1,7 @@
 import {AppError,MEMBERS,modelReady} from './model.mjs';
 import {parseCaptureLocally,CAPTURE_MAX} from '../src/capture-data.js';
 import {japanDate} from '../src/timing.js';
+import {claude,OPUS} from './usage.mjs';
 // A sentence into a to-do. Claude reads the whole trip's days and the family's names, so
 // "get Nate's Disney hat sorted the day we're at DisneySea" comes back as a buy, for Nate, on
 // the DisneySea day. Without a key, or when Claude cannot be reached, the plain parser answers
@@ -24,12 +25,11 @@ export async function parseCapture({text,day},state,now=new Date()){
  if(text.length>CAPTURE_MAX)throw new AppError(`Keep it under ${CAPTURE_MAX} characters. One job at a time.`);
  const today=japanDate(now),members=state.members?.length?state.members:MEMBERS;
  if(!captureReady())return parseCaptureLocally(text,state,today);
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('capture');
  let response;
  try{
   response=await client.messages.create({
-   model:'claude-opus-5-5',
+   model:OPUS,
    max_tokens:1000,
    system:SYSTEM,
    output_config:{effort:'low',format:{type:'json_schema',schema:SCHEMA}},

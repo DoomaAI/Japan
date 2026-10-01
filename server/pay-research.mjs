@@ -2,6 +2,7 @@ import {AppError} from './model.mjs';
 import {researchReady} from './research.mjs';
 import {PAY_KINDS,FEE_FIELDS} from '../src/pay-advice.js';
 import {clamp} from '../src/text.js';
+import {claude,OPUS} from './usage.mjs';
 // Looking up what an Australian card charges overseas. Asked from Australia, because the fee
 // schedules that matter are the Australian issuers' own pages. Nothing is saved here: the
 // figures come back as a draft that a parent reads, corrects and saves.
@@ -55,12 +56,11 @@ export function normalisePayFindings(found){
 export async function researchPayMethod({name,kind}){
  if(!researchReady())throw new AppError('Looking things up is not switched on. Add an Anthropic API key to the deployment.',503);
  if(typeof name!=='string'||!name.trim()||name.length>120)throw new AppError('Type the card’s name first, such as “ING Orange Everyday”.');
- const {default:Anthropic}=await import('@anthropic-ai/sdk');
- const client=new Anthropic();
+ const client=await claude('pay-research');
  let message,messages=[{role:'user',content:`Look up the overseas fees for this card.\n\nWhat they typed: ${name.trim()}\n${PAY_KINDS.some(([k])=>k===kind)?`They think it is: ${PAY_KINDS.find(([k])=>k===kind)[1]}\n`:''}`}];
  try{
   for(let attempt=0;attempt<4;attempt++){
-   message=await client.messages.create({model:'claude-opus-5',max_tokens:6000,system:SYSTEM,thinking:{type:'adaptive'},output_config:{effort:'medium'},tools:[SEARCH,RECORD],messages});
+   message=await client.messages.create({model:OPUS,max_tokens:6000,system:SYSTEM,thinking:{type:'adaptive'},output_config:{effort:'medium'},tools:[SEARCH,RECORD],messages});
    if(message.stop_reason!=='pause_turn')break;
    messages=[...messages,{role:'assistant',content:message.content}];
   }
