@@ -7,8 +7,10 @@ import {CardFacts,factAloudFor} from './FunFacts.jsx';
 import ExpressPass from './ExpressPass.jsx';
 import DpaLog from './DpaLog.jsx';
 import {factsForItem} from './fact-data.js';
+import LiveWaits from './LiveWaits.jsx';
+import {liveFor,waitLabel} from './wait-times.js';
 const mapSearch=(ride,park)=>`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${ride.name} ${park.name}`)}`;
-export default function ParkGuide({state,user,speak,openPage,park:initial,mutate,busy,open}){
+export default function ParkGuide({state,user,speak,openPage,park:initial,mutate,busy,open,request}){
  const [parkId,setParkId]=useState(initial?.id||PARKS[0].id);
  const park=PARKS.find(p=>p.id===parkId)||PARKS[0];
  const [land,setLand]=useState(''),[only,setOnly]=useState(''),[thrill,setThrill]=useState('');
@@ -18,6 +20,8 @@ export default function ParkGuide({state,user,speak,openPage,park:initial,mutate
  // are called. Queueing is when anybody has time to read one.
  const aloud=factAloudFor(speak,user.name);
  const [editHeights,setEditHeights]=useState(false);
+ // The last live read for the park on screen, so each ride card can carry its own wait.
+ const [waits,setWaits]=useState(null),live=waits?.park===park.id?waits.rides:null;
  // Each of us stars the rides we want to do; the card says whose stars it has. A star from the
  // older family-wide must-do still counts, and a parent can clear it.
  const show={must:r=>isMustDo(state,r.id),mine:r=>wantedBy(state,r.id).includes(user.name),todo:r=>!Object.keys(riddenBy(state,r.id)).length,open:r=>!r.closed};
@@ -32,11 +36,13 @@ export default function ParkGuide({state,user,speak,openPage,park:initial,mutate
   <div className="segmented">{PARKS.map(p=><button key={p.id} className={p.id===park.id?'selected':''} onClick={()=>{setParkId(p.id);setLand('');}}>{p.short}</button>)}</div>
   <p className="callout"><AlertCircle size={18}/>Heights and ride names were gathered before the trip and are a planning aid, not a confirmed source. Parks change them and rides close. Check the official app on the day, especially for Nate.</p>
 
+  <LiveWaits key={park.id} park={park} request={request} onData={setWaits}/>
+
   <section className="park-map-card">
    <h3><MapPin size={16}/> {park.name} map</h3>
    <p>{park.mapNote}</p>
    <div className="row wrap">
-    <a className="button primary" href={park.app} target="_blank" rel="noopener noreferrer"><ExternalLink size={16}/>Wait times &amp; map (official app)</a>
+    <a className="button primary" href={park.app} target="_blank" rel="noopener noreferrer"><ExternalLink size={16}/>Map &amp; wait times (official app)</a>
     <a className="button" href={park.site} target="_blank" rel="noopener noreferrer"><ExternalLink size={16}/>Park website</a>
     {open&&<button onClick={()=>open({type:'tickets',initialSearch:'park map'})}><Ticket size={16}/>{mapDoc?'Our saved map':'Save our own copy'}</button>}
    </div>
@@ -69,6 +75,7 @@ export default function ParkGuide({state,user,speak,openPage,park:initial,mutate
     </div>
     <div className="ride-tags">
      {ride.thrill&&<span className={`ride-thrill ${ride.thrill}`}>{THRILL[ride.thrill]}</span>}
+     {live&&(l=>l&&<span className={`ride-wait${l.open?'':' shut'}`}>⏱️ {waitLabel(l)}</span>)(liveFor(live,ride))}
      {ride.closed&&<span className="ride-closed"><Ban size={13}/>{ride.closed}</span>}
      {(wants.length>0||family)&&<span className="ride-stars"><Star size={13} fill="currentColor"/>{[...wants,...(family?['Family must-do']:[])].join(', ')}</span>}
      {family&&parent&&<button className="linkish" disabled={busy} onClick={()=>mutate({type:'parkMust',rideId:ride.id,must:false})}>Clear family star</button>}

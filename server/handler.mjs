@@ -40,6 +40,7 @@ import {quizAction} from '../src/quiz-data.js';
 import {planHighlights,highlightsReady} from './highlights.mjs';
 import {mailFrames,recordSent,frameMailReady,frameMailFrom} from './frame-mail.mjs';
 import {findDinner,dinnerReady} from './dinner.mjs';
+import {parkWaits} from './waits.mjs';
 import {applyDinnerVote} from '../src/dinner-data.js';
 import {googleReady,authUrl,exchangeCode,createAlbum,sealToken,sendGoogleFrames} from './google-photos.mjs';
 import {googleFrameView,recordGoogleSent,MAX_GOOGLE_FRAMES,CONNECT_DAYS,GOOGLE_ALBUM} from '../src/google-frame-data.js';
@@ -764,6 +765,8 @@ export default async function handler(req,res){
    parent(user);if(b.id===user.id||b.id==='owner')throw new AppError('Keep the owner access. Revoke another invite instead.');
    const db=await database();await db`UPDATE japan_grants SET revoked=true WHERE id=${b.id}`;return json(res,{ok:true});
   }
+  // Live wait times for one park, read from Queue-Times.com and kept a minute (server/waits.mjs).
+  if(route==='waits'&&req.method==='GET')return json(res,await parkWaits(url.searchParams.get('park')||''));
   if(route==='guide-index'&&req.method==='GET')return json(res,JSON.parse(await readFile(new URL('../data/guide-index.json',import.meta.url),'utf8')));
   if(route==='guide'&&req.method==='GET'){
    const page=Number(url.searchParams.get('page'));if(!Number.isInteger(page)||page<1||page>72)throw new AppError('Page not found.',404);
