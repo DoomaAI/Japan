@@ -7,6 +7,7 @@ import {splitSeeded} from './stop-splits.js';
 import {timesSeeded} from './day-times.js';
 import {notesSeeded} from './stop-notes.js';
 import {disneySeeded} from './disney-day.js';
+import {disneySeaSeeded} from './disneysea-day.js';
 import {tickLeg} from './route-data.js';
 import {ORDERED_PHRASES,phraseForDay} from './phrasebook-data.js';
 import {ALL_FACTS,orderedFacts} from './fact-data.js';
@@ -155,11 +156,13 @@ export const fujiSide=step=>towardsTokyo(step)?'left':'right';
 export const eyeSpyHint=(item,step)=>item.hint
  .replace('{side}',fujiSide(step))
  .replace('{when}',towardsTokyo(step)?'About 40 minutes before we reach Tokyo':'About 40 minutes out of Tokyo');
-// Ride checklist state. `parkRides` records who has ridden what and what the family has
-// starred as a must-do; `heights` is each boy's height in cm, so a ride can say plainly
-// whether he is tall enough rather than leaving a number to be compared in a queue.
+// Ride checklist state. `parkRides` records who has ridden what, who has starred a ride as one
+// they want to do (`wants`, each of us for ourselves), and the older family-wide must-do star;
+// `heights` is each boy's height in cm, so a ride can say plainly whether he is tall enough
+// rather than leaving a number to be compared in a queue.
 export const riddenBy=(state,rideId)=>state.parkRides?.[rideId]?.ridden||{};
-export const isMustDo=(state,rideId)=>!!state.parkRides?.[rideId]?.must;
+export const wantedBy=(state,rideId)=>Object.keys(state.parkRides?.[rideId]?.wants||{});
+export const isMustDo=(state,rideId)=>!!state.parkRides?.[rideId]?.must||wantedBy(state,rideId).length>0;
 export function heightCheck(ride,person,heights){
  if(!ride.height)return {limit:false,ok:true,label:'Everyone can ride'};
  const own=heights?.[person];
@@ -463,7 +466,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(input){
- const state=disneySeeded(timesSeeded(notesSeeded(splitSeeded({...input,...expressSeeded(input)}))));
+ const state=disneySeaSeeded(disneySeeded(timesSeeded(notesSeeded(splitSeeded({...input,...expressSeeded(input)})))));
  return {...state,allergies:state.allergies||{},checkIns:state.checkIns||[],readiness:state.readiness||{},stages:state.stages||{},bin:state.bin||[],settlements:state.settlements||[],icCards:state.icCards||{},askThread:state.askThread||[],mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},bingo:state.bingo??{},shopLog:state.shopLog??{},stays:state.stays??{},localChecks:state.localChecks??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},noticed:state.noticed??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},dayRatings:state.dayRatings??{},dayThoughts:state.dayThoughts??{},predictions:state.predictions??{},bookingWindows:state.bookingWindows??[],mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:normaliseThankYou(state.thankYou),plan:planOf(state),people:peopleOf(state),invitation:invitationOf(state),rsvps:state.rsvps??{}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
@@ -1442,6 +1445,7 @@ export function pendingProgress(state,queue){
    slot.pending=true;
   }}
   if(o.type==='parkRide'){const e=next.parkRides[o.rideId]||{},ridden={...(e.ridden||{})};if(o.done)ridden[o.person]=ridden[o.person]||o.at;else delete ridden[o.person];next.parkRides={...next.parkRides,[o.rideId]:{...e,ridden}};}
+  if(o.type==='parkWant'){const e=next.parkRides[o.rideId]||{},wants={...(e.wants||{})};if(o.want)wants[o.person]=wants[o.person]||o.at;else delete wants[o.person];next.parkRides={...next.parkRides,[o.rideId]:{...e,wants}};}
   if(o.type==='bingoTick'){const mine={round:1,card:null,...(next.bingo[o.person]||{})},done={...(mine.done||{})},key=o.part!=null?`${o.square}:${o.part}`:o.square;if(o.done)done[key]=done[key]||o.at;else delete done[key];next.bingo={...next.bingo,[o.person]:{...mine,done}};}
   if(o.type==='bingoCard'&&Array.isArray(o.card)){const mine={round:1,card:null,done:{},...(next.bingo[o.person]||{})};if(o.round>(mine.round||1))next.bingo={...next.bingo,[o.person]:{...mine,round:o.round,card:[...o.card]}};}
   if(o.type==='eyeSpy'){const key=eyeSpyKey(o.stepId,o.item),found={...(next.eyeSpy[key]||{})};if(o.done)found[o.person]=found[o.person]||o.at;else delete found[o.person];next.eyeSpy={...next.eyeSpy,[key]:found};}
