@@ -67,6 +67,7 @@ You are given tomorrow's stops, each with an id in square brackets. Search for w
 - Rail works, suspensions or timetable changes on lines the stops need, from the operator's own notices.
 - Typhoon, heavy-rain or heat warnings from the Japan Meteorological Agency or tenki.jp for that area and date. Early October is still typhoon season.
 - Where the forecast makes an outdoor stop a bad idea, a swap with another stop that day is a "swap" note.
+- Dress rules a venue publishes for itself that would catch them out: shoes off, wading water, no hats or bags on a deck, a costume policy, a dress code at a restaurant. A "dress" note, only where the venue's own page says so; the general etiquette of temples and onsen is already known to them.
 
 Rules:
 - Only what changes what they do tomorrow. A day with nothing wrong gets an empty list and a summary that says so. Do not pad.
