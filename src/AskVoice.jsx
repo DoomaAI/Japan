@@ -13,7 +13,7 @@ import {warmUp} from './speech.js';
 const synth=()=>{try{return typeof window!=='undefined'&&window.speechSynthesis&&window.SpeechSynthesisUtterance?window.speechSynthesis:null;}catch{return null;}};
 // How long to wait for a yes or no before leaving the change on the screen instead.
 const CONFIRM_TRIES=1;
-export default function AskVoice({ask,apply,canApply,state,online,step,autoStart=false}){
+export default function AskVoice({ask,apply,canApply,state,online,step,autoStart=false,control=null}){
  const [phase,setPhase]=useState('idle'),[heard,setHeard]=useState(''),[said,setSaid]=useState(''),[error,setError]=useState('');
  const words=useRef(''),purpose=useRef(''),pending=useRef(null),tries=useRef(0),alive=useRef(true),turn=useRef(0);
  // Everything the listener calls back into is read fresh: it was started on an earlier render.
@@ -92,6 +92,8 @@ export default function AskVoice({ask,apply,canApply,state,online,step,autoStart
   try{warmUp(window.speechSynthesis,window.SpeechSynthesisUtterance);}catch{}
   hush();pending.current=null;listen('ask');
  }
+ // Starting to type stands the voice down without sending what it had half heard.
+ if(control)control.current={cancel(){purpose.current='';pending.current=null;try{listener.stop();}catch{}hush();setPhase('idle');}};
  // Opened from the button on any page, it is already listening: that tap was the ask.
  useEffect(()=>{if(autoStart&&listener.supported)tap();},[]);
  if(!listener.supported)return null;

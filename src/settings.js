@@ -26,9 +26,9 @@ export const SETTINGS=[
   off:'Voice notes are kept as sound only. Words can still be added to any of your notes afterwards, by typing or saying them.'},
  // On by default wherever Ask is switched on: a button that sits on every page and is only
  // ever heard when tapped. Off takes the button away; Ask itself is untouched.
- {id:'voiceAssistant',label:'Voice assistant on every page',group:'assistant',
-  on:'A microphone button sits in the corner of every page. Tap it and say what you want — move a stop, add one, adjust the day — and hear the answer.',
-  off:'No button in the corner. Talk to the trip is still at the top of Ask about our trip.'},
+ {id:'voiceAssistant',label:'AI assistant on every page',group:'assistant',
+  on:'A sparkle button sits in the corner of every page. Tap it and say or type what you want — move a stop, add one, adjust the day — and hear the answer.',
+  off:'No button in the corner. Talk to the trip and the question box are still on Ask about our trip.'},
  // Closed until asked for, so a route card stays short; tapping a line's name opens it either way.
  {id:'routeLookOpen',label:'Show what to look for',group:'route',default:false,
   on:'Each train, subway and bus on a route card opens with what to look for to find it. Tap the line’s name to close it.',

@@ -22,7 +22,7 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
  const thread=step?all.filter(item=>item.step===step.id):assistant?all.filter(item=>String(item.at||'')>=opened):all;
  const [question,setQuestion]=useState(''),[about,setAbout]=useState(state.days.some(d=>d.date===day)?day:'');
  const [working,setWorking]=useState(false),[error,setError]=useState('');
- const box=useRef(null);
+ const box=useRef(null),voice=useRef(null);
  const ready=!!config?.ask;
  const starters=useMemo(()=>step?stepStarters(step):askStarters(state,about||day),[state.days,state.proposals,state.weather,about,day,step]);
  useEffect(()=>{setThread(readThread(user?.name));},[user?.name]);
@@ -65,24 +65,22 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
   {!ready&&<p className="callout"><AlertCircle size={18}/>Asking is not switched on for this deployment. Anything already answered is still below.</p>}
   {!online&&<p className="callout"><WifiOff size={18}/>No signal. Old answers are saved on this phone; a new question has to wait.</p>}
   {ready&&<>
-   {online&&<AskVoice ask={text=>send(text,true)} apply={applyItem} canApply={canApply} state={state} online={online} step={step} autoStart={assistant}/>}
-   {!assistant&&<>
-   {!step&&<label>About which day<select value={about} onChange={e=>setAbout(e.target.value)}>
+   {online&&<AskVoice ask={text=>send(text,true)} apply={applyItem} canApply={canApply} state={state} online={online} step={step} autoStart={assistant} control={voice}/>}
+   {!assistant&&!step&&<label>About which day<select value={about} onChange={e=>setAbout(e.target.value)}>
     <option value="">The whole trip</option>
     {state.days.map(d=><option key={d.date} value={d.date}>{askDayLabel(d.date)} · {d.title}</option>)}
    </select></label>}
-   {!!starters.length&&<div className="chips ask-starters">{starters.map(text=><button className="chip" key={text} onClick={()=>{setQuestion(text);box.current?.focus();}}>{text}</button>)}</div>}
-   <label>Your question<textarea ref={box} rows={3} value={question} maxLength={ASK_LIMIT} placeholder={step?`What should we know before ${step.title}?`:'Is it better to do Fushimi Inari today or tomorrow?'}
+   {!assistant&&!!starters.length&&<div className="chips ask-starters">{starters.map(text=><button className="chip" key={text} onClick={()=>{setQuestion(text);box.current?.focus();}}>{text}</button>)}</div>}
+   <label>{assistant?'Or type it':'Your question'}<textarea ref={box} onFocus={()=>voice.current?.cancel()} rows={3} value={question} maxLength={ASK_LIMIT} placeholder={step?`What should we know before ${step.title}?`:'Is it better to do Fushimi Inari today or tomorrow?'}
     onChange={e=>setQuestion(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey))ask();}}/></label>
    {/* This box is held in React, so what is heard goes through state rather than into the
        element — and it is only ever put in the box, never asked. The boys ask too, and the
        question has to be theirs to read back and change before it goes. */}
-   <Dictate onText={heard=>setQuestion(q=>joinSpoken(q,heard).slice(0,ASK_LIMIT))} label="Say it" what="your question"/>
+   {!assistant&&<Dictate onText={heard=>setQuestion(q=>joinSpoken(q,heard).slice(0,ASK_LIMIT))} label="Say it" what="your question"/>}
    <div className="ask-send">
     <small>{ASK_LIMIT-question.length} left · one question at a time gets a better answer</small>
     <button className="primary" onClick={()=>ask()} disabled={working||!online||!question.trim()}><Search size={18}/>{working?'Having a think…':'Ask'}</button>
    </div>
-   </>}
   </>}
   {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
   {thread.map(item=><article className="feature-card ask-card" key={item.id}>
