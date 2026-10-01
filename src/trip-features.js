@@ -1,10 +1,11 @@
 import {isChild,defaultReading,ageOf} from './child-levels.js';
 import {nextTimeBrief} from './next-time.js';
-import {activeSteps,minutes,asClock,japanDate,japanClock} from './timing.js';
+import {activeSteps,minutes,asClock,japanDate,japanClock,latestStart,windowText} from './timing.js';
 import {stepsFor} from './split.js';
 import {expressSeeded} from './park-data.js';
 import {splitSeeded} from './stop-splits.js';
 import {timesSeeded} from './day-times.js';
+import {windowsSeeded} from './timed-entry.js';
 import {notesSeeded} from './stop-notes.js';
 import {disneySeeded} from './disney-day.js';
 import {disneySeaSeeded} from './disneysea-day.js';
@@ -466,7 +467,7 @@ export function seededChallenges(state){
  return {challenges:[...kept,...initialChallenges(state.days).filter(c=>!have.has(c.id))],missionSeed:MISSION_SEED};
 }
 export function ensureFeatures(input){
- const state=disneySeaSeeded(disneySeeded(timesSeeded(notesSeeded(splitSeeded({...input,...expressSeeded(input)})))));
+ const state=windowsSeeded(disneySeaSeeded(disneySeeded(timesSeeded(notesSeeded(splitSeeded({...input,...expressSeeded(input)}))))));
  return {...state,allergies:state.allergies||{},checkIns:state.checkIns||[],readiness:state.readiness||{},stages:state.stages||{},bin:state.bin||[],settlements:state.settlements||[],icCards:state.icCards||{},askThread:state.askThread||[],mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},bingo:state.bingo??{},shopLog:state.shopLog??{},stays:state.stays??{},localChecks:state.localChecks??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},noticed:state.noticed??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},dayRatings:state.dayRatings??{},dayThoughts:state.dayThoughts??{},predictions:state.predictions??{},bookingWindows:state.bookingWindows??[],mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:normaliseThankYou(state.thankYou),plan:planOf(state),people:peopleOf(state),invitation:invitationOf(state),rsvps:state.rsvps??{}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
@@ -474,12 +475,14 @@ export function delayedDayProposal(steps,delay,nowMinute=null){
  for(let i=0;i<steps.length;i++){
   const s=steps[i];if(['done','skipped'].includes(s.status))continue;
   if(s.locked||s.status==='started'){
-   if(s.time){const start=minutes(s.time);if(s.locked&&cursor>start)warnings.push(`${s.title} at ${s.time} may already be too tight. Check directions and the booking.`);cursor=Math.max(cursor,start+(s.duration||0));}
+   // A timed entry is still on time anywhere in its window, so only a stop pushed past the
+   // window's close is too tight, and the rest of the day runs on from when we actually get in.
+   if(s.time){const start=minutes(s.time),last=s.locked?latestStart(s):start;if(s.locked&&cursor>last)warnings.push(`${s.title} at ${windowText(s)||s.time} may already be too tight. Check directions and the booking.`);cursor=Math.max(cursor,Math.max(Math.min(cursor,last),start)+(s.duration||0));}
    continue;
   }
   if(!s.time)continue;
   const candidate=Math.max(minutes(s.time)+delay,cursor),next=steps.slice(i+1).find(n=>n.locked&&n.time&&!['done','skipped'].includes(n.status));
-  const cutoff=next?minutes(next.time)-(next.travelMinutes??20)-(next.arrivalBuffer??15):1440;
+  const cutoff=next?latestStart(next)-(next.travelMinutes??20)-(next.arrivalBuffer??15):1440;
   if(candidate+(s.duration||0)>cutoff||candidate>=1440){backlog.push({id:s.id,title:s.title,reason:next?`Make room to reach ${next.title}`:'No room left today'});continue;}
   if(candidate!==minutes(s.time))changes.push({id:s.id,title:s.title,from:s.time,time:asClock(candidate)});
   cursor=candidate+(s.duration||0);

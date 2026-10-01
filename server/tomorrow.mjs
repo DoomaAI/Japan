@@ -15,7 +15,7 @@ import {seenHosts,checkedLink} from './links.mjs';
 import {weatherLine} from './ask.mjs';
 import {movesOf,cleanMoveCheck,forwardingPlanned} from '../src/move-data.js';
 import {stayFor} from '../src/stay-data.js';
-import {activeSteps,japanDate} from '../src/timing.js';
+import {activeSteps,japanDate,windowText} from '../src/timing.js';
 import {NOTE_KIND_IDS,PLAN_B_REASONS,REST_KINDS,cleanDayCheck,cleanPlanB,keepChecks,spareIdeas} from '../src/day-check.js';
 export const tomorrowReady=()=>!!process.env.ANTHROPIC_API_KEY;
 const clamp=(v,max)=>String(v??'').trim().slice(0,max);
@@ -138,7 +138,7 @@ export function dayBrief(state,day){
  return [`The day: ${weekday} ${day}, in ${d.city} — ${d.title}.${d.hotel?` Staying at ${d.hotel}.`:''}${weatherLine(state,day)}`,
   next&&next.hotel!==d.hotel?`The next morning they move to ${next.hotel}.`:'',
   steps.length?'Their stops, in order:':'Nothing is planned yet.',
-  ...steps.slice(0,30).map(s=>`  [${s.id}] ${[s.time||'no set time',s.title,s.place,s.japanese?`(${clamp(s.japanese,80)})`:'',s.duration?`${s.duration} min`:'',s.locked||s.bookingTime?`booked${s.bookingTime?` for ${s.bookingTime}`:''}`:''].filter(Boolean).join(' · ')}`)]
+  ...steps.slice(0,30).map(s=>`  [${s.id}] ${[s.time||'no set time',s.title,s.place,s.japanese?`(${clamp(s.japanese,80)})`:'',s.duration?`${s.duration} min`:'',s.locked||s.bookingTime?`booked${s.bookingTime?` for ${s.bookingTime}`:''}`:'',windowText(s)?`timed entry: any time ${windowText(s)}`:''].filter(Boolean).join(' · ')}`)]
   .filter(Boolean).join('\n');
 }
 // Which day "tomorrow" is, in Japan. Run after midnight Japan time by a late scheduler, it would

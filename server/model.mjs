@@ -3,7 +3,7 @@ import {extraOperation} from './features.mjs';
 import {cleanCode,answerCodes,setOwner,recordSend} from '../src/wallet-codes.js';
 import {expressOperation} from './express.mjs';
 import { randomUUID } from 'node:crypto';
-import {activeSteps} from '../src/timing.js';
+import {activeSteps,MAX_WINDOW} from '../src/timing.js';
 import {legCount,tickLeg} from '../src/route-data.js';
 import {ENTRY_TYPE_IDS} from '../src/entry-types.js';
 import {guessPlatform} from '../src/booked-via.js';
@@ -46,7 +46,7 @@ export function ticketParent(id,state){
  return doc;
 }
 export function validatePatch(p,state){
- const allowed=['title','notes','place','japanese','time','duration','kind','day','page','group','option','participants','order','review','bookingTime','bookingReference','locked','website','bookedVia','bookedViaUrl','travelMinutes','arrivalBuffer','locationId','phone','pin','category'];
+ const allowed=['title','notes','place','japanese','time','duration','kind','day','page','group','option','participants','order','review','bookingTime','bookingReference','locked','website','bookedVia','bookedViaUrl','travelMinutes','arrivalBuffer','locationId','phone','pin','category','windowMinutes'];
  if(!p || typeof p!=='object' || Array.isArray(p))throw new AppError('Invalid change.');
  for(const [k,v] of Object.entries(p)){
   if(!allowed.includes(k))throw new AppError('Unsupported field.');
@@ -64,6 +64,7 @@ export function validatePatch(p,state){
   if(k==='phone'&&(!text(v,40)||(v!==''&&!/^\+?[\d\s().-]{5,}$/.test(v))))throw new AppError('Use a phone number, ideally with its country code.');
   if(['travelMinutes','arrivalBuffer'].includes(k)&&(!Number.isInteger(v)||v<0||v>360))throw new AppError('Travel and arrival buffers must be 0–360 minutes.');
   if(k==='duration'&&(!Number.isInteger(v)||v<0||v>1440))throw new AppError('Duration must be 0–1440 minutes.');
+  if(k==='windowMinutes'&&v!==null&&(!Number.isInteger(v)||v<0||v>MAX_WINDOW))throw new AppError(`An entry window must be 0–${MAX_WINDOW} minutes.`);
   if(k==='page'&&(!Number.isInteger(v)||v<1||v>72))throw new AppError('Choose a guide page from 1 to 72.');
   if(k==='order'&&(!Number.isFinite(v)||Math.abs(v)>100000))throw new AppError('Invalid position.');
   if(k==='kind'&&!['fixed','flexible','optional','review'].includes(v))throw new AppError('Invalid activity type.');
@@ -308,8 +309,8 @@ export function applyOperation(input,op,user){
   for(const d of [doc,...state.documents.filter(d=>d.parentDocumentId===doc.id)])Object.assign(d,mark);
   extra={title:doc.title};
  }else throw new AppError('Unknown action.');
- const fields=['time','day','bookingTime','place','title','locked'];
- const diffs=op.type==='patch'&&before?fields.filter(k=>JSON.stringify(before[k]??null)!==JSON.stringify(step[k]??null)).map(k=>`${{time:'Target time',day:'Day',bookingTime:'Booking time',place:'Place',title:'Activity',locked:'Time lock'}[k]}: ${before[k]??'none'} → ${step[k]??'none'}`):[];
+ const fields=['time','day','bookingTime','windowMinutes','place','title','locked'];
+ const diffs=op.type==='patch'&&before?fields.filter(k=>JSON.stringify(before[k]??null)!==JSON.stringify(step[k]??null)).map(k=>`${{time:'Target time',day:'Day',bookingTime:'Booking time',windowMinutes:'Entry window (min)',place:'Place',title:'Activity',locked:'Time lock'}[k]}: ${before[k]??'none'} → ${step[k]??'none'}`):[];
  const important=!extra?.private&&(extra?.important||diffs.length>0||['reschedule','choose','groupMode','backlog','schedule','remove'].includes(op.type));
  if(important){const summary=extra?.summary||(diffs.length?`${step.title}: ${diffs.join('; ')}`:`${step?.title||op.option||op.group||'Day plan'} · ${{reschedule:'times adjusted',choose:'alternative selected',groupMode:op.mode==='split'?'we split up here':'back to choosing one plan',backlog:'saved to Options',schedule:'added to a day',remove:'removed from itinerary'}[op.type]||'updated'}`);state.alerts=[{id:randomUUID(),summary,by:user.name,at:now,stepId:step?.id||null,seenBy:{[user.name]:now}},...state.alerts].slice(0,200);}
  // The removal went through, so the copy goes into Recently deleted; and whatever has waited

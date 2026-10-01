@@ -1,7 +1,7 @@
 import {AppError,MEMBERS} from './model.mjs';
 import {proposals,proposalPlacement,todos} from '../src/trip-features.js';
 import {tripProject,notOn} from '../src/trip-project.js';
-import {activeSteps,japanDate,japanClock} from '../src/timing.js';
+import {activeSteps,japanDate,japanClock,windowText} from '../src/timing.js';
 import {cleanDraft,DRAFT_ACTION_IDS} from '../src/day-check.js';
 import {describe,forecastFor,hoursFor,daySummary,forecastAge,ageLabel} from '../src/weather-data.js';
 export const askReady=()=>!!process.env.ANTHROPIC_API_KEY;
@@ -86,6 +86,7 @@ function stepLine(step,detail,person){
  if(step.place)bits.push(step.place);
  if(step.duration)bits.push(`${step.duration} min`);
  if(step.locked)bits.push(`booked${step.bookingTime?` for ${step.bookingTime}`:''}`);
+ if(windowText(step))bits.push(`timed entry: any time ${windowText(step)}`);
  if(step.bookedVia)bits.push(`booked through ${clamp(step.bookedVia,80)}`);
  if(step.status&&step.status!=='todo')bits.push(step.status);
  if(notOn(step,person))bits.push('not you');
