@@ -39,6 +39,7 @@ import {isDeveloping,momentAccepts} from '../src/film-data.js';
 import {quizAction} from '../src/quiz-data.js';
 import {planHighlights,highlightsReady} from './highlights.mjs';
 import {mailFrames,recordSent,frameMailReady,frameMailFrom} from './frame-mail.mjs';
+import {findDinner,dinnerReady} from './dinner.mjs';
 import {googleReady,authUrl,exchangeCode,createAlbum,sealToken,sendGoogleFrames} from './google-photos.mjs';
 import {googleFrameView,recordGoogleSent,MAX_GOOGLE_FRAMES,CONNECT_DAYS,GOOGLE_ALBUM} from '../src/google-frame-data.js';
 import {postcardReady,sendPostcard,postcardProviderId} from './postcard.mjs';
@@ -218,7 +219,7 @@ export default async function handler(req,res){
    if(!day)return json(res,{ok:true,ready:true,day:null});
    return json(res,{ok:true,ready:true,...await nightly(state,day,undefined,{onCheck:check=>tellTomorrow(check,parentsOf(state)).catch(()=>0)})});
   }
-  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),tomorrow:tomorrowReady(),highlights:highlightsReady(),frameMail:frameMailReady(),googleFrames:googleReady(),postcard:postcardReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
+  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),tomorrow:tomorrowReady(),highlights:highlightsReady(),frameMail:frameMailReady(),googleFrames:googleReady(),dinner:dinnerReady(),postcard:postcardReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id,kind,role,household,max_uses,uses FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -335,6 +336,14 @@ export default async function handler(req,res){
    }
    if(problem)throw new AppError(problem,409);
    return json(res,{...visibleEnvelope(await readTrip(),user),link});
+  }
+  // Dinner tonight: a parent asks, and what comes back is kept on the day for every phone, so
+  // the other parent and the boys see the same options, with no signal too.
+  if(route==='dinner'&&post){
+   parent(user);const {state}=await readTrip();
+   const found=await findDinner({day:String(b.day||'')},state);
+   const saved=await updateTrip(next=>({...next,dinner:{...Object.fromEntries(Object.entries(next.dinner||{}).filter(([d])=>d>=b.day).slice(-6)),[b.day]:{...found,by:user.name}}}));
+   return json(res,visibleEnvelope(saved,user));
   }
   // Posting a postcard from the app, once a provider is connected (server/postcard.mjs). Until
   // then this says so, and the Postcard button's share sheet does the sending.
