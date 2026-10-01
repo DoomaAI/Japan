@@ -198,15 +198,18 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
    thumb-sized target and you swipe across for the rest. Home and More sit outside that
    scroller, pinned to either end of the bar: they are the way back and the way to every other
    screen, and a way out that can be swiped off the edge is no way out at all.
-   Auto margins on the ends of the strip centre it while it fits and fall to zero once it
-   overflows, which keeps the first tab reachable — exactly what justify-content would clip. */
-.bottom-nav{justify-content:flex-start;align-items:stretch;gap:.25rem}
-.nav-tabs{position:relative;flex:1;min-width:0;display:flex;align-items:stretch;flex-wrap:nowrap;gap:.25rem;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:none}
+   Auto margins on the ends of the strip keep the first tab reachable once it overflows —
+   exactly what justify-content would clip.
+   Every button, Home and More included, gets the same cell: the bar's width shared by the
+   number of buttons, capped at 150px and never below a thumb. Content-sized ends beside
+   stretched shortcuts left the bar lopsided. --nav-n is set on the bar from the shortcuts. */
+.bottom-nav{justify-content:center;align-items:stretch;gap:0;container-type:inline-size;--nav-floor:64px;--nav-cell:max(var(--nav-floor),min(150px,calc(100cqw / var(--nav-n,7))))}
+.nav-tabs{position:relative;flex:0 1 calc(var(--nav-cell) * (var(--nav-n,7) - 2));min-width:0;display:flex;align-items:stretch;flex-wrap:nowrap;gap:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:none}
 .nav-tabs::-webkit-scrollbar{display:none}
-.nav-tabs button{flex:1 0 auto;min-width:68px;scroll-snap-align:center}
+.bottom-nav .nav-tabs button{flex:0 0 var(--nav-cell);min-width:auto;max-width:none;scroll-snap-align:center}
 .nav-tabs button:first-child{margin-left:auto}
 .nav-tabs button:last-child{margin-right:auto}
-.bottom-nav .nav-more,.bottom-nav .nav-home{flex:0 0 auto;min-width:64px;max-width:150px;padding-left:.55rem;padding-right:.55rem}
+.bottom-nav .nav-more,.bottom-nav .nav-home{flex:0 0 var(--nav-cell);min-width:auto;max-width:none;padding-left:.55rem;padding-right:.55rem}
 .bottom-nav span{white-space:nowrap;font-size:.75rem}
 /* A tab stopped by a hard edge reads as the end of the bar, so the side there is more to
    swipe on fades out instead — and neither side fades once the whole strip is on screen. */
@@ -217,10 +220,9 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
    iPhone, so the sixth — Yen for us, the diary for the boys — sat faded behind the edge on every
    phone we own. Tabs share the room while they fit, never shrink below their own label, and
    once there are more than fit the strip scrolls the way the days along the top do. */
-@media(max-width:600px){.bottom-nav{gap:.15rem;padding-left:.4rem;padding-right:.4rem}
-.nav-tabs{gap:.15rem}
-.nav-tabs button{min-width:48px;padding:.4rem .1rem}
-.bottom-nav .nav-more,.bottom-nav .nav-home{min-width:48px;padding-left:.1rem;padding-right:.1rem}
+@media(max-width:600px){.bottom-nav{padding-left:.4rem;padding-right:.4rem;--nav-floor:48px}
+.bottom-nav .nav-tabs button{padding:.4rem .1rem}
+.bottom-nav .nav-more,.bottom-nav .nav-home{padding-left:.1rem;padding-right:.1rem}
 .bottom-nav span{font-size:.75rem;letter-spacing:-.01em}
 }
 /* Kendama. The handle and the ball are drawn, the swipe happens on the picture itself, and the
