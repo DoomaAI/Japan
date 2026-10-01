@@ -11313,7 +11313,7 @@ test('the frame: the follow-along link on a screen in a living room, showing wha
  const photos=await readFile(new URL('../src/PhotoDay.jsx',import.meta.url),'utf8');
  assert.match(photos,/\{parent&&<button[^>]*onClick=\{\(\)=>mutate\(\{type:'photoFrame',id:p\.id,on:!p\.frame\}\)\}>/,'a parent’s toggle on each photo');
  const settings=await readFile(new URL('../src/Settings.jsx',import.meta.url),'utf8');
- assert.match(settings,/navigator\.clipboard\.writeText\(frameUrl\(url\)\)/);
+ assert.match(settings,/request\('frame-link',\{action:'url',id:f\.id\}\)/,'each frame copies its own link');
  const frame=await readFile(new URL('../src/FollowFrame.jsx',import.meta.url),'utf8');
  assert.match(frame,/navigator\.wakeLock\?\.request\('screen'\)/);
  assert.match(frame,/target:'photo',id:shot\.id,emoji:'👏'/,'a tap claps');

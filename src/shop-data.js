@@ -1,3 +1,4 @@
+import {POSTCARD_PROVIDERS} from './postcard-providers.js';
 // The trip shop: the things worth buying for a trip like this one, and when. Two halves.
 //
 // The essentials pack is what has to be sorted before the flight — a plug that fits, data on
@@ -83,7 +84,7 @@ export const KEEPSAKES=[
   page:'trackers',provider:null,buy:[['Redbubble: stickers','https://www.redbubble.com/shop/stickers']]},
  {id:'postcard',when:'during',emoji:'📮',title:'A real postcard to the grandparents',from:'photos',
   why:'The Postcard button on any photo writes the card — the day, the city, and what the boy said about it — and hands photo and words to the share sheet for a print-and-post app to send to a letterbox.',
-  page:'photos',provider:null,buy:[['TouchNote (prints and posts a photo card)','https://touchnote.com/'],['Australia Post: personalised cards','https://auspost.com.au/']]},
+  page:'photos',provider:null,buy:POSTCARD_PROVIDERS.map(p=>[`${p.name}${p.kind==='api'?' (could post from the app)':' (its own app, via Share)'}`,p.url])},
  {id:'book',when:'after',emoji:'📖',title:'Printed photobook',from:'photos',
   why:'The Photobook page, printed and bound: a page a day with the photo of the day, the stops we loved and the diary.',
   page:'book',provider:null,buy:[['Momento (Australian photobooks)','https://www.momento.com.au/'],['Officeworks photo printing','https://www.officeworks.com.au/']]},
