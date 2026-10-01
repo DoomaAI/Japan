@@ -507,6 +507,36 @@ Sources consulted for the rates above:
 - [Tours and activities affiliate programs, 2026 (Track360)](https://track360.io/blog/tours-activities-experiences-affiliate-programs-operator-guide-2026)
 - [Travel affiliate rate-card benchmark, 2026 (Track360)](https://track360.io/blog/best-travel-affiliate-programs-2026-operator-rate-card-benchmark)
 
+### Cutting the AI bill: the traveller's own AI, and plain web services
+
+Logged 1 October 2026, day 11 of 16. To pick up after the trip. The aim is a hard ceiling on what one trip can cost us, which the current all-in-house model does not have.
+
+**What we cannot do.** Have people sign in with their Claude Free, Pro or Max account so the app uses their plan. Anthropic's terms limit those logins and their tokens to Claude.ai and Claude Code; a product must use API keys, and Anthropic has blocked third-party apps using subscription logins since January 2026.
+
+**Three ways to move the cost, in the order to build them:**
+
+1. **Plain web services and the phone itself, instead of the model, wherever no reasoning is needed.** Probably takes a typical trip from about US$50 to US$5–10 of AI; the usage log (`GET /api/usage`) will say how close.
+
+| Feature | Instead of the model | Cost |
+|---|---|---|
+| Translate a phrase or ticket | DeepL API (free tier), Google Cloud Translation (free monthly allowance, then cents a page), or the browser's own translator | Free to cents |
+| Menu or sign from a photo | Hand off to Google Translate's camera or Google Lens: live, and offline once the Japanese pack is downloaded. Keep our reader for allergies and dish notes | Free |
+| Dictation and capture | The phone's speech-to-text (`src/dictation.js` already uses it); a plain parser for the common shapes, the model only when it fails | Free |
+| Nearby | Google Maps search links (already the chips in `MAPS_NEARBY`) and OpenStreetMap search; Google Places only if ratings are needed (paid past its free tier) | Free |
+| Research a place | Wikipedia and Wikivoyage, the official site and a Maps link | Free |
+| Booking emails | Read the structured booking data many airline and hotel emails carry (schema.org reservations) first; the model only for the rest | Free |
+| Pay research, etiquette, like a local | Written once per destination, not searched per question | Writing time |
+
+   Left on the model: Ask, Suggestions, booking emails with no structured data, and the photo coach, routed to Sonnet 5.5 or Haiku 4.5 where quality holds.
+
+2. **"Ask in your own AI" hand-off buttons.** A button opens Claude or ChatGPT with a prompt already written from the trip; the person sends it from their own account, Free included. Nothing to sign in to or build server-side, but nothing comes back into the app and the boys cannot use it. The pre-filled link is documented for Claude Desktop (`?q=`, about 14,000 characters); reports on the web and mobile apps conflict, so test on an iPhone and an Android before relying on it. ([Open Claude Desktop with a link](https://support.claude.com/en/articles/14729294-open-claude-desktop-with-a-link))
+
+3. **A Claude connector (remote MCP server)** for parents who already use Claude. They add the app under Customize → Connectors, sign in to it with OAuth, and Claude reads the trip and adds ideas on their plan. Works on every plan, but a Free account is limited to one custom connector and runs out of messages quickly; realistically Pro and up. Adults only. Needs the access-control fixes first (per-household scopes, a real guest role) and an OAuth server of our own. Being listed in Anthropic's connector directory would make it one tap. ([Custom connectors using remote MCP](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp))
+
+**Bring your own API key** is allowed but left out: almost no family has an Anthropic Console account, and holding their keys adds risk and support calls.
+
+**Tiers this suggests:** a free or cheap base app with no AI (plan, offline tickets, family sync) plus the hand-off buttons; the connector for Claude users at no AI cost to us; and a paid trip pass on our own AI, capped per trip. For the agency route none of this applies: the agency's clients will not have AI accounts, so the AI goes into the agency's price.
+
 ## Any group, any trip, any language: modular build order
 
 Added 29 September 2026. What it would take to make the app work for any group, any trip (several places or countries) and any language, and the order to build it in so each part is modular and reusable. It expands the "Work needed before any white label or public release" list under [White-label and business-to-business](#white-label-and-business-to-business).
