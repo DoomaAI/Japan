@@ -38,6 +38,11 @@ import {tomorrowReady,tomorrowOf,nightly} from './tomorrow.mjs';
 import {isDeveloping,momentAccepts} from '../src/film-data.js';
 import {quizAction} from '../src/quiz-data.js';
 import {planHighlights,highlightsReady} from './highlights.mjs';
+import {mailFrames,recordSent,frameMailReady,frameMailFrom} from './frame-mail.mjs';
+import {postcardReady,sendPostcard,postcardProviderId} from './postcard.mjs';
+import {keyAccess,frameKeyView,cleanLabel,validFrameEmail,frameService,MAX_FRAME_KEYS,MAX_FRAME_EMAILS} from '../src/frame-mail-data.js';
+import {postcardJob} from '../src/postcard-providers.js';
+import {postcardText} from '../src/postcard-data.js';
 import {cleanEditList,defaultEditList} from '../src/highlights-data.js';
 import {vaultReady,listVault,saveVault,addVaultFile,readVaultFile,vaultView} from './vault.mjs';
 import {authoriseInbound,receiveEmail,addToInbox,inboxFiles,readInboxItem,emailInboxReady,openToAnySender} from './email.mjs';
@@ -126,7 +131,7 @@ export default async function handler(req,res){
   // the only files it serves are the family's day photos. A wrong or withdrawn key learns nothing.
   if((route==='follow'||route==='follow-photo')&&req.method==='GET'){
    const key=url.searchParams.get('key')||'',trip=await readTrip();
-   if(!trip.state.followKey||!/^[a-f0-9]{64}$/.test(key)||hash(key)!==hash(trip.state.followKey))throw new AppError('This follow-along link is not valid any more.',403);
+   if(!keyAccess(trip.state,key,hash))throw new AppError('This follow-along link is not valid any more.',403);
    const today=japanDate();
    if(route==='follow')return json(res,followView(trip.state,today));
    const shot=followPhoto(trip.state,url.searchParams.get('id'),today);if(!shot)throw new AppError('Photo not found.',404);
@@ -141,7 +146,7 @@ export default async function handler(req,res){
   // next refresh, and the follower gets the view back with theirs in it.
   if(route==='follow-react'&&post){
    const key=String(b.key||''),trip=await readTrip();
-   if(!trip.state.followKey||!/^[a-f0-9]{64}$/.test(key)||hash(key)!==hash(trip.state.followKey))throw new AppError('This follow-along link is not valid any more.',403);
+   if(!keyAccess(trip.state,key,hash))throw new AppError('This follow-along link is not valid any more.',403);
    if(!applyKudos(trip.state,b))throw new AppError('That one could not be given.');
    await updateTrip(state=>applyKudos(state,b));
    return json(res,followView((await readTrip()).state,japanDate()));
@@ -160,12 +165,15 @@ export default async function handler(req,res){
   if(route==='tomorrow-check'&&(req.method==='GET'||post)){
    const secret=process.env.CRON_SECRET||'',given=(req.headers.authorization||'').replace(/^Bearer /,'')||url.searchParams.get('key')||'';
    if(!secret||secret.length<16||hash(given)!==hash(secret))throw new AppError('Not allowed.',403);
-   if(!tomorrowReady())return json(res,{ok:true,ready:false});
+   // The mailed frames get the day's photos on the same nightly run, key or no key.
+   const framed=await mailFrames((await readTrip()).state,japanDate()).catch(()=>[]);
+   if(framed.length)await updateTrip(state=>recordSent(state,framed));
+   if(!tomorrowReady())return json(res,{ok:true,ready:false,framed:framed.length});
    const {state}=await readTrip(),day=tomorrowOf(state);
    if(!day)return json(res,{ok:true,ready:true,day:null});
    return json(res,{ok:true,ready:true,...await nightly(state,day,undefined,{onCheck:check=>tellTomorrow(check,parentsOf(state)).catch(()=>0)})});
   }
-  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),tomorrow:tomorrowReady(),highlights:highlightsReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
+  if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),tomorrow:tomorrowReady(),highlights:highlightsReady(),frameMail:frameMailReady(),postcard:postcardReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
    const db=await database();const [u]=await db`SELECT id,kind,role,household,max_uses,uses FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
@@ -217,6 +225,58 @@ export default async function handler(req,res){
    key??=(await readTrip()).state.followKey;
    const origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
    return json(res,{url:`${origin}/?follow=${key}`});
+  }
+  // A frame's own key: a screen frame at the grandparents' opens the follow-along view in frame
+  // mode on a key of its own, so withdrawing one frame touches nothing else. The keys never go to a
+  // phone in the plan; a parent is handed one frame's link here, when they ask to copy it.
+  if(route==='frame-link'&&post){
+   parent(user);const origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
+   let made=null,problem='';
+   if(b.action==='add'){
+    const label=cleanLabel(b.label);if(!label)throw new AppError('Name the frame, like “Nana’s kitchen iPad”.');
+    await updateTrip(state=>{const list=state.frameKeys||[];if(list.length>=MAX_FRAME_KEYS){problem=`Up to ${MAX_FRAME_KEYS} frames.`;return null;}
+     made={id:randomUUID(),label,key:token(),createdAt:new Date().toISOString(),createdBy:user.name};return {...state,frameKeys:[...list,made]};});
+    if(problem)throw new AppError(problem,409);
+   }else if(b.action==='remove'){
+    await updateTrip(state=>(state.frameKeys||[]).some(f=>f.id===b.id)?{...state,frameKeys:state.frameKeys.filter(f=>f.id!==b.id)}:null);
+   }
+   const {state}=await readTrip(),want=made||(b.action==='url'?(state.frameKeys||[]).find(f=>f.id===b.id):null);
+   if(b.action==='url'&&!want)throw new AppError('That frame has been taken off.',404);
+   return json(res,{frames:(state.frameKeys||[]).map(frameKeyView),url:want?`${origin}/?follow=${want.key}&frame=1`:null});
+  }
+  // A real photo frame's email address (Aura, Nixplay, Skylight): added and taken off by a parent,
+  // and sent the frame's photos now on request as well as every night.
+  if(route==='frame-email'&&post){
+   parent(user);let problem='';
+   if(b.action==='add'){
+    const address=String(b.address||'').trim().toLowerCase(),label=cleanLabel(b.label)||frameService(b.service).label;
+    if(!validFrameEmail(address))throw new AppError('That does not look like an email address.');
+    await updateTrip(state=>{const list=state.frameEmails||[];
+     if(list.some(e=>e.address===address)){problem='That frame is already on the list.';return null;}
+     if(list.length>=MAX_FRAME_EMAILS){problem=`Up to ${MAX_FRAME_EMAILS} frames.`;return null;}
+     return {...state,frameEmails:[...list,{id:randomUUID(),label,address,service:frameService(b.service).id,addedAt:new Date().toISOString(),addedBy:user.name,sent:b.fromNow?Object.fromEntries((state.photos||[]).map(p=>[p.id,'skipped'])):{}}]};});
+    if(problem)throw new AppError(problem,409);
+   }else if(b.action==='remove'){
+    await updateTrip(state=>(state.frameEmails||[]).some(e=>e.id===b.id)?{...state,frameEmails:state.frameEmails.filter(e=>e.id!==b.id)}:null);
+   }else if(b.action==='send'){
+    if(!frameMailReady())throw new AppError('Sending to frames needs an email service: set RESEND_API_KEY and FRAME_MAIL_FROM in the deployment settings.',501);
+    const sent=await mailFrames((await readTrip()).state,japanDate(),{only:b.id||null});
+    if(sent.length)await updateTrip(state=>recordSent(state,sent));
+    const saved=await readTrip();return json(res,{...visibleEnvelope(saved,user),sent:sent.length});
+   }
+   return json(res,visibleEnvelope(await readTrip(),user));
+  }
+  // Posting a postcard from the app, once a provider is connected (server/postcard.mjs). Until
+  // then this says so, and the Postcard button's share sheet does the sending.
+  if(route==='postcard-send'&&post){
+   parent(user);
+   const {state}=await readTrip(),photo=(state.photos||[]).find(p=>p.id===b.photoId&&p.pathname);
+   if(!photo)throw new AppError('That photo is not there any more.',404);
+   const {job,error}=postcardJob({text:b.text||postcardText(state,photo).text},photo,b.address);
+   if(error)throw new AppError(error);
+   const ref=await sendPostcard(job,photo);
+   await updateTrip(state=>({...state,postcardsSent:[{id:randomUUID(),photoId:photo.id,to:job.to.name,provider:postcardProviderId(),ref:String(ref||''),at:new Date().toISOString(),by:user.name},...(state.postcardsSent||[])].slice(0,100)}));
+   return json(res,{ok:true,ref});
   }
   // The invitation link, made and withdrawn the same way. Withdrawing it does not take the
   // invitation down; publishing is a separate switch on the invitation itself.

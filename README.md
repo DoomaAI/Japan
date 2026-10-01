@@ -172,6 +172,8 @@ The shortcut icon is the guide's own cover — the title block, with Mount Fuji,
 | `VAULT_KEY` | 64 hex characters; encrypts Passports & visas. Keep a copy offline: lose or change it and stored documents cannot be opened |
 | `APP_ORIGIN` | Exact production HTTPS origin; no trailing slash |
 | `ANTHROPIC_API_KEY` | Optional. Switches on the features that call the Claude API — reading a menu from a photo, reading a document into English, judging the photo of the day, translating a phrase of our own, looking a planning-board idea up on the web, suggesting ideas for a place, asking what is near here, asking a general question about the trip, and reading the sumo card and its wrestlers; server only, never prefixed `VITE_` |
+| `RESEND_API_KEY`, `FRAME_MAIL_FROM` | Optional. Emails the frame's photos to Aura, Nixplay and Skylight frames (Settings → Follow along), nightly and on request, through Resend. `FRAME_MAIL_FROM` is an address on a domain verified with Resend; add it to each frame's allowed senders |
+| `POSTCARD_PROVIDER`, `POSTCARD_API_KEY` | Not used yet. The seam for posting a postcard from the app (`server/postcard.mjs`); until a provider's adapter is written, the Postcard button's share sheet does the sending |
 | `EMAIL_INBOX_SECRET` | Optional. The secret your mail provider puts in the inbound webhook URL. Without it `/api/email-in` answers 404 to everything; server only |
 | `EMAIL_INBOX_SENDERS` | Optional. Comma-separated addresses allowed to forward email in, or a single `*` to accept any sender. Empty means nobody, not everybody; server only |
 
