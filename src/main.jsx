@@ -5,7 +5,7 @@ import {destinationFor,resolveLocation,showLocationDetails} from './locations.js
 import {ensureFeatures,pendingProgress,phoneLinks,isTrainLeg,PIN_PLACES,stepPin,pinText,phraseSeenBy,phraseQueue,factSeenBy,factsSeenBy,factQueue,THANK_YOU_FROM,THANK_YOU_FOR,BOYS as NOTE_BOYS,todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,ticketList,isArchived,attachmentsOf,documentSteps,documentStepList,documentServesStep} from './trip-features.js';
 import {askPhoneWhereItIs} from './geo.js';
 import RouteCard,{AddJourney} from './RouteCard.jsx';
-import {routeFor,legCount,legsTicked,routeMinutes,baseMinutes,journeyEnds} from './route-data.js';
+import {routeFor,legCount,legsTicked,routeMinutes,baseMinutes,journeyEnds,guideRoute,legName} from './route-data.js';
 import {Challenges,Shopping,SpeakRules,useReadAloud} from './AdventurePages.jsx';
 import Shortlist,{DayFinds} from './Shortlist.jsx';
 import {NextUp,RunningLate,OfflineReadiness,Updates} from './HomeFeatures.jsx';
@@ -239,6 +239,8 @@ function App(){
  const [envelope,setEnvelope]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[opened,setOpened]=useState(false),[error,setError]=useState(''),[toast,setToast]=useState('');
  // A link anyone can join with has asked who this is; the screen that asks is shown instead of the plan.
  const [joining,setJoining]=useState(null);
+ // The stop just added in front of a journey, whose own journey form opens straight away.
+ const [journeyOpen,setJourneyOpen]=useState(null);
  // Arrange Home: in the house look the fold and put-away buttons wait behind this, so Home reads
  // as the day rather than as a row of controls. Not kept: Home opens arranged for reading.
  const [arranging,setArranging]=useState(false);
@@ -760,7 +762,7 @@ function App(){
      // actually happened, and twelve minutes in hand is worth hearing before the next step.
      setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);}}}>Done</Button></>}{parent&&<button className="icon completion-more" aria-label="Edit, lock, move or remove this stop" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal size={18}/></button>}</div>
     {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg} onWaypoint={routeWaypoint} onSwap={routeSwap} onJourney={routeJourney} ends={current.routeStale?journeyEnds(state).get(current.id):null} lookOpen={settingOn(settings,'routeLookOpen')}/>}
-    {!routeFor(current)&&current.status!=='done'&&current.status!=='skipped'&&(parent||current.participants.includes(user.name))&&<AddJourney key={`journey-${current.id}`} step={current} busy={busy} onWaypoint={routeWaypoint} onJourney={routeJourney}/>}
+    {!routeFor(current)&&current.status!=='done'&&current.status!=='skipped'&&(parent||current.participants.includes(user.name))&&<AddJourney key={`journey-${current.id}`} step={current} busy={busy} onWaypoint={routeWaypoint} onJourney={routeJourney} startOpen={journeyOpen===current.id}/>}
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore stop</button></p>}
     {/* One row rather than three that stack. Untouched, what only this day has (the park, the
         sumo, the train window) comes first, then everything every stop has; press and hold any
@@ -969,7 +971,7 @@ function App(){
    {modal.type==='offline'&&<OfflineReadiness state={state} day={day} notice={notice} refresh={refresh}/>}
    {modal.type==='capture'&&<QuickCapture state={state} day={day} user={user} mutate={mutate} busy={busy} setBusy={setBusy} request={request} accept={accept} config={config} notice={notice} close={()=>setModal(null)}/>}
    {modal.type==='schedule'&&<form onSubmit={async e=>{e.preventDefault();const f=new FormData(e.currentTarget);if(await mutate({type:'schedule',id:modal.step.id,day:f.get('day'),time:f.get('time')||null}))setModal(null);}}><h3>{modal.step.title}</h3><label>Day<select name="day" defaultValue={day}>{state.days.map(d=><option key={d.date} value={d.date}>{fmtDay(d.date)}</option>)}</select></label><label>Time (optional)<input name="time" type="time"/></label>{modal.step.backlogFrom?.bookingTime&&<p className="callout">Previous booking: {modal.step.backlogFrom.bookingTime}. Confirm any new reservation separately.</p>}<Button className="primary">Add to itinerary</Button></form>}
-   {modal.type==='edit'&&<StepForm step={modal.step} before={modal.before} day={modal.backlog?null:day} state={state} busy={busy} onSave={async op=>{const result=await mutate(op);if(!result)return;setModal(null);const added=op.type==='add'&&result.state?.steps?.at(-1);if(added)selectStep(added);}} onRemove={s=>setModal({type:'remove',step:s})} onOption={s=>{setModal(null);optionStop(s);}} onCancel={()=>setModal(null)}/>}
+   {modal.type==='edit'&&<StepForm step={modal.step} before={modal.before} day={modal.backlog?null:day} state={state} busy={busy} onSave={async (op,how={})=>{const result=await mutate(op);if(!result)return;setModal(null);const added=op.type==='add'&&result.state?.steps?.at(-1);if(added){selectStep(added);if(how.openJourney)setJourneyOpen(added.id);}const shown=how.select&&result.state?.steps?.find(s=>s.id===how.select);if(shown)selectStep(shown);}} onRemove={s=>setModal({type:'remove',step:s})} onOption={s=>{setModal(null);optionStop(s);}} onCancel={()=>setModal(null)}/>}
    {/* The removal is confirmed in the app rather than by the browser's own confirm box, so the
        question can say which stop is going, what stays behind, and that Options will keep the
        whole stop instead. Closing it any other way — the X, the backdrop, Escape — keeps the
@@ -1010,11 +1012,17 @@ function ContactRow({phone,title}){
 function AppLinks({day}){const ids=day==='2026-09-25'?['usj','maps','translate']:day>='2026-09-29'&&day<='2026-10-01'?['disney','maps','translate']:['maps','translate','qantas','disney','usj','japan'];return <div className="app-links">{ids.map(id=><Link key={id} href={APPS[id][1]}><span>{APPS[id][0]}</span><ExternalLink size={18}/></Link>)}</div>;}
 function StepForm({step,day,before,state,busy,onSave,onRemove,onOption,onCancel}){
  const [form,setForm]=useState(step?{locationId:resolveLocation(state,step)?.id||null,travelMinutes:20,arrivalBuffer:15,bookingReference:'',website:'',bookedVia:'',bookedViaUrl:'',phone:'',...step}:{locationId:null,travelMinutes:20,arrivalBuffer:15,locked:false,bookingTime:null,bookingReference:'',website:'',bookedVia:'',bookedViaUrl:'',phone:'',title:'',day,time:'',duration:30,place:'',japanese:'',notes:'',kind:'flexible',page:state.days.find(d=>d.date===day)?.pages[0]||1,participants:[...state.members],group:'',option:'',pin:null});
- const [position,setPosition]=useState(before||'end'),[at,setAt]=useState(step?.completedAt?step.day+'T'+japanClock(new Date(step.completedAt)):'');
+ const [position,setPosition]=useState(before||'end'),[via,setVia]=useState('split'),[viaAfter,setViaAfter]=useState(null),[at,setAt]=useState(step?.completedAt?step.day+'T'+japanClock(new Date(step.completedAt)):'');
  const [locating,setLocating]=useState(false),[geoTrouble,setGeoTrouble]=useState('');
  // A new stop is mostly a name and a time: everything else has a sensible default. So adding one
  // asks for those first, with Save straight under them, and the rest waits behind one tap.
  const [full,setFull]=useState(!!step);
+ // A new stop put in front of a stop with a journey changes where that journey starts. Rather than
+ // leave a notice to deal with later, the form offers the three ways it usually goes, once, right
+ // here: plan the way to the new stop now (the journey on is marked to check), keep the journey as
+ // it is, or make the new stop a stop on that journey instead of a stop of its own.
+ const routed=!step&&form.day!==null&&position!=='end'?(()=>{const t=state.steps.find(s=>s.id===position&&s.day===form.day);return t&&t.status!=='done'&&routeFor(t)?t:null;})():null;
+ const viaBase=routed?guideRoute(routed)||[]:[],viaAt=viaAfter??Math.min(1,viaBase.length);
  const field=(k,v)=>setForm({...form,[k]:v,...(k==='place'?{locationId:null}:{})});
  // Standing in the place being written down is the one moment its position is free, and typing
  // an address you cannot read off a shopfront is the one part of this form nobody can do. So the
@@ -1026,7 +1034,7 @@ function StepForm({step,day,before,state,busy,onSave,onRemove,onOption,onCancel}
   catch(e){setGeoTrouble(`${e.message}. Type the place or a Google Maps link instead.`);}
   finally{setLocating(false);}
  }
- return <form onSubmit={e=>{e.preventDefault();let patch=Object.fromEntries(['title','day','time','duration','place','japanese','notes','kind','page','participants','group','option','bookingTime','bookingReference','locked','website','bookedVia','bookedViaUrl','phone','travelMinutes','arrivalBuffer','locationId','pin','category','windowMinutes'].map(k=>[k,form[k]]));patch.category=form.category||'';patch.pin=form.pin||null;patch.time=patch.time||null;patch.bookingTime=patch.bookingTime||null;if(form.day===null){patch.time=null;patch.bookingTime=null;patch.locked=false;}patch.travelMinutes=Number(patch.travelMinutes);patch.arrivalBuffer=Number(patch.arrivalBuffer);patch.duration=Number(patch.duration);patch.windowMinutes=Number(patch.windowMinutes)||null;patch.page=Number(patch.page);if(!step&&position!=='end'){const target=state.steps.find(s=>s.id===position&&s.day===form.day);if(target)patch.order=target.order-0.5;}onSave(step?{type:'patch',id:step.id,patch}:{type:'add',step:patch});}}>
+ return <form onSubmit={e=>{e.preventDefault();let patch=Object.fromEntries(['title','day','time','duration','place','japanese','notes','kind','page','participants','group','option','bookingTime','bookingReference','locked','website','bookedVia','bookedViaUrl','phone','travelMinutes','arrivalBuffer','locationId','pin','category','windowMinutes'].map(k=>[k,form[k]]));patch.category=form.category||'';patch.pin=form.pin||null;patch.time=patch.time||null;patch.bookingTime=patch.bookingTime||null;if(form.day===null){patch.time=null;patch.bookingTime=null;patch.locked=false;}patch.travelMinutes=Number(patch.travelMinutes);patch.arrivalBuffer=Number(patch.arrivalBuffer);patch.duration=Number(patch.duration);patch.windowMinutes=Number(patch.windowMinutes)||null;patch.page=Number(patch.page);if(routed&&via==='waypoint'){const text=`${form.title.trim()}${form.place&&form.place!==form.title?` (${form.place})`:''}`.slice(0,160);onSave({type:'waypoint',id:routed.id,action:'add',kind:'stop',text,after:viaAt,minutes:Math.min(180,Math.max(1,Number(form.duration)||15))},{select:routed.id});return;}if(!step&&position!=='end'){const target=state.steps.find(s=>s.id===position&&s.day===form.day);if(target)patch.order=target.order-0.5;}onSave(step?{type:'patch',id:step.id,patch}:{type:'add',step:patch,...(routed&&via==='keep'?{keepJourneys:true}:{})},{openJourney:!!routed&&via==='split'});}}>
   {/* What used to sit as three icons on the card's top edge: the quick answers come first, the form after. */}
   {step&&<div className="row wrap step-quick"><Button type="button" icon={step.locked?LockKeyholeOpen:LockKeyhole} disabled={busy||step.day===null} onClick={()=>onSave({type:'lock',id:step.id,locked:!step.locked})}>{step.locked?'Unlock the time':'Lock the time'}</Button>{step.day&&<Button type="button" icon={Inbox} disabled={busy} onClick={()=>onOption(step)}>Save to Options</Button>}<Button type="button" className="danger" icon={Trash2} onClick={()=>onRemove(step)}>Remove this stop</Button></div>}
   <label>Activity<input required value={form.title} maxLength={250} onChange={e=>field('title',e.target.value)}/></label>
@@ -1051,6 +1059,10 @@ function StepForm({step,day,before,state,busy,onSave,onRemove,onOption,onCancel}
   </>}
   <fieldset><legend>Who’s going?</legend><div className="checks">{state.members.map(n=><label key={n}><input type="checkbox" checked={form.participants.includes(n)} onChange={e=>field('participants',e.target.checked?[...form.participants,n]:form.participants.filter(x=>x!==n))}/>{n}</label>)}</div></fieldset>
   {!step&&form.day!==null&&<label>Insert before<select value={position} onChange={e=>setPosition(e.target.value)}><option value="end">End of day</option>{state.steps.filter(s=>s.day===form.day).sort((a,b)=>a.order-b.order).map(s=><option key={s.id} value={s.id}>{s.time} {s.title}</option>)}</select></label>}
+  {routed&&<fieldset className="journey-choice"><legend>The way to {routed.title}</legend>
+   {[['split','Plan the way here now; the journey on is marked to check'],['keep',`Keep the journey to ${routed.title} as it is`],['waypoint','Make this a stop on that journey instead']].map(([k,label])=><label key={k} className="checkline"><input type="radio" name="journey-via" checked={via===k} onChange={()=>setVia(k)}/>{label}</label>)}
+   {via==='waypoint'&&viaBase.length>0&&<label>Where on the way<select value={viaAt} onChange={e=>setViaAfter(Number(e.target.value))}><option value={0}>Before setting off</option>{viaBase.map((l,k)=><option key={k} value={k+1}>{k+1===viaBase.length?'At the end, ':''}after leg {k+1}, {legName(l)}</option>)}</select></label>}
+  </fieldset>}
   {full&&<details><summary>Options and guide link</summary><p>Give alternative plans the same group name, and a different option name. Stops in the same option stay together. To split up instead — both options at once, by different people — give each side its own option name, tick who is going on each, then choose <em>We split up and do both</em> on the day. The first stop afterwards with everyone on it is where we meet back up.</p><label>Option group<input value={form.group} onChange={e=>field('group',e.target.value)}/></label><label>Option name<input value={form.option} onChange={e=>field('option',e.target.value)}/></label><label>Original guide page<input type="number" min="1" max="72" value={form.page} onChange={e=>field('page',e.target.value)}/></label></details>}
   {/* Save stays in view while the long form scrolls under it. */}
   <div className="row wrap step-save"><Button className="primary" disabled={busy||!form.participants.length}>Save</Button><Button type="button" onClick={onCancel}>Cancel</Button></div>
