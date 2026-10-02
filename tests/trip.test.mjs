@@ -305,7 +305,11 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  assert.doesNotMatch(css,/today-layout/,'and the grid that made two of them is gone with it');
  // Choosing a day on the day at a glance stays on the day at a glance. selectDay goes Home, so
  // the strip is told where a tap lands rather than assuming it.
- assert.match(main,/const dayStrip=pick=><div className="date-strip"/);
+ assert.match(main,/const dayStrip=pick=><DateStrip day=\{day\}>/);
+ assert.match(main,/return <div ref=\{ref\} className="date-strip" aria-label="Trip days">/);
+ // The strip centres the day being shown itself, when it appears and when the day changes, measured
+ // against the strip rather than the page.
+ assert.match(main,/strip\.scrollLeft\+=b\.left-a\.left-\(a\.width-b\.width\)\/2;\};[\s\S]{0,120}centre\(\);document\.fonts\?\.ready\.then\(centre\);\},\[day\]\);/);
  assert.match(main,/onClick=\{\(\)=>pick\(d\.date\)\}/);
  assert.match(main,/\{dayStrip\(selectDay\)\}/,'and Home still lands on Home');
  // Tapping a stop there opens its card, which is the one place a step is read in full.
@@ -433,6 +437,8 @@ test('the trip countdown counts down in Japan days, then counts the days of the 
  assert.ok(HOME_WIDGETS.countdown.label);
  assert.match(main,/countdown:\(c=>c&&<section className=\{`countdown-card/);
  assert.match(main,/\{behind&&<Check className="strip-tick"/,'the date strip ticks the days behind us');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/\.date-strip \.strip-tick\{position:absolute;bottom:4px;left:50%;transform:translateX\(-50%\)/,'the tick sits under the date, clear of the weekday, where the today dot would be');
 });
 test('the Days cover is a book to swipe, and the day on the open page is picked out below',async()=>{
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
