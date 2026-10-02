@@ -34,11 +34,12 @@ export default function BigSteps({legs,step,canTick,busy,onTick,onClose}){
  useEffect(()=>{const k=e=>{if(e.key==='Escape')onClose();else if(e.key==='ArrowRight')move(1);else if(e.key==='ArrowLeft')move(-1);};window.addEventListener('keydown',k);return()=>window.removeEventListener('keydown',k);},[n]);
  // One pointer path for a finger and a mouse alike: a short press is a tap on one half of the
  // screen, a long sideways drag is a swipe. A press on a button is the button's.
+ // The Home stop card underneath swipes between stops, so its touches stop here.
  const press=e=>{if(e.target.closest('button'))return;touch.current={x:e.clientX,y:e.clientY};};
  const lift=e=>{const t=touch.current;touch.current=null;if(!t||e.target.closest('button'))return;const dx=e.clientX-t.x,dy=e.clientY-t.y;
   if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy))move(dx<0?1:-1);else if(Math.abs(dx)<12&&Math.abs(dy)<12)move(e.clientX>window.innerWidth/2?1:-1);};
  const done=legDone(step,s.leg);
- return <div className="big-steps" role="dialog" aria-modal="true" aria-label={`${step.title}: step by step`} onPointerDown={press} onPointerUp={lift}>
+ return <div className="big-steps" role="dialog" aria-modal="true" aria-label={`${step.title}: step by step`} onPointerDown={press} onPointerUp={lift} onTouchStart={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}>
   <header><div><small>{step.title}</small><strong>Step {at+1} of {n}{done?' · done':''}</strong></div><button type="button" aria-label="Close" onClick={onClose}><X/></button></header>
   <div className={`big-step is-${s.kind}`} key={at}>
    <p className="big-step-kind">{s.taxi?<CarTaxiFront size={28}/>:s.other?<Navigation size={28}/>:s.stop?<Luggage size={28}/>:s.kind==='walk'?<Footprints size={28}/>:<TrainFront size={28}/>}{s.title}</p>
