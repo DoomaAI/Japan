@@ -718,6 +718,9 @@ function App(){
  // standing on when it is not, so choosing a day on the day at a glance does not send you home.
  const dayHeading=<div className="day-heading"><div><p className="eyebrow">{today?.city} / {fmtDay(day)}</p><h1>{today?.title}</h1></div><button className="icon" aria-label="Choose day" onClick={()=>setTab('days')}><CalendarDays/></button></div>;
  const dayStrip=pick=><DateStrip day={day}>{state.days.map(d=>{const behind=dayBehind(visibleState,d.date,todayJapan);return <button key={d.date} className={`${day===d.date?'selected':''}${behind?' behind':''}`} aria-label={behind?`${fmtDay(d.date)}, completed`:undefined} onClick={()=>pick(d.date)}><span>{fmtDay(d.date,{weekday:'short'})}</span><strong>{d.date.slice(-2)}</strong>{behind&&<Check className="strip-tick" size={11} strokeWidth={3} aria-hidden="true"/>}{d.date===japanDate()&&<i aria-label="Today"/>}</button>;})}</DateStrip>;
+ // The day's pages in the original guide, as thumbnails to swipe — a widget on Home and the
+ // foot of the day at a glance.
+ const dayGuide=!!today?.pages?.length&&<section className="day-guide" aria-label="Original guide pages for this day"><div className="section-heading"><div><p className="eyebrow">YOUR ORIGINAL TRAVEL GUIDE</p><h2>This day in the guide</h2></div><Button icon={BookOpen} onClick={()=>openPage(today.pages[0])}>Read guide</Button></div><p>Swipe through the pages · tap any page to read it in full.</p><div className="day-guide-pages" key={day}>{today.pages.map(p=><button key={p} className="day-guide-page" onClick={()=>openPage(p)} aria-label={`Read original guide page ${p}`}><img src={`/api/guide?page=${p}`} alt={`Original travel guide page ${p}`} loading="lazy"/><span>Page {p}<ChevronRight size={16}/></span></button>)}</div></section>;
  // Home is a stack of widgets, in the order this person has put them and without the ones they
  // have put away. Each one is written here once and drawn by id, so the arrangement lives in
  // one list on the phone rather than in the shape of this screen.
@@ -822,7 +825,7 @@ function App(){
   spare:<SpareTime state={visibleState} day={day} now={now} user={user} parent={parent} busy={busy} mutate={mutate} selectStep={selectStep} openPark={p=>setModal({type:'park',park:p})}/>,
   nextup:<NextUp state={visibleState} day={day} person={lens||null} after={current?.id||null} now={now} selectStep={selectStep} open={setModal} go={go} user={user} mutate={mutate} busy={busy} parent={parent}/>,
   tally:<div className="day-tools"><span><CheckCircle2 size={16}/>{done} of {steps.length} completed{dayKudos(visibleState,day).total>0&&<small className="day-kudos">{kudosLine(dayKudos(visibleState,day))} from home · {giversLine(dayKudos(visibleState,day))}</small>}</span><div><Button icon={ImageIcon} onClick={()=>setModal({type:'media',day})}>Photos</Button><Button icon={Mic} onClick={()=>setModal({type:'voice',day})}>Voice</Button><Button icon={Ticket} onClick={()=>setModal({type:'tickets'})}>Tickets</Button>{config?.nearby&&<Button icon={Compass} onClick={()=>setModal({type:'nearby'})}>Near here</Button>}{parent&&<Button icon={Plus} onClick={()=>setModal({type:'edit',step:null})}>Add</Button>}</div></div>,
-  guide:!!today?.pages?.length&&<section className="day-guide" aria-label="Original guide pages for this day"><div className="section-heading"><div><p className="eyebrow">YOUR ORIGINAL TRAVEL GUIDE</p><h2>This day in the guide</h2></div><Button icon={BookOpen} onClick={()=>openPage(today.pages[0])}>Read guide</Button></div><p>Swipe through the pages · tap any page to read it in full.</p><div className="day-guide-pages" key={day}>{today.pages.map(p=><button key={p} className="day-guide-page" onClick={()=>openPage(p)} aria-label={`Read original guide page ${p}`}><img src={`/api/guide?page=${p}`} alt={`Original travel guide page ${p}`} loading="lazy"/><span>Page {p}<ChevronRight size={16}/></span></button>)}</div></section>,
+  guide:dayGuide,
   weather:<Weather state={visibleState} day={day} now={now} mutate={mutate} busy={busy} online={online} notice={notice} dayLabel={fmtDay} go={go}/>,
   running:<Running state={visibleState} day={day}/>,
   packing:<PackingNudge state={visibleState} user={user} day={day} go={go}/>,
@@ -873,6 +876,9 @@ function App(){
    <DayTimeline steps={steps} allSteps={allSteps} splits={splits} lens={lens} setLens={follow} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/>
    <DayMap key={day} state={visibleState} day={day} selectStep={selectStep}/>
    {awarenessAllows(visibleState,user.name,'spare')&&<SpareTime state={visibleState} day={day} now={now} user={user} parent={parent} busy={busy} mutate={mutate} selectStep={selectStep} openPark={p=>setModal({type:'park',park:p})}/>}
+   {/* The day's pages in the original guide close the page: the stops come first, and the
+       thumbnails are there underneath for whoever wants to read the day as it was written. */}
+   {dayGuide}
   </>}
   {tab==='challenges'&&<Challenges key={day+(focus||'')} initialId={focus} state={visibleState} user={user} day={day} mutate={mutate} busy={busy}/>}
   {tab==='shopping'&&<Shopping key={focus||'shopping'} initialId={focus} state={state} user={user} day={day} mutate={mutate} busy={busy} go={go} remove={removeThen} request={request} accept={accept} config={config} notice={notice}/>}
