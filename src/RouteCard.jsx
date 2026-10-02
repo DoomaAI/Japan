@@ -1,14 +1,14 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {AlertTriangle,Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket,Baby,ChevronDown,ArrowLeft,ArrowRight,Luggage,MapPinPlus,Trash2,Pencil,CarTaxiFront,Clock,Navigation,Shuffle,Undo2} from 'lucide-react';
-import {LINES,legStops,stationLabel,whereOnRoute,headingWrongWay,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked,legToDo,legStrip,ROUTES,MAX_WAYPOINTS,WAYPOINT_KINDS,routeMinutes,addedMinutes,SWAP_MODES,LEG_LABELS,legName,legLabel,swappable,baseMinutes,ownJourney,guideRoute} from './route-data.js';
+import {LINES,legStops,stationLabel,whereOnRoute,rideTrouble,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked,legToDo,legStrip,ROUTES,MAX_WAYPOINTS,WAYPOINT_KINDS,routeMinutes,addedMinutes,SWAP_MODES,LEG_LABELS,legName,legLabel,swappable,baseMinutes,ownJourney,guideRoute} from './route-data.js';
 import {minutes as clockMinutes,asClock} from './timing.js';
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
 import BigSteps,{BigStepsButton} from './BigSteps.jsx';
 // Follows the phone along the route while it is open and tracking is on. GPS fades underground,
 // so the last good fix is kept and its age shown rather than guessing. The fixes of the last half
-// hour are kept too, rough ones left out, so a train going the wrong way can be told from a
-// phone that has just lost its place.
+// hour are kept too, rough ones left out, so a train going the wrong way or off the route can be
+// told from a phone that has just lost its place.
 const TRAIL=30*60000,ROUGH=200;
 function useTracking(rides,rideLegs){
  const [on,setOn]=useState(false),[fix,setFix]=useState(null),[trail,setTrail]=useState([]),[trouble,setTrouble]=useState(''),[fine,setFine]=useState(()=>new Set()),buzzed=useRef(new Set());
@@ -23,7 +23,7 @@ function useTracking(rides,rideLegs){
   return ()=>navigator.geolocation.clearWatch(id);
  },[on]);
  const where=fix&&whereOnRoute(rides,fix);
- const heading=on&&trail.length>1?headingWrongWay(rideLegs,trail):null,wrong=heading&&!fine.has(heading.i)?heading:null;
+ const problem=on&&trail.length>1?rideTrouble(rideLegs,trail):null,wrong=problem&&!fine.has(`${problem.i}:${problem.kind}`)?problem:null;
  useEffect(()=>{
   if(!where?.ready)return;
   const key=`${where.i}`;
@@ -33,23 +33,27 @@ function useTracking(rides,rideLegs){
  // Said once a ride: a long buzz, and a notification as well when the app is not on screen.
  useEffect(()=>{
   if(!wrong)return;
-  const key=`wrong:${wrong.i}`;
+  const key=`wrong:${wrong.i}:${wrong.kind}`;
   if(buzzed.current.has(key))return;
   buzzed.current.add(key);navigator.vibrate?.([600,200,600,200,600]);
   if(document.visibilityState!=='visible'&&typeof Notification!=='undefined'&&Notification.permission==='granted')
-   navigator.serviceWorker?.ready.then(r=>r.showNotification('Going the wrong way?',{body:wrongWords(wrong,rideLegs[wrong.i]).text,tag:`wrong-way-${wrong.i}`,icon:'/icon-192.png',badge:'/favicon-32.png',data:{url:location.href}})).catch(()=>{});
- },[wrong?.i]);
- const rightWay=i=>setFine(s=>new Set(s).add(i));
+   navigator.serviceWorker?.ready.then(r=>r.showNotification(wrongWords(wrong,rideLegs[wrong.i]).title,{body:wrongWords(wrong,rideLegs[wrong.i]).text,tag:`wrong-${wrong.kind}-${wrong.i}`,icon:'/icon-192.png',badge:'/favicon-32.png',data:{url:location.href}})).catch(()=>{});
+ },[wrong?.i,wrong?.kind]);
+ const rightWay=w=>setFine(s=>new Set(s).add(`${w.i}:${w.kind}`));
  return {on,setOn,fix,where,wrong,rightWay,trouble};
 }
 const vehicle=leg=>LINES[leg.line].kind==='Bus'?'bus':'train';
 function wrongWords(wrong,leg){
- const v=vehicle(leg),where=wrong.behind?`Near ${stationLabel(wrong.behind)}, back the other way from ${wrong.from.name}`:`Moving away from ${wrong.from.name} on the far side from the next stop`;
- return {text:`${where}: this ${v} looks to be heading away from ${wrong.to.name}.`,fix:`Get off at the next stop and take a ${v} back to ${wrong.from.name}, then board towards ${leg.towards.replace(/[.]$/,'')}.`};
+ const v=vehicle(leg),line=LINES[leg.line].name,towards=leg.towards.replace(/[.]$/,'');
+ if(wrong.kind==='route')return {title:'Off the route?',
+  text:`About ${(wrong.metres/1000).toFixed(1)} km off the ${line} between ${wrong.from.name} and ${wrong.to.name}, last on it near ${wrong.left.name}: this ${v} may be on another line or branch.`,
+  fix:`Get off at the next stop and check the signs: the ${line} to ${wrong.to.name} runs towards ${towards}. Live times can find the way back from where you are.`};
+ const where=wrong.behind?`Near ${stationLabel(wrong.behind)}, back the other way from ${wrong.from.name}`:`Moving away from ${wrong.from.name} on the far side from the next stop`;
+ return {title:'Going the wrong way?',text:`${where}: this ${v} looks to be heading away from ${wrong.to.name}.`,fix:`Get off at the next stop and take a ${v} back to ${wrong.from.name}, then board towards ${towards}.`};
 }
 function WrongWay({wrong,leg,onFine}){
  const w=wrongWords(wrong,leg);
- return <div className="route-wrong" role="alert"><p><AlertTriangle size={16}/><strong>Going the wrong way?</strong></p><span>{w.text}</span><span>{w.fix}</span>
+ return <div className="route-wrong" role="alert"><p><AlertTriangle size={16}/><strong>{w.title}</strong></p><span>{w.text}</span><span>{w.fix}</span>
   <button type="button" onClick={onFine}><Check size={14}/>We are on the right {vehicle(leg)}</button></div>;
 }
 function Tracker({legs,rides,track,status,onPress}){
@@ -61,7 +65,7 @@ function Tracker({legs,rides,track,status,onPress}){
  <button className={`route-track-toggle${on?' is-on':''}`} aria-pressed={on} onClick={()=>{onPress();setOn(!on);}}>{on?<><Square size={14}/>Stop tracking</>:<><LocateFixed size={14}/>Track this ride</>}</button>
  {status&&<div className={`route-track${where?.ready?' ready':''}`} aria-live="polite">
   {on&&!fix&&!trouble&&<span>Finding you…</span>}
-  {on&&wrong&&<WrongWay wrong={wrong} leg={rideLegs[wrong.i]} onFine={()=>track.rightWay(wrong.i)}/>}
+  {on&&wrong&&<WrongWay wrong={wrong} leg={rideLegs[wrong.i]} onFine={()=>track.rightWay(wrong)}/>}
   {trouble&&<span>{trouble}. Count the stops from the list instead.</span>}
   {on&&fix&&!where&&!wrong&&<span>Not near any {rideLegs.some(l=>LINES[l.line].kind!=='Bus')?'station':'stop'} on this route yet.</span>}
   {on&&where&&!wrong&&(where.arrived

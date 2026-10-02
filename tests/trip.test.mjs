@@ -9536,7 +9536,7 @@ test('tracking at a change follows the ride still to come',async()=>{
  assert.equal(whereOnRoute(rides,{lat:34.9858,lng:135.7588}).i,1);
 });
 test('a ride going the wrong way is told from one going the right way, or a walk',async()=>{
- const {legStops,wrongWay,headingWrongWay}=await import('../src/route-data.js');
+ const {legStops,wrongWay,rideTrouble}=await import('../src/route-data.js');
  const at=(p,min)=>({lat:p.lat,lng:p.lng,at:min*60000});
  const hommachi=legStops({line:'midosuji',from:'Hommachi',to:'Namba'});
  const [yodoyabashi]=legStops({line:'midosuji',from:'Yodoyabashi',to:'Hommachi'});
@@ -9555,9 +9555,30 @@ test('a ride going the wrong way is told from one going the right way, or a walk
  assert.equal(wrongWay(loop,[at(gateway,0),at({lat:gateway.lat+.02,lng:gateway.lng},2)]),null);
  // At a change, the ride to come: off the subway at Kyoto, then east instead of west on the Sagano Line.
  const rides=[{line:'karasuma',from:'Gojo',to:'Kyoto'},{line:'sagano',from:'Kyoto',to:'Saga-Arashiyama'}],[gojo,kyoto]=legStops(rides[0]);
- assert.equal(headingWrongWay(rides,[at(gojo,0),at(kyoto,4),at({lat:kyoto.lat,lng:kyoto.lng+.0165},8)]).i,1);
- assert.equal(headingWrongWay(rides,[at(gojo,0),at({lat:(gojo.lat+kyoto.lat)/2,lng:gojo.lng},2)]),null);
- assert.equal(headingWrongWay(rides,[at(kyoto,0),at(legStops(rides[1])[2],6)]),null);
+ assert.deepEqual((({i,kind})=>[i,kind])(rideTrouble(rides,[at(gojo,0),at(kyoto,4),at({lat:kyoto.lat,lng:kyoto.lng+.0165},8)])),[1,'way']);
+ assert.equal(rideTrouble(rides,[at(gojo,0),at({lat:(gojo.lat+kyoto.lat)/2,lng:gojo.lng},2)]),null);
+ assert.equal(rideTrouble(rides,[at(kyoto,0),at(legStops(rides[1])[2],6)]),null);
+});
+test('a ride that leaves its line for another line or a branch is off the route',async()=>{
+ const {legStops,offRoute,rideTrouble}=await import('../src/route-data.js');
+ const at=(p,min)=>({lat:p.lat,lng:p.lng,at:min*60000}),leg={line:'kintetsu',from:'Kyoto',to:'Kintetsu-Nara'},stops=legStops(leg);
+ const saidaiji=stops.find(s=>s.name==='Yamato-Saidaiji'),south=km=>({lat:saidaiji.lat-km/111,lng:saidaiji.lng});
+ // A Kashihara-jingu-mae train: on the line to Yamato-Saidaiji, then south instead of east to Nara.
+ const branch=[at(stops[0],0),at(stops[5],15),at(saidaiji,30),at(south(4),34),at(south(5),35)];
+ const o=offRoute(leg,branch);
+ assert.deepEqual([o.left.name,o.to.name,o.metres>3000],['Yamato-Saidaiji','Kintetsu-Nara',true]);
+ assert.equal(rideTrouble([leg],branch).kind,'route');
+ // Between stations on the line, it is on the route; so is a curve that strays less than the allowance.
+ const mid=(a,b)=>({lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2});
+ assert.equal(offRoute(leg,[at(stops[0],0),at(mid(stops[4],stops[5]),12),at({...mid(stops[5],stops[6]),lng:mid(stops[5],stops[6]).lng+.02},20)]),null);
+ // One stray position is not enough, nor is a walk off the line, nor a taxi once the ride has ended.
+ assert.equal(offRoute(leg,[at(stops[0],0),at(saidaiji,30),at(saidaiji,31),at(south(5),35)]),null);
+ assert.equal(offRoute(leg,[at(stops[0],0),at(saidaiji,30),at(south(4),80),at(south(5),95)]),null);
+ const nara=stops[stops.length-1],east=km=>({lat:nara.lat,lng:nara.lng+km/91});
+ assert.equal(offRoute(leg,[at(stops[0],0),at(nara,35),at(east(4),45),at(east(6),48)]),null);
+ // Going the wrong way from the station is said as that, not as off the route.
+ const sagano={line:'sagano',from:'Kyoto',to:'Saga-Arashiyama'},[kyoto]=legStops(sagano);
+ assert.equal(rideTrouble([sagano],[at(kyoto,0),at({lat:kyoto.lat,lng:kyoto.lng+.02},3),at({lat:kyoto.lat,lng:kyoto.lng+.03},4)]).kind,'way');
 });
 test('route notes corrected since reach a trip that already had an earlier version',async()=>{
  const {STOP_NOTES}=await import('../src/stop-notes.js');
