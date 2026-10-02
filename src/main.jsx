@@ -226,6 +226,20 @@ const INSTANT_OPS=['status','legStatus','stageSet','challengeStatus','challengeS
 // that day is behind us, in which case the phone was put down overnight and Home should open on
 // today, not on last night's hotel. A stop restored this way is checked once the plan arrives:
 // a finished one is let go of, so the morning starts on what is next rather than what was last.
+// The strip of dates opens with the day being shown in the middle of it, not on the first day
+// of the trip, so the day in hand is always one of the dates in view. The strip does this itself
+// when it appears, so it holds on every page it is on and after anything that held it back (the
+// opening screen, a page still loading), and again whenever the day changes. Only the strip
+// scrolls, never the page; measured against the strip, since the dates' offset parent is the page.
+function DateStrip({day,children}){
+ const ref=useRef(null);
+ useLayoutEffect(()=>{const centre=()=>{const strip=ref.current,on=strip?.querySelector('.selected');if(!on)return;
+  const a=strip.getBoundingClientRect(),b=on.getBoundingClientRect();
+  strip.scrollLeft+=b.left-a.left-(a.width-b.width)/2;};
+  // Once more when the fonts land, as the dates widen a little when they do.
+  centre();document.fonts?.ready.then(centre);},[day]);
+ return <div ref={ref} className="date-strip" aria-label="Trip days">{children}</div>;
+}
 function startingPosition(){
  const p=new URLSearchParams(location.search),saved=stored('japan.position',{}),today=japanDate();
  if(p.get('day'))return {day:p.get('day'),step:p.get('step')||null,fromUrl:true};
@@ -407,9 +421,6 @@ function App(){
   };
   document.addEventListener('visibilitychange',look);return()=>document.removeEventListener('visibilitychange',look);
  },[]);
- // The strip of dates opens on the day being shown, not on the first day of the trip, so the
- // day in hand is always one of the dates in view. Only the strip scrolls, never the page.
- useEffect(()=>{for(const strip of document.querySelectorAll('.date-strip')){const on=strip.querySelector('.selected');if(on)strip.scrollLeft=on.offsetLeft-(strip.clientWidth-on.offsetWidth)/2;}},[day,tab,!!envelope]);
  // Tell iOS once, at the start, that anything this page plays is media rather than a
  // notification noise. Safari starts every page in the category the silent switch mutes, and
  // the type has to be set early and then left alone.
@@ -706,7 +717,7 @@ function App(){
  // to be told where a tap lands — Home when it is Home asking, and the screen you are already
  // standing on when it is not, so choosing a day on the day at a glance does not send you home.
  const dayHeading=<div className="day-heading"><div><p className="eyebrow">{today?.city} / {fmtDay(day)}</p><h1>{today?.title}</h1></div><button className="icon" aria-label="Choose day" onClick={()=>setTab('days')}><CalendarDays/></button></div>;
- const dayStrip=pick=><div className="date-strip" aria-label="Trip days">{state.days.map(d=>{const behind=dayBehind(visibleState,d.date,todayJapan);return <button key={d.date} className={`${day===d.date?'selected':''}${behind?' behind':''}`} aria-label={behind?`${fmtDay(d.date)}, completed`:undefined} onClick={()=>pick(d.date)}><span>{fmtDay(d.date,{weekday:'short'})}</span><strong>{d.date.slice(-2)}</strong>{behind&&<Check className="strip-tick" size={12} aria-hidden="true"/>}{d.date===japanDate()&&<i aria-label="Today"/>}</button>;})}</div>;
+ const dayStrip=pick=><DateStrip day={day}>{state.days.map(d=>{const behind=dayBehind(visibleState,d.date,todayJapan);return <button key={d.date} className={`${day===d.date?'selected':''}${behind?' behind':''}`} aria-label={behind?`${fmtDay(d.date)}, completed`:undefined} onClick={()=>pick(d.date)}><span>{fmtDay(d.date,{weekday:'short'})}</span><strong>{d.date.slice(-2)}</strong>{behind&&<Check className="strip-tick" size={11} strokeWidth={3} aria-hidden="true"/>}{d.date===japanDate()&&<i aria-label="Today"/>}</button>;})}</DateStrip>;
  // The day's pages in the original guide, as thumbnails to swipe — a widget on Home and the
  // foot of the day at a glance.
  const dayGuide=!!today?.pages?.length&&<section className="day-guide" aria-label="Original guide pages for this day"><div className="section-heading"><div><p className="eyebrow">YOUR ORIGINAL TRAVEL GUIDE</p><h2>This day in the guide</h2></div><Button icon={BookOpen} onClick={()=>openPage(today.pages[0])}>Read guide</Button></div><p>Swipe through the pages · tap any page to read it in full.</p><div className="day-guide-pages" key={day}>{today.pages.map(p=><button key={p} className="day-guide-page" onClick={()=>openPage(p)} aria-label={`Read original guide page ${p}`}><img src={`/api/guide?page=${p}`} alt={`Original travel guide page ${p}`} loading="lazy"/><span>Page {p}<ChevronRight size={16}/></span></button>)}</div></section>;
