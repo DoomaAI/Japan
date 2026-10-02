@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import HowThisWorks from './HowThisWorks.jsx';
+import PageTitle from './PageTitle.jsx';
 import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
@@ -306,9 +306,7 @@ export function ChildLevels({state,mutate,busy}){
 export default function Settings({user,state,mutate,busy,hand,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,home,setHome,held=[],request,notice,config,accept}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR CHOICE</p>
-  <h1>Settings</h1>
-  <p>The phrase and the fact are the only things the app puts on your screen without being asked.</p>
- <HowThisWorks><p>Turn one off and it stops opening{user?.name?` on ${user.name}’s phone`:''} — everybody else keeps theirs.</p></HowThisWorks>
+  <PageTitle help={<><p>The phrase and the fact are the only things the app puts on your screen without being asked.</p><p>Turn one off and it stops opening{user?.name?` on ${user.name}’s phone`:''} — everybody else keeps theirs.</p></>}>Settings</PageTitle>
   <Appearance/>
   <section className="settings-section">
    <h2>What opens on its own</h2>

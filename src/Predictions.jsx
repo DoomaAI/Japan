@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import PageTitle from './PageTitle.jsx';
 import {Lock} from 'lucide-react';
 import {PREDICTIONS,PREDICTION_MAX,predictionPhase,predictionsOf,predictionCount} from './prediction-data.js';
 // Sealed predictions: write them before we fly, see them sealed during, and open them together
@@ -15,9 +16,7 @@ export default function Predictions({state,user,today,mutate,busy}){
  const phase=predictionPhase(state.days,today),parent=user?.role==='parent';
  const [person,setPerson]=useState(state.members.includes(user?.name)?user.name:state.members[0]);
  return <>
-  <p className="eyebrow">{phase==='revealed'?'OPENED AT LAST':'SEALED UNTIL WE ARE HOME'}</p><h1>Sealed predictions</h1>
-  {phase==='open'&&<p>Guess how the trip will go. Nobody sees anybody else’s until we are home, and once we land they are sealed for good.</p>}
-  {phase==='sealed'&&<p>Sealed when the trip began. They open the day after we get home, in the trip story.</p>}
+  <p className="eyebrow">{phase==='revealed'?'OPENED AT LAST':'SEALED UNTIL WE ARE HOME'}</p><PageTitle help={phase==='open'?<p>Guess how the trip will go. Nobody sees anybody else’s until we are home, and once we land they are sealed for good.</p>:phase==='sealed'?<p>Sealed when the trip began. They open the day after we get home, in the trip story.</p>:null}>Sealed predictions</PageTitle>
   <ul className="prediction-people">{state.members.map(n=><li key={n}><strong>{n}</strong><span>{predictionCount(state,n)} of {PREDICTIONS.length}</span></li>)}</ul>
   {phase==='open'&&<>
    {parent&&<label className="prediction-who">Writing for<select value={person} onChange={e=>setPerson(e.target.value)}>{state.members.map(n=><option key={n}>{n}</option>)}</select></label>}

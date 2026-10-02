@@ -1,4 +1,5 @@
 import React from 'react';
+import PageTitle from './PageTitle.jsx';
 import {Crown} from 'lucide-react';
 import {rankings,crowns} from './leaderboard-data.js';
 const MEDAL={1:'🥇',2:'🥈',3:'🥉'};
@@ -6,8 +7,7 @@ const MEDAL={1:'🥇',2:'🥈',3:'🥉'};
 export default function Leaderboard({state,user,go}){
  const boards=rankings(state),table=crowns(state);
  return <>
-  <p className="eyebrow">FRIENDLY COMPETITION</p><h1>Family leaderboard</h1>
-  <p>Who has tried the most, ridden the most and spotted the most. Counted from what everyone has ticked, and a tie is a tie.</p>
+  <p className="eyebrow">FRIENDLY COMPETITION</p><PageTitle help={<><p>Who has tried the most, ridden the most and spotted the most. Counted from what everyone has ticked, and a tie is a tie.</p></>}>Family leaderboard</PageTitle>
   <ol className="crown-table">{table.map(r=><li key={r.person} className={r.person===user?.name?'me':''}><strong>{r.person}</strong><span>{Array.from({length:r.crowns},(_,i)=><Crown key={i} size={16}/>)}{!r.crowns&&<small>No crowns yet</small>}</span></li>)}</ol>
   <div className="boards">{boards.map(b=><section className="board" key={b.id}>
    <h2><span aria-hidden="true">{b.icon}</span> {b.label}</h2>

@@ -1,4 +1,5 @@
 import React,{useEffect,useState} from 'react';
+import PageTitle from './PageTitle.jsx';
 import {Printer,Trophy,Eye,MessageSquare,Star} from 'lucide-react';
 import {showTellFor,showTellSpeech} from './show-tell.js';
 import {readingHelp,isChild} from './child-levels.js';
@@ -13,8 +14,7 @@ export default function ShowTell({state,user}){
  useEffect(()=>{document.body.classList.add('print-showtell');return()=>document.body.classList.remove('print-showtell');},[]);
  if(!boys.length)return <><h1>Show and tell</h1><p>Nobody on the trip is at school.</p></>;
  return <>
-  <p className="eyebrow">FOR THE FIRST DAY BACK</p><h1>Show and tell</h1>
-  <p>What I did in the holidays, on one page, out of the missions, the photos, the noticings and the phrases already in the app. Print it for the bag, or read it from the phone with Read to me first.</p>
+  <p className="eyebrow">FOR THE FIRST DAY BACK</p><PageTitle help={<><p>What I did in the holidays, on one page, out of the missions, the photos, the noticings and the phrases already in the app. Print it for the bag, or read it from the phone with Read to me first.</p></>}>Show and tell</PageTitle>
   {boys.length>1&&<div className="segmented">{boys.map(n=><button key={n} className={boy===n?'selected':''} onClick={()=>setBoy(n)}>{n}</button>)}</div>}
   {pack&&<article className="show-tell">
    <h2>{pack.boy} went to Japan</h2>

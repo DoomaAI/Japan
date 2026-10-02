@@ -126,7 +126,7 @@ body:before{content:'';position:fixed;top:0;left:0;right:0;z-index:40;height:env
    hit area is widened invisibly around the same drawing. Days already behind us on the strip
    are lifted from half to nearly full, so the dates still read at arm's length. And a press
    shows: every button dips and darkens for the moment the finger is on it. */
-.status-pill,.step-stepper .icon,.home .step-stepper .icon,.dictate,.hear-it,.rider,.food-card .rider,.read-aloud,.variant button,.weather-head button,.menu-buttons button,.deep-links li>button,.stars button,.todo-actions .icon,.reorder-tools button,.more-edit,.more-where,.place-card button,.place-card a,.sumo-winner button,.sumo-pick-row button,.ordering .phrase button,.card-link-slot>*,.home .card-link-slot>*,.home .card-links .card-link-special,.toast button,.food-card button,.dish-actions button,.card-facts button,.read-aloud,.fact-page,.departure-links a,.departure-links button,.next-up-fold,summary,.how-this-works summary,details>summary,.home .step-more>summary,.step-more>summary,.page-help>summary{min-height:40px}
+.status-pill,.step-stepper .icon,.home .step-stepper .icon,.dictate,.hear-it,.rider,.food-card .rider,.read-aloud,.variant button,.weather-head button,.menu-buttons button,.deep-links li>button,.stars button,.todo-actions .icon,.reorder-tools button,.more-edit,.more-where,.place-card button,.place-card a,.sumo-winner button,.sumo-pick-row button,.ordering .phrase button,.card-link-slot>*,.home .card-link-slot>*,.home .card-links .card-link-special,.toast button,.food-card button,.dish-actions button,.card-facts button,.read-aloud,.fact-page,.departure-links a,.departure-links button,.next-up-fold,summary,details>summary,.home .step-more>summary,.step-more>summary{min-height:40px}
 .menu-buttons button,.deep-links li>button,.step-stepper .icon,.home .step-stepper .icon,.next-up-fold{min-width:40px}
 .avatar,.topbar .avatar{width:40px;height:40px;min-height:40px}
 .timeline .timeline-tick input,.timeline-tick input{width:40px;height:40px;min-height:40px}
@@ -148,5 +148,4 @@ button:not(:disabled):active,.button:active,.chip:active,summary:active{filter:b
 button:not(:disabled):not(.nav-grip):not(.drag-handle):active,.button:active,.chip:active{transform:scale(.97);transition:transform .08s}
 .primary:not(:disabled):active{background:var(--green);border-color:var(--green)}
 .card-facts button,.card-facts .read-aloud,.read-aloud{height:auto;min-height:40px}
-.timeline .timeline-help>summary{min-height:40px}
 @media (prefers-reduced-motion:reduce){button:active,.button:active,.chip:active{transform:none;transition:none}}

@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import PageTitle from './PageTitle.jsx';
 import {Heart,ArrowUp,ArrowDown,Plus,Trash2,Check} from 'lucide-react';
 import {thankYouNotes,thankYouSchedule,thankYouSpares,thankYouList,noteReadState,THANK_YOU_FROM,THANK_YOU_FOR,BOYS} from './trip-features.js';
 import {readTo} from './child-levels.js';
@@ -43,9 +44,8 @@ export function ThankYouEditor({state,mutate,busy}){
  }
  return <>
   <p className="eyebrow">JUST BETWEEN YOU AND {to.toUpperCase()}</p>
-  <h1>Daily notes</h1>
+  <PageTitle help={<p>One note pops up for {to} on each day of the trip. {to} sees only that day’s note, never this list, and nobody else sees {to}’s notes at all. They stay out of Family updates and the change history.{BOYS.includes(to)&&` The boys’ notes are signed from Dad, and there is a Read to me button${readTo(state).includes(to)?`, read slowly for ${to}`:''}.`}</p>}>Daily notes</PageTitle>
   <div className="segmented" role="tablist" aria-label="Whose notes">{THANK_YOU_FOR.map(n=><button key={n} role="tab" aria-selected={to===n} className={to===n?'selected':''} onClick={()=>{setTo(n);setEdit(null);}}>{n}</button>)}</div>
-  <p>One note pops up for {to} on each day of the trip. {to} sees only that day’s note, never this list, and nobody else sees {to}’s notes at all. They stay out of Family updates and the change history.{BOYS.includes(to)&&` The boys’ notes are signed from Dad, and there is a Read to me button${readTo(state).includes(to)?`, read slowly for ${to}`:''}.`}</p>
   <p className="callout"><Heart size={18}/>Reorder the list to change which day gets which note. Pin a note to a specific day, amend the wording, or write a new one.</p>
   <h2>The schedule</h2>
   {!!delivered.length&&<p className="thank-you-tally"><Heart size={18}/><strong>{opened} of {delivered.length}</strong> {delivered.length===1?'note':'notes'} opened so far{unopened.length>0&&` · not opened: ${unopened.map(d=>dayLabel(d)).join(', ')}`}</p>}

@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import PageTitle from './PageTitle.jsx';
 import {familyStamps,personalStamps} from './stamp-data.js';
 // The stamp book: the family's stamps for where we went, then one person's milestone stamps.
 // A stamp still to get is drawn as an empty ring with its name, so there is something to aim for.
@@ -14,8 +15,7 @@ export default function Stamps({state,user,today,dayLabel,go}){
  const family=familyStamps(state,today),mine=personalStamps(state,person);
  const got=family.reduce((n,c)=>n+c.earned,0),of=family.reduce((n,c)=>n+c.stamps.length,0),personal=mine.reduce((n,c)=>n+c.stamps.length,0);
  return <>
-  <p className="eyebrow">PRESSED ALONG THE WAY</p><h1>Stamp book</h1>
-  <p>Every station and sight in Japan keeps a stamp for visitors. These are ours, earned by ticking off what we did.</p>
+  <p className="eyebrow">PRESSED ALONG THE WAY</p><PageTitle help={<><p>Every station and sight in Japan keeps a stamp for visitors. These are ours, earned by ticking off what we did.</p></>}>Stamp book</PageTitle>
   <div className="stamp-summary"><strong>{got}</strong><span>of {of} family stamps<small>{personal} milestone stamp{personal===1?'':'s'} for {person}</small></span></div>
   {family.map(c=><section className="stamp-page" key={c.id}><div className="section-heading"><h2>{c.title}</h2><span>{c.earned} of {c.stamps.length}</span></div>
    <ul className="stamp-grid">{[...c.stamps].sort((a,b)=>b.earned-a.earned).map(s=><Stamp key={s.id} s={s} dayLabel={dayLabel}/>)}</ul></section>)}

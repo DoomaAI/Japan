@@ -1,4 +1,5 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
+import PageTitle from './PageTitle.jsx';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {LocateFixed,EyeOff,Clock,Navigation,Crosshair,Users} from 'lucide-react';
@@ -78,8 +79,7 @@ export default function Whereabouts({state,user,day,now,request,mutate,busy,go,o
  const mine=checkins.find(c=>c.name===user.name),others=checkins.filter(c=>c.name!==user.name);
  const quiet=state.members.filter(n=>n!==user.name&&!checkins.some(c=>c.name===n));
  const parent=user.role==='parent';
- return <><p className="eyebrow">SHARE WHERE YOU ARE</p><h1>Where we are</h1>
-  <p>The family on the map, where each phone last shared it, with today’s stops under them. Running behind? Tell the people waiting.</p>
+ return <><p className="eyebrow">SHARE WHERE YOU ARE</p><PageTitle help={<><p>The family on the map, where each phone last shared it, with today’s stops under them. Running behind? Tell the people waiting.</p></>}>Where we are</PageTitle>
   <LateCards state={state} user={user} now={now} mutate={mutate} busy={busy} go={go} open={open} live={null}/>
   <div className="row wrap"><button type="button" className="primary" onClick={()=>open({type:'latemsg'})}><Clock size={16}/>Tell the others we’re late</button></div>
   <div className="mm-map wa-map" ref={box} role="region" aria-label="Map of where the family is"/>

@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {MapPin,Plus,CircleCheck,Circle,ClipboardList,Baby,Search,AlertTriangle,RefreshCw} from 'lucide-react';
-import HowThisWorks from './HowThisWorks.jsx';
+import PageTitle from './PageTitle.jsx';
 import {LOCAL_KINDS,LOCAL_KIND_LABEL,LOCAL_KIND_ICON,localExperiences,localAreaOrder,localMapUrl,localDraft,localOnBoard} from './local-data.js';
 import {useStored} from './stored.js';
 // Like a local: the things people who live here do more than visitors, by base. Where we are
@@ -85,9 +85,7 @@ export default function LikeALocal({state,user,today,dayLabel,mutate,busy,notice
  const section=(area,live,label)=>live.length>0&&<section className="local-area" key={area}><h2>{area}{label&&<small>{label}</small>}</h2>{live.map(card)}</section>;
  const tally=Object.keys(done).filter(id=>done[id]&&all.some(e=>e.id===id)).length;
  return <>
-  <p className="eyebrow">WHERE THE LOCALS GO</p><h1>Like a local</h1>
-  <p>The bathhouse, the basement food hall, the tram and the Sunday market: what people who live here do more than visitors, with how to do it and what it costs.</p>
-  <HowThisWorks><p>Everything here works with no signal. Where we are today leads; a base we have left folds away at the bottom. <b>Put it on the board</b> puts one up as an ordinary idea on the planning board for everyone to vote on, with the why and the how in its notes, and a parent can then put it on a day. <b>Did it</b> is a tick kept on this phone. Prices are rounded and were written in September 2026; the card says “about” for a reason. {canCheck?<><b>Check the details</b> (parents, with signal) searches the web for our dates — open or closed, the price now, anything that differs from the card — and saves the answer with its sources for every phone.</>:'A parent with signal can check a card’s details against the web, and the answer is saved here for everyone.'}</p></HowThisWorks>
+  <p className="eyebrow">WHERE THE LOCALS GO</p><PageTitle help={<><p>The bathhouse, the basement food hall, the tram and the Sunday market: what people who live here do more than visitors, with how to do it and what it costs.</p><p>Everything here works with no signal. Where we are today leads; a base we have left folds away at the bottom. <b>Put it on the board</b> puts one up as an ordinary idea on the planning board for everyone to vote on, with the why and the how in its notes, and a parent can then put it on a day. <b>Did it</b> is a tick kept on this phone. Prices are rounded and were written in September 2026; the card says “about” for a reason. {canCheck?<><b>Check the details</b> (parents, with signal) searches the web for our dates — open or closed, the price now, anything that differs from the card — and saves the answer with its sources for every phone.</>:'A parent with signal can check a card’s details against the web, and the answer is saved here for everyone.'}</p></>}>Like a local</PageTitle>
   <div className="row wrap local-kinds" role="tablist" aria-label="Kind">
    <button role="tab" aria-selected={!kind} className={!kind?'selected':''} onClick={()=>setKind('')}>All</button>
    {LOCAL_KINDS.map(([id,label])=><button key={id} role="tab" aria-selected={kind===id} className={kind===id?'selected':''} onClick={()=>setKind(id)}><span aria-hidden="true">{LOCAL_KIND_ICON[id]}</span> {label}</button>)}

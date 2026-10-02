@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import GuideByline from './GuideByline.jsx';
-import HowThisWorks from './HowThisWorks.jsx';
+import PageTitle from './PageTitle.jsx';
 import {AlertCircle,CalendarDays,Check,ExternalLink,MessageCircleQuestion,Navigation,Search,Trash2,WifiOff} from 'lucide-react';
 import {ASK_LIMIT,askDayLabel,askHistory,askItem,askStarters,readThread,sharesThread,stepStarters,threadFor,writeThread} from './ask-thread.js';
 import Dictate from './Dictate.jsx';
@@ -71,9 +71,7 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
  return <div className="ask">
   {assistant?<p className="ask-assistant-about">{about?`About ${askDayLabel(about)} and the days around it.`:'About the whole trip.'} {go&&<button className="linkish" onClick={()=>go('ask')}>Type a question instead</button>}</p>:step?<p>Ask anything about {step.title} — how long it takes, what to eat, what the boys will like. It reads this stop and the rest of the day, and searches for what the plan cannot say.</p>:<>
   <p className="eyebrow">CONCIERGE</p>
-  <h1>{greeting()}. How can we help?</h1>
-  <p>Ask anything about the trip in your own words: better today or tomorrow, what to do if it rains. Answers are for you first.</p>
- <HowThisWorks><p>Every question is answered from the trip as it is right now: every day and what is booked, the forecast we last checked, the board and its votes, the places we saved, how each stop was rated, and everyone’s profile, with yours first. Change any of those and the next answer knows. It searches only for what the plan cannot say.</p></HowThisWorks></>}
+  <PageTitle help={<><p>Ask anything about the trip in your own words: better today or tomorrow, what to do if it rains. Answers are for you first.</p><p>Every question is answered from the trip as it is right now: every day and what is booked, the forecast we last checked, the board and its votes, the places we saved, how each stop was rated, and everyone’s profile, with yours first. Change any of those and the next answer knows. It searches only for what the plan cannot say.</p></>}>{greeting()}. How can we help?</PageTitle></>}
   {!step&&!assistant&&ready&&user?.name&&state.members?.includes(user.name)&&!profileFilled(state,user.name)&&<p className="callout"><AlertCircle size={18}/><span>Your profile is empty, so recommendations can only go by the whole family. {go&&<button className="linkish" onClick={()=>go('planning')}>Fill it in on the Planning board</button>}</span></p>}
   {!ready&&<p className="callout"><AlertCircle size={18}/>Asking is not switched on for this deployment. Anything already answered is still below.</p>}
   {!online&&<p className="callout"><WifiOff size={18}/>No signal. Old answers are saved on this phone. What is next, how long until something and the way there are answered from the plan; anything else has to wait.</p>}

@@ -1,4 +1,5 @@
 import React from 'react';
+import PageTitle from './PageTitle.jsx';
 import {ExternalLink,PlaneLanding,PlaneTakeoff} from 'lucide-react';
 import {VISIT_JAPAN_WEB,VJW_STEPS,TRAVEL_DECLARATION,ATD_STEPS} from './arrival-data.js';
 import GoingHome from './GoingHome.jsx';
@@ -13,8 +14,7 @@ export default function Arrival({homeFirst=false}){
   <Steps steps={ATD_STEPS}/><a className="button" href={TRAVEL_DECLARATION} target="_blank" rel="noopener noreferrer"><ExternalLink size={16}/> Border Force: passenger cards</a>
   <GoingHome open/></section>;
  return <>
-  <p className="eyebrow">BOTH ENDS OF THE FLIGHT</p><h1>Arrival paperwork</h1>
-  <p>What to fill in before landing in Japan, and before landing back in Australia. The rules change, so each links to the official page. Checked September 2026.</p>
+  <p className="eyebrow">BOTH ENDS OF THE FLIGHT</p><PageTitle help={<><p>What to fill in before landing in Japan, and before landing back in Australia. The rules change, so each links to the official page. Checked September 2026.</p></>}>Arrival paperwork</PageTitle>
   {homeFirst?[home,japan]:[japan,home]}
  </>;
 }

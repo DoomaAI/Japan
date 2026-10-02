@@ -1,4 +1,5 @@
 import {destinationFor} from './locations.js';
+import PageTitle from './PageTitle.jsx';
 import {ChevronDown,ChevronUp,Clock,LockKeyhole} from 'lucide-react';
 import {timeLeft} from './time-left.js';
 import {isOpen,setOpen} from './fold.js';
@@ -81,5 +82,5 @@ export function OfflineReadiness({state,day,notice,refresh}){
 }
 export function Updates({state,user,mutate,busy}){
  const [all,setAll]=useState(false),list=state.alerts.filter(a=>all||!a.seenBy?.[user.name]);
- return <><p className="eyebrow">KEEP EVERYONE IN THE LOOP</p><h1>Family updates</h1><p>Important plan changes appear here when the app refreshes. Acknowledge an update once you have read it.</p><label className="checkline"><input type="checkbox" checked={all} onChange={e=>setAll(e.target.checked)}/>Include updates I have read</label>{list.map(a=><article className="feature-card" key={a.id}><h3>{a.summary}</h3><small>{a.by} · {dayLabel(japanDate(new Date(a.at)))} · {japanClock(new Date(a.at))} JST</small><p>Read by: {Object.keys(a.seenBy||{}).join(', ')||'No one yet'}</p>{!a.seenBy?.[user.name]&&<button className="primary" disabled={busy} onClick={()=>mutate({type:'acknowledge',id:a.id})}>I’ve seen this</button>}</article>)}{!list.length&&<div className="empty">You’re up to date.</div>}<p>These are in-app alerts; they do not create phone push notifications.</p></>;
+ return <><p className="eyebrow">KEEP EVERYONE IN THE LOOP</p><PageTitle help={<><p>Important plan changes appear here when the app refreshes. Acknowledge an update once you have read it.</p></>}>Family updates</PageTitle><label className="checkline"><input type="checkbox" checked={all} onChange={e=>setAll(e.target.checked)}/>Include updates I have read</label>{list.map(a=><article className="feature-card" key={a.id}><h3>{a.summary}</h3><small>{a.by} · {dayLabel(japanDate(new Date(a.at)))} · {japanClock(new Date(a.at))} JST</small><p>Read by: {Object.keys(a.seenBy||{}).join(', ')||'No one yet'}</p>{!a.seenBy?.[user.name]&&<button className="primary" disabled={busy} onClick={()=>mutate({type:'acknowledge',id:a.id})}>I’ve seen this</button>}</article>)}{!list.length&&<div className="empty">You’re up to date.</div>}<p>These are in-app alerts; they do not create phone push notifications.</p></>;
 }

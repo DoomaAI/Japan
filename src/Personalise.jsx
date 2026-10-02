@@ -1,4 +1,5 @@
 import React from 'react';
+import PageTitle from './PageTitle.jsx';
 import {ArrowUp,ArrowDown,Plus,X,Eye,EyeOff,RotateCcw} from 'lucide-react';
 import {PAGES,BAR_MIN,BAR_MAX,FIXED,pagesFor,primaryNav,hiddenNav,addableNav,cleanNav,emptyNav} from './nav-data.js';
 import {iconFor} from './Navigation.jsx';
@@ -25,8 +26,7 @@ export default function Personalise({user,prefs,setPrefs,home,setHome,held=[]}){
  const row=id=>{const Icon=iconFor(id);return <><span className="more-icon"><Icon size={19}/></span>
   <span><strong>{PAGES[id].label}</strong><small>{PAGES[id].note}</small></span></>;};
  return <>
-  <p className="eyebrow">YOUR PHONE, YOUR WAY</p><h1>Customise</h1>
-  <p>This is your phone only. Nobody else's menu changes, and nothing here changes the trip.</p>
+  <p className="eyebrow">YOUR PHONE, YOUR WAY</p><PageTitle help={<><p>This is your phone only. Nobody else's menu changes, and nothing here changes the trip.</p></>}>Customise</PageTitle>
   <HomeWidgets home={home} setHome={setHome} held={held}/>
   <BarShortcuts user={user} prefs={prefs} setPrefs={setPrefs}/>
   <OpeningTips/>
