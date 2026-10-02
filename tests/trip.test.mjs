@@ -10179,6 +10179,15 @@ test('a stop on the way is a leg of the journey: the bags today, and any the fam
  assert.equal(rs.ownRoute,undefined);assert.equal(routeFor(rs),ROUTES[ride.id]);
  assert.throws(()=>applyOperation(seed,{type:'journey',id:ride.id,action:'guide'},child),/already on the guide/);
  assert.throws(()=>applyOperation(seed,{type:'journey',id:bare.id,action:'replace'},child),/no journey to replace/);
+ // A stop put in front of a journey marks it to check, unless the family say the journey still holds.
+ const between=(prev.order+ride.order)/2;
+ assert.equal(applyOperation(seed,{type:'add',step:{title:'Gelato',place:'Gelato shop',day:ride.day,time:null,order:between}},parent).steps.find(x=>x.id===ride.id).routeStale.was.from,planned.from);
+ assert.equal(applyOperation(seed,{type:'add',keepJourneys:true,step:{title:'Gelato',place:'Gelato shop',day:ride.day,time:null,order:between}},parent).steps.find(x=>x.id===ride.id).routeStale,undefined);
+ assert.equal(applyOperation(seed,{type:'add',step:{title:'Gelato',place:'Gelato shop',day:ride.day,time:null}},parent).steps.find(x=>x.id===ride.id).routeStale,undefined,'added after it, nothing to check');
+ // The add form offers the three ways once, and each does what it says.
+ const form=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(form,/\['split','Plan the way here now/);assert.match(form,/\['keep',`Keep the journey to/);assert.match(form,/\['waypoint','Make this a stop on that journey instead'\]/);
+ assert.match(form,/keepJourneys:true/);assert.match(form,/type:'waypoint',id:routed\.id,action:'add',kind:'stop'/);assert.match(form,/startOpen=\{journeyOpen===current\.id\}/);
  const card2=await readFile(new URL('../src/RouteCard.jsx',import.meta.url),'utf8');
  assert.match(card2,/onJourney\('keep'\)/);assert.match(card2,/onJourney\('replace'\)/);assert.match(card2,/onJourney\('guide'\)/);
  assert.throws(()=>applyOperation(seed,{type:'waypoint',id:s.id,action:'remove',waypointId:'nope'},parent),e=>e.status===404);
