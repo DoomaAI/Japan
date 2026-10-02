@@ -3,6 +3,7 @@ import GuideByline from './GuideByline.jsx';
 import {AlertCircle,ArrowRight,CalendarX,Check,Clock,CloudRain,ExternalLink,Info,LifeBuoy,MapPin,Plus,RefreshCw,Repeat,Shirt,TrainFront,X} from 'lucide-react';
 import {NOTE_KINDS,PLAN_B_REASONS,REST_KINDS,dayCheckOf,planBOf,draftPreview} from './day-check.js';
 import {shortWhen as when} from './format.js';
+import {japanDate} from './timing.js';
 const KIND_ICON={closed:CalendarX,holiday:CalendarX,hours:Clock,transport:TrainFront,weather:CloudRain,swap:Repeat,dress:Shirt,other:Info};
 const label=(list,id)=>list.find(([k])=>k===id)?.[1]||'';
 const dayLabel=d=>d?new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'}).format(new Date(`${d}T12:00:00+09:00`)):'Options';
@@ -13,6 +14,9 @@ export default function DayCheck({state,user,day,config,online=true,request,muta
  const parent=user?.role==='parent',[working,setWorking]=useState(''),[error,setError]=useState('');
  const check=dayCheckOf(state,day),planB=planBOf(state,day);
  const ready=!!config?.tomorrow;
+ // Unchecked, a day still ahead waits for its evening run; today or a day gone has missed it.
+ const ahead=day>japanDate();
+ const unchecked=ahead?(ready?'Not checked yet. It runs by itself at about 7:30 pm in Japan the evening before.':'Not checked yet.'):'Not checked the night before.';
  const notes=(check?.notes||[]).filter(n=>n.status!=='dismissed');
  const hidden=(check?.notes||[]).length-notes.length;
  const stepTitle=id=>state.steps.find(s=>s.id===id)?.title;
@@ -40,8 +44,8 @@ export default function DayCheck({state,user,day,config,online=true,request,muta
   }};
  };
  if(!check&&!planB&&!(parent&&ready))return null;
- return <section className="day-check" aria-label="Checked the night before">
-  <div className="day-check-head"><p className="eyebrow">CHECKED THE NIGHT BEFORE</p>
+ return <section className="day-check" aria-label="The night-before check">
+  <div className="day-check-head"><p className="eyebrow">{check?'CHECKED THE NIGHT BEFORE':'THE NIGHT-BEFORE CHECK'}</p>
    {check&&<small>{when(check.at)}</small>}</div>
   {check?<>
    <GuideByline state={state} verb='Checked by'/>
@@ -59,7 +63,7 @@ export default function DayCheck({state,user,day,config,online=true,request,muta
    </article>;})}
    {parent&&hidden>0&&<details className="day-check-dismissed"><summary>Dismissed ({hidden})</summary>
     {check.notes.filter(n=>n.status==='dismissed').map(n=><div key={n.id} className="list-row"><span>{n.title}</span><button type="button" className="linkish" disabled={busy} onClick={()=>mutate({type:'dayCheckNote',day,id:n.id,status:'open'})}>Bring back</button></div>)}</details>}
-  </>:<p>Not checked yet. {ready?'It runs by itself each evening in Japan for the next day.':''}</p>}
+  </>:<p>{unchecked}</p>}
   {planB&&(planB.stops.length>0||planB.rest.length>0)&&<details className="plan-b"><summary><LifeBuoy size={16}/>Plan B for the day ({planB.stops.length+planB.rest.length})</summary>
    {planB.stops.some(p=>p.stepId)&&<><h4>Instead of a stop</h4>{planB.stops.filter(p=>p.stepId).map((p,i)=><PlanBPlace key={i} place={p} lead={`${label(PLAN_B_REASONS,p.reason)} · instead of ${stepTitle(p.stepId)||'a stop'}`} add={addable(p)}/>)}</>}
    {planB.stops.some(p=>!p.stepId)&&<><h4>From our own list, if there is time</h4>{planB.stops.filter(p=>!p.stepId).map((p,i)=><PlanBPlace key={i} place={p} lead={label(PLAN_B_REASONS,p.reason)} add={addable(p)}/>)}</>}
