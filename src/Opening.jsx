@@ -42,6 +42,8 @@ function wordsNow(days){
 // Where the last open got to: the next fact, the next word, and which kind goes first. A new
 // day starts both lists again from the top, so today's own cards come round first.
 const PLACE='japan.opening.place';
+// Whether this phone has ever swiped a card; until it has, the card nudges aside once to show it can.
+const SWIPED='japan.opening.swiped';
 // A kind switched off is left out of the deck but keeps its place, so turning it back on carries
 // on from where it was.
 function deckNow(days,tips='both'){
@@ -52,6 +54,15 @@ function deckNow(days,tips='both'){
  const on=first==='word'?[showsWords(tips),showsFacts(tips)]:[showsFacts(tips),showsWords(tips)];
  for(let i=0;i<Math.max(facts.length,words.length);i++)order.forEach((list,k)=>{if(on[k]&&list.length)deck.push(list[(at[k]+i)%list.length]);});
  return {deck,facts:facts.length,words:words.length,fact,word,first};
+}
+
+// Where the card sits in the deck, as dots under it: five at most, the current one long, and the
+// dots at either end smaller when there are more cards past them, so a deck of forty still reads
+// as somewhere to swipe to rather than a count to get through.
+function Dots({at,of}){
+ const n=Math.min(5,of),start=Math.max(0,Math.min(at-2,of-n));
+ return <span className="opening-dots" aria-hidden="true"><span>‹</span>{Array.from({length:n},(_,k)=>{const i=start+k,edge=(k===0&&start>0)||(k===n-1&&start+n<of);
+  return <i key={i} className={i===at?'on':edge?'edge':undefined}/>;})}<span>›</span></span>;
 }
 
 function Countdown({days}){const c=tripCountdown(days);if(!c)return null;
@@ -108,6 +119,27 @@ export default function Opening({days,ready=false,onDone}){
   write(PLACE,{date:japanDate(),fact:facts?(f0+f)%facts:0,word:words?(w0+w)%words:0,first:first==='word'?'fact':'word'});
  },[at,deck]);
  const next=()=>ready?finish():setAt(i=>(i+1)%deck.length);
+ // The card is also a deck to thumb through: a swipe left brings the next card and a swipe right
+ // the one before, without opening the trip, and each swipe starts the card's time again. The
+ // first card back can only bounce, so going back never reaches round to cards not yet seen.
+ const cardRef=useRef(null),drag=useRef(null),dragged=useRef(false);
+ const [swiped,setSwiped]=useState(()=>read(SWIPED,false));
+ const slide=(from,bounce=false)=>{if(still||!cardRef.current?.animate)return;
+  cardRef.current.animate(bounce?[{transform:`translateX(${from}px)`},{transform:`translateX(${-from/4}px)`},{transform:'none'}]
+   :[{transform:`translateX(${from}px)`,opacity:.2},{transform:'none',opacity:1}],{duration:bounce?320:260,easing:'cubic-bezier(.2,.8,.3,1)'});};
+ const go=(step,from=0)=>{if(!swiped){setSwiped(true);write(SWIPED,true);}
+  if(step<0&&at===0){slide(from||-24,true);return;}
+  setAt(i=>(i+step+deck.length)%deck.length);slide(step>0?120:-120);};
+ const down=e=>{if(e.pointerType==='mouse'&&e.button!==0)return;drag.current={x:e.clientX,y:e.clientY,dx:0,id:e.pointerId,on:false};dragged.current=false;};
+ const move=e=>{const d=drag.current;if(!d||d.id!==e.pointerId)return;d.dx=e.clientX-d.x;
+  if(!d.on){if(Math.abs(d.dx)<8)return;if(Math.abs(e.clientY-d.y)>Math.abs(d.dx)){drag.current=null;return;}d.on=true;e.currentTarget.setPointerCapture?.(e.pointerId);}
+  e.currentTarget.style.transform=`translateX(${d.dx}px) rotate(${d.dx/40}deg)`;};
+ const up=e=>{const d=drag.current;drag.current=null;if(!d?.on)return;dragged.current=true;e.currentTarget.style.transform='';
+  if(e.type==='pointercancel')return;
+  if(d.dx<-60)go(1);else if(d.dx>60)go(-1,d.dx);else slide(d.dx,true);};
+ const tap=()=>{if(dragged.current){dragged.current=false;return;}next();};
+ const keys=e=>{if(e.key==='ArrowRight'){e.preventDefault();go(1);}else if(e.key==='ArrowLeft'){e.preventDefault();go(-1);}};
+ const swipe={ref:cardRef,onClick:tap,onKeyDown:keys,onPointerDown:down,onPointerMove:move,onPointerUp:up,onPointerCancel:up};
  const choose=v=>{const t=writeTips(v);setTips(t);setDeck(deckNow(days,t));setAt(0);};
  const onCatch=()=>{setCount(n=>n+1);setTotal(n=>{write('japan.petals',n+1);return n+1;});};
  const card=deck[at];
@@ -120,19 +152,22 @@ export default function Opening({days,ready=false,onDone}){
    <div className="opening-panel">
     <Countdown days={days}/>
     {!still&&<p className="opening-catch" aria-live="polite">{count?<><b>🌸 {count}</b> caught{total>count?<span> · {total} all trip</span>:null}</>:'Tap a falling petal to catch it'}</p>}
-    {card?.kind==='fact'&&<button className="opening-fact" onClick={next} aria-label={`Fun fact: ${card.title}. ${card.text} ${ready?'Tap to go in.':'Tap for another.'}`}>
+    {card&&<div className={`opening-deck${deck.length>1?' more':''}${!swiped&&deck.length>1?' hint':''}`}>
+    {card.kind==='fact'&&<button className="opening-fact" {...swipe} aria-roledescription="card" aria-label={`Fun fact: ${card.title}. ${card.text} ${ready?'Tap to go in.':'Tap for another.'} Swipe or use the arrow keys for more.`}>
      <span className="opening-fact-top"><span>{card.icon}</span><small>FROM THE GUIDE · PAGE {card.page}</small></span>
      <strong key={`t${card.id}`}>{card.title}</strong>
      <span key={`x${card.id}`} className="opening-fact-text">{card.text}</span>
      <i key={`b${at}${tips}`} className="opening-fact-timer" aria-hidden="true"/>
     </button>}
-    {card?.kind==='word'&&<button className="opening-fact opening-word" onClick={next} aria-label={`Japanese word: ${card.en}. ${card.ja}, said ${card.say}. ${ready?'Tap to go in.':'Tap for another.'}`}>
+    {card.kind==='word'&&<button className="opening-fact opening-word" {...swipe} aria-roledescription="card" aria-label={`Japanese word: ${card.en}. ${card.ja}, said ${card.say}. ${ready?'Tap to go in.':'Tap for another.'} Swipe or use the arrow keys for more.`}>
      <span className="opening-fact-top"><span>{card.icon||'🗣️'}</span><small>SAY IT IN JAPANESE</small></span>
      <strong key={`t${card.id}`}>{card.en}</strong>
      <span key={`j${card.id}`} className="opening-word-ja" lang="ja">{card.ja}</span>
      <span key={`x${card.id}`} className="opening-fact-text">“{card.say}”{card.note?<> · {card.note}</>:null}</span>
      <i key={`b${at}${tips}`} className="opening-fact-timer" aria-hidden="true"/>
     </button>}
+    {deck.length>1&&<Dots at={at} of={deck.length}/>}
+   </div>}
     <div className={`opening-track${ready?' ready':''}`} role="status"><span className="opening-rail" aria-hidden="true"><Train/></span>
      <span>{ready?'Your trip is ready':'Opening your family trip…'}</span></div>
     <label className="opening-tips">Tips while it opens
