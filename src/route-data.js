@@ -324,6 +324,40 @@ export function whereOnRoute(rides,at){
  if(!seen.length)return null;
  return seen.sort((a,b)=>a.metres-b.metres||(a.left===0)-(b.left===0))[0];
 }
+// Whether a ride is going the wrong way. One position cannot say it, so it takes the phone at
+// the boarding station first and later well clear of it on the far side from the next stop, faster
+// than a walk (wandering out the other exit is not a wrong train). Near a station of the line back
+// that way, it says so sooner. A loop that runs one way cannot be ridden the wrong way.
+const BOARDED=400,CLEAR=1000,BEHIND=500,WALK=10/3.6;
+function stationBehind(leg){
+ const all=LINES[leg.line].stations,i=all.findIndex(s=>s[0]===leg.from),j=all.findIndex(s=>s[0]===leg.to);
+ const k=i<j?i-1:i+1;
+ return all[k]?station(all[k]):null;
+}
+export function wrongWay(leg,trail){
+ if(LINES[leg.line].loop||!trail?.length)return null;
+ const stops=legStops(leg),start=stops[0],now=trail[trail.length-1];
+ let b=-1;for(let k=trail.length-1;k>=0;k--)if(distance(trail[k],start)<=BOARDED){b=k;break;}
+ if(b<0||b===trail.length-1)return null;
+ const onLeg=Math.min(...stops.map(s=>distance(now,s))),behind=stationBehind(leg);
+ if(behind&&distance(now,behind)<=BEHIND&&distance(now,behind)<onLeg)return {from:start,to:stops[stops.length-1],behind};
+ const away=distance(now,start);
+ if(away<CLEAR||onLeg<away)return null;
+ // Which side of the boarding station: against the way to the next stop is behind it.
+ const r=Math.PI/180,vec=p=>({x:(p.lng-start.lng)*Math.cos(start.lat*r),y:p.lat-start.lat}),a=vec(stops[1]),c=vec(now);
+ if((a.x*c.x+a.y*c.y)/Math.hypot(a.x,a.y)/Math.hypot(c.x,c.y)>-0.3)return null;
+ const seconds=(now.at-trail[b].at)/1000;
+ if(!(seconds>0)||(away-distance(trail[b],start))/seconds<WALK)return null;
+ return {from:start,to:stops[stops.length-1],behind:null};
+}
+// The ride last boarded is the one that can be going the wrong way; at a change, the one to come.
+export function headingWrongWay(legs,trail){
+ let at=-1,i=-1;
+ legs.forEach((leg,k)=>{const start=legStops(leg)[0];for(let n=trail.length-1;n>=0;n--)if(distance(trail[n],start)<=BOARDED){if(n>=at){at=n;i=k;}break;}});
+ if(i<0)return null;
+ const w=wrongWay(legs[i],trail);
+ return w&&{i,...w};
+}
 export function liveTimes(leg){
  const stops=legStops(leg),from=stops[0],to=stops[stops.length-1];
  return 'https://www.google.com/maps/dir/?'+new URLSearchParams({api:'1',origin:`${from.lat},${from.lng}`,destination:`${to.lat},${to.lng}`,travelmode:'transit'});
