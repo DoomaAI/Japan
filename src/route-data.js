@@ -334,12 +334,12 @@ function stationBehind(leg){
  const k=i<j?i-1:i+1;
  return all[k]?station(all[k]):null;
 }
-export function wrongWay(leg,trail){
+export function wrongWay(leg,trail,stops=legStops(leg)){
  if(LINES[leg.line].loop||!trail?.length)return null;
- const stops=legStops(leg),start=stops[0],now=trail[trail.length-1];
+ const start=stops[0],now=trail[trail.length-1];
  let b=-1;for(let k=trail.length-1;k>=0;k--)if(distance(trail[k],start)<=BOARDED){b=k;break;}
  if(b<0||b===trail.length-1)return null;
- const onLeg=Math.min(...stops.map(s=>distance(now,s))),behind=stationBehind(leg);
+ const onLeg=Math.min(...stops.map(s=>distance(now,s))),behind=start.name===leg.from?stationBehind(leg):null;
  if(behind&&distance(now,behind)<=BEHIND&&distance(now,behind)<onLeg)return {from:start,to:stops[stops.length-1],behind};
  const away=distance(now,start);
  if(away<CLEAR||onLeg<away)return null;
@@ -364,9 +364,9 @@ function offLine(p,a,c){
  return Math.hypot(px-t*ax,py-t*ay)-STRAY-len/4;
 }
 const strayed=(stops,p)=>stops.length<2?distance(p,stops[0])-STRAY:Math.min(...stops.slice(1).map((s,k)=>offLine(p,stops[k],s)));
-export function offRoute(leg,trail){
+export function offRoute(leg,trail,stops=legStops(leg)){
  if(!trail?.length)return null;
- const stops=legStops(leg),start=stops[0],end=stops[stops.length-1],now=trail[trail.length-1];
+ const start=stops[0],end=stops[stops.length-1],now=trail[trail.length-1];
  let b=-1;for(let k=trail.length-1;k>=0;k--)if(distance(trail[k],start)<=BOARDED){b=k;break;}
  if(b<0||trail.length-b<3)return null;
  const since=trail.slice(b);
@@ -380,16 +380,31 @@ export function offRoute(leg,trail){
 }
 // What is wrong with the ride last boarded (at a change, the one to come): going the wrong way
 // from its station, or off its line altogether.
-export function rideTrouble(legs,trail){
+export function rideTrouble(legs,trail,rides=legs.map(legStops)){
  let at=-1,i=-1;
- legs.forEach((leg,k)=>{const start=legStops(leg)[0];for(let n=trail.length-1;n>=0;n--)if(distance(trail[n],start)<=BOARDED){if(n>=at){at=n;i=k;}break;}});
- if(i<0)return null;
- const w=wrongWay(legs[i],trail);
+ legs.forEach((leg,k)=>{const start=rides[k][0];for(let n=trail.length-1;n>=0;n--)if(distance(trail[n],start)<=BOARDED){if(n>=at){at=n;i=k;}break;}});
+ // A ride started again from wherever the phone was is not judged: the train still runs on to the
+ // next stop before anyone can get off, and that is not going the wrong way twice.
+ if(i<0||rides[i][0].here)return null;
+ const w=wrongWay(legs[i],trail,rides[i]);
  if(w)return {i,kind:'way',...w};
- const o=offRoute(legs[i],trail);
+ const o=offRoute(legs[i],trail,rides[i]);
  return o&&{i,kind:'route',...o};
 }
-export function liveTimes(leg){
- const stops=legStops(leg),from=stops[0],to=stops[stops.length-1];
+// Once the family says yes, it was the wrong train: the ride starts again from where the phone is,
+// back along the line to where it went wrong and on to where the ride ends, every station listed.
+// Where the guide names the station back the other way, that is the start; otherwise the start is
+// wherever the phone is, as "Where you get off", until the train stops. The stations back are
+// marked, and so is the station the ride is back on its way from.
+export const GET_OFF='Where you get off';
+export function restartRide(leg,trouble,at){
+ const here={name:GET_OFF,ja:'',code:null,lat:at.lat,lng:at.lng,here:true};
+ const rejoin=trouble.kind==='route'?trouble.left.name:leg.from;
+ const stops=trouble.kind==='way'&&trouble.behind?legStops({...leg,from:trouble.behind.name}):[here,...legStops({...leg,from:rejoin})];
+ const k=stops.findIndex(s=>s.name===rejoin);
+ return stops.map((s,n)=>n<k?{...s,back:true}:n===k?{...s,rejoin:true}:s);
+}
+export function liveTimes(leg,stops=legStops(leg)){
+ const from=stops[0],to=stops[stops.length-1];
  return 'https://www.google.com/maps/dir/?'+new URLSearchParams({api:'1',origin:`${from.lat},${from.lng}`,destination:`${to.lat},${to.lng}`,travelmode:'transit'});
 }
