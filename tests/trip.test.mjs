@@ -9586,6 +9586,38 @@ test('a ride that leaves its line for another line or a branch is off the route'
  const sagano={line:'sagano',from:'Kyoto',to:'Saga-Arashiyama'},[kyoto]=legStops(sagano);
  assert.equal(rideTrouble([sagano],[at(kyoto,0),at({lat:kyoto.lat,lng:kyoto.lng+.02},3),at({lat:kyoto.lat,lng:kyoto.lng+.03},4)]).kind,'way');
 });
+test('a ride confirmed as the wrong train starts again: the stations back and the ones still to go',async()=>{
+ const {legStops,rideTrouble,restartRide,GET_OFF,liveTimes}=await import('../src/route-data.js');
+ const at=(p,min)=>({lat:p.lat,lng:p.lng,at:min*60000});
+ // Hommachi for Namba, but at Yodoyabashi: start again there, back through Hommachi and on.
+ const midosuji={line:'midosuji',from:'Hommachi',to:'Namba'},[hommachi]=legStops(midosuji),[yodoyabashi]=legStops({line:'midosuji',from:'Yodoyabashi',to:'Namba'});
+ const way=rideTrouble([midosuji],[at(hommachi,0),at(yodoyabashi,2)]);
+ const back=restartRide(midosuji,way,yodoyabashi);
+ assert.deepEqual(back.map(s=>[s.name,!!s.back,!!s.rejoin]),[['Yodoyabashi',true,false],['Hommachi',false,true],['Shinsaibashi',false,false],['Namba',false,false]]);
+ // Started again from a station, it is watched afresh: carrying on past it is the wrong way again.
+ const umeda=legStops({line:'midosuji',from:'Umeda',to:'Namba'})[0];
+ assert.equal(rideTrouble([midosuji],[at(yodoyabashi,3),at(umeda,5)],[back]).kind,'way');
+ assert.equal(rideTrouble([midosuji],[at(yodoyabashi,3),at(hommachi,6)],[back]),null);
+ // No station named back that way: the start is where the phone is, then the boarding station and on.
+ const sagano={line:'sagano',from:'Kyoto',to:'Saga-Arashiyama'},[kyoto]=legStops(sagano),east={lat:kyoto.lat,lng:kyoto.lng+.0165};
+ const kyotoBack=restartRide(sagano,rideTrouble([sagano],[at(kyoto,0),at(east,3)]),east);
+ assert.deepEqual(kyotoBack.slice(0,2).map(s=>[s.name,!!s.back,!!s.rejoin]),[[GET_OFF,true,false],['Kyoto',false,true]]);
+ assert.equal(kyotoBack.length,legStops(sagano).length+1);
+ assert.deepEqual([kyotoBack[0].lat,kyotoBack[0].lng],[east.lat,east.lng]);
+ // Riding on to the next stop before getting off is not the wrong way twice.
+ assert.equal(rideTrouble([sagano],[at(east,3),at({lat:east.lat,lng:east.lng+.02},5),at({lat:east.lat,lng:east.lng+.03},6)],[kyotoBack]),null);
+ // Off the route at a branch: back to where it left the line, and on to Nara.
+ const kintetsu={line:'kintetsu',from:'Kyoto',to:'Kintetsu-Nara'},stops=legStops(kintetsu),saidaiji=stops.find(s=>s.name==='Yamato-Saidaiji');
+ const south=km=>({lat:saidaiji.lat-km/111,lng:saidaiji.lng});
+ const off=rideTrouble([kintetsu],[at(stops[0],0),at(saidaiji,30),at(south(4),34),at(south(5),35)]);
+ assert.deepEqual(restartRide(kintetsu,off,south(5)).map(s=>s.name),[GET_OFF,'Yamato-Saidaiji','Shin-Omiya','Kintetsu-Nara']);
+ // Live times from the new start.
+ assert.match(liveTimes(sagano,kyotoBack),new RegExp(`origin=${east.lat}%2C${east.lng}`));
+ // And the card offers it with the warning, and can go back to the planned stations.
+ const card=await readFile(new URL('../src/RouteCard.jsx',import.meta.url),'utf8');
+ assert.match(card,/show the way back/);
+ assert.match(card,/Back to the planned stations/);
+});
 test('route notes corrected since reach a trip that already had an earlier version',async()=>{
  const {STOP_NOTES}=await import('../src/stop-notes.js');
  const {NOTES_BEFORE}=await import('../src/stop-notes-history.js');

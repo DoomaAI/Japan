@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {AlertTriangle,Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket,Baby,ChevronDown,ArrowLeft,ArrowRight,Luggage,MapPinPlus,Trash2,Pencil,CarTaxiFront,Clock,Navigation,Shuffle,Undo2} from 'lucide-react';
-import {LINES,legStops,stationLabel,whereOnRoute,rideTrouble,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked,legToDo,legStrip,ROUTES,MAX_WAYPOINTS,WAYPOINT_KINDS,routeMinutes,addedMinutes,SWAP_MODES,LEG_LABELS,legName,legLabel,swappable,baseMinutes,ownJourney,guideRoute} from './route-data.js';
+import {LINES,legStops,stationLabel,whereOnRoute,rideTrouble,restartRide,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked,legToDo,legStrip,ROUTES,MAX_WAYPOINTS,WAYPOINT_KINDS,routeMinutes,addedMinutes,SWAP_MODES,LEG_LABELS,legName,legLabel,swappable,baseMinutes,ownJourney,guideRoute} from './route-data.js';
 import {minutes as clockMinutes,asClock} from './timing.js';
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
@@ -23,7 +23,7 @@ function useTracking(rides,rideLegs){
   return ()=>navigator.geolocation.clearWatch(id);
  },[on]);
  const where=fix&&whereOnRoute(rides,fix);
- const problem=on&&trail.length>1?rideTrouble(rideLegs,trail):null,wrong=problem&&!fine.has(`${problem.i}:${problem.kind}`)?problem:null;
+ const problem=on&&trail.length>1?rideTrouble(rideLegs,trail,rides):null,wrong=problem&&!fine.has(`${problem.i}:${problem.kind}`)?problem:null;
  useEffect(()=>{
   if(!where?.ready)return;
   const key=`${where.i}`;
@@ -40,7 +40,9 @@ function useTracking(rides,rideLegs){
    navigator.serviceWorker?.ready.then(r=>r.showNotification(wrongWords(wrong,rideLegs[wrong.i]).title,{body:wrongWords(wrong,rideLegs[wrong.i]).text,tag:`wrong-${wrong.kind}-${wrong.i}`,icon:'/icon-192.png',badge:'/favicon-32.png',data:{url:location.href}})).catch(()=>{});
  },[wrong?.i,wrong?.kind]);
  const rightWay=w=>setFine(s=>new Set(s).add(`${w.i}:${w.kind}`));
- return {on,setOn,fix,where,wrong,rightWay,trouble};
+ // A ride started again is watched afresh from here: the trail so far went the wrong way.
+ const restart=()=>{setTrail(t=>t.slice(-1));for(const k of [...buzzed.current])if(k.startsWith('wrong:')||!k.includes(':'))buzzed.current.delete(k);};
+ return {on,setOn,fix,where,wrong,rightWay,restart,trouble};
 }
 const vehicle=leg=>LINES[leg.line].kind==='Bus'?'bus':'train';
 function wrongWords(wrong,leg){
@@ -51,12 +53,13 @@ function wrongWords(wrong,leg){
  const where=wrong.behind?`Near ${stationLabel(wrong.behind)}, back the other way from ${wrong.from.name}`:`Moving away from ${wrong.from.name} on the far side from the next stop`;
  return {title:'Going the wrong way?',text:`${where}: this ${v} looks to be heading away from ${wrong.to.name}.`,fix:`Get off at the next stop and take a ${v} back to ${wrong.from.name}, then board towards ${towards}.`};
 }
-function WrongWay({wrong,leg,onFine}){
+function WrongWay({wrong,leg,onFine,onRestart}){
  const w=wrongWords(wrong,leg);
  return <div className="route-wrong" role="alert"><p><AlertTriangle size={16}/><strong>{w.title}</strong></p><span>{w.text}</span><span>{w.fix}</span>
-  <button type="button" onClick={onFine}><Check size={14}/>We are on the right {vehicle(leg)}</button></div>;
+  <div className="route-wrong-actions"><button type="button" onClick={onRestart}><Undo2 size={14}/>Yes, wrong {vehicle(leg)}: show the way back</button>
+  <button type="button" onClick={onFine}><Check size={14}/>We are on the right {vehicle(leg)}</button></div></div>;
 }
-function Tracker({legs,rides,track,status,onPress}){
+function Tracker({legs,rides,track,status,onPress,onRestart}){
  const {on,setOn,fix,where,wrong,trouble}=track,[now,setNow]=useState(Date.now());
  useEffect(()=>{if(!on)return;const t=setInterval(()=>setNow(Date.now()),15000);return ()=>clearInterval(t);},[on]);
  const rideLegs=legs.filter(l=>l.mode==='ride'),leg=where&&rideLegs[where.i],stops=where&&rides[where.i];
@@ -65,7 +68,7 @@ function Tracker({legs,rides,track,status,onPress}){
  <button className={`route-track-toggle${on?' is-on':''}`} aria-pressed={on} onClick={()=>{onPress();setOn(!on);}}>{on?<><Square size={14}/>Stop tracking</>:<><LocateFixed size={14}/>Track this ride</>}</button>
  {status&&<div className={`route-track${where?.ready?' ready':''}`} aria-live="polite">
   {on&&!fix&&!trouble&&<span>Finding you…</span>}
-  {on&&wrong&&<WrongWay wrong={wrong} leg={rideLegs[wrong.i]} onFine={()=>track.rightWay(wrong)}/>}
+  {on&&wrong&&<WrongWay wrong={wrong} leg={rideLegs[wrong.i]} onFine={()=>track.rightWay(wrong)} onRestart={()=>onRestart(wrong)}/>}
   {trouble&&<span>{trouble}. Count the stops from the list instead.</span>}
   {on&&fix&&!where&&!wrong&&<span>Not near any {rideLegs.some(l=>LINES[l.line].kind!=='Bus')?'station':'stop'} on this route yet.</span>}
   {on&&where&&!wrong&&(where.arrived
@@ -195,7 +198,12 @@ function MovedJourney({step,ends,busy,canTick,onJourney}){
   {canTick&&onJourney&&<div className="route-waypoint-actions"><button type="button" disabled={busy} onClick={()=>onJourney('keep')}><Check size={14}/>Still right</button><button type="button" disabled={busy} onClick={()=>onJourney('replace')}><Navigation size={14}/>Plan a new journey</button></div>}</div>;
 }
 export default function RouteCard({legs,step,canTick,busy,onTick,onWaypoint,onSwap,onJourney,ends,lookOpen=false}){
- const rideLegs=legs.filter(l=>l.mode==='ride'),rides=rideLegs.map(legStops),track=useTracking(rides,rideLegs),where=track.on&&track.where;
+ // A ride confirmed as the wrong train starts again from where the phone is (restartRide), until
+ // the family goes back to the planned stations. Kept on this phone only, like the tracking itself.
+ const [restarts,setRestarts]=useState({}),rideLegs=legs.filter(l=>l.mode==='ride'),rides=rideLegs.map((l,i)=>restarts[i]||legStops(l));
+ const track=useTracking(rides,rideLegs),where=track.on&&track.where;
+ const restart=w=>{if(!track.fix)return;setRestarts(r=>({...r,[w.i]:restartRide(rideLegs[w.i],w,track.fix)}));track.restart();};
+ const unrestart=i=>{setRestarts(({[i]:_,...r})=>r);track.restart();};
  const fares=routeFares(legs),priced=legs.some(l=>l.yen||l.options),rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
  // Every ride offers the one tracker; its status sits with the ride it is following (the one pressed until it knows).
  const [pressed,setPressed]=useState(0),focus=track.wrong||where,trackAt=focus?focus.i:pressed;
@@ -235,7 +243,8 @@ export default function RouteCard({legs,step,canTick,busy,onTick,onWaypoint,onSw
     <div className="route-head"><strong className="route-line"><button type="button" className="route-line-toggle" aria-expanded={looking(k)} aria-controls={`route-look-${k}`} onClick={()=>toggleLook(k)}><Icon size={16}/>{symbols.map(c=><LineSymbol key={c} code={c} line={line}/>)}{line.name} <span lang="ja">{line.ja}</span><ChevronDown size={15} className="route-line-chevron" aria-hidden="true"/></button></strong>{tick(k,line.name)}</div>
     {looking(k)&&<p className="route-look" id={`route-look-${k}`}><Eye size={14}/><span><b>Look for:</b> {line.look}</span></p>}
     <p className="route-kind">{symbols.length===0&&<i aria-hidden="true"/>}{line.kind} · {line.operator}</p>
-    <p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>
+    {restarts[r]?<div className="route-restarted"><p><Undo2 size={14}/><span><b>The way back.</b> From {stops[0].here?'where you get off':<b>{stationLabel(stops[0])}</b>}, back to <b>{stationLabel(stops.find(s=>s.rejoin))}</b> and on. Board towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</span></p><button type="button" onClick={()=>unrestart(r)}>Back to the planned stations</button></div>
+    :<p>Board at <b>{stationLabel(stops[0])}</b>. Towards: {leg.towards}{/[.)]$/.test(leg.towards)?'':'.'}</p>}
     <p>Get off at <b>{stationLabel(stops[stops.length-1])}</b> · {stops.length-1} stop{stops.length===2?'':'s'}{leg.minutes&&!leg.options?` · about ${leg.minutes} min`:''}</p>
     {leg.yen&&!leg.options&&<p className="route-fare"><b>Fare:</b> adult {yen(leg.yen[0])} · child {yen(leg.yen[1])}{fares?`, a separate ${line.operator} ticket`:''}{leg.through?`, which also covers the ${LINES[legs[k+1]?.line]?.name||'next ride'} after it: change trains without going out through the gates`:''}. Tap an IC card at the gates, or buy a ticket from the fare machines.{line.childIc?` ${line.childIc}`:''}</p>}
     {leg.ownTicket&&<p className="route-fare"><b>Fare:</b> a ticket of its own now the ride before it goes another way. Tap an IC card at the gates, or buy a ticket from the fare machines.</p>}
@@ -245,11 +254,11 @@ export default function RouteCard({legs,step,canTick,busy,onTick,onWaypoint,onSw
     <div className="route-follow">
      <details open={here>=0||undefined}><summary>{line.kind==='Bus'?'Stops':'Stations'}</summary>
       {fast.length>0&&<p className="route-fast">{line.allStop} trains stop at all of these. {fast.map(f=><span key={f.tag}><mark>{f.tag}</mark> marks where {/^[AEIOU]/.test(f.name)?'an':'a'} {f.name} stops{f.some?'; “some” means only some of them':''}. </span>)}</p>}
-      <ol className="route-stops">{stops.map((s,n)=><li key={n} className={n===next?'next':n===here&&where.at?'here':n<(next>=0?next:here)?'passed':''}><span>{s.name}</span>{n===next&&<em>Next</em>}{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span>{fast.map(f=>f.at.includes(s.name)?<mark key={f.tag}>{f.tag}</mark>:f.some?.includes(s.name)?<mark key={f.tag} className="some">{f.tag}, some</mark>:null)}</li>)}</ol>
+      <ol className="route-stops">{stops.map((s,n)=><li key={n} className={`${n===next?'next':n===here&&where.at?'here':n<(next>=0?next:here)?'passed':''}${s.back?' back':''}`}><span>{s.name}</span>{n===next&&<em>Next</em>}{s.back&&!s.here&&<mark className="back">Back</mark>}{s.rejoin&&<mark className="back">Back on the way</mark>}{s.code&&<code>{s.code}</code>}<span lang="ja">{s.ja}</span>{fast.map(f=>f.at.includes(s.name)?<mark key={f.tag}>{f.tag}</mark>:f.some?.includes(s.name)?<mark key={f.tag} className="some">{f.tag}, some</mark>:null)}</li>)}</ol>
      </details>
-     <Tracker legs={legs} rides={rides} track={track} status={r===trackAt} onPress={()=>setPressed(r)}/>
+     <Tracker legs={legs} rides={rides} track={track} status={r===trackAt} onPress={()=>setPressed(r)} onRestart={restart}/>
     </div>
-    <div className="route-links"><a href={liveTimes(leg)} target="_blank" rel="noreferrer"><Radio size={14}/>Live times</a><a href={line.status} target="_blank" rel="noreferrer"><ExternalLink size={14}/>{line.operator} service status</a></div>
+    <div className="route-links"><a href={liveTimes(leg,stops)} target="_blank" rel="noreferrer"><Radio size={14}/>Live times</a><a href={line.status} target="_blank" rel="noreferrer"><ExternalLink size={14}/>{line.operator} service status</a></div>
     {leg.exit&&<p className="route-exit"><b>Exit{leg.exitAsPlanned?', for the route as planned':''}:</b> {leg.exit}</p>}
    </div>;
  };
