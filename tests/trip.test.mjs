@@ -299,7 +299,7 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  // Home no longer splits into two columns, so the step card has the screen to itself and the
  // timeline is not rendered twice.
  assert.equal((main.match(/<DayTimeline /g)||[]).length,1,'the timeline is rendered once, on its own screen');
- assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayCheck [^\n]*\/>\s*<DayTimeline /,'it opens with the day it is about, then the day\u2019s buttons, then what was checked the night before');
+ assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*\{dayHeading\}\s*\{dayStrip\(d=>go\('glance',d\)\)\}\s*<DayCheck [^\n]*\/>\s*<DayTimeline [^\n]*\/>\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayMap /,'it opens with the day it is about, then what was checked the night before, the stops, and the day\u2019s buttons under them');
  assert.match(main,/<DayMap key=\{day\} [^\n]*\/>\s*\{awarenessAllows\(visibleState,user\.name,'spare'\)&&<SpareTime /,'if-we-have-time sits at the foot of the plan, after the map');
  assert.doesNotMatch(main,/today-layout/,'Home is one column now');
  assert.doesNotMatch(css,/today-layout/,'and the grid that made two of them is gone with it');
@@ -1959,8 +1959,8 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.deepEqual(homeRuns(['step','tired','apps','weather','glance']),['step',['tired','apps'],'weather',['glance']]);
  // Home draws them by id, the day heading and strip stay put, and the phone keeps the choice.
  assert.match(main,/\{dayStrip\(selectDay\)\}\s*<MomentBanner [^\n]*\/>\s*<QuizLine [^\n]*\/>\s*\{homeRuns\(homeShown\(homePrefs\)\.filter\(id=>awarenessAllows\(visibleState,user\.name,id\)&&!todayHome\.away\.includes\(id\)\)\)\.map\(run=>/);
- // Today carries the day's buttons above its stops.
- assert.match(main,/\{dayStrip\(d=>go\('glance',d\)\)\}[\s\S]{0,200}<div className="home-actions day-actions">[\s\S]*?Slow the day[\s\S]*?Useful apps[\s\S]*?<DayTimeline/);
+ // Today carries the day's buttons under its stops.
+ assert.match(main,/\{dayStrip\(d=>go\('glance',d\)\)\}[\s\S]*?<DayTimeline [^\n]*\/>\s*\{\/\*[^\n]*\*\/\}\s*<div className="home-actions day-actions">[\s\S]*?Slow the day[\s\S]*?Useful apps[\s\S]*?<DayMap/);
  for(const id of HOME_DEFAULT)assert.match(main,new RegExp(`\\n  ${id}:`),`${id} is drawn`);
  assert.match(main,/localStorage\.setItem\(`japan\.home\.\$\{user\.name\}`/);
  assert.match(main,/onClick=\{\(\)=>go\('personalise'\)\}>Customise Home<\/Button>/);
