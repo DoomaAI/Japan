@@ -10149,6 +10149,38 @@ test('a stop on the way is a leg of the journey: the bags today, and any the fam
  assert.throws(()=>applyOperation(seed,{type:'waypoint',id:bare.id,action:'add',text:'Shop',after:1},parent),/where on the way/);
  for(const w of ownStep.waypoints)own=applyOperation(own,{type:'waypoint',id:bare.id,action:'remove',waypointId:w.id},child);
  assert.equal(routeFor(own.steps.find(x=>x.id===bare.id)),null,'no legs left, no route');
+ // A journey whose stop moves, or whose stop before it changes, is marked to check, with where it was planned for.
+ const {journeyEnds}=await import('../src/route-data.js');
+ const ride=seed.steps.find(x=>x.id==='2026-09-26-07'),planned=journeyEnds(seed).get(ride.id);
+ assert.equal(planned.to,ride.place);assert.ok(planned.from);
+ let moved=applyOperation(seed,{type:'patch',id:ride.id,patch:{place:'Somewhere else'}},parent);
+ let rs=moved.steps.find(x=>x.id===ride.id);
+ assert.deepEqual(rs.routeStale.was,planned);assert.equal(rs.routeStale.by,'Damien');
+ assert.equal(routeFor(rs),ROUTES[ride.id],'the route stays until the family decide');
+ // Putting the place back clears the mark; so does saying it is still right.
+ assert.equal(applyOperation(moved,{type:'patch',id:ride.id,patch:{place:ride.place}},parent).steps.find(x=>x.id===ride.id).routeStale,undefined);
+ assert.equal(applyOperation(moved,{type:'journey',id:ride.id,action:'keep'},child).steps.find(x=>x.id===ride.id).routeStale,undefined);
+ assert.throws(()=>applyOperation(seed,{type:'journey',id:ride.id,action:'keep'},child),e=>e.status===404);
+ // The stop before changing moves the start.
+ const prev=seed.steps.filter(x=>x.day===ride.day&&x.status!=='skipped'&&x.order<ride.order).sort((a,b)=>b.order-a.order)[0];
+ rs=applyOperation(seed,{type:'patch',id:prev.id,patch:{place:'A new café'}},parent).steps.find(x=>x.id===ride.id);
+ assert.equal(rs.routeStale.was.from,planned.from);assert.equal(journeyEnds({steps:[{...prev,place:'A new café'},rs]}).get(ride.id).from,'A new café');
+ // A new journey of our own sets the guide's route aside, and it can come back.
+ moved=applyOperation(moved,{type:'waypoint',id:ride.id,action:'add',text:'Coffee',after:0,minutes:10},child);
+ moved=applyOperation(moved,{type:'journey',id:ride.id,action:'replace'},child);
+ rs=moved.steps.find(x=>x.id===ride.id);
+ assert.equal(rs.ownRoute,true);assert.equal(routeFor(rs),null);assert.equal(rs.waypoints,undefined);assert.equal(rs.routeStale,undefined);
+ moved=applyOperation(moved,{type:'waypoint',id:ride.id,action:'add',kind:'taxi',text:'Taxi to Kyoto Station',after:0,minutes:25},child);
+ rs=moved.steps.find(x=>x.id===ride.id);
+ assert.deepEqual(routeFor(rs).map(l=>l.mode),['taxi']);
+ assert.throws(()=>applyOperation(moved,{type:'legSwap',id:ride.id,action:'add',mode:'walk',text:'Walk',from:0,to:0,minutes:5},child),/Only a stop with a route/);
+ assert.throws(()=>applyOperation(moved,{type:'waypoint',id:ride.id,action:'add',text:'Shop',after:1},child),/where on the way/);
+ rs=applyOperation(moved,{type:'journey',id:ride.id,action:'guide'},child).steps.find(x=>x.id===ride.id);
+ assert.equal(rs.ownRoute,undefined);assert.equal(routeFor(rs),ROUTES[ride.id]);
+ assert.throws(()=>applyOperation(seed,{type:'journey',id:ride.id,action:'guide'},child),/already on the guide/);
+ assert.throws(()=>applyOperation(seed,{type:'journey',id:bare.id,action:'replace'},child),/no journey to replace/);
+ const card2=await readFile(new URL('../src/RouteCard.jsx',import.meta.url),'utf8');
+ assert.match(card2,/onJourney\('keep'\)/);assert.match(card2,/onJourney\('replace'\)/);assert.match(card2,/onJourney\('guide'\)/);
  assert.throws(()=>applyOperation(seed,{type:'waypoint',id:s.id,action:'remove',waypointId:'nope'},parent),e=>e.status===404);
  const theirs={...seed,steps:seed.steps.map(x=>x.id===s.id?{...x,participants:['Damien']}:x)};
  assert.throws(()=>applyOperation(theirs,{type:'waypoint',id:s.id,action:'add',text:'Shop',after:0},child),e=>e.status===403);
