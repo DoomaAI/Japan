@@ -5,6 +5,8 @@ import {joinSpoken} from './dictation.js';
 import {draftPreview} from './day-check.js';
 import {confirmReply,englishVoice,speechChunks,spokenAnswer} from './ask-voice.js';
 import {warmUp} from './speech.js';
+import {quickSpoken} from './concierge-quick.js';
+import {onHeadphonePress,stillPlaying} from './headphones.js';
 // The assistant: Ask with the screen taken out. Tap, say it — "move the garden to after lunch",
 // "add a ramen stop near the hotel tonight", "is tomorrow too much for Nate?" — and it is sent
 // when you stop talking, answered out loud, and any change it suggests is put as a question:
@@ -27,7 +29,7 @@ export default function AskVoice({ask,apply,canApply,state,online,step,autoStart
   const s=synth();setSaid(text);
   if(!s||!text){then?.();return;}
   setPhase('speaking');
-  hush();const mine=turn.current,next=()=>{if(alive.current&&turn.current===mine)then?.();};
+  hush();const mine=turn.current,next=()=>{stillPlaying();if(alive.current&&turn.current===mine)then?.();};
   const voice=englishVoice(s.getVoices?.());
   const chunks=speechChunks(text);
   chunks.forEach((chunk,i)=>{
@@ -45,6 +47,8 @@ export default function AskVoice({ask,apply,canApply,state,online,step,autoStart
  // A listener stopped by one of the buttons has already been answered; it says nothing more.
  function heardAll(){
   const why=purpose.current;purpose.current='';
+  // Listening takes the phone's audio over; the AirPods' next press has to come back here.
+  stillPlaying();
   if(!alive.current||!why)return;
   const text=words.current.trim();
   if(why==='confirm'){
@@ -66,7 +70,8 @@ export default function AskVoice({ask,apply,canApply,state,online,step,autoStart
    const offer=!!(live.current.canApply&&item.draft&&!preview.stale&&!preview.conflicts.length);
    if(!alive.current)return;
    pending.current=offer?item:null;tries.current=0;
-   speak(spokenAnswer(item,{offer,preview}),()=>offer?listen('confirm'):setPhase('idle'));
+   // Answered from the plan on the phone, it is read as it stands, less any Japanese on a sign.
+   speak(item.quick?quickSpoken(item):spokenAnswer(item,{offer,preview}),()=>offer?listen('confirm'):setPhase('idle'));
   }catch(e){
    if(!alive.current)return;
    const message=e?.message||'That did not work. Try asking it another way.';
@@ -87,11 +92,13 @@ export default function AskVoice({ask,apply,canApply,state,online,step,autoStart
   if(phase==='listening'||(phase==='confirm'&&listener.listening))return listener.stop();
   if(phase==='speaking'){hush();return setPhase(pending.current?'confirm':'idle');}
   if(phase==='thinking')return;
-  if(!online){setError('Asking needs a signal. The plan itself is on this phone either way.');return;}
   // The speaker is woken inside the tap, or Safari stays silent for the answer that follows it.
   try{warmUp(window.speechSynthesis,window.SpeechSynthesisUtterance);}catch{}
   hush();pending.current=null;listen('ask');
  }
+ // A press on the AirPods is the same tap: start listening, send it, or cut the answer off.
+ const tapRef=useRef(tap);tapRef.current=tap;
+ useEffect(()=>listener.supported?onHeadphonePress(()=>tapRef.current()):undefined,[]);
  // Starting to type stands the voice down without sending what it had half heard.
  if(control)control.current={cancel(){purpose.current='';pending.current=null;try{listener.stop();}catch{}hush();setPhase('idle');}};
  // Opened from the button on any page, it is already listening: that tap was the ask.
@@ -102,7 +109,7 @@ export default function AskVoice({ask,apply,canApply,state,online,step,autoStart
   <button type="button" className="ask-voice-button" onClick={tap} disabled={phase==='thinking'} aria-pressed={phase==='listening'}>
    {phase==='listening'?<Square size={22}/>:phase==='speaking'?<Volume2 size={22}/>:<Mic size={22}/>}<span>{label}</span></button>
   <p className="ask-voice-hint">{phase==='listening'?(heard||listener.thinking||'Listening… it sends when you stop talking.')
-   :step?`Say what you want to know about ${step.title}.`:'Say it: “move the garden to after lunch”, “add ramen near the hotel at seven”, “make Thursday easier”.'}</p>
+   :step?`Say what you want to know about ${step.title}.`:`Say it: “what’s next?”, “how long until dinner?”, “how do we get to the temple?”, “move the garden to after lunch”.${online?'':' With no signal, what is next, how long until and the way there still work.'}`}</p>
   {heard&&phase!=='listening'&&<p className="ask-voice-heard"><small>You said</small>{heard}</p>}
   {said&&phase==='speaking'&&<p className="ask-voice-said" aria-live="polite">{said}</p>}
   {phase==='confirm'&&pending.current&&<div className="row wrap ask-voice-confirm">

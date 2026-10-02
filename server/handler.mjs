@@ -22,6 +22,7 @@ import {checkLocal} from './local-check.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {findEvents,eventsReady} from './events.mjs';
 import {askTrip,askReady} from './ask.mjs';
+import {conciergeAnswer,makeConciergeLink} from './concierge.mjs';
 import {parseCapture,captureReady} from './capture.mjs';
 import {nearbyPlaces,nearbyReady} from './nearby.mjs';
 import {fetchSumoDay,fetchSumoResults,fetchWrestler,sumoReady} from './sumo.mjs';
@@ -139,6 +140,21 @@ export default async function handler(req,res){
    if(!trip.state.calendarKey||!/^[a-f0-9]{64}$/.test(key)||hash(key)!==hash(trip.state.calendarKey))throw new AppError('This calendar link is not valid.',403);
    res.statusCode=200;res.setHeader('Content-Type','text/calendar; charset=utf-8');res.setHeader('Cache-Control','private, max-age=300');
    res.end(calendarFeed(trip.state,process.env.APP_ORIGIN||`http://${req.headers.host}`));return;
+  }
+  // "Hey Siri, Concierge": a Shortcut dictates the question and fetches this address, with the
+  // person's own key, and reads out what comes back. No cookie and no browser origin, like the
+  // calendar; plain words back, errors included, because Siri reads aloud whatever it is given.
+  if(route==='concierge'&&req.method==='GET'){
+   const plain=url.searchParams.get('format')!=='json';
+   try{
+    const out=await conciergeAnswer(url.searchParams.get('key')||'',url.searchParams.get('q')||'');
+    if(!plain)return json(res,out);
+    res.statusCode=200;res.setHeader('Content-Type','text/plain; charset=utf-8');res.end(out.speak);return;
+   }catch(e){
+    const status=e instanceof AppError?e.status||400:502,message=e instanceof AppError?e.message:'The Concierge could not be reached. Try again in a moment.';
+    if(!plain)return json(res,{error:message},status);
+    res.statusCode=status;res.setHeader('Content-Type','text/plain; charset=utf-8');res.end(message);return;
+   }
   }
   // Following along from home: a read-only view of the days so far, let in on a key of its own
   // like the calendar, with no session. What it sends is the allow-list in follow-data.js, and
@@ -266,6 +282,12 @@ export default async function handler(req,res){
    key??=(await readTrip()).state.calendarKey;
    const host=process.env.APP_ORIGIN?new URL(process.env.APP_ORIGIN).host:req.headers.host,scheme=process.env.APP_ORIGIN?.startsWith('https:')?'webcal':'http';
    return json(res,{url:`${scheme}://${host}/api/calendar?key=${key}`});
+  }
+  // Each person's own Siri Concierge address: made (or made again, which withdraws the old one)
+  // by that person, shown to them once, and stopped by them. The trip keeps only its hash.
+  if(route==='concierge-link'&&post){
+   const origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
+   return json(res,await makeConciergeLink(user,origin,{stop:!!b.stop}));
   }
   // The follow-along link: made the first time a parent asks, and withdrawn by a parent, after
   // which the old link stops working at once and the next one made is a different link.

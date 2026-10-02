@@ -41,6 +41,9 @@ export function visibleTrip(state,user,now=new Date()){
  // A screen frame's key opens the follow-along view like the follow key, so it goes to no phone:
  // a parent sees the frames by name and is handed a link by its route. The mailed frames'
  // addresses are the grandparents', and go to the parents only.
+ // A Siri Concierge key answers as its person, so no phone is sent even its hash: each person is
+ // told only that they have one, and when it was made.
+ if(rest.conciergeKeys)rest.conciergeKeys=rest.conciergeKeys.filter(k=>k.name===user?.name).map(k=>({id:k.id,name:k.name,createdAt:k.createdAt}));
  if(rest.frameKeys)rest.frameKeys=user?.role==='parent'?rest.frameKeys.map(frameKeyView):[];
  if(rest.frameEmails&&user?.role!=='parent')rest.frameEmails=[];
  // A Nest Hub frame's Google token (sealed) and its link's secret go to no phone at all.

@@ -30,6 +30,11 @@ export const SETTINGS=[
  {id:'voiceAssistant',label:'Concierge on every page',group:'assistant',
   on:'A bell sits in the corner of every page. Tap it and say or type what you want — move a stop, add one, adjust the day — and hear the answer.',
   off:'No button in the corner. Talk to the trip and the question box are still on the Concierge page.'},
+ // Off until asked for: while it is on and the app is open, the AirPods' press belongs to the
+ // Concierge rather than to the music, which nobody should find out by having a podcast stop.
+ {id:'headphoneConcierge',label:'Ask with my AirPods',group:'assistant',default:false,
+  on:'While the app is open, press the AirPods stem (or play on any headphones) and the Concierge listens: “what’s next?”, “how long until dinner?”, “how do we get to the temple?”. Press again to stop it talking. Music on this phone pauses while the app is on the screen, and comes back when you leave it.',
+  off:'The AirPods press stays with your music. The bell in the corner and “Hey Siri, Concierge” still work.'},
  // Closed until asked for, so a route card stays short; tapping a line's name opens it either way.
  {id:'routeLookOpen',label:'Show what to look for',group:'route',default:false,
   on:'Each train, subway and bus on a route card opens with what to look for to find it. Tap the line’s name to close it.',
