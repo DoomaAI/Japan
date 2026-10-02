@@ -4,8 +4,8 @@ import LocationDirectory,{GuideLocations} from './LocationDirectory.jsx';
 import {destinationFor,resolveLocation,showLocationDetails} from './locations.js';
 import {ensureFeatures,pendingProgress,phoneLinks,isTrainLeg,PIN_PLACES,stepPin,pinText,phraseSeenBy,phraseQueue,factSeenBy,factsSeenBy,factQueue,THANK_YOU_FROM,THANK_YOU_FOR,BOYS as NOTE_BOYS,todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,ticketList,isArchived,attachmentsOf,documentSteps,documentStepList,documentServesStep} from './trip-features.js';
 import {askPhoneWhereItIs} from './geo.js';
-import RouteCard from './RouteCard.jsx';
-import {routeFor,legCount,legsTicked,routeMinutes,baseMinutes} from './route-data.js';
+import RouteCard,{AddJourney} from './RouteCard.jsx';
+import {routeFor,legCount,legsTicked,routeMinutes,baseMinutes,journeyEnds} from './route-data.js';
 import {Challenges,Shopping,SpeakRules,useReadAloud} from './AdventurePages.jsx';
 import Shortlist,{DayFinds} from './Shortlist.jsx';
 import {NextUp,RunningLate,OfflineReadiness,Updates} from './HomeFeatures.jsx';
@@ -541,6 +541,13 @@ function App(){
   notice(`${what}${after!==before?` The journey is now about ${after} min${s.time?`, there about ${asClock((minutes(s.time)+after)%1440)}`:''}.`:''}`);
   return ok;
  }
+ // A journey whose stop (or the stop before it) moved: still right, or started again as our own;
+ // and the guide's route brought back after our own.
+ async function routeJourney(action){
+  const s=current,ok=await mutate({type:'journey',id:s.id,action});
+  if(ok)notice(action==='keep'?`The way to ${s.title} stays as it is.`:action==='guide'?`Back to the guide's route to ${s.title}.`:`The old journey to ${s.title} is cleared. Add the new one leg by leg.`);
+  return ok;
+ }
  // Part or all of the route gone another way (a taxi, on foot), or put back to the plan.
  async function routeSwap(c){
   const s=current,before=routeMinutes(routeFor(s)),was=(s.swaps||[]).find(x=>x.id===c.swapId);
@@ -744,7 +751,8 @@ function App(){
      // now stands as well: ticking off is the one moment we know both what was planned and what
      // actually happened, and twelve minutes in hand is worth hearing before the next step.
      setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);}}}>Done</Button></>}{parent&&<button className="icon completion-more" aria-label="Edit, lock, move or remove this stop" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal size={18}/></button>}</div>
-    {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg} onWaypoint={routeWaypoint} onSwap={routeSwap} lookOpen={settingOn(settings,'routeLookOpen')}/>}
+    {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg} onWaypoint={routeWaypoint} onSwap={routeSwap} onJourney={routeJourney} ends={current.routeStale?journeyEnds(state).get(current.id):null} lookOpen={settingOn(settings,'routeLookOpen')}/>}
+    {!routeFor(current)&&current.status!=='done'&&current.status!=='skipped'&&(parent||current.participants.includes(user.name))&&<AddJourney key={`journey-${current.id}`} step={current} busy={busy} onWaypoint={routeWaypoint} onJourney={routeJourney}/>}
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore stop</button></p>}
     {/* One row rather than three that stack. Untouched, what only this day has (the park, the
         sumo, the train window) comes first, then everything every stop has; press and hold any

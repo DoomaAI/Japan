@@ -150,10 +150,15 @@ export const MAX_WAYPOINTS=6;
 // as a swap and shows as the one leg (`s:<id>`) in place of the legs it stands for. A stop on the
 // way inside the run comes after it. A ride whose shared ticket loses its other half to a swap
 // pays for itself, and an exit that pointed at a swapped leg says it was for the route as planned.
+// A stop the guide gives no route can still have a journey of the family's own: its legs are
+// waypoints alone, in the order they were added, so it has a route once it has one.
+// A guide's route the family has replaced with their own (`ownRoute`) is set aside, not lost: they
+// can go back to it.
+export const guideRoute=step=>step&&!step.ownRoute?ROUTES[step.id]||null:null;
 export function routeFor(step){
- const base=ROUTES[step?.id];
+ const guide=guideRoute(step),base=guide||(step?.waypoints?.length?[]:null);
  if(!base)return null;
- const added=step.waypoints||[],swaps=step.swaps||[];
+ const added=step.waypoints||[],swaps=guide?step.swaps||[]:[];
  if(!added.length&&!swaps.length)return base;
  const swapAt=k=>swaps.find(s=>s.from<=k&&k<=s.to),legs=[],held=[];
  base.forEach((leg,k)=>{
@@ -173,18 +178,22 @@ export function routeFor(step){
  for(const w of added)if(w.after>=base.length)legs.push(waypointLeg(w));
  return legs;
 }
-// What the family can add: a stop (bags, a shop), or a leg of their own on foot or by taxi.
-export const WAYPOINT_KINDS={stop:'Stop on the way',walk:'Walk',taxi:'Taxi'};
+// What the family can add: a stop (bags, a shop), or a leg of their own on foot, by taxi, or by
+// train or bus (written out by the family, so without the guide's line, stations and fares).
+export const WAYPOINT_KINDS={stop:'Stop on the way',walk:'Walk',taxi:'Taxi',other:'Train or bus'};
+// A journey the family made themselves, for a stop the guide gives no route.
+export const ownJourney=step=>!!step&&!guideRoute(step);
 const waypointLeg=w=>({mode:WAYPOINT_KINDS[w.kind]?w.kind:'stop',text:w.text,minutes:w.minutes||null,key:`w:${w.id}`,added:{id:w.id,by:w.by||null,kind:w.kind||'stop',after:w.after}});
 // How the family can go instead of the guide's legs. A stop on the way is not travel, so a swap
 // runs up to it and the legs after it can be changed separately.
 export const SWAP_MODES={taxi:'Taxi',walk:'Walk',other:'Another way'};
 export const LEG_LABELS={...WAYPOINT_KINDS,other:'Another way'};
+export const legLabel=l=>l.added&&l.mode==='other'?WAYPOINT_KINDS.other:LEG_LABELS[l.mode]||'Walk';
 export const legName=l=>l.mode==='ride'?`${LINES[l.line].name} to ${l.to}`:l.mode==='stop'?'the stop on the way':l.mode==='taxi'?'the taxi':l.mode==='other'?'the other way':'the walk';
 const swapLeg=(s,base)=>({mode:SWAP_MODES[s.mode]?s.mode:'other',text:s.text,minutes:s.minutes||null,key:`s:${s.id}`,swap:{id:s.id,by:s.by||null,mode:s.mode,from:s.from,to:s.to,instead:base.slice(s.from,s.to+1).map(legName)}});
 // The guide's legs a swap may cover: travel legs, not yet ticked, in no other swap.
 export function swappable(step,ignore){
- const base=ROUTES[step?.id]||[],keys=legKeys(step);
+ const base=guideRoute(step)||[],keys=legKeys(step);
  return base.map((leg,k)=>{
   if(leg.mode==='stop')return false;
   if((step.swaps||[]).some(s=>s.id!==ignore&&s.from<=k&&k<=s.to))return false;
@@ -193,7 +202,7 @@ export function swappable(step,ignore){
  });
 }
 // Minutes of the guide's legs from one to another, as a starting guess for the swap's own.
-export const baseMinutes=(step,from,to)=>routeMinutes((ROUTES[step?.id]||[]).slice(from,to+1));
+export const baseMinutes=(step,from,to)=>routeMinutes((guideRoute(step)||[]).slice(from,to+1));
 // How long the whole journey takes, door to door, from its legs: a ride with options counts
 // the first (usual) one. Legs without a time count as nothing rather than a guess.
 export const legMinutes=l=>l.minutes||l.options?.[0]?.minutes||0;
@@ -224,7 +233,7 @@ export function legStrip(legs,step,showing){
  const now=legToDo(step,legs.length);
  return legs.map((leg,k)=>{
   const done=legDone(step,k),line=leg.mode==='ride'?LINES[leg.line]:null;
-  return {k,mode:leg.mode,label:line?line.name:LEG_LABELS[leg.mode]||'Walk',colour:line?.colour||null,done,showing:k===showing,status:done?'done':k===now?'now':'to come'};
+  return {k,mode:leg.mode,label:line?line.name:legLabel(leg),colour:line?.colour||null,done,showing:k===showing,status:done?'done':k===now?'now':'to come'};
  });
 }
 // Applies one leg's tick to the stop, in place, and says what that did to the stop as a whole:
@@ -240,6 +249,31 @@ export function tickLeg(step,leg,done,at){
  if(step.status==='done'){delete step.completedAt;step.status=count?'started':'todo';if(!count)delete step.startedAt;return 'undone';}
  if(done&&step.status!=='started'){step.status='started';step.startedAt=step.startedAt||at;}
  return null;
+}
+// Where each journey runs from and to: the stop before it on the day (the last one not skipped)
+// and the stop's own place. A journey whose ends move (the stop is somewhere else now, or the stop
+// before it changed, moved or went) is marked to check, with where it was planned for; putting the
+// ends back clears the mark, and so does the family saying it is still right.
+const placeOf=s=>s.place||s.title||null;
+export function journeyEnds(state){
+ const ends=new Map(),days=new Map();
+ for(const s of state?.steps||[])if(s.day&&s.status!=='skipped')days.set(s.day,[...(days.get(s.day)||[]),s]);
+ for(const list of days.values()){
+  list.sort((a,b)=>a.order-b.order);
+  list.forEach((s,i)=>{if(routeFor(s))ends.set(s.id,{from:i?placeOf(list[i-1]):null,to:placeOf(s)});});
+ }
+ return ends;
+}
+const sameEnds=(a,b)=>a.from===b.from&&a.to===b.to;
+export function markMovedJourneys(before,state,by,at){
+ const after=journeyEnds(state);
+ for(const step of state.steps||[]){
+  const now=after.get(step.id);
+  if(!now||step.status==='done'){if(!now&&step.status!=='skipped')delete step.routeStale;continue;}
+  if(step.routeStale){if(sameEnds(step.routeStale.was,now))delete step.routeStale;continue;}
+  const was=before.get(step.id);
+  if(was&&!sameEnds(was,now))step.routeStale={was,by,at};
+ }
 }
 // What each ride costs, and the total when the route crosses companies: each company is its own
 // ticket, and an IC card pays each part as it taps out and in again at the change.
