@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import HowThisWorks from './HowThisWorks.jsx';
+import PageTitle from './PageTitle.jsx';
 import {upload} from '@vercel/blob/client';
 import {Camera,Trash2,ShoppingBag,PiggyBank,MapPin,Tag,X,Plus,CalendarDays,ChevronRight,Star,LocateFixed,AlertCircle} from 'lucide-react';
 import {shrinkPhoto} from './MenuReader.jsx';
@@ -248,9 +248,7 @@ export default function Shortlist({state,user,day,config,busy,setBusy,mutate,req
  }
  return <>
   <p className="eyebrow">SEEN IT, NOT BOUGHT IT</p>
-  <h1>Purchase shortlist</h1>
-  <p>The things we have actually seen in a shop and not bought — a photo of it, which shop, whereabouts, what the ticket said and a word or two for what it is.</p>
- <HowThisWorks><p>Pin one to the place we were at or the activity we were on, and it comes back on that day’s screen. Then we decide, once we have seen everything, rather than on the spot with two tired boys in the doorway.</p></HowThisWorks>
+  <PageTitle help={<><p>The things we have actually seen in a shop and not bought — a photo of it, which shop, whereabouts, what the ticket said and a word or two for what it is.</p><p>Pin one to the place we were at or the activity we were on, and it comes back on that day’s screen. Then we decide, once we have seen everything, rather than on the spot with two tired boys in the doorway.</p></>}>Purchase shortlist</PageTitle>
   <div className="row wrap">
    <button className="primary" onClick={()=>openForm({person:user.name,day:day||null})}><Plus size={16}/> Add something we have seen</button>
    {filtered&&<button onClick={()=>{setQuery('');setPerson('');setStatus('');setDate('');setTag('');setLeast('');}}>Browse all {everything}</button>}

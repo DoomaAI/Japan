@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import HowThisWorks from './HowThisWorks.jsx';
+import PageTitle from './PageTitle.jsx';
 import {ExternalLink,ArrowRight,Check,ThumbsUp,ThumbsDown} from 'lucide-react';
 import {keepsakeFund,BOYS} from './trip-features.js';
 import {POSTCARD_PROVIDERS} from './postcard-providers.js';
@@ -47,9 +47,7 @@ export default function TripShop({state,user,today,go,mutate,busy}){
  </li>;};
  const before=KEEPSAKES.filter(k=>k.when==='before'),during=KEEPSAKES.filter(k=>k.when==='during'),after=KEEPSAKES.filter(k=>k.when==='after');
  return <>
-  <p className="eyebrow">BEFORE WE GO, AND ONCE WE ARE HOME</p><h1>Trip shop</h1>
-  <p>The essentials to sort before the flight, and keepsakes made out of our own trip.</p>
- <HowThisWorks><p>The app sells nothing: each link goes straight to the shop or the official page.</p></HowThisWorks>
+  <p className="eyebrow">BEFORE WE GO, AND ONCE WE ARE HOME</p><PageTitle help={<><p>The essentials to sort before the flight, and keepsakes made out of our own trip.</p><p>The app sells nothing: each link goes straight to the shop or the official page.</p></>}>Trip shop</PageTitle>
   {anyPartner&&<p className="callout">Some links here carry a referral tag, and the app may earn a small commission from them. The price is the same for us.</p>}
   <section className="arrival-part"><h2>The essentials pack</h2>
    <p>{started?'For the next trip: what had to be sorted before this one, in the order to do it.':toGo!=null?`${toGo} day${toGo===1?'':'s'} to go. In the order to do them.`:'In the order to do them.'}</p>

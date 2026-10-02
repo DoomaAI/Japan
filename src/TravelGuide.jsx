@@ -1,4 +1,5 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
+import PageTitle from './PageTitle.jsx';
 import {Printer,BedDouble,Lightbulb,Ticket,Map as MapIcon,ListOrdered,Clock,Phone,Languages,TriangleAlert,Camera} from 'lucide-react';
 import {travelGuide,cropFrame,longDate,shortDate} from './travel-guide-data.js';
 import {project,scaleBar} from './day-map-data.js';
@@ -72,8 +73,7 @@ export default function TravelGuide({state,today,dayLabel}){
  useEffect(()=>{const after=()=>document.body.classList.remove('print-guide');addEventListener('afterprint',after);return()=>{removeEventListener('afterprint',after);after();};},[]);
  const print=async()=>{setWaiting(true);await picturesReady(box.current);setWaiting(false);document.body.classList.add('print-guide');setTimeout(()=>window.print(),50);};
  return <div className="travel-guide" ref={box}>
-  <div className="tg-controls"><p className="eyebrow">TO PRINT OR SAVE AS A PDF</p><h1>Our travel guide</h1>
-   <p>The original guide, rebuilt from the plan as it stands today: every change we have made is in it, the original's pictures are kept where they still belong, and each day gets its chapter — the day at a glance, the steps in order, a sketch of where they are, the bookings and tonight's hotel.</p>
+  <div className="tg-controls"><p className="eyebrow">TO PRINT OR SAVE AS A PDF</p><PageTitle help={<><p>The original guide, rebuilt from the plan as it stands today: every change we have made is in it, the original's pictures are kept where they still belong, and each day gets its chapter — the day at a glance, the steps in order, a sketch of where they are, the bookings and tonight's hotel.</p></>}>Our travel guide</PageTitle>
    <div className="form-row">
     <label>Which days<select value={range} onChange={e=>setRange(e.target.value)}><option value="all">The whole trip</option><option value="ahead">From today on</option><option value="day">One day</option></select></label>
     {range==='day'&&<label>Day<select value={day} onChange={e=>setDay(e.target.value)}>{state.days.map((d,i)=><option key={d.date} value={d.date}>Day {i+1} · {shortDate(d.date)} · {d.title}</option>)}</select></label>}

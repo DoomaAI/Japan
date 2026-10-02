@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import HowThisWorks from './HowThisWorks.jsx';
+import PageTitle from './PageTitle.jsx';
 import {Dices,Check,Sparkles,RotateCcw,Trash2} from 'lucide-react';
 import Mascot,{MascotBadge} from './Mascot.jsx';
 import {THEMES,VIBES,CHOICES,SAYINGS,DEFAULT_MASCOT,TEXT_FIELDS,themeFor,paletteFor,mascotFor,mascotReady,randomMascot,describeMascot} from './mascot-data.js';
@@ -43,9 +43,7 @@ export default function MascotMaker({state,user,mutate,busy,notice,go}){
   if(await mutate({type:'mascotSave',person,mascot:{...draft}}))notice(`${draft.name} is ready. You will see them beside ${person==='Damien'||person===user.name?'your':person+'’s'} name around the app.`);
  }
  return <>
-  <p className="eyebrow">OUR TRIP MASCOTS</p><h1>Design your character</h1>
-  <p>Build yourself a Japanese character out of the old stories — a fox spirit, a river imp, a roof-top lion dog — or something out of a Japanese film.</p>
- <HowThisWorks><p>Once it has a name it stands beside you everywhere else in the app: your missions, your spending, your photos.</p></HowThisWorks>
+  <p className="eyebrow">OUR TRIP MASCOTS</p><PageTitle help={<><p>Build yourself a Japanese character out of the old stories — a fox spirit, a river imp, a roof-top lion dog — or something out of a Japanese film.</p><p>Once it has a name it stands beside you everywhere else in the app: your missions, your spending, your photos.</p></>}>Design your character</PageTitle>
   {members.length>1&&<label>Whose character<select value={person} onChange={e=>setPerson(e.target.value)}>{members.map(n=><option key={n}>{n}</option>)}</select></label>}
   {!canEdit&&<p className="callout">This is {person}’s character. Switch back to your own name to change anything.</p>}
   <div className="mascot-preview">

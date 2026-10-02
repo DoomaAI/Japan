@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import PageTitle from './PageTitle.jsx';
 import {Radar,Luggage,Plus,X,Pencil,Trash2,RotateCcw,Inbox,MapPin,CloudSun,Compass,User,CalendarDays,Sparkles,DoorOpen,Check,ClipboardCheck} from 'lucide-react';
 import {packing} from './trip-features.js';
 import {PACK_CATEGORIES,PACK_PRIORITY,PACK_SOURCES,PACK_SCOPES,inPackScope,packCategoryLabel,packingSuggestions,dismissedSuggestions,nextPackUp,packingProgress,daysAhead,packingWeather,beforeWeGo,beforeProgress} from './packing-data.js';
@@ -119,8 +120,7 @@ export default function Packing({state,user,mutate,busy,remove}){
   const values={title:f.get('title'),category:f.get('category'),person:f.get('person'),qty:Number(f.get('qty'))||1,notes:f.get('notes'),by:user.name};
   if(await mutate(edit.id?{type:'packEdit',id:edit.id,...values}:{type:'packAdd',...values})){setEdit(null);setView('list');}
  }
- return <><p className="eyebrow">WHAT GOES IN THE CASE</p><h1>Packing list</h1><GoingHome open={goingHomeSoon(state,today)}/>
- <p>Our own list, ticked off as it goes in — and suggestions worked out from where we are going, the weather, what is on the days ahead and who is coming. Add what suits us, turn down what does not, and write in anything it missed. Anyone can add and tick, with no signal needed.</p>
+ return <><p className="eyebrow">WHAT GOES IN THE CASE</p><PageTitle help={<p>Our own list, ticked off as it goes in — and suggestions worked out from where we are going, the weather, what is on the days ahead and who is coming. Add what suits us, turn down what does not, and write in anything it missed. Anyone can add and tick, with no signal needed.</p>}>Packing list</PageTitle><GoingHome open={goingHomeSoon(state,today)}/>
  {next&&<p className="callout"><Luggage size={18}/><span><strong>Next pack-up: {fmt(next.date)}</strong> · {next.from} → {next.home?'home':next.to}.
   {parent&&(!!packed||!!beforeProgress(state,next).done)&&<> <button disabled={busy} onClick={()=>{if(confirm('Untick everything, the before-we-go list too, ready to pack again for the next move?'))mutate({type:'packReset'});}}><RotateCcw size={14}/>Start this pack-up again</button></>}</span></p>}
  <div className="segmented pack-scope" role="group" aria-label="Whose list">

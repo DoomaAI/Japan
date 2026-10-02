@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import PageTitle from './PageTitle.jsx';
 import {PlaneTakeoff,ClipboardCheck,Scale,Package,ExternalLink} from 'lucide-react';
 import {declareGroups,dutyFree,weightBudget} from './flying-home.js';
 import {BORDER_LINKS,DECLARE_RULE} from './going-home.js';
@@ -15,8 +16,8 @@ export default function FlyingHome({state,go,mutate,busy,parent}){
  const saveRoom=v=>{const n=v===''?null:Number(v);setRoom(Number.isFinite(n)&&n>0?n:null);try{n?localStorage.setItem(ROOM_KEY,String(n)):localStorage.removeItem(ROOM_KEY);}catch{}};
  const chips=items=><span className="row wrap plan-tags">{items.map(i=><span className="tag" key={i.id}>{i.title}{i.qty>1?` ×${i.qty}`:''}{i.who&&i.who!=='Family'?` · ${i.who}`:''}</span>)}</span>;
  return <>
-  <p className="eyebrow">CAN WE BRING IT HOME?</p><h1>Flying home</h1>
-  <p>Read off the shopping list, the purchase shortlist and the boys’ purses: nothing to type. Everything bought counts, tax-free or not. {DECLARE_RULE}</p>
+  <p className="eyebrow">CAN WE BRING IT HOME?</p><PageTitle help={<p>Read off the shopping list, the purchase shortlist and the boys’ purses: nothing to type. Everything bought counts, tax-free or not.</p>}>Flying home</PageTitle>
+  <p>{DECLARE_RULE}</p>
   <section className="arrival-part"><h2><ClipboardCheck size={20}/> On the Incoming Passenger Card</h2>
    {!any&&!unsure.length&&<p>Nothing bought yet that the card asks about. Tick things off the shopping list as they are bought and they turn up here.</p>}
    {groups.map(g=><div className="home-front-group" key={g.id}><p><strong>Tick yes to “{g.title}”</strong> · {g.text}</p>{chips(g.items)}</div>)}

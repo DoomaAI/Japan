@@ -1,4 +1,5 @@
 import React,{useEffect,useMemo,useRef,useState,useCallback} from 'react';
+import PageTitle from './PageTitle.jsx';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {Clapperboard,Plane,Map as MapIcon,Users,LocateFixed,EyeOff,RefreshCw,Star,Camera,Mic,MapPinOff,Download,Volume2} from 'lucide-react';
@@ -120,8 +121,7 @@ export default function MemoryMap({state,user,request,accept,notice,busy}){
   catch(e){notice(e.message);}finally{setLoading(false);}
  }
  const chosen=points.find(p=>p.id===selected);
- return <><p className="eyebrow">WHERE IT HAPPENED</p><h1>Memory map</h1>
- <p>Our photos, voice notes, stars and what we thought, on the map where they happened, and the family where they last said they were. Tap a marker to see what we kept from it.</p>
+ return <><p className="eyebrow">WHERE IT HAPPENED</p><PageTitle help={<><p>Our photos, voice notes, stars and what we thought, on the map where they happened, and the family where they last said they were. Tap a marker to see what we kept from it.</p></>}>Memory map</PageTitle>
  <div className="row wrap replay-starts"><button type="button" className="primary replay-start" onClick={()=>setReplay(true)}><Clapperboard size={18}/>Replay the trip</button>
   <button type="button" className="replay-start" onClick={()=>setFlyover(true)}><Plane size={18}/>Flyover, to record</button></div>
  {replay&&<TripReplay state={state} close={()=>setReplay(false)}/>}

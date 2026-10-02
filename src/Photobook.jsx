@@ -1,4 +1,5 @@
 import React,{useEffect} from 'react';
+import PageTitle from './PageTitle.jsx';
 import {Printer} from 'lucide-react';
 import {photobookPages} from './photobook-data.js';
 const src=p=>p.kind==='photo'?`/api/photo?id=${encodeURIComponent(p.item.id)}`:`/api/document?id=${encodeURIComponent(p.item.id)}`;
@@ -9,8 +10,7 @@ export default function Photobook({state,dayLabel}){
  useEffect(()=>{const after=()=>document.body.classList.remove('print-photobook');addEventListener('afterprint',after);return()=>{removeEventListener('afterprint',after);after();};},[]);
  const print=()=>{document.body.classList.add('print-photobook');setTimeout(()=>window.print(),50);};
  return <div className="photobook">
-  <div className="photobook-intro"><p className="eyebrow">TO KEEP</p><h1>Our photobook</h1>
-   <p>A page for each day: the photo of the day, the stops we loved and the diary. Print it, or choose Save as PDF, and send it to be printed.</p>
+  <div className="photobook-intro"><p className="eyebrow">TO KEEP</p><PageTitle help={<><p>A page for each day: the photo of the day, the stops we loved and the diary. Print it, or choose Save as PDF, and send it to be printed.</p></>}>Our photobook</PageTitle>
    <button type="button" className="primary" onClick={print}><Printer size={18}/>Print or save as PDF</button></div>
   <section className="pb-cover"><p>The Pasfield family</p><h2>{state.tripName||'Japan'}</h2><p>{dayLabel(pages[0]?.date,{day:'numeric',month:'long'})} – {dayLabel(pages.at(-1)?.date,{day:'numeric',month:'long',year:'numeric'})}</p></section>
   {pages.map(p=><section className="pb-page" key={p.date}>

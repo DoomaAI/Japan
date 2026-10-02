@@ -14,7 +14,7 @@ test('the weather list starts at today, with the days behind us folded above it'
  assert.match(page,/behind=state\.days\.filter\(d=>d\.date<today\)/);
  assert.match(page,/<summary>Earlier days \(\{earlier\.length\}\)<\/summary>/);
  assert.match(page,/open=\{earlier\.some\(d=>d\.date===open\)\|\|undefined\}/,'a past day asked for opens its fold');
- assert.match(page,/<details className="page-help"><summary>How this works<\/summary>/,'the explanation folds under the button');
+ assert.match(page,/<PageTitle help=\{<p>Every day of the trip/,'the explanation waits behind the ? beside the title');
  assert.match(page,/No forecast saved yet\./);
 });
 test('the phrase and fun fact of the day wait in a folding widget of their own instead of opening over Home',async()=>{
@@ -78,7 +78,7 @@ test('dark mode is built into every stylesheet, and the status bar follows the p
 test('screens lead with the tool, and a feature not switched on is left off rather than explained',async()=>{
  const yen=await source('Currency.jsx'),food=await source('FoodList.jsx'),main=await source('main.jsx');
  assert.ok(yen.indexOf('<section className="converter">')<yen.indexOf('<section className={`rate-card'),'the converter comes before the rate');
- assert.match(yen,/<details className="page-help"><summary>How this works<\/summary>Everything in Japan is priced in yen/);
+ assert.match(main,/<PageTitle help=\{<p>Everything in Japan is priced in yen/);
  assert.match(food,/<strong>Allergies: always confirm with the restaurant, not with this list\.<\/strong>/);
  assert.match(main,/<div className="row wrap page-links"><button onClick=\{\(\)=>go\('allergy'\)\}>/);
  assert.doesNotMatch(main,/🥜 Allergy card/);

@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import HowThisWorks from './HowThisWorks.jsx';
+import PageTitle from './PageTitle.jsx';
 import {Radar,Plus,Pencil,Trash2,ExternalLink,Link2,Link2Off,Truck,Languages,Inbox,CircleCheck,Circle} from 'lucide-react';
 import {TRACKER_KINDS,SHARE_LINK_DAYS,LOST_BAG_LINES,trackers,trackerKindLabel,linkState,trackerChecks} from './trackers.js';
 const when=d=>d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'});
@@ -74,9 +74,7 @@ export default function Trackers({state,user,mutate,busy,remove}){
   if(await mutate({type:edit.id?'trackerEdit':'trackerAdd',id:edit.id,label:f.get('label'),kind:f.get('kind'),
    person:f.get('person'),owner:f.get('owner')||'',forwarded:f.get('forwarded')==='on',notes:f.get('notes')}))setEdit(null);
  }
- return <><p className="eyebrow">WHERE THE BAGS ARE</p><h1>Tracker tags</h1>
- <p>Which AirTag is in which bag, and the Find My link to where it is.</p>
- <HowThisWorks><p>The app cannot see a tag itself — no web app on an iPhone can — so the link is how Find My hands its whereabouts over: one tap for us, and something to send an airline if a bag does not come off the carousel.</p></HowThisWorks>
+ return <><p className="eyebrow">WHERE THE BAGS ARE</p><PageTitle help={<><p>Which AirTag is in which bag, and the Find My link to where it is.</p><p>The app cannot see a tag itself — no web app on an iPhone can — so the link is how Find My hands its whereabouts over: one tap for us, and something to send an airline if a bag does not come off the carousel.</p></>}>Tracker tags</PageTitle>
  {parent&&<button className="primary" onClick={()=>setEdit({kind:'suitcase',person:'Family',owner:user.name,label:'',notes:'',forwarded:false})}><Plus size={18}/>Add a tracker</button>}
  {edit&&<form key={edit.id||'new'} className="feature-card" onSubmit={save}>
   <h2>{edit.id?'Edit this tracker':'Add a tracker'}</h2>

@@ -11208,7 +11208,7 @@ test('one word for each idea on the screen: a stop is a stop, and the screen tha
  // The screen was My menu in the list and Customise Home on the button that led to it.
  assert.equal(PAGES.personalise.label,'Customise');
  assert.match(PAGE_RULES.personalise,/^Customise\./);
- assert.match(await read('Personalise.jsx'),/<h1>Customise<\/h1>/);
+ assert.match(await read('Personalise.jsx'),/>Customise<\/PageTitle>/);
  assert.ok(!main.includes('from My menu'),'Home points at Customise by its name');
  // Home is the dashboard and Today is the day's stops, and those two stay as they are.
  assert.equal(PAGES.today.label,'Home');assert.equal(PAGES.glance.label,'Plan');
@@ -11327,26 +11327,29 @@ test('More is leaner: money on one shelf, memories on their own, housekeeping ap
  assert.ok(parentTitles.includes('Money'));assert.equal(boyTitles.at(-1),'For the boys');
 });
 
-test('one line under each title, and the rest of the why behind How this works',async()=>{
+test('the why behind each title waits behind a ? beside it, and a status line stays on the page',async()=>{
  const read=async f=>readFile(new URL(`../src/${f}`,import.meta.url),'utf8');
- const how=await read('HowThisWorks.jsx');
- assert.match(how,/<details className="how-this-works"><summary>/,'a native disclosure: closed by default, no state to keep, works with no script');
- const folded=['AdventurePages','Apps','AskTrip','BookingWindows','Hunts','MascotMaker','Noticed','Planning','RecentlyDeleted','Settings','Shortlist','Spending','TodoList','Trackers','TripShop','Vault','WhichCard'];
- // Weather folds its own explanation under its button (tests/ux.test.mjs), the same idea in its own place.
+ const title=await read('PageTitle.jsx');
+ assert.match(title,/<div className="page-title"><h1>\{children\}<\/h1>/,'the ? sits beside the heading');
+ assert.match(title,/aria-label="About this page" aria-expanded=\{open\}/);
+ assert.match(title,/<CircleHelp/);
+ assert.match(title,/if\(!help\)return <h1>\{children\}<\/h1>;/,'no ? when there is nothing to say');
+ const folded=['AdventurePages','Apps','Arrival','AskTrip','BookingWindows','FlyingHome','HomeFeatures','HomeFront','Hunts','Leaderboard','Ledger','LikeALocal','Lost','MascotMaker','MemoryMap','NextTime','Noticed','Packing','Personalise','Photobook','Planning','PracticalPages','Predictions','RecentlyDeleted','Settings','Shortlist','ShowTell','Spending','Stamps','ThankYou','TodoList','Trackers','TravelGuide','TripShop','Vault','WeatherPage','Whereabouts','WhichCard','main'];
  for(const f of folded){
   const s=await read(`${f}.jsx`);
-  assert.match(s,/import HowThisWorks from '\.\/HowThisWorks\.jsx';/,f);
-  assert.match(s,/<HowThisWorks>/,f);
-  // The line that stays under the title is one sentence, short enough to be one line on a phone.
-  const lead=s.match(/<h1>[^\n]*?<\/h1>\s*<p(?: className="[^"]*")?>((?:(?!<\/p>).)*?)<\/p>\s*<HowThisWorks>/s);
-  assert.ok(lead,`${f}: the lead line sits between the title and the fold`);
-  assert.ok(lead[1].replace(/\{[^}]*\}/g,'').length<=160,`${f}: lead is ${lead[1].length} characters`);
+  assert.match(s,/import PageTitle from '\.\/PageTitle\.jsx';/,f);
+  assert.match(s,/<PageTitle help=\{/,f);
+  // Nothing left under a title as a paragraph of why. The diary's exported file is a file, not a
+  // screen; the sign-in and invitation pages, the crash page and Show and tell with nobody at school say what is, not why.
+  assert.doesNotMatch(s.replace(/const html=.*$/m,'').replace(/<h1>[^<]*<\/h1><p>(Open your private family link|You will be in as|Your plan and progress are saved|Nobody on the trip is at school)/g,''),/<\/h1>\s*<p>(?!\{)[A-Z]/,`${f}: a lede still sits under the title`);
  }
- // A status line is not prose: the count on Apps stays on the page, not in the fold.
- assert.match(await read('Apps.jsx'),/<\/HowThisWorks>\s*<p>\{count\} of \{live\.length\} on this phone<\/p>/);
+ await assert.rejects(read('HowThisWorks.jsx'),'one way to fold the why, not two');
+ // A status line is not prose: the count on Apps stays on the page.
+ assert.match(await read('Apps.jsx'),/<\/PageTitle>\s*<p>\{count\} of \{live\.length\} on this phone<\/p>/);
+ // What to do at the border is not background: the rule stays in sight.
+ assert.match(await read('FlyingHome.jsx'),/<\/PageTitle>\n  <p>\{DECLARE_RULE\}<\/p>/);
  const css=await read('style.css');
- assert.ok(css.includes('.how-this-works summary{'));
- assert.match(css,/\.how-this-works summary\{[^}]*min-height:40px/,'the fold is a proper tap target');
+ assert.match(css,/\.title-help-toggle\{[^}]*min-width:40px;min-height:40px/,'the ? is a proper tap target');
 });
 
 test('a look is chosen by the person or left to the destination, and Japan wears Washi',async()=>{

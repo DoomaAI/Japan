@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import PageTitle from './PageTitle.jsx';
 import {SearchX,Phone,ExternalLink,Copy,ShieldAlert,Receipt,Ticket} from 'lucide-react';
 import {ITEMS,COLOURS,desksFor,lostDraft,KOBAN,POLICE_LINKS,CLAIM,claimSummary} from './lost-data.js';
 import {activeSteps} from './timing.js';
@@ -18,8 +19,7 @@ export default function Lost({state,user,day,go,notice}){
  const stepTitle=steps.find(s=>s.id===form.stepId)?.title||'';
  const Desk=({d})=><li key={d.id} className="lost-desk"><strong>{d.operator}</strong><span>{d.title}</span>{d.hours&&<small>{d.hours}</small>}{d.note&&<small>{d.note}</small>}<span className="row wrap">{d.phone&&<a className="button" href={tel(d.phone)}><Phone size={14}/> {d.phone}</a>}{d.url&&<a className="button" href={d.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={14}/> Their page</a>}</span></li>;
  return <>
-  <p className="eyebrow">IT WILL PROBABLY COME BACK</p><h1>Lost something</h1>
-  <p>Japan returns most things. The trick is the right desk, the right words and the police slip. Fill in what it was and the page writes the Japanese, names the desk for today’s trains and parks, and lists what the insurer will ask for.</p>
+  <p className="eyebrow">IT WILL PROBABLY COME BACK</p><PageTitle help={<><p>Japan returns most things. The trick is the right desk, the right words and the police slip. Fill in what it was and the page writes the Japanese, names the desk for today’s trains and parks, and lists what the insurer will ask for.</p></>}>Lost something</PageTitle>
   <section className="arrival-part"><h2><SearchX size={20}/> What and where</h2>
    <div className="document-filters">
     <label>What<select value={form.item} onChange={e=>set('item',e.target.value)}>{ITEMS.map(([id,en])=><option key={id} value={id}>{en}</option>)}</select></label>

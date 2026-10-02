@@ -66,7 +66,6 @@ export default function Currency({state,user,mutate,busy,notice}){
   </section>
 
 
-  <details className="page-help"><summary>How this works</summary>Everything in Japan is priced in yen. This converts either way, works with no signal, and uses one rate the whole family shares.</details>
   <h2>At a glance</h2>
   <div className="rate-table">{COMMON.map(n=><div className="rate-row" key={n}><span>{yen(n)}</span><strong>{aud(yenToAud(n,rate))}</strong></div>)}</div>
   <p><small>Handy rule of thumb: drop two zeros from the yen price and you are within a few cents of the dollar amount at around {yen(100)} to the dollar.</small></p>
