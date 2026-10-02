@@ -871,10 +871,10 @@ function App(){
    {planSwitch}
    {dayHeading}
    {dayStrip(d=>go('glance',d))}
-   {/* The day's own buttons sit here, over the stops they change, rather than on Home. */}
-   <div className="home-actions day-actions">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}{parent&&<Button icon={ArrowLeftRight} onClick={()=>setModal({type:'rearrange'})}>Move or swap days</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>Slow the day</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
    <DayCheck state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} accept={accept} notice={notice} selectStep={selectStep} busy={busy}/>
    <DayTimeline steps={steps} allSteps={allSteps} splits={splits} lens={lens} setLens={follow} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/>
+   {/* The day's own buttons sit under its stops, so the day itself is the first thing on the page. */}
+   <div className="home-actions day-actions">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}{parent&&<Button icon={ArrowLeftRight} onClick={()=>setModal({type:'rearrange'})}>Move or swap days</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>Slow the day</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
    <DayMap key={day} state={visibleState} day={day} selectStep={selectStep}/>
    {awarenessAllows(visibleState,user.name,'spare')&&<SpareTime state={visibleState} day={day} now={now} user={user} parent={parent} busy={busy} mutate={mutate} selectStep={selectStep} openPark={p=>setModal({type:'park',park:p})}/>}
    {/* The day's pages in the original guide close the page: the stops come first, and the
