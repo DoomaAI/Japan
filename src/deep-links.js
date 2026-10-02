@@ -18,6 +18,7 @@ export const DEEP_LINKS=[
  {id:'hotel',label:'Take me to tonight’s hotel',path:'/?open=hotel',how:'Goes straight to directions for tonight’s hotel in Maps. If the app has not been opened today it opens first and then goes on.'},
  {id:'recommend',label:'Share a recommendation to the board',path:'/?open=recommend&text=',takes:'the shared text',
   how:'Passes on a friend’s tip from Messages, WhatsApp, Mail or Notes. In Shortcuts: turn on Show in Share Sheet for text, add URL Encode on the Shortcut Input, then Open URLs with this address followed by the encoded text. Name it “Japan tip”: Share, then Japan tip, opens Recommendations with the message in it.'},
+ {id:'concierge',label:'Ask the Concierge',path:'/?open=concierge',how:'Opens the Concierge already listening: say “what’s next?”, “how long until dinner?” or “how do we get to the temple?”. Good on the Action button or Back Tap. For the phone in a pocket, use the Siri Concierge above.'},
  {id:'capture',label:'Quick capture',path:'/?open=capture',how:'Opens the photo-or-note sheet for the day being looked at.'},
  {id:'allergy',label:'Allergy card',path:'/?tab=allergy&who=',takes:'a name, such as Nate',how:'Opens the card in Japanese for that person, ready to show at a counter.'},
  {id:'safety',label:'Safety card',path:'/?tab=safety',how:'The numbers, the meeting points and the phrases for when something has gone wrong.'}
@@ -34,6 +35,7 @@ export function deepLinkAction(search){
  if(open==='nearby'){const need=p.get('need');return {type:'nearby',need:NEARBY_KINDS.some(([id])=>id===need)?need:null};}
  if(open==='hotel')return {type:'hotel'};
  if(open==='capture')return {type:'capture'};
+ if(open==='concierge')return {type:'concierge'};
  // A friend's tip, from a Shortcut on an iPhone or from Android's own share sheet (the manifest's
  // share_target), which sends the title, the text and any link as separate fields.
  const shared=[p.get('share_title'),p.get('share_text'),p.get('share_url')].map(v=>String(v||'').trim()).filter(Boolean);

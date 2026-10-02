@@ -92,6 +92,7 @@ import {upload} from '@vercel/blob/client';
 import {ArrowLeftRight,EyeOff,Sparkles,ConciergeBell,Radio,MessageCircleQuestion,Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,Inbox,Archive,ArchiveRestore,Heart,Phone,MessageCircle,Eye,RefreshCw,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
 import {activeSteps,dayProgress,dayBehind,tripCountdown,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent,scheduleVariance,stayPlan,spanWords,setPlanZone,planZone,zonedInstant,windowText,WINDOW_CHOICES} from './timing.js';
 import {armPlayback} from './speech.js';
+import {startHeadphones,onHeadphonePress} from './headphones.js';
 import {PhraseAudio} from './PhraseAudio.jsx';
 import {typesText} from './swipe.js';
 import {daySplits,stepsFor} from './split.js';
@@ -361,6 +362,7 @@ function App(){
    else if(action.type==='todoSay'){setSayFirst({focus:true});setTab('todo');}
    else if(action.type==='nearby')setModal({type:'nearby',need:action.need});
    else if(action.type==='capture')setModal({type:'capture'});
+   else if(action.type==='concierge')setModal({type:'assistant'});
    else if(action.type==='recommend'){handRecommendation({text:action.text,from:action.from,via:'message'});setFocus(null);setTab('planning');}
    else if(action.type==='hotel'){const d=s.days.find(x=>x.date===nearestDay(s.days,japanDate()));if(d?.hotel)location.assign(directions(d.hotel));else setTab('help');}
   }
@@ -512,6 +514,12 @@ function App(){
  const [settingsAt,bumpSettings]=useState(0);
  const settings=useMemo(()=>readSettings(user?.name),[user?.name,settingsAt]);
  const changeSetting=(id,value)=>{writeSetting(user?.name,id,value);bumpSettings(n=>n+1);};
+ // AirPods (src/headphones.js): switched on, and with the app on the screen, a press on the stem
+ // opens the Concierge already listening. Over another sheet it says so rather than closing it,
+ // because a half-typed stop is worth more than a question that can wait a second.
+ const pressable=!!(user&&config?.ask&&isAvailable('ask')&&settingOn(settings,'headphoneConcierge'));
+ useEffect(()=>pressable?startHeadphones():undefined,[pressable]);
+ useEffect(()=>pressable?onHeadphonePress(()=>{const open=modalRef.current;if(!open)setModal({type:'assistant'});else if(open.type!=='assistant')notice('Close this first, then press again to ask the Concierge.');}):undefined,[pressable]);
  const forecast=useForecastCheck({state:visibleState||{days:[]},day:null,mutate,notice});
  const allSteps=visibleState?activeSteps(visibleState,day):[],splits=visibleState?daySplits(visibleState,day):[];
  // A link or a tap straight to a stop on somebody else's lane follows that lane, rather than

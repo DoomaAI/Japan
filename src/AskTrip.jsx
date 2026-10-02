@@ -1,13 +1,14 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import GuideByline from './GuideByline.jsx';
 import HowThisWorks from './HowThisWorks.jsx';
-import {AlertCircle,CalendarDays,Check,ExternalLink,MessageCircleQuestion,Search,Trash2,WifiOff} from 'lucide-react';
+import {AlertCircle,CalendarDays,Check,ExternalLink,MessageCircleQuestion,Navigation,Search,Trash2,WifiOff} from 'lucide-react';
 import {ASK_LIMIT,askDayLabel,askHistory,askItem,askStarters,readThread,sharesThread,stepStarters,threadFor,writeThread} from './ask-thread.js';
 import Dictate from './Dictate.jsx';
 import {joinSpoken} from './dictation.js';
 import {profileFilled} from './trip-features.js';
 import {DraftChange} from './DayCheck.jsx';
 import AskVoice from './AskVoice.jsx';
+import {quickAnswer} from './concierge-quick.js';
 // Asking about the trip. It reads the plan and answers; it cannot touch it. That line is on the
 // screen rather than only in the prompt, because a box that answers questions looks like a box
 // that does things, and nobody should find out otherwise by asking it to move a booking.
@@ -34,7 +35,17 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
  const clear=()=>{keep(step?local.filter(item=>item.step!==step.id):[]);if(shared&&thread.length)mutate({type:'askForget',ids:thread.map(i=>i.id)});};
  // One question, typed or said, sent and kept. Said out loud, the answer is asked for in words
  // that work read back, and the item comes back to the assistant to read.
+ // What is next, how long until, the way there: answered at once from the plan on this phone,
+ // with or without a signal, and kept on this phone only — they are not worth the other
+ // parent's thread. Asked from a stop's card, "there" is that stop, so those go to the Concierge.
  async function send(asked,spoken=false){
+  const quick=step?null:quickAnswer(state,asked,{person:user?.name||null,day:about||day});
+  if(quick){
+   const item={id:`${Date.now()}`,at:new Date().toISOString(),question:asked,about:null,...quick,...(spoken?{spoken:true}:{})};
+   setThread(prev=>writeThread(user?.name,[item,...prev]));
+   return item;
+  }
+  if(!online)throw new Error('That one needs a signal. What is next, how long until something and the way there work without one.');
   const answer=await request('ask',{question:asked,day:about||null,step:step?.id||null,history:askHistory(thread),...(spoken?{spoken:true}:{})});
   const item={id:`${Date.now()}`,at:new Date().toISOString(),...answer,...(spoken?{spoken:true}:{})};
   // The phone first, so the answer is kept even if the trip cannot be reached; then the trip.
@@ -45,7 +56,6 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
  async function ask(text){
   const asked=(text??question).trim();
   if(!asked){setError('Type a question first.');return;}
-  if(!online){setError('Asking needs a signal. The plan itself is on this phone either way.');return;}
   setWorking(true);setError('');
   try{await send(asked);setQuestion('');}
   catch(e){setError(e.message||'That did not work. Try asking it another way.');}
@@ -66,9 +76,9 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
  <HowThisWorks><p>Every question is answered from the trip as it is right now: every day and what is booked, the forecast we last checked, the board and its votes, the places we saved, how each stop was rated, and everyone’s profile, with yours first. Change any of those and the next answer knows. It searches only for what the plan cannot say.</p></HowThisWorks></>}
   {!step&&!assistant&&ready&&user?.name&&state.members?.includes(user.name)&&!profileFilled(state,user.name)&&<p className="callout"><AlertCircle size={18}/><span>Your profile is empty, so recommendations can only go by the whole family. {go&&<button className="linkish" onClick={()=>go('planning')}>Fill it in on the Planning board</button>}</span></p>}
   {!ready&&<p className="callout"><AlertCircle size={18}/>Asking is not switched on for this deployment. Anything already answered is still below.</p>}
-  {!online&&<p className="callout"><WifiOff size={18}/>No signal. Old answers are saved on this phone; a new question has to wait.</p>}
+  {!online&&<p className="callout"><WifiOff size={18}/>No signal. Old answers are saved on this phone. What is next, how long until something and the way there are answered from the plan; anything else has to wait.</p>}
   {ready&&<>
-   {online&&<AskVoice ask={text=>send(text,true)} apply={applyItem} canApply={canApply} state={state} online={online} step={step} autoStart={assistant} control={voice}/>}
+   <AskVoice ask={text=>send(text,true)} apply={applyItem} canApply={canApply} state={state} online={online} step={step} autoStart={assistant} control={voice}/>
    {!assistant&&!step&&<label>About which day<select value={about} onChange={e=>setAbout(e.target.value)}>
     <option value="">The whole trip</option>
     {state.days.map(d=><option key={d.date} value={d.date}>{askDayLabel(d.date)} · {d.title}</option>)}
@@ -82,23 +92,24 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
    {!assistant&&<Dictate onText={heard=>setQuestion(q=>joinSpoken(q,heard).slice(0,ASK_LIMIT))} label="Say it" what="your question"/>}
    <div className="ask-send">
     <small>{ASK_LIMIT-question.length} left · one question at a time gets a better answer</small>
-    <button className="primary" onClick={()=>ask()} disabled={working||!online||!question.trim()}><Search size={18}/>{working?'Having a think…':'Ask'}</button>
+    <button className="primary" onClick={()=>ask()} disabled={working||!question.trim()}><Search size={18}/>{working?'Having a think…':'Ask'}</button>
    </div>
   </>}
   {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
   {thread.map(item=><article className="feature-card ask-card" key={item.id}>
    <p className="ask-question"><MessageCircleQuestion size={17}/>{item.question}</p>
    {item.by&&item.by!==user?.name&&<p className="ask-by"><small>Asked by {item.by}</small></p>}
-   <GuideByline state={state}/>
+   {!item.quick&&<GuideByline state={state}/>}
    {item.verdict&&<h3>{item.verdict}</h3>}
    {item.answer&&<p>{item.answer}</p>}
    {!!item.because?.length&&<ul className="ask-because">{item.because.map((line,i)=><li key={i}><Check size={15}/>{line}</li>)}</ul>}
    {!!item.days?.length&&<div className="row wrap ask-days">{item.days.map(date=><button key={date} onClick={()=>selectDay?.(date)}><CalendarDays size={15}/>{askDayLabel(date)}</button>)}</div>}
+   {item.link?.url&&<a className="button" href={item.link.url} target="_blank" rel="noopener noreferrer"><Navigation size={16}/>{item.link.label||'Directions'}</a>}
    {item.draft&&<DraftChange state={state} draft={item.draft} canApply={canApply} apply={()=>applyItem(item)}/>}
    {item.checkFirst&&<p className="callout"><AlertCircle size={18}/>Check first: {item.checkFirst}</p>}
    {!!item.sources?.length&&<details className="ask-sources"><summary>Where it looked ({item.sources.length})</summary>
     {item.sources.map(s=><a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer">{s.title||s.url} <ExternalLink size={13}/></a>)}</details>}
-   <small>{item.step&&!step?`About ${state.steps.find(s=>s.id===item.step)?.title||'a stop'} · `:''}{item.about?`About ${askDayLabel(item.about)}`:'About the whole trip'} · {item.usage?.searches??item.searches??0} web {(item.usage?.searches??item.searches)===1?'search':'searches'} · {item.draft?.appliedAt?`change applied by ${item.draft.appliedBy||'a parent'}`:'nothing was changed'}</small>
+   {item.quick?<small>Answered from the plan on this phone · nothing was changed</small>:<small>{item.step&&!step?`About ${state.steps.find(s=>s.id===item.step)?.title||'a stop'} · `:''}{item.about?`About ${askDayLabel(item.about)}`:'About the whole trip'} · {item.usage?.searches??item.searches??0} web {(item.usage?.searches??item.searches)===1?'search':'searches'} · {item.draft?.appliedAt?`change applied by ${item.draft.appliedBy||'a parent'}`:'nothing was changed'}</small>}
   </article>)}
   {!thread.length&&ready&&!assistant&&<div className="empty"><MessageCircleQuestion/><h2>Nothing asked yet</h2><p>Tap one of the questions above, or write your own. {shared?'Answers are kept in the trip, so both of you can read them again, and on this phone for when there is no signal.':'Answers are kept on this phone so you can read them again with no signal.'}</p></div>}
   {!!thread.length&&!assistant&&<div className="row wrap"><button onClick={()=>{clear();notice?.(step?'The questions about this stop are cleared.':shared?'The shared questions are cleared.':'Your questions on this phone are cleared.');}}><Trash2 size={16}/>{step?'Clear these questions':shared?'Clear our questions':'Clear my questions'}</button>

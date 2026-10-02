@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import HowThisWorks from './HowThisWorks.jsx';
-import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus} from 'lucide-react';
+import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
 import {BarShortcuts,HomeWidgets} from './Personalise.jsx';
@@ -14,7 +14,7 @@ import {guideOf,GUIDE_VOICES} from './guide-data.js';
 import {NEST_STEPS,GOOGLE_ALBUM} from './google-frame-data.js';
 import {PLAN_TYPES,planOf,modulesOff,validTimeZone} from './plan-context.js';
 import {PAGES} from './nav-data.js';
-const ICONS={voiceAssistant:Sparkles,dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
+const ICONS={headphoneConcierge:Headphones,voiceAssistant:Sparkles,dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
 // off is not knowing what else goes with it. Nothing here is lost by turning it off: the
@@ -171,6 +171,49 @@ function Frames({state,config,request,accept,notice}){
   </form>
  </>;
 }
+// "Hey Siri, Concierge", with the phone in a pocket and AirPods in. A web app cannot answer Siri
+// itself, but a Shortcut can: it dictates the question, fetches this person's own address with
+// the question on the end, and speaks what comes back. The address answers as its person, so it
+// is shown once, to them, and making it again (or stopping it) withdraws the old one.
+const SIRI_STEPS=[
+ 'Tap Make my Siri link below. It is copied, ready to paste.',
+ 'Open Shortcuts and tap + for a new shortcut.',
+ 'Add Dictate Text. Set Stop Listening to After Pause.',
+ 'Add URL Encode. It takes the Dictated Text on its own.',
+ 'Add Text. Paste the link, then put URL Encoded Text straight after it, with no space.',
+ 'Add Get Contents of URL. It takes the Text.',
+ 'Add Speak Text. It takes the Contents of URL.',
+ 'Name the shortcut Concierge, and tap Done.'
+];
+function ConciergeSiri({state,user,request,notice}){
+ const mine=(state?.conciergeKeys||[]).some(k=>k.name===user?.name);
+ const [link,setLink]=useState(''),[made,setMade]=useState(null),[working,setWorking]=useState(false);
+ const has=made??mine;
+ const make=async()=>{
+  setWorking(true);
+  try{const r=await request('concierge-link',{});setLink(r.url);setMade(true);
+   try{await navigator.clipboard.writeText(r.url);notice?.('Copied. Paste it into the Shortcut as below.');}catch{notice?.('Made. Copy it from the box below.');}}
+  catch(e){notice?.(e.message||'That did not work. Try again with a signal.');}
+  finally{setWorking(false);}
+ };
+ const stop=async()=>{
+  setWorking(true);
+  try{await request('concierge-link',{stop:true});setLink('');setMade(false);notice?.('Stopped. The old link no longer answers.');}
+  catch(e){notice?.(e.message||'That did not work. Try again with a signal.');}
+  finally{setWorking(false);}
+ };
+ return <section className="settings-section">
+  <h2>Hey Siri, Concierge</h2>
+  <p>With AirPods in and the phone in a pocket: say “Hey Siri, Concierge” (or press and hold the stem), then ask — “what’s next?”, “how long until dinner?”, “how do we get to the temple?”, “is it better to do the garden today or tomorrow?”. Siri reads the answer in your ear.</p>
+  <ol>{SIRI_STEPS.map(t=><li key={t}><small>{t}</small></li>)}</ol>
+  <div className="row wrap">
+   <button type="button" className="primary" disabled={working} onClick={make}><ConciergeBell size={16}/>{has?'Make a new Siri link':'Make my Siri link'}</button>
+   {has&&<button type="button" disabled={working} onClick={stop}>Stop my Siri link</button>}
+  </div>
+  {link&&<p className="concierge-link"><code>{link}</code><button type="button" aria-label="Copy the Siri link" onClick={()=>navigator.clipboard?.writeText(link).then(()=>notice?.('Copied.'),()=>{})}><Copy size={16}/></button></p>}
+  <p><small>The link answers as {user?.name||'you'}{user?.role==='parent'?', and your questions join the shared ones on the Concierge page, where a change it suggests waits for you to apply':''}. Keep it to your own phone: anybody with it can ask about the trip. Making a new one, or stopping it, means the old one answers nothing.</small></p>
+ </section>;
+}
 // The addresses a Shortcut can open. iOS gives a web app no widget and no share-sheet entry,
 // but the Shortcuts app opens an address, Siri runs a Shortcut by name, and the Action button
 // runs one on a press; so these are the way "Hey Siri, Japan to-do" gets made.
@@ -290,6 +333,7 @@ export default function Settings({user,state,mutate,busy,hand,settings,change,na
   {user?.role==='parent'&&request&&<TripCalendar request={request} notice={notice}/>}
   {user?.role==='parent'&&mutate&&<GuideSettings state={state} mutate={mutate} busy={busy}/>}
   {user?.role==='parent'&&request&&<FollowLink state={state} config={config} request={request} accept={accept} notice={notice}/>}
+  {config?.ask&&<ConciergeSiri state={state} user={user} request={request} notice={notice}/>}
   <DeepLinks notice={notice}/>
   {setHome&&<section className="settings-section"><HomeWidgets home={home} setHome={setHome} held={held}/></section>}
   {setNavPrefs&&<section className="settings-section"><BarShortcuts user={user} prefs={navPrefs} setPrefs={setNavPrefs}/></section>}
