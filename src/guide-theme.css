@@ -148,5 +148,4 @@ button:not(:disabled):active,.button:active,.chip:active,summary:active{filter:b
 button:not(:disabled):not(.nav-grip):not(.drag-handle):active,.button:active,.chip:active{transform:scale(.97);transition:transform .08s}
 .primary:not(:disabled):active{background:var(--green);border-color:var(--green)}
 .card-facts button,.card-facts .read-aloud,.read-aloud{height:auto;min-height:40px}
-.timeline .timeline-help>summary{min-height:40px}
 @media (prefers-reduced-motion:reduce){button:active,.button:active,.chip:active{transform:none;transition:none}}

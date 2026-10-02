@@ -11330,10 +11330,14 @@ test('More is leaner: money on one shelf, memories on their own, housekeeping ap
 test('the why behind each title waits behind a ? beside it, and a status line stays on the page',async()=>{
  const read=async f=>readFile(new URL(`../src/${f}`,import.meta.url),'utf8');
  const title=await read('PageTitle.jsx');
- assert.match(title,/<div className="page-title"><h1>\{children\}<\/h1>/,'the ? sits beside the heading');
+ assert.match(title,/<div className=\{`page-title\$\{className\?` \$\{className\}`:''\}`\}><H>\{children\}<\/H>\s*<button/,'the ? sits beside the heading');
  assert.match(title,/aria-label="About this page" aria-expanded=\{open\}/);
  assert.match(title,/<CircleHelp/);
- assert.match(title,/if\(!help\)return <h1>\{children\}<\/h1>;/,'no ? when there is nothing to say');
+ assert.match(title,/if\(!help\)return className\?<div className=\{className\}><H>\{children\}<\/H>\{aside\}<\/div>:<H>\{children\}<\/H>;/,'no ? when there is nothing to say');
+ // A section heading inside a screen takes the same ?: the day at a glance no longer opens on a fold.
+ const timeline=await read('DayTimeline.jsx');
+ assert.match(timeline,/<PageTitle as="h2" className="section-heading" aside=\{<span>\{today\?\.city\}<\/span>\} help=\{<p>Tap a stop's circle/);
+ assert.doesNotMatch(timeline,/<summary>How this works<\/summary>/);
  const folded=['AdventurePages','Apps','Arrival','AskTrip','BookingWindows','FlyingHome','HomeFeatures','HomeFront','Hunts','Leaderboard','Ledger','LikeALocal','Lost','MascotMaker','MemoryMap','NextTime','Noticed','Packing','Personalise','Photobook','Planning','PracticalPages','Predictions','RecentlyDeleted','Settings','Shortlist','ShowTell','Spending','Stamps','ThankYou','TodoList','Trackers','TravelGuide','TripShop','Vault','WeatherPage','Whereabouts','WhichCard','main'];
  for(const f of folded){
   const s=await read(`${f}.jsx`);
