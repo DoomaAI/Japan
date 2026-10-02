@@ -10137,7 +10137,18 @@ test('a stop on the way is a leg of the journey: the bags today, and any the fam
  assert.equal(routeFor(end).at(-1).mode,'stop');
  for(const bad of [{text:'',after:0},{text:'x'.repeat(161),after:0},{text:'Shop',after:4},{text:'Shop',after:-1},{text:'Shop',after:0,minutes:0},{text:'Shop',after:0,minutes:500}])
   assert.throws(()=>applyOperation(seed,{type:'waypoint',id:s.id,action:'add',...bad},parent),AppErrorLike);
- assert.throws(()=>applyOperation(seed,{type:'waypoint',id:'2026-10-01-15',action:'add',text:'Shop',after:0},parent),/Only a stop with a route/);
+ // A stop the guide gives no route gets a journey of the family's own, leg by leg, in the order added.
+ const bare=seed.steps.find(x=>x.id==='2026-10-01-15');
+ assert.equal(ROUTES[bare.id],undefined);assert.equal(routeFor(bare),null);
+ let own=applyOperation(seed,{type:'waypoint',id:bare.id,action:'add',kind:'walk',text:'Walk to Shinjuku Station',after:0,minutes:10},child);
+ own=applyOperation(own,{type:'waypoint',id:bare.id,action:'add',kind:'other',text:'Yamanote Line to Harajuku',after:0,minutes:5},child);
+ let ownStep=own.steps.find(x=>x.id===bare.id);
+ assert.deepEqual(routeFor(ownStep).map(l=>l.mode),['walk','other']);assert.equal(legCount(ownStep),2);
+ assert.deepEqual(legStrip(routeFor(ownStep),ownStep,0).map(l=>l.label),['Walk','Train or bus']);
+ assert.equal(ownStep.duration,bare.duration+15);
+ assert.throws(()=>applyOperation(seed,{type:'waypoint',id:bare.id,action:'add',text:'Shop',after:1},parent),/where on the way/);
+ for(const w of ownStep.waypoints)own=applyOperation(own,{type:'waypoint',id:bare.id,action:'remove',waypointId:w.id},child);
+ assert.equal(routeFor(own.steps.find(x=>x.id===bare.id)),null,'no legs left, no route');
  assert.throws(()=>applyOperation(seed,{type:'waypoint',id:s.id,action:'remove',waypointId:'nope'},parent),e=>e.status===404);
  const theirs={...seed,steps:seed.steps.map(x=>x.id===s.id?{...x,participants:['Damien']}:x)};
  assert.throws(()=>applyOperation(theirs,{type:'waypoint',id:s.id,action:'add',text:'Shop',after:0},child),e=>e.status===403);
@@ -10146,6 +10157,8 @@ test('a stop on the way is a leg of the journey: the bags today, and any the fam
  // On the card: an added stop shows with who added it and can be taken off; the form offers every place on the way.
  const card=await readFile(new URL('../src/RouteCard.jsx',import.meta.url),'utf8');
  assert.match(card,/Add a stop or leg on the way/);
+ assert.match(card,/Add a journey to get here/);
+ assert.match(await readFile(new URL('../src/main.jsx',import.meta.url),'utf8'),/!routeFor\(current\)[^\n]*<AddJourney /);
  assert.match(card,/onWaypoint\(\{action:'remove',waypointId:leg\.added\.id,text:leg\.text\}\)/);
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/onWaypoint=\{routeWaypoint\}/);

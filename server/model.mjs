@@ -162,14 +162,14 @@ export function applyOperation(input,op,user){
  }else if(op.type==='waypoint'){
   // A stop on the way, added to a route or taken off it by anyone who may tick the route.
   if(!parent&&!step.participants.includes(user.name))throw new AppError('This activity is assigned to other family members.',403);
-  if(!routeFor(step))throw new AppError('Only a stop with a route can have a stop on the way.');
-  const was=structuredClone(step),list=step.waypoints||[],route=ROUTES[step.id].length;
+  // A stop the guide gives no route can have a journey of the family's own, built from these alone.
+  const was=structuredClone(step),list=step.waypoints||[],route=(ROUTES[step.id]||[]).length;
   // What a stop or leg says, where it goes and how long it takes, checked the same way whether
   // it is new or being changed.
   const details=(o,base={})=>{
    const w={...base};
    if('text'in o||!base.id){w.text=typeof o.text==='string'?o.text.trim():'';if(!w.text||w.text.length>160)throw new AppError('Say what the stop is for, in under 160 characters.');}
-   if('kind'in o||!base.id){w.kind=o.kind??'stop';if(!WAYPOINT_KINDS[w.kind])throw new AppError('Choose a stop, a walk or a taxi.');}
+   if('kind'in o||!base.id){w.kind=o.kind??'stop';if(!WAYPOINT_KINDS[w.kind])throw new AppError('Choose a stop, a walk or a taxi, or a train or bus.');}
    if('after'in o||!base.id){if(!Number.isInteger(o.after)||o.after<0||o.after>route)throw new AppError('Choose where on the way the stop goes.');w.after=o.after;}
    if('minutes'in o||!base.id){if(o.minutes!=null&&!(Number.isInteger(o.minutes)&&o.minutes>0&&o.minutes<=180))throw new AppError('Use up to 180 minutes for the stop.');w.minutes=o.minutes??null;}
    return w;
@@ -191,7 +191,7 @@ export function applyOperation(input,op,user){
  }else if(op.type==='legSwap'){
   // Part or all of the guide's route gone another way (a taxi, on foot), by anyone who may tick it.
   if(!parent&&!step.participants.includes(user.name))throw new AppError('This activity is assigned to other family members.',403);
-  if(!routeFor(step))throw new AppError('Only a stop with a route can change how we get there.');
+  if(!ROUTES[step.id])throw new AppError('Only a stop with a route from the guide can change how we get there; add the legs of your own journey instead.');
   if(step.status==='done')throw new AppError('This journey is already done.');
   const was=structuredClone(step),list=step.swaps||[],old=op.action==='add'?null:list.find(s=>s.id===op.swapId);
   if(op.action!=='add'&&!old)throw new AppError('That change to the journey is already undone.',404);
