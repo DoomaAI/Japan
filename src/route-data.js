@@ -324,6 +324,71 @@ export function whereOnRoute(rides,at){
  if(!seen.length)return null;
  return seen.sort((a,b)=>a.metres-b.metres||(a.left===0)-(b.left===0))[0];
 }
+// Whether a ride is going the wrong way. One position cannot say it, so it takes the phone at
+// the boarding station first and later well clear of it on the far side from the next stop, faster
+// than a walk (wandering out the other exit is not a wrong train). Near a station of the line back
+// that way, it says so sooner. A loop that runs one way cannot be ridden the wrong way.
+const BOARDED=400,CLEAR=1000,BEHIND=500,WALK=10/3.6;
+function stationBehind(leg){
+ const all=LINES[leg.line].stations,i=all.findIndex(s=>s[0]===leg.from),j=all.findIndex(s=>s[0]===leg.to);
+ const k=i<j?i-1:i+1;
+ return all[k]?station(all[k]):null;
+}
+export function wrongWay(leg,trail){
+ if(LINES[leg.line].loop||!trail?.length)return null;
+ const stops=legStops(leg),start=stops[0],now=trail[trail.length-1];
+ let b=-1;for(let k=trail.length-1;k>=0;k--)if(distance(trail[k],start)<=BOARDED){b=k;break;}
+ if(b<0||b===trail.length-1)return null;
+ const onLeg=Math.min(...stops.map(s=>distance(now,s))),behind=stationBehind(leg);
+ if(behind&&distance(now,behind)<=BEHIND&&distance(now,behind)<onLeg)return {from:start,to:stops[stops.length-1],behind};
+ const away=distance(now,start);
+ if(away<CLEAR||onLeg<away)return null;
+ // Which side of the boarding station: against the way to the next stop is behind it.
+ const r=Math.PI/180,vec=p=>({x:(p.lng-start.lng)*Math.cos(start.lat*r),y:p.lat-start.lat}),a=vec(stops[1]),c=vec(now);
+ if((a.x*c.x+a.y*c.y)/Math.hypot(a.x,a.y)/Math.hypot(c.x,c.y)>-0.3)return null;
+ const seconds=(now.at-trail[b].at)/1000;
+ if(!(seconds>0)||(away-distance(trail[b],start))/seconds<WALK)return null;
+ return {from:start,to:stops[stops.length-1],behind:null};
+}
+// Whether a ride has left its line: another line from the same station, or a branch that splits
+// off on the way (a Kashihara-jingu-mae train turning south at Yamato-Saidaiji). The guide lists
+// some stations and not others, and track curves between them, so the phone may stray from the
+// straight line between two stations by a quarter of the gap, and a kilometre and a half besides.
+// It takes the phone at the boarding station first, the last two positions off the line, and
+// leaving it faster than a walk; once the phone has reached where the ride ends, it is done.
+const STRAY=1500;
+function offLine(p,a,c){
+ const r=Math.PI/180,k=Math.cos(a.lat*r)*6371000*r,m=6371000*r;
+ const ax=(c.lng-a.lng)*k,ay=(c.lat-a.lat)*m,px=(p.lng-a.lng)*k,py=(p.lat-a.lat)*m,len=Math.hypot(ax,ay);
+ const t=len?Math.max(0,Math.min(1,(px*ax+py*ay)/len/len)):0;
+ return Math.hypot(px-t*ax,py-t*ay)-STRAY-len/4;
+}
+const strayed=(stops,p)=>stops.length<2?distance(p,stops[0])-STRAY:Math.min(...stops.slice(1).map((s,k)=>offLine(p,stops[k],s)));
+export function offRoute(leg,trail){
+ if(!trail?.length)return null;
+ const stops=legStops(leg),start=stops[0],end=stops[stops.length-1],now=trail[trail.length-1];
+ let b=-1;for(let k=trail.length-1;k>=0;k--)if(distance(trail[k],start)<=BOARDED){b=k;break;}
+ if(b<0||trail.length-b<3)return null;
+ const since=trail.slice(b);
+ if(since.some(p=>distance(p,end)<=BOARDED))return null;
+ if(strayed(stops,now)<=0||strayed(stops,trail[trail.length-2])<=0)return null;
+ let q=since[0];for(const p of since)if(strayed(stops,p)<=0)q=p;
+ const seconds=(now.at-q.at)/1000;
+ if(!(seconds>0)||distance(q,now)/seconds<WALK)return null;
+ const left=stops.reduce((n,s)=>distance(q,s)<distance(q,n)?s:n);
+ return {from:start,to:end,left,metres:Math.round(strayed(stops,now)+STRAY)};
+}
+// What is wrong with the ride last boarded (at a change, the one to come): going the wrong way
+// from its station, or off its line altogether.
+export function rideTrouble(legs,trail){
+ let at=-1,i=-1;
+ legs.forEach((leg,k)=>{const start=legStops(leg)[0];for(let n=trail.length-1;n>=0;n--)if(distance(trail[n],start)<=BOARDED){if(n>=at){at=n;i=k;}break;}});
+ if(i<0)return null;
+ const w=wrongWay(legs[i],trail);
+ if(w)return {i,kind:'way',...w};
+ const o=offRoute(legs[i],trail);
+ return o&&{i,kind:'route',...o};
+}
 export function liveTimes(leg){
  const stops=legStops(leg),from=stops[0],to=stops[stops.length-1];
  return 'https://www.google.com/maps/dir/?'+new URLSearchParams({api:'1',origin:`${from.lat},${from.lng}`,destination:`${to.lat},${to.lng}`,travelmode:'transit'});

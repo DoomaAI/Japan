@@ -1,32 +1,63 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {AlertTriangle,Check,CheckCircle2,Footprints,TrainFront,TrainFrontTunnel,TramFront,Bus,Radio,ExternalLink,LocateFixed,Square,Eye,Ticket,Baby,ChevronDown,ArrowLeft,ArrowRight,Luggage,MapPinPlus,Trash2,Pencil,CarTaxiFront,Clock,Navigation,Shuffle,Undo2} from 'lucide-react';
-import {LINES,legStops,stationLabel,whereOnRoute,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked,legToDo,legStrip,ROUTES,MAX_WAYPOINTS,WAYPOINT_KINDS,routeMinutes,addedMinutes,SWAP_MODES,LEG_LABELS,legName,legLabel,swappable,baseMinutes,ownJourney,guideRoute} from './route-data.js';
+import {LINES,legStops,stationLabel,whereOnRoute,rideTrouble,liveTimes,routeFares,yen,lineSymbols,inkOn,symbolStyle,symbolColour,legCount,legDone,legsTicked,legToDo,legStrip,ROUTES,MAX_WAYPOINTS,WAYPOINT_KINDS,routeMinutes,addedMinutes,SWAP_MODES,LEG_LABELS,legName,legLabel,swappable,baseMinutes,ownJourney,guideRoute} from './route-data.js';
 import {minutes as clockMinutes,asClock} from './timing.js';
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
 import {GEO_TROUBLE,GEO_UNKNOWN} from './geo.js';
 import BigSteps,{BigStepsButton} from './BigSteps.jsx';
 // Follows the phone along the route while it is open and tracking is on. GPS fades underground,
-// so the last good fix is kept and its age shown rather than guessing.
-function useTracking(rides){
- const [on,setOn]=useState(false),[fix,setFix]=useState(null),[trouble,setTrouble]=useState(''),buzzed=useRef(new Set());
+// so the last good fix is kept and its age shown rather than guessing. The fixes of the last half
+// hour are kept too, rough ones left out, so a train going the wrong way or off the route can be
+// told from a phone that has just lost its place.
+const TRAIL=30*60000,ROUGH=200;
+function useTracking(rides,rideLegs){
+ const [on,setOn]=useState(false),[fix,setFix]=useState(null),[trail,setTrail]=useState([]),[trouble,setTrouble]=useState(''),[fine,setFine]=useState(()=>new Set()),buzzed=useRef(new Set());
  useEffect(()=>{
-  if(!on)return;
+  if(!on){setTrail([]);return;}
   if(!navigator.geolocation){setTrouble('This phone cannot share its position');setOn(false);return;}
-  const id=navigator.geolocation.watchPosition(p=>{setTrouble('');setFix({lat:p.coords.latitude,lng:p.coords.longitude,at:Date.now()});},
-   e=>setTrouble(GEO_TROUBLE[e?.code]||GEO_UNKNOWN),{enableHighAccuracy:true,maximumAge:10000,timeout:30000});
+  const id=navigator.geolocation.watchPosition(p=>{
+   const f={lat:p.coords.latitude,lng:p.coords.longitude,at:Date.now()};
+   setTrouble('');setFix(f);
+   if(!(p.coords.accuracy>ROUGH))setTrail(t=>[...t.filter(x=>f.at-x.at<TRAIL),f]);
+  },e=>setTrouble(GEO_TROUBLE[e?.code]||GEO_UNKNOWN),{enableHighAccuracy:true,maximumAge:10000,timeout:30000});
   return ()=>navigator.geolocation.clearWatch(id);
  },[on]);
  const where=fix&&whereOnRoute(rides,fix);
+ const problem=on&&trail.length>1?rideTrouble(rideLegs,trail):null,wrong=problem&&!fine.has(`${problem.i}:${problem.kind}`)?problem:null;
  useEffect(()=>{
   if(!where?.ready)return;
   const key=`${where.i}`;
   if(buzzed.current.has(key))return;
   buzzed.current.add(key);navigator.vibrate?.([200,100,200]);
  },[where?.i,where?.ready]);
- return {on,setOn,fix,where,trouble};
+ // Said once a ride: a long buzz, and a notification as well when the app is not on screen.
+ useEffect(()=>{
+  if(!wrong)return;
+  const key=`wrong:${wrong.i}:${wrong.kind}`;
+  if(buzzed.current.has(key))return;
+  buzzed.current.add(key);navigator.vibrate?.([600,200,600,200,600]);
+  if(document.visibilityState!=='visible'&&typeof Notification!=='undefined'&&Notification.permission==='granted')
+   navigator.serviceWorker?.ready.then(r=>r.showNotification(wrongWords(wrong,rideLegs[wrong.i]).title,{body:wrongWords(wrong,rideLegs[wrong.i]).text,tag:`wrong-${wrong.kind}-${wrong.i}`,icon:'/icon-192.png',badge:'/favicon-32.png',data:{url:location.href}})).catch(()=>{});
+ },[wrong?.i,wrong?.kind]);
+ const rightWay=w=>setFine(s=>new Set(s).add(`${w.i}:${w.kind}`));
+ return {on,setOn,fix,where,wrong,rightWay,trouble};
+}
+const vehicle=leg=>LINES[leg.line].kind==='Bus'?'bus':'train';
+function wrongWords(wrong,leg){
+ const v=vehicle(leg),line=LINES[leg.line].name,towards=leg.towards.replace(/[.]$/,'');
+ if(wrong.kind==='route')return {title:'Off the route?',
+  text:`About ${(wrong.metres/1000).toFixed(1)} km off the ${line} between ${wrong.from.name} and ${wrong.to.name}, last on it near ${wrong.left.name}: this ${v} may be on another line or branch.`,
+  fix:`Get off at the next stop and check the signs: the ${line} to ${wrong.to.name} runs towards ${towards}. Live times can find the way back from where you are.`};
+ const where=wrong.behind?`Near ${stationLabel(wrong.behind)}, back the other way from ${wrong.from.name}`:`Moving away from ${wrong.from.name} on the far side from the next stop`;
+ return {title:'Going the wrong way?',text:`${where}: this ${v} looks to be heading away from ${wrong.to.name}.`,fix:`Get off at the next stop and take a ${v} back to ${wrong.from.name}, then board towards ${towards}.`};
+}
+function WrongWay({wrong,leg,onFine}){
+ const w=wrongWords(wrong,leg);
+ return <div className="route-wrong" role="alert"><p><AlertTriangle size={16}/><strong>{w.title}</strong></p><span>{w.text}</span><span>{w.fix}</span>
+  <button type="button" onClick={onFine}><Check size={14}/>We are on the right {vehicle(leg)}</button></div>;
 }
 function Tracker({legs,rides,track,status,onPress}){
- const {on,setOn,fix,where,trouble}=track,[now,setNow]=useState(Date.now());
+ const {on,setOn,fix,where,wrong,trouble}=track,[now,setNow]=useState(Date.now());
  useEffect(()=>{if(!on)return;const t=setInterval(()=>setNow(Date.now()),15000);return ()=>clearInterval(t);},[on]);
  const rideLegs=legs.filter(l=>l.mode==='ride'),leg=where&&rideLegs[where.i],stops=where&&rides[where.i];
  const age=fix?Math.round((now-fix.at)/60000):0;
@@ -34,9 +65,10 @@ function Tracker({legs,rides,track,status,onPress}){
  <button className={`route-track-toggle${on?' is-on':''}`} aria-pressed={on} onClick={()=>{onPress();setOn(!on);}}>{on?<><Square size={14}/>Stop tracking</>:<><LocateFixed size={14}/>Track this ride</>}</button>
  {status&&<div className={`route-track${where?.ready?' ready':''}`} aria-live="polite">
   {on&&!fix&&!trouble&&<span>Finding you…</span>}
+  {on&&wrong&&<WrongWay wrong={wrong} leg={rideLegs[wrong.i]} onFine={()=>track.rightWay(wrong)}/>}
   {trouble&&<span>{trouble}. Count the stops from the list instead.</span>}
-  {on&&fix&&!where&&<span>Not near any {rideLegs.some(l=>LINES[l.line].kind!=='Bus')?'station':'stop'} on this route yet.</span>}
-  {on&&where&&(where.arrived
+  {on&&fix&&!where&&!wrong&&<span>Not near any {rideLegs.some(l=>LINES[l.line].kind!=='Bus')?'station':'stop'} on this route yet.</span>}
+  {on&&where&&!wrong&&(where.arrived
    ?<p className="route-now"><strong>At {stationLabel(where.nearest)}. Get off here.</strong>{leg.exit&&<span>{leg.exit}</span>}</p>
    :<p className="route-now"><small>{where.at?'Next stop':'Approaching'}{where.next===stops.length-1?' · get off here':''}</small><strong>{stationLabel(where.upcoming)}</strong><span>{where.at?`Now at ${stationLabel(where.nearest)} · `:''}{where.togo} stop{where.togo===1?'':'s'} to {stationLabel(stops[stops.length-1])} on the {LINES[leg.line].name}</span></p>)}
   {on&&fix&&age>=2&&<small>Last position {age} min ago; underground the phone often loses it.</small>}
@@ -163,10 +195,10 @@ function MovedJourney({step,ends,busy,canTick,onJourney}){
   {canTick&&onJourney&&<div className="route-waypoint-actions"><button type="button" disabled={busy} onClick={()=>onJourney('keep')}><Check size={14}/>Still right</button><button type="button" disabled={busy} onClick={()=>onJourney('replace')}><Navigation size={14}/>Plan a new journey</button></div>}</div>;
 }
 export default function RouteCard({legs,step,canTick,busy,onTick,onWaypoint,onSwap,onJourney,ends,lookOpen=false}){
- const rides=legs.filter(l=>l.mode==='ride').map(legStops),track=useTracking(rides),where=track.on&&track.where;
+ const rideLegs=legs.filter(l=>l.mode==='ride'),rides=rideLegs.map(legStops),track=useTracking(rides,rideLegs),where=track.on&&track.where;
  const fares=routeFares(legs),priced=legs.some(l=>l.yen||l.options),rideAt=legs.map((l,k)=>legs.slice(0,k).filter(x=>x.mode==='ride').length);
  // Every ride offers the one tracker; its status sits with the ride it is following (the one pressed until it knows).
- const [pressed,setPressed]=useState(0),trackAt=where?where.i:pressed;
+ const [pressed,setPressed]=useState(0),focus=track.wrong||where,trackAt=focus?focus.i:pressed;
  // Tapping a line's name opens or closes what to look for to find it. Settings chooses how each
  // one starts; the lines tapped since are kept as the ones flipped from that.
  const [flipped,setFlipped]=useState(()=>new Set()),looking=k=>lookOpen!==flipped.has(k),toggleLook=k=>setFlipped(s=>{const n=new Set(s);n.has(k)?n.delete(k):n.add(k);return n;});
@@ -181,7 +213,7 @@ export default function RouteCard({legs,step,canTick,busy,onTick,onWaypoint,onSw
  const own=ownJourney(step),canAdd=onWaypoint&&canTick&&step&&(step.waypoints||[]).length<MAX_WAYPOINTS&&step.status!=='done';
  const canSwap=onSwap&&canTick&&step&&guideRoute(step)&&step.status!=='done'&&swappable(step).some(Boolean);
  const go=k=>setIndex(i=>stepIndex(i,k-i,legs.length)),move=d=>setIndex(i=>stepIndex(i,d,legs.length));
- useEffect(()=>{if(where&&where.i>=0){const k=legs.findIndex((l,j)=>l.mode==='ride'&&rideAt[j]===where.i);if(k>=0)setIndex(k);}},[where&&where.i]);
+ useEffect(()=>{if(focus&&focus.i>=0){const k=legs.findIndex((l,j)=>l.mode==='ride'&&rideAt[j]===focus.i);if(k>=0)setIndex(k);}},[focus&&focus.i]);
  const tick=(k,label)=>ticks?<LegTick step={step} k={k} label={label} canTick={canTick} busy={busy} onTick={(leg,done)=>{onTick(leg,done);if(done&&leg===index)move(1);}}/>:null,doneClass=k=>ticks>0&&legDone(step,k)?' leg-done':'';
  const renderLeg=(leg,k)=>{
    // The family's own legs say who added them and can be changed or taken off again.
