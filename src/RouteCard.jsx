@@ -141,8 +141,8 @@ function JourneyTime({legs,step}){
 // A stop the guide gives no route: the family can build a journey of their own to get there, leg
 // by leg (a walk, a train or bus, a taxi, a stop on the way). Until the first leg it is one button.
 // A stop whose guide route was set aside for the family's own can have it back.
-export function AddJourney({step,busy,onWaypoint,onJourney}){
- const [open,setOpen]=useState(false);
+export function AddJourney({step,busy,onWaypoint,onJourney,startOpen=false}){
+ const [open,setOpen]=useState(startOpen);
  return <section className="route-card route-card-empty" aria-label="Route">
   {!open&&<div className="route-waypoint-buttons"><button type="button" className="route-waypoint-add" onClick={()=>setOpen(true)}><MapPinPlus size={14}/>{step.ownRoute?'Add a new journey to get here':'Add a journey to get here'}</button>
    {step.ownRoute&&onJourney&&<button type="button" className="route-waypoint-add" disabled={busy} onClick={()=>onJourney('guide')}><Undo2 size={14}/>Back to the guide's route</button>}</div>}

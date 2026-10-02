@@ -397,7 +397,9 @@ export function applyOperation(input,op,user){
   for(const d of [doc,...state.documents.filter(d=>d.parentDocumentId===doc.id)])Object.assign(d,mark);
   extra={title:doc.title};
  }else throw new AppError('Unknown action.');
- markMovedJourneys(ends,state,user.name,now);
+ // A stop added in front of a journey on purpose, with the family saying the journey still holds,
+ // leaves it unmarked.
+ if(!(op.type==='add'&&op.keepJourneys===true))markMovedJourneys(ends,state,user.name,now);
  const fields=['time','day','bookingTime','windowMinutes','place','title','locked'];
  const diffs=op.type==='patch'&&before?fields.filter(k=>JSON.stringify(before[k]??null)!==JSON.stringify(step[k]??null)).map(k=>`${{time:'Target time',day:'Day',bookingTime:'Booking time',windowMinutes:'Entry window (min)',place:'Place',title:'Activity',locked:'Time lock'}[k]}: ${before[k]??'none'} → ${step[k]??'none'}`):[];
  const important=!extra?.private&&(extra?.important||diffs.length>0||['reschedule','choose','groupMode','backlog','schedule','remove'].includes(op.type));
