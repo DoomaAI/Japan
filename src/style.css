@@ -343,6 +343,7 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .timeline-tick{display:flex;align-items:center;padding-left:.15rem}
 .timeline-tick input{width:23px;height:23px;min-height:23px;accent-color:var(--green)}
 .timeline-row.done .timeline-step>:not(.timeline-dot){opacity:.55}
+.timeline-retime{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:.1rem 0 .6rem calc(23px + 1.35rem);padding:.6rem .75rem;border:1px solid var(--sand-border);border-radius:12px;background:var(--sand);color:var(--sand-ink);font-size:.85rem;font-weight:600}.timeline-retime>span{flex:1 1 12rem}.timeline-retime small{color:var(--sand-ink);font-weight:400}.timeline-retime input{width:auto;min-height:40px;padding:.25rem .5rem;font-size:1rem}.timeline-retime button{min-height:40px;padding:.4rem .75rem}
 .timeline-done-time{flex-direction:row;align-items:center;gap:.5rem;margin:-.5rem 0 .5rem;padding-left:calc(23px + 1.35rem);font-size:.76rem;font-weight:500;color:var(--muted)}
 .timeline-done-time input{width:auto;min-height:36px;padding:.25rem .5rem;font-size:1rem}
 
