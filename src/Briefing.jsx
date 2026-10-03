@@ -5,6 +5,7 @@ import WhatToWear from './WhatToWear.jsx';
 import {rollFor} from './film-data.js';
 import {readingBumps,dismissBump} from './level-nudge.js';
 import {useStored} from './stored.js';
+import {settingOn} from './settings.js';
 import {dayBriefing,briefingGreeting} from './briefing-data.js';
 import {READINESS,readinessOf,lowest,answered,faceOf,wordOf} from './readiness-data.js';
 // The line face for each level, one to five, for the grown-ups' washi look in place of the emoji.
@@ -18,13 +19,17 @@ import {useState} from 'react';
 // Once read, it can be folded to its first two lines (and stays folded on this phone until
 // opened again), or put away for the day, leaving one slim line to bring it back; tomorrow's
 // briefing comes back open on its own.
-export default function Briefing({state,day,today,clock,go,user,mutate,busy,open}){
+export default function Briefing({state,day,today,clock,go,user,mutate,busy,open,settings,change}){
  const [installed]=useStored('japan.apps.installed',{});
  const [folded,setFolded]=useStored('japan.briefing.folded',false),[putAway,setPutAway]=useStored('japan.briefing.dismissed','');
  // Readiness: the faces fold to one line once everyone has answered, and open again on a tap.
+ // It is a breakfast question, so it goes once the first stop is done; it can be folded for
+ // the day (on this phone), or turned off altogether in Settings.
+ const [minimised,setMinimised]=useStored('japan.readiness.folded','');
  const members=state.members||[],parent=user?.role==='parent',[changing,setChanging]=useState(false);
  const done=answered(state,day,members),low=lowest(state,day),asking=day===today&&(changing||(parent?done.length<members.length:!done.includes(user?.name)));
  const b=dayBriefing(state,day);if(!b)return null;
+ const morning=day===today&&user&&!b.done&&settingOn(settings,'morningCheck');
  const apps=b.apps.filter(a=>!installed[a.id]);
  const span=b.starts&&b.ends&&b.starts!==b.ends?`${b.starts}–${b.ends}`:b.starts||'';
  if(putAway===day)return <button type="button" className="briefing-restore" onClick={()=>setPutAway('')}><ChevronDown size={15}/>Show the day in brief · Day {b.dayNumber} of {b.total}</button>;
@@ -45,7 +50,12 @@ export default function Briefing({state,day,today,clock,go,user,mutate,busy,open
   <WhatToWear state={state} day={day}/>
   {/* A boy reading the kana: the offer to move his reading dial up, for a parent to take or leave. */}
   {parent&&day===today&&<ReadingBumps state={state} today={today} mutate={mutate} busy={busy}/>}
-  {day===today&&user&&<div className="readiness">
+  {morning&&minimised===day&&<button type="button" className="readiness-restore" onClick={()=>setMinimised('')}><ChevronDown size={15}/>How is everyone this morning?</button>}
+  {morning&&minimised!==day&&<div className="readiness">
+   <div className="readiness-tools">
+    <button type="button" className="icon" aria-label="Fold how is everyone for today" onClick={()=>{setMinimised(day);setChanging(false);}}><ChevronUp size={16}/></button>
+    {change&&<button type="button" className="linkish" onClick={()=>change('morningCheck',false)}>Turn off</button>}
+   </div>
    {asking?<>
     <p className="readiness-ask">How is everyone this morning?</p>
     {members.filter(p=>parent||p===user.name).map(p=>{const mine=readinessOf(state,day,p),can=true;return <div key={p} className="readiness-row"><span>{p}</span><div role="radiogroup" aria-label={`${p}: one to five`}>{READINESS.map(r=><button type="button" key={r.level} role="radio" aria-checked={mine===r.level} aria-label={`${r.word}, ${r.level} of 5`} className={mine===r.level?'is-on':''} disabled={busy||!can} onClick={()=>mutate({type:'readinessSet',day,person:p,level:r.level})}><span className="readiness-face" aria-hidden="true">{r.face}</span><LineFace level={r.level}/></button>)}</div></div>;})}
