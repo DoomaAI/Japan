@@ -188,6 +188,8 @@
 
 /* A stop's type icon: the shape says meal, train or ride; Washi draws it in stone, unboxed. */
 :root[data-look=washi] .entry-type{--entry:var(--stone);--entry-bg:transparent}
+/* No tile behind the icon here, so drop the tile padding: the glyph lines up with the pin below. */
+:root[data-look=washi] .step-card h2 .entry-type{width:auto}
 
 /* The cover's falling petals stay sakura pink: they are part of the photograph, not the page.
    Written in hsl() so the build's colour step leaves them exactly as they are. */

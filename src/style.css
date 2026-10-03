@@ -604,7 +604,7 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .timeline .entry-type{width:18px;height:18px;border-radius:5px;margin-right:.35rem;vertical-align:-3px}
 .timeline-row.done .entry-type{filter:grayscale(1)}
 .next-title .entry-type{vertical-align:-3px}
-.step-card h2 .entry-type{width:1.05em;height:1.05em;border-radius:.28em;vertical-align:-.1em;margin-right:.3em}
+.step-card h2 .entry-type{width:1.05em;height:1.05em;border-radius:.28em;vertical-align:-.02em;margin-right:.3em}
 
 /* Press and hold, then drag (wobble.js): the buttons under a stop and the shortcuts along the
    bottom bar. Hold one and the row wobbles like the icons on an iPhone's home screen; while it
