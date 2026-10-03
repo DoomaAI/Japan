@@ -110,7 +110,6 @@ import './travel-guide.css';
 // Tomorrow's check and Plan B are read with no signal, on the stop card and the day, so they are in the shell.
 import DayCheck,{StopPlanB} from './DayCheck.jsx';
 import HotelMove from './HotelMove.jsx';
-import FindBox from './FindBox.jsx';
 import Rings from './Rings.jsx';
 import MomentBanner from './MomentBanner.jsx';
 import DinnerQuiz,{QuizLine} from './DinnerQuiz.jsx';
@@ -208,7 +207,20 @@ function HomeCard({label,folded,fold,away,children}){
 // Typing is noticed as it happens rather than read back from the fields, because a field the
 // screen controls reports its starting value as whatever it holds now. Ticks and search boxes
 // do not count: a tick saves itself, and a filter is not something anybody minds losing.
-function Dialog({title,children,onClose,wide=false}){const ref=useRef(),typed=useRef(false);useEffect(()=>{const d=ref.current;d.showModal();const on=e=>{if(!['checkbox','radio','search','range','file'].includes(e.target.type))typed.current=true;};d.addEventListener('input',on);return()=>{d.removeEventListener('input',on);d.close();};},[]);const ask=()=>!typed.current||confirm('Close without keeping what you typed?');return <dialog ref={ref} onCancel={e=>{if(ask())onClose();else e.preventDefault();}} onClick={e=>{if(e.target===ref.current&&ask())onClose();}} className={wide?'wide':''}><header><h2>{title}</h2><button className="icon" aria-label="Close" onClick={onClose}><X/></button></header><div className="dialog-body"><Suspense fallback={<p className="page-loading">Opening…</p>}>{children}</Suspense></div></dialog>;}
+// The button in the corner of every page. A tap opens the box ready to type; held, it opens
+// already listening, the way a press on the AirPods does. Where the Concierge is not for this
+// phone it is a magnifier and only finds.
+function ConciergeButton({canAsk,open}){
+ const held=useRef(null),fired=useRef(false);
+ const down=()=>{if(!canAsk)return;fired.current=false;held.current=setTimeout(()=>{fired.current=true;open(true);},450);};
+ const up=()=>clearTimeout(held.current);
+ useEffect(()=>up,[]);
+ return <button type="button" className="assistant-fab" aria-label={canAsk?'Concierge: type to find or ask; hold to say it':'Find: a stop, a hotel, a ticket, a phrase'}
+  onPointerDown={down} onPointerUp={up} onPointerLeave={up} onPointerCancel={up} onContextMenu={e=>e.preventDefault()}
+  onClick={()=>{if(fired.current){fired.current=false;return;}open(false);}}>
+  {canAsk?<><ConciergeBell size={24}/><span className="assistant-fab-mic" aria-hidden="true"><Mic size={12}/></span></>:<Search size={24}/>}</button>;
+}
+function Dialog({title,children,onClose,wide=false}){const ref=useRef(),typed=useRef(false);useEffect(()=>{const d=ref.current;d.showModal();const on=e=>{if(!['checkbox','radio','search','range','file'].includes(e.target.type)&&!e.target.closest?.('[data-throwaway]'))typed.current=true;};d.addEventListener('input',on);return()=>{d.removeEventListener('input',on);d.close();};},[]);const ask=()=>!typed.current||confirm('Close without keeping what you typed?');return <dialog ref={ref} onCancel={e=>{if(ask())onClose();else e.preventDefault();}} onClick={e=>{if(e.target===ref.current&&ask())onClose();}} className={wide?'wide':''}><header><h2>{title}</h2><button className="icon" aria-label="Close" onClick={onClose}><X/></button></header><div className="dialog-body"><Suspense fallback={<p className="page-loading">Opening…</p>}>{children}</Suspense></div></dialog>;}
 async function copyOrShare(url,title,share=false){if(share&&navigator.share){await navigator.share({title,url});return;}await navigator.clipboard.writeText(url);}
 const TABS=[...Object.keys(PAGES),'more'];
 // What a phone can do with no signal and hand over later. Everything here either records
@@ -382,7 +394,7 @@ function App(){
    else if(action.type==='todoSay'){setSayFirst({focus:true});setTab('todo');}
    else if(action.type==='nearby')setModal({type:'nearby',need:action.need});
    else if(action.type==='capture')setModal({type:'capture'});
-   else if(action.type==='concierge')setModal({type:'assistant'});
+   else if(action.type==='concierge')setModal({type:'assistant',listen:true});
    else if(action.type==='recommend'){handRecommendation({text:action.text,from:action.from,via:'message'});setFocus(null);setTab('planning');}
    else if(action.type==='hotel'){const d=s.days.find(x=>x.date===nearestDay(s.days,japanDate()));if(d?.hotel)location.assign(directions(d.hotel));else setTab('help');}
   }
@@ -535,8 +547,13 @@ function App(){
  // opens the Concierge already listening. Over another sheet it says so rather than closing it,
  // because a half-typed stop is worth more than a question that can wait a second.
  const pressable=!!(user&&config?.ask&&isAvailable('ask')&&settingOn(settings,'headphoneConcierge'));
+ // One way in to type or say anything: the button in the corner. It asks the Concierge where
+ // that is switched on for this phone, and only finds where it is not. With it put away in
+ // Settings, the magnifier in the top bar comes back so the full search is never lost.
+ const canAsk=!!(config?.ask&&isAvailable('ask'));
+ const conciergeButton=!!(user&&settingOn(settings,'voiceAssistant'));
  useEffect(()=>pressable?startHeadphones():undefined,[pressable]);
- useEffect(()=>pressable?onHeadphonePress(()=>{const open=modalRef.current;if(!open)setModal({type:'assistant'});else if(open.type!=='assistant')notice('Close this first, then press again to ask the Concierge.');}):undefined,[pressable]);
+ useEffect(()=>pressable?onHeadphonePress(()=>{const open=modalRef.current;if(!open)setModal({type:'assistant',listen:true});else if(open.type!=='assistant')notice('Close this first, then press again to ask the Concierge.');}):undefined,[pressable]);
  // Matcha nearby (src/useMatchaNearby.js): switched on, the phone follows its position while the
  // app is open and says so near one of our matcha places.
  const matchaRadius=useMemo(()=>readRadius(user?.name),[user?.name,settingsAt]);
@@ -736,7 +753,6 @@ function App(){
  const todayKey=japanDate(now),todayHome=homeDay(homeToday,todayKey);
  const homeWidgets=tab==='today'&&{
   rings:<Rings state={visibleState} user={user} day={day}/>,
-  find:<FindBox state={visibleState} user={user} go={go} selectStep={selectStep} open={setModal} selectDay={selectDay}/>,
   checkin:<CheckInCard state={visibleState} user={user} now={now} request={request} mutate={mutate} busy={busy} go={go}/>,
   late:<LateCards state={visibleState} user={user} now={now} mutate={mutate} busy={busy} go={go} open={setModal} live={live}/>,
   halfway:<><HalfwayLine state={visibleState} open={()=>setModal({type:'halfway'})}/><BlendLine state={visibleState} open={()=>setModal({type:'blend'})}/></>,
@@ -853,7 +869,7 @@ function App(){
       own, for the five-year-old holding the phone. It says what the screen is for in words he
       can follow rather than reading the heading at him, and being in the same place on every
       page is what lets him find it without reading anything to find it. */}
-  <header className="topbar"><a className="brand" href="/" onClick={e=>{e.preventDefault();setTab('today');}}><span className="brand-mark" aria-hidden="true">✿</span><span>Japan <b>2026</b><small>THE PASFIELD FAMILY</small></span></a><div className="top-actions">{noteForMe&&<button className="icon thank-you-button" aria-label={`A note from ${NOTE_BOYS.includes(user.name)?'Dad':THANK_YOU_FROM}`} onClick={()=>setModal({type:'thankyou',note:noteForMe})}><Heart size={20}/>{!noteRead&&<i/>}</button>}<button className="icon" aria-label="Search everything" onClick={()=>go('search')}><Search size={20}/></button><button className="icon notification-button" aria-label="Family updates" onClick={()=>go('updates')}><Bell size={20}/>{state.alerts.some(a=>!a.seenBy?.[user.name])&&<i/>}</button>{/* Read aloud for the boys; on a parent's phone the top edge keeps to search, updates, the clock and the family. */}{!parent&&<SpeakRules id={`page-${tab}`} text={pageRule(tab)} label="What is this page?" compact/>}{dayOnTrip&&<NowWeather state={visibleState} day={dayOnTrip} clock={japanClock(now)} onOpen={()=>go('weather',dayOnTrip)}/>}{leave?<button type="button" className={`local-clock leave-chip${leave.minutes<=0?' now':''}`} aria-label={`${leave.minutes>0?`Leave in ${spanWords(leave.minutes)}`:'Leave now'} for ${leave.fixed.title} at ${leave.fixed.time}. Open it.`} onClick={()=>selectStep(leave.fixed)}><Clock size={14}/>{leave.minutes>0?spanWords(leave.minutes):'Now'}<small>LEAVE {japanClock(leave.departure)}</small></button>:<span className="local-clock"><Clock size={14}/>{japanClock(now)}<small>JAPAN</small></span>}<button className="avatar" aria-label="Family settings" onClick={()=>setModal({type:'family'})}><MascotBadge state={state} person={user.name} size={38}/></button></div></header>
+  <header className="topbar"><a className="brand" href="/" onClick={e=>{e.preventDefault();setTab('today');}}><span className="brand-mark" aria-hidden="true">✿</span><span>Japan <b>2026</b><small>THE PASFIELD FAMILY</small></span></a><div className="top-actions">{noteForMe&&<button className="icon thank-you-button" aria-label={`A note from ${NOTE_BOYS.includes(user.name)?'Dad':THANK_YOU_FROM}`} onClick={()=>setModal({type:'thankyou',note:noteForMe})}><Heart size={20}/>{!noteRead&&<i/>}</button>}{!conciergeButton&&<button className="icon" aria-label="Search everything" onClick={()=>go('search')}><Search size={20}/></button>}<button className="icon notification-button" aria-label="Family updates" onClick={()=>go('updates')}><Bell size={20}/>{state.alerts.some(a=>!a.seenBy?.[user.name])&&<i/>}</button>{/* Read aloud for the boys; on a parent's phone the top edge keeps to search, updates, the clock and the family. */}{!parent&&<SpeakRules id={`page-${tab}`} text={pageRule(tab)} label="What is this page?" compact/>}{dayOnTrip&&<NowWeather state={visibleState} day={dayOnTrip} clock={japanClock(now)} onOpen={()=>go('weather',dayOnTrip)}/>}{leave?<button type="button" className={`local-clock leave-chip${leave.minutes<=0?' now':''}`} aria-label={`${leave.minutes>0?`Leave in ${spanWords(leave.minutes)}`:'Leave now'} for ${leave.fixed.title} at ${leave.fixed.time}. Open it.`} onClick={()=>selectStep(leave.fixed)}><Clock size={14}/>{leave.minutes>0?spanWords(leave.minutes):'Now'}<small>LEAVE {japanClock(leave.departure)}</small></button>:<span className="local-clock"><Clock size={14}/>{japanClock(now)}<small>JAPAN</small></span>}<button className="avatar" aria-label="Family settings" onClick={()=>setModal({type:'family'})}><MascotBadge state={state} person={user.name} size={38}/></button></div></header>
   {/* On Home, the line that only says all is well gives its room to the step card; offline, a
       queue or a local preview still say so there as everywhere else. */}
   <div className={`syncbar${tab==='today'&&online&&!user.demo&&(!queue.length||sending)?' quiet':''}`}>{!online?<><WifiOff size={14}/> Offline · saved on this phone</>:user.demo?<><AlertCircle size={14}/> Local preview · family sharing needs setup</>:queue.length&&!sending?<><Clock size={14}/>{queue.length} update{queue.length!==1?'s':''} waiting to sync</>:<><Cloud size={14}/> Shared family plan <span>Signed in as {user.name}</span></>}{!user.demo&&<button type="button" className="sync-now" disabled={syncing} onClick={syncNow}>{syncing?'Syncing…':'Sync now'}{syncedAt&&!syncing&&<small>{japanClock(new Date(syncedAt))}</small>}</button>}</div>
@@ -970,15 +986,15 @@ function App(){
   {/* The concierge, one tap from any page: a bell, as at a hotel desk, with the microphone on
       it because it opens listening — and a box to type in for when talking will not do. It opens already listening, about the day in front
       of us; Ask itself has it at the top, so the button stands down there and under a sheet. */}
-  {user&&config?.ask&&isAvailable('ask')&&settingOn(settings,'voiceAssistant')&&tab!=='ask'&&!modal&&<button type="button" className="assistant-fab" aria-label="Concierge: say or type what you want changed, or ask about the trip" onClick={()=>setModal({type:'assistant'})}><ConciergeBell size={24}/><span className="assistant-fab-mic" aria-hidden="true"><Mic size={12}/></span></button>}
+  {conciergeButton&&tab!=='ask'&&!modal&&<ConciergeButton canAsk={canAsk} open={listen=>setModal({type:'assistant',listen})}/>}
   <BottomNav tab={tab} user={user} go={navGo} prefs={navPrefs} setPrefs={saveNav} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
   {toast&&!modal&&toastBar}
-  {modal&&<Dialog title={{edit:modal.step?'Edit stop':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',blend:'The Blend',quiz:'Dinner quiz',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',rearrange:'Move or swap days',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',report:'Tell the other phones',checkin:'Check In',latemsg:'Tell the others we’re late',puzzle:'Today’s puzzle',halfway:'Halfway there',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Japan bingo',park:modal.park?.name||'Theme park rides',waits:`Wait times · ${modal.park?.short||''}`,foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',assistant:'Concierge',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','waits','voice','nearby','sumo','ask','assistant'].includes(modal.type)}>
+  {modal&&<Dialog title={{edit:modal.step?'Edit stop':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',blend:'The Blend',quiz:'Dinner quiz',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',rearrange:'Move or swap days',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',report:'Tell the other phones',checkin:'Check In',latemsg:'Tell the others we’re late',puzzle:'Today’s puzzle',halfway:'Halfway there',sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Japan bingo',park:modal.park?.name||'Theme park rides',waits:`Wait times · ${modal.park?.short||''}`,foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',assistant:canAsk?'Concierge':'Find',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','waits','voice','nearby','sumo','ask','assistant'].includes(modal.type)}>
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} mode={modal.mode} wishlist={modal.wishlist} need={modal.need} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)} available={!!config?.nearby}/>}
    {modal.type==='ask'&&<AskTrip state={visibleState} user={user} day={modal.step?.day||day} step={modal.step} config={config} online={online} request={request} mutate={mutate} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
-   {modal.type==='assistant'&&<AskTrip assistant state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} go={id=>{setModal(null);go(id);}} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
+   {modal.type==='assistant'&&<AskTrip assistant canAsk={canAsk} listen={!!modal.listen} find={{go:id=>{setModal(null);go(id);},selectStep:s=>{setModal(null);selectStep(s);},open:setModal,selectDay:d=>{setModal(null);selectDay(d);}}} state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} go={id=>{setModal(null);go(id);}} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
    {modal.type==='quiz'&&<DinnerQuiz state={visibleState} user={user} day={japanDate(now)} request={request} accept={accept} refresh={refresh} notice={notice}/>}
    {modal.type==='blend'&&<BlendCard state={visibleState} notice={notice}/>}
    {modal.type==='halfway'&&<HalfwayCard state={visibleState} notice={notice} go={id=>{setModal(null);go(id);}}/>}

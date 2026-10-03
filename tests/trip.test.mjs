@@ -1947,10 +1947,12 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const screen=await readFile(new URL('../src/Personalise.jsx',import.meta.url),'utf8');
  // Untouched, Home shows everything but the day's buttons, with the step we are on first.
- assert.equal(HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id))[0],'find','the type-anything box sits at the very top');
- const ON=HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id)&&id!=='find');
+ // Typing anything is the Concierge's box, in the corner of every page, so Home has no box of its own.
+ assert.ok(!HOME_DEFAULT.includes('find'),'no type-anything box on Home');
+ assert.deepEqual(homeShown({order:['find','step'],hidden:[]}).slice(0,1),['onthisday'],'a phone that had it arranged loses it cleanly');
+ const ON=HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id));
  assert.deepEqual(HOME_OFF,['countdown','glance','adjust','tired','apps']);
- assert.deepEqual(homeShown(emptyHome()),['find',...ON]);
+ assert.deepEqual(homeShown(emptyHome()),ON);
  assert.equal(ON[0],'onthisday','an anniversary leads Home, on the days there is one');assert.equal(ON[1],'runup','then the run-up, before we fly');assert.equal(ON[2],'dailyjapan','then a little Japan each day');assert.equal(ON[3],'bookingwindows','then the booking windows about to open');assert.equal(ON[4],'briefing','then the day in brief');assert.equal(ON[5],'todaysphrase','then the phrase of the day');assert.equal(ON[6],'todaysfact','then the fun fact, a card of its own');assert.equal(ON[7],'todaystip','then the tip of the day');assert.equal(ON[8],'step','then the step card');
  for(const id of HOME_DEFAULT)assert.ok(HOME_WIDGETS[id].label&&HOME_WIDGETS[id].note,id);
  // Moved and put away, and nothing lost: a widget put away is still in the order to come back.
@@ -1970,7 +1972,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.deepEqual(arranged.slice(0,3),['weather','briefing','todaysphrase'],'a new widget lands beside its neighbour, not at the foot');
  assert.equal(arranged.length,HOME_DEFAULT.length);
  for(const rubbish of [null,undefined,'x',{order:'x'},{hidden:'step'}])
-  assert.deepEqual(homeShown(rubbish),['find',...ON],JSON.stringify(rubbish));
+  assert.deepEqual(homeShown(rubbish),ON,JSON.stringify(rubbish));
  // The day's buttons can be brought onto Home one by one, moved, and put away again.
  prefs=toggleWidget(emptyHome(),'tired');
  assert.ok(homeShown(prefs).includes('tired')&&!homeShown(prefs).includes('apps'));

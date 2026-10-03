@@ -45,6 +45,25 @@ export const latestStart=step=>windowOf(step)?.end??minutes(step?.bookingTime||s
 // A group is either alternatives, where only the chosen option is on the day, or a split, where
 // every option is on the day because each is somebody's (see split.js).
 export const activeSteps=(state,day)=>state.steps.filter(s=>s.day===day&&(!s.group||state.groupModes?.[s.group]==='split'||!state.choices[s.group]||state.choices[s.group]===s.option)).sort((a,b)=>a.order-b.order);
+// A stop moved by hand keeps its time, so after a move it can sit out of step with the stops now
+// either side of it. When it does, the time offered is the middle of the gap between them: from
+// the end of the one before (or its start, if it runs past the next) to the start of the one
+// after, to the nearest five minutes. At either end of the day it goes just after the last stop
+// or just before the first. A locked or finished stop, or one with no time, is never asked about.
+export function retimeAfterMove(order,id){
+ const at=order.findIndex(s=>s.id===id),s=order[at];
+ if(!s||!s.time||s.locked||MOVABLE_OUT.includes(s.status))return null;
+ const timed=x=>x.time&&x.status!=='skipped';
+ const before=order.slice(0,at).reverse().find(timed),after=order.slice(at+1).find(timed);
+ const own=minutes(s.time),prev=before&&minutes(before.time),next=after&&minutes(after.time);
+ if((before==null||own>=prev)&&(after==null||own<=next))return null;
+ let m;
+ if(before&&after){const end=prev+(before.duration||0);m=next>prev?((end<=next?end:prev)+next)/2:prev;}
+ else if(before)m=prev+(before.duration||30);
+ else m=next-(s.duration||30);
+ m=Math.min(23*60+55,Math.max(0,Math.round(m/5)*5));
+ return asClock(m)===s.time?null:{time:asClock(m),before,after};
+}
 // Adjusting the rest of a day. Each unfinished flexible stop can be left out of the move, given
 // a new length, or skipped; and with `squeeze` on, the stops being moved close up their gaps and,
 // if that is not enough, are shortened just enough to finish by the next fixed time.
