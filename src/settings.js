@@ -35,6 +35,11 @@ export const SETTINGS=[
  {id:'headphoneConcierge',label:'Ask with my AirPods',group:'assistant',default:false,
   on:'While the app is open, press the AirPods stem (or play on any headphones) and the Concierge listens: “what’s next?”, “how long until dinner?”, “how do we get to the temple?”. Press again to stop it talking. Music on this phone pauses while the app is on the screen, and comes back when you leave it.',
   off:'The AirPods press stays with your music. The bell in the corner and “Hey Siri, Concierge” still work.'},
+ // Off until asked for: it follows the phone's position while the app is open, which costs
+ // battery and is nobody's business until they want it (src/matcha-nearby.js).
+ {id:'matchaNearby',label:'Matcha nearby',group:'out',default:false,
+  on:'While the app is open, the phone buzzes and says so when you come within the distance below of one of our matcha places: the ones marked matcha on our map list, and the Matcha hunt finds with a pin, a stop or a place. Each place once a day. With notifications allowed, it shows on the screen too if the app has just been put away.',
+  off:'Nothing watches where you are for matcha. The places are still on our map list and the Matcha hunt.'},
  // Closed until asked for, so a route card stays short; tapping a line's name opens it either way.
  {id:'routeLookOpen',label:'Show what to look for',group:'route',default:false,
   on:'Each train, subway and bus on a route card opens with what to look for to find it. Tap the line’s name to close it.',
