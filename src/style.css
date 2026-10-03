@@ -1032,3 +1032,4 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 /* Where a carried row will land: a green line between two rows, as on the day at a glance. */
 .menu-order li{position:relative}.menu-order li.drop-before:before,.menu-order li.drop-after:after{content:'';position:absolute;left:0;right:0;border-top:3px solid var(--green);border-radius:2px;pointer-events:none;z-index:3}
 .menu-order li.drop-before:before{top:calc(-.2rem - 2.5px)}.menu-order li.drop-after:after{bottom:calc(-.2rem - 2.5px)}
+.day-heading .day-check-run{flex-shrink:0;font-size:.85rem;padding:.55rem .75rem}
