@@ -1,23 +1,39 @@
-import React from 'react';
+import React,{useEffect,useRef,useState} from 'react';
 import PageTitle from './PageTitle.jsx';
-import {ArrowUp,ArrowDown,Plus,X,Eye,EyeOff,RotateCcw} from 'lucide-react';
+import {ArrowUp,ArrowDown,Plus,X,Eye,EyeOff,RotateCcw,GripVertical} from 'lucide-react';
+import {underFinger,follow,settle} from './lift.js';
 import {PAGES,BAR_MIN,BAR_MAX,FIXED,pagesFor,primaryNav,hiddenNav,addableNav,cleanNav,emptyNav} from './nav-data.js';
 import {iconFor} from './Navigation.jsx';
 import {TIP_KINDS,readTips,writeTips,toggleTip} from './opening-tips.js';
-import {HOME_WIDGETS,homeOrder,cleanHome,moveWidget,toggleWidget,emptyHome} from './home-widgets.js';
+import {HOME_WIDGETS,homeOrder,cleanHome,moveWidget,placeWidget,toggleWidget,emptyHome} from './home-widgets.js';
 // Four of us carry the same app. Lauren opens tickets and the plan; Boston opens his missions
 // and his money; Nate opens three screens in sixteen days and would open two if the third one
 // stopped moving. One bottom bar cannot be right for all of them, so this is where each phone
 // is told what belongs on it and in what order, and what to put away entirely.
 //
-// Arrows rather than dragging. A drag-and-drop list is the obvious way to order five things and
-// the wrong one here: it fights the page scroll on a phone, it needs a steady hand, and the
-// person most likely to be rearranging this is five. Two arrows and a cross can be pressed by
-// anybody, work with a screen reader, and cannot half-happen.
+// Drag a row by its handle, or use the arrows. Only the handle takes the drag, so the rest of
+// the row still scrolls the page; the arrows stay for anybody without a steady hand, and for a
+// screen reader, and a drag let go of over nothing slides back and changes nothing.
 //
 // Nothing put away is lost. Everything hidden is listed at the bottom of this screen with a
 // button to bring it back, and this screen cannot be hidden itself — nor can Home, which is
 // the way back from wherever a bad arrangement leaves you.
+// One drag by the handle: the row follows the finger and lands on the row it is let go over.
+// The list is the ids in order, data-drag-id on each row; place(id,to) saves the new position.
+function useDragOrder(list,place){
+ const drag=useRef(null),[held,setHeld]=useState(null);
+ // While a row is held the page must not scroll under it.
+ useEffect(()=>{const stop=e=>{if(drag.current)e.preventDefault();};document.addEventListener('touchmove',stop,{passive:false});return()=>document.removeEventListener('touchmove',stop);},[]);
+ const end=()=>{const d=drag.current;drag.current=null;setHeld(null);return d;};
+ const grip=(id,label)=><button type="button" className="rank-grip" aria-label={`Drag ${label}`}
+  onPointerDown={e=>{if(e.button>0)return;e.currentTarget.setPointerCapture?.(e.pointerId);drag.current={id,y:e.clientY,row:e.currentTarget.closest('[data-drag-id]')};setHeld(id);}}
+  onPointerMove={e=>{const d=drag.current;if(d)follow(d.row,0,e.clientY-d.y);}}
+  onPointerUp={e=>{const d=end();if(!d)return;
+  // Only a row of the same list counts: Home and the bar can both list the same screen.
+  const hit=underFinger(e.clientX,e.clientY,'[data-drag-id]',d.row),target=hit?.parentElement===d.row.parentElement?hit:null;settle(d.row,!target);if(target)place(d.id,list.indexOf(target.dataset.dragId));}}
+  onPointerCancel={()=>settle(end()?.row,true)}><GripVertical size={18}/></button>;
+ return {held,grip};
+}
 export default function Personalise({user,prefs,setPrefs,home,setHome,held=[]}){
  const bar=primaryNav(user,prefs),hidden=hiddenNav(user,prefs);
  const save=next=>setPrefs(cleanNav({...next,order:prefs?.order},user));
@@ -79,16 +95,18 @@ export function BarShortcuts({user,prefs,setPrefs}){
   withBar(list);
  };
  const drop=id=>{if(bar.length>BAR_MIN&&!FIXED.includes(id))withBar(bar.filter(x=>x!==id));};
+ const place=(id,to)=>{const list=bar.filter(x=>x!==id);list.splice(to+1,0,id);withBar(list);};
  const add=id=>{if(bar.length<BAR_MAX)withBar([...bar,id]);};
- const shortcuts=bar.slice(1);
+ const shortcuts=bar.slice(1),{held,grip}=useDragOrder(shortcuts,place);
  return <>
   <h2>The bar along the bottom</h2>
   <p>Home is always at the left end and More at the right. The shortcuts between them come in
    this order, and swipe sideways like the days along the top when there are more than fit.
    Swipe the bar up for everything else, and down to come back. You can have
-   up to {BAR_MAX-1} shortcuts. You can also press and hold one on the bar until they wobble,
+   up to {BAR_MAX-1} shortcuts. Drag a row by its handle, or use the arrows. You can also press and hold one on the bar until they wobble,
    then drag them where you want.</p>
-  <ol className="menu-order">{shortcuts.map((id,i)=>{const Icon=iconFor(id);return <li key={id}>
+  <ol className="menu-order">{shortcuts.map((id,i)=>{const Icon=iconFor(id);return <li key={id} data-drag-id={id} className={held===id?'held':undefined}>
+   {grip(id,PAGES[id].label)}
    <span className="more-icon"><Icon size={19}/></span>
    <span><strong>{PAGES[id].label}</strong><small>{PAGES[id].note}</small></span>
    <span className="menu-buttons">
@@ -115,15 +133,18 @@ export function HomeWidgets({home,setHome,held=[]}){
  if(!setHome)return null;
  // A widget the awareness dial holds back on this phone is not offered to arrange either.
  const {hidden}=cleanHome(home),order=homeOrder(home).filter(id=>!held.includes(id));
+ // A drop is placed by the full order, which has the held-back widgets in it too.
+ const {held:lifted,grip}=useDragOrder(order,(id,to)=>setHome(placeWidget(home,id,homeOrder(home).indexOf(order[to]))));
  return <>
   <h2>Your Home screen</h2>
   <p>Home shows these, top to bottom, under the day and its dates. Move them into the order you
-   want and put away the ones you do not need. The day’s buttons — the day at a glance, adjust the
+   want, dragging a row by its handle or with the arrows, and put away the ones you do not need. The day’s buttons — the day at a glance, adjust the
    day, we’re tired, useful apps — live on Today and start put away here; tap the eye to add any of
    them to Home too. It changes Home on this phone only. To put a card away just for today, use the
    eye on the card itself on Home; it comes back tomorrow by itself.</p>
   <ol className="menu-order home-widgets">{order.map((id,i)=>{const off=hidden.includes(id);
-   return <li key={id} className={off?'is-hidden':undefined}>
+   return <li key={id} data-drag-id={id} className={[off&&'is-hidden',lifted===id&&'held'].filter(Boolean).join(' ')||undefined}>
+    {grip(id,HOME_WIDGETS[id].label)}
     <span><strong>{HOME_WIDGETS[id].label}</strong><small>{off?'Put away · ':''}{HOME_WIDGETS[id].note}</small></span>
     <span className="menu-buttons">
      <button type="button" aria-label={`Move ${HOME_WIDGETS[id].label} up`} disabled={i===0} onClick={()=>setHome(moveWidget(home,id,-1))}><ArrowUp size={16}/></button>

@@ -90,6 +90,13 @@ export function moveWidget(prefs,id,by){
  order[at]=order[to];order[to]=id;
  return cleanHome({...prefs,order});
 }
+// Dragged by its handle in Customise: the widget lands where it was dropped, and the rest close up.
+export function placeWidget(prefs,id,to){
+ const order=homeOrder(prefs).filter(x=>x!==id);
+ if(!homeOrder(prefs).includes(id)||to<0||to>order.length)return cleanHome(prefs);
+ order.splice(to,0,id);
+ return cleanHome({...prefs,order});
+}
 export function toggleWidget(prefs,id){
  const {hidden,shown}=cleanHome(prefs),off=hidden.includes(id);
  return cleanHome({order:homeOrder(prefs),

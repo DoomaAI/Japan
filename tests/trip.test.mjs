@@ -1943,7 +1943,7 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
 });
 
 test('Home is a column of widgets each phone orders and puts away for itself',async()=>{
- const {HOME_WIDGETS,HOME_DEFAULT,HOME_OFF,emptyHome,cleanHome,homeOrder,homeShown,homeRuns,moveWidget,toggleWidget}=await import('../src/home-widgets.js');
+ const {HOME_WIDGETS,HOME_DEFAULT,HOME_OFF,emptyHome,cleanHome,homeOrder,homeShown,homeRuns,moveWidget,placeWidget,toggleWidget}=await import('../src/home-widgets.js');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const screen=await readFile(new URL('../src/Personalise.jsx',import.meta.url),'utf8');
  // Untouched, Home shows everything but the day's buttons, with the step we are on first.
@@ -1993,6 +1993,16 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.match(main,/onClick=\{\(\)=>go\('personalise'\)\}>Customise Home<\/Button>/);
  assert.match(screen,/<HomeWidgets home=\{home\} setHome=\{setHome\} held=\{held\}\/>/);
  assert.match(screen,/setHome\(emptyHome\(\)\)/);
+ // Dragged by its handle: a widget lands where it is dropped and the rest close up behind it.
+ const dropped=homeOrder(placeWidget(emptyHome(),'needs',0));
+ assert.equal(dropped[0],'needs');assert.equal(dropped.length,HOME_DEFAULT.length);
+ assert.deepEqual(dropped.slice(1),HOME_DEFAULT.filter(id=>id!=='needs'));
+ const down=homeOrder(placeWidget(emptyHome(),'briefing',HOME_DEFAULT.indexOf('step')));
+ assert.equal(down.indexOf('briefing'),down.indexOf('step')+1,'dropped on the row below, it takes that row’s place');
+ assert.deepEqual(homeOrder(placeWidget(emptyHome(),'nope',0)),HOME_DEFAULT,'an unknown widget moves nothing');
+ assert.deepEqual(homeOrder(placeWidget(emptyHome(),'step',99)),HOME_DEFAULT,'nor does a drop off the end');
+ assert.equal((screen.match(/\{grip\(id,/g)||[]).length,2,'a handle on every row, Home and the bar alike');
+ assert.match(screen,/className="rank-grip"/);assert.match(screen,/underFinger\(e\.clientX,e\.clientY,'\[data-drag-id\]',d\.row\),target=hit\?\.parentElement===d\.row\.parentElement\?hit:null/,'only a row of the same list counts');
 });
 
 test('Days is the Itinerary, and Plan holds today with the whole trip one switch away',async()=>{
