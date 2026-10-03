@@ -146,7 +146,8 @@ function SwapForm({step,busy,editing,onSave,onClose}){
  const reach=[];for(let k=from;k>=0&&k<base.length&&open[k];k++)reach.push(k);
  const pick=(f,t)=>{setFrom(f);setTo(t);if(!touched)setMinutes(String(baseMinutes(step,f,t)||15));};
  const runs=[];for(let k=0;k<base.length;k++)if(open[k]&&!open[k-1]){let e=k;while(open[e+1])e++;runs.push([k,e]);}
- const submit=async e=>{e.preventDefault();const m=parseInt(minutes,10);if(await onSave({mode,text:text.trim(),from,to,minutes:m}))onClose();};
+ // Saying what to tell the driver is optional; left blank, the leg is just called by how ("Taxi").
+ const submit=async e=>{e.preventDefault();const m=parseInt(minutes,10);if(await onSave({mode,text:text.trim()||SWAP_MODES[mode],from,to,minutes:m}))onClose();};
  if(first<0&&!editing)return <div className="route-waypoint-form"><p>Every leg is already done or changed.</p><div className="route-waypoint-actions"><button type="button" onClick={onClose}>Close</button></div></div>;
  return <form className="route-waypoint-form route-swap-form" onSubmit={submit}>
   <fieldset className="route-waypoint-kinds"><legend>Go by</legend>{Object.entries(SWAP_MODES).map(([k,label])=>{const Icon=LEG_ICON[k];return <label key={k} className={mode===k?'is-on':''}><input type="radio" name="swap-mode" value={k} checked={mode===k} onChange={()=>setMode(k)}/><Icon size={14}/>{label}</label>;})}</fieldset>
@@ -158,9 +159,9 @@ function SwapForm({step,busy,editing,onSave,onClose}){
    {reach.map(k=><option key={k} value={k}>Leg {k+1}, {legName(base[k])}{k===base.length-1?' (the end)':''}</option>)}
   </select></label>
   <p className="route-swap-instead"><small>Instead of: {base.slice(from,to+1).map(legName).join(', ')}.</small></p>
-  <label>{mode==='walk'?'Where to':'What to tell the driver, or how'}<input value={text} maxLength={160} required placeholder={SWAP_PLACEHOLDER[mode]} onChange={e=>setText(e.target.value)}/></label>
+  <label>{mode==='walk'?'Where to':'What to tell the driver, or how'} <small>(optional)</small><input value={text} maxLength={160} placeholder={SWAP_PLACEHOLDER[mode]} onChange={e=>setText(e.target.value)}/></label>
   <label>About how long (min)<input type="number" inputMode="numeric" min={1} max={240} required value={minutes} onChange={e=>{setTouched(true);setMinutes(e.target.value);}}/></label>
-  <div className="route-waypoint-actions"><button type="submit" disabled={busy||!text.trim()}>{editing?<><Check size={14}/>Save changes</>:<><Shuffle size={14}/>Go this way instead</>}</button><button type="button" onClick={onClose}>Cancel</button></div>
+  <div className="route-waypoint-actions"><button type="submit" disabled={busy||!(parseInt(minutes,10)>0)}>{editing?<><Check size={14}/>Save changes</>:<><Shuffle size={14}/>Go this way instead</>}</button><button type="button" onClick={onClose}>Cancel</button></div>
  </form>;
 }
 // The whole journey door to door, which grows and shrinks as stops and legs are added, and when
