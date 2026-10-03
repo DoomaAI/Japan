@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {TIP_KEY,readTips,writeTips,cleanTips,toggleTip,showsFacts,showsWords,showsTips} from '../src/opening-tips.js';
 import {TIPS,TIP_GROUPS,allTips,tipsForDay} from '../src/tip-data.js';
@@ -36,10 +37,10 @@ test('each kind turns on and off on its own',()=>{
 
 test('tips cover far more than manners, and every one is ready to show',()=>{
  const all=allTips();
- assert.ok(all.every(t=>t.id&&t.label&&t.icon&&t.text));
+ assert.ok(all.every(t=>t.id&&t.group&&t.title&&t.icon&&t.text));
  assert.equal(new Set(all.map(t=>t.id)).size,all.length,'every tip has its own id');
- for(const g of ['around','money','phone','boys','food','comfort'])assert.ok(all.some(t=>t.label===TIP_GROUPS[g].label),g);
- assert.ok(all.some(t=>t.label==='At a shrine'),'manners are in there too');
+ for(const g of ['around','money','phone','boys','food','comfort','manners'])assert.ok(all.some(t=>t.group===TIP_GROUPS[g].label),g);
+ assert.ok(all.some(t=>t.title==='At a shrine'),'manners are in there too');
  assert.ok(TIPS.every(t=>TIP_GROUPS[t.group]),'every tip is in a group');
  assert.ok(allTips(true).every(t=>t.text),'a young reader only gets tips written for him');
 });
@@ -48,8 +49,19 @@ test('a day’s own tips come first: its guide pages, then what its stops call f
  const days=[{date:'2026-09-27',pages:[38,39],city:'Nara / Kyoto'},{date:'2026-09-24',pages:[28,29],city:'Kyoto'}];
  const nara=tipsForDay(days,'2026-09-27',[{title:'Todai-ji',place:'Nara'}]);
  assert.equal(nara[0].id,'deer');
- assert.ok(nara.slice(0,4).some(t=>t.label==='At a temple'),'and the temple manners for the stop');
- assert.equal(tipsForDay(days,'2026-09-24',[])[0].id,'usj-breakfast','a day-only tip comes on its day');
+ assert.ok(nara.slice(0,4).some(t=>t.title==='At a temple'),'and the temple manners for the stop');
+ assert.ok(tipsForDay(days,'2026-09-24',[]).slice(0,4).some(t=>t.id==='usj-breakfast'),'a day-only tip comes on its day');
  assert.ok(!allTips().some(t=>t.id==='usj-breakfast'),'and not on any other');
- assert.equal(tipsForDay(days,'2026-09-27',[{title:'Fushimi Inari Shrine'}],true).find(t=>t.label==='At a shrine').text,'Bow at the big gate.');
+ assert.equal(tipsForDay(days,'2026-09-27',[{title:'Fushimi Inari Shrine'}],true).find(t=>t.title==='At a shrine').text,'Bow at the big gate.');
+});
+
+test('every day of the trip has tips of its own from its guide pages',()=>{
+ const seed=JSON.parse(readFileSync(new URL('../data/seed.json',import.meta.url)));
+ for(const d of seed.days){
+  const own=TIPS.filter(t=>!t.anytime&&d.pages.includes(t.page));
+  assert.ok(own.length,`${d.date} has a tip of its own`);
+  assert.equal(tipsForDay(seed.days,d.date)[0].id,own[0].id,`${d.date} leads with it`);
+ }
+ assert.equal(new Set(TIPS.map(t=>t.id)).size,TIPS.length);
+ assert.ok(TIPS.every(t=>t.title&&t.text&&t.title.length<=32),'headlines stay short enough for the card');
 });

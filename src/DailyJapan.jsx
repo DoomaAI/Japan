@@ -23,7 +23,7 @@ export default function DailyJapan({state,user,today,mutate,busy}){
    {member&&(d.factRead?<p className="daily-japan-done"><Check size={15}/> Read</p>:<button type="button" disabled={busy} onClick={read}>Got it</button>)}
   </div>}
   {d.tip&&<div className="daily-japan-part">
-   <strong><span aria-hidden="true">{d.tip.icon}</span> {d.tip.label}</strong><p>{d.tip.text}</p>
+   <strong><span aria-hidden="true">{d.tip.icon}</span> {d.tip.title}</strong><p>{d.tip.text}</p>
   </div>}
  </section>;
 }

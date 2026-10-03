@@ -171,9 +171,9 @@ export default function Opening({days,ready=false,onDone}){
      <span key={`x${card.id}`} className="opening-fact-text">“{card.say}”{card.note?<> · {card.note}</>:null}</span>
      <i key={`b${at}${tips}`} className="opening-fact-timer" aria-hidden="true"/>
     </button>}
-    {card.kind==='tip'&&<button className="opening-fact opening-tip" {...swipe} aria-roledescription="card" aria-label={`Tip, ${card.label}: ${card.text} ${ready?'Tap to go in.':'Tap for another.'} Swipe or use the arrow keys for more.`}>
-     <span className="opening-fact-top"><span>{card.icon}</span><small>TIP</small></span>
-     <strong key={`t${card.id}`}>{card.label}</strong>
+    {card.kind==='tip'&&<button className="opening-fact opening-tip" {...swipe} aria-roledescription="card" aria-label={`Tip, ${card.group}: ${card.title}. ${card.text} ${ready?'Tap to go in.':'Tap for another.'} Swipe or use the arrow keys for more.`}>
+     <span className="opening-fact-top"><span>{card.icon}</span><small>TIP · {card.group.toUpperCase()}</small></span>
+     <strong key={`t${card.id}`}>{card.title}</strong>
      <span key={`x${card.id}`} className="opening-fact-text">{card.text}</span>
      <i key={`b${at}${tips}`} className="opening-fact-timer" aria-hidden="true"/>
     </button>}

@@ -57,5 +57,5 @@ export function TodaysFact({queue=null,fresh=false,open}){
 export function TodaysTip({tips=null}){
  if(!tips?.length)return null;
  return <SwipeCard eyebrow="Tip of the day" items={tips}
-  render={t=>({label:`${t.label}: ${t.text}`,body:<span><b>{t.label}</b><small className="todays-card-text">{t.text}</small></span>})}/>;
+  render={t=>({label:`${t.group}: ${t.title}. ${t.text}`,body:<span><b>{t.title}</b><small className="todays-card-text">{t.text}</small></span>})}/>;
 }
