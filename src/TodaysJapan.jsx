@@ -1,7 +1,7 @@
 import React,{useState,useRef,useEffect} from 'react';
 import {ChevronLeft,ChevronRight} from 'lucide-react';
 import {phraseForDay} from './phrasebook-data.js';
-import {swipeDelta,isControl,stepIndex} from './swipe.js';
+import {dragTurn,dragAxis,stepIndex} from './swipe.js';
 import PhraseReplies from './PhraseReplies.jsx';
 // The phrase of the day, the fun fact of the day and the tip of the day, each a Home card of its own under the day
 // in brief. Being Home cards, each folds to its label or is put away until tomorrow from its own
@@ -24,17 +24,32 @@ function SwipeCard({eyebrow,items,render,open,fresh,more}){
  // it only gives a little, so it is plain there is nothing more that way.
  // The Home card's own title already names it, so with more than one the heading is the count.
  // The face of the card is itself the tap-to-open button, and a drag across it is still a swipe.
+ // The way a drag goes is settled in its first few pixels and kept: a scroll never starts
+ // dragging the card halfway down, and a drag the card has followed is judged on how far across
+ // it went (or how fast), not undone because the thumb drifted down on the way.
  const follow=e=>{
   const t=touch.current;if(!t||!many)return;
   const dx=e.touches[0].clientX-t.x,dy=e.touches[0].clientY-t.y;
-  if(!t.sideways&&Math.abs(dy)>Math.abs(dx))return;
-  t.sideways=true;
+  t.axis=t.axis||dragAxis(dx,dy);
+  if(t.axis!=='x')return;
   setDrag((dx>0&&at<=0)||(dx<0&&at>=list.length-1)?dx/4:dx);
  };
+ // Only the arrows and the replies' recordings keep a drag to themselves; a sideways drag that
+ // starts on the card's face or the "what you might hear back" fold still turns the card.
+ const start=e=>{
+  const el=e.target;
+  touch.current=el.closest?.('.todays-card-steps')||['AUDIO','INPUT','SELECT','TEXTAREA'].includes(el.tagName)?null
+   :{x:e.touches[0].clientX,y:e.touches[0].clientY,at:Date.now(),axis:null};
+ };
+ const end=e=>{
+  const t=touch.current;touch.current=null;setDrag(0);
+  if(!t||t.axis!=='x')return;
+  move(dragTurn(e.changedTouches[0].clientX-t.x,Date.now()-t.at));
+ };
  return <div className="todays-card" aria-roledescription="carousel"
-  onTouchStart={e=>{touch.current=isControl(e.target.tagName)&&!e.target.closest('.todays-japan-row')?null:{x:e.touches[0].clientX,y:e.touches[0].clientY};}}
+  onTouchStart={start}
   onTouchMove={follow}
-  onTouchEnd={e=>{if(!touch.current)return;move(swipeDelta(touch.current,{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY}));touch.current=null;setDrag(0);}}
+  onTouchEnd={end}
   onTouchCancel={()=>{touch.current=null;setDrag(0);}}
   onKeyDown={e=>{if(e.key==='ArrowLeft'){e.preventDefault();move(-1);}else if(e.key==='ArrowRight'){e.preventDefault();move(1);}}}>
   <p className="eyebrow"><span>{many?`${at+1} of ${list.length}`:eyebrow}</span>{!at&&fresh&&<em className="briefing-new">New</em>}

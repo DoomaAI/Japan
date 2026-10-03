@@ -26,7 +26,8 @@ test('the phrase and fun fact of the day are separate Home cards, each folding, 
  assert.ok(HOME_WIDGETS.todaysphrase&&HOME_WIDGETS.todaysfact&&!HOME_WIDGETS.todaysjapan,'two cards, not one');
  assert.match(main,/todaysphrase:<TodaysPhrase [^\n]*queue=\{day===dayOnTrip&&settingOn\(settings,'dailyPhrase'\)\?phraseQueue\(/);
  assert.match(main,/todaysfact:<TodaysFact queue=\{day===dayOnTrip&&todaysFact&&settingOn\(settings,'dailyFact'\)\?factQueue\(/);
- assert.match(cards,/swipeDelta\(touch\.current/,'each card swipes for more');
+ assert.match(cards,/move\(dragTurn\(e\.changedTouches\[0\]\.clientX-t\.x,Date\.now\(\)-t\.at\)\)/,'each card swipes for more');
+ assert.match(cards,/t\.axis=t\.axis\|\|dragAxis\(dx,dy\)/,'a drag settles its way once, so a scroll never becomes a swipe');
  assert.match(cards,/onTouchMove=\{follow\}/,'the card follows the finger');
  assert.doesNotMatch(cards,/Swipe for more/,'the arrows sit in the heading, not on a line of their own');
  assert.match(cards,/\{!at&&fresh&&<em className="briefing-new">New<\/em>\}/);
