@@ -28,8 +28,8 @@ export const SETTINGS=[
  // On by default wherever Ask is switched on: a button that sits on every page and is only
  // ever heard when tapped. Off takes the button away; Ask itself is untouched.
  {id:'voiceAssistant',label:'Concierge on every page',group:'assistant',
-  on:'A bell sits in the corner of every page. Tap it and say or type what you want — move a stop, add one, adjust the day — and hear the answer.',
-  off:'No button in the corner. Talk to the trip and the question box are still on the Concierge page.'},
+  on:'A bell sits in the corner of every page. Tap it to type: a stop, a ticket or a phrase is found as you type, with no signal, and anything else is asked. Hold it to say it instead and hear the answer.',
+  off:'No button in the corner. The magnifier in the top bar searches everything, and Talk to the trip and the question box are still on the Concierge page.'},
  // Off until asked for: while it is on and the app is open, the AirPods' press belongs to the
  // Concierge rather than to the music, which nobody should find out by having a podcast stop.
  {id:'headphoneConcierge',label:'Ask with my AirPods',group:'assistant',default:false,
