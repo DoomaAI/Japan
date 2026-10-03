@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createServer} from 'node:http';
 import {applyOperation,AppError} from '../server/model.mjs';
-import {activeSteps,scheduleProposal,japanClock,japanDate,scheduleVariance,stayPlan} from '../src/timing.js';
+import {activeSteps,scheduleProposal,minutes,japanClock,japanDate,scheduleVariance,stayPlan} from '../src/timing.js';
 import handler from '../server/handler.mjs';
 import {REST,MAX_ZOOM,clampView,zoomAbout,pinchView,tapView} from '../src/zoom.js';
 import {htmlToText,parseInbound,addToInbox,MAX_INBOX} from '../server/email.mjs';
@@ -48,6 +48,30 @@ test('rescheduling leaves locked/completed steps and catches crossing a booking 
  const steps=[{id:'a',title:'Train',time:'10:00',duration:30,locked:true,status:'todo'},{id:'b',title:'Cafe',time:'11:00',duration:20,status:'todo'},{id:'c',title:'Lunch',time:'12:00',duration:30,locked:true,status:'todo'},{id:'d',title:'Done',time:'14:00',status:'done'}];
  const p=scheduleProposal(steps,15);assert.deepEqual(p.changes,[{id:'b',time:'11:15'}]);assert.equal(p.conflicts.length,0);
  assert.ok(scheduleProposal(steps,60).conflicts.length>0);assert.ok(scheduleProposal(steps,-90).conflicts.length>0);
+});
+test('adjusting the day: move some stops, shorten, skip, or squeeze to fit before a booking',()=>{
+ const steps=[{id:'a',title:'Breakfast',time:'09:00',duration:60,status:'todo'},{id:'b',title:'Shop',time:'10:00',duration:60,status:'todo'},{id:'c',title:'Matcha',time:'11:00',duration:60,status:'todo'},{id:'h',title:'Hotel',time:'12:00',duration:30,locked:true,status:'todo'}];
+ // Only the stops ticked move.
+ const some=scheduleProposal(steps,30,{move:['c']});
+ assert.deepEqual(some.changes,[{id:'c',time:'11:30'}]);assert.ok(some.issues.some(i=>i.kind==='fixed'&&i.id==='c'&&i.over===30));
+ // Shortening clears the clash; skipping is part of the same change.
+ const fixed=scheduleProposal(steps,30,{move:['c'],durations:{c:30},skip:['b']});
+ assert.deepEqual(fixed.conflicts,[]);assert.deepEqual(fixed.changes,[{id:'c',time:'11:30',duration:30},{id:'b',skip:true}]);
+ // Squeezing fits all three moved stops between 09:30 and the 12:00 hotel.
+ const sq=scheduleProposal(steps,30,{squeeze:true});
+ assert.deepEqual(sq.conflicts,[]);
+ for(const c of sq.changes){const s=steps.find(x=>x.id===c.id);assert.ok(minutes(c.time)+(c.duration??s.duration)<=720,c.id);}
+ assert.equal(sq.changes[0].time,'09:30');
+ // Moving one stop into an unmoved one is a warning, not a block.
+ const crowd=scheduleProposal(steps,30,{move:['a']});
+ assert.equal(crowd.conflicts.length,0);assert.ok(crowd.issues.some(i=>i.kind==='flex'&&!i.blocking));
+});
+test('reschedule op applies new lengths and skips in one revision',()=>{
+ const day=seed.days[0].date,free=seed.steps.find(s=>s.day===day&&!s.locked&&s.time&&s.status==='todo'),other=seed.steps.find(s=>s.day===day&&!s.locked&&s.time&&s.status==='todo'&&s.id!==free.id);
+ const out=applyOperation(seed,{type:'reschedule',changes:[{id:free.id,time:'10:05',duration:25},...(other?[{id:other.id,skip:true}]:[])]},parent);
+ const f=out.steps.find(s=>s.id===free.id);assert.equal(f.time,'10:05');assert.equal(f.duration,25);
+ if(other)assert.equal(out.steps.find(s=>s.id===other.id).status,'skipped');
+ assert.throws(()=>applyOperation(seed,{type:'reschedule',changes:[{id:free.id,time:'10:05',duration:-5}]},parent));
 });
 test('Japan dates remain correct across UTC midnight',()=>{
  assert.equal(japanDate(new Date('2026-09-23T16:00:00Z')),'2026-09-24');assert.equal(japanClock(new Date('2026-09-23T16:00:00Z')),'01:00');
