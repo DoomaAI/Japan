@@ -12185,3 +12185,18 @@ test('memory map: a bracketed Japanese name and a longer or shorter pin name sti
  assert.match(kmlProblem(text,parseKml(text),0),/None of the 1 pins .* Somewhere else/);
  assert.equal(kmlProblem(text,parseKml(text),3),null);
 });
+
+test('the top bar keeps to a few things: the weather sits in the clock, and a read note moves to the family panel',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const weather=await readFile(new URL('../src/Weather.jsx',import.meta.url),'utf8');
+ const topbar=main.match(/<div className="top-actions">[\s\S]*?<\/header>/)?.[0]||'';
+ // One chip for the time and the sky: the leave countdown first, then the clock with the weather, then the plain clock.
+ assert.match(topbar,/\{leave\?<button[^]*?:dayOnTrip\?<NowWeather [^]*?fallback=\{clockChip\}[^]*?\/>:clockChip\}/);
+ assert.equal((topbar.match(/<NowWeather /g)||[]).length,1,'the weather is not a second item beside the clock');
+ assert.match(weather,/if\(!w\)return fallback;/,'with no reading it is just the clock');
+ assert.match(weather,/className="local-clock now-weather"/);
+ // The heart is there only until the note is read; after that the family panel keeps it.
+ assert.match(topbar,/\{noteForMe&&!noteRead&&<button className="icon thank-you-button"/);
+ assert.match(main,/<Family [^>]*note=\{noteForMe\}[^>]*onNote=\{\(\)=>setModal\(\{type:'thankyou',note:noteForMe\}\)\}/);
+ assert.match(main,/\{note&&<Button className="family-note" icon=\{Heart\} onClick=\{onNote\}>/);
+});
