@@ -56,7 +56,7 @@ import Tonight from './Tonight.jsx';
 import OnThisDay from './OnThisDay.jsx';
 import RunUp from './RunUp.jsx';
 import DailyJapan from './DailyJapan.jsx';
-import TodaysJapan from './TodaysJapan.jsx';
+import {TodaysPhrase,TodaysFact} from './TodaysJapan.jsx';
 import LikeALocalCard from './LikeALocalCard.jsx';
 import TravelGuide from './TravelGuide.jsx';
 import DayMap from './DayMap.jsx';
@@ -751,7 +751,8 @@ function App(){
   runup:<RunUp state={visibleState} today={japanDate(now)} go={go}/>,
   onthisday:<OnThisDay state={visibleState} today={japanDate(now)} dayLabel={fmtDay} go={go}/>,
   briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go} user={user} mutate={mutate} busy={busy} open={setModal} settings={settings} change={changeSetting}/>,
-  todaysjapan:<TodaysJapan state={visibleState} day={day} phrase={day===dayOnTrip&&settingOn(settings,'dailyPhrase')?{item:phraseQueue(visibleState,user.name,dayOnTrip)[0],open:openPhrase,fresh:!phraseDone}:null} fact={day===dayOnTrip&&todaysFact&&settingOn(settings,'dailyFact')?{...(factQueue(visibleState,user.name,dayOnTrip)[0]||todaysFact),open:openFact,fresh:!factDone}:null} go={go}/>,
+  todaysphrase:<TodaysPhrase state={visibleState} day={day} queue={day===dayOnTrip&&settingOn(settings,'dailyPhrase')?phraseQueue(visibleState,user.name,dayOnTrip):null} fresh={!phraseDone} open={(p,at)=>at?setModal({type:'phrase',queue:phraseQueue(visibleState,user.name,dayOnTrip).slice(at),day:dayOnTrip}):openPhrase()} go={go}/>,
+  todaysfact:<TodaysFact queue={day===dayOnTrip&&todaysFact&&settingOn(settings,'dailyFact')?factQueue(visibleState,user.name,dayOnTrip):null} fresh={!factDone} open={(f,at)=>at?setModal({type:'fact',day:dayOnTrip,from:f.id}):openFact()}/>,
   needs:<MorningChecklist key={day} state={visibleState} day={day} today={japanDate(now)}/>,
   step:<>
    {groups.length>0&&<div className="option-bar">{groups.map(g=><div key={g} className="option-group"><label>Choose a plan<select disabled={!parent||busy} value={state.choices[g]||''} onChange={e=>mutate({type:'choose',group:g,option:e.target.value})}>{[...new Set(state.steps.filter(s=>s.group===g).map(s=>s.option))].map(o=><option key={o}>{o}</option>)}</select></label>{/* The same options, all at once by different people, rather than one of them for everybody. */}{parent&&new Set(state.steps.filter(s=>s.group===g).map(s=>s.option)).size>1&&<button type="button" className="split-toggle" disabled={busy} onClick={()=>mutate({type:'groupMode',group:g,mode:'split'})}>We split up and do both</button>}</div>)}</div>}
@@ -987,8 +988,8 @@ function App(){
    {modal.type==='foodcard'&&<FoodCard item={modal.item} notice={notice}/>}
    {modal.type==='park'&&<ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={modal.park} mutate={mutate} busy={busy} open={setModal} request={online?request:null}/>}
    {modal.type==='waits'&&<LiveWaits park={modal.park} step={modal.step} request={online?request:null}/>}
-   {modal.type==='phrase'&&<PhraseOfDay queue={modal.phrase?[modal.phrase]:phraseQueue(visibleState,user.name,modal.day)} day={modal.day} dateLabel={modal.day?fmtDay(modal.day):'Found'} busy={busy} dismiss={ids=>modal.phrase?setModal(null):seePhrase(modal.day,ids)}/>}
-   {modal.type==='fact'&&<FactOfDay queue={factQueue(visibleState,user.name,modal.day)} dateLabel={fmtDay(modal.day)} busy={busy} young={help.young} dismiss={ids=>seeFact(modal.day,ids)} openPage={async(page,ids)=>{await seeFact(modal.day,ids);openPage(page);}}/>}
+   {modal.type==='phrase'&&<PhraseOfDay queue={modal.phrase?[modal.phrase]:modal.queue||phraseQueue(visibleState,user.name,modal.day)} day={modal.day} dateLabel={modal.day?fmtDay(modal.day):'Found'} busy={busy} dismiss={ids=>modal.phrase?setModal(null):seePhrase(modal.day,ids)}/>}
+   {modal.type==='fact'&&<FactOfDay queue={(q=>{const at=q.findIndex(f=>f.id===modal.from);return at>0?q.slice(at):q;})(factQueue(visibleState,user.name,modal.day))} dateLabel={fmtDay(modal.day)} busy={busy} young={help.young} dismiss={ids=>seeFact(modal.day,ids)} openPage={async(page,ids)=>{await seeFact(modal.day,ids);openPage(page);}}/>}
    {modal.type==='stepfact'&&<FactOfDay queue={modal.facts} heading={`FUN FACT · ${modal.step.title.toUpperCase()}`} busy={busy} young={help.young} dismiss={()=>setModal(null)} openPage={page=>openPage(page)}/>}
    {modal.type==='eyespy'&&<Bingo state={visibleState} user={user} step={modal.step} mutate={mutate} busy={busy}/>}
    {modal.type==='thankyou'&&<ThankYouNote note={modal.note} to={user.name} young={help.young} seenAt={state.thankYou.seen?.[modal.note.day]} busy={busy} dismiss={()=>readNote(modal.note)}/>}

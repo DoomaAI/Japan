@@ -15,7 +15,7 @@ const LineFace=({level})=>{const I=LINE_FACE[level];return I?<span className="re
 const Feeling=({level})=>level?<span className="feeling" role="img" aria-label={wordOf(level)} title={wordOf(level)}><span className="readiness-face" aria-hidden="true">{faceOf(level)}</span><LineFace level={level}/></span>:null;
 import {useState} from 'react';
 // The morning briefing widget: the day read in one card, with a tap through to its stops.
-// The phrase and the fun fact of the day are a widget of their own, TodaysJapan, just below.
+// The phrase and the fun fact of the day are Home cards of their own, TodaysPhrase and TodaysFact, just below.
 // Once read, it can be folded to its first two lines (and stays folded on this phone until
 // opened again), or put away for the day, leaving one slim line to bring it back; tomorrow's
 // briefing comes back open on its own.

@@ -17,7 +17,8 @@ export const HOME_WIDGETS={
  dailyjapan:{label:'A little Japan each day',note:'Before we fly: one phrase to say and one fact to read, every day of the run-up'},
  bookingwindows:{label:'Booking windows',note:'Bookings opening in the next fortnight, and any open but not yet booked',page:'windows'},
  briefing:{label:'The day in brief',note:'Which day it is, the stops, fixed times, weather, a hotel move and any app to set up'},
- todaysjapan:{label:'Phrase and fun fact of the day',note:'On the trip: the day’s phrase to say and fact to read, folded to one line or open'},
+ todaysphrase:{label:'Phrase of the day',note:'On the trip: the day’s phrase to say, and swipe for more; folds or puts away on its own'},
+ todaysfact:{label:'Fun fact of the day',note:'On the trip: the day’s fact to read, and swipe for more; folds or puts away on its own'},
  step:{label:'The step we are on',note:'The current stop, swipe for the rest of the day'},
  checkin:{label:'Check In',note:'Somebody is on their way back: where to, by when, how far off, and when they get there'},
  late:{label:'Running late',note:'Who is running late for you, by how much and when they will get there; and while you are sharing where you are',page:'whereabouts'},
@@ -57,7 +58,10 @@ export const HOME_WIDGETS={
 export const homePages=prefs=>new Set(homeShown(prefs).map(id=>HOME_WIDGETS[id].page).filter(Boolean));
 export const HOME_OFF=Object.keys(HOME_WIDGETS).filter(id=>HOME_WIDGETS[id].off);
 // Older phones stored the four as one 'actions' widget; wherever it sat, the four sit instead.
-const LEGACY={actions:Object.keys(HOME_WIDGETS).filter(id=>HOME_WIDGETS[id].action)};
+// The phrase and the fact were one card until they split; a phone that moved, folded or put
+// that card away gets the same for both.
+const LEGACY={actions:Object.keys(HOME_WIDGETS).filter(id=>HOME_WIDGETS[id].action),todaysjapan:['todaysphrase','todaysfact']};
+const unfold=list=>(Array.isArray(list)?list:[]).flatMap(id=>id==='todaysjapan'?LEGACY.todaysjapan:[id]);
 // The order Home comes in untouched, which is also where a widget added in a later version
 // lands for somebody who has already arranged theirs.
 export const HOME_DEFAULT=Object.keys(HOME_WIDGETS);
@@ -70,7 +74,7 @@ export const emptyHome=()=>({order:null,hidden:[],shown:[]});
 export function cleanHome(prefs){
  const known=id=>Object.hasOwn(HOME_WIDGETS,id);
  const shown=[...new Set((Array.isArray(prefs?.shown)?prefs.shown:[]).filter(id=>known(id)&&HOME_WIDGETS[id].off))];
- const hidden=[...new Set([...(Array.isArray(prefs?.hidden)?prefs.hidden:[]).filter(known),...HOME_OFF])].filter(id=>!shown.includes(id));
+ const hidden=[...new Set([...unfold(prefs?.hidden).filter(known),...HOME_OFF])].filter(id=>!shown.includes(id));
  if(!Array.isArray(prefs?.order))return {order:null,hidden,shown};
  const order=[...new Set(prefs.order.flatMap(id=>LEGACY[id]||[id]).filter(known))];
  HOME_DEFAULT.forEach((id,i)=>{if(!order.includes(id))order.splice(i?order.indexOf(HOME_DEFAULT[i-1])+1:0,0,id);});
@@ -110,7 +114,7 @@ export function homeRuns(ids){
 export const emptyHomeDay=day=>({day,folded:[],away:[]});
 export function homeDay(prefs,day){
  if(!prefs||prefs.day!==day)return emptyHomeDay(day);
- const ids=list=>[...new Set((Array.isArray(list)?list:[]).filter(id=>Object.hasOwn(HOME_WIDGETS,id)))];
+ const ids=list=>[...new Set(unfold(list).filter(id=>Object.hasOwn(HOME_WIDGETS,id)))];
  return {day,folded:ids(prefs.folded),away:ids(prefs.away)};
 }
 export function foldWidget(prefs,day,id){

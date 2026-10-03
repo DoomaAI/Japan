@@ -17,16 +17,21 @@ test('the weather list starts at today, with the days behind us folded above it'
  assert.match(page,/<PageTitle help=\{<p>Every day of the trip/,'the explanation waits behind the ? beside the title');
  assert.match(page,/No forecast saved yet\./);
 });
-test('the phrase and fun fact of the day wait in a folding widget of their own instead of opening over Home',async()=>{
- const main=await source('main.jsx'),brief=await source('TodaysJapan.jsx');
+test('the phrase and fun fact of the day are separate Home cards, each folding, put away and swiped on its own',async()=>{
+ const main=await source('main.jsx'),cards=await source('TodaysJapan.jsx'),{HOME_WIDGETS,cleanHome,homeDay}=await import('../src/home-widgets.js');
  assert.doesNotMatch(main,/setModal\(\{type:'phrase',phrase:todaysPhrase,day:dayOnTrip\}\);\n \},/,'no effect opens the phrase');
  assert.doesNotMatch(main,/localStorage\.setItem\(`japan\.fact\.\$\{dayOnTrip\}`,'seen'\);setModal/,'no effect opens the fact');
  assert.match(main,/const openPhrase=\(\)=>todaysPhrase\?setModal\(\{type:'phrase'/);
  assert.match(main,/const openFact=\(\)=>todaysFact\?setModal\(\{type:'fact',day:dayOnTrip\}\)/);
- assert.match(main,/phrase=\{day===dayOnTrip&&settingOn\(settings,'dailyPhrase'\)\?\{item:phraseQueue\(visibleState,user\.name,dayOnTrip\)\[0\],open:openPhrase,fresh:!phraseDone\}:null\}/,'the row names the phrase its sheet opens on');
- assert.match(brief,/className="todays-japan-row" onClick=\{fact\.open\}/);
- assert.match(brief,/\{phrase\?\.fresh&&<em className="briefing-new">New<\/em>\}/);
- assert.match(brief,/<details className="todays-japan" open=\{open\} onToggle=/,'it folds, and the phone keeps the fold');
+ assert.ok(HOME_WIDGETS.todaysphrase&&HOME_WIDGETS.todaysfact&&!HOME_WIDGETS.todaysjapan,'two cards, not one');
+ assert.match(main,/todaysphrase:<TodaysPhrase [^\n]*queue=\{day===dayOnTrip&&settingOn\(settings,'dailyPhrase'\)\?phraseQueue\(/);
+ assert.match(main,/todaysfact:<TodaysFact queue=\{day===dayOnTrip&&todaysFact&&settingOn\(settings,'dailyFact'\)\?factQueue\(/);
+ assert.match(cards,/swipeDelta\(touch\.current/,'each card swipes for more');
+ assert.match(cards,/\{!at&&fresh&&<em className="briefing-new">New<\/em>\}/);
+ const old=cleanHome({order:['todaysjapan','briefing'],hidden:['todaysjapan']});
+ assert.deepEqual(old.order.filter(id=>['todaysphrase','todaysfact','briefing'].includes(id)),['todaysphrase','todaysfact','briefing'],'a phone that moved the old card keeps both where it was');
+ assert.ok(old.hidden.includes('todaysphrase')&&old.hidden.includes('todaysfact'),'and one that hid it hides both');
+ assert.deepEqual(homeDay({day:'d',folded:['todaysjapan'],away:[]},'d').folded,['todaysphrase','todaysfact'],'a fold for today carries over');
  assert.doesNotMatch(await source('Briefing.jsx'),/Today’s phrase/,'the day in brief no longer carries it');
 });
 test('no text is set below 12px, outside game boards and the drawn day map',async()=>{
@@ -498,4 +503,17 @@ test('Where we are: the family on a map, sharing for a while, and running late o
  assert.match(home,/open\(\{type:'latemsg'\}\)\}>Tell the others we’re late/);
  assert.match(split,/laneOf\(split,user\.name\)&&day===japanDate\(now\)&&<button type="button" className="split-late"/);
  assert.match(page,/askPhoneWhereItIs\(5\)\);/);assert.match(page,/It is not sent to anyone/,'my own dot stays on this phone');
+});
+test('every phrase in the book says what you are likely to hear back, folded under it',async()=>{
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js'),{REPLIES,repliesFor}=await import('../src/phrase-replies.js');
+ for(const p of ALL_PHRASES()){
+  const replies=repliesFor(p);
+  assert.ok(replies.length>=2,`${p.id} has at least two likely replies`);
+  for(const x of replies)assert.ok(x.ja&&x.say&&x.en,`${p.id}: each reply has the Japanese, how it sounds and what it means`);
+ }
+ const ids=new Set(ALL_PHRASES().map(p=>p.id));
+ for(const id of Object.keys(REPLIES))assert.ok(ids.has(id),`${id} is a phrase in the book`);
+ const card=await source('TodaysJapan.jsx'),book=await source('Phrasebook.jsx');
+ assert.match(card,/more=\{p=><PhraseReplies phrase=\{p\}\/>\}/,'the Home card folds them out');
+ assert.equal((book.match(/<PhraseReplies phrase=\{phrase\}\/>/g)||[]).length,3,'and so do the sheet, the flashcard and the list');
 });

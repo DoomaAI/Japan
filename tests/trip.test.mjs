@@ -1951,7 +1951,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  const ON=HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id)&&id!=='find');
  assert.deepEqual(HOME_OFF,['countdown','glance','adjust','tired','apps']);
  assert.deepEqual(homeShown(emptyHome()),['find',...ON]);
- assert.equal(ON[0],'onthisday','an anniversary leads Home, on the days there is one');assert.equal(ON[1],'runup','then the run-up, before we fly');assert.equal(ON[2],'dailyjapan','then a little Japan each day');assert.equal(ON[3],'bookingwindows','then the booking windows about to open');assert.equal(ON[4],'briefing','then the day in brief');assert.equal(ON[5],'todaysjapan','then its phrase and fun fact');assert.equal(ON[6],'step','then the step card');
+ assert.equal(ON[0],'onthisday','an anniversary leads Home, on the days there is one');assert.equal(ON[1],'runup','then the run-up, before we fly');assert.equal(ON[2],'dailyjapan','then a little Japan each day');assert.equal(ON[3],'bookingwindows','then the booking windows about to open');assert.equal(ON[4],'briefing','then the day in brief');assert.equal(ON[5],'todaysphrase','then the phrase of the day');assert.equal(ON[6],'todaysfact','then the fun fact, a card of its own');assert.equal(ON[7],'step','then the step card');
  for(const id of HOME_DEFAULT)assert.ok(HOME_WIDGETS[id].label&&HOME_WIDGETS[id].note,id);
  // Moved and put away, and nothing lost: a widget put away is still in the order to come back.
  let prefs=moveWidget(emptyHome(),'weather',-100);
@@ -1966,8 +1966,8 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  // just after the one they follow by default, wherever that has been moved to.
  assert.deepEqual(cleanHome({order:['finds','nothing','finds'],hidden:['nothing','step']}),
   {order:HOME_DEFAULT,hidden:['step',...HOME_OFF],shown:[]});
- const arranged=homeOrder({order:['weather','briefing',...HOME_DEFAULT.filter(id=>!['weather','briefing','todaysjapan'].includes(id))]});
- assert.deepEqual(arranged.slice(0,3),['weather','briefing','todaysjapan'],'a new widget lands beside its neighbour, not at the foot');
+ const arranged=homeOrder({order:['weather','briefing',...HOME_DEFAULT.filter(id=>!['weather','briefing','todaysphrase'].includes(id))]});
+ assert.deepEqual(arranged.slice(0,3),['weather','briefing','todaysphrase'],'a new widget lands beside its neighbour, not at the foot');
  assert.equal(arranged.length,HOME_DEFAULT.length);
  for(const rubbish of [null,undefined,'x',{order:'x'},{hidden:'step'}])
   assert.deepEqual(homeShown(rubbish),['find',...ON],JSON.stringify(rubbish));
