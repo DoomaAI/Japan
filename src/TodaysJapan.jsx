@@ -22,6 +22,7 @@ function SwipeCard({eyebrow,items,render,open,fresh,more}){
  const at=list.indexOf(item),many=list.length>1;
  // The card follows the finger sideways, so it plainly is something to swipe; past either end
  // it only gives a little, so it is plain there is nothing more that way.
+ // The Home card's own title already names it, so with more than one the heading is the count.
  // The face of the card is itself the tap-to-open button, and a drag across it is still a swipe.
  const follow=e=>{
   const t=touch.current;if(!t||!many)return;
@@ -36,7 +37,7 @@ function SwipeCard({eyebrow,items,render,open,fresh,more}){
   onTouchEnd={e=>{if(!touch.current)return;move(swipeDelta(touch.current,{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY}));touch.current=null;setDrag(0);}}
   onTouchCancel={()=>{touch.current=null;setDrag(0);}}
   onKeyDown={e=>{if(e.key==='ArrowLeft'){e.preventDefault();move(-1);}else if(e.key==='ArrowRight'){e.preventDefault();move(1);}}}>
-  <p className="eyebrow"><span>{at?`One more · ${at+1} of ${list.length}`:eyebrow}</span>{!at&&fresh&&<em className="briefing-new">New</em>}
+  <p className="eyebrow"><span>{many?`${at+1} of ${list.length}`:eyebrow}</span>{!at&&fresh&&<em className="briefing-new">New</em>}
    {many&&<span className="todays-card-steps">
     <button type="button" className="icon" disabled={at<=0} onClick={()=>move(-1)} aria-label="Previous"><ChevronLeft size={16}/></button>
     <button type="button" className="icon" disabled={at>=list.length-1} onClick={()=>move(1)} aria-label="Next"><ChevronRight size={16}/></button>
