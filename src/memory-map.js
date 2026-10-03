@@ -35,18 +35,47 @@ export function parseKml(text){
 }
 // A place takes the position of the one map pin whose name is its name, one of its aliases, or
 // its Japanese name. Two pins with the same name and different places are not guessed between.
+// A place still without one is then tried looser: its name without the bracketed Japanese the
+// list adds ("Hatoya Asakusa (八十八浅草)" is the pin "Hatoya Asakusa"), and then a pin whose name
+// holds the place's whole name or is held whole in it ("Ippodo Tea" and "Ippodo Tea Kyoto Main
+// Store"), word for word, never shorter than six letters, and only where it points at one spot.
+const LOOSE_MIN=6;
+const spotsOf=hits=>new Set(hits.map(h=>`${h.lat.toFixed(5)},${h.lng.toFixed(5)}`));
+const holds=(a,b)=>` ${a} `.includes(` ${b} `);
 export function matchPlacemarks(locations,placemarks){
- const byKey=new Map();
- for(const p of placemarks){const k=locationKey(p.name);if(!k)continue;(byKey.get(k)||byKey.set(k,[]).get(k)).push(p);}
- const places={},used=new Set();
+ const byKey=new Map(),pins=[];
+ for(const p of placemarks){const k=locationKey(p.name);if(!k)continue;(byKey.get(k)||byKey.set(k,[]).get(k)).push(p);pins.push({p,k});}
+ const places={},used=new Set(),waiting=[];
+ const take=(loc,hits)=>{if(!hits.length||spotsOf(hits).size!==1)return false;places[loc.id]={lat:hits[0].lat,lng:hits[0].lng};hits.forEach(h=>used.add(h));return true;};
  for(const loc of locations||[]){
   const keys=[...new Set([loc.name,...(loc.aliases||[]),loc.japanese].map(locationKey).filter(Boolean))];
-  const hits=[...new Set(keys.flatMap(k=>byKey.get(k)||[]))];
-  const spots=new Set(hits.map(h=>`${h.lat.toFixed(5)},${h.lng.toFixed(5)}`));
-  if(!hits.length||spots.size!==1)continue;
-  places[loc.id]={lat:hits[0].lat,lng:hits[0].lng};hits.forEach(h=>used.add(h));
+  if(!take(loc,[...new Set(keys.flatMap(k=>byKey.get(k)||[]))]))waiting.push(loc);
+ }
+ for(const loc of waiting){
+  const bare=[...new Set([loc.name,...(loc.aliases||[])].map(n=>locationKey(String(n||'').replace(/[(（][^)）]*[)）]/g,' '))).filter(Boolean))];
+  if(take(loc,[...new Set(bare.flatMap(k=>byKey.get(k)||[]))].filter(h=>!used.has(h))))continue;
+  const long=bare.filter(k=>k.replace(/ /g,'').length>=LOOSE_MIN);
+  take(loc,pins.filter(({p,k})=>!used.has(p)&&k.replace(/ /g,'').length>=LOOSE_MIN&&long.some(b=>holds(k,b)||holds(b,k))).map(x=>x.p));
  }
  return {places,matched:Object.keys(places).length,unmatched:placemarks.filter(p=>!used.has(p)).map(p=>p.name)};
+}
+// A My Map can come back as a list of links to its layers rather than the pins themselves.
+// Only links back to Google My Maps are followed, each asked for as KML.
+export function kmlLinks(text){
+ const out=[];
+ for(const [,href] of String(text||'').matchAll(/<NetworkLink\b[\s\S]*?<href>([\s\S]*?)<\/href>/g)){
+  try{const u=new URL(decode(href));if(u.protocol==='https:'&&u.hostname==='www.google.com'&&u.pathname.startsWith('/maps/d/')){u.searchParams.set('forcekml','1');out.push(u.href);}}catch{}
+ }
+ return [...new Set(out)].slice(0,10);
+}
+// Why nothing could be placed, in words that say what to do. Google answers a map that is not
+// shared with a sign-in page rather than an error, so a page that is not KML at all means that.
+export function kmlProblem(text,pins,matched){
+ if(matched)return null;
+ if(!/<kml\b/i.test(String(text||'')))return 'Google sent back a sign-in page instead of our My Map, so the map is not shared publicly. In Google My Maps tap Share, turn on “Anyone with this link can view”, then load them again.';
+ if(!pins.length)return 'Our My Map was read, but it has no pins on it to match: only lines, shapes or empty layers.';
+ const names=[...new Set(pins.map(p=>p.name).filter(Boolean))].slice(0,5);
+ return `None of the ${pins.length} pins on our My Map has the name of a place on our list. Its pins are called, for example: ${names.join('; ')}.`;
 }
 // The My Map's id, out of the embed link the app already has. The KML export of a shared map is
 // public at a fixed address, so no key is needed to read it.

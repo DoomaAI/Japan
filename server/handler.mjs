@@ -30,7 +30,7 @@ import {readDocument,readerReady,translateStoredFile} from './document-reader.mj
 import {coachPhoto,coachReady} from './photo-coach.mjs';
 import {shareCheckin,listCheckins} from './checkins.mjs';
 import {validTakenAt} from '../src/exif-gps.js';
-import {parseKml,matchPlacemarks,myMapKmlUrl,roundedPosition,validPosition,PHOTO_PLACES} from '../src/memory-map.js';
+import {parseKml,matchPlacemarks,kmlLinks,kmlProblem,myMapKmlUrl,roundedPosition,validPosition,PHOTO_PLACES} from '../src/memory-map.js';
 import {calendarFeed,japanDate} from '../src/timing.js';
 import {RECEIPT_TYPES} from '../src/ledger-data.js';
 import {followView,followPhoto} from '../src/follow-data.js';
@@ -437,11 +437,15 @@ export default async function handler(req,res){
    parent(user);
    const {state}=await readTrip(),source=myMapKmlUrl(state);
    if(!source)throw new AppError('There is no My Map linked to read from.',404);
+   const read=async url=>{const r=await fetch(url,{signal:AbortSignal.timeout(20000)});if(!r.ok)throw new Error();return r.text();};
    let text;
-   try{const r=await fetch(source,{signal:AbortSignal.timeout(20000)});if(!r.ok)throw new Error();text=await r.text();}
+   try{text=await read(source);}
    catch{throw new AppError('Our My Map could not be read. Check it is shared so anyone with the link can view it.',502);}
-   const found=matchPlacemarks(state.locations,parseKml(text));
-   if(!found.matched)throw new AppError('No pins on our My Map matched a place by name.',422);
+   let pins=parseKml(text);
+   // Layers linked rather than included are read too; one that will not open is left out.
+   if(!pins.length)for(const link of kmlLinks(text))pins.push(...parseKml(await read(link).catch(()=>'')));
+   const found=matchPlacemarks(state.locations,pins),problem=kmlProblem(text,pins,found.matched);
+   if(problem)throw new AppError(problem,422);
    const at=new Date().toISOString();
    const saved=await updateTrip(next=>({...next,placeCoords:{places:found.places,at,by:user.name}}));
    return json(res,{...visibleEnvelope(saved,user),matched:found.matched,unmatched:found.unmatched.slice(0,50)});
