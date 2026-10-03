@@ -2002,7 +2002,12 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.deepEqual(homeOrder(placeWidget(emptyHome(),'nope',0)),HOME_DEFAULT,'an unknown widget moves nothing');
  assert.deepEqual(homeOrder(placeWidget(emptyHome(),'step',99)),HOME_DEFAULT,'nor does a drop off the end');
  assert.equal((screen.match(/\{grip\(id,/g)||[]).length,2,'a handle on every row, Home and the bar alike');
- assert.match(screen,/className="rank-grip"/);assert.match(screen,/underFinger\(e\.clientX,e\.clientY,'\[data-drag-id\]',d\.row\),target=hit\?\.parentElement===d\.row\.parentElement\?hit:null/,'only a row of the same list counts');
+ // As on the day at a glance: a hold before a finger lifts the row, and it lands on the line between rows.
+ assert.match(screen,/const HOLD=220,SLOP=8,END=':end';/);
+ assert.match(screen,/if\(e\.pointerType==='mouse'\)lift\(d\);else d\.timer=setTimeout\(\(\)=>\{if\(drag\.current===d\)lift\(d\);\},HOLD\);/,'a finger holds first; a mouse lifts at once');
+ assert.match(screen,/if\(Math\.hypot\(e\.clientX-d\.x,e\.clientY-d\.y\)>SLOP\)letGo\(\);return;/,'a thumb scrolling past the handle carries on scrolling');
+ assert.match(screen,/row\.parentElement\.querySelectorAll\(':scope>\[data-drag-id\]'\)/,'only a row of the same list counts');
+ assert.match(screen,/gap===id&&'drop-before',gap===END&&id===list\.at\(-1\)&&'drop-after'/,'the green line shows where it lands');
 });
 
 test('Days is the Itinerary, and Plan holds today with the whole trip one switch away',async()=>{

@@ -11,28 +11,43 @@ import {HOME_WIDGETS,homeOrder,cleanHome,moveWidget,placeWidget,toggleWidget,emp
 // stopped moving. One bottom bar cannot be right for all of them, so this is where each phone
 // is told what belongs on it and in what order, and what to put away entirely.
 //
-// Drag a row by its handle, or use the arrows. Only the handle takes the drag, so the rest of
+// Hold a row’s handle, then drag it to the green line where it should go, or use the arrows. Only the handle takes the drag, so the rest of
 // the row still scrolls the page; the arrows stay for anybody without a steady hand, and for a
 // screen reader, and a drag let go of over nothing slides back and changes nothing.
 //
 // Nothing put away is lost. Everything hidden is listed at the bottom of this screen with a
 // button to bring it back, and this screen cannot be hidden itself — nor can Home, which is
 // the way back from wherever a bad arrangement leaves you.
-// One drag by the handle: the row follows the finger and lands on the row it is let go over.
-// The list is the ids in order, data-drag-id on each row; place(id,to) saves the new position.
+// Dragging by the handle works as it does on the day at a glance. A finger rests on the handle
+// for a moment before the row lifts, so a thumb scrolling past carries on scrolling (a mouse
+// needs no hold); the row follows the finger, the page scrolls near the top and bottom, and it
+// lands on the green line between two rows rather than on a row, so where it goes is never a
+// guess about above or below. The list is the ids in order, each row carrying data-drag-id;
+// place(id,before) saves it in front of the row before, or at the end for END.
+const HOLD=220,SLOP=8,END=':end';
 function useDragOrder(list,place){
- const drag=useRef(null),[held,setHeld]=useState(null);
- // While a row is held the page must not scroll under it.
- useEffect(()=>{const stop=e=>{if(drag.current)e.preventDefault();};document.addEventListener('touchmove',stop,{passive:false});return()=>document.removeEventListener('touchmove',stop);},[]);
- const end=()=>{const d=drag.current;drag.current=null;setHeld(null);return d;};
- const grip=(id,label)=><button type="button" className="rank-grip" aria-label={`Drag ${label}`}
-  onPointerDown={e=>{if(e.button>0)return;e.currentTarget.setPointerCapture?.(e.pointerId);drag.current={id,y:e.clientY,row:e.currentTarget.closest('[data-drag-id]')};setHeld(id);}}
-  onPointerMove={e=>{const d=drag.current;if(d)follow(d.row,0,e.clientY-d.y);}}
-  onPointerUp={e=>{const d=end();if(!d)return;
-  // Only a row of the same list counts: Home and the bar can both list the same screen.
-  const hit=underFinger(e.clientX,e.clientY,'[data-drag-id]',d.row),target=hit?.parentElement===d.row.parentElement?hit:null;settle(d.row,!target);if(target)place(d.id,list.indexOf(target.dataset.dragId));}}
-  onPointerCancel={()=>settle(end()?.row,true)}><GripVertical size={18}/></button>;
- return {held,grip};
+ const drag=useRef(null),[held,setHeld]=useState(null),[gap,setGap]=useState(null);
+ const letGo=()=>{clearTimeout(drag.current?.timer);drag.current=null;setHeld(null);setGap(null);};
+ // Once a row is lifted the page must not scroll under the finger; before that, a swipe scrolls.
+ useEffect(()=>{const stop=e=>{if(drag.current?.lifted)e.preventDefault();};document.addEventListener('touchmove',stop,{passive:false});return()=>{document.removeEventListener('touchmove',stop);clearTimeout(drag.current?.timer);};},[]);
+ const lift=d=>{d.lifted=true;setHeld(d.id);try{navigator.vibrate?.(12);}catch{}};
+ // The line nearest the finger, among the rows of this list only.
+ const gapAt=(y,row)=>{for(const r of row.parentElement.querySelectorAll(':scope>[data-drag-id]')){if(r===row)continue;const b=r.getBoundingClientRect();if(y<b.top+b.height/2)return r.dataset.dragId;}return END;};
+ // The two lines either side of the row being carried would leave it where it is.
+ const still=(d,g)=>g===d.id||g===(list[list.indexOf(d.id)+1]??END);
+ const grip=(id,label)=><button type="button" className="rank-grip menu-grip" aria-label={`Drag ${label}`}
+  onPointerDown={e=>{if(e.button>0)return;e.currentTarget.setPointerCapture?.(e.pointerId);const d={id,x:e.clientX,y:e.clientY,scroll:window.scrollY,row:e.currentTarget.closest('[data-drag-id]'),gap:null,lifted:false};drag.current=d;if(e.pointerType==='mouse')lift(d);else d.timer=setTimeout(()=>{if(drag.current===d)lift(d);},HOLD);}}
+  onPointerMove={e=>{const d=drag.current;if(!d)return;
+   if(!d.lifted){if(Math.hypot(e.clientX-d.x,e.clientY-d.y)>SLOP)letGo();return;}
+   follow(d.row,0,e.clientY-d.y+window.scrollY-d.scroll);
+   const g=gapAt(e.clientY,d.row);d.gap=still(d,g)?null:g;setGap(d.gap);
+   if(e.clientY<100)window.scrollBy(0,-16);if(e.clientY>window.innerHeight-100)window.scrollBy(0,16);}}
+  onPointerUp={()=>{const d=drag.current;letGo();if(!d?.lifted)return;settle(d.row,d.gap===null);if(d.gap!==null)place(d.id,d.gap);}}
+  onPointerCancel={()=>{const d=drag.current;letGo();if(d?.lifted)settle(d.row,true);}}><GripVertical size={18}/></button>;
+ // The classes for a row: lifted while it is carried, and the green line above it (or, for the
+ // last row, below it) where the carried row will land.
+ const rowClass=id=>[held===id&&'held',gap===id&&'drop-before',gap===END&&id===list.at(-1)&&'drop-after'].filter(Boolean).join(' ');
+ return {grip,rowClass};
 }
 export default function Personalise({user,prefs,setPrefs,home,setHome,held=[]}){
  const bar=primaryNav(user,prefs),hidden=hiddenNav(user,prefs);
@@ -95,17 +110,17 @@ export function BarShortcuts({user,prefs,setPrefs}){
   withBar(list);
  };
  const drop=id=>{if(bar.length>BAR_MIN&&!FIXED.includes(id))withBar(bar.filter(x=>x!==id));};
- const place=(id,to)=>{const list=bar.filter(x=>x!==id);list.splice(to+1,0,id);withBar(list);};
+ const place=(id,before)=>{const list=bar.filter(x=>x!==id),at=before===END?list.length:list.indexOf(before);if(at<1)return;list.splice(at,0,id);withBar(list);};
  const add=id=>{if(bar.length<BAR_MAX)withBar([...bar,id]);};
- const shortcuts=bar.slice(1),{held,grip}=useDragOrder(shortcuts,place);
+ const shortcuts=bar.slice(1),{grip,rowClass}=useDragOrder(shortcuts,place);
  return <>
   <h2>The bar along the bottom</h2>
   <p>Home is always at the left end and More at the right. The shortcuts between them come in
    this order, and swipe sideways like the days along the top when there are more than fit.
    Swipe the bar up for everything else, and down to come back. You can have
-   up to {BAR_MAX-1} shortcuts. Drag a row by its handle, or use the arrows. You can also press and hold one on the bar until they wobble,
+   up to {BAR_MAX-1} shortcuts. Hold a row’s handle, then drag it to the green line where it should go, or use the arrows. You can also press and hold one on the bar until they wobble,
    then drag them where you want.</p>
-  <ol className="menu-order">{shortcuts.map((id,i)=>{const Icon=iconFor(id);return <li key={id} data-drag-id={id} className={held===id?'held':undefined}>
+  <ol className="menu-order">{shortcuts.map((id,i)=>{const Icon=iconFor(id);return <li key={id} data-drag-id={id} className={rowClass(id)||undefined}>
    {grip(id,PAGES[id].label)}
    <span className="more-icon"><Icon size={19}/></span>
    <span><strong>{PAGES[id].label}</strong><small>{PAGES[id].note}</small></span>
@@ -133,17 +148,18 @@ export function HomeWidgets({home,setHome,held=[]}){
  if(!setHome)return null;
  // A widget the awareness dial holds back on this phone is not offered to arrange either.
  const {hidden}=cleanHome(home),order=homeOrder(home).filter(id=>!held.includes(id));
- // A drop is placed by the full order, which has the held-back widgets in it too.
- const {held:lifted,grip}=useDragOrder(order,(id,to)=>setHome(placeWidget(home,id,homeOrder(home).indexOf(order[to]))));
+ // A drop is placed in the full order, which has the held-back widgets in it too.
+ const place=(id,before)=>{const all=homeOrder(home).filter(x=>x!==id),at=before===END?all.indexOf(order.filter(x=>x!==id).at(-1))+1:all.indexOf(before);if(at>=0)setHome(placeWidget(home,id,at));};
+ const {grip,rowClass}=useDragOrder(order,place);
  return <>
   <h2>Your Home screen</h2>
   <p>Home shows these, top to bottom, under the day and its dates. Move them into the order you
-   want, dragging a row by its handle or with the arrows, and put away the ones you do not need. The day’s buttons — the day at a glance, adjust the
+   want, holding a row’s handle and dragging it to the green line, or with the arrows, and put away the ones you do not need. The day’s buttons — the day at a glance, adjust the
    day, we’re tired, useful apps — live on Today and start put away here; tap the eye to add any of
    them to Home too. It changes Home on this phone only. To put a card away just for today, use the
    eye on the card itself on Home; it comes back tomorrow by itself.</p>
   <ol className="menu-order home-widgets">{order.map((id,i)=>{const off=hidden.includes(id);
-   return <li key={id} data-drag-id={id} className={[off&&'is-hidden',lifted===id&&'held'].filter(Boolean).join(' ')||undefined}>
+   return <li key={id} data-drag-id={id} className={[off&&'is-hidden',rowClass(id)].filter(Boolean).join(' ')||undefined}>
     {grip(id,HOME_WIDGETS[id].label)}
     <span><strong>{HOME_WIDGETS[id].label}</strong><small>{off?'Put away · ':''}{HOME_WIDGETS[id].note}</small></span>
     <span className="menu-buttons">
