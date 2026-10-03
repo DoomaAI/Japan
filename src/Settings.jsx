@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import PageTitle from './PageTitle.jsx';
-import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell,Coffee} from 'lucide-react';
+import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell,Coffee,Smile} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
 import {BarShortcuts,HomeWidgets} from './Personalise.jsx';
@@ -15,7 +15,7 @@ import {NEST_STEPS,GOOGLE_ALBUM} from './google-frame-data.js';
 import {PLAN_TYPES,planOf,modulesOff,validTimeZone} from './plan-context.js';
 import {PAGES} from './nav-data.js';
 import {MATCHA_RADII,matchaPlaces} from './matcha-nearby.js';
-const ICONS={headphoneConcierge:Headphones,voiceAssistant:Sparkles,dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye,matchaNearby:Coffee};
+const ICONS={headphoneConcierge:Headphones,voiceAssistant:Sparkles,dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye,matchaNearby:Coffee,morningCheck:Smile};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
 // off is not knowing what else goes with it. Nothing here is lost by turning it off: the
@@ -333,6 +333,10 @@ export default function Settings({user,state,mutate,busy,hand,settings,change,ma
   <section className="settings-section">
    <h2>What opens on its own</h2>
    {SETTINGS.filter(s=>!s.group).map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
+  </section>
+  <section className="settings-section">
+   <h2>The day in brief</h2>
+   {SETTINGS.filter(s=>s.group==='home').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
   <section className="settings-section">
    <h2>Concierge</h2>
