@@ -94,6 +94,8 @@ import {ArrowLeftRight,EyeOff,Sparkles,ConciergeBell,Radio,MessageCircleQuestion
 import {activeSteps,dayProgress,dayBehind,tripCountdown,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent,scheduleVariance,stayPlan,spanWords,setPlanZone,planZone,zonedInstant,windowText,WINDOW_CHOICES} from './timing.js';
 import {armPlayback} from './speech.js';
 import {startHeadphones,onHeadphonePress} from './headphones.js';
+import {useMatchaNearby} from './useMatchaNearby.js';
+import {readRadius,writeRadius} from './matcha-nearby.js';
 import {PhraseAudio} from './PhraseAudio.jsx';
 import {typesText} from './swipe.js';
 import {daySplits,stepsFor} from './split.js';
@@ -534,6 +536,11 @@ function App(){
  const pressable=!!(user&&config?.ask&&isAvailable('ask')&&settingOn(settings,'headphoneConcierge'));
  useEffect(()=>pressable?startHeadphones():undefined,[pressable]);
  useEffect(()=>pressable?onHeadphonePress(()=>{const open=modalRef.current;if(!open)setModal({type:'assistant'});else if(open.type!=='assistant')notice('Close this first, then press again to ask the Concierge.');}):undefined,[pressable]);
+ // Matcha nearby (src/useMatchaNearby.js): switched on, the phone follows its position while the
+ // app is open and says so near one of our matcha places.
+ const matchaRadius=useMemo(()=>readRadius(user?.name),[user?.name,settingsAt]);
+ const setMatchaRadius=km=>{writeRadius(user?.name,km);bumpSettings(n=>n+1);};
+ useMatchaNearby({on:!!(user&&visibleState&&settingOn(settings,'matchaNearby')),state:visibleState,person:user?.name,radius:matchaRadius,notice});
  const forecast=useForecastCheck({state:visibleState||{days:[]},day:null,mutate,notice});
  const allSteps=visibleState?activeSteps(visibleState,day):[],splits=visibleState?daySplits(visibleState,day):[];
  // A link or a tap straight to a stop on somebody else's lane follows that lane, rather than
@@ -912,7 +919,7 @@ function App(){
   {tab==='food'&&<><p className="eyebrow">EATING OUR WAY THROUGH JAPAN</p><PageTitle help={<p>The Japanese is how a dish is usually written on a menu, as a helper for reading and pointing. Menus vary and shops write things their own way. Rate what you eat: four stars or more and it lands in Our favourites.</p>}>Food we want to try</PageTitle><div className="row wrap page-links"><button onClick={()=>go('allergy')}><AlertCircle size={16}/>Allergy card</button><button onClick={()=>go('hunts')}><ListChecks size={16}/>Hunts & lists</button></div><FoodList state={visibleState} user={user} speak={speak} openPage={openPage} mutate={mutate} busy={busy} setBusy={setBusy} notice={notice} show={setModal} request={request} config={config}/></>}
   {tab==='parks'&&<><p className="eyebrow">THREE BIG DAYS</p><h1>Theme park rides</h1><ParkGuide state={visibleState} user={user} speak={speak} openPage={openPage} park={parkForDay(day)} mutate={mutate} busy={busy} open={setModal} request={online?request:null}/></>}
   {tab==='thanks'&&user.name===THANK_YOU_FROM&&<ThankYouEditor state={state} mutate={mutate} busy={busy}/>}
-  {tab==='settings'&&<Settings config={config} accept={accept} state={visibleState} mutate={mutate} busy={busy} hand={parent?handTo:null} user={user} settings={settings} change={changeSetting} request={request} notice={notice} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav} home={homePrefs} setHome={saveHome} held={heldBack(visibleState,user.name)}/>}
+  {tab==='settings'&&<Settings config={config} accept={accept} state={visibleState} mutate={mutate} busy={busy} hand={parent?handTo:null} user={user} settings={settings} change={changeSetting} matchaRadius={matchaRadius} setMatchaRadius={setMatchaRadius} request={request} notice={notice} linkPrefs={linkPrefs} setLinkPrefs={saveLinks} navPrefs={navPrefs} setNavPrefs={saveNav} home={homePrefs} setHome={saveHome} held={heldBack(visibleState,user.name)}/>}
   {tab==='search'&&<GlobalSearch state={visibleState} request={request} selectStep={selectStep} open={setModal} go={go} openPage={openPage}/>}
   {tab==='weather'&&<WeatherPage key={day} state={visibleState} day={day} now={now} check={forecast.check} checking={forecast.checking} busy={busy} online={online}/>}
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go} day={day} remove={removeThen} request={request} online={online&&!!config?.capture} sayFirst={sayFirst} clearSayFirst={()=>setSayFirst(null)}/>}

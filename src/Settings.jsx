@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import PageTitle from './PageTitle.jsx';
-import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell} from 'lucide-react';
+import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell,Coffee} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
 import {BarShortcuts,HomeWidgets} from './Personalise.jsx';
@@ -14,7 +14,8 @@ import {guideOf,GUIDE_VOICES} from './guide-data.js';
 import {NEST_STEPS,GOOGLE_ALBUM} from './google-frame-data.js';
 import {PLAN_TYPES,planOf,modulesOff,validTimeZone} from './plan-context.js';
 import {PAGES} from './nav-data.js';
-const ICONS={headphoneConcierge:Headphones,voiceAssistant:Sparkles,dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye};
+import {MATCHA_RADII,matchaPlaces} from './matcha-nearby.js';
+const ICONS={headphoneConcierge:Headphones,voiceAssistant:Sparkles,dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye,matchaNearby:Coffee};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
 // off is not knowing what else goes with it. Nothing here is lost by turning it off: the
@@ -30,6 +31,27 @@ function SettingRow({s,settings,change}){
    <i aria-hidden="true"/><span>{on?'On':'Off'}</span>
   </button>
  </div>;
+}
+// Matcha nearby: the switch, how close counts, and how many of our places it can actually see.
+// Turning it on is the tap that asks the phone for its position and for notifications, because
+// an iPhone only asks from a tap. A Home Screen app is not given positions once it is closed,
+// so the page says plainly that this works while the app is open, not from a pocket all day.
+function MatchaNearby({state,settings,change,radius,setRadius,notice}){
+ const on=settingOn(settings,'matchaNearby'),{places,unplaced}=state?matchaPlaces(state):{places:[],unplaced:0};
+ const toggle=async(id,value)=>{
+  change(id,value);
+  if(!value)return;
+  if(typeof Notification!=='undefined'&&Notification.permission==='default')await Notification.requestPermission().catch(()=>{});
+  navigator.geolocation?.getCurrentPosition(()=>{},()=>notice('Matcha nearby needs your position. Allow location for this app in the phone’s Settings.'),{maximumAge:60000,timeout:20000});
+ };
+ return <section className="settings-section">
+  <h2>Out and about</h2>
+  {SETTINGS.filter(s=>s.group==='out').map(s=><SettingRow key={s.id} s={s} settings={settings} change={toggle}/>)}
+  {on&&<>
+   <div className="segmented theme-picker" role="radiogroup" aria-label="How close counts">{MATCHA_RADII.map(([km,label])=><button type="button" key={km} role="radio" aria-checked={radius===km} className={radius===km?'selected':''} onClick={()=>setRadius(km)}>Within {label}</button>)}</div>
+   <p><small>Watching {places.length} matcha place{places.length===1?'':'s'}{unplaced?`; ${unplaced} more on our map list have no position yet (load them from our My Map on the Memory map)`:''}. On an iPhone the app is only given your position while it is open or just put away, so keep it on the screen while you wander.{typeof Notification!=='undefined'&&Notification.permission!=='granted'?' Notifications are not allowed for this app, so it can only buzz while it is on the screen.':''}</small></p>
+  </>}
+ </section>;
 }
 // The buttons under each stop, in order, with arrows. The same order the wobble-and-drag on a
 // stop changes, for anybody who would rather tap than hold and drag, or cannot find the hold.
@@ -303,7 +325,7 @@ export function ChildLevels({state,mutate,busy}){
   <p><small>Held on the trip, so {boys.join(' and ')}’s own phones follow it the next time they refresh. Nothing already ticked, rated or written is touched.</small></p>
  </section>;
 }
-export default function Settings({user,state,mutate,busy,hand,settings,change,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,home,setHome,held=[],request,notice,config,accept}){
+export default function Settings({user,state,mutate,busy,hand,settings,change,matchaRadius,setMatchaRadius,navPrefs,setNavPrefs,linkPrefs,setLinkPrefs,home,setHome,held=[],request,notice,config,accept}){
  return <>
   <p className="eyebrow">YOUR PHONE, YOUR CHOICE</p>
   <PageTitle help={<><p>The phrase and the fact are the only things the app puts on your screen without being asked.</p><p>Turn one off and it stops opening{user?.name?` on ${user.name}’s phone`:''} — everybody else keeps theirs.</p></>}>Settings</PageTitle>
@@ -320,6 +342,7 @@ export default function Settings({user,state,mutate,busy,hand,settings,change,na
    <h2>Voice notes</h2>
    {SETTINGS.filter(s=>s.group==='voice').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
+  <MatchaNearby state={state} settings={settings} change={change} radius={matchaRadius} setRadius={setMatchaRadius} notice={notice}/>
   <section className="settings-section">
    <h2>Route cards</h2>
    {SETTINGS.filter(s=>s.group==='route').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
