@@ -1,11 +1,11 @@
 // What the opening screen shows while the trip comes in: the guide's facts, a Japanese word and
-// a line of etiquette, taking turns — any of the three, or none, leaving nothing but the cover
+// a tip (getting around, money, the boys, manners and the rest), taking turns — any of the three, or none, leaving nothing but the cover
 // and the count. It is chosen in Settings and under Customise, and kept on this phone only.
 export const TIP_KEY='japan.opening.tips';
 export const TIP_KINDS=[
  {id:'facts',label:'Facts'},
  {id:'words',label:'Words'},
- {id:'etiquette',label:'Etiquette'},
+ {id:'tips',label:'Tips'},
 ];
 const ALL=TIP_KINDS.map(k=>k.id);
 // Kept as the kinds that are on, comma-separated, or 'off' for none. Earlier versions kept one
@@ -25,4 +25,4 @@ export function writeTips(kinds,store=globalThis.localStorage){
 export const toggleTip=(kinds,kind)=>kinds.includes(kind)?kinds.filter(k=>k!==kind):[...kinds,kind];
 export const showsFacts=t=>t.includes('facts');
 export const showsWords=t=>t.includes('words');
-export const showsEtiquette=t=>t.includes('etiquette');
+export const showsTips=t=>t.includes('tips');

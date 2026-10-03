@@ -5,7 +5,7 @@ import SayIt from './SayIt.jsx';
 import {isChild} from './child-levels.js';
 // The A little Japan each day widget: before we fly, one phrase to say and one fact to read,
 // each ticked off into the same logs the trip's own phrase and fact of the day use, and one
-// etiquette tip, which is only to read.
+// practical tip, which is only to read.
 export default function DailyJapan({state,user,today,mutate,busy}){
  const d=dailyJapan(state,today,user?.name,isChild(state,user?.name));if(!d)return null;
  const person=user?.name,member=state.members.includes(person);
@@ -22,8 +22,8 @@ export default function DailyJapan({state,user,today,mutate,busy}){
    <strong><span aria-hidden="true">{d.fact.icon}</span> {d.fact.title}</strong><p>{d.fact.text}</p>
    {member&&(d.factRead?<p className="daily-japan-done"><Check size={15}/> Read</p>:<button type="button" disabled={busy} onClick={read}>Got it</button>)}
   </div>}
-  {d.etiquette&&<div className="daily-japan-part">
-   <strong><span aria-hidden="true">{d.etiquette.icon}</span> {d.etiquette.label}</strong><p>{d.etiquette.text}</p>
+  {d.tip&&<div className="daily-japan-part">
+   <strong><span aria-hidden="true">{d.tip.icon}</span> {d.tip.label}</strong><p>{d.tip.text}</p>
   </div>}
  </section>;
 }

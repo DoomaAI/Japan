@@ -3,7 +3,7 @@ import {ChevronLeft,ChevronRight} from 'lucide-react';
 import {phraseForDay} from './phrasebook-data.js';
 import {swipeDelta,isControl,stepIndex} from './swipe.js';
 import PhraseReplies from './PhraseReplies.jsx';
-// The phrase of the day, the fun fact of the day and the etiquette tip of the day, each a Home card of its own under the day
+// The phrase of the day, the fun fact of the day and the tip of the day, each a Home card of its own under the day
 // in brief. Being Home cards, each folds to its label or is put away until tomorrow from its own
 // bar, and either can be taken off Home for good under Customise — one without the others.
 // Each swipes through its queue — the day's own first, then the ones this person has not met —
@@ -52,10 +52,10 @@ export function TodaysFact({queue=null,fresh=false,open}){
  return <SwipeCard eyebrow="Fun fact of the day" items={queue} fresh={fresh} open={open}
   render={f=>({label:`${f.title}. ${f.text}`,body:<span><b>{f.title}</b><small className="todays-card-text">{f.text}</small></span>})}/>;
 }
-// The etiquette tip has nothing to open or log: the whole tip is on the card. The day's own
-// stops come first (a shrine, an onsen, the Shinkansen), then the rest of the book.
-export function TodaysEtiquette({tips=null}){
+// The tip has nothing to open or log: the whole tip is on the card. The day's own pages and stops
+// come first (the deer at Nara, the Shinkansen, a shrine), then the rest of the book.
+export function TodaysTip({tips=null}){
  if(!tips?.length)return null;
- return <SwipeCard eyebrow="Etiquette tip of the day" items={tips}
+ return <SwipeCard eyebrow="Tip of the day" items={tips}
   render={t=>({label:`${t.label}: ${t.text}`,body:<span><b>{t.label}</b><small className="todays-card-text">{t.text}</small></span>})}/>;
 }

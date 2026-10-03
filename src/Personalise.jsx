@@ -54,7 +54,7 @@ export function OpeningTips(){
  const [tips,setTips]=React.useState(readTips);
  return <>
   <h2>While the app opens</h2>
-  <p>The opening screen shows a fact from the guide, a Japanese word or a line of etiquette while
+  <p>The opening screen shows a fact from the guide, a Japanese word or a practical tip while
    the trip loads, and stays until that card has finished. Choose any of them, or turn them all off
    to go straight in.</p>
   <div className="menu-add" role="group" aria-label="Tips while the app opens">{TIP_KINDS.map(o=>
