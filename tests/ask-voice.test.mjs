@@ -86,7 +86,18 @@ test('the assistant is a button on every page, switched on by default and off pe
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.equal(DEFAULTS.voiceAssistant,true);
  assert.equal(SETTINGS.find(s=>s.id==='voiceAssistant').group,'assistant');
- assert.match(main,/config\?\.ask&&isAvailable\('ask'\)&&settingOn\(settings,'voiceAssistant'\)&&tab!=='ask'&&!modal&&<button type="button" className="assistant-fab"/,'only where Ask works, and not over Ask or a sheet');
- assert.match(main,/modal\.type==='assistant'&&<AskTrip assistant /);
- assert.match(main,/className="assistant-fab" aria-label="Concierge[^"]*"[^\n]*?><ConciergeBell size=\{24\}\/><span className="assistant-fab-mic"/,'one concierge button: the bell, with the microphone on it');
+ // One way in to type or say anything, on every page but Ask and under no sheet. Where Ask works
+ // it is the Concierge's bell; elsewhere it only finds. Put away, the top bar's magnifier returns.
+ assert.match(main,/const canAsk=!!\(config\?\.ask&&isAvailable\('ask'\)\);\n const conciergeButton=!!\(user&&settingOn\(settings,'voiceAssistant'\)\);/);
+ assert.match(main,/\{conciergeButton&&tab!=='ask'&&!modal&&<ConciergeButton canAsk=\{canAsk\} open=\{listen=>setModal\(\{type:'assistant',listen\}\)\}\/>\}/,'not over Ask or a sheet');
+ assert.match(main,/\{!conciergeButton&&<button className="icon" aria-label="Search everything"/,'the magnifier only when the corner button is put away');
+ assert.match(main,/modal\.type==='assistant'&&<AskTrip assistant canAsk=\{canAsk\} listen=\{!!modal\.listen\} find=/);
+ assert.match(main,/className="assistant-fab" aria-label=\{canAsk\?'Concierge[^']*':'Find[^']*'\}[\s\S]*?\{canAsk\?<><ConciergeBell size=\{24\}\/><span className="assistant-fab-mic"[^\n]*:<Search size=\{24\}\/>\}/,'the bell with the microphone on it, or a magnifier where it only finds');
+ // A tap opens it to type; held, a deep link or the AirPods open it listening.
+ assert.match(main,/setTimeout\(\(\)=>\{fired\.current=true;open\(true\);\},450\)/);
+ assert.match(main,/action\.type==='concierge'\)setModal\(\{type:'assistant',listen:true\}\)/);
+ assert.match(main,/if\(!open\)setModal\(\{type:'assistant',listen:true\}\)/);
+ const ask=await readFile(new URL('../src/AskTrip.jsx',import.meta.url),'utf8');
+ assert.match(ask,/autoStart=\{assistant&&listen\}/);
+ assert.match(ask,/<FindResults state=\{state\} user=\{user\} query=\{question\}/,'names found as the box is typed in');
 });

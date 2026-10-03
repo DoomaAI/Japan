@@ -1,4 +1,4 @@
-// Type anything. One box at the top of Home that finds, as you type and with no signal, whatever
+// Find anything. The Concierge's box finds, as you type and with no signal, whatever
 // is already on the phone: a stop, a hotel, a ticket, a phrase, a shopping item, a person, or a
 // screen of the app. Raycast's idea: names, not questions — Ask keeps the questions. The trip's
 // own search does the stops, tickets, shopping, notes and the rest; this adds what it does not
