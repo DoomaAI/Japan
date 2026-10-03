@@ -744,7 +744,8 @@ function App(){
  // of dates to move along. Written once here rather than on each screen, because the strip has
  // to be told where a tap lands — Home when it is Home asking, and the screen you are already
  // standing on when it is not, so choosing a day on the day at a glance does not send you home.
- const dayHeading=<div className="day-heading"><div><p className="eyebrow">{today?.city} / {fmtDay(day)}</p><h1>{today?.title}</h1></div><button className="icon" aria-label="Choose day" onClick={()=>setTab('days')}><CalendarDays/></button></div>;
+ const dayTitle=<div><p className="eyebrow">{today?.city} / {fmtDay(day)}</p><h1>{today?.title}</h1></div>;
+ const dayHeading=<div className="day-heading">{dayTitle}<button className="icon" aria-label="Choose day" onClick={()=>setTab('days')}><CalendarDays/></button></div>;
  const dayStrip=pick=><DateStrip day={day}>{state.days.map(d=>{const behind=dayBehind(visibleState,d.date,todayJapan);return <button key={d.date} className={`${day===d.date?'selected':''}${behind?' behind':''}`} aria-label={behind?`${fmtDay(d.date)}, completed`:undefined} onClick={()=>pick(d.date)}><span>{fmtDay(d.date,{weekday:'short'})}</span><strong>{d.date.slice(-2)}</strong>{behind&&<Check className="strip-tick" size={11} strokeWidth={3} aria-hidden="true"/>}{d.date===japanDate()&&<i aria-label="Today"/>}</button>;})}</DateStrip>;
  // The day's pages in the original guide, as thumbnails to swipe — a widget on Home and the
  // foot of the day at a glance.
@@ -898,9 +899,10 @@ function App(){
   </div>}
   {tab==='glance'&&<>
    {planSwitch}
-   {dayHeading}
+   {/* The strip of dates sits under the switch as it does on All days, and the day's heading
+       carries its night-before check as one button. */}
    {dayStrip(d=>go('glance',d))}
-   <DayCheck state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} accept={accept} notice={notice} selectStep={selectStep} busy={busy}/>
+   <DayCheck heading={dayTitle} state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} accept={accept} notice={notice} selectStep={selectStep} busy={busy}/>
    <DayTimeline steps={steps} allSteps={allSteps} splits={splits} lens={lens} setLens={follow} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/>
    {/* The day's own buttons sit under its stops, so the day itself is the first thing on the page. */}
    <div className="home-actions day-actions">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}{parent&&<Button icon={ArrowLeftRight} onClick={()=>setModal({type:'rearrange'})}>Move or swap days</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>Slow the day</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>

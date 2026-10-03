@@ -10,7 +10,9 @@ const dayLabel=d=>d?new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeri
 // Tomorrow's check and Plan B, on the day they are about, above its stops. The notes are what the
 // night-before check found; a parent accepts one (it goes into the stop's notes) or dismisses it.
 // Plan B folds under them: made the same night, kept in the trip, there with no signal.
-export default function DayCheck({state,user,day,config,online=true,request,mutate,accept,notice,selectStep,busy}){
+// The day's heading comes in from the page so the check can sit beside it as one button; the
+// section underneath shows only once there is something to read.
+export default function DayCheck({state,user,day,config,online=true,request,mutate,accept,notice,selectStep,busy,heading}){
  const parent=user?.role==='parent',[working,setWorking]=useState(''),[error,setError]=useState('');
  const check=dayCheckOf(state,day),planB=planBOf(state,day);
  const ready=!!config?.tomorrow;
@@ -43,8 +45,12 @@ export default function DayCheck({state,user,day,config,online=true,request,muta
    if(ok)notice?.(`${p.from.title} is on ${dayLabel(day)}.`);
   }};
  };
- if(!check&&!planB&&!(parent&&ready))return null;
- return <section className="day-check" aria-label="The night-before check">
+ const canRun=parent&&ready;
+ const head=heading&&<div className="day-heading">{heading}
+  {canRun&&<button type="button" className="day-check-run" disabled={!!working||!online} title={check?undefined:unchecked} onClick={()=>run(['check','planb'])}><RefreshCw size={16}/>{working==='check,planb'?'Checking…':check?'Check again':'Check day'}</button>}</div>;
+ const errorLine=error&&<p className="callout"><AlertCircle size={18}/>{error}</p>;
+ if(!check&&!planB)return <>{head}{errorLine}</>;
+ return <>{head}<section className="day-check" aria-label="The night-before check">
   <div className="day-check-head"><p className="eyebrow">{check?'CHECKED THE NIGHT BEFORE':'THE NIGHT-BEFORE CHECK'}</p>
    {check&&<small>{when(check.at)}</small>}</div>
   {check?<>
@@ -70,12 +76,11 @@ export default function DayCheck({state,user,day,config,online=true,request,muta
    {planB.rest.length>0&&<><h4>Somewhere to sit down</h4>{planB.rest.map((p,i)=><PlanBPlace key={i} place={p} lead={label(REST_KINDS,p.kind)}/>)}</>}
    <small>Made {when(planB.at)} and kept on this phone. Opening hours are not checked; look before you walk over.</small>
   </details>}
-  {error&&<p className="callout"><AlertCircle size={18}/>{error}</p>}
-  {parent&&ready&&<div className="row wrap day-check-actions">
-   <button type="button" disabled={!!working||!online} onClick={()=>run(['check','planb'])}><RefreshCw size={16}/>{working==='check,planb'?'Checking… (up to a minute)':check?'Check again':'Check this day now'}</button>
-   {check&&!planB&&<button type="button" disabled={!!working||!online} onClick={()=>run(['planb'])}><LifeBuoy size={16}/>{working==='planb'?'Making Plan B…':'Make Plan B'}</button>}
+  {errorLine}
+  {canRun&&check&&!planB&&<div className="row wrap day-check-actions">
+   <button type="button" disabled={!!working||!online} onClick={()=>run(['planb'])}><LifeBuoy size={16}/>{working==='planb'?'Making Plan B…':'Make Plan B'}</button>
   </div>}
- </section>;
+ </section></>;
 }
 const FROM={idea:'From the planning board',options:'From Options',missed:'Missed earlier'};
 function PlanBPlace({place,lead,add}){
