@@ -460,9 +460,8 @@ test('the trip countdown counts down in Japan days, then counts the days of the 
  assert.equal(homeShown(toggleWidget(emptyHome(),'countdown'))[0],'countdown','and it leads Home once brought out');
  assert.ok(HOME_WIDGETS.countdown.label);
  assert.match(main,/countdown:\(c=>c&&<section className=\{`countdown-card/);
- assert.match(main,/\{behind&&<Check className="strip-tick"/,'the date strip ticks the days behind us');
- const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
- assert.match(css,/\.date-strip \.strip-tick\{position:absolute;bottom:4px;left:50%;transform:translateX\(-50%\)/,'the tick sits under the date, clear of the weekday, where the today dot would be');
+ assert.doesNotMatch(main,/strip-tick/,'days behind us are greyed out on the date strip, not ticked');
+ assert.match(main,/\$\{behind\?' behind':''\}/,'the date strip marks the days behind us');
 });
 test('the Days cover is a book to swipe, and the day on the open page is picked out below',async()=>{
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
@@ -11636,8 +11635,8 @@ test('nothing tappable is under 40px, past days still read, and a press shows',a
  assert.doesNotMatch(sweep,/\.timeline-insert::after\{/);
  assert.match(sweep,/\.callout button::after\{content:'';position:absolute;inset:-10px -4px\}/,'a button inside a sentence keeps its line but gains a finger’s worth of room');
  assert.match(sweep,/\.nav-grip::after\{content:'';position:absolute;inset:-14px -8px/);
- // Past days on the strip are dimmed, not faded out.
- assert.match(sweep,/\.date-strip \.behind:not\(\.selected\)\{opacity:\.72\}/);
+ // Past days on the strip are greyed out, with no tick, so the days ahead stand out.
+ assert.match(sweep,/\.date-strip \.behind:not\(\.selected\)\{color:var\(--muted\);opacity:\.55\}/);
  // A press shows, and does not move for anyone who asked for less motion.
  assert.match(sweep,/button:not\(:disabled\):active,\.button:active,\.chip:active,summary:active\{filter:brightness\(\.9\)\}/);
  assert.match(sweep,/@media \(prefers-reduced-motion:reduce\)\{button:active,\.button:active,\.chip:active\{transform:none/);
