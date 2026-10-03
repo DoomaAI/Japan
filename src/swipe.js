@@ -10,6 +10,20 @@ export function swipeDelta(start,end,limits=SWIPE){
  if(Math.abs(across)<limits.across||Math.abs(down)>limits.down)return 0;
  return across<0?1:-1;
 }
+// A drag already settled as sideways — the card has been following the finger — is judged on
+// how far across it went alone: a thumb arcs, and drifting down on the way must not snap the
+// card back after it visibly moved. A short quick flick counts too. ms is how long the finger
+// was down. -1 back, 1 on, 0 stay.
+export const FLICK={least:20,speed:.35};
+export function dragTurn(dx,ms,limits=SWIPE,flick=FLICK){
+ if(!Number.isFinite(dx))return 0;
+ const far=Math.abs(dx)>=limits.across;
+ const quick=Math.abs(dx)>=flick.least&&Number.isFinite(ms)&&ms>0&&Math.abs(dx)/ms>=flick.speed;
+ return far||quick?(dx<0?1:-1):0;
+}
+// Which way a drag is going, decided once, at the first few pixels: 'x' sideways, 'y' a
+// scroll, null not yet. Once decided it stays, so a scroll never turns into a swipe halfway.
+export const dragAxis=(dx,dy,slop=8)=>Math.max(Math.abs(dx),Math.abs(dy))<slop?null:Math.abs(dx)>Math.abs(dy)?'x':'y';
 // The same question the other way up, for the bar along the bottom: a swipe up it opens the
 // whole menu, a swipe down it closes again. 1 for up, -1 for down, 0 for anything that was
 // really a sideways swipe or a scroll. The limits are the sideways ones turned over, so a

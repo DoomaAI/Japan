@@ -1,8 +1,10 @@
-import React,{useState,useRef,useEffect} from 'react';
+import React,{useState,useRef,useEffect,useContext} from 'react';
+import {createPortal} from 'react-dom';
 import {ChevronLeft,ChevronRight} from 'lucide-react';
 import {phraseForDay} from './phrasebook-data.js';
-import {swipeDelta,isControl,stepIndex} from './swipe.js';
+import {dragTurn,dragAxis,stepIndex} from './swipe.js';
 import PhraseReplies from './PhraseReplies.jsx';
+import {HomeBarSlot} from './home-bar.js';
 // The phrase of the day, the fun fact of the day and the tip of the day, each a Home card of its own under What’s
 // next. Being Home cards, each folds to its label or is put away until tomorrow from its own
 // bar, and either can be taken off Home for good under Customise — one without the others.
@@ -13,7 +15,7 @@ import PhraseReplies from './PhraseReplies.jsx';
 // card folds out what you are likely to hear back, so the answer is not the surprise.
 const LIMIT=20;
 function SwipeCard({eyebrow,items,render,open,fresh,more}){
- const [index,setIndex]=useState(0),[drag,setDrag]=useState(0),touch=useRef(null);
+ const [index,setIndex]=useState(0),[drag,setDrag]=useState(0),touch=useRef(null),slot=useContext(HomeBarSlot);
  const list=items.slice(0,LIMIT),item=list[index]||list[0];
  const move=delta=>setIndex(i=>stepIndex(i,delta,list.length));
  // A queue that shrinks underneath (one opened and logged) never leaves the card past its end.
@@ -24,25 +26,44 @@ function SwipeCard({eyebrow,items,render,open,fresh,more}){
  // it only gives a little, so it is plain there is nothing more that way.
  // The Home card's own title already names it, so with more than one the heading is the count.
  // The face of the card is itself the tap-to-open button, and a drag across it is still a swipe.
+ // The way a drag goes is settled in its first few pixels and kept: a scroll never starts
+ // dragging the card halfway down, and a drag the card has followed is judged on how far across
+ // it went (or how fast), not undone because the thumb drifted down on the way.
  const follow=e=>{
   const t=touch.current;if(!t||!many)return;
   const dx=e.touches[0].clientX-t.x,dy=e.touches[0].clientY-t.y;
-  if(!t.sideways&&Math.abs(dy)>Math.abs(dx))return;
-  t.sideways=true;
+  t.axis=t.axis||dragAxis(dx,dy);
+  if(t.axis!=='x')return;
   setDrag((dx>0&&at<=0)||(dx<0&&at>=list.length-1)?dx/4:dx);
  };
+ // Only the arrows and the replies' recordings keep a drag to themselves; a sideways drag that
+ // starts on the card's face or the "what you might hear back" fold still turns the card.
+ const start=e=>{
+  const el=e.target;
+  touch.current=el.closest?.('.todays-card-steps')||['AUDIO','INPUT','SELECT','TEXTAREA'].includes(el.tagName)?null
+   :{x:e.touches[0].clientX,y:e.touches[0].clientY,at:Date.now(),axis:null};
+ };
+ const end=e=>{
+  const t=touch.current;touch.current=null;setDrag(0);
+  if(!t||t.axis!=='x')return;
+  move(dragTurn(e.changedTouches[0].clientX-t.x,Date.now()-t.at));
+ };
+ // On Home the count, the New mark and the arrows sit on the card's heading line; anywhere else
+ // they make a row of their own.
+ const heading=<>
+  <span className="todays-card-count">{many?`${at+1} of ${list.length}`:slot?'':eyebrow}</span>{!at&&fresh&&<em className="briefing-new">New</em>}
+  {many&&<span className="todays-card-steps">
+   <button type="button" className="icon" disabled={at<=0} onClick={()=>move(-1)} aria-label="Previous"><ChevronLeft size={16}/></button>
+   <button type="button" className="icon" disabled={at>=list.length-1} onClick={()=>move(1)} aria-label="Next"><ChevronRight size={16}/></button>
+  </span>}
+ </>;
  return <div className="todays-card" aria-roledescription="carousel"
-  onTouchStart={e=>{touch.current=isControl(e.target.tagName)&&!e.target.closest('.todays-japan-row')?null:{x:e.touches[0].clientX,y:e.touches[0].clientY};}}
+  onTouchStart={start}
   onTouchMove={follow}
-  onTouchEnd={e=>{if(!touch.current)return;move(swipeDelta(touch.current,{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY}));touch.current=null;setDrag(0);}}
+  onTouchEnd={end}
   onTouchCancel={()=>{touch.current=null;setDrag(0);}}
   onKeyDown={e=>{if(e.key==='ArrowLeft'){e.preventDefault();move(-1);}else if(e.key==='ArrowRight'){e.preventDefault();move(1);}}}>
-  <p className="eyebrow"><span>{many?`${at+1} of ${list.length}`:eyebrow}</span>{!at&&fresh&&<em className="briefing-new">New</em>}
-   {many&&<span className="todays-card-steps">
-    <button type="button" className="icon" disabled={at<=0} onClick={()=>move(-1)} aria-label="Previous"><ChevronLeft size={16}/></button>
-    <button type="button" className="icon" disabled={at>=list.length-1} onClick={()=>move(1)} aria-label="Next"><ChevronRight size={16}/></button>
-   </span>}
-  </p>
+  {slot?createPortal(heading,slot):<p className="eyebrow">{heading}</p>}
   <div className={`todays-card-body${drag?' dragging':''}`} style={drag?{transform:`translateX(${drag}px)`}:undefined}>
    {open?<button type="button" className="todays-japan-row" onClick={()=>open(item,at)} aria-label={`${render(item).label}. Tap to open.`}>
     <span aria-hidden="true">{item.icon}</span>

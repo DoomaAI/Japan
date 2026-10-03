@@ -57,6 +57,7 @@ import OnThisDay from './OnThisDay.jsx';
 import RunUp from './RunUp.jsx';
 import DailyJapan from './DailyJapan.jsx';
 import {TodaysPhrase,TodaysFact,TodaysTip} from './TodaysJapan.jsx';
+import {HomeBarSlot} from './home-bar.js';
 import {tipsForDay} from './tip-data.js';
 import LikeALocalCard from './LikeALocalCard.jsx';
 import TravelGuide from './TravelGuide.jsx';
@@ -191,14 +192,14 @@ function Button({icon:Icon,children,...props}){return <button {...props}>{Icon&&
 // the label as the section's title can leave the repeat out.
 const sameWords=(a,b)=>String(a||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()===String(b||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 function HomeCard({label,folded,fold,away,children}){
- const body=useRef(null);
+ const body=useRef(null),[slot,setSlot]=useState(null);
  useLayoutEffect(()=>{const first=body.current?.querySelector('.eyebrow');if(!first)return;const dup=sameWords(first.textContent,label);if(dup)first.setAttribute('data-repeats-label','');else first.removeAttribute('data-repeats-label');});
  return <section className={`home-card${folded?' folded':''}`} aria-label={label}>
-  <div className="home-card-bar"><span>{label}</span>
+  <div className="home-card-bar"><span>{label}</span><div className="home-card-slot" ref={setSlot}/>
    <button type="button" className="icon" aria-expanded={!folded} aria-label={folded?`Open ${label}`:`Fold ${label} for today`} onClick={fold}><ChevronDown size={16}/></button>
    <button type="button" className="icon" aria-label={`Put ${label} away until tomorrow`} onClick={away}><EyeOff size={15}/></button>
   </div>
-  <div className="home-card-body" ref={body}>{children}</div>
+  <div className="home-card-body" ref={body}><HomeBarSlot.Provider value={slot}>{children}</HomeBarSlot.Provider></div>
  </section>;
 }
 // Anything typed into a sheet is asked about before a stray tap on the backdrop, or Escape,

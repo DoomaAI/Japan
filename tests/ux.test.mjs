@@ -26,8 +26,12 @@ test('the phrase and fun fact of the day are separate Home cards, each folding, 
  assert.ok(HOME_WIDGETS.todaysphrase&&HOME_WIDGETS.todaysfact&&!HOME_WIDGETS.todaysjapan,'two cards, not one');
  assert.match(main,/todaysphrase:<TodaysPhrase [^\n]*queue=\{day===dayOnTrip&&settingOn\(settings,'dailyPhrase'\)\?phraseQueue\(/);
  assert.match(main,/todaysfact:<TodaysFact queue=\{day===dayOnTrip&&todaysFact&&settingOn\(settings,'dailyFact'\)\?factQueue\(/);
- assert.match(cards,/swipeDelta\(touch\.current/,'each card swipes for more');
+ assert.match(cards,/move\(dragTurn\(e\.changedTouches\[0\]\.clientX-t\.x,Date\.now\(\)-t\.at\)\)/,'each card swipes for more');
+ assert.match(cards,/t\.axis=t\.axis\|\|dragAxis\(dx,dy\)/,'a drag settles its way once, so a scroll never becomes a swipe');
  assert.match(cards,/onTouchMove=\{follow\}/,'the card follows the finger');
+ assert.match(cards,/\{slot\?createPortal\(heading,slot\):<p className="eyebrow">\{heading\}<\/p>\}/,'on Home the count and arrows sit on the heading line');
+ assert.match(main,/<div className="home-card-slot" ref=\{setSlot\}\/>/);
+ assert.match(main,/<HomeBarSlot\.Provider value=\{slot\}>\{children\}<\/HomeBarSlot\.Provider>/);
  assert.doesNotMatch(cards,/Swipe for more/,'the arrows sit in the heading, not on a line of their own');
  assert.match(cards,/\{!at&&fresh&&<em className="briefing-new">New<\/em>\}/);
  const old=cleanHome({order:['todaysjapan','briefing'],hidden:['todaysjapan']});

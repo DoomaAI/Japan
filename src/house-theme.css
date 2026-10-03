@@ -152,8 +152,8 @@
 :root[data-look=washi] .home-card{margin-top:1.4rem}
 :root[data-look=washi] .home-card-bar{min-height:40px;margin-bottom:.5rem;border-bottom:1px solid var(--border)}
 :root[data-look=washi] .home-card-bar>span{font-family:var(--serif);font-size:1.4rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink)}
-:root[data-look=washi] .home:not(.arranging) .home-card-bar .icon{display:none}
-:root[data-look=washi] .home:not(.arranging) .home-card.folded .home-card-bar .icon:first-of-type{display:inline-flex}
+:root[data-look=washi] .home:not(.arranging) .home-card-bar>.icon{display:none}
+:root[data-look=washi] .home:not(.arranging) .home-card.folded .home-card-bar>.icon:first-of-type{display:inline-flex}
 :root[data-look=washi] .home-card.folded .home-card-bar{padding:0;background:transparent;border:0;border-bottom:1px solid var(--border);border-radius:0}
 :root[data-look=washi] .home.arranging .home-card-bar{background:var(--tint);padding-left:.6rem}
 :root[data-look=washi] .home-arrange{display:inline-flex}

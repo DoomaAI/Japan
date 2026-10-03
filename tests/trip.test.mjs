@@ -6838,6 +6838,17 @@ test('a swipe is a swipe, a scroll is a scroll, and a drag on a button is neithe
  assert.equal(swipeDelta(from,{x:0,y:300-SWIPE.down-1}),0);
  assert.equal(swipeDelta(null,{x:0,y:0}),0);
  assert.equal(swipeDelta(from,{x:NaN,y:0}),0);
+ // A drag the card has already followed sideways is judged across alone, and a quick flick counts.
+ const {dragTurn,dragAxis,FLICK}=await import('../src/swipe.js');
+ assert.equal(dragTurn(-SWIPE.across,2000),1,'far enough left goes on, however slowly');
+ assert.equal(dragTurn(SWIPE.across,2000),-1,'and right goes back');
+ assert.equal(dragTurn(-30,60),1,'a short quick flick turns it');
+ assert.equal(dragTurn(-30,600),0,'a short slow drag is a change of mind');
+ assert.equal(dragTurn(-(FLICK.least-1),10),0,'a twitch is not a flick');
+ assert.equal(dragTurn(NaN,10),0);
+ assert.equal(dragAxis(3,4),null,'too soon to tell');
+ assert.equal(dragAxis(12,5),'x');
+ assert.equal(dragAxis(5,12),'y');
  // Whether an arrow key belongs to what has focus is a DIFFERENT question from whether a
  // drag started on a control. A focused button does nothing with an arrow key, so swallowing
  // it there leaves the keyboard dead after every tap — which is what it did.
