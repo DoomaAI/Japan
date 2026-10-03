@@ -27,6 +27,8 @@ test('the phrase and fun fact of the day are separate Home cards, each folding, 
  assert.match(main,/todaysphrase:<TodaysPhrase [^\n]*queue=\{day===dayOnTrip&&settingOn\(settings,'dailyPhrase'\)\?phraseQueue\(/);
  assert.match(main,/todaysfact:<TodaysFact queue=\{day===dayOnTrip&&todaysFact&&settingOn\(settings,'dailyFact'\)\?factQueue\(/);
  assert.match(cards,/swipeDelta\(touch\.current/,'each card swipes for more');
+ assert.match(cards,/onTouchMove=\{follow\}/,'the card follows the finger');
+ assert.doesNotMatch(cards,/Swipe for more/,'the arrows sit in the heading, not on a line of their own');
  assert.match(cards,/\{!at&&fresh&&<em className="briefing-new">New<\/em>\}/);
  const old=cleanHome({order:['todaysjapan','briefing'],hidden:['todaysjapan']});
  assert.deepEqual(old.order.filter(id=>['todaysphrase','todaysfact','briefing'].includes(id)),['todaysphrase','todaysfact','briefing'],'a phone that moved the old card keeps both where it was');

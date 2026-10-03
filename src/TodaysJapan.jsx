@@ -7,33 +7,49 @@ import PhraseReplies from './PhraseReplies.jsx';
 // in brief. Being Home cards, each folds to its label or is put away until tomorrow from its own
 // bar, and either can be taken off Home for good under Customise — one without the other.
 // Each swipes through its queue — the day's own first, then the ones this person has not met —
-// so another is a flick away without opening anything. Swiping only looks: nothing is logged
+// so another is a flick away without opening anything: the card itself is swiped, the arrows
+// tucked into its heading for anyone who would rather tap. Swiping only looks: nothing is logged
 // until a card is tapped open, so a glance on the way past never spends tomorrow's. The phrase
 // card folds out what you are likely to hear back, so the answer is not the surprise.
 const LIMIT=20;
 function SwipeCard({eyebrow,items,render,open,fresh,more}){
- const [index,setIndex]=useState(0),touch=useRef(null);
+ const [index,setIndex]=useState(0),[drag,setDrag]=useState(0),touch=useRef(null);
  const list=items.slice(0,LIMIT),item=list[index]||list[0];
  const move=delta=>setIndex(i=>stepIndex(i,delta,list.length));
  // A queue that shrinks underneath (one opened and logged) never leaves the card past its end.
  useEffect(()=>{if(index>=list.length)setIndex(Math.max(0,list.length-1));},[list.length]);
  if(!item)return null;
- const at=list.indexOf(item);
+ const at=list.indexOf(item),many=list.length>1;
+ // The card follows the finger sideways, so it plainly is something to swipe; past either end
+ // it only gives a little, so it is plain there is nothing more that way.
+ // The Home card's own title already names it, so with more than one the heading is the count.
+ // The face of the card is itself the tap-to-open button, and a drag across it is still a swipe.
+ const follow=e=>{
+  const t=touch.current;if(!t||!many)return;
+  const dx=e.touches[0].clientX-t.x,dy=e.touches[0].clientY-t.y;
+  if(!t.sideways&&Math.abs(dy)>Math.abs(dx))return;
+  t.sideways=true;
+  setDrag((dx>0&&at<=0)||(dx<0&&at>=list.length-1)?dx/4:dx);
+ };
  return <div className="todays-card" aria-roledescription="carousel"
-  onTouchStart={e=>{touch.current=isControl(e.target.tagName)?null:{x:e.touches[0].clientX,y:e.touches[0].clientY};}}
-  onTouchEnd={e=>{if(!touch.current)return;move(swipeDelta(touch.current,{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY}));touch.current=null;}}
+  onTouchStart={e=>{touch.current=isControl(e.target.tagName)&&!e.target.closest('.todays-japan-row')?null:{x:e.touches[0].clientX,y:e.touches[0].clientY};}}
+  onTouchMove={follow}
+  onTouchEnd={e=>{if(!touch.current)return;move(swipeDelta(touch.current,{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY}));touch.current=null;setDrag(0);}}
+  onTouchCancel={()=>{touch.current=null;setDrag(0);}}
   onKeyDown={e=>{if(e.key==='ArrowLeft'){e.preventDefault();move(-1);}else if(e.key==='ArrowRight'){e.preventDefault();move(1);}}}>
-  <p className="eyebrow">{at?`One more · ${at+1} of ${list.length}`:eyebrow}{!at&&fresh&&<em className="briefing-new">New</em>}</p>
-  <button type="button" className="todays-japan-row" onClick={()=>open(item,at)} aria-label={`${render(item).label}. Tap to open.`}>
-   <span aria-hidden="true">{item.icon}</span>
-   {render(item).body}
-  </button>
-  {more?.(item)}
-  {list.length>1&&<div className="todays-card-nav">
-   <button type="button" className="icon" disabled={at<=0} onClick={()=>move(-1)} aria-label="Previous"><ChevronLeft size={16}/></button>
-   <small>Swipe for more</small>
-   <button type="button" className="icon" disabled={at>=list.length-1} onClick={()=>move(1)} aria-label="Next"><ChevronRight size={16}/></button>
-  </div>}
+  <p className="eyebrow"><span>{many?`${at+1} of ${list.length}`:eyebrow}</span>{!at&&fresh&&<em className="briefing-new">New</em>}
+   {many&&<span className="todays-card-steps">
+    <button type="button" className="icon" disabled={at<=0} onClick={()=>move(-1)} aria-label="Previous"><ChevronLeft size={16}/></button>
+    <button type="button" className="icon" disabled={at>=list.length-1} onClick={()=>move(1)} aria-label="Next"><ChevronRight size={16}/></button>
+   </span>}
+  </p>
+  <div className={`todays-card-body${drag?' dragging':''}`} style={drag?{transform:`translateX(${drag}px)`}:undefined}>
+   <button type="button" className="todays-japan-row" onClick={()=>open(item,at)} aria-label={`${render(item).label}. Tap to open.`}>
+    <span aria-hidden="true">{item.icon}</span>
+    {render(item).body}
+   </button>
+   {more?.(item)}
+  </div>
  </div>;
 }
 // queue is null when the phrase is switched off or Home is on another day; another day still
