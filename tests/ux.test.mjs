@@ -17,16 +17,21 @@ test('the weather list starts at today, with the days behind us folded above it'
  assert.match(page,/<PageTitle help=\{<p>Every day of the trip/,'the explanation waits behind the ? beside the title');
  assert.match(page,/No forecast saved yet\./);
 });
-test('the phrase and fun fact of the day wait in a folding widget of their own instead of opening over Home',async()=>{
- const main=await source('main.jsx'),brief=await source('TodaysJapan.jsx');
+test('the phrase and fun fact of the day are separate Home cards, each folding, put away and swiped on its own',async()=>{
+ const main=await source('main.jsx'),cards=await source('TodaysJapan.jsx'),{HOME_WIDGETS,cleanHome,homeDay}=await import('../src/home-widgets.js');
  assert.doesNotMatch(main,/setModal\(\{type:'phrase',phrase:todaysPhrase,day:dayOnTrip\}\);\n \},/,'no effect opens the phrase');
  assert.doesNotMatch(main,/localStorage\.setItem\(`japan\.fact\.\$\{dayOnTrip\}`,'seen'\);setModal/,'no effect opens the fact');
  assert.match(main,/const openPhrase=\(\)=>todaysPhrase\?setModal\(\{type:'phrase'/);
  assert.match(main,/const openFact=\(\)=>todaysFact\?setModal\(\{type:'fact',day:dayOnTrip\}\)/);
- assert.match(main,/phrase=\{day===dayOnTrip&&settingOn\(settings,'dailyPhrase'\)\?\{item:phraseQueue\(visibleState,user\.name,dayOnTrip\)\[0\],open:openPhrase,fresh:!phraseDone\}:null\}/,'the row names the phrase its sheet opens on');
- assert.match(brief,/className="todays-japan-row" onClick=\{fact\.open\}/);
- assert.match(brief,/\{phrase\?\.fresh&&<em className="briefing-new">New<\/em>\}/);
- assert.match(brief,/<details className="todays-japan" open=\{open\} onToggle=/,'it folds, and the phone keeps the fold');
+ assert.ok(HOME_WIDGETS.todaysphrase&&HOME_WIDGETS.todaysfact&&!HOME_WIDGETS.todaysjapan,'two cards, not one');
+ assert.match(main,/todaysphrase:<TodaysPhrase [^\n]*queue=\{day===dayOnTrip&&settingOn\(settings,'dailyPhrase'\)\?phraseQueue\(/);
+ assert.match(main,/todaysfact:<TodaysFact queue=\{day===dayOnTrip&&todaysFact&&settingOn\(settings,'dailyFact'\)\?factQueue\(/);
+ assert.match(cards,/swipeDelta\(touch\.current/,'each card swipes for more');
+ assert.match(cards,/\{!at&&fresh&&<em className="briefing-new">New<\/em>\}/);
+ const old=cleanHome({order:['todaysjapan','briefing'],hidden:['todaysjapan']});
+ assert.deepEqual(old.order.filter(id=>['todaysphrase','todaysfact','briefing'].includes(id)),['todaysphrase','todaysfact','briefing'],'a phone that moved the old card keeps both where it was');
+ assert.ok(old.hidden.includes('todaysphrase')&&old.hidden.includes('todaysfact'),'and one that hid it hides both');
+ assert.deepEqual(homeDay({day:'d',folded:['todaysjapan'],away:[]},'d').folded,['todaysphrase','todaysfact'],'a fold for today carries over');
  assert.doesNotMatch(await source('Briefing.jsx'),/Today’s phrase/,'the day in brief no longer carries it');
 });
 test('no text is set below 12px, outside game boards and the drawn day map',async()=>{
