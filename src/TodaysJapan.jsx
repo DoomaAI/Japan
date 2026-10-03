@@ -2,14 +2,16 @@ import React,{useState,useRef,useEffect} from 'react';
 import {ChevronLeft,ChevronRight} from 'lucide-react';
 import {phraseForDay} from './phrasebook-data.js';
 import {swipeDelta,isControl,stepIndex} from './swipe.js';
+import PhraseReplies from './PhraseReplies.jsx';
 // The phrase of the day and the fun fact of the day, each a Home card of its own under the day
 // in brief. Being Home cards, each folds to its label or is put away until tomorrow from its own
 // bar, and either can be taken off Home for good under Customise — one without the other.
 // Each swipes through its queue — the day's own first, then the ones this person has not met —
 // so another is a flick away without opening anything. Swiping only looks: nothing is logged
-// until a card is tapped open, so a glance on the way past never spends tomorrow's.
+// until a card is tapped open, so a glance on the way past never spends tomorrow's. The phrase
+// card folds out what you are likely to hear back, so the answer is not the surprise.
 const LIMIT=20;
-function SwipeCard({eyebrow,items,render,open,fresh}){
+function SwipeCard({eyebrow,items,render,open,fresh,more}){
  const [index,setIndex]=useState(0),touch=useRef(null);
  const list=items.slice(0,LIMIT),item=list[index]||list[0];
  const move=delta=>setIndex(i=>stepIndex(i,delta,list.length));
@@ -26,6 +28,7 @@ function SwipeCard({eyebrow,items,render,open,fresh}){
    <span aria-hidden="true">{item.icon}</span>
    {render(item).body}
   </button>
+  {more?.(item)}
   {list.length>1&&<div className="todays-card-nav">
    <button type="button" className="icon" disabled={at<=0} onClick={()=>move(-1)} aria-label="Previous"><ChevronLeft size={16}/></button>
    <small>Swipe for more</small>
@@ -38,6 +41,7 @@ function SwipeCard({eyebrow,items,render,open,fresh}){
 export function TodaysPhrase({state,day,queue=null,fresh=false,open,go}){
  const items=queue?.length?queue:[state?phraseForDay(state.days,day):null].filter(Boolean);
  return <SwipeCard eyebrow="Phrase of the day" items={items} fresh={fresh} open={queue?.length?open:()=>go('phrases')}
+  more={p=><PhraseReplies phrase={p}/>}
   render={p=>({label:`${p.en}, ${p.ja}, said ${p.say}`,body:<span><b>{p.en} · <span lang="ja">{p.ja}</span></b><small>Say “{p.say}”</small></span>})}/>;
 }
 export function TodaysFact({queue=null,fresh=false,open}){

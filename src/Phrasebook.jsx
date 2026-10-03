@@ -11,11 +11,13 @@ import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
 import SoundOut,{MouthKey} from './SoundOut.jsx';
 import SayIt from './SayIt.jsx';
 import SoundCheck from './SoundCheck.jsx';
+import PhraseReplies from './PhraseReplies.jsx';
 export function PhraseRow({phrase,size='small'}){
  return <article className="phrase-row">
   <strong>{phrase.icon&&<span className="phrase-icon" aria-hidden="true">{phrase.icon}</span>}{phrase.en}</strong>
   <SayIt phrase={{...phrase,en:''}} size={size}/>
   {phrase.note&&<small className="phrase-note">{phrase.note}</small>}
+  <PhraseReplies phrase={phrase}/>
  </article>;
 }
 // The phrases this person has already been shown, and a way to be shown one more.
@@ -149,6 +151,7 @@ function PhraseDeck({phrases,onList,young=false}){
      <SayIt phrase={{...phrase,en:''}}/>
      <SyncedPhrase phrase={phrase}/>
      {phrase.note&&<p className="callout">{phrase.note}</p>}
+     <PhraseReplies phrase={phrase}/>
     </div>}
   <div className="swipe-controls">
    <button type="button" disabled={at<=0} onClick={()=>move(-1)}><ArrowLeft size={16}/> Back</button>
@@ -238,6 +241,7 @@ export function PhraseOfDay({queue,day,dateLabel,busy,dismiss}){
   <SayIt phrase={{...phrase,en:''}}/>
   <SyncedPhrase phrase={phrase}/>
   {phrase.note&&<p className="callout">{phrase.note}</p>}
+  <PhraseReplies phrase={phrase}/>
   {queue.length>1&&<div className="swipe-controls">
    <button type="button" disabled={index<=0} onClick={()=>move(-1)}><ArrowLeft size={16}/> Back</button>
    <span>Swipe for more</span>

@@ -1023,3 +1023,4 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
    cropped to the photograph across its top and clear of the headline on its left. */
 .stay-photo-guide{background-size:230% auto;background-position:86% 4%;background-repeat:no-repeat}
 .concierge-link{display:flex;align-items:center;gap:.6rem;margin:.8rem 0 0}.concierge-link code{flex:1;min-width:0;font-size:.75rem;color:var(--muted);overflow-wrap:anywhere}
+.phrase-replies{margin:.4rem 0 .8rem;text-align:left}.phrase-replies>summary{cursor:pointer;font-weight:600;font-size:.9rem;padding:.35rem 0;min-height:32px}.phrase-replies ul{list-style:none;margin:.2rem 0 0;padding:0}.phrase-replies li{display:flex;flex-direction:column;gap:.1rem;padding:.5rem 0;border-top:1px solid var(--border)}.phrase-replies li b{font-family:"Hiragino Sans","Yu Gothic","Meiryo",sans-serif;font-size:1rem}.phrase-replies-say{font-style:italic}.phrase-replies li small{color:var(--muted)}

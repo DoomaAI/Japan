@@ -502,3 +502,16 @@ test('Where we are: the family on a map, sharing for a while, and running late o
  assert.match(split,/laneOf\(split,user\.name\)&&day===japanDate\(now\)&&<button type="button" className="split-late"/);
  assert.match(page,/askPhoneWhereItIs\(5\)\);/);assert.match(page,/It is not sent to anyone/,'my own dot stays on this phone');
 });
+test('every phrase in the book says what you are likely to hear back, folded under it',async()=>{
+ const {ALL_PHRASES}=await import('../src/phrasebook-data.js'),{REPLIES,repliesFor}=await import('../src/phrase-replies.js');
+ for(const p of ALL_PHRASES()){
+  const replies=repliesFor(p);
+  assert.ok(replies.length>=2,`${p.id} has at least two likely replies`);
+  for(const x of replies)assert.ok(x.ja&&x.say&&x.en,`${p.id}: each reply has the Japanese, how it sounds and what it means`);
+ }
+ const ids=new Set(ALL_PHRASES().map(p=>p.id));
+ for(const id of Object.keys(REPLIES))assert.ok(ids.has(id),`${id} is a phrase in the book`);
+ const card=await source('TodaysJapan.jsx'),book=await source('Phrasebook.jsx');
+ assert.match(card,/more=\{p=><PhraseReplies phrase=\{p\}\/>\}/,'the Home card folds them out');
+ assert.equal((book.match(/<PhraseReplies phrase=\{phrase\}\/>/g)||[]).length,3,'and so do the sheet, the flashcard and the list');
+});
