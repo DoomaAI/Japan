@@ -42,13 +42,13 @@ export function StepWeather({state,step,steps,compact,pill,onOpen}){
    <small>{w.approx?'Around ':'At '}{hourLabel(w.h)} · {w.local?w.area:`${w.area}, the city forecast`}{w.dark?' · after dark':''}</small></span>
  </p>;
 }
-// The sky now, folded into the top bar's clock so the two take one place: the sky's icon beside the
-// time, the number underneath, and a tap opens the day's weather. With no reading it is just the clock.
+// The sky now, beside the top bar's clock on one line: the time, then the sky's icon and the number,
+// and a tap opens the day's weather. With no reading it is just the clock.
 export function NowWeather({state,day,clock,fallback=null,onOpen}){
  const w=state&&nowWeather(state,day,clock);
  if(!w)return fallback;
  const detail=[`${w.temp}°${w.label?` ${w.label}`:''}`,Number.isFinite(w.rain)&&w.rain>=20?`${w.rain}% rain`:''].filter(Boolean).join(' · ');
- return <button type="button" className="local-clock now-weather" title={detail} aria-label={`${clock} in Japan. Weather now: ${detail}. Open the weather`} onClick={onOpen}><span aria-hidden="true"><SkyIcon icon={w.icon}/></span>{clock}<small>{w.temp}°</small></button>;
+ return <button type="button" className="local-clock now-weather" title={detail} aria-label={`${clock} in Japan. Weather now: ${detail}. Open the weather`} onClick={onOpen}>{clock}<small><span aria-hidden="true"><SkyIcon icon={w.icon}/></span>{w.temp}°</small></button>;
 }
 // The forecast for the days we are actually here, kept in the trip so one phone's lookup
 // serves everyone and the numbers are still on screen with no signal.
