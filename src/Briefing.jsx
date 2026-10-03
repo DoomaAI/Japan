@@ -19,17 +19,11 @@ import {useState} from 'react';
 // Once read, it can be folded to its first two lines (and stays folded on this phone until
 // opened again), or put away for the day, leaving one slim line to bring it back; tomorrow's
 // briefing comes back open on its own.
-export default function Briefing({state,day,today,clock,go,user,mutate,busy,open,settings,change}){
+export default function Briefing({state,day,today,clock,go,user,mutate,busy}){
  const [installed]=useStored('japan.apps.installed',{});
  const [folded,setFolded]=useStored('japan.briefing.folded',false),[putAway,setPutAway]=useStored('japan.briefing.dismissed','');
- // Readiness: the faces fold to one line once everyone has answered, and open again on a tap.
- // It is a breakfast question, so it goes once the first stop is done; it can be folded for
- // the day (on this phone), or turned off altogether in Settings.
- const [minimised,setMinimised]=useStored('japan.readiness.folded','');
- const members=state.members||[],parent=user?.role==='parent',[changing,setChanging]=useState(false);
- const done=answered(state,day,members),low=lowest(state,day),asking=day===today&&(changing||(parent?done.length<members.length:!done.includes(user?.name)));
+ const parent=user?.role==='parent';
  const b=dayBriefing(state,day);if(!b)return null;
- const morning=day===today&&user&&!b.done&&settingOn(settings,'morningCheck');
  const apps=b.apps.filter(a=>!installed[a.id]);
  const span=b.starts&&b.ends&&b.starts!==b.ends?`${b.starts}–${b.ends}`:b.starts||'';
  if(putAway===day)return <button type="button" className="briefing-restore" onClick={()=>setPutAway('')}><ChevronDown size={15}/>Show the day in brief · Day {b.dayNumber} of {b.total}</button>;
@@ -50,8 +44,32 @@ export default function Briefing({state,day,today,clock,go,user,mutate,busy,open
   <WhatToWear state={state} day={day}/>
   {/* A boy reading the kana: the offer to move his reading dial up, for a parent to take or leave. */}
   {parent&&day===today&&<ReadingBumps state={state} today={today} mutate={mutate} busy={busy}/>}
-  {morning&&minimised===day&&<button type="button" className="readiness-restore" onClick={()=>setMinimised('')}><ChevronDown size={15}/>How is everyone this morning?</button>}
-  {morning&&minimised!==day&&<div className="readiness">
+  {b.fixed.length>0&&<ul className="briefing-fixed">{b.fixed.map(f=><li key={f.id}><LockKeyhole size={14}/><b>{f.time}</b> {f.title}</li>)}</ul>}
+  {/* Last night's film, developed at seven: the roll is in. */}
+  {day===today&&rollFor(state,today).length>0&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('photos')}><span aria-hidden="true">🎞️</span>Last night’s roll is in: {rollFor(state,today).length} photo{rollFor(state,today).length===1?'':'s'} from the film.</button>}
+  {/* What the night-before check found and nobody has dealt with yet, one tap from the notes. */}
+  {openNotes(state,day).length>0&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('glance')}><ShieldAlert size={15}/>Checked the night before: {openNotes(state,day)[0].title}{openNotes(state,day).length>1?`, and ${openNotes(state,day).length-1} more`:''}.</button>}
+  {(b.moving||b.last)&&<p className="briefing-note"><BedDouble size={15}/>{b.last?'Last day: everything comes home with us.':`Hotel move today, to ${b.hotel}.`}</p>}
+  {b.clocks&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('homefront')}><Clock size={15}/>{b.clocks.text}</button>}
+  {b.declaration&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('arrival')}><PlaneTakeoff size={15}/>Australia Travel Declaration: fill it in for each of us, within 72 hours of the flight home.</button>}
+  {apps.map(a=><button type="button" key={a.id} className="briefing-note briefing-link" onClick={()=>go('apps')}><Smartphone size={15}/>{a.today?'Needed today':'Tomorrow'}: {a.name}. Not on this phone yet; set it up now.</button>)}
+ </section>;
+}
+// How is everyone this morning: one to five each, asked at breakfast. It sits on Home just above
+// Before we head out, the other thing done before leaving the hotel, rather than in the day in brief.
+// The faces fold to one line once everyone has answered, and open again on a tap.
+// It is a breakfast question, so it goes once the first stop is done; it can be folded for
+// the day (on this phone), or turned off altogether in Settings.
+export function Readiness({state,day,today,user,mutate,busy,open,settings,change}){
+ const [minimised,setMinimised]=useStored('japan.readiness.folded','');
+ const members=state.members||[],parent=user?.role==='parent',[changing,setChanging]=useState(false);
+ const done=answered(state,day,members),low=lowest(state,day),asking=day===today&&(changing||(parent?done.length<members.length:!done.includes(user?.name)));
+ const b=dayBriefing(state,day);if(!b)return null;
+ const morning=day===today&&user&&!b.done&&settingOn(settings,'morningCheck');
+ if(!morning)return null;
+ return <div className="readiness-home">
+  {minimised===day&&<button type="button" className="readiness-restore" onClick={()=>setMinimised('')}><ChevronDown size={15}/>How is everyone this morning?</button>}
+  {minimised!==day&&<div className="readiness">
    <div className="readiness-tools">
     <button type="button" className="icon" aria-label="Fold how is everyone for today" onClick={()=>{setMinimised(day);setChanging(false);}}><ChevronUp size={16}/></button>
     {change&&<button type="button" className="linkish" onClick={()=>change('morningCheck',false)}>Turn off</button>}
@@ -64,16 +82,7 @@ export default function Briefing({state,day,today,clock,go,user,mutate,busy,open
    </>:<button type="button" className="readiness-line" onClick={()=>setChanging(true)}>{members.map(p=><span key={p}>{p} <Feeling level={readinessOf(state,day,p)}/></span>)}</button>}
    {low&&<div className="readiness-low"><p><b>{low.person} is at {low.level} of 5</b>, so the easier version of today is ready before anyone needs it.</p><div className="row wrap"><button type="button" onClick={()=>open?.({type:'tired'})}>Take it easier</button>{parent&&<button type="button" onClick={()=>open?.({type:'reschedule'})}>Adjust the day</button>}</div></div>}
   </div>}
-  {b.fixed.length>0&&<ul className="briefing-fixed">{b.fixed.map(f=><li key={f.id}><LockKeyhole size={14}/><b>{f.time}</b> {f.title}</li>)}</ul>}
-  {/* Last night's film, developed at seven: the roll is in. */}
-  {day===today&&rollFor(state,today).length>0&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('photos')}><span aria-hidden="true">🎞️</span>Last night’s roll is in: {rollFor(state,today).length} photo{rollFor(state,today).length===1?'':'s'} from the film.</button>}
-  {/* What the night-before check found and nobody has dealt with yet, one tap from the notes. */}
-  {openNotes(state,day).length>0&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('glance')}><ShieldAlert size={15}/>Checked the night before: {openNotes(state,day)[0].title}{openNotes(state,day).length>1?`, and ${openNotes(state,day).length-1} more`:''}.</button>}
-  {(b.moving||b.last)&&<p className="briefing-note"><BedDouble size={15}/>{b.last?'Last day: everything comes home with us.':`Hotel move today, to ${b.hotel}.`}</p>}
-  {b.clocks&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('homefront')}><Clock size={15}/>{b.clocks.text}</button>}
-  {b.declaration&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('arrival')}><PlaneTakeoff size={15}/>Australia Travel Declaration: fill it in for each of us, within 72 hours of the flight home.</button>}
-  {apps.map(a=><button type="button" key={a.id} className="briefing-note briefing-link" onClick={()=>go('apps')}><Smartphone size={15}/>{a.today?'Needed today':'Tomorrow'}: {a.name}. Not on this phone yet; set it up now.</button>)}
- </section>;
+ </div>;
 }
 function ReadingBumps({state,today,mutate,busy}){
  const [,redraw]=useState(0);

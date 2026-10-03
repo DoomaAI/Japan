@@ -56,7 +56,7 @@
 /* My menu: the bar in the order it is in, with arrows rather than a drag. */
 .menu-order{list-style:none;margin:.6rem 0 1.1rem;padding:0;display:grid;gap:.4rem}
 .menu-order li{display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;background:var(--paper);border:1px solid var(--border);border-radius:14px}
-.menu-order li>span:nth-child(2){flex:1;min-width:0;display:flex;flex-direction:column;gap:.1rem}
+.menu-order li>span:nth-of-type(2){flex:1;min-width:0;display:flex;flex-direction:column;gap:.1rem}
 .menu-order strong{font-size:.92rem;line-height:1.3}.menu-order small{font-size:.75rem;color:var(--muted);line-height:1.35}
 .menu-buttons{display:flex;gap:.3rem;flex:0 0 auto}
 .menu-buttons button{min-height:38px;padding:.35rem .55rem;font-size:.78rem}
@@ -503,7 +503,7 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .timeline .timeline-done-time input::-webkit-calendar-picker-indicator{display:none}
 .home-customise{display:flex;justify-content:center;margin:1.4rem 0 .4rem}
 .home-widgets li.is-hidden{opacity:.6;background:var(--page)}
-.home-widgets li>span:first-child{flex:1;min-width:0;display:flex;flex-direction:column;gap:.1rem}
+.home-widgets li>span:first-of-type{flex:1;min-width:0;display:flex;flex-direction:column;gap:.1rem}
 .home-widgets li>span.menu-buttons{flex:0 0 auto;flex-direction:row;gap:.3rem}
 .phrase-of-day .say-it>small{display:block;margin:.15rem 0 0}
 .phrase-of-day .hear-row{justify-content:center;margin-top:.8rem}
@@ -1026,3 +1026,9 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .concierge-link{display:flex;align-items:center;gap:.6rem;margin:.8rem 0 0}.concierge-link code{flex:1;min-width:0;font-size:.75rem;color:var(--muted);overflow-wrap:anywhere}
 .phrase-replies{margin:.4rem 0 .8rem;text-align:left}.phrase-replies>summary{cursor:pointer;font-weight:600;font-size:.9rem;padding:.35rem 0;min-height:32px}.phrase-replies ul{list-style:none;margin:.2rem 0 0;padding:0}.phrase-replies li{display:flex;flex-direction:column;gap:.1rem;padding:.5rem 0;border-top:1px solid var(--border)}.phrase-replies li b{font-family:"Hiragino Sans","Yu Gothic","Meiryo",sans-serif;font-size:1rem}.phrase-replies-say{font-style:italic}.phrase-replies li small{color:var(--muted)}
 .reschedule .reschedule-quick{gap:.4rem;margin:-.4rem 0 1rem}.reschedule .reschedule-quick .chip{min-height:40px;padding:.3rem .8rem;cursor:pointer}.reschedule .checkline{font-weight:400;font-size:.88rem;margin-bottom:.8rem}.reschedule-issue{display:block;margin:.6rem 0}.reschedule-issue p{margin:0 0 .5rem}.reschedule-issue .row{gap:.4rem}.reschedule-issue button,.reschedule-select button,.reschedule-controls button{min-height:38px;padding:.3rem .7rem;font-size:.8rem;text-decoration:none;border:1px solid var(--border);border-radius:6px;background:var(--paper)}.callout.reschedule-issue button{text-decoration:none}.reschedule-select{gap:.4rem;align-items:center;font-size:.85rem;margin-top:1rem}.reschedule .reschedule-list{max-height:none}.reschedule-row{padding:.75rem 0;border-bottom:1px solid var(--border)}.reschedule-row .checkline{margin:0 0 .4rem;font-weight:500}.reschedule-row.skipped>.checkline span{text-decoration:line-through;opacity:.6}.reschedule-controls{gap:.5rem;align-items:center;font-size:.85rem}.reschedule-controls strong{min-width:6.6rem}.reschedule-controls .reschedule-from{border:0;background:transparent;padding:.3rem 0;text-decoration:underline;text-underline-offset:3px}.reschedule-length{flex-direction:row;align-items:center;gap:.3rem;margin:0;font-weight:400;font-size:.8rem}.reschedule-length input{width:3.8rem;min-height:38px;padding:.3rem .5rem}.reschedule-fixed{color:var(--muted)}.reschedule-fixed span{display:inline-flex;align-items:center;gap:.3rem}
+/* Customise: a row dragged by its handle lifts above the others while it follows the finger. */
+.menu-order .rank-grip{touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;flex:0 0 auto;min-width:36px;min-height:40px;display:grid;place-items:center;color:var(--muted);margin:-.3rem -.3rem -.3rem -.4rem}
+.menu-order li.held{user-select:none;-webkit-user-select:none;position:relative;z-index:2;box-shadow:0 6px 18px rgba(0,0,0,.18);cursor:grabbing}
+/* Where a carried row will land: a green line between two rows, as on the day at a glance. */
+.menu-order li{position:relative}.menu-order li.drop-before:before,.menu-order li.drop-after:after{content:'';position:absolute;left:0;right:0;border-top:3px solid var(--green);border-radius:2px;pointer-events:none;z-index:3}
+.menu-order li.drop-before:before{top:calc(-.2rem - 2.5px)}.menu-order li.drop-after:after{bottom:calc(-.2rem - 2.5px)}

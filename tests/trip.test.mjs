@@ -1943,7 +1943,7 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
 });
 
 test('Home is a column of widgets each phone orders and puts away for itself',async()=>{
- const {HOME_WIDGETS,HOME_DEFAULT,HOME_OFF,emptyHome,cleanHome,homeOrder,homeShown,homeRuns,moveWidget,toggleWidget}=await import('../src/home-widgets.js');
+ const {HOME_WIDGETS,HOME_DEFAULT,HOME_OFF,emptyHome,cleanHome,homeOrder,homeShown,homeRuns,moveWidget,placeWidget,toggleWidget}=await import('../src/home-widgets.js');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const screen=await readFile(new URL('../src/Personalise.jsx',import.meta.url),'utf8');
  // Untouched, Home shows everything but the day's buttons, with the step we are on first.
@@ -1953,7 +1953,8 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  const ON=HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id));
  assert.deepEqual(HOME_OFF,['countdown','glance','adjust','tired','apps']);
  assert.deepEqual(homeShown(emptyHome()),ON);
- assert.equal(ON[0],'onthisday','an anniversary leads Home, on the days there is one');assert.equal(ON[1],'runup','then the run-up, before we fly');assert.equal(ON[2],'dailyjapan','then a little Japan each day');assert.equal(ON[3],'bookingwindows','then the booking windows about to open');assert.equal(ON[4],'briefing','then the day in brief');assert.equal(ON[5],'todaysphrase','then the phrase of the day');assert.equal(ON[6],'todaysfact','then the fun fact, a card of its own');assert.equal(ON[7],'todaystip','then the tip of the day');assert.equal(ON[8],'step','then the step card');
+ assert.equal(ON[0],'onthisday','an anniversary leads Home, on the days there is one');assert.equal(ON[1],'runup','then the run-up, before we fly');assert.equal(ON[2],'dailyjapan','then a little Japan each day');assert.equal(ON[3],'bookingwindows','then the booking windows about to open');assert.equal(ON[4],'briefing','then the day in brief');assert.equal(ON[5],'step','then the step card');
+ assert.deepEqual(ON.slice(ON.indexOf('nextup'),ON.indexOf('nextup')+4),['nextup','todaysphrase','todaysfact','todaystip'],'the phrase, the fun fact and the tip of the day sit just below what’s next');
  for(const id of HOME_DEFAULT)assert.ok(HOME_WIDGETS[id].label&&HOME_WIDGETS[id].note,id);
  // Moved and put away, and nothing lost: a widget put away is still in the order to come back.
  let prefs=moveWidget(emptyHome(),'weather',-100);
@@ -1969,7 +1970,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.deepEqual(cleanHome({order:['finds','nothing','finds'],hidden:['nothing','step']}),
   {order:HOME_DEFAULT,hidden:['step',...HOME_OFF],shown:[]});
  const arranged=homeOrder({order:['weather','briefing',...HOME_DEFAULT.filter(id=>!['weather','briefing','todaysphrase'].includes(id))]});
- assert.deepEqual(arranged.slice(0,3),['weather','briefing','todaysphrase'],'a new widget lands beside its neighbour, not at the foot');
+ assert.equal(arranged.indexOf('todaysphrase'),arranged.indexOf('nextup')+1,'a new widget lands beside its neighbour, not at the foot');
  assert.equal(arranged.length,HOME_DEFAULT.length);
  for(const rubbish of [null,undefined,'x',{order:'x'},{hidden:'step'}])
   assert.deepEqual(homeShown(rubbish),ON,JSON.stringify(rubbish));
@@ -1992,6 +1993,21 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.match(main,/onClick=\{\(\)=>go\('personalise'\)\}>Customise Home<\/Button>/);
  assert.match(screen,/<HomeWidgets home=\{home\} setHome=\{setHome\} held=\{held\}\/>/);
  assert.match(screen,/setHome\(emptyHome\(\)\)/);
+ // Dragged by its handle: a widget lands where it is dropped and the rest close up behind it.
+ const dropped=homeOrder(placeWidget(emptyHome(),'needs',0));
+ assert.equal(dropped[0],'needs');assert.equal(dropped.length,HOME_DEFAULT.length);
+ assert.deepEqual(dropped.slice(1),HOME_DEFAULT.filter(id=>id!=='needs'));
+ const down=homeOrder(placeWidget(emptyHome(),'briefing',HOME_DEFAULT.indexOf('step')));
+ assert.equal(down.indexOf('briefing'),down.indexOf('step')+1,'dropped on the row below, it takes that row’s place');
+ assert.deepEqual(homeOrder(placeWidget(emptyHome(),'nope',0)),HOME_DEFAULT,'an unknown widget moves nothing');
+ assert.deepEqual(homeOrder(placeWidget(emptyHome(),'step',99)),HOME_DEFAULT,'nor does a drop off the end');
+ assert.equal((screen.match(/\{grip\(id,/g)||[]).length,2,'a handle on every row, Home and the bar alike');
+ // As on the day at a glance: a hold before a finger lifts the row, and it lands on the line between rows.
+ assert.match(screen,/const HOLD=220,SLOP=8,END=':end';/);
+ assert.match(screen,/if\(e\.pointerType==='mouse'\)lift\(d\);else d\.timer=setTimeout\(\(\)=>\{if\(drag\.current===d\)lift\(d\);\},HOLD\);/,'a finger holds first; a mouse lifts at once');
+ assert.match(screen,/if\(Math\.hypot\(e\.clientX-d\.x,e\.clientY-d\.y\)>SLOP\)letGo\(\);return;/,'a thumb scrolling past the handle carries on scrolling');
+ assert.match(screen,/row\.parentElement\.querySelectorAll\(':scope>\[data-drag-id\]'\)/,'only a row of the same list counts');
+ assert.match(screen,/gap===id&&'drop-before',gap===END&&id===list\.at\(-1\)&&'drop-after'/,'the green line shows where it lands');
 });
 
 test('Days is the Itinerary, and Plan holds today with the whole trip one switch away',async()=>{
@@ -10895,7 +10911,7 @@ test('before we head out is a list built for the day, ticked fresh each morning,
  }finally{globalThis.localStorage=saved;}
  const widget=await readFile(new URL('../src/Morning.jsx',import.meta.url),'utf8');
  assert.match(widget,/if\(day!==today\|\|closed\)return null/,'a closed checklist draws nothing');
- assert.match(main,/needs:<MorningChecklist key=\{day\} state=\{visibleState\} day=\{day\} today=\{japanDate\(now\)\}\/>/,'the widget slot is the checklist');
+ assert.match(main,/needs:<><Readiness [^>]*\/><MorningChecklist key=\{day\} state=\{visibleState\} day=\{day\} today=\{japanDate\(now\)\}\/><\/>/,'the widget slot is how everyone is, then the checklist');
 });
 test('the shopping list groups by the shop we will be standing in, or the day we will be there',async()=>{
  const {groupShopping,shopKey,shopLabel}=await import('../src/shopping-groups.js');

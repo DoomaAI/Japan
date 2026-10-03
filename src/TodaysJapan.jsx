@@ -5,8 +5,8 @@ import {phraseForDay} from './phrasebook-data.js';
 import {dragTurn,dragAxis,stepIndex} from './swipe.js';
 import PhraseReplies from './PhraseReplies.jsx';
 import {HomeBarSlot} from './home-bar.js';
-// The phrase of the day, the fun fact of the day and the tip of the day, each a Home card of its own under the day
-// in brief. Being Home cards, each folds to its label or is put away until tomorrow from its own
+// The phrase of the day, the fun fact of the day and the tip of the day, each a Home card of its own under What’s
+// next. Being Home cards, each folds to its label or is put away until tomorrow from its own
 // bar, and either can be taken off Home for good under Customise — one without the others.
 // Each swipes through its queue — the day's own first, then the ones this person has not met —
 // so another is a flick away without opening anything: the card itself is swiped, the arrows
