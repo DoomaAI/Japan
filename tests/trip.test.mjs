@@ -12198,5 +12198,10 @@ test('the top bar keeps to a few things: the weather sits in the clock, and a re
  // The heart is there only until the note is read; after that the family panel keeps it.
  assert.match(topbar,/\{noteForMe&&!noteRead&&<button className="icon thank-you-button"/);
  assert.match(main,/<Family [^>]*note=\{noteForMe\}[^>]*onNote=\{\(\)=>setModal\(\{type:'thankyou',note:noteForMe\}\)\}/);
+ // Search leaves the bar on a phone, where More and the Concierge still reach it; a wider screen keeps it.
+ assert.match(topbar,/\{!conciergeButton&&<button className="icon top-search" aria-label="Search everything"/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/@media\(max-width:600px\)\{[^@]*\.topbar \.top-search\{display:none\}/);
+ assert.match(await readFile(new URL('../src/nav-data.js',import.meta.url),'utf8'),/\['Housekeeping',\[[^\]]*'search'/);
  assert.match(main,/\{note&&<Button className="family-note" icon=\{Heart\} onClick=\{onNote\}>/);
 });

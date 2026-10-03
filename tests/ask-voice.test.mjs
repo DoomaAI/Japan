@@ -90,7 +90,7 @@ test('the assistant is a button on every page, switched on by default and off pe
  // it is the Concierge's bell; elsewhere it only finds. Put away, the top bar's magnifier returns.
  assert.match(main,/const canAsk=!!\(config\?\.ask&&isAvailable\('ask'\)\);\n const conciergeButton=!!\(user&&settingOn\(settings,'voiceAssistant'\)\);/);
  assert.match(main,/\{conciergeButton&&tab!=='ask'&&!modal&&<ConciergeButton canAsk=\{canAsk\} open=\{listen=>setModal\(\{type:'assistant',listen\}\)\}\/>\}/,'not over Ask or a sheet');
- assert.match(main,/\{!conciergeButton&&<button className="icon" aria-label="Search everything"/,'the magnifier only when the corner button is put away');
+ assert.match(main,/\{!conciergeButton&&<button className="icon top-search" aria-label="Search everything"/,'the magnifier only when the corner button is put away');
  assert.match(main,/modal\.type==='assistant'&&<AskTrip assistant canAsk=\{canAsk\} listen=\{!!modal\.listen\} find=/);
  assert.match(main,/className="assistant-fab" aria-label=\{canAsk\?'Concierge[^']*':'Find[^']*'\}[\s\S]*?\{canAsk\?<><ConciergeBell size=\{24\}\/><span className="assistant-fab-mic"[^\n]*:<Search size=\{24\}\/>\}/,'the bell with the microphone on it, or a magnifier where it only finds');
  // A tap opens it to type; held, a deep link or the AirPods open it listening.
