@@ -85,3 +85,19 @@ export function etiquetteFor(step,city=''){
  return out;
 }
 export const findEtiquette=id=>ETIQUETTE.find(e=>e.id===id)||null;
+// The same manners as single tips, one card each, for the opening screen, Home and the run-up:
+// the grown-up lines, or the boys' shorter ones for a young reader. Each keeps where it applies
+// as its label, so a card reads "At a shrine" over the line itself. The escalator goes in as
+// both cities, since a tip read over breakfast is not tied to one stop.
+const ESCALATOR={id:'escalator',label:'On the escalator',icon:'↕️',
+ grown:['Tokyo stands on the left and walks on the right; Osaka the other way round. Kyoto mostly stands left, but follow whoever is in front.'],
+ boys:['Stand on one side of the escalator, the same side as everyone in front, and hold the rail.']};
+const tipsOf=(rule,young)=>(young?rule.boys:rule.grown).map((text,i)=>({id:`${rule.id}-${i}`,label:rule.label,icon:rule.icon,text}));
+export const ALL_ETIQUETTE=(young=false)=>[...ETIQUETTE,ESCALATOR].flatMap(r=>tipsOf(r,young));
+// The tips for a day: what its own stops call for first, in the order of the stops, then every
+// other tip, so the day's shrine or onsen comes round before the taxi door.
+export function etiquetteForDay(steps=[],city='',young=false){
+ const today=[...new Map(steps.flatMap(s=>etiquetteFor(s,city)).map(r=>[r.id,r])).values()].flatMap(r=>tipsOf(r,young));
+ const ids=new Set(today.map(t=>t.id));
+ return [...today,...ALL_ETIQUETTE(young).filter(t=>!ids.has(t.id))];
+}

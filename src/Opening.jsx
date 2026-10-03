@@ -2,7 +2,8 @@
 // so the first thing anyone sees is the book Lauren made, with the day's count over it. It can
 // be a blink on hotel Wi-Fi or twenty seconds on a train, so there is something to do in the
 // wait: petals fall across the cover and a tap catches one, and the facts from today's guide
-// pages turn over one by one, taking turns with a Japanese word from the phrasebook. Every
+// pages turn over one by one, taking turns with a Japanese word from the phrasebook and a line
+// of etiquette. Every
 // open starts on the next card along, and on the other kind from last time, so the wait never
 // opens on the same thing twice. Everything here is on the phone already — the cover is in the
 // offline shell, the facts are in the bundle, the dates are in the last saved copy — so it
@@ -10,13 +11,14 @@
 //
 // When the trip has come in, the screen stays until the card on it has had its full time, so
 // nobody loses a fact halfway through reading it; a tap on the card, or Skip in the corner, skips
-// the rest. Which cards come round — facts and words, one or the other, or none — is chosen at the
-// foot of the screen and under Customise. With none, the trip opens the moment it is ready.
+// the rest. Which cards come round — facts, words and etiquette, any of them, or none — is
+// chosen in Settings and under Customise. With none, the trip opens the moment it is ready.
 import React,{useEffect,useRef,useState} from 'react';
-import {readTips,showsFacts,showsWords} from './opening-tips.js';
+import {readTips,showsFacts,showsWords,showsEtiquette} from './opening-tips.js';
 import {tripCountdown,japanDate} from './timing.js';
 import {factsForDay,ANYTIME_FACTS} from './fact-data.js';
 import {phraseForDay,ORDERED_PHRASES} from './phrasebook-data.js';
+import {etiquetteForDay} from './etiquette-data.js';
 import {reducedMotion as calm} from './browser.js';
 
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
@@ -30,7 +32,8 @@ const petal=(first=false)=>({id:nextId++,left:Math.random()*96,size:14+Math.rand
 const PETALS=12;
 
 // Today's facts first when today is a trip day, then the ones that fit any day; and the same
-// for words, today's phrase from the daily rota first, then the rest of the book.
+// for words, today's phrase from the daily rota first, then the rest of the book. Etiquette has
+// no stops to go on here, so it is every tip in the order the book keeps them.
 function factsNow(days){
  const today=factsForDay(days||[],japanDate()),rest=ANYTIME_FACTS().filter(f=>!today.includes(f));
  return [...today,...rest].map(f=>({...f,kind:'fact'}));
@@ -39,21 +42,24 @@ function wordsNow(days){
  const today=days?.length?phraseForDay(days,japanDate()):null,all=ORDERED_PHRASES();
  return [...(today?[today]:[]),...all.filter(p=>p.id!==today?.id)].map(p=>({...p,kind:'word'}));
 }
-// Where the last open got to: the next fact, the next word, and which kind goes first. A new
-// day starts both lists again from the top, so today's own cards come round first.
+const etiquetteNow=()=>etiquetteForDay().map(t=>({...t,kind:'etiquette'}));
+// Where the last open got to: the next card of each kind, and which kind goes first. A new
+// day starts every list again from the top, so today's own cards come round first.
 const PLACE='japan.opening.place';
 // Whether this phone has ever swiped a card; until it has, the card nudges aside once to show it can.
 const SWIPED='japan.opening.swiped';
+const KINDS=['fact','word','etiquette'];
 // A kind switched off is left out of the deck but keeps its place, so turning it back on carries
-// on from where it was.
-function deckNow(days,tips='both'){
- const facts=factsNow(days),words=wordsNow(days),date=japanDate();
- let {date:was,fact=0,word=0,first='fact'}=read(PLACE,{})||{};
- if(was!==date){fact=0;word=0;}
- const order=first==='word'?[words,facts]:[facts,words],at=first==='word'?[word,fact]:[fact,word],deck=[];
- const on=first==='word'?[showsWords(tips),showsFacts(tips)]:[showsFacts(tips),showsWords(tips)];
- for(let i=0;i<Math.max(facts.length,words.length);i++)order.forEach((list,k)=>{if(on[k]&&list.length)deck.push(list[(at[k]+i)%list.length]);});
- return {deck,facts:facts.length,words:words.length,fact,word,first};
+// on from where it was. The kinds take turns, starting from the one that goes first this time.
+function deckNow(days,tips=['facts','words','etiquette']){
+ const lists={fact:factsNow(days),word:wordsNow(days),etiquette:etiquetteNow()},date=japanDate();
+ const on={fact:showsFacts(tips),word:showsWords(tips),etiquette:showsEtiquette(tips)};
+ const saved=read(PLACE,{})||{},fresh=saved.date!==date;
+ const start=Object.fromEntries(KINDS.map(k=>[k,fresh?0:saved[k]||0]));
+ const first=KINDS.includes(saved.first)?saved.first:'fact',order=[...KINDS.slice(KINDS.indexOf(first)),...KINDS.slice(0,KINDS.indexOf(first))];
+ const deck=[],longest=Math.max(...KINDS.map(k=>lists[k].length));
+ for(let i=0;i<longest;i++)order.forEach(k=>{const list=lists[k];if(on[k]&&list.length)deck.push(list[(start[k]+i)%list.length]);});
+ return {deck,sizes:Object.fromEntries(KINDS.map(k=>[k,lists[k].length])),start,first};
 }
 
 // Where the card sits in the deck, as dots under it: five at most, the current one long, and the
@@ -98,7 +104,7 @@ function Petals({onCatch}){
 
 export default function Opening({days,ready=false,onDone}){
  const [tips]=useState(readTips);
- const [{deck,facts,words,fact:f0,word:w0,first},setDeck]=useState(()=>deckNow(days,tips));
+ const [{deck,sizes,start,first}]=useState(()=>deckNow(days,tips));
  const [at,setAt]=useState(0);
  // The card's time running out while the trip is still loading moves on to the next card; once
  // it is ready, it opens the trip instead. A lone card that ran out early opens it on arrival.
@@ -112,11 +118,11 @@ export default function Opening({days,ready=false,onDone}){
   const t=setTimeout(()=>{if(readyRef.current)finish();else if(deck.length>1)setAt(i=>(i+1)%deck.length);else ended.current=true;},8000);
   return()=>clearTimeout(t);},[at,deck]);
  // Every card put on screen counts as seen, so the next open starts on the one after the last
- // fact and the last word shown here, and leads with the other kind.
+ // card of each kind shown here, and leads with the next kind along.
  useEffect(()=>{
-  const shown=deck.slice(0,at+1),f=shown.filter(c=>c.kind==='fact').length,w=shown.filter(c=>c.kind==='word').length;
   if(!deck.length)return;
-  write(PLACE,{date:japanDate(),fact:facts?(f0+f)%facts:0,word:words?(w0+w)%words:0,first:first==='word'?'fact':'word'});
+  const shown=deck.slice(0,at+1),place=Object.fromEntries(KINDS.map(k=>[k,sizes[k]?(start[k]+shown.filter(c=>c.kind===k).length)%sizes[k]:0]));
+  write(PLACE,{date:japanDate(),...place,first:KINDS[(KINDS.indexOf(first)+1)%KINDS.length]});
  },[at,deck]);
  const next=()=>ready?finish():setAt(i=>(i+1)%deck.length);
  // The card is also a deck to thumb through: a swipe left brings the next card and a swipe right
@@ -163,6 +169,12 @@ export default function Opening({days,ready=false,onDone}){
      <strong key={`t${card.id}`}>{card.en}</strong>
      <span key={`j${card.id}`} className="opening-word-ja" lang="ja">{card.ja}</span>
      <span key={`x${card.id}`} className="opening-fact-text">“{card.say}”{card.note?<> · {card.note}</>:null}</span>
+     <i key={`b${at}${tips}`} className="opening-fact-timer" aria-hidden="true"/>
+    </button>}
+    {card.kind==='etiquette'&&<button className="opening-fact opening-etiquette" {...swipe} aria-roledescription="card" aria-label={`Etiquette, ${card.label}: ${card.text} ${ready?'Tap to go in.':'Tap for another.'} Swipe or use the arrow keys for more.`}>
+     <span className="opening-fact-top"><span>{card.icon}</span><small>ETIQUETTE</small></span>
+     <strong key={`t${card.id}`}>{card.label}</strong>
+     <span key={`x${card.id}`} className="opening-fact-text">{card.text}</span>
      <i key={`b${at}${tips}`} className="opening-fact-timer" aria-hidden="true"/>
     </button>}
     {deck.length>1&&<Dots at={at} of={deck.length}/>}
