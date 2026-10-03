@@ -750,7 +750,7 @@ function App(){
   bookingwindows:<BookingWindowsCard state={visibleState} now={now} go={go}/>,
   runup:<RunUp state={visibleState} today={japanDate(now)} go={go}/>,
   onthisday:<OnThisDay state={visibleState} today={japanDate(now)} dayLabel={fmtDay} go={go}/>,
-  briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go} user={user} mutate={mutate} busy={busy} open={setModal}/>,
+  briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go} user={user} mutate={mutate} busy={busy} open={setModal} settings={settings} change={changeSetting}/>,
   todaysphrase:<TodaysPhrase state={visibleState} day={day} queue={day===dayOnTrip&&settingOn(settings,'dailyPhrase')?phraseQueue(visibleState,user.name,dayOnTrip):null} fresh={!phraseDone} open={(p,at)=>at?setModal({type:'phrase',queue:phraseQueue(visibleState,user.name,dayOnTrip).slice(at),day:dayOnTrip}):openPhrase()} go={go}/>,
   todaysfact:<TodaysFact queue={day===dayOnTrip&&todaysFact&&settingOn(settings,'dailyFact')?factQueue(visibleState,user.name,dayOnTrip):null} fresh={!factDone} open={(f,at)=>at?setModal({type:'fact',day:dayOnTrip,from:f.id}):openFact()}/>,
   needs:<MorningChecklist key={day} state={visibleState} day={day} today={japanDate(now)}/>,

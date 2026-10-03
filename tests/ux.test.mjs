@@ -413,7 +413,9 @@ test('readiness at breakfast: one to five each, a parent for anyone, and under t
  assert.equal(lowest(s,'2026-10-02'),null,'three is fine');
  const brief=await source('Briefing.jsx');
  assert.match(brief,/open\?\.\(\{type:'tired'\}\)/,'the easier day is one tap away');
- assert.match(brief,/mutate\(\{type:'readinessSet',day,person:p,level:r\.level\}\)/);
+ assert.match(brief,/mutate\(\{type:'readinessSet',day,person:p,level:r\.level\}\)/); assert.match(brief,/const morning=day===today&&user&&!b\.done&&settingOn\(settings,'morningCheck'\)/,'gone once the first stop is done, or when turned off');
+ assert.match(brief,/setMinimised\(day\)/,'folded for the day on a tap');
+ assert.match(brief,/change\('morningCheck',false\)/,'turned off from the card itself');
 });
 test('runway: at this pace the budget lasts, or runs out on a weekday; round-ups go to the keepsake fund',async()=>{
  const {runway,spendPace,biggestCategory}=await import('../src/runway-data.js');

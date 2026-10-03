@@ -40,6 +40,11 @@ export const SETTINGS=[
  {id:'matchaNearby',label:'Matcha nearby',group:'out',default:false,
   on:'While the app is open, the phone buzzes and says so when you come within the distance below of one of our matcha places: the ones marked matcha on our map list, and the Matcha hunt finds with a pin, a stop or a place. Each place once a day. With notifications allowed, it shows on the screen too if the app has just been put away.',
   off:'Nothing watches where you are for matcha. The places are still on our map list and the Matcha hunt.'},
+ // On by default: the faces on the day in brief each morning. It folds away by itself once the
+ // first stop is done, can be folded for the day, and off here it stays off on this phone.
+ {id:'morningCheck',label:'How is everyone this morning?',group:'home',
+  on:'Five faces each on the day in brief until the first stop is done, then it tidies itself away. Fold it for the day with the arrow.',
+  off:'No faces on the day in brief. Take it easier and Adjust the day are still on the day itself.'},
  // Closed until asked for, so a route card stays short; tapping a line's name opens it either way.
  {id:'routeLookOpen',label:'Show what to look for',group:'route',default:false,
   on:'Each train, subway and bus on a route card opens with what to look for to find it. Tap the line’s name to close it.',
