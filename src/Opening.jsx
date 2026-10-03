@@ -13,7 +13,7 @@
 // the rest. Which cards come round — facts and words, one or the other, or none — is chosen at the
 // foot of the screen and under Customise. With none, the trip opens the moment it is ready.
 import React,{useEffect,useRef,useState} from 'react';
-import {TIP_OPTIONS,readTips,writeTips,showsFacts,showsWords} from './opening-tips.js';
+import {readTips,showsFacts,showsWords} from './opening-tips.js';
 import {tripCountdown,japanDate} from './timing.js';
 import {factsForDay,ANYTIME_FACTS} from './fact-data.js';
 import {phraseForDay,ORDERED_PHRASES} from './phrasebook-data.js';
@@ -97,7 +97,7 @@ function Petals({onCatch}){
 }
 
 export default function Opening({days,ready=false,onDone}){
- const [tips,setTips]=useState(readTips);
+ const [tips]=useState(readTips);
  const [{deck,facts,words,fact:f0,word:w0,first},setDeck]=useState(()=>deckNow(days,tips));
  const [at,setAt]=useState(0);
  // The card's time running out while the trip is still loading moves on to the next card; once
@@ -140,7 +140,6 @@ export default function Opening({days,ready=false,onDone}){
  const tap=()=>{if(dragged.current){dragged.current=false;return;}next();};
  const keys=e=>{if(e.key==='ArrowRight'){e.preventDefault();go(1);}else if(e.key==='ArrowLeft'){e.preventDefault();go(-1);}};
  const swipe={ref:cardRef,onClick:tap,onKeyDown:keys,onPointerDown:down,onPointerMove:move,onPointerUp:up,onPointerCancel:up};
- const choose=v=>{const t=writeTips(v);setTips(t);setDeck(deckNow(days,t));setAt(0);};
  const onCatch=()=>{setCount(n=>n+1);setTotal(n=>{write('japan.petals',n+1);return n+1;});};
  const card=deck[at];
  return <main className={`opening${still?' still':''}`}>
@@ -170,8 +169,6 @@ export default function Opening({days,ready=false,onDone}){
    </div>}
     <div className={`opening-track${ready?' ready':''}`} role="status"><span className="opening-rail" aria-hidden="true"><Train/></span>
      <span>{ready?'Your trip is ready':'Opening your family trip…'}</span></div>
-    <label className="opening-tips">
-     <select aria-label="Tips while it opens" value={tips} onChange={e=>choose(e.target.value)}>{TIP_OPTIONS.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
    </div>
   </div>
  </main>;

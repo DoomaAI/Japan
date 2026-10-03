@@ -49,8 +49,8 @@ export default function Personalise({user,prefs,setPrefs,home,setHome,held=[]}){
    <RotateCcw size={16}/> Start again</button>
  </>;
 }
-// What the opening screen shows while the trip loads. The same choice is on the opening screen.
-function OpeningTips(){
+// What the opening screen shows while the trip loads. Used here and in Settings.
+export function OpeningTips(){
  const [tips,setTips]=React.useState(readTips);
  return <>
   <h2>While the app opens</h2>

@@ -97,7 +97,6 @@
 :root[data-look=washi] .opening .opening-countdown span{color:#ece2cc;font-weight:400;letter-spacing:.24em}
 :root[data-look=washi] :is(.opening-fact small,.opening-catch){color:#e3d4b2;font-weight:400}
 :root[data-look=washi] .opening-fact-timer{height:1px;background:#d9c69a}
-:root[data-look=washi] .opening-tips select{border-radius:2px}
 /* The house hover tints a button paper-pale, which a phone keeps after a tap; on the opening the
    card and Skip sit over the photograph in white type, so they keep their own dark dress. */
 :root[data-look=washi] .opening .opening-fact:hover{background:#10201ae6;border-color:#ffffff55}

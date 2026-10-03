@@ -1,6 +1,6 @@
 // What the opening screen shows while the trip comes in: the guide's facts and a Japanese word
-// taking turns, only one of the two, or nothing but the cover and the count. It is chosen on
-// the opening screen itself and again under Customise, and kept on this phone only.
+// taking turns, only one of the two, or nothing but the cover and the count. It is chosen in
+// Settings and under Customise, and kept on this phone only.
 export const TIP_KEY='japan.opening.tips';
 export const TIP_OPTIONS=[
  {id:'both',label:'Facts and words'},
