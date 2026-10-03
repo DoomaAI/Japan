@@ -3,9 +3,9 @@ import {ChevronLeft,ChevronRight} from 'lucide-react';
 import {phraseForDay} from './phrasebook-data.js';
 import {swipeDelta,isControl,stepIndex} from './swipe.js';
 import PhraseReplies from './PhraseReplies.jsx';
-// The phrase of the day and the fun fact of the day, each a Home card of its own under the day
+// The phrase of the day, the fun fact of the day and the tip of the day, each a Home card of its own under the day
 // in brief. Being Home cards, each folds to its label or is put away until tomorrow from its own
-// bar, and either can be taken off Home for good under Customise — one without the other.
+// bar, and either can be taken off Home for good under Customise — one without the others.
 // Each swipes through its queue — the day's own first, then the ones this person has not met —
 // so another is a flick away without opening anything: the card itself is swiped, the arrows
 // tucked into its heading for anyone who would rather tap. Swiping only looks: nothing is logged
@@ -44,10 +44,13 @@ function SwipeCard({eyebrow,items,render,open,fresh,more}){
    </span>}
   </p>
   <div className={`todays-card-body${drag?' dragging':''}`} style={drag?{transform:`translateX(${drag}px)`}:undefined}>
-   <button type="button" className="todays-japan-row" onClick={()=>open(item,at)} aria-label={`${render(item).label}. Tap to open.`}>
+   {open?<button type="button" className="todays-japan-row" onClick={()=>open(item,at)} aria-label={`${render(item).label}. Tap to open.`}>
     <span aria-hidden="true">{item.icon}</span>
     {render(item).body}
-   </button>
+   </button>:<div className="todays-japan-row" aria-label={render(item).label}>
+    <span aria-hidden="true">{item.icon}</span>
+    {render(item).body}
+   </div>}
    {more?.(item)}
   </div>
  </div>;
@@ -64,4 +67,11 @@ export function TodaysFact({queue=null,fresh=false,open}){
  if(!queue?.length)return null;
  return <SwipeCard eyebrow="Fun fact of the day" items={queue} fresh={fresh} open={open}
   render={f=>({label:`${f.title}. ${f.text}`,body:<span><b>{f.title}</b><small className="todays-card-text">{f.text}</small></span>})}/>;
+}
+// The tip has nothing to open or log: the whole tip is on the card. The day's own pages and stops
+// come first (the deer at Nara, the Shinkansen, a shrine), then the rest of the book.
+export function TodaysTip({tips=null}){
+ if(!tips?.length)return null;
+ return <SwipeCard eyebrow="Tip of the day" items={tips}
+  render={t=>({label:`${t.group}: ${t.title}. ${t.text}`,body:<span><b>{t.title}</b><small className="todays-card-text">{t.text}</small></span>})}/>;
 }

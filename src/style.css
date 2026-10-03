@@ -1004,10 +1004,9 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 
 /* Once the trip is ready the screen waits for the card to finish; Skip, which only appears then,
    goes straight in. It is just the word, pale on a dark halo so it reads against the sky and the
-   blossom, in the top corner with a full-size tap target. The tips choice sits quietly at the foot
-   so it is there without competing with the card. */
+   blossom, in the top corner with a full-size tap target. */
 .opening-track.ready{color:inherit}.opening-skip{position:absolute;z-index:4;top:calc(6px + env(safe-area-inset-top));right:6px;min-height:44px;min-width:44px;padding:.5rem .9rem;font-size:1rem;font-weight:600;letter-spacing:.1em;color:inherit;background:none;border:0;text-shadow:0 0 3px #000f,0 1px 12px #000f;cursor:pointer}.opening-skip:hover{background:none;text-decoration:underline;text-underline-offset:4px}
-.opening .opening-tips{display:flex;flex-direction:row;align-items:center;gap:.5rem;margin:0;font-size:.75rem;letter-spacing:.06em;color:#ffffffcc}.opening-tips select{width:auto;min-height:0;padding:.2rem 1.6rem .2rem .55rem;font-size:.8rem;color:inherit;background-color:#10201acc;border:1px solid #ffffff40;border-radius:8px}.opening-tips option{color:initial}
+
 /* A button, or a row of them, set straight on a page, a section or a card keeps a clear gap from
    whatever follows it. :where() keeps this at no weight, so anything that sets its own margins wins. */
 :where(main,main section,main article)>:where(button:not([class]),button.primary,button.danger,a.button,.row.wrap):where(:not(:last-child)){margin-bottom:.9rem}

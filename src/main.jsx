@@ -11,7 +11,7 @@ import {Challenges,Shopping,SpeakRules,useReadAloud} from './AdventurePages.jsx'
 import Shortlist,{DayFinds} from './Shortlist.jsx';
 import {NextUp,RunningLate,OfflineReadiness,Updates} from './HomeFeatures.jsx';
 import {ThankYouNote,ThankYouEditor} from './ThankYou.jsx';
-import {readingHelp,awarenessAllows,heldBack,gentleOnly} from './child-levels.js';
+import {readingHelp,awarenessAllows,heldBack,gentleOnly,isChild} from './child-levels.js';
 import {handedUser,readHanded,writeHanded} from './hand-over.js';
 import {HandedBanner} from './HandOver.jsx';
 import TicketViewer from './TicketViewer.jsx';
@@ -56,7 +56,8 @@ import Tonight from './Tonight.jsx';
 import OnThisDay from './OnThisDay.jsx';
 import RunUp from './RunUp.jsx';
 import DailyJapan from './DailyJapan.jsx';
-import {TodaysPhrase,TodaysFact} from './TodaysJapan.jsx';
+import {TodaysPhrase,TodaysFact,TodaysTip} from './TodaysJapan.jsx';
+import {tipsForDay} from './tip-data.js';
 import LikeALocalCard from './LikeALocalCard.jsx';
 import TravelGuide from './TravelGuide.jsx';
 import DayMap from './DayMap.jsx';
@@ -769,6 +770,7 @@ function App(){
   briefing:<Briefing state={visibleState} day={day} today={japanDate(now)} clock={japanClock(now)} go={go} user={user} mutate={mutate} busy={busy} open={setModal} settings={settings} change={changeSetting}/>,
   todaysphrase:<TodaysPhrase state={visibleState} day={day} queue={day===dayOnTrip&&settingOn(settings,'dailyPhrase')?phraseQueue(visibleState,user.name,dayOnTrip):null} fresh={!phraseDone} open={(p,at)=>at?setModal({type:'phrase',queue:phraseQueue(visibleState,user.name,dayOnTrip).slice(at),day:dayOnTrip}):openPhrase()} go={go}/>,
   todaysfact:<TodaysFact queue={day===dayOnTrip&&todaysFact&&settingOn(settings,'dailyFact')?factQueue(visibleState,user.name,dayOnTrip):null} fresh={!factDone} open={(f,at)=>at?setModal({type:'fact',day:dayOnTrip,from:f.id}):openFact()}/>,
+  todaystip:<TodaysTip tips={day===dayOnTrip?tipsForDay(visibleState.days,dayOnTrip,stepsFor(visibleState,dayOnTrip,user.name),isChild(visibleState,user.name)):null}/>,
   needs:<MorningChecklist key={day} state={visibleState} day={day} today={japanDate(now)}/>,
   step:<>
    {groups.length>0&&<div className="option-bar">{groups.map(g=><div key={g} className="option-group"><label>Choose a plan<select disabled={!parent||busy} value={state.choices[g]||''} onChange={e=>mutate({type:'choose',group:g,option:e.target.value})}>{[...new Set(state.steps.filter(s=>s.group===g).map(s=>s.option))].map(o=><option key={o}>{o}</option>)}</select></label>{/* The same options, all at once by different people, rather than one of them for everybody. */}{parent&&new Set(state.steps.filter(s=>s.group===g).map(s=>s.option)).size>1&&<button type="button" className="split-toggle" disabled={busy} onClick={()=>mutate({type:'groupMode',group:g,mode:'split'})}>We split up and do both</button>}</div>)}</div>}

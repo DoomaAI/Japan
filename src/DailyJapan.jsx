@@ -2,10 +2,12 @@ import React from 'react';
 import {Check} from 'lucide-react';
 import {dailyJapan} from './daily-japan-data.js';
 import SayIt from './SayIt.jsx';
+import {isChild} from './child-levels.js';
 // The A little Japan each day widget: before we fly, one phrase to say and one fact to read,
-// each ticked off into the same logs the trip's own phrase and fact of the day use.
+// each ticked off into the same logs the trip's own phrase and fact of the day use, and one
+// practical tip, which is only to read.
 export default function DailyJapan({state,user,today,mutate,busy}){
- const d=dailyJapan(state,today,user?.name);if(!d)return null;
+ const d=dailyJapan(state,today,user?.name,isChild(state,user?.name));if(!d)return null;
  const person=user?.name,member=state.members.includes(person);
  const learnt=()=>mutate({type:'phraseSeen',person,day:null,phraseIds:[d.phrase.id]});
  const read=()=>mutate({type:'factSeen',person,day:null,factIds:[d.fact.id]});
@@ -19,6 +21,9 @@ export default function DailyJapan({state,user,today,mutate,busy}){
   {d.fact&&<div className="daily-japan-part">
    <strong><span aria-hidden="true">{d.fact.icon}</span> {d.fact.title}</strong><p>{d.fact.text}</p>
    {member&&(d.factRead?<p className="daily-japan-done"><Check size={15}/> Read</p>:<button type="button" disabled={busy} onClick={read}>Got it</button>)}
+  </div>}
+  {d.tip&&<div className="daily-japan-part">
+   <strong><span aria-hidden="true">{d.tip.icon}</span> {d.tip.title}</strong><p>{d.tip.text}</p>
   </div>}
  </section>;
 }

@@ -3,7 +3,7 @@ import PageTitle from './PageTitle.jsx';
 import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell,Coffee,Smile} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
-import {BarShortcuts,HomeWidgets} from './Personalise.jsx';
+import {BarShortcuts,HomeWidgets,OpeningTips} from './Personalise.jsx';
 import {CARD_LINKS,linkOrder,stepLink} from './card-links.js';
 import {DEEP_LINKS,deepLinkUrl} from './deep-links.js';
 import {THEMES,readTheme,saveTheme,applyTheme,LOOKS,LOOK_CHOICES,readLook,saveLook,applyLook} from './theme.js';
@@ -360,6 +360,7 @@ export default function Settings({user,state,mutate,busy,hand,settings,change,ma
   {user?.role==='parent'&&request&&<FollowLink state={state} config={config} request={request} accept={accept} notice={notice}/>}
   {config?.ask&&<ConciergeSiri state={state} user={user} request={request} notice={notice}/>}
   <DeepLinks notice={notice}/>
+  <section className="settings-section"><OpeningTips/></section>
   {setHome&&<section className="settings-section"><HomeWidgets home={home} setHome={setHome} held={held}/></section>}
   {setNavPrefs&&<section className="settings-section"><BarShortcuts user={user} prefs={navPrefs} setPrefs={setNavPrefs}/></section>}
   {setLinkPrefs&&<section className="settings-section"><StopButtonOrder prefs={linkPrefs} setPrefs={setLinkPrefs}/></section>}
