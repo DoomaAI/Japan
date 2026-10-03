@@ -12129,3 +12129,26 @@ test('More can be arranged and put away card by card, and its order survives the
  assert.match(nav,/onClick=\{\(\)=>go\(id\)\}/);
  assert.match(nav,/aria-label=\{`Put \$\{label\} away`\}/);
 });
+test('memory map: a bracketed Japanese name and a longer or shorter pin name still match, and one that will not says why',async()=>{
+ const {parseKml,matchPlacemarks,kmlLinks,kmlProblem}=await import('../src/memory-map.js');
+ const locations=[
+  {id:'h',name:'Hatoya Asakusa (八十八浅草)',aliases:['Hatoya Asakusa (八十八浅草)']},
+  {id:'i',name:'Ippodo Tea Kyoto Main Store'},
+  {id:'n',name:'Nishiki Market'},
+  {id:'s',name:'Sushi'},
+  {id:'t',name:'Tenryu-ji'}];
+ const pins=[{name:'Hatoya Asakusa',lat:35.71,lng:139.79},{name:'Ippodo Tea Kyoto',lat:35.0137,lng:135.7672},
+  {name:'Nishiki Market, Kyoto',lat:35.005,lng:135.765},{name:'Sushi Zanmai',lat:35.66,lng:139.77},
+  {name:'Tenryu-ji Temple',lat:35.0158,lng:135.6737},{name:'Tenryu-ji garden',lat:35.016,lng:135.675}];
+ const found=matchPlacemarks(locations,pins);
+ assert.deepEqual(Object.keys(found.places).sort(),['h','i','n']);
+ assert.ok(!found.places.s,'a name under six letters is never matched loosely');
+ assert.ok(!found.places.t,'two pins at different spots are not guessed between');
+ assert.deepEqual(kmlLinks('<kml><NetworkLink><Link><href>https://www.google.com/maps/d/kml?mid=abc&amp;lid=1</href></Link></NetworkLink><NetworkLink><Link><href>https://evil.example/x.kml</href></Link></NetworkLink></kml>'),
+  ['https://www.google.com/maps/d/kml?mid=abc&lid=1&forcekml=1']);
+ assert.match(kmlProblem('<!doctype html><title>Sign in</title>',[],0),/not shared publicly/);
+ assert.match(kmlProblem('<kml><Document/></kml>',[],0),/no pins/);
+ const text='<kml><Placemark><name>Somewhere else</name><Point><coordinates>139,35</coordinates></Point></Placemark></kml>';
+ assert.match(kmlProblem(text,parseKml(text),0),/None of the 1 pins .* Somewhere else/);
+ assert.equal(kmlProblem(text,parseKml(text),3),null);
+});
