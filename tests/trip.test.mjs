@@ -2052,7 +2052,14 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  assert.match(nav,/const bottom=box\.getBoundingClientRect\(\)\.bottom-current,seen=vv\.offsetTop\+vv\.height;/);
  assert.match(nav,/const gap=seen-bottom>1\?Math\.round\(seen-bottom\):0;/);
  assert.match(nav,/\.\.\.drop\?\{transform:`translate\(-50%,\$\{drop\}px\)`\}:\{\}/);
- assert.match(nav,/document\.addEventListener\('focusout',settle\)/);
+ assert.match(nav,/document\.addEventListener\('focusout',left\)/);
+ // iOS 26 keeps the stale bottom even after a scroll nudge: once the keyboard has gone, the page
+ // is taken out of layout and straight back in the same frame, keeping its place, and the
+ // concierge bell follows the bar down rather than floating on its own.
+ assert.match(nav,/root\.style\.display='none';void root\.offsetHeight;root\.style\.display=was;/);
+ assert.match(nav,/window\.scrollTo\(x,y\);/);
+ assert.match(nav,/root\.style\.setProperty\('--viewport-drop',`\$\{gap\}px`\)/);
+ assert.match(await readFile(new URL('../src/style.css',import.meta.url),'utf8'),/\.assistant-fab\{position:fixed;translate:0 var\(--viewport-drop,0px\)\}/);
 });
 
 test('every Japanese word and phrase in the app carries a sound-it-out',async()=>{
