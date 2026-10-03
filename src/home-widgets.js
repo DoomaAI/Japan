@@ -6,8 +6,8 @@
 //
 // The day's heading and its strip of dates are not widgets. They say which day Home is about,
 // and a Home that could be told to forget which day it was on would be no Home at all.
-// On this day leads on an anniversary and is empty every other day; the day in brief comes next, a few lines read over breakfast; then the step we are on; what's next and what to carry
-// sit straight under it, and the things read once a day — the guide, the tally, shop finds —
+// On this day leads on an anniversary and is empty every other day; the day in brief comes next, a few lines read over breakfast; then the step we are on; what's next sits straight under it, with
+// the phrase, the fun fact and the tip of the day just below, then what to carry; and the things read once a day — the guide, the tally, shop finds —
 // come after.
 export const HOME_WIDGETS={
  countdown:{label:'Trip countdown',note:'Days to go before we fly, then which day of the trip it is',off:true},
@@ -16,15 +16,15 @@ export const HOME_WIDGETS={
  dailyjapan:{label:'A little Japan each day',note:'Before we fly: one phrase to say, one fact to read and one tip, every day of the run-up'},
  bookingwindows:{label:'Booking windows',note:'Bookings opening in the next fortnight, and any open but not yet booked',page:'windows'},
  briefing:{label:'The day in brief',note:'Which day it is, the stops, fixed times, weather, a hotel move and any app to set up'},
- todaysphrase:{label:'Phrase of the day',note:'On the trip: the day’s phrase to say, and swipe for more; folds or puts away on its own'},
- todaysfact:{label:'Fun fact of the day',note:'On the trip: the day’s fact to read, and swipe for more; folds or puts away on its own'},
- todaystip:{label:'Tip of the day',note:'On the trip: a practical tip for the day — getting around, money, the boys, manners — and swipe for more'},
  step:{label:'The step we are on',note:'The current stop, swipe for the rest of the day'},
  checkin:{label:'Check In',note:'Somebody is on their way back: where to, by when, how far off, and when they get there'},
  late:{label:'Running late',note:'Who is running late for you, by how much and when they will get there; and while you are sharing where you are',page:'whereabouts'},
  reports:{label:'Reports from the family',note:'What the other phones said in the last two hours: the queue, the toilets, sold out'},
  codes:{label:'Codes found',note:'Parents: a ticket’s QR code has been read; add it to the Wallet, or leave it out'},
  nextup:{label:'What’s next',note:'The next stop, how long until it, and running late'},
+ todaysphrase:{label:'Phrase of the day',note:'On the trip: the day’s phrase to say, and swipe for more; folds or puts away on its own'},
+ todaysfact:{label:'Fun fact of the day',note:'On the trip: the day’s fact to read, and swipe for more; folds or puts away on its own'},
+ todaystip:{label:'Tip of the day',note:'On the trip: a practical tip for the day — getting around, money, the boys, manners — and swipe for more'},
  spare:{label:'If we have time',note:'On a park day: rides near us worth fitting in, from our stars and how the day is going'},
  needs:{label:'Before we head out',note:'A tick for each thing to carry out the door, fresh each morning, with a streak'},
  rings:{label:'Three rings',note:'Your stops, five photos and the day’s phrase, closing as you go; the rings closed are the day’s score'},
@@ -88,6 +88,13 @@ export function moveWidget(prefs,id,by){
  const order=[...homeOrder(prefs)],at=order.indexOf(id),to=at+by;
  if(at<0||to<0||to>=order.length)return cleanHome(prefs);
  order[at]=order[to];order[to]=id;
+ return cleanHome({...prefs,order});
+}
+// Dragged by its handle in Customise: the widget lands where it was dropped, and the rest close up.
+export function placeWidget(prefs,id,to){
+ const order=homeOrder(prefs).filter(x=>x!==id);
+ if(!homeOrder(prefs).includes(id)||to<0||to>order.length)return cleanHome(prefs);
+ order.splice(to,0,id);
  return cleanHome({...prefs,order});
 }
 export function toggleWidget(prefs,id){
