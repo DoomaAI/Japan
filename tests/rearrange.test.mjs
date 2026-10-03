@@ -105,3 +105,15 @@ test('undoing a day swap or a stop move puts every stop back exactly where it wa
  assert.deepEqual(layout(undone),layout(start));
  assert.throws(()=>applyOperation(went,{type:'moveSteps',ids:x,to:'2026-09-26',swapIds:[y],positions:[{id:'nope',day:'2026-09-26',order:10}]},parent),/Reload/);
 });
+
+test('a stop moved out of step with its neighbours is offered the middle of the gap',async()=>{
+ const {retimeAfterMove}=await import('../src/timing.js');
+ const a={id:'a',time:'09:00',duration:60},b={id:'b',time:'13:00'},lunch={id:'l',time:'16:30'};
+ assert.equal(retimeAfterMove([a,lunch,b],'l').time,'11:30','from the end of the one before to the start of the next');
+ assert.equal(retimeAfterMove([a,{...lunch,time:'11:00'},b],'l'),null,'a time that still fits is left alone');
+ assert.equal(retimeAfterMove([a,{...lunch,locked:true},b],'l'),null,'a locked time is never asked about');
+ assert.equal(retimeAfterMove([a,{id:'n'},b],'n'),null,'nor one with no time');
+ assert.equal(retimeAfterMove([{...lunch,time:'15:00'},a,b],'l').time,'08:30','first of the day goes before the next');
+ assert.equal(retimeAfterMove([a,b,{...lunch,time:'10:00'}],'l').time,'13:30','last of the day goes after the one before');
+ assert.equal(retimeAfterMove([{id:'x',time:'09:00',duration:300},{...lunch,time:'08:00'},{id:'y',time:'12:00'}],'l').time,'10:30','a long stop running past the next is measured from its start');
+});
