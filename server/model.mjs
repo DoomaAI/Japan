@@ -293,7 +293,16 @@ export function applyOperation(input,op,user){
   if(op.mode==='split')state.groupModes[op.group]='split';else delete state.groupModes[op.group];
  }else if(op.type==='reschedule'){
   if(!Array.isArray(op.changes)||!op.changes.length||op.changes.length>300)throw new AppError('Invalid schedule changes.');
-  for(const change of op.changes){const s=state.steps.find(s=>s.id===change.id);if(!s||s.locked||['done','started','skipped'].includes(s.status)||!clock(change.time)||change.time===null)throw new AppError('A locked or invalid step cannot move.');s.time=change.time;}
+  // Each change moves a stop, gives it a new length, or skips it, all in one revision so the
+  // day is never left half adjusted.
+  for(const change of op.changes){
+   const s=state.steps.find(s=>s.id===change.id);
+   if(!s||s.locked||['done','started','skipped'].includes(s.status))throw new AppError('A locked or invalid step cannot move.');
+   if(change.skip===true){s.status='skipped';s.updatedBy=user.name;delete s.completedAt;continue;}
+   if(!clock(change.time)||change.time===null)throw new AppError('A locked or invalid step cannot move.');
+   if(change.duration!==undefined&&(!Number.isInteger(change.duration)||change.duration<0||change.duration>1440))throw new AppError('Duration must be 0–1440 minutes.');
+   s.time=change.time;if(change.duration!==undefined)s.duration=change.duration;
+  }
  }else if(op.type==='documentLink'||op.type==='documentNote'){
   if(!text(op.title,250)||!op.title.trim()||(op.type==='documentLink'&&!safeLink(op.url)))throw new AppError('Add a title and a valid HTTPS link if linking a document.');
   if(op.stepId&&!state.steps.some(s=>s.id===op.stepId))throw new AppError('Activity not found.');

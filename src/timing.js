@@ -45,23 +45,70 @@ export const latestStart=step=>windowOf(step)?.end??minutes(step?.bookingTime||s
 // A group is either alternatives, where only the chosen option is on the day, or a split, where
 // every option is on the day because each is somebody's (see split.js).
 export const activeSteps=(state,day)=>state.steps.filter(s=>s.day===day&&(!s.group||state.groupModes?.[s.group]==='split'||!state.choices[s.group]||state.choices[s.group]===s.option)).sort((a,b)=>a.order-b.order);
-export function scheduleProposal(steps,delta){
- const changes=[],conflicts=[];
+// Adjusting the rest of a day. Each unfinished flexible stop can be left out of the move, given
+// a new length, or skipped; and with `squeeze` on, the stops being moved close up their gaps and,
+// if that is not enough, are shortened just enough to finish by the next fixed time.
+// Each problem comes back as an issue naming the stop, so the panel can offer the fix beside it.
+const MOVABLE_OUT=['done','started','skipped'];
+export const movableStep=s=>!s.locked&&!!s.time&&!MOVABLE_OUT.includes(s.status);
+const fixedAhead=s=>s.locked&&s.time&&!['done','skipped'].includes(s.status);
+export function scheduleProposal(steps,delta,opts={}){
+ const skip=new Set(opts.skip||[]),lengths=opts.durations||{},only=opts.move?new Set(opts.move):null;
+ const moving=s=>!only||only.has(s.id);
+ const issues=[],plan=new Map(),skipped=[];
  for(const s of steps){
-  if(s.locked||!s.time||['done','skipped'].includes(s.status))continue;
-  const t=minutes(s.time)+delta;
-  if(t<0||t>=1440){conflicts.push(`${s.title}: would move outside this day.`);continue;}
-  changes.push({id:s.id,time:asClock(t)});
+  if(!movableStep(s))continue;
+  if(skip.has(s.id)){skipped.push(s.id);continue;}
+  const d=Number.isFinite(Number(lengths[s.id]))&&lengths[s.id]!==''?Math.max(0,Math.round(Number(lengths[s.id]))):(s.duration||0);
+  const t=minutes(s.time)+(moving(s)?delta:0);
+  if(t<0||t>=1440){issues.push({id:s.id,kind:'outside',text:`${s.title}: would move outside this day.`});continue;}
+  plan.set(s.id,{t,d,moved:moving(s)&&delta!==0});
  }
- const changed=new Map(changes.map(x=>[x.id,x.time]));
+ if(opts.squeeze){
+  // Each run of moved stops before a fixed time is scaled to the room left before it opens.
+  let run=[];
+  for(const s of steps){
+   if(plan.get(s.id)?.moved)run.push(s);
+   if(!fixedAhead(s))continue;
+   const deadline=latestStart(s);
+   if(run.length){
+    // Close the gaps from the booking backwards first; only if that is not enough are the
+    // longest stops trimmed, five minutes at a time, until the run just fits.
+    const ps=run.map(r=>plan.get(r.id)),start=ps[0].t;
+    const pack=()=>{let limit=deadline;for(let k=ps.length-1;k>=0;k--){const p=ps[k];p.nt=Math.min(p.t,limit-p.nd);limit=p.nt;}return start-ps[0].nt;};
+    for(const p of ps)p.nd=p.d;
+    const over=pack();
+    if(over>0){
+     for(let left=over;left>0;left-=5){const p=ps.reduce((a,b)=>b.nd>(a?.nd??5)?b:a,null);if(!p)break;p.nd-=5;}
+     pack();
+    }
+    let cursor=start;
+    for(const p of ps){const t=Math.max(p.nt,cursor);if(t!==p.t||p.nd!==p.d)p.squeezed=true;p.t=t;p.d=p.nd;cursor=t+p.d;delete p.nt;delete p.nd;}
+   }
+   run=[];
+  }
+ }
+ const ordered=steps.filter(s=>plan.has(s.id));
+ const changed=s=>{const p=plan.get(s.id);return p.t!==minutes(s.time)||p.d!==(s.duration||0);};
  for(const [i,s]of steps.entries()){
-  if(!changed.has(s.id))continue;
-  const next=steps.slice(i+1).find(n=>n.locked&&n.time&&!['done','skipped'].includes(n.status));
-  if(next&&minutes(changed.get(s.id))+(s.duration||0)>latestStart(next))conflicts.push(`${s.title} may overlap ${next.title} at ${windowText(next)||next.time}. Shorten or skip it first.`);
+  const p=plan.get(s.id);
+  if(!p||!changed(s))continue;
+  const next=steps.slice(i+1).find(fixedAhead);
+  if(next&&p.t+p.d>latestStart(next)){const over=p.t+p.d-latestStart(next);issues.push({id:s.id,kind:'fixed',over,blocking:true,with:next.id,text:`${s.title} runs ${spanWords(over)} into ${next.title} at ${windowText(next)||next.time}.`});}
   const previous=steps.slice(0,i).reverse().find(n=>n.locked&&n.time&&n.status!=='skipped');
-  if(previous&&minutes(changed.get(s.id))<minutes(previous.time)+(previous.duration||0))conflicts.push(`${s.title} would overlap or move before ${previous.title}. Keep it after the fixed activity.`);
+  if(previous&&p.t<minutes(previous.time)+(previous.duration||0))issues.push({id:s.id,kind:'before',blocking:true,with:previous.id,text:`${s.title} would start before ${previous.title} has finished.`});
+  // A stop left where it is can now be crowded by one that moved; that is worth saying, but it
+  // is the family's call, so it does not stop the change.
+  const j=ordered.indexOf(s),after=ordered[j+1];
+  if(after&&!steps.slice(i+1,steps.indexOf(after)).some(fixedAhead)){
+   const q=plan.get(after.id),now=p.t+p.d-q.t,was=minutes(s.time)+(s.duration||0)-minutes(after.time);
+   if(now>0&&now>was)issues.push({id:s.id,kind:'flex',over:now,blocking:false,with:after.id,text:`${s.title} would overlap ${after.title} by ${spanWords(now)}.`});
+  }
  }
- return {changes,conflicts:[...new Set(conflicts)]};
+ for(const i of issues)if(i.kind==='outside')i.blocking=true;
+ const changes=[...ordered.filter(changed).map(s=>{const p=plan.get(s.id),c={id:s.id,time:asClock(p.t)};if(p.d!==(s.duration||0))c.duration=p.d;return c;}),...skipped.map(id=>({id,skip:true}))];
+ const unique=[...new Map(issues.map(i=>[i.text,i])).values()];
+ return {changes,issues:unique,conflicts:unique.filter(i=>i.blocking).map(i=>i.text),squeezed:[...plan].filter(([,p])=>p.squeezed).map(([id])=>id)};
 }
 const icsStamp=d=>d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z/,'Z');
 const icsEsc=s=>String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');

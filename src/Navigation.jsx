@@ -58,30 +58,60 @@ export function BottomNav({tab,user,go,unread,prefs,setPrefs}){
   return ()=>{box.removeEventListener('scroll',mark);watch?.disconnect();};
  },[user?.name,user?.role,prefs]);
  // iOS sometimes loses track of where the bottom of the screen is — most often after the
- // keyboard closes on the Home Screen app — and a bar pinned to "the bottom" then floats
- // halfway up with the page showing underneath it. The visual viewport is what is actually on
- // the glass, so whenever the bar's bottom edge sits above it, the bar is moved down by the
- // gap. It never moves up: with the keyboard open the bar belongs behind it, as it always has.
+ // keyboard closes on the Home Screen app (iOS 26 leaves the visual viewport's offset behind) —
+ // and everything pinned to "the bottom" then floats halfway up with the page showing underneath
+ // it and scrolls along with it. The visual viewport is what is actually on the glass, so whenever
+ // the bar's bottom edge sits above it, the bar is moved down by the gap, and the concierge bell
+ // with it through --viewport-drop. It never moves up: with the keyboard open the bar belongs
+ // behind it, as it always has.
  const nav=useRef(null),[drop,setDrop]=useState(0);
  useEffect(()=>{
-  const vv=window.visualViewport,box=nav.current;
+  const vv=window.visualViewport,box=nav.current,root=document.documentElement;
   if(!vv||!box)return;
-  let frame=0,current=0;
+  let frame=0,current=0,timer=0;
   const measure=()=>{
    frame=0;
    const bottom=box.getBoundingClientRect().bottom-current,seen=vv.offsetTop+vv.height;
    const gap=seen-bottom>1?Math.round(seen-bottom):0;
-   if(gap!==current){current=gap;setDrop(gap);}
+   if(gap!==current){current=gap;setDrop(gap);root.style.setProperty('--viewport-drop',`${gap}px`);}
   };
   const soon=()=>{if(!frame)frame=requestAnimationFrame(measure);};
-  // Closing the keyboard is where iOS leaves the stale height behind, and a nudge of the
-  // scroll position is what makes it work the layout out again.
-  const settle=()=>setTimeout(()=>{window.scrollTo(window.scrollX,window.scrollY);soon();},250);
-  const events=[[vv,'resize'],[vv,'scroll'],[window,'resize'],[window,'scroll'],[window,'orientationchange'],[window,'pageshow']];
+  // Closing the keyboard is where iOS leaves the stale layout behind. Nudging the scroll position
+  // alone is not enough on iOS 26: taking the page out of layout and straight back, in the same
+  // frame so nothing is painted in between, makes it work the viewport out again from scratch.
+  // Only after a keyboard, so a tap on an ordinary button does not relay the whole page out.
+  const KEYED='input:not([type=checkbox],[type=radio],[type=range],[type=button],[type=submit],[type=file],[type=color]),textarea,select,[contenteditable]:not([contenteditable=false])';
+  const typing=()=>document.activeElement?.matches?.(KEYED);
+  const repair=()=>{
+   if(typing())return;
+   const x=window.scrollX,y=window.scrollY,was=root.style.display;
+   root.style.display='none';void root.offsetHeight;root.style.display=was;void root.offsetHeight;
+   window.scrollTo(x,y);soon();
+  };
+  const settle=()=>{clearTimeout(timer);timer=setTimeout(repair,250);};
+  const left=e=>{if(e.target?.matches?.(KEYED))settle();};
+  // Back from another app or the app switcher, the same stale bottom can come back with it.
+  const shown=()=>{if(document.visibilityState==='visible')settle();};
+  // The keyboard going away also shows as the visual viewport growing back to its full height.
+  let tallest=vv.height,shrunk=false;
+  const resized=()=>{
+   if(vv.height<tallest-80)shrunk=true;
+   else if(shrunk&&vv.height>tallest-2){shrunk=false;settle();}
+   tallest=Math.max(tallest,vv.height);soon();
+  };
+  const events=[[vv,'scroll'],[window,'resize'],[window,'scroll'],[window,'orientationchange']];
   for(const [on,type] of events)on.addEventListener(type,soon,{passive:true});
-  document.addEventListener('focusout',settle);
+  vv.addEventListener('resize',resized,{passive:true});
+  window.addEventListener('pageshow',settle);
+  document.addEventListener('visibilitychange',shown);
+  document.addEventListener('focusout',left);
   soon();
-  return ()=>{for(const [on,type] of events)on.removeEventListener(type,soon);document.removeEventListener('focusout',settle);if(frame)cancelAnimationFrame(frame);};
+  return ()=>{
+   for(const [on,type] of events)on.removeEventListener(type,soon);
+   vv.removeEventListener('resize',resized);window.removeEventListener('pageshow',settle);
+   document.removeEventListener('visibilitychange',shown);document.removeEventListener('focusout',left);
+   if(frame)cancelAnimationFrame(frame);clearTimeout(timer);root.style.removeProperty('--viewport-drop');
+  };
  },[]);
  // Up the bar for your favourites, up again for everything, down to come back. The bar is
  // already a sideways swipe between the screens on it, so up and down are the two directions it

@@ -91,7 +91,7 @@ import React,{useEffect,useLayoutEffect,useMemo,useRef,useState,lazy,Suspense} f
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
 import {ArrowLeftRight,EyeOff,Sparkles,ConciergeBell,Radio,MessageCircleQuestion,Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,Inbox,Archive,ArchiveRestore,Heart,Phone,MessageCircle,Eye,RefreshCw,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
-import {activeSteps,dayProgress,dayBehind,tripCountdown,japanDate,japanClock,minutes,asClock,scheduleProposal,calendarEvent,scheduleVariance,stayPlan,spanWords,setPlanZone,planZone,zonedInstant,windowText,WINDOW_CHOICES} from './timing.js';
+import {activeSteps,dayProgress,dayBehind,tripCountdown,japanDate,japanClock,minutes,asClock,scheduleProposal,movableStep,calendarEvent,scheduleVariance,stayPlan,spanWords,setPlanZone,planZone,zonedInstant,windowText,WINDOW_CHOICES} from './timing.js';
 import {armPlayback} from './speech.js';
 import {startHeadphones,onHeadphonePress} from './headphones.js';
 import {useMatchaNearby} from './useMatchaNearby.js';
@@ -1095,7 +1095,48 @@ function StepForm({step,day,before,state,busy,onSave,onRemove,onOption,onCancel}
   {step&&<><hr/><div className="row wrap"><Button type="button" icon={SkipForward} onClick={()=>onSave({type:'status',id:step.id,status:'skipped'})}>Skip this step</Button><Button type="button" icon={RotateCcw} onClick={()=>onSave({type:'status',id:step.id,status:'todo'})}>Reset progress</Button></div>{step.completedAt&&<><label>Correct completion time (Japan)<input type="datetime-local" value={at} onChange={e=>setAt(e.target.value)}/></label><Button type="button" onClick={()=>onSave({type:'status',id:step.id,status:'done',at:new Date(at+':00+09:00').toISOString()})}>Update completion time</Button></>}</>}
  </form>;
 }
-function Reschedule({steps,mutate,close}){const [delta,setDelta]=useState(15);const proposal=scheduleProposal(steps,Number(delta));return <><p>Shift unfinished flexible activities. Locked times and completed steps stay in place. Durations are editable estimates.</p><label>Move by minutes<input type="number" min="-240" max="240" step="5" value={delta} onChange={e=>setDelta(e.target.value)}/></label>{proposal.conflicts.map((c,i)=><p className="callout" key={i}>{c}</p>)}<div className="reschedule-list">{proposal.changes.map(c=><div className="list-row" key={c.id}><span>{steps.find(s=>s.id===c.id).title}</span><strong>{c.time}</strong></div>)}</div><Button className="primary" disabled={!proposal.changes.length||!!proposal.conflicts.length} onClick={async()=>{if(await mutate({type:'reschedule',changes:proposal.changes}))close();}}>Apply revised times</Button>{proposal.conflicts.length>0&&<p>Resolve the overlaps by shortening or skipping steps, then try again.</p>}</>;}
+// Adjusting the rest of the day. Every unfinished flexible stop is listed with its own switch,
+// length and skip, so part of the day can move while the rest stays; "Squeeze to fit" draws the
+// moved stops together before the next fixed time. Each clash carries its fixes as buttons
+// right beside it, rather than a sentence telling you to go and do them somewhere else.
+function Reschedule({steps,mutate,close}){
+ const timed=steps.filter(s=>s.time&&s.status!=='skipped'),movable=timed.filter(movableStep);
+ const [delta,setDelta]=useState(15),[move,setMove]=useState(()=>new Set(movable.map(s=>s.id))),[skip,setSkip]=useState(()=>new Set()),[lengths,setLengths]=useState({}),[squeeze,setSqueeze]=useState(false),[busy,setBusy]=useState(false);
+ const n=Number(delta)||0,proposal=scheduleProposal(steps,n,{move,skip,durations:lengths,squeeze});
+ const after=new Map(proposal.changes.map(c=>[c.id,c]));
+ const toggle=(set,setter,id,on)=>{const next=new Set(set);on?next.add(id):next.delete(id);setter(next);};
+ const lengthOf=s=>lengths[s.id]??s.duration??0;
+ const title=id=>steps.find(s=>s.id===id)?.title||'this stop';
+ const fromHere=id=>{const k=movable.findIndex(s=>s.id===id);setMove(new Set(movable.slice(k).map(s=>s.id)));};
+ const blocking=proposal.issues.filter(i=>i.blocking);
+ return <div className="reschedule">
+  <p>Move some or all of the stops still to come. Fixed times and finished stops stay put.</p>
+  <label>Move by minutes<input type="number" min="-240" max="240" step="5" value={delta} onChange={e=>setDelta(e.target.value)}/></label>
+  <div className="row wrap reschedule-quick">{[-30,-15,15,30,45,60].map(m=><button type="button" key={m} className={n===m?'chip active':'chip'} onClick={()=>setDelta(m)}>{m>0?'+':'−'}{Math.abs(m)}</button>)}</div>
+  <label className="checkline"><input type="checkbox" checked={squeeze} onChange={e=>setSqueeze(e.target.checked)}/>Squeeze to fit before fixed times (closes gaps, then trims the ticked stops)</label>
+  {proposal.issues.map((iss,k)=>{const s=steps.find(x=>x.id===iss.id),cut=iss.over&&s?lengthOf(s)-iss.over:0;return <div className="callout reschedule-issue" key={k}><p>{iss.text}</p><div className="row wrap">
+   {iss.kind==='fixed'&&!squeeze&&<button type="button" onClick={()=>setSqueeze(true)}>Squeeze to fit</button>}
+   {iss.kind!=='outside'&&iss.over&&cut>=5&&<button type="button" onClick={()=>setLengths({...lengths,[iss.id]:cut})}>Shorten to {spanWords(cut)}</button>}
+   {move.has(iss.id)&&n!==0&&<button type="button" onClick={()=>toggle(move,setMove,iss.id,false)}>Leave it at {s?.time}</button>}
+   <button type="button" onClick={()=>toggle(skip,setSkip,iss.id,true)}>Skip {title(iss.id)}</button>
+  </div></div>;})}
+  <div className="row wrap reschedule-select"><span>Move:</span><button type="button" onClick={()=>setMove(new Set(movable.map(s=>s.id)))}>All</button><button type="button" onClick={()=>setMove(new Set())}>None</button></div>
+  <div className="reschedule-list">{timed.map(s=>{
+   if(!movableStep(s))return <div className="list-row reschedule-fixed" key={s.id}><span>{s.locked&&<LockKeyhole size={14} aria-label="Fixed time"/>} {s.title}</span><strong>{s.status==='done'?'Done':s.status==='started'?'Under way':s.time}</strong></div>;
+   const c=after.get(s.id),skipped=skip.has(s.id);
+   return <div className={`reschedule-row${skipped?' skipped':''}`} key={s.id}>
+    <label className="checkline"><input type="checkbox" checked={move.has(s.id)&&!skipped} disabled={skipped} onChange={e=>toggle(move,setMove,s.id,e.target.checked)}/><span>{s.title}</span></label>
+    <div className="row wrap reschedule-controls">
+     <strong>{skipped?'Skipped':c?.time&&c.time!==s.time?<>{s.time} → {c.time}</>:s.time}</strong>
+     {!skipped&&<label className="reschedule-length">Mins<input type="number" min="0" max="1440" step="5" inputMode="numeric" value={c?.duration??lengthOf(s)} onChange={e=>setLengths({...lengths,[s.id]:e.target.value===''?'':Number(e.target.value)})}/></label>}
+     <button type="button" onClick={()=>toggle(skip,setSkip,s.id,!skipped)}>{skipped?'Undo skip':'Skip'}</button>
+     {!skipped&&<button type="button" className="reschedule-from" onClick={()=>fromHere(s.id)}>From here on</button>}
+    </div>
+   </div>;})}</div>
+  <Button className="primary" disabled={busy||!proposal.changes.length||blocking.length>0} onClick={async()=>{setBusy(true);try{if(await mutate({type:'reschedule',changes:proposal.changes}))close();}finally{setBusy(false);}}}>Apply {proposal.changes.length||''} change{proposal.changes.length===1?'':'s'}</Button>
+  {blocking.length>0&&<p>Use the buttons beside each clash, or untick stops you don’t want moved.</p>}
+ </div>;
+}
 // One booking, as many activities as it actually covers. A rail pass gets you through three
 // gates, a park ticket covers the morning and the parade that evening — so the activities are
 // added one at a time and shown as a row of names, rather than a multiple-select nobody can
