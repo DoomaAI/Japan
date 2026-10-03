@@ -10884,7 +10884,7 @@ test('before we head out is a list built for the day, ticked fresh each morning,
  }finally{globalThis.localStorage=saved;}
  const widget=await readFile(new URL('../src/Morning.jsx',import.meta.url),'utf8');
  assert.match(widget,/if\(day!==today\|\|closed\)return null/,'a closed checklist draws nothing');
- assert.match(main,/needs:<MorningChecklist key=\{day\} state=\{visibleState\} day=\{day\} today=\{japanDate\(now\)\}\/>/,'the widget slot is the checklist');
+ assert.match(main,/needs:<><Readiness [^>]*\/><MorningChecklist key=\{day\} state=\{visibleState\} day=\{day\} today=\{japanDate\(now\)\}\/><\/>/,'the widget slot is how everyone is, then the checklist');
 });
 test('the shopping list groups by the shop we will be standing in, or the day we will be there',async()=>{
  const {groupShopping,shopKey,shopLabel}=await import('../src/shopping-groups.js');
