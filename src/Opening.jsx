@@ -170,8 +170,8 @@ export default function Opening({days,ready=false,onDone}){
    </div>}
     <div className={`opening-track${ready?' ready':''}`} role="status"><span className="opening-rail" aria-hidden="true"><Train/></span>
      <span>{ready?'Your trip is ready':'Opening your family trip…'}</span></div>
-    <label className="opening-tips">Tips while it opens
-     <select value={tips} onChange={e=>choose(e.target.value)}>{TIP_OPTIONS.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
+    <label className="opening-tips">
+     <select aria-label="Tips while it opens" value={tips} onChange={e=>choose(e.target.value)}>{TIP_OPTIONS.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
    </div>
   </div>
  </main>;
