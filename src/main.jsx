@@ -34,7 +34,8 @@ import {PHRASES} from './phrases.js';
 import {readSettings,writeSetting,settingOn} from './settings.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
 import {PAGES,pageFor,cleanNav,emptyNav,setAvailable,isAvailable,setHeldBack,setPlan,isKidsPage,joinedTabs,joinedGroup,joinedTitle,JOINED_TABS} from './nav-data.js';
-import {HOME_WIDGETS,homeShown,homeRuns,emptyHome,cleanHome,homeDay,foldWidget,awayToday,backToday} from './home-widgets.js';
+import {HOME_WIDGETS,homeShown,homeRuns,emptyHome,cleanHome,homeDay,foldWidget,awayToday,backToday,dropWidget,removeWidget} from './home-widgets.js';
+import {HomeStack,useHomeEditing,homeCardEdit} from './HomeEdit.jsx';
 import {linkOrder,emptyLinks,cleanLinks} from './card-links.js';
 import StopButtons from './StopButtons.jsx';
 import Reports from './Reports.jsx';
@@ -93,7 +94,7 @@ import {MascotBadge} from './Mascot.jsx';
 import React,{useEffect,useLayoutEffect,useMemo,useRef,useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
-import {ArrowLeftRight,EyeOff,Sparkles,ConciergeBell,Radio,Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,Inbox,Archive,ArchiveRestore,Heart,Phone,MessageCircle,Eye,RefreshCw,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
+import {ArrowLeftRight,EyeOff,Sparkles,ConciergeBell,Radio,Maximize2,ListOrdered,Move,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,Inbox,Archive,ArchiveRestore,Heart,Phone,MessageCircle,Eye,RefreshCw,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
 import {activeSteps,dayProgress,dayBehind,tripCountdown,japanDate,japanClock,minutes,asClock,scheduleProposal,movableStep,calendarEvent,scheduleVariance,stayPlan,spanWords,setPlanZone,planZone,zonedInstant,windowText,WINDOW_CHOICES} from './timing.js';
 import {armPlayback} from './speech.js';
 import {startHeadphones,onHeadphonePress} from './headphones.js';
@@ -192,10 +193,12 @@ function Button({icon:Icon,children,...props}){return <button {...props}>{Icon&&
 // A card whose own first heading says only what its label says marks it, so a look that shows
 // the label as the section's title can leave the repeat out.
 const sameWords=(a,b)=>String(a||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()===String(b||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-function HomeCard({label,folded,fold,away,children}){
- const body=useRef(null),[slot,setSlot]=useState(null);
+// While Home wobbles (HomeEdit.jsx) the card drags by itself and carries a − to take it off Home.
+function HomeCard({id,label,folded,fold,away,children}){
+ const body=useRef(null),[slot,setSlot]=useState(null),edit=homeCardEdit(useHomeEditing(),id,label);
  useLayoutEffect(()=>{const first=body.current?.querySelector('.eyebrow');if(!first)return;const dup=sameWords(first.textContent,label);if(dup)first.setAttribute('data-repeats-label','');else first.removeAttribute('data-repeats-label');});
- return <section className={`home-card${folded?' folded':''}`} aria-label={label}>
+ return <section className={`home-card${folded?' folded':''}${edit.className}`} aria-label={label} {...edit.props}>
+  {edit.badge}
   <div className="home-card-bar"><span>{label}</span><div className="home-card-slot" ref={setSlot}/>
    <button type="button" className="icon" aria-expanded={!folded} aria-label={folded?`Open ${label}`:`Fold ${label} for today`} onClick={fold}><ChevronDown size={16}/></button>
    <button type="button" className="icon" aria-label={`Put ${label} away until tomorrow`} onClick={away}><EyeOff size={15}/></button>
@@ -273,8 +276,9 @@ function App(){
  const [joining,setJoining]=useState(null);
  // The stop just added in front of a journey, whose own journey form opens straight away.
  const [journeyOpen,setJourneyOpen]=useState(null);
- // Arrange Home: in the house look the fold and put-away buttons wait behind this, so Home reads
- // as the day rather than as a row of controls. Not kept: Home opens arranged for reading.
+ // Editing Home: hold a card, or tap Edit Home, and the cards wobble to be dragged about or taken
+ // off (HomeEdit.jsx). In the house look the fold and put-away buttons wait behind it too, so
+ // Home reads as the day rather than as a row of controls. Not kept: Home opens for reading.
  const [arranging,setArranging]=useState(false);
  const [start]=useState(startingPosition);
  const [tab,setTab]=useState(TABS.includes(pageFor(new URLSearchParams(location.search).get('tab')))?pageFor(new URLSearchParams(location.search).get('tab')):'today'),[day,setDay]=useState(start.day),[selected,setSelected]=useState(start.step);
@@ -771,6 +775,8 @@ function App(){
  // have put away. Each one is written here once and drawn by id, so the arrangement lives in
  // one list on the phone rather than in the shape of this screen.
  const todayKey=japanDate(now),todayHome=homeDay(homeToday,todayKey);
+ const homeOnShow=tab==='today'?homeShown(homePrefs).filter(id=>awarenessAllows(visibleState,user.name,id)&&!todayHome.away.includes(id)):[];
+ const takeOffHome=id=>{saveHome(removeWidget(homePrefs,id));notice(`${HOME_WIDGETS[id].label} is off Home. Bring it back from Customise.`);};
  const homeWidgets=tab==='today'&&{
   rings:<Rings state={visibleState} user={user} day={day}/>,
   checkin:<CheckInCard state={visibleState} user={user} now={now} request={request} mutate={mutate} busy={busy} go={go}/>,
@@ -905,15 +911,15 @@ function App(){
   {/* Away from the Wallet the codes are still read, quietly, and Home asks about what was found. */}
   {tab!=='tickets'&&<CodeReader state={state} parent={parent} online={online} mutate={mutate} quiet/>}
   {joinedSwitch}
-  {tab==='today'&&<div className={`home${arranging?' arranging':''}`}>
+  {tab==='today'&&<HomeStack editing={arranging} setEditing={setArranging} ids={homeOnShow} place={(id,before)=>saveHome(dropWidget(homePrefs,id,before,homeOnShow))} remove={takeOffHome} add={()=>go('personalise')}>
    {dayHeading}
    <MomentBanner day={japanDate(now)} now={now} go={go}/>
    <QuizLine state={visibleState} open={()=>setModal({type:'quiz'})}/>
-   {homeRuns(homeShown(homePrefs).filter(id=>awarenessAllows(visibleState,user.name,id)&&!todayHome.away.includes(id))).map(run=>Array.isArray(run)?<div className="home-actions" key={run.join()}>{run.map(id=><React.Fragment key={id}>{homeWidgets[id]}</React.Fragment>)}</div>:<HomeCard key={run} label={HOME_WIDGETS[run].label} folded={todayHome.folded.includes(run)} fold={()=>saveHomeToday(foldWidget(homeToday,todayKey,run))} away={()=>saveHomeToday(awayToday(homeToday,todayKey,run))}>{homeWidgets[run]}</HomeCard>)}
+   {homeRuns(homeOnShow,arranging).map(run=>Array.isArray(run)?<div className="home-actions" key={run.join()}>{run.map(id=><React.Fragment key={id}>{homeWidgets[id]}</React.Fragment>)}</div>:<HomeCard key={run} id={run} label={HOME_WIDGETS[run].label} folded={todayHome.folded.includes(run)} fold={()=>saveHomeToday(foldWidget(homeToday,todayKey,run))} away={()=>saveHomeToday(awayToday(homeToday,todayKey,run))}>{homeWidgets[run]}</HomeCard>)}
    {!homeShown(homePrefs).length&&<div className="empty"><h2>Home is clear.</h2><p>Every widget is put away. Bring back the ones you want from Customise.</p></div>}
    {todayHome.away.length>0&&<div className="home-away"><EyeOff size={15}/><span>{todayHome.away.length===1?`${HOME_WIDGETS[todayHome.away[0]].label} is`:`${todayHome.away.length} cards are`} put away until tomorrow.</span><button type="button" onClick={()=>saveHomeToday(backToday(homeToday,todayKey))}><Eye size={15}/> Show {todayHome.away.length===1?'it':'them'}</button><button type="button" onClick={()=>go('settings')}><SlidersHorizontal size={15}/> Put away for good</button></div>}
-   <div className="home-customise"><Button icon={SlidersHorizontal} onClick={()=>go('personalise')}>Customise Home</Button><button type="button" className="home-arrange" aria-pressed={arranging} onClick={()=>setArranging(a=>!a)}>{arranging?<Check size={18}/>:<ListOrdered size={18}/>} {arranging?'Done':'Arrange Home'}</button></div>
-  </div>}
+   <div className="home-customise"><Button icon={SlidersHorizontal} onClick={()=>go('personalise')}>Customise Home</Button><button type="button" className="home-arrange" aria-pressed={arranging} onClick={()=>setArranging(a=>!a)}>{arranging?<Check size={18}/>:<Move size={18}/>} {arranging?'Done':'Edit Home'}</button></div>
+  </HomeStack>}
   {tab==='glance'&&<>
    {planSwitch}
    {/* The strip of dates sits under the switch as it does on All days, and the day's heading

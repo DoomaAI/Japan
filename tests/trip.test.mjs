@@ -1931,10 +1931,10 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
  // Kept on the phone, per person, and cleaned on the way in as well as on the way out.
  assert.match(main,/localStorage\.setItem\(`japan\.nav\.\$\{user\.name\}`/);
  assert.match(main,/setNavPrefs\(cleanNav\(stored\(`japan\.nav\.\$\{user\.name\}`,emptyNav\(\)\),user\)\)/);
- // Arrows rather than dragging: a drag list fights the page scroll and needs a steady hand,
- // and the person most likely to be rearranging this is five.
- assert.match(screen,/aria-label=\{`Move \$\{PAGES\[id\]\.label\} up`\}/);
- assert.match(screen,/aria-label=\{`Move \$\{PAGES\[id\]\.label\} down`\}/);
+ // Dragged by a handle rather than nudged with arrow buttons, which took up most of each row;
+ // the arrow keys on a focused handle still move it for a keyboard or a screen reader.
+ assert.match(screen,/\{grip\(id,PAGES\[id\]\.label\)\}/);
+ assert.doesNotMatch(screen,/ArrowUp|ArrowDown|Move \$\{/,'no arrow buttons');
  assert.doesNotMatch(screen,/draggable/);
  // And a way out of any arrangement at all.
  assert.match(screen,/setPrefs\(emptyNav\(\)\)/);
@@ -1951,7 +1951,8 @@ test('the bottom bar swipes up for the rest of the menu, and is the one each per
 });
 
 test('Home is a column of widgets each phone orders and puts away for itself',async()=>{
- const {HOME_WIDGETS,HOME_DEFAULT,HOME_OFF,emptyHome,cleanHome,homeOrder,homeShown,homeRuns,moveWidget,placeWidget,toggleWidget}=await import('../src/home-widgets.js');
+ const {HOME_WIDGETS,HOME_DEFAULT,HOME_OFF,emptyHome,cleanHome,homeOrder,homeShown,homeRuns,moveWidget,placeWidget,dropWidget,removeWidget,toggleWidget}=await import('../src/home-widgets.js');
+ const {END,placeBefore,stepBefore}=await import('../src/drag-list.js');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const screen=await readFile(new URL('../src/Personalise.jsx',import.meta.url),'utf8');
  // Untouched, Home shows everything but the day's buttons, with the step we are on first.
@@ -1993,7 +1994,10 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  // Side by side they share one grid; apart, each is its own.
  assert.deepEqual(homeRuns(['step','tired','apps','weather','glance']),['step',['tired','apps'],'weather',['glance']]);
  // Home draws them by id, the day heading and strip stay put, and the phone keeps the choice.
- assert.match(main,/\{dayHeading\}\s*<MomentBanner [^\n]*\/>\s*<QuizLine [^\n]*\/>\s*\{homeRuns\(homeShown\(homePrefs\)\.filter\(id=>awarenessAllows\(visibleState,user\.name,id\)&&!todayHome\.away\.includes\(id\)\)\)\.map\(run=>/);
+ assert.match(main,/const homeOnShow=tab==='today'\?homeShown\(homePrefs\)\.filter\(id=>awarenessAllows\(visibleState,user\.name,id\)&&!todayHome\.away\.includes\(id\)\):\[\];/);
+ assert.match(main,/\{dayHeading\}\s*<MomentBanner [^\n]*\/>\s*<QuizLine [^\n]*\/>\s*\{homeRuns\(homeOnShow,arranging\)\.map\(run=>/);
+ // While Home is being edited each of the day's buttons is a card of its own.
+ assert.deepEqual(homeRuns(['step','tired','apps'],true),['step','tired','apps']);
  // Today carries the day's buttons under its stops.
  assert.match(main,/\{dayStrip\(d=>go\('glance',d\)\)\}[\s\S]*?<DayTimeline [^\n]*\/>\s*\{\/\*[^\n]*\*\/\}\s*<div className="home-actions day-actions">[\s\S]*?Slow the day[\s\S]*?Useful apps[\s\S]*?<DayMap/);
  for(const id of HOME_DEFAULT)assert.match(main,new RegExp(`\\n  ${id}:`),`${id} is drawn`);
@@ -2010,12 +2014,44 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.deepEqual(homeOrder(placeWidget(emptyHome(),'nope',0)),HOME_DEFAULT,'an unknown widget moves nothing');
  assert.deepEqual(homeOrder(placeWidget(emptyHome(),'step',99)),HOME_DEFAULT,'nor does a drop off the end');
  assert.equal((screen.match(/\{grip\(id,/g)||[]).length,2,'a handle on every row, Home and the bar alike');
+ // The eye stays on each row; the arrow buttons are gone.
+ assert.match(screen,/onClick=\{\(\)=>setHome\(toggleWidget\(home,id\)\)\}>\{off\?<EyeOff size=\{16\}\/>:<Eye size=\{16\}\/>\}<\/button>/);
+ assert.doesNotMatch(screen,/moveWidget|ArrowUp|ArrowDown/);
  // As on the day at a glance: a hold before a finger lifts the row, and it lands on the line between rows.
- assert.match(screen,/const HOLD=220,SLOP=8,END=':end';/);
- assert.match(screen,/if\(e\.pointerType==='mouse'\)lift\(d\);else d\.timer=setTimeout\(\(\)=>\{if\(drag\.current===d\)lift\(d\);\},HOLD\);/,'a finger holds first; a mouse lifts at once');
- assert.match(screen,/if\(Math\.hypot\(e\.clientX-d\.x,e\.clientY-d\.y\)>SLOP\)letGo\(\);return;/,'a thumb scrolling past the handle carries on scrolling');
- assert.match(screen,/row\.parentElement\.querySelectorAll\(':scope>\[data-drag-id\]'\)/,'only a row of the same list counts');
- assert.match(screen,/gap===id&&'drop-before',gap===END&&id===list\.at\(-1\)&&'drop-after'/,'the green line shows where it lands');
+ const drag=await readFile(new URL('../src/drag-order.jsx',import.meta.url),'utf8');
+ assert.match(drag,/const HOLD=220,SLOP=8;/);
+ assert.match(drag,/if\(e\.pointerType==='mouse'\)lift\(d\);else d\.timer=setTimeout\(\(\)=>\{if\(drag\.current===d\)lift\(d\);\},HOLD\);/,'a finger holds first; a mouse lifts at once');
+ // A drop on the line in front of a row, or after the last; the arrow keys use the same lines.
+ assert.deepEqual(placeBefore(['a','b','c'],'c','a'),['c','a','b']);
+ assert.deepEqual(placeBefore(['a','b','c'],'a',END),['b','c','a']);
+ assert.deepEqual(placeBefore(['a','b','c'],'a','nope'),['a','b','c']);
+ assert.equal(stepBefore(['a','b','c'],'b',-1),'a');assert.equal(stepBefore(['a','b','c'],'b',1),END);assert.equal(stepBefore(['a','b','c'],'a',1),'c');
+ assert.equal(stepBefore(['a','b','c'],'a',-1),null);assert.equal(stepBefore(['a','b','c'],'c',1),null);
+ // On Home only some widgets are on show, so a drop at the end lands just after the last of them.
+ const onShow=['step','weather','needs'];
+ const atEnd=homeOrder(dropWidget(emptyHome(),'step',END,onShow));
+ assert.equal(atEnd.indexOf('step'),atEnd.indexOf('needs')+1);
+ assert.equal(atEnd.length,HOME_DEFAULT.length);
+ const ahead=homeOrder(dropWidget(emptyHome(),'needs','step',onShow));
+ assert.equal(ahead.indexOf('needs'),ahead.indexOf('step')-1);
+ // Taken off with the − on Home, it is put away for good, and taking it off twice does not bring it back.
+ const off=removeWidget(emptyHome(),'weather');
+ assert.ok(!homeShown(off).includes('weather'));
+ assert.deepEqual(removeWidget(off,'weather'),off);
+ // Home wobbles to be arranged on Home itself: hold a card, or tap Edit Home.
+ const edit=await readFile(new URL('../src/HomeEdit.jsx',import.meta.url),'utf8');
+ assert.match(main,/<HomeStack editing=\{arranging\} setEditing=\{setArranging\} ids=\{homeOnShow\} place=\{\(id,before\)=>saveHome\(dropWidget\(homePrefs,id,before,homeOnShow\)\)\} remove=\{takeOffHome\}/);
+ assert.match(main,/<HomeCard key=\{run\} id=\{run\}/);
+ assert.match(main,/\{arranging\?'Done':'Edit Home'\}/);
+ assert.match(edit,/const HOLD=500,SLOP=10;/);
+ assert.match(edit,/if\(editing\|\|e\.button>0\|\|!e\.target\.closest\('\.home-card'\)\|\|e\.target\.closest\(CONTROLS\)\)return;/,'a hold on a button is the button’s');
+ assert.match(edit,/aria-label=\{`Take \$\{label\} off Home`\}/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/\.home-card\.editing:not\(\.held\)\{animation:home-wobble/);
+ assert.match(css,/@media\(prefers-reduced-motion:reduce\)\{\.home-card\.editing\{outline/);
+ assert.match(drag,/if\(Math\.hypot\(e\.clientX-d\.x,e\.clientY-d\.y\)>SLOP\)letGo\(\);return;/,'a thumb scrolling past the handle carries on scrolling');
+ assert.match(drag,/row\.parentElement\.querySelectorAll\(':scope>\[data-drag-id\]'\)/,'only a row of the same list counts');
+ assert.match(drag,/gap===id&&'drop-before',gap===END&&id===list\.at\(-1\)&&'drop-after'/,'the green line shows where it lands');
 });
 
 test('Days is the Itinerary, and Plan holds today with the whole trip one switch away',async()=>{

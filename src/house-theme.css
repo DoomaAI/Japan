@@ -156,7 +156,6 @@
 :root[data-look=washi] .home:not(.arranging) .home-card.folded .home-card-bar>.icon:first-of-type{display:inline-flex}
 :root[data-look=washi] .home-card.folded .home-card-bar{padding:0;background:transparent;border:0;border-bottom:1px solid var(--border);border-radius:0}
 :root[data-look=washi] .home.arranging .home-card-bar{background:var(--tint);padding-left:.6rem}
-:root[data-look=washi] .home-arrange{display:inline-flex}
 :root[data-look=washi] .home-card-body .eyebrow[data-repeats-label]{display:none}
 :root[data-look=washi] .home .home-card-body>:is(section,article,div,details,aside):not(.home-actions){border:0;border-radius:0;background:transparent;box-shadow:none;padding-left:0;padding-right:0}
 
