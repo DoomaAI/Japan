@@ -33,7 +33,7 @@ import {factForDay,factsForStep,gentleFacts} from './fact-data.js';
 import {PHRASES} from './phrases.js';
 import {readSettings,writeSetting,settingOn} from './settings.js';
 import {BottomNav,MorePage} from './Navigation.jsx';
-import {PAGES,pageFor,cleanNav,emptyNav,setAvailable,isAvailable,setHeldBack,setPlan,isKidsPage} from './nav-data.js';
+import {PAGES,pageFor,cleanNav,emptyNav,setAvailable,isAvailable,setHeldBack,setPlan,isKidsPage,joinedTabs,joinedGroup,joinedTitle,JOINED_TABS} from './nav-data.js';
 import {HOME_WIDGETS,homeShown,homeRuns,emptyHome,cleanHome,homeDay,foldWidget,awayToday,backToday} from './home-widgets.js';
 import {linkOrder,emptyLinks,cleanLinks} from './card-links.js';
 import StopButtons from './StopButtons.jsx';
@@ -639,6 +639,11 @@ function App(){
  // Today and the whole trip are one tab, Plan, with a switch at the top of each: a hotel app's
  // stay and its bookings, an event app's My agenda and the full programme.
  const planSwitch=<div className="segmented plan-switch" role="tablist" aria-label="Plan"><button role="tab" aria-selected={tab==='glance'} className={tab==='glance'?'selected':''} onClick={()=>navGo('glance')}>Today</button><button role="tab" aria-selected={tab==='days'} className={tab==='days'?'selected':''} onClick={()=>go('days')}>All days</button></div>;
+ // Screens joined into one card carry the same switch at the top (nav-data.js JOINED), the
+ // way Plan's Today | All days does; the emails still to file show how many are waiting.
+ // Plan draws its own Today | All days switch, which also brings the date back to today.
+ const joined=user&&joinedGroup(tab)?.[0]!=='glance'?joinedTabs(tab,user):[];
+ const joinedSwitch=joined.length>0&&<div className="segmented plan-switch joined-switch" role="tablist" aria-label={joinedTitle(tab)}>{joined.map(id=><button key={id} role="tab" aria-selected={tab===id} className={tab===id?'selected':''} onClick={()=>go(id)}>{JOINED_TABS[id]}{id==='inbox'&&state&&inboxWaiting(state)>0?` (${inboxWaiting(state)})`:''}</button>)}</div>;
  function navGo(id){go(id,(id==='glance'||id==='today')&&japanDate()!==day&&state?.days.some(x=>x.date===japanDate())?japanDate():undefined);}
  function selectDay(d){setDay(d);setSelected(null);setTab('today');updateUrl(d);}
  function selectStep(s){if(s.day===null){setTab('options');setQuery(s.title);navigate('/?'+new URLSearchParams({tab:'options',day}));return;}setDay(s.day);setSelected(s.id);setTab('today');updateUrl(s.day,s.id);}
@@ -899,6 +904,7 @@ function App(){
   <Suspense fallback={<p className="page-loading">Opening…</p>}>
   {/* Away from the Wallet the codes are still read, quietly, and Home asks about what was found. */}
   {tab!=='tickets'&&<CodeReader state={state} parent={parent} online={online} mutate={mutate} quiet/>}
+  {joinedSwitch}
   {tab==='today'&&<div className={`home${arranging?' arranging':''}`}>
    {dayHeading}
    <MomentBanner day={japanDate(now)} now={now} go={go}/>

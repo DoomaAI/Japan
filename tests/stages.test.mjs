@@ -466,11 +466,12 @@ test('the printed guide is rebuilt from the plan in the original guide’s order
 });
 test('the trip shop orders the essentials by lead time, and every link leaves through one seam',async()=>{
  const shop=await import('../src/shop-data.js');
- const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGES,MORE_SECTIONS,JOINED}=await import('../src/nav-data.js');
  const {PAGE_RULES}=await import('../src/spoken-rules.js');
  assert.ok(PAGES.shop?.label&&PAGE_RULES.shop,'a screen with something to say');
- // The shop moved to the Money shelf when More was regrouped: it is about what we buy.
- assert.ok(MORE_SECTIONS.find(([t])=>t==='Money')[1].includes('shop'));
+ // The shop moved to the Money shelf when More was regrouped, and is now a side of the shopping list: it is about what we buy.
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Money')[1].includes('shopping'));
+ assert.deepEqual(JOINED.find(g=>g.includes('shop')),['shopping','shortlist','shop'],'the trip shop is the shopping list\u2019s third side');
  const leads=shop.ESSENTIALS.map(e=>e.lead);
  assert.deepEqual(leads,[...leads].sort((a,b)=>b-a),'in the order to do them');
  for(const id of ['power','cash','esim','ic'])assert.ok(shop.ESSENTIALS.some(e=>e.id===id),`${id} is in the pack`);
@@ -530,7 +531,7 @@ test('the trip shop log keeps what was sorted and whether it was worth it, for t
 });
 test('apps to download: each app finds its days in the plan, and ones behind us are done',async()=>{
  const {SUGGESTED_APPS,APP_GROUPS,appDays,suggestedApps}=await import('../src/apps-data.js');
- const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGES,MORE_SECTIONS,JOINED}=await import('../src/nav-data.js');
  const {PAGE_RULES}=await import('../src/spoken-rules.js');
  const state=upgraded(seed),byId=id=>SUGGESTED_APPS.find(a=>a.id===id);
  assert.deepEqual(appDays(state,byId('usj')),['2026-09-25']);
@@ -713,7 +714,7 @@ test('home while we’re away: the house list and the first day home go onto the
 });
 test('flying home: what we bought is read off our own lists and set against the passenger card, the allowance and the scales',async()=>{
  const {classify,boughtItems,declareGroups,dutyFree,weightOf,weightBudget,ADULT_AUD,CHILD_AUD,ALLOWANCE_KG,DEFAULT_KG}=await import('../src/flying-home.js');
- const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGES,MORE_SECTIONS,JOINED}=await import('../src/nav-data.js');
  const {PAGE_RULES}=await import('../src/spoken-rules.js');
  const {applyOperation}=await import('../server/model.mjs');
  const {yenPerAud}=await import('../src/trip-features.js');
@@ -753,13 +754,14 @@ test('flying home: what we bought is read off our own lists and set against the 
  assert.equal(dutyFree(purse).yen,duty.yen+1800);
  // Its place in the app.
  assert.ok(PAGES.flyinghome?.label&&PAGE_RULES.flyinghome);
- assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('flyinghome'));
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='The plan')[1].includes('arrival'));
+ assert.deepEqual(JOINED.find(g=>g.includes('flyinghome')),['arrival','flyinghome'],'both ends of the flight, one card');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/\{tab==='flyinghome'&&<FlyingHome state=\{visibleState\} go=\{go\} mutate=\{parent\?mutate:null\} busy=\{busy\} parent=\{parent\}\/>\}/);
 });
 test('lost something: the Japanese to hand over, the right desk for the day’s lines and parks, the kōban and the claim',async()=>{
  const {ITEMS,COLOURS,DESKS,desksFor,deskFor,lostDraft,KOBAN,CLAIM,claimSummary}=await import('../src/lost-data.js');
- const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGES,MORE_SECTIONS,JOINED}=await import('../src/nav-data.js');
  const {PAGE_RULES}=await import('../src/spoken-rules.js');
  const state=upgraded(seed);
  // The words: big Japanese first, the colour on the thing, the number to ring back.
@@ -789,7 +791,8 @@ test('lost something: the Japanese to hand over, the right desk for the day’s 
  assert.match(claimSummary({draft:d}),/\(add from the kōban slip\)/);
  // Its place in the app: under Out and about beside Safety, and a button on Safety itself.
  assert.ok(PAGES.lost?.label&&PAGE_RULES.lost);
- assert.ok(MORE_SECTIONS.find(([t])=>t==='Out and about')[1].includes('lost'));
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Out and about')[1].includes('safety'));
+ assert.deepEqual(JOINED.find(g=>g.includes('lost')),['safety','meeting','lost'],'one card for when something goes wrong');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/\{tab==='lost'&&<Lost state=\{visibleState\} user=\{user\} day=\{day\} go=\{go\} notice=\{notice\}\/>\}/);
  const safety=await readFile(new URL('../src/Safety.jsx',import.meta.url),'utf8');

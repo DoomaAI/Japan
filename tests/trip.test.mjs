@@ -1748,15 +1748,18 @@ test('the yen converter works from a shared rate, set by a parent',async()=>{
  assert.equal(rateIsSet({rates:{perAud:100}}),false,'a rate with no timestamp is not "set"');
 });
 
-test('every screen is reachable exactly once, from the bar or from More',async()=>{
- const {PAGES,PRIMARY,MORE_SECTIONS,PARENT_PAGES,primaryNav,moreSections,moreIds,navActive,setAvailable}=await import('../src/nav-data.js');
+test('every screen is reachable exactly once, from the bar, from More or from the switch of the card it is joined to',async()=>{
+ const {PAGES,PRIMARY,MORE_SECTIONS,PARENT_PAGES,primaryNav,moreSections,moreIds,navActive,setAvailable,joinedTabs,ALWAYS_LISTED}=await import('../src/nav-data.js');
+ // A joined screen has no card of its own: it is the other side of its host's switch.
+ const viaSwitch=(user,ids)=>ids.flatMap(id=>joinedTabs(id,user).filter(x=>x!==id));
  const damien={name:'Damien',role:'parent'},lauren={name:'Lauren',role:'parent'},nate={name:'Nate',role:'child'};
  // Forwarded email is only offered where a mail provider is connected to the deployment, and
  // asking about the trip only where there is a key to answer with. The rest of this is about a
  // menu with both connected, so both are switched on for the check.
  setAvailable({inbox:true,ask:true});
  for(const user of [damien,lauren,nate]){
-  const bar=primaryNav(user),more=moreIds(user),all=[...bar,...more];
+  // FX alone is on the bar and in Money both (ALWAYS_LISTED); everything else is in one place.
+  const bar=primaryNav(user),more=moreIds(user).filter(id=>!(ALWAYS_LISTED.includes(id)&&bar.includes(id))),all=[...bar,...more,...viaSwitch(user,[...bar,...more])];
   // Nothing appears twice, and nothing is stranded.
   assert.equal(new Set(all).size,all.length,`${user.name} lists a page twice`);
   const expected=Object.keys(PAGES).filter(id=>(id!=='thanks'||user.name==='Damien')&&(!PARENT_PAGES.includes(id)||user.role==='parent'));
@@ -1765,15 +1768,17 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   assert.equal(bar.length,4,user.name);
   for(const id of all)assert.ok(PAGES[id]?.label&&PAGES[id]?.note,`${id} is missing a label or note`);
   // Sections are non-empty and the pages already in the bar are not repeated below.
-  for(const [title,ids] of moreSections(user)){assert.ok(title&&ids.length);for(const id of ids)assert.ok(!bar.includes(id),`${id} is in both`);}
+  for(const [title,ids] of moreSections(user)){assert.ok(title&&ids.length);for(const id of ids)assert.ok(!bar.includes(id)||ALWAYS_LISTED.includes(id),`${id} is in both`);}
+  assert.deepEqual(ALWAYS_LISTED,['money']);
  }
  // Lauren's private notes belong to Damien's phone alone.
  assert.ok(moreIds(damien).includes('thanks'));
  for(const user of [lauren,nate])assert.ok(!moreIds(user).includes('thanks'),user.name);
  // Forwarded email carries bookings and whatever else an email brought with it, so it is a
  // parents' screen and the boys are never sent to it.
- assert.ok(moreIds(lauren).includes('inbox'));
- assert.ok(!moreIds(nate).includes('inbox'));
+ assert.ok(joinedTabs('tickets',lauren).includes('inbox'));
+ assert.deepEqual(joinedTabs('tickets',nate),[],'a boy\u2019s Wallet has no switch');
+ for(const user of [lauren,nate])assert.ok(!moreIds(user).includes('inbox'),'and it is never a card of its own');
  // With no mail provider connected there is no screen about forwarding email, and with no key
  // to answer with there is no screen for asking about the trip: neither is on anyone's menu, and
  // neither is something a link or an old bar setting can reach either.
@@ -1785,7 +1790,9 @@ test('every screen is reachable exactly once, from the bar or from More',async()
   }
   // Everything else is still exactly where it was: hiding one page strands none of the others.
   const expected=Object.keys(PAGES).filter(id=>!['inbox','ask'].includes(id)&&(id!=='thanks'||'Damien'==='Damien'));
-  assert.deepEqual([...primaryNav(damien),...moreIds(damien)].sort(),expected.sort());
+  const reach=[...new Set([...primaryNav(damien),...moreIds(damien)])];
+  assert.deepEqual([...reach,...viaSwitch(damien,reach)].sort(),expected.sort());
+  assert.deepEqual(joinedTabs('tickets',damien),[],'with no email to file, the Wallet has no switch');
  }finally{setAvailable({inbox:true,ask:true});}
  // Four and More: parents reach for the wallet and prices; the boys reach for their missions.
  assert.deepEqual(PRIMARY.parent,['today','glance','tickets','money']);
@@ -1814,7 +1821,7 @@ test('every screen is reachable exactly once, from the bar or from More',async()
 });
 
 test('each phone arranges its own menu, and nothing put away is lost',async()=>{
- const {PAGES,PRIMARY,BAR_MIN,BAR_MAX,FIXED,emptyNav,cleanNav,primaryNav,hiddenNav,moreIds,moreSections,addableNav,pagesFor,menuOrder,navActive,setAvailable}
+ const {PAGES,PRIMARY,BAR_MIN,BAR_MAX,FIXED,emptyNav,cleanNav,primaryNav,hiddenNav,moreIds,moreSections,addableNav,pagesFor,menuOrder,navActive,setAvailable,isJoinedMember}
   =await import('../src/nav-data.js');
  const damien={name:'Damien',role:'parent'},lauren={name:'Lauren',role:'parent'},nate={name:'Nate',role:'child'};
  // This is about arranging a menu, not about which screens a deployment has, so forwarded email
@@ -1886,7 +1893,7 @@ test('each phone arranges its own menu, and nothing put away is lost',async()=>{
  // The order things are offered in is the order they already know from More.
  const order=menuOrder(damien);
  assert.deepEqual([...new Set(order)],order,'nothing is offered twice');
- assert.deepEqual([...order].sort(),[...pagesFor(damien)].sort(),'and nothing is left out');
+ assert.deepEqual([...order].sort(),[...pagesFor(damien)].filter(id=>id==='days'||!isJoinedMember(id)).sort(),'and nothing is left out but the screens reached through their host\u2019s card');
  assert.ok(order.indexOf('weather')<order.indexOf('games'),'the practical half first, as in More');
 });
 
@@ -10703,7 +10710,7 @@ test('More points to the favourites in one line, and Safety opens on the two num
 test('favourites start as Right now, are starred in and out, and are cleaned on the way out of storage',async()=>{
  const {favourites,toggleFavourite,rightNow,FAV_MAX,pagesFor}=await import('../src/nav-data.js');
  const damien={name:'Damien',role:'parent'},nate={name:'Nate',role:'child'};
- assert.deepEqual(favourites(damien,null),rightNow(damien),'an untouched phone sees the Right now six');
+ assert.deepEqual(favourites(damien,null),rightNow(damien),'an untouched phone sees the Right now five');
  assert.deepEqual(favourites(damien,'junk'),rightNow(damien));
  assert.deepEqual(favourites(damien,[]),[],'unstarring everything is kept, not undone');
  assert.deepEqual(favourites(damien,['tickets','tickets','nope',7,'safety']),['tickets','safety'],'repeats, unknowns and junk are dropped');
@@ -10728,14 +10735,14 @@ test('favourites start as Right now, are starred in and out, and are cleaned on 
 test('the favourites sheet: one swipe up the bar, as tall as its rows, and the same list as More',async()=>{
  const {favRows,FAV_COLS,FAV_MAX,pickerSections,menuOrder,PAGES}=await import('../src/nav-data.js');
  const damien={name:'Damien',role:'parent'},nate={name:'Nate',role:'child'};
- // Sized by what is in it: the default six are two rows, a full dozen three, and empty is one.
+ // Sized by what is in it: the default five are two rows, a full dozen three, and empty is one.
  assert.equal(FAV_COLS,4);
  assert.equal(favRows(0),1);assert.equal(favRows(4),1);assert.equal(favRows(6),2);assert.equal(favRows(FAV_MAX),3);
  // Choosing lists every screen this person can open, the bar's included, once each.
  const all=pickerSections(damien,null).flatMap(([,ids])=>ids);
  assert.deepEqual([...new Set(all)],all,'nothing listed twice');
  assert.ok(all.includes('money')&&all.includes('glance'),'screens on the bar can be chosen too');
- assert.deepEqual([...all].sort(),menuOrder(damien).filter(id=>id!=='today').sort(),'everything but Home, which is always on the bar');
+ assert.deepEqual([...all].sort(),menuOrder(damien).filter(id=>!['today','days'].includes(id)).sort(),'everything but Home, which is always on the bar, and the Itinerary, which is Plan\u2019s other side');
  assert.ok(!pickerSections(nate,null).flatMap(([,ids])=>ids).includes('ledger'),'nor anything this person cannot open');
  // Finding narrows by name or by what it is for, and drops empty sections.
  const yen=pickerSections(damien,null,'  YEN ');
@@ -11400,25 +11407,34 @@ test('Japan bingo: a mixed card each, lines, sets like every coin, and the old w
 });
 
 test('More is leaner: money on one shelf, memories on their own, housekeeping apart, and no placeholder page',async()=>{
- const {PAGES,MORE_SECTIONS,moreSections}=await import('../src/nav-data.js');
+ const {PAGES,MORE_SECTIONS,moreSections,joinedTabs,isJoinedMember,primaryNav}=await import('../src/nav-data.js');
  const {PAGE_RULES}=await import('../src/spoken-rules.js');
  const titles=MORE_SECTIONS.map(([t])=>t);
  assert.deepEqual(titles,['Out and about','Money','The plan','Looking back','Housekeeping','Just for you','For the boys']);
  const section=t=>MORE_SECTIONS.find(([title])=>title===t)[1];
  // Every screen about yen, side by side; the boys' own purse stays with their things.
- assert.deepEqual(section('Money'),['money','paying','ledger','shopping','shortlist','shop']);
+ assert.deepEqual(section('Money'),['money','paying','ledger','shopping']);
+ // What we saw and have not decided on, and the trip shop, are the shopping list's other sides.
+ assert.deepEqual(joinedTabs('shortlist',{name:'Nate',role:'child'}),['shopping','shortlist','shop']);
+ // FX is on a parent's bar and still a card in Money, where a parent at a till looks for it.
+ const lauren={name:'Lauren',role:'parent'};
+ assert.ok(primaryNav(lauren).includes('money'));
+ assert.equal(moreSections(lauren).find(([t])=>t==='Money')[1][0],'money');
  assert.ok(section('For the boys').includes('spending'));
  // Looking back is memories only; the app's own housekeeping is not among the photos.
- assert.deepEqual(section('Looking back'),['noticed','nexttime','photos','memorymap','diary','recap','highlights','book','capsule']);
+ assert.deepEqual(section('Looking back'),['noticed','nexttime','photos','memorymap','diary','recap','capsule']);
+ // The trip told three ways is one card: the video and the book are the story's other sides.
+ assert.deepEqual(joinedTabs('recap',{name:'Lauren',role:'parent'}),['recap','highlights','book']);
  assert.deepEqual(section('Housekeeping'),['updates','bin','search','guide']);
  // Nothing is listed twice, and every page not on the bar is somewhere.
  const all=MORE_SECTIONS.flatMap(([,ids])=>ids);
  assert.equal(new Set(all).size,all.length);
- for(const id of Object.keys(PAGES))if(!['today','days'].includes(id))assert.ok(all.includes(id),`${id} has no shelf`);
+ for(const id of Object.keys(PAGES))if(id!=='today'&&!isJoinedMember(id))assert.ok(all.includes(id),`${id} has no shelf`);
+ for(const id of Object.keys(PAGES))if(isJoinedMember(id))assert.ok(!all.includes(id),`${id} is reached through its host\u2019s card, not a card of its own`);
  // Highlights was once a placeholder and was removed; it is back as a real page (the video), on
- // the Looking back shelf, with its spoken guide, and no longer a placeholder.
+ // the Looking back shelf (the Video side of Our trip story), with its spoken guide, and no longer a placeholder.
  assert.ok(PAGES.highlights);assert.ok(PAGE_RULES.highlights);
- assert.ok(all.includes('highlights'));
+ assert.ok(all.includes('recap')&&joinedTabs('recap',{name:'Lauren',role:'parent'}).includes('highlights'));
  const page=await readFile(new URL('../src/Highlights.jsx',import.meta.url),'utf8');
  assert.doesNotMatch(page,/coming soon|placeholder/i);
  // A parent sees Money; a boy does not get the parents' screens but still gets his own shelf last.
@@ -12227,4 +12243,39 @@ test('the top bar keeps to a few things: the weather sits in the clock, and a re
  assert.match(topbar,/\{noteForMe&&!noteRead&&<button className="icon thank-you-button"/);
  assert.match(main,/<Family [^>]*note=\{noteForMe\}[^>]*onNote=\{\(\)=>setModal\(\{type:'thankyou',note:noteForMe\}\)\}/);
  assert.match(main,/\{note&&<Button className="family-note" icon=\{Heart\} onClick=\{onNote\}>/);
+});
+
+test('screens that answer one question are one card on More, with a switch between them',async()=>{
+ const {JOINED,JOINED_TABS,MORE_SECTIONS,PAGES,joinedTabs,navActive,setAvailable,moreIds,addableNav}=await import('../src/nav-data.js');
+ const damien={name:'Damien',role:'parent'},nate={name:'Nate',role:'child'};
+ setAvailable({inbox:true,ask:true});
+ const cards=MORE_SECTIONS.flatMap(([,ids])=>ids);
+ for(const [host,...rest] of JOINED){
+  assert.ok(cards.includes(host),`${host} keeps its card`);
+  for(const id of [host,...rest]){
+   assert.ok(PAGES[id]&&JOINED_TABS[id],`${id} has a page and a word on the switch`);
+   if(id!==host){assert.ok(!cards.includes(id),`${id} has no card of its own`);if(id!=='days')assert.ok(!addableNav(damien).includes(id),`${id} is not offered for the bar on its own`);}
+  }
+ }
+ // A screen is in one group at most, and the switch reads the same from either side.
+ const all=JOINED.flat();
+ assert.equal(new Set(all).size,all.length);
+ assert.deepEqual(joinedTabs('meeting',damien),['safety','meeting','lost']);
+ assert.deepEqual(joinedTabs('lost',nate),['safety','meeting','lost']);
+ assert.deepEqual(joinedTabs('weather',damien),[],'a screen joined to nothing has no switch');
+ // The meeting card is no longer a Right now favourite of its own: Safety opens onto it.
+ assert.ok(!moreIds(damien).includes('meeting'));
+ // A joined screen lights its host on the bar: the emails to file are the Wallet's.
+ assert.equal(navActive('inbox','tickets',damien),true);
+ assert.equal(navActive('inbox','more',damien),false);
+ assert.equal(navActive('settings','personalise',nate,{bar:['today','glance','personalise','food']}),true);
+ assert.equal(navActive('settings','more',nate,{bar:['today','glance','personalise','food']}),false);
+ // On a bar that holds the joined screen itself, that button is lit and the host's is not.
+ const both={bar:['today','tickets','inbox','money']};
+ assert.equal(navActive('inbox','inbox',damien,both),true);
+ assert.equal(navActive('inbox','tickets',damien,both),false);
+ // The app draws the switch once, above every page, and Plan keeps its own.
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/\{joinedSwitch\}\n  \{tab==='today'&&/);
+ assert.match(main,/joinedGroup\(tab\)\?\.\[0\]!=='glance'\?joinedTabs\(tab,user\)/);
 });

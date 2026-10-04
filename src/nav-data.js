@@ -9,7 +9,7 @@ export const PAGES={
  today:{label:'Home',note:'Your own widgets for the day: what’s next, weather, to-dos and more'},
  days:{label:'Itinerary',note:'All sixteen days of the trip'},
  glance:{label:'Plan',note:'Today\u2019s stops in order, ticked off as they happen, and every day of the trip one switch away'},
- tickets:{label:'Wallet',note:'Tonight’s stay, the next pass to scan, and every booking, tag and QR code'},
+ tickets:{label:'Wallet',note:'Tonight’s stay, the next pass to scan, every booking, tag and QR code, and the emails still to file'},
  inbox:{label:'Forwarded email',note:'Booking emails you sent in, waiting to be filed'},
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
  hunts:{label:'Hunts & lists',note:'Rate and rank every matcha, gachapon and ramen, lists of our own, and where each one was'},
@@ -27,13 +27,13 @@ export const PAGES={
  showtell:{label:'Show and tell',note:'One page per boy for the first day back at school: his photos, missions, a noticing, a phrase, read aloud first'},
  diary:{label:'Diary',note:'Completed stops, discoveries and photos'},
  highlights:{label:'Highlights video',note:'The best of the trip, cut into a short video with our sounds, to share'},
- recap:{label:'Our trip story',note:'The trip in swipeable cards: the numbers, the places, our best bits and everyone’s favourite'},
+ recap:{label:'Our trip story',note:'The trip in swipeable cards, the highlights video to share, and the photobook to print'},
  book:{label:'Photobook',note:'A page for each day, with the photo of the day, the stops we loved and the diary, to print'},
  places:{label:'Places & our map',note:'Directions and our Google My Map'},
  meeting:{label:'Meeting card',note:'If we get separated'},
  whereabouts:{label:'Where we are',note:'The family on a map, sharing where you are for a while, and telling the others you’re running late'},
  allergy:{label:'Allergy card',note:'What each of us cannot eat, in Japanese, to show the waiter'},
- safety:{label:'Safety & emergencies',note:'Emergency numbers, the boys\u2019 lost cards, the embassy, earthquakes and typhoons'},
+ safety:{label:'Safety & emergencies',note:'Emergency numbers, the meeting card if we get separated, and what to do when something is lost'},
  lost:{label:'Lost something',note:'The Japanese to hand over, the right desk for today’s trains and parks, the kōban report and what the insurer asks for'},
  phrases:{label:'Phrases',note:'Greetings and travel Japanese, with how to say it'},
  stamps:{label:'Stamp book',note:'Stamps for the places, sights, rides and trains we have done, and everyone’s milestones'},
@@ -42,14 +42,14 @@ export const PAGES={
  help:{label:'Help & apps',note:'Hotel directions, translation, and the apps to download with what to set up in each'},
  options:{label:'Options & ideas',note:'Places and stops saved for later'},
  vault:{label:'Passports & visas',note:'Passport details, photos of each page, visas and insurance, encrypted, for Mum and Dad only'},
- arrival:{label:'Arrival paperwork',note:'Visit Japan Web for landing in Japan, and the Australia Travel Declaration for home'},
+ arrival:{label:'Borders & customs',note:'Visit Japan Web on the way in; the declaration, passenger card, duty-free and the scales on the way home'},
  flyinghome:{label:'Flying home',note:'What we bought against the passenger card, the duty-free allowance and the scales, read off our own lists'},
  homefront:{label:'Home while we’re away',note:'The house while we are gone and the first day back, one tap onto the to-do list, and the clocks-change note'},
  windows:{label:'Booking windows',note:'When the bookings that sell out open, in Japan and home time, with calendar alerts'},
  predictions:{label:'Sealed predictions',note:'Guess how the trip will go; the answers stay sealed until we are home'},
  guests:{label:'Who’s coming',note:'Your answer to the invitation, who is in, and what the organiser needs to know'},
  invitation:{label:'Invitation',note:'What guests read at the link, the questions they are asked, and the link itself'},
- planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, and voting on them'},
+ planning:{label:'Planning board',note:'Who we are, what we like, suggested ideas, voting on them, and the ideas with no date yet'},
  ask:{label:'Concierge',note:'Better today or tomorrow? Ask, and get an answer from our own plan'},
  todo:{label:'To-do list',note:'Things to do or buy, on the day we will do them'},
  trackers:{label:'Tracker tags',note:'Which AirTag is in which bag, and the Find My link to where it is'},
@@ -59,7 +59,7 @@ export const PAGES={
  weather:{label:'Weather',note:'Every day and every hour, with the graphs'},
  nightstand:{label:'Nightstand',note:'The phone by the bed: the clock, tomorrow’s first fixed time and leave-by, the forecast and the alarm, dim after ten'},
  parks:{label:'Theme park rides',note:'Checklists, height limits and park maps'},
- shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need'},
+ shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need, what we saw and have not decided on, and the trip shop'},
  shortlist:{label:'Purchase shortlist',note:'Things we have seen in a shop, photographed, priced and still to decide on'},
  printguide:{label:'Print our guide',note:'The travel guide rebuilt from the plan as it stands, to print or save as a PDF'},
  guide:{label:'Original travel guide',note:'All 72 pages, linked and searchable'},
@@ -68,7 +68,7 @@ export const PAGES={
  search:{label:'Search everything',note:'Find a booking, note, shop or guide page'},
  mascot:{label:'Our characters',note:'Design your own Japanese character and use it in the app'},
  thanks:{label:'Daily notes',note:'Write and schedule the daily pop-up notes for Lauren, Nate and Boston'},
- personalise:{label:'Customise',note:'Your bar, your Home widgets, and what you see'},
+ personalise:{label:'Customise',note:'Your bar, your Home widgets and what you see, and the app’s settings'},
  settings:{label:'Settings',note:'The order of the shortcuts along the bottom, and the daily phrase or fun fact'}
 };
 // Four and More, as the leading hotel and event apps have it. Home is the dashboard and Plan is
@@ -88,19 +88,54 @@ export const PRIMARY={
 // what to pack, and a parent at a till wants them side by side. Looking back holds only the
 // memories now; the app's own housekeeping (updates, the bin, search, the original guide) has
 // a shelf of its own rather than sitting among the photos.
+// Screens that answer one question from two or three sides are one card (JOINED, below), so a
+// joined screen is reached through its host's card and the switch at the top of the page.
 export const MORE_SECTIONS=[
- ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','whereabouts','meeting','safety','lost','help']],
- ['Money',['money','paying','ledger','shopping','shortlist','shop']],
- ['The plan',['glance','days','guests','invitation','todo','packing','trackers','windows','arrival','flyinghome','homefront','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
- ['Looking back',['noticed','nexttime','photos','memorymap','diary','recap','highlights','book','capsule']],
+ ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','whereabouts','safety','help']],
+ ['Money',['money','paying','ledger','shopping']],
+ ['The plan',['glance','guests','invitation','todo','packing','trackers','windows','arrival','homefront','vault','planning','predictions','printguide','parks','tickets']],
+ ['Looking back',['noticed','nexttime','photos','memorymap','diary','recap','capsule']],
  ['Housekeeping',['updates','bin','search','guide']],
- ['Just for you',['nightstand','personalise','settings','thanks']],
+ ['Just for you',['nightstand','personalise','thanks']],
  ['For the boys',['challenges','stamps','leaderboard','games','spending','facts','mascot','showtell']]
 ];
 // The boys' own pages. Under a quiet look (Washi) these keep their colour and their rounder
 // corners, since a game board or a stamp book is meant to be bright.
 export const KIDS_PAGES=MORE_SECTIONS.find(([label])=>label==='For the boys')[1];
 export const isKidsPage=id=>KIDS_PAGES.includes(id);
+// One card, several screens. Each group is one question seen from two or three sides — the day
+// and the whole trip; something
+// has gone wrong; the passes and the emails still to be filed;
+// the border on the way in and on the way out; the board and the ideas with no date yet; the
+// trip told three ways; what to buy, what we saw and what to sort before and after; the phone arranged and the app set up — so More has one card for it,
+// the host (first), and every screen in it carries the same switch at the top, the way Plan's
+// Today | All days does. The screens keep their own ids, so a deep link, a favourite, a bar
+// somebody has already arranged and every go('meeting') in the app still land where they did.
+export const JOINED=[
+ ['glance','days'],
+ ['safety','meeting','lost'],
+ ['tickets','inbox'],
+ ['arrival','flyinghome'],
+ ['planning','options'],
+ ['recap','highlights','book'],
+ ['shopping','shortlist','shop'],
+ ['personalise','settings']
+];
+// The words on the switch, short enough for three across a phone.
+export const JOINED_TABS={glance:'Today',days:'All days',safety:'Emergency',meeting:'Separated',lost:'Lost item',
+ tickets:'Passes',inbox:'To file',arrival:'Paperwork',flyinghome:'Flying home',planning:'Board',options:'No date yet',
+ recap:'Story',highlights:'Video',book:'Photobook',shopping:'To buy',shortlist:'Seen it',shop:'Trip shop',personalise:'Customise',settings:'Settings'};
+export const joinedGroup=id=>JOINED.find(g=>g.includes(id))||null;
+export const joinedTitle=id=>PAGES[joinedGroup(id)?.[0]]?.label||'';
+// Screens with no card of their own: reached through their host, never offered as a card.
+export const isJoinedMember=id=>!!joinedGroup(id)&&joinedGroup(id)[0]!==id;
+// The switch for the screen in hand: the screens of its group this person can open, or nothing
+// when that is only the one (a boy's Wallet has no emails to file, so it has no switch).
+export const joinedTabs=(id,user)=>{
+ const g=joinedGroup(id);if(!g)return [];
+ const ok=g.filter(x=>allowed(x,user));
+ return ok.length>1&&ok.includes(id)?ok:[];
+};
 // Some screens only exist where the deployment can do the thing they are about. Forwarded email
 // needs a mail provider connected to it; until there is one the screen would be a page about a
 // setting nobody has set, so it is not offered at all — not on the bar, not in the menu, not in
@@ -129,13 +164,13 @@ export const setPlan=next=>{plan=next||null;};
 export const isModuleOn=id=>!plan||moduleOn(plan,id);
 const allowed=(id,user)=>(id!=='thanks'||user?.name==='Damien')&&(!PARENT_PAGES.includes(id)||user?.role==='parent')&&isAvailable(id)&&!isHeldBack(id)&&isModuleOn(id);
 export const pagesFor=user=>Object.keys(PAGES).filter(id=>allowed(id,user));
-// The handful of pages wanted in a hurry, in one row at the top of More, above the long list:
+// The handful of pages wanted in a hurry (the meeting card is the first tab of Safety), in one row at the top of More, above the long list:
 // the ones reached for with a child crying, a waiter waiting or the sky darkening. Nothing
 // here is taken out of its section below; this row is a second way in, not a move.
-export const RIGHT_NOW=['safety','meeting','allergy','phrases','weather','help'];
+export const RIGHT_NOW=['safety','allergy','phrases','weather','help'];
 export const rightNow=user=>{const ok=new Set(pagesFor(user));return RIGHT_NOW.filter(id=>ok.has(id));};
 // Favourites: the row at the top of More, made each person's own. Starring a card in any section
-// puts it in the row; unstarring takes it out. It starts as the Right now six, so an untouched
+// puts it in the row; unstarring takes it out. It starts as the Right now five, so an untouched
 // phone sees what it always has. Kept on the phone like the bar, and cleaned the same way on the
 // way out of storage: unknown or no-longer-allowed screens are dropped, repeats collapse, and the
 // row stops at a dozen so it stays a row of shortcuts rather than a second menu. An empty list is
@@ -160,7 +195,7 @@ export const toggleFavourite=(user,saved,id,bar=[])=>{
 // The same favourites open as a sheet from the bar: a swipe up it, or the handle on top of it.
 // One list, kept in one place, so a card starred on More is in the sheet and one chosen in the
 // sheet is in the row on More. The sheet is only as tall as the favourites in it — rows of
-// FAV_COLS, so the default six are two rows and a full dozen three — and never a scroll.
+// FAV_COLS, so the default five are two rows and a full dozen three — and never a scroll.
 export const FAV_COLS=4;
 export const favRows=n=>Math.max(1,Math.ceil(Math.max(0,n|0)/FAV_COLS));
 // Choosing favourites in the sheet lists every screen this person can open, the bar's own
@@ -274,10 +309,12 @@ function fallbackBar(user,hidden){
 // Everything this person can see, in the order the menu itself puts it: the practical half
 // first and the boys' block last, which is the order they already know from More. Home, Today
 // and the Itinerary are in every bar rather than in a section, so they come first when one of
-// them has been taken off a bar and is being offered back.
+// them has been taken off a bar and is being offered back. A joined screen is offered as its
+// host, never on its own; a bar or favourite that already holds one keeps it. The Itinerary is
+// the exception, as it was before: it is what a bar short of screens falls back on.
 export const menuOrder=user=>{
  const order=[...new Set(['today','glance','days',...MORE_SECTIONS.flatMap(([,ids])=>ids),...Object.keys(PAGES)])];
- return order.filter(id=>allowed(id,user));
+ return order.filter(id=>allowed(id,user)&&(id==='days'||!isJoinedMember(id)));
 };
 // The bar along the bottom: theirs if they have set one, the one for their role if they have not.
 export const primaryNav=(user,prefs)=>{
@@ -289,8 +326,11 @@ export const hiddenNav=(user,prefs)=>cleanNav(prefs,user).hidden;
 // without whatever this person has put away. Nothing put away is lost: My menu lists it, and
 // My menu is one of the two screens that can never be put away itself.
 // With withBar, the bar's own screens are listed too, in their places, so More can mark them.
+// The yen converter is the one card Money always shows, on the bar or not: Money is where a
+// parent at a till looks for it, and a shelf of money without the yen on it reads as missing one.
+export const ALWAYS_LISTED=['money'];
 export const moreSections=(user,prefs,withBar=false)=>{
- const shown=new Set(withBar?[]:primaryNav(user,prefs)),away=new Set(hiddenNav(user,prefs));
+ const shown=new Set(withBar?[]:primaryNav(user,prefs).filter(id=>!ALWAYS_LISTED.includes(id))),away=new Set(hiddenNav(user,prefs));
  const rank=arranged(cleanNav(prefs,user).order);
  return MORE_SECTIONS
   .map(([title,ids])=>[title,inOrder(ids.filter(id=>!shown.has(id)&&!away.has(id)&&allowed(id,user)),rank)])
@@ -325,10 +365,13 @@ export const addableNav=(user,prefs)=>{
  return menuOrder(user).filter(id=>!on.has(id)&&!away.has(id));
 };
 // The bottom bar's More button stands in for every page it holds, so you never lose your place.
-// Plan covers the whole trip as well as today, unless the Itinerary has a button of its own.
-const covered=(tab,bar)=>bar.includes(tab)||(tab==='days'&&bar.includes('glance'));
+// Plan covers the whole trip as well as today, unless the Itinerary has a button of its own;
+// a joined screen lights its host's button the same way.
+// A joined screen is covered by the first of its group on the bar, when it is not there itself.
+const joinedLit=(tab,bar)=>bar.includes(tab)?null:(joinedGroup(tab)||[]).find(x=>bar.includes(x))||null;
+const covered=(tab,bar)=>bar.includes(tab)||(tab==='days'&&bar.includes('glance'))||!!joinedLit(tab,bar);
 export const navActive=(tab,id,user,prefs)=>{
  const bar=primaryNav(user,prefs);
  if(id==='more')return !covered(tab,bar);
- return tab===id||(id==='glance'&&tab==='days'&&!bar.includes('days'));
+ return tab===id||(id==='glance'&&tab==='days'&&!bar.includes('days'))||joinedLit(tab,bar)===id;
 };
