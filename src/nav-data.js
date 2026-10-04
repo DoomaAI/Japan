@@ -1,4 +1,8 @@
 import {moduleOn} from './plan-context.js';
+// Apps to download used to be a page of its own beside Help; they are one page now, so a
+// reminder, a briefing note or an old link that still says apps lands on Help.
+export const PAGE_ALIASES={apps:'help'};
+export const pageFor=id=>PAGE_ALIASES[id]||id;
 // One registry drives both the bottom bar and the More screen, so every page is reachable
 // from exactly one place and nothing can be orphaned when a new page is added.
 export const PAGES={
@@ -35,9 +39,8 @@ export const PAGES={
  stamps:{label:'Stamp book',note:'Stamps for the places, sights, rides and trains we have done, and everyone’s milestones'},
  leaderboard:{label:'Leaderboard',note:'Who has tried the most foods, ridden the most rides and taken the most photos'},
  facts:{label:'Fun facts',note:'A fact a day about what is coming up, and the whole collection'},
- help:{label:'Help & useful apps',note:'Translation and hotel directions, and the local apps to download and set up'},
+ help:{label:'Help & apps',note:'Hotel directions, translation, and the apps to download with what to set up in each'},
  options:{label:'Options & ideas',note:'Places and stops saved for later'},
- apps:{label:'Apps to download',note:'The local apps worth having for trains, taxis, the parks and alerts, and what to set up in each'},
  vault:{label:'Passports & visas',note:'Passport details, photos of each page, visas and insurance, encrypted, for Mum and Dad only'},
  arrival:{label:'Borders & customs',note:'Visit Japan Web on the way in; the declaration, passenger card, duty-free and the scales on the way home'},
  flyinghome:{label:'Flying home',note:'What we bought against the passenger card, the duty-free allowance and the scales, read off our own lists'},
@@ -102,7 +105,7 @@ export const KIDS_PAGES=MORE_SECTIONS.find(([label])=>label==='For the boys')[1]
 export const isKidsPage=id=>KIDS_PAGES.includes(id);
 // One card, several screens. Each group is one question seen from two or three sides — the day
 // and the whole trip; something
-// has gone wrong; what to tap and what to install; the passes and the emails still to be filed;
+// has gone wrong; the passes and the emails still to be filed;
 // the border on the way in and on the way out; the board and the ideas with no date yet; the
 // trip told three ways; what to buy, what we saw and what to sort before and after; the phone arranged and the app set up — so More has one card for it,
 // the host (first), and every screen in it carries the same switch at the top, the way Plan's
@@ -111,7 +114,6 @@ export const isKidsPage=id=>KIDS_PAGES.includes(id);
 export const JOINED=[
  ['glance','days'],
  ['safety','meeting','lost'],
- ['help','apps'],
  ['tickets','inbox'],
  ['arrival','flyinghome'],
  ['planning','options'],
@@ -120,7 +122,7 @@ export const JOINED=[
  ['personalise','settings']
 ];
 // The words on the switch, short enough for three across a phone.
-export const JOINED_TABS={glance:'Today',days:'All days',safety:'Emergency',meeting:'Separated',lost:'Lost item',help:'Help',apps:'Apps to get',
+export const JOINED_TABS={glance:'Today',days:'All days',safety:'Emergency',meeting:'Separated',lost:'Lost item',
  tickets:'Passes',inbox:'To file',arrival:'Paperwork',flyinghome:'Flying home',planning:'Board',options:'No date yet',
  recap:'Story',highlights:'Video',book:'Photobook',shopping:'To buy',shortlist:'Seen it',shop:'Trip shop',personalise:'Customise',settings:'Settings'};
 export const joinedGroup=id=>JOINED.find(g=>g.includes(id))||null;

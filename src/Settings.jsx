@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import PageTitle from './PageTitle.jsx';
-import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,MessageCircleQuestion,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell,Coffee,Smile} from 'lucide-react';
+import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell,Coffee,Smile} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
 import {BarShortcuts,HomeWidgets,OpeningTips} from './Personalise.jsx';
@@ -55,7 +55,7 @@ function MatchaNearby({state,settings,change,radius,setRadius,notice}){
 }
 // The buttons under each stop, in order, with arrows. The same order the wobble-and-drag on a
 // stop changes, for anybody who would rather tap than hold and drag, or cannot find the hold.
-const LINK_ICONS={website:ExternalLink,tickets:Ticket,photos:Image,voice:Mic,ask:MessageCircleQuestion,guide:BookOpen,remind:Bell,nearby:Compass,share:Share2};
+const LINK_ICONS={website:ExternalLink,tickets:Ticket,photos:Image,voice:Mic,ask:ConciergeBell,guide:BookOpen,remind:Bell,nearby:Compass,share:Share2};
 const LINK_EMOJI={park:'🎢',waits:'⏱️',sumo:'🥋',eyespy:'🗻'};
 function StopButtonOrder({prefs,setPrefs}){
  const order=linkOrder(prefs),set=list=>setPrefs({order:list});

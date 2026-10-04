@@ -544,9 +544,13 @@ test('apps to download: each app finds its days in the plan, and ones behind us 
  assert.equal(mid.maps.soon,false,'whole-trip apps are never flagged');assert.equal(mid.qantas.soon,false);
  assert.equal(suggestedApps(state,'2026-09-01').filter(a=>a.done).length,0,'nothing is done before the trip');
  for(const a of SUGGESTED_APPS){assert.match(a.url,/^https:\/\/apps\.apple\.com\/au\/app\/[a-z-]+\/id\d+$/,a.id);assert.ok(APP_GROUPS.some(([g])=>g===a.group),a.id);assert.ok(a.why&&a.setup&&a.who,a.id);}
- assert.ok(PAGES.apps?.label&&PAGE_RULES.apps);// Apps sit with Out and about since the regrouping: they are for the street, not the planning.
+ // Apps to download is part of Help now, not a page of its own, and an old link to it lands on Help.
+ const {pageFor}=await import('../src/nav-data.js');
+ assert.ok(!PAGES.apps&&!PAGE_RULES.apps,'no separate apps page');
+ assert.ok(!MORE_SECTIONS.flatMap(([,ids])=>ids).includes('apps'));
  assert.ok(MORE_SECTIONS.find(([t])=>t==='Out and about')[1].includes('help'));
- assert.deepEqual(JOINED.find(g=>g.includes('apps')),['help','apps'],'one card with Help');
+ assert.equal(pageFor('apps'),'help');assert.equal(pageFor('weather'),'weather');
+ assert.match(PAGES.help.label,/apps/i);assert.match(PAGE_RULES.help,/earthquakes/);
 });
 test('apps to download: reminders a week before we fly, the evening before each park and train, and on the briefing',async()=>{
  const {appReminders,appsDue}=await import('../src/apps-data.js');
@@ -559,7 +563,7 @@ test('apps to download: reminders a week before we fly, the evening before each 
  const pushes=pushMoments(state).filter(m=>m.kind==='apps');
  assert.equal(pushes.length,4);assert.equal(new Date(pushes.find(m=>m.key==='apps|disney|2026-09-28').at).toISOString(),'2026-09-28T10:00:00.000Z','7pm in Japan');
  assert.equal(pushes.find(m=>m.key.startsWith('apps|disney')).title,'Tomorrow: Tokyo Disney Resort App');
- for(const m of pushes){assert.equal(m.url,'/?tab=apps');assert.ok(m.to.every(n=>['Damien','Lauren'].includes(n)),'parents only');}
+ for(const m of pushes){assert.equal(m.url,'/?tab=help');assert.ok(m.to.every(n=>['Damien','Lauren'].includes(n)),'parents only');}
  assert.deepEqual(appsDue(state,'2026-09-28'),[{id:'disney',name:'Tokyo Disney Resort App',today:false}]);
  assert.deepEqual(dayBriefing(state,'2026-09-25').apps.map(a=>[a.id,a.today]),[['usj',true]]);
  assert.deepEqual(dayBriefing(state,'2026-09-22').apps,[]);

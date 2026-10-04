@@ -13,7 +13,7 @@
 // The pages that only make sense on a journey: days away, luggage, paperwork at the border,
 // the destination's own content and the boys' trip games. Every type other than a trip starts
 // from this list and keeps back the ones it needs.
-const TRIP_ONLY=['days','packing','trackers','windows','arrival','flyinghome','homefront','vault','guide','printguide','parks','apps','local','phrases','allergy','stamps','facts','challenges','spending','showtell','mascot','games','leaderboard','capsule','book','recap','diary','nexttime','predictions','shop','thanks','nightstand','hunts','food','money','paying','shopping','shortlist','lost'];
+const TRIP_ONLY=['days','packing','trackers','windows','arrival','flyinghome','homefront','vault','guide','printguide','parks','local','phrases','allergy','stamps','facts','challenges','spending','showtell','mascot','games','leaderboard','capsule','book','recap','diary','nexttime','predictions','shop','thanks','nightstand','hunts','food','money','paying','shopping','shortlist','lost'];
 const without=(list,keep)=>list.filter(id=>!keep.includes(id));
 export const PLAN_TYPES=[
  {id:'outing',label:'Outing',note:'A dinner, drinks or a day out: hours to a day, people who know each other',

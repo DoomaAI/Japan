@@ -127,7 +127,7 @@ export default function Packing({state,user,mutate,busy,remove}){
   {PACK_SCOPES.map(([id,label])=><button key={id} className={scope===id?'selected':''} aria-pressed={scope===id} onClick={()=>setScope(id)}>{label} · {scopeCount(id)}</button>)}
  </div>
  <div className="quest-progress"><strong>{packed} of {total} packed{scopeName&&` on ${scopeName}`}</strong><progress max={Math.max(total,1)} value={packed}/>
-  <span>{w.forecast?`Using the saved forecast for ${w.forecast} of the ${w.each.length} days ahead${w.usual?' and the usual weather for the rest':''}.`:'No forecast saved yet, so the weather suggestions use what these cities are usually like. Check the forecast on the Weather screen to sharpen them.'}</span></div>
+  <span>{w.forecast?`Using the saved forecast for ${w.forecast} of the ${w.each.length} days ahead${w.usual?' and the usual weather for the rest':''}.`:'No forecast saved yet, so the weather suggestions use what these cities are usually like. Refresh the forecast on the Weather screen to sharpen them.'}</span></div>
  <div className="segmented pack-tabs">
   <button className={view==='list'?'selected':''} onClick={()=>setView('list')}>{scope==='own'?(who===user.name?'My list':`${who}’s list`):scope==='joint'?'Joint list':'Our list'} · {total}</button>
   <button className={view==='suggest'?'selected':''} onClick={()=>setView('suggest')}>Suggested · {suggestions.filter(forPerson).length}</button>

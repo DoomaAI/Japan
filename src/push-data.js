@@ -46,7 +46,7 @@ export function pushMoments(state){
  for(const r of appReminders(state)){
   const one=r.apps.length===1&&r.first;
   out.push({key:`apps|${r.id}|${r.day}`,kind:'apps',at:at(r.day,APP_REMIND_AT),title:one?`Tomorrow: ${r.apps[0].name}`:'A week to go: apps to set up',
-   body:one?r.apps[0].setup:`${r.apps.map(a=>a.name).join(', ')}. Set each one up on home Wi-Fi.`,url:'/?tab=apps',to:parents});
+   body:one?r.apps[0].setup:`${r.apps.map(a=>a.name).join(', ')}. Set each one up on home Wi-Fi.`,url:'/?tab=help',to:parents});
  }
  return out.sort((a,b)=>a.at-b.at);
 }
