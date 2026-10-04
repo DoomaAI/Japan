@@ -114,7 +114,7 @@ ol.recap-top{counter-reset:n;display:grid;gap:.7rem}ol.recap-top li{counter-incr
 /* Kudos from home: a clap, a heart or a wow from the follow-along link, and who it was from. */
 .follow-kudos{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;margin:.5rem 0 0;width:100%}.follow-kudos button{display:inline-flex;align-items:center;gap:.25rem;min-height:40px;min-width:48px;padding:.2rem .6rem;border-radius:20px;font-size:1.1rem;background:var(--paper);border:1px solid var(--border)}.follow-kudos button b{font-size:.85rem}.follow-kudos button.is-mine{background:var(--tint);border-color:var(--green)}.follow-kudos small{flex-basis:100%;color:var(--muted);font-size:.78rem}
 .follow-ask form{background:var(--paper);color:var(--ink);padding:1.2rem;border-radius:16px;max-width:360px;width:100%;display:flex;flex-direction:column;gap:.7rem}.follow-ask p{margin:0}.follow-foot button{margin-left:.4rem;min-height:0;padding:0 .3rem;font-size:.8rem;background:none;border:0;text-decoration:underline;color:inherit}
-.photo-kudos,.day-kudos{display:block;color:var(--muted);font-size:.8rem}.day-tools>span{display:flex;flex-direction:column;align-items:flex-start;gap:.1rem}
+.photo-kudos,.day-kudos{display:block;color:var(--muted);font-size:.8rem}.day-tools>span{display:flex;flex-direction:column;align-items:flex-start;gap:.1rem}.day-tally{display:inline-flex;align-items:center;gap:.4rem}
 /* Halfway there: the trip so far on one square. */
 .halfway p{margin:0 0 .8rem}.halfway-canvas{display:block;width:100%;max-width:420px;aspect-ratio:1;margin:0 auto 1rem;border-radius:16px;background:#16383b}.halfway-line>span:first-child{font-size:1.5rem}
 
