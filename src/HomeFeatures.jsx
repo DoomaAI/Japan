@@ -29,7 +29,7 @@ export function NextUp({state,day,person=null,after=null,now,selectStep,open,go,
  return <section className={`next-up${shown?'':' folded'}`}>
   <div className="next-up-head">
    <div className="next-up-now">
-    <h2 className="eyebrow">{current?'What’s next?':after?'Last stop of the day':'Day complete'} · {dayLabel(day)}</h2>
+    <h2 className="eyebrow">{current?'Next':after?'Last stop of the day':'Day complete'} · {dayLabel(day)}</h2>
     {current?<button className="next-title" onClick={()=>selectStep(current)}><EntryIcon step={current}/>{current.time||'Any time'} · {current.title}</button>:<p>{after?'Nothing else after this stop today.':'Time to capture a favourite memory.'}</p>}
    </div>
    <button type="button" className="next-up-fold" aria-expanded={shown} aria-label={shown?'Hide the rest of the dashboard':'Show the rest of the dashboard'} onClick={fold}>{shown?<ChevronUp size={18}/>:<ChevronDown size={18}/>}</button>
