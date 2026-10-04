@@ -79,6 +79,7 @@ import TodoList,{DayTodos} from './TodoList.jsx';
 import Packing,{PackingNudge} from './Packing.jsx';
 import StepReview from './StepReview.jsx';
 import {useForecastCheck} from './Weather.jsx';
+import {forecastAge} from './weather-data.js';
 import DayTimeline from './DayTimeline.jsx';
 import EntryIcon from './EntryIcon.jsx';
 import {ENTRY_TYPES,guessEntryType} from './entry-types.js';
@@ -561,6 +562,17 @@ function App(){
  const setMatchaRadius=km=>{writeRadius(user?.name,km);bumpSettings(n=>n+1);};
  useMatchaNearby({on:!!(user&&visibleState&&settingOn(settings,'matchaNearby')),state:visibleState,person:user?.name,radius:matchaRadius,notice});
  const forecast=useForecastCheck({state:visibleState||{days:[]},day:null,mutate,notice});
+ // Opening the app, or coming back to it, refreshes the forecast for the days still ahead when the
+ // saved one is over three hours old: the models only move every few hours, and one phone's
+ // refresh is everybody's. A failed try waits the same three hours rather than retrying each time.
+ const forecastTried=useRef(0),[forecastWake,setForecastWake]=useState(0);
+ useEffect(()=>{const look=()=>{if(document.visibilityState==='visible')setForecastWake(n=>n+1);};document.addEventListener('visibilitychange',look);return()=>document.removeEventListener('visibilitychange',look);},[]);
+ useEffect(()=>{
+  if(!visibleState||!online||forecast.checking||Date.now()-forecastTried.current<3*3600000)return;
+  const from=japanDate(),age=forecastAge(visibleState);
+  if(!visibleState.days.some(d=>d.date>=from)||(age!==null&&age<3))return;
+  forecastTried.current=Date.now();forecast.auto(from);
+ },[!!visibleState,online,forecastWake]);
  const allSteps=visibleState?activeSteps(visibleState,day):[],splits=visibleState?daySplits(visibleState,day):[];
  // A link or a tap straight to a stop on somebody else's lane follows that lane, rather than
  // quietly landing on your own first stop instead.

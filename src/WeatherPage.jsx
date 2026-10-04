@@ -22,7 +22,7 @@ export function DayWeather({state,day,nowHour}){
   <DayShape hours={hours}/>
   {hours
    ?<><HourlyChart hours={hours} nowHour={nowHour} picked={picked} onPick={setPicked}/><HourlyTable hours={hours}/></>
-   :<p><small>Only the day’s high and low are saved for this one. Check the forecast again to fill in the hours.</small></p>}
+   :<p><small>Only the day’s high and low are saved for this one. Refresh the forecast to fill in the hours.</small></p>}
   {advice(entry)&&<p className="weather-advice">{advice(entry)}</p>}
  </div>;
 }
@@ -57,10 +57,10 @@ export default function WeatherPage({state,day,now,check,checking,busy,online}){
  return <><p className="eyebrow">WHAT THE SKY IS DOING</p><PageTitle help={<p>Every day of the trip, and every hour of each day. It is kept in the trip, so one person checking it puts it on everybody’s phone and it is still here with no signal. A forecast more than a few days out is a guess, and the hours further out are a guess about a guess.</p>}>Weather</PageTitle>
  <div className="row wrap">
   <button className="primary" disabled={busy||checking||!online} onClick={check}>
-   <RefreshCw size={16}/>{checking?'Checking…':online?'Check the forecast':'Offline — showing what we have'}</button>
+   <RefreshCw size={16}/>{checking?'Refreshing…':online?'Refresh the forecast':'Offline — showing what we have'}</button>
  </div>
  <p className="weather-age"><small>{ageLabel(age)}{state.weather?.by?` · by ${state.weather.by}`:''}.</small></p>
- {!state.days.some(d=>has(d.date))&&<p className="callout">No forecast saved yet. {online?'Tap Check the forecast and the next fortnight fills in for every phone.':'It fills in the next time somebody checks with signal.'}</p>}
+ {!state.days.some(d=>has(d.date))&&<p className="callout">No forecast saved yet. {online?'Tap Refresh the forecast and the next fortnight fills in for every phone.':'It fills in the next time somebody refreshes with signal.'}</p>}
  {earlier.length>0&&<details className="weather-earlier" open={earlier.some(d=>d.date===open)||undefined}><summary>Earlier days ({earlier.length})</summary><div className="weather-list">{earlier.map(row)}</div></details>}
  <div className="weather-list">{ahead.map(row)}</div>
  <p className="callout"><CloudSun size={18}/><span>From <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">Open-Meteo</a>, which is free and needs no account. Asked once per place the trip visits, not once per day.</span></p>
