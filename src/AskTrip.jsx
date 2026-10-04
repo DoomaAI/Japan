@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import GuideByline from './GuideByline.jsx';
 import PageTitle from './PageTitle.jsx';
-import {AlertCircle,CalendarDays,Check,ExternalLink,MessageCircleQuestion,Navigation,Search,Trash2,WifiOff} from 'lucide-react';
+import {AlertCircle,CalendarDays,Check,ExternalLink,ConciergeBell,MessageCircleQuestion,Navigation,Search,Trash2,WifiOff} from 'lucide-react';
 import {ASK_LIMIT,askDayLabel,askHistory,askItem,askStarters,readThread,sharesThread,stepStarters,threadFor,writeThread} from './ask-thread.js';
 import Dictate from './Dictate.jsx';
 import {joinSpoken} from './dictation.js';
@@ -142,7 +142,7 @@ export default function AskTrip({state,user,day,step,config,online=true,request,
     {item.sources.map(s=><a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer">{s.title||s.url} <ExternalLink size={13}/></a>)}</details>}
    {item.pending?<small>Waiting for a signal · asked when the phone is back in touch with the Concierge open</small>:item.quick?<small>Answered from the plan on this phone · nothing was changed</small>:<small>{item.step&&!step?`About ${state.steps.find(s=>s.id===item.step)?.title||'a stop'} · `:''}{item.about?`About ${askDayLabel(item.about)}`:'About the whole trip'} · {item.usage?.searches??item.searches??0} web {(item.usage?.searches??item.searches)===1?'search':'searches'} · {item.draft?.appliedAt?`change applied by ${item.draft.appliedBy||'a parent'}`:'nothing was changed'}</small>}
   </article>)}
-  {!thread.length&&ready&&!assistant&&<div className="empty"><MessageCircleQuestion/><h2>Nothing asked yet</h2><p>Tap one of the questions above, or write your own. {shared?'Answers are kept in the trip, so both of you can read them again, and on this phone for when there is no signal.':'Answers are kept on this phone so you can read them again with no signal.'}</p></div>}
+  {!thread.length&&ready&&!assistant&&<div className="empty"><ConciergeBell/><h2>Nothing asked yet</h2><p>Tap one of the questions above, or write your own. {shared?'Answers are kept in the trip, so both of you can read them again, and on this phone for when there is no signal.':'Answers are kept on this phone so you can read them again with no signal.'}</p></div>}
   {!!thread.length&&!assistant&&<div className="row wrap"><button onClick={()=>{clear();notice?.(step?'The questions about this stop are cleared.':shared?'The shared questions are cleared.':'Your questions on this phone are cleared.');}}><Trash2 size={16}/>{step?'Clear these questions':shared?'Clear our questions':'Clear my questions'}</button>
    {!step&&<button onClick={()=>go?.('planning')}>Planning board</button>}</div>}
   {ready&&!assistant&&<p className="callout"><AlertCircle size={18}/>This reads the plan and gives an opinion. It never moves or adds a stop, changes a booking or tells anybody anything by itself: when the answer is a change to the day, it hands it back as a draft {user?.role==='parent'?'for you to look over and apply — on the screen, or with a yes when you asked out loud':'for a parent to apply'}. It can be wrong about what is open, what a ticket costs and what is on, so check anything you are about to rely on.</p>}
