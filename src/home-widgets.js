@@ -8,7 +8,7 @@ import {END} from './drag-list.js';
 // The day's heading and its strip of dates are not widgets. They say which day Home is about,
 // and a Home that could be told to forget which day it was on would be no Home at all.
 // On this day leads on an anniversary and is empty every other day; the day in brief comes next, a few lines read over breakfast; then the step we are on; what's next sits straight under it, with
-// the phrase, the fun fact and the tip of the day just below, then what to carry; and the things read once a day — the guide, the tally, shop finds —
+// the phrase, the fun fact and the tip of the day just below, then what to carry, the next fixed time and the rings; and the things read once a day — the guide, the tally, shop finds —
 // come after.
 export const HOME_WIDGETS={
  countdown:{label:'Trip countdown',note:'Days to go before we fly, then which day of the trip it is',off:true},
@@ -28,8 +28,8 @@ export const HOME_WIDGETS={
  todaystip:{label:'Tip of the day',note:'On the trip: a practical tip for the day — getting around, money, the boys, manners — and swipe for more'},
  spare:{label:'If we have time',note:'On a park day: rides near us worth fitting in, from our stars and how the day is going'},
  needs:{label:'Before we head out',note:'A tick for each thing to carry out the door, fresh each morning, with a streak'},
- rings:{label:'Three rings',note:'Your stops, five photos and the day’s phrase, closing as you go; the rings closed are the day’s score'},
  links:{label:'Next fixed time',note:'The next time that cannot move, one tap from its stop'},
+ rings:{label:'Three rings',note:'Your stops, five photos and the day’s phrase, closing as you go; the rings closed are the day’s score'},
  stay:{label:'Tonight’s stay',note:'The hotel, which night, check-in and check-out, the confirmation number, directions and the taxi card'},
  move:{label:'Hotel move',note:'The evening before and the morning of a move: bags to the desk, the forwarding label in Japanese, the overnight bag, check-out and check-in'},
  running:{label:'Is everything running?',note:'Service status for today’s trains, and flight status on a flight day'},
