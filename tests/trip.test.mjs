@@ -335,7 +335,8 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  // against the strip rather than the page.
  assert.match(main,/strip\.scrollLeft\+=b\.left-a\.left-\(a\.width-b\.width\)\/2;\};[\s\S]{0,120}centre\(\);document\.fonts\?\.ready\.then\(centre\);\},\[day\]\);/);
  assert.match(main,/onClick=\{\(\)=>pick\(d\.date\)\}/);
- assert.match(main,/\{dayStrip\(selectDay\)\}/,'and Home still lands on Home');
+ assert.doesNotMatch(main,/\{dayStrip\(selectDay\)\}/,'Home is today: the strip of dates lives on Plan alone');
+assert.match(main,/const dayHeading=<div className="day-heading">\{dayTitle\}<\/div>;/,'and Home has no calendar button either');
  // Tapping a stop there opens its card, which is the one place a step is read in full.
  assert.match(main,/<DayTimeline steps=\{steps\}[^>]*selectStep=\{selectStep\}/);
  assert.match(main,/function selectStep\(s\)\{[\s\S]*?setSelected\(s\.id\);setTab\('today'\)/);
@@ -1985,7 +1986,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  // Side by side they share one grid; apart, each is its own.
  assert.deepEqual(homeRuns(['step','tired','apps','weather','glance']),['step',['tired','apps'],'weather',['glance']]);
  // Home draws them by id, the day heading and strip stay put, and the phone keeps the choice.
- assert.match(main,/\{dayStrip\(selectDay\)\}\s*<MomentBanner [^\n]*\/>\s*<QuizLine [^\n]*\/>\s*\{homeRuns\(homeShown\(homePrefs\)\.filter\(id=>awarenessAllows\(visibleState,user\.name,id\)&&!todayHome\.away\.includes\(id\)\)\)\.map\(run=>/);
+ assert.match(main,/\{dayHeading\}\s*<MomentBanner [^\n]*\/>\s*<QuizLine [^\n]*\/>\s*\{homeRuns\(homeShown\(homePrefs\)\.filter\(id=>awarenessAllows\(visibleState,user\.name,id\)&&!todayHome\.away\.includes\(id\)\)\)\.map\(run=>/);
  // Today carries the day's buttons under its stops.
  assert.match(main,/\{dayStrip\(d=>go\('glance',d\)\)\}[\s\S]*?<DayTimeline [^\n]*\/>\s*\{\/\*[^\n]*\*\/\}\s*<div className="home-actions day-actions">[\s\S]*?Slow the day[\s\S]*?Useful apps[\s\S]*?<DayMap/);
  for(const id of HOME_DEFAULT)assert.match(main,new RegExp(`\\n  ${id}:`),`${id} is drawn`);
@@ -2022,7 +2023,7 @@ test('Days is the Itinerary, and Plan holds today with the whole trip one switch
  for(const bar of Object.values(PRIMARY))assert.deepEqual(bar.slice(0,2),['today','glance']);
  assert.match(main,/const planSwitch=<div className="segmented plan-switch"/);
  assert.match(main,/\{tab==='days'&&<>\{planSwitch\}/);
- assert.match(main,/function navGo\(id\)\{go\(id,id==='glance'&&[^}]*japanDate\(\)/,'Today lands on today');
+ assert.match(main,/function navGo\(id\)\{go\(id,\(id==='glance'\|\|id==='today'\)&&[^}]*japanDate\(\)/,'Today lands on today');
 });
 
 test('every row in the menu draws an icon, and the bar swipes across the bottom',async()=>{

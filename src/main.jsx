@@ -627,7 +627,7 @@ function App(){
  // Today and the whole trip are one tab, Plan, with a switch at the top of each: a hotel app's
  // stay and its bookings, an event app's My agenda and the full programme.
  const planSwitch=<div className="segmented plan-switch" role="tablist" aria-label="Plan"><button role="tab" aria-selected={tab==='glance'} className={tab==='glance'?'selected':''} onClick={()=>navGo('glance')}>Today</button><button role="tab" aria-selected={tab==='days'} className={tab==='days'?'selected':''} onClick={()=>go('days')}>All days</button></div>;
- function navGo(id){go(id,id==='glance'&&japanDate()!==day&&state?.days.some(x=>x.date===japanDate())?japanDate():undefined);}
+ function navGo(id){go(id,(id==='glance'||id==='today')&&japanDate()!==day&&state?.days.some(x=>x.date===japanDate())?japanDate():undefined);}
  function selectDay(d){setDay(d);setSelected(null);setTab('today');updateUrl(d);}
  function selectStep(s){if(s.day===null){setTab('options');setQuery(s.title);navigate('/?'+new URLSearchParams({tab:'options',day}));return;}setDay(s.day);setSelected(s.id);setTab('today');updateUrl(s.day,s.id);}
  // What happens to a stop, in one place, because the row in the timeline and the card for the
@@ -745,7 +745,7 @@ function App(){
  // to be told where a tap lands — Home when it is Home asking, and the screen you are already
  // standing on when it is not, so choosing a day on the day at a glance does not send you home.
  const dayTitle=<div><p className="eyebrow">{today?.city} / {fmtDay(day)}</p><h1>{today?.title}</h1></div>;
- const dayHeading=<div className="day-heading">{dayTitle}<button className="icon" aria-label="Choose day" onClick={()=>setTab('days')}><CalendarDays/></button></div>;
+ const dayHeading=<div className="day-heading">{dayTitle}</div>;
  const dayStrip=pick=><DateStrip day={day}>{state.days.map(d=>{const behind=dayBehind(visibleState,d.date,todayJapan);return <button key={d.date} className={`${day===d.date?'selected':''}${behind?' behind':''}`} aria-label={behind?`${fmtDay(d.date)}, completed`:undefined} onClick={()=>pick(d.date)}><span>{fmtDay(d.date,{weekday:'short'})}</span><strong>{d.date.slice(-2)}</strong>{behind&&<Check className="strip-tick" size={11} strokeWidth={3} aria-hidden="true"/>}{d.date===japanDate()&&<i aria-label="Today"/>}</button>;})}</DateStrip>;
  // The day's pages in the original guide, as thumbnails to swipe — a widget on Home and the
  // foot of the day at a glance.
@@ -889,7 +889,6 @@ function App(){
   {tab!=='tickets'&&<CodeReader state={state} parent={parent} online={online} mutate={mutate} quiet/>}
   {tab==='today'&&<div className={`home${arranging?' arranging':''}`}>
    {dayHeading}
-   {dayStrip(selectDay)}
    <MomentBanner day={japanDate(now)} now={now} go={go}/>
    <QuizLine state={visibleState} open={()=>setModal({type:'quiz'})}/>
    {homeRuns(homeShown(homePrefs).filter(id=>awarenessAllows(visibleState,user.name,id)&&!todayHome.away.includes(id))).map(run=>Array.isArray(run)?<div className="home-actions" key={run.join()}>{run.map(id=><React.Fragment key={id}>{homeWidgets[id]}</React.Fragment>)}</div>:<HomeCard key={run} label={HOME_WIDGETS[run].label} folded={todayHome.folded.includes(run)} fold={()=>saveHomeToday(foldWidget(homeToday,todayKey,run))} away={()=>saveHomeToday(awayToday(homeToday,todayKey,run))}>{homeWidgets[run]}</HomeCard>)}
