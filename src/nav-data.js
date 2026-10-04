@@ -1,4 +1,8 @@
 import {moduleOn} from './plan-context.js';
+// Apps to download used to be a page of its own beside Help; they are one page now, so a
+// reminder, a briefing note or an old link that still says apps lands on Help.
+export const PAGE_ALIASES={apps:'help'};
+export const pageFor=id=>PAGE_ALIASES[id]||id;
 // One registry drives both the bottom bar and the More screen, so every page is reachable
 // from exactly one place and nothing can be orphaned when a new page is added.
 export const PAGES={
@@ -35,9 +39,8 @@ export const PAGES={
  stamps:{label:'Stamp book',note:'Stamps for the places, sights, rides and trains we have done, and everyone’s milestones'},
  leaderboard:{label:'Leaderboard',note:'Who has tried the most foods, ridden the most rides and taken the most photos'},
  facts:{label:'Fun facts',note:'A fact a day about what is coming up, and the whole collection'},
- help:{label:'Help & useful apps',note:'Translation, hotel directions, reminders'},
+ help:{label:'Help & apps',note:'Hotel directions, translation, and the apps to download with what to set up in each'},
  options:{label:'Options & ideas',note:'Places and stops saved for later'},
- apps:{label:'Apps to download',note:'The local apps worth having for trains, taxis, the parks and alerts, and what to set up in each'},
  vault:{label:'Passports & visas',note:'Passport details, photos of each page, visas and insurance, encrypted, for Mum and Dad only'},
  arrival:{label:'Arrival paperwork',note:'Visit Japan Web for landing in Japan, and the Australia Travel Declaration for home'},
  flyinghome:{label:'Flying home',note:'What we bought against the passenger card, the duty-free allowance and the scales, read off our own lists'},
@@ -86,7 +89,7 @@ export const PRIMARY={
 // memories now; the app's own housekeeping (updates, the bin, search, the original guide) has
 // a shelf of its own rather than sitting among the photos.
 export const MORE_SECTIONS=[
- ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','whereabouts','meeting','safety','lost','help','apps']],
+ ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','whereabouts','meeting','safety','lost','help']],
  ['Money',['money','paying','ledger','shopping','shortlist','shop']],
  ['The plan',['glance','days','guests','invitation','todo','packing','trackers','windows','arrival','flyinghome','homefront','vault','planning','predictions','options','printguide','parks','tickets','inbox']],
  ['Looking back',['noticed','nexttime','photos','memorymap','diary','recap','highlights','book','capsule']],

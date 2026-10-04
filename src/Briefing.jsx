@@ -52,7 +52,7 @@ export default function Briefing({state,day,today,clock,go,user,mutate,busy}){
   {(b.moving||b.last)&&<p className="briefing-note"><BedDouble size={15}/>{b.last?'Last day: everything comes home with us.':`Hotel move today, to ${b.hotel}.`}</p>}
   {b.clocks&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('homefront')}><Clock size={15}/>{b.clocks.text}</button>}
   {b.declaration&&<button type="button" className="briefing-note briefing-link" onClick={()=>go('arrival')}><PlaneTakeoff size={15}/>Australia Travel Declaration: fill it in for each of us, within 72 hours of the flight home.</button>}
-  {apps.map(a=><button type="button" key={a.id} className="briefing-note briefing-link" onClick={()=>go('apps')}><Smartphone size={15}/>{a.today?'Needed today':'Tomorrow'}: {a.name}. Not on this phone yet; set it up now.</button>)}
+  {apps.map(a=><button type="button" key={a.id} className="briefing-note briefing-link" onClick={()=>go('help')}><Smartphone size={15}/>{a.today?'Needed today':'Tomorrow'}: {a.name}. Not on this phone yet; set it up now.</button>)}
  </section>;
 }
 // How is everyone this morning: one to five each, asked at breakfast. It sits on Home just above
