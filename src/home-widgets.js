@@ -1,3 +1,4 @@
+import {END} from './drag-list.js';
 // Home is a stack of widgets, and which ones are on it — and in what order — is up to whoever is
 // holding the phone. Lauren wants the step card and the tickets; Boston wants the weather and his
 // to-dos above everything else; Nate wants the step card and nothing to scroll past. Like the
@@ -90,13 +91,23 @@ export function moveWidget(prefs,id,by){
  order[at]=order[to];order[to]=id;
  return cleanHome({...prefs,order});
 }
-// Dragged by its handle in Customise: the widget lands where it was dropped, and the rest close up.
+// Dragged by its handle in Customise, or by the card on Home: the widget lands where it was
+// dropped, and the rest close up.
 export function placeWidget(prefs,id,to){
  const order=homeOrder(prefs).filter(x=>x!==id);
  if(!homeOrder(prefs).includes(id)||to<0||to>order.length)return cleanHome(prefs);
  order.splice(to,0,id);
  return cleanHome({...prefs,order});
 }
+// Dropped on the line in front of another widget, or at the end of the ones on show (END), on
+// Home while it wobbles or in Customise. Only some widgets are on show, so the end is just after
+// the last one of those, wherever that sits among the ones put away.
+export function dropWidget(prefs,id,before,visible){
+ const order=homeOrder(prefs),rest=order.filter(x=>x!==id);
+ const at=before===END?rest.indexOf(visible.filter(x=>x!==id).at(-1))+1:rest.indexOf(before);
+ return at<0||!order.includes(id)?cleanHome(prefs):placeWidget(prefs,id,at);
+}
+export function removeWidget(prefs,id){return cleanHome(prefs).hidden.includes(id)?cleanHome(prefs):toggleWidget(prefs,id);}
 export function toggleWidget(prefs,id){
  const {hidden,shown}=cleanHome(prefs),off=hidden.includes(id);
  return cleanHome({order:homeOrder(prefs),
@@ -104,10 +115,12 @@ export function toggleWidget(prefs,id){
   shown:off?[...shown,id]:shown.filter(x=>x!==id)});
 }
 // Home draws widgets in turn, except that the day's buttons, when they sit next to each other,
-// are gathered into one run so they share a grid.
-export function homeRuns(ids){
+// are gathered into one run so they share a grid. While Home is being edited each is a card of
+// its own, to be dragged or taken off by itself.
+export function homeRuns(ids,apart=false){
  const runs=[];
  for(const id of ids){
+  if(apart){runs.push(id);continue;}
   const last=runs.at(-1);
   if(HOME_WIDGETS[id]?.action){if(Array.isArray(last))last.push(id);else runs.push([id]);}
   else runs.push(id);

@@ -1,10 +1,12 @@
 import React,{useState} from 'react';
 import PageTitle from './PageTitle.jsx';
-import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,ArrowUp,ArrowDown,RotateCcw,ExternalLink,Ticket,Image,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell,Coffee,Smile} from 'lucide-react';
+import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,RotateCcw,ExternalLink,Ticket,Image,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell,Coffee,Smile} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
 import {BarShortcuts,HomeWidgets,OpeningTips} from './Personalise.jsx';
-import {CARD_LINKS,linkOrder,stepLink} from './card-links.js';
+import {CARD_LINKS,linkOrder} from './card-links.js';
+import {useDragOrder} from './drag-order.jsx';
+import {placeBefore} from './drag-list.js';
 import {DEEP_LINKS,deepLinkUrl} from './deep-links.js';
 import {THEMES,readTheme,saveTheme,applyTheme,LOOKS,LOOK_CHOICES,readLook,saveLook,applyLook} from './theme.js';
 import {READING,AWARENESS,childLevels,defaultReading,defaultAwareness,readingLabel,awarenessLabel,isChild} from './child-levels.js';
@@ -53,24 +55,23 @@ function MatchaNearby({state,settings,change,radius,setRadius,notice}){
   </>}
  </section>;
 }
-// The buttons under each stop, in order, with arrows. The same order the wobble-and-drag on a
-// stop changes, for anybody who would rather tap than hold and drag, or cannot find the hold.
+// The buttons under each stop, in order, each dragged by its handle. The same order the
+// wobble-and-drag on a stop changes, for anybody who cannot find the hold on a stop.
 const LINK_ICONS={website:ExternalLink,tickets:Ticket,photos:Image,voice:Mic,ask:ConciergeBell,guide:BookOpen,remind:Bell,nearby:Compass,share:Share2};
 const LINK_EMOJI={park:'🎢',waits:'⏱️',sumo:'🥋',eyespy:'🗻'};
 function StopButtonOrder({prefs,setPrefs}){
- const order=linkOrder(prefs),set=list=>setPrefs({order:list});
+ const order=linkOrder(prefs);
+ const {grip,rowClass}=useDragOrder(order,(id,before)=>setPrefs({order:placeBefore(order,id,before)}));
  return <>
   <h2>The buttons on each stop</h2>
   <p>These sit under every stop, in this order. Some only turn up where they apply, like the park
-   map on a park day, and keep their place for when they do. You can also press and hold any of
-   them on a stop until they wobble, then drag them where you want.</p>
-  <ol className="menu-order">{order.map((id,i)=>{const Icon=LINK_ICONS[id];return <li key={id}>
+   map on a park day, and keep their place for when they do. Hold a row’s handle and drag it to
+   the green line, or press and hold any of them on a stop until they wobble, then drag them
+   where you want.</p>
+  <ol className="menu-order">{order.map(id=>{const Icon=LINK_ICONS[id];return <li key={id} data-drag-id={id} className={rowClass(id)||undefined}>
+   {grip(id,CARD_LINKS[id].label)}
    <span className="more-icon" aria-hidden="true">{Icon?<Icon size={19}/>:LINK_EMOJI[id]}</span>
    <span><strong>{CARD_LINKS[id].label}</strong><small>{CARD_LINKS[id].note}</small></span>
-   <span className="menu-buttons">
-    <button type="button" aria-label={`Move ${CARD_LINKS[id].label} earlier`} disabled={i===0} onClick={()=>set(stepLink(order,id,-1))}><ArrowUp size={16}/></button>
-    <button type="button" aria-label={`Move ${CARD_LINKS[id].label} later`} disabled={i===order.length-1} onClick={()=>set(stepLink(order,id,1))}><ArrowDown size={16}/></button>
-   </span>
   </li>;})}</ol>
   {prefs?.order&&<button type="button" onClick={()=>setPrefs({order:null})}><RotateCcw size={16}/> Put them back how they were</button>}
  </>;
