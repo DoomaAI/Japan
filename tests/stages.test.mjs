@@ -466,11 +466,12 @@ test('the printed guide is rebuilt from the plan in the original guide’s order
 });
 test('the trip shop orders the essentials by lead time, and every link leaves through one seam',async()=>{
  const shop=await import('../src/shop-data.js');
- const {PAGES,MORE_SECTIONS}=await import('../src/nav-data.js');
+ const {PAGES,MORE_SECTIONS,JOINED}=await import('../src/nav-data.js');
  const {PAGE_RULES}=await import('../src/spoken-rules.js');
  assert.ok(PAGES.shop?.label&&PAGE_RULES.shop,'a screen with something to say');
- // The shop moved to the Money shelf when More was regrouped: it is about what we buy.
- assert.ok(MORE_SECTIONS.find(([t])=>t==='Money')[1].includes('shop'));
+ // The shop moved to the Money shelf when More was regrouped, and is now a side of the shopping list: it is about what we buy.
+ assert.ok(MORE_SECTIONS.find(([t])=>t==='Money')[1].includes('shopping'));
+ assert.deepEqual(JOINED.find(g=>g.includes('shop')),['shopping','shortlist','shop'],'the trip shop is the shopping list\u2019s third side');
  const leads=shop.ESSENTIALS.map(e=>e.lead);
  assert.deepEqual(leads,[...leads].sort((a,b)=>b-a),'in the order to do them');
  for(const id of ['power','cash','esim','ic'])assert.ok(shop.ESSENTIALS.some(e=>e.id===id),`${id} is in the pack`);

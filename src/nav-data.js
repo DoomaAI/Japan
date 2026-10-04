@@ -56,7 +56,7 @@ export const PAGES={
  weather:{label:'Weather',note:'Every day and every hour, with the graphs'},
  nightstand:{label:'Nightstand',note:'The phone by the bed: the clock, tomorrow’s first fixed time and leave-by, the forecast and the alarm, dim after ten'},
  parks:{label:'Theme park rides',note:'Checklists, height limits and park maps'},
- shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need'},
+ shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need, what we saw and have not decided on, and the trip shop'},
  shortlist:{label:'Purchase shortlist',note:'Things we have seen in a shop, photographed, priced and still to decide on'},
  printguide:{label:'Print our guide',note:'The travel guide rebuilt from the plan as it stands, to print or save as a PDF'},
  guide:{label:'Original travel guide',note:'All 72 pages, linked and searchable'},
@@ -89,7 +89,7 @@ export const PRIMARY={
 // joined screen is reached through its host's card and the switch at the top of the page.
 export const MORE_SECTIONS=[
  ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','whereabouts','safety','help']],
- ['Money',['money','paying','ledger','shopping','shortlist','shop']],
+ ['Money',['money','paying','ledger','shopping']],
  ['The plan',['glance','guests','invitation','todo','packing','trackers','windows','arrival','homefront','vault','planning','predictions','printguide','parks','tickets']],
  ['Looking back',['noticed','nexttime','photos','memorymap','diary','recap','capsule']],
  ['Housekeeping',['updates','bin','search','guide']],
@@ -104,7 +104,7 @@ export const isKidsPage=id=>KIDS_PAGES.includes(id);
 // and the whole trip; something
 // has gone wrong; what to tap and what to install; the passes and the emails still to be filed;
 // the border on the way in and on the way out; the board and the ideas with no date yet; the
-// trip told three ways; the phone arranged and the app set up — so More has one card for it,
+// trip told three ways; what to buy, what we saw and what to sort before and after; the phone arranged and the app set up — so More has one card for it,
 // the host (first), and every screen in it carries the same switch at the top, the way Plan's
 // Today | All days does. The screens keep their own ids, so a deep link, a favourite, a bar
 // somebody has already arranged and every go('meeting') in the app still land where they did.
@@ -116,12 +116,13 @@ export const JOINED=[
  ['arrival','flyinghome'],
  ['planning','options'],
  ['recap','highlights','book'],
+ ['shopping','shortlist','shop'],
  ['personalise','settings']
 ];
 // The words on the switch, short enough for three across a phone.
 export const JOINED_TABS={glance:'Today',days:'All days',safety:'Emergency',meeting:'Separated',lost:'Lost item',help:'Help',apps:'Apps to get',
  tickets:'Passes',inbox:'To file',arrival:'Paperwork',flyinghome:'Flying home',planning:'Board',options:'No date yet',
- recap:'Story',highlights:'Video',book:'Photobook',personalise:'Customise',settings:'Settings'};
+ recap:'Story',highlights:'Video',book:'Photobook',shopping:'To buy',shortlist:'Seen it',shop:'Trip shop',personalise:'Customise',settings:'Settings'};
 export const joinedGroup=id=>JOINED.find(g=>g.includes(id))||null;
 export const joinedTitle=id=>PAGES[joinedGroup(id)?.[0]]?.label||'';
 // Screens with no card of their own: reached through their host, never offered as a card.
@@ -323,8 +324,11 @@ export const hiddenNav=(user,prefs)=>cleanNav(prefs,user).hidden;
 // without whatever this person has put away. Nothing put away is lost: My menu lists it, and
 // My menu is one of the two screens that can never be put away itself.
 // With withBar, the bar's own screens are listed too, in their places, so More can mark them.
+// The yen converter is the one card Money always shows, on the bar or not: Money is where a
+// parent at a till looks for it, and a shelf of money without the yen on it reads as missing one.
+export const ALWAYS_LISTED=['money'];
 export const moreSections=(user,prefs,withBar=false)=>{
- const shown=new Set(withBar?[]:primaryNav(user,prefs)),away=new Set(hiddenNav(user,prefs));
+ const shown=new Set(withBar?[]:primaryNav(user,prefs).filter(id=>!ALWAYS_LISTED.includes(id))),away=new Set(hiddenNav(user,prefs));
  const rank=arranged(cleanNav(prefs,user).order);
  return MORE_SECTIONS
   .map(([title,ids])=>[title,inOrder(ids.filter(id=>!shown.has(id)&&!away.has(id)&&allowed(id,user)),rank)])
