@@ -92,7 +92,7 @@ import {MascotBadge} from './Mascot.jsx';
 import React,{useEffect,useLayoutEffect,useMemo,useRef,useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
-import {ArrowLeftRight,EyeOff,Sparkles,ConciergeBell,Radio,MessageCircleQuestion,Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,Inbox,Archive,ArchiveRestore,Heart,Phone,MessageCircle,Eye,RefreshCw,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
+import {ArrowLeftRight,EyeOff,Sparkles,ConciergeBell,Radio,Maximize2,ListOrdered,ArrowLeft,ArrowRight,Check,ChevronDown,ChevronRight,Clock,Compass,MapPin,CalendarDays,BookOpen,House,Plus,LockKeyhole,LockKeyholeOpen,Ticket,ExternalLink,Navigation,Share2,Download,WifiOff,X,SkipForward,RotateCcw,Play,Search,Trash2,Bell,Languages,Copy,CheckCircle2,AlertCircle,Cloud,MoreHorizontal,Inbox,Archive,ArchiveRestore,Heart,Phone,MessageCircle,Eye,RefreshCw,Mic,ThumbsUp,ListChecks,Image as ImageIcon,LocateFixed,SlidersHorizontal} from 'lucide-react';
 import {activeSteps,dayProgress,dayBehind,tripCountdown,japanDate,japanClock,minutes,asClock,scheduleProposal,movableStep,calendarEvent,scheduleVariance,stayPlan,spanWords,setPlanZone,planZone,zonedInstant,windowText,WINDOW_CHOICES} from './timing.js';
 import {armPlayback} from './speech.js';
 import {startHeadphones,onHeadphonePress} from './headphones.js';
