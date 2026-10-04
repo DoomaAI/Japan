@@ -52,14 +52,15 @@ export function NowWeather({state,day,clock,fallback=null,onOpen}){
 }
 // The forecast for the days we are actually here, kept in the trip so one phone's lookup
 // serves everyone and the numbers are still on screen with no signal.
+// quiet is the refresh the app does for itself on opening: nobody asked, so nobody is told.
 export function useForecastCheck({state,day,mutate,notice}){
  const [checking,setChecking]=useState(false);
- async function check(){
+ async function run(from,quiet){
   setChecking(true);
   try{
    // One lookup per place, because the trip moves between cities mid-week.
    const wanted=new Map();
-   for(const d of state.days.filter(d=>!day||d.date>=day)){
+   for(const d of state.days.filter(d=>!from||d.date>=from)){
     const point=pointFor(d.city);
     const got=wanted.get(point.name)||{point,dates:[]};got.dates.push(d.date);wanted.set(point.name,got);
    }
@@ -75,7 +76,7 @@ export function useForecastCheck({state,day,mutate,notice}){
    // city's day, but not worth losing the city's day over: if this part fails, the rest is kept.
    let steps;
    try{
-    const targets=stepTargets(state,day);
+    const targets=stepTargets(state,from);
     const dates=targets.flatMap(t=>t.items.map(x=>x.date)).sort();
     const byPlace=[];
     for(let i=0;i<targets.length;i+=AREAS_PER_REQUEST){
@@ -87,11 +88,11 @@ export function useForecastCheck({state,day,mutate,notice}){
     }
     if(targets.length)steps=stepReadings(targets,byPlace);
    }catch{steps=undefined;}
-   if(await mutate({type:'weatherUpdate',days,hours,...(steps?{steps}:{})}))notice(steps?'Forecast updated for the family, hour by hour and stop by stop.':'Forecast updated for the family, hour by hour. The stops’ own forecasts could not be fetched this time.');
-  }catch(e){notice(`${e.message||'The forecast could not be fetched.'} The last one we have is still shown.`);}
+   if(await mutate({type:'weatherUpdate',days,hours,...(steps?{steps}:{})})&&!quiet)notice(steps?'Forecast updated for the family, hour by hour and stop by stop.':'Forecast updated for the family, hour by hour. The stops’ own forecasts could not be fetched this time.');
+  }catch(e){if(!quiet)notice(`${e.message||'The forecast could not be fetched.'} The last one we have is still shown.`);}
   finally{setChecking(false);}
  }
- return {check,checking};
+ return {check:()=>run(day,false),auto:from=>run(from,true),checking};
 }
 // The day's hours, opened where they are. Standing in the day, "when does the rain start" is a
 // question about the next two hours, not a reason to leave the page you are working from.
