@@ -348,6 +348,10 @@ export const moveInMore=(prefs,section,id,by)=>{
  const at=section.indexOf(id),to=at+by;
  if(at<0||to<0||to>=section.length)return prefs;
  const list=[...section];list[at]=list[to];list[to]=id;
+ return arrangeInMore(prefs,list);
+};
+// A whole section in a new order, as it was left after dragging its cards about.
+export const arrangeInMore=(prefs,list)=>{
  const rest=(Array.isArray(prefs?.order)?prefs.order:[]).filter(x=>!list.includes(x));
  return {...prefs,order:[...rest,...list]};
 };
