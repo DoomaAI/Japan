@@ -1995,7 +1995,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.deepEqual(homeRuns(['step','tired','apps','weather','glance']),['step',['tired','apps'],'weather',['glance']]);
  // Home draws them by id, the day heading and strip stay put, and the phone keeps the choice.
  assert.match(main,/const homeOnShow=tab==='today'\?homeShown\(homePrefs\)\.filter\(id=>awarenessAllows\(visibleState,user\.name,id\)&&!todayHome\.away\.includes\(id\)\):\[\];/);
- assert.match(main,/\{dayHeading\}\s*<MomentBanner [^\n]*\/>\s*<QuizLine [^\n]*\/>\s*\{homeRuns\(homeOnShow,arranging\)\.map\(run=>/);
+ assert.match(main,/\{dayHeading\}\s*<MomentBanner [^\n]*\/>\s*<QuizLine [^\n]*\/>\s*<YesterdayLine [^\n]*\/>\s*\{homeRuns\(homeOnShow,arranging\)\.map\(run=>/);
  // While Home is being edited each of the day's buttons is a card of its own.
  assert.deepEqual(homeRuns(['step','tired','apps'],true),['step','tired','apps']);
  // Today carries the day's buttons under its stops.

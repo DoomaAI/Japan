@@ -1,11 +1,15 @@
-import React,{useEffect,useState} from 'react';
+import React,{useContext,useEffect,useState} from 'react';
+import {createPortal} from 'react-dom';
 import {SlidersHorizontal} from 'lucide-react';
 import {RINGS,ringsFor,dayScore,cleanRings,shownRings,SCORED} from './rings-data.js';
 import {useWobble,mergeVisible} from './wobble.js';
+import {HomeBarSlot} from './home-bar.js';
 // Rings for the day, drawn the way a loyalty app draws its progress: an open gauge each, the
 // count in the middle and "2 of 5" underneath. Three fit across the card; any more and the row
 // scrolls sideways. Which rings, and their order, belong to this person on this phone: the
 // slider button chooses them, and press and hold sets the row wobbling to drag them about.
+// Under Home's "Your rings" bar the count closed and the slider sit in the bar, and the card
+// draws no heading of its own.
 const COLOURS={stops:'var(--ring-stops,#e2583e)',photos:'var(--ring-photos,#3f8f6e)',phrase:'var(--ring-phrase,#3d6fb6)',
  fact:'var(--ring-fact,#c08a1e)',rated:'var(--ring-rated,#8a4fb0)',voice:'var(--ring-voice,#2a8a9a)'};
 // 270 degrees of a circle, open at the bottom.
@@ -21,7 +25,7 @@ function Gauge({ring}){
 const read=name=>{try{return cleanRings(JSON.parse(localStorage.getItem(`japan.rings.${name}`)||'null'));}catch{return cleanRings(null);}};
 export default function Rings({state,user,day}){
  const me=user?.name&&state.members?.includes(user.name)?user.name:null;
- const [prefs,setPrefs]=useState(()=>read(me)),[choosing,setChoosing]=useState(false);
+ const [prefs,setPrefs]=useState(()=>read(me)),[choosing,setChoosing]=useState(false),slot=useContext(HomeBarSlot);
  useEffect(()=>{if(me)setPrefs(read(me));},[me]);
  const save=next=>{const clean=cleanRings(next);setPrefs(clean);try{localStorage.setItem(`japan.rings.${me}`,JSON.stringify(clean));}catch{}};
  const ids=shownRings(prefs);
@@ -33,11 +37,11 @@ export default function Rings({state,user,day}){
  const closed=rings.filter(r=>r.closed).length;
  const toggle=id=>save({...prefs,shown:prefs.shown.includes(id)?prefs.shown.filter(x=>x!==id):[...prefs.shown,id]});
  return <section className="rings" aria-label="Your rings for the day">
-  <header className="rings-head">
-   <h3>Your rings today</h3>
-   <span className="eyebrow">{closed} of {rings.length} closed</span>
+  {(()=>{const tools=<>
+   <span className="rings-closed">{closed} of {rings.length} closed</span>
    <button type="button" className="icon" aria-label="Choose rings" aria-expanded={choosing} onClick={()=>setChoosing(c=>!c)}><SlidersHorizontal size={18}/></button>
-  </header>
+  </>;
+   return slot?createPortal(tools,slot):<header className="rings-head"><h3>Your rings today</h3>{tools}</header>;})()}
   {choosing&&<fieldset className="rings-choose">
    <legend>Show these rings</legend>
    {prefs.order.map(id=><label key={id}><input type="checkbox" checked={prefs.shown.includes(id)} disabled={prefs.shown.includes(id)&&prefs.shown.length===1} onChange={()=>toggle(id)}/><span><b>{RINGS[id].label}</b><small>{RINGS[id].note}{SCORED.includes(id)?' · counts on the leaderboard':''}</small></span></label>)}

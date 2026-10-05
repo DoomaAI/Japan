@@ -29,7 +29,7 @@ export const HOME_WIDGETS={
  spare:{label:'If we have time',note:'On a park day: rides near us worth fitting in, from our stars and how the day is going'},
  needs:{label:'Before we head out',note:'A tick for each thing to carry out the door, fresh each morning, with a streak'},
  links:{label:'Next fixed time',note:'The next time that cannot move, one tap from its stop'},
- rings:{label:'Three rings',note:'Your stops, five photos and the day’s phrase, closing as you go; the rings closed are the day’s score'},
+ rings:{label:'Your rings',note:'Your stops, five photos and the day’s phrase, closing as you go; the rings closed are the day’s score'},
  stay:{label:'Tonight’s stay',note:'The hotel, which night, check-in and check-out, the confirmation number, directions and the taxi card'},
  move:{label:'Hotel move',note:'The evening before and the morning of a move: bags to the desk, the forwarding label in Japanese, the overnight bag, check-out and check-in'},
  running:{label:'Is everything running?',note:'Service status for today’s trains, and flight status on a flight day'},
