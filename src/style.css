@@ -441,7 +441,7 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .swipe-controls button{padding-left:0;padding-right:0}
 /* Split days: the family going separate ways, one colour per lane, and where we meet back up. */
 :root{--lane-0:#2f7d6d;--lane-1:#c0633f;--lane-2:#5a6fb0;--lane-3:#9a6a1f}
-.option-group{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem}.split-toggle{min-height:40px;font-size:.82rem}
+.option-group{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem}
 .split-day{display:grid;gap:.8rem;margin-bottom:1rem}
 .split-card{border:1px solid var(--border);border-radius:14px;background:var(--paper);padding:.9rem 1rem}
 .split-head{display:flex;align-items:flex-start;gap:.6rem}.split-head>div{flex:1;min-width:0}.split-head h2{font-size:1.25rem;margin:0}.split-head .eyebrow{margin:0}.split-undo{min-height:36px;font-size:.78rem;padding:.4rem .6rem}
