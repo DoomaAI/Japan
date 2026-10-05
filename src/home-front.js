@@ -50,7 +50,7 @@ export const AWAY_LIST=[
 ];
 // The first day home, before anyone has slept.
 export const LANDING_LIST=[
- {id:'carpark',title:'Find the car park receipt',note:'It is in the app’s Wallet if a photo was taken; otherwise the glovebox or the bag it was paid from.'},
+ {id:'carpark',title:'Find the car park receipt',note:'It is in the app’s Bookings if a photo was taken; otherwise the glovebox or the bag it was paid from.'},
  {id:'milk',title:'Milk, bread and something for dinner',note:'On the way from the airport, or ordered for the morning before the flight.'},
  {id:'unpack',title:'Unpack what was declared first',note:'Anything Border Force looked at goes in the pantry or the freezer straight away, and the biosecurity bin is not the kitchen bin.'},
  {id:'wash',title:'The first wash on before bed',note:'Two weeks of clothes; the boys’ school things first.'},

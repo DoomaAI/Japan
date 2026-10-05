@@ -9,7 +9,7 @@ export const PAGES={
  today:{label:'Home',note:'Your own widgets for the day: what’s next, weather, to-dos and more'},
  days:{label:'Itinerary',note:'All sixteen days of the trip'},
  glance:{label:'Plan',note:'Today\u2019s stops in order, ticked off as they happen, and every day of the trip one switch away'},
- tickets:{label:'Wallet',note:'Tonight’s stay, the next pass to scan, every booking, tag and QR code, and the emails still to file'},
+ tickets:{label:'Bookings',note:'Tonight’s stay, the next pass to scan, every booking, tag and QR code, and the emails still to file'},
  inbox:{label:'Forwarded email',note:'Booking emails you sent in, waiting to be filed'},
  food:{label:'Food',note:'Dishes in Japanese and English, ticked and rated'},
  hunts:{label:'Hunts & lists',note:'Rate and rank every matcha, gachapon and ramen, lists of our own, and where each one was'},

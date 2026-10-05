@@ -95,7 +95,7 @@ export function CodePrompt({state,parent,busy,mutate,notice,onShow}){
  if(!parent)return null;
  const pending=pendingCodes(state);
  if(!pending.length)return null;
- const answer=async(doc,add,n)=>{if(await mutate({type:'codesAnswer',id:doc.id,add}))notice(add?`Added to the Wallet: ${n} code${n===1?'':'s'} ready to show at the gate.`:'Left out. That file will not be asked about again.');};
+ const answer=async(doc,add,n)=>{if(await mutate({type:'codesAnswer',id:doc.id,add}))notice(add?`Added to Bookings: ${n} code${n===1?'':'s'} ready to show at the gate.`:'Left out. That file will not be asked about again.');};
  return <section className="code-prompt" aria-label="Codes found">
   {pending.map(({doc,codes})=>{
    const links=codes.every(isLink),n=codes.length;
@@ -104,9 +104,9 @@ export function CodePrompt({state,parent,busy,mutate,notice,onShow}){
     <strong>{doc.title}</strong>
     <small className="code-prompt-text">{preview(codes[0])}{n>1?` and ${n-1} more`:''}</small>
     {links&&<small className="code-prompt-note">This looks like a web link, not a code for a gate.</small>}
-    <p>Add {n===1?'it':'them'} to the Wallet, to show at the gate?</p>
+    <p>Add {n===1?'it':'them'} to Bookings, to show at the gate?</p>
     <div className="row wrap">
-     <button type="button" className={links?'':'primary'} disabled={busy} onClick={()=>answer(doc,true,n)}><Wallet size={16}/>Add to Wallet</button>
+     <button type="button" className={links?'':'primary'} disabled={busy} onClick={()=>answer(doc,true,n)}><Wallet size={16}/>Add to Bookings</button>
      <button type="button" className={links?'primary':''} disabled={busy} onClick={()=>answer(doc,false,n)}>Not a ticket</button>
      {links&&<a className="button" href={codes[0]} target="_blank" rel="noopener noreferrer"><ExternalLink size={15}/>Open the link</a>}
      {onShow&&<button type="button" className="link-button" onClick={()=>onShow(doc)}>See the ticket</button>}

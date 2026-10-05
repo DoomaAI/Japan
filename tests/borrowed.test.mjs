@@ -51,7 +51,7 @@ test('synced words light the romaji in step with the voice, or on a steady beat'
 test('type anything finds a screen, a phrase, a hotel, a person and a stop, best match first',()=>{
  const state=fresh();
  assert.deepEqual(findAnything(state,'h',damien),[],'one letter is not a search');
- assert.equal(findAnything(state,'wallet',damien)[0].kind,'Screen');
+ assert.equal(findAnything(state,'bookings',damien)[0].kind,'Screen');
  assert.ok(findAnything(state,'thank you',damien).some(h=>h.kind==='Phrase'));
  assert.equal(findAnything(state,'hilton',damien)[0].kind,'Hotel');
  assert.ok(findAnything(state,'boston',damien).some(h=>h.kind==='Person'));
