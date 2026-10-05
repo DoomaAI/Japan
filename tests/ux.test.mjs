@@ -472,14 +472,17 @@ test('the stage tracker: five stages to the booking that cannot move, tapped or 
  assert.match(home,/<StageTracker state=\{state\} step=\{fixed\}/,'under the next fixed booking');
 });
 test('halfway there: from the middle of the trip, the numbers so far on one square, counted out of the recap story',async()=>{
- const {halfwayDue,halfwayCard,halfwayLines}=await import('../src/halfway-data.js');
+ const {halfwayDue,halfwayCard,halfwayLines,halfwayHeadline}=await import('../src/halfway-data.js');
+ assert.equal(halfwayHeadline(8,16),'Halfway there');assert.equal(halfwayHeadline(9,16),'Halfway there');
+ assert.equal(halfwayHeadline(10,16),'The trip so far','past the middle it is no longer halfway');
+ assert.equal(halfwayHeadline(16,16),'Our last day','and day 16 of 16 is never called halfway');
  const seed=JSON.parse(await readFile(new URL('../data/seed.json',import.meta.url),'utf8'));
  assert.equal(halfwayDue(seed,'2026-09-24'),false,'day four is not halfway');
  assert.equal(halfwayDue(seed,'2026-09-29'),true,'day nine of sixteen is');
  assert.equal(halfwayDue(seed,'2026-10-09'),false,'and home again is not');
  const done={...seed,steps:seed.steps.map(s=>s.day<'2026-09-30'?{...s,status:'done'}:s)};
  const card=halfwayCard(done,{today:'2026-09-30'});
- assert.equal(card.dayNumber,10);assert.equal(card.total,16);
+ assert.equal(card.dayNumber,10);assert.equal(card.total,16);assert.equal(card.headline,'The trip so far');
  assert.ok(card.stats.some(([,,label])=>label==='stops done'));
  const lines=halfwayLines(card);
  assert.deepEqual(lines[0],['eyebrow','Day 10 of 16 · so far']);
@@ -489,7 +492,7 @@ test('halfway there: from the middle of the trip, the numbers so far on one squa
  assert.deepEqual(wrapLine(t=>t.length*10,'Tokyo Kyoto Osaka Nara',120,2),['Tokyo Kyoto','Osaka Nara']);
  assert.deepEqual(wrapLine(t=>t.length*10,'Tokyo Kyoto Osaka Nara Disney',120,2),['Tokyo Kyoto','Osaka…'],'at most two lines, the last ended with an ellipsis');
  const main=await source('main.jsx'),widgets=await source('home-widgets.js'),page=await source('HalfwayCard.jsx');
- assert.match(main,/halfway:<><HalfwayLine state=\{visibleState\}/);assert.match(widgets,/halfway:\{label:'Halfway there'/);
+ assert.match(main,/halfway:<><HalfwayLine state=\{visibleState\}/);assert.match(main,/label=\{homeLabel\(run\)\}/,'the card heading follows the day');assert.match(widgets,/halfway:\{label:'Halfway there'/);
  assert.match(page,/navigator\.canShare\?\.\(\{files:\[file\]\}\)/,'the square goes to the share sheet as a picture');
 });
 test('Where we are: the family on a map, sharing for a while, and running late one tap from Home and the split',async()=>{
