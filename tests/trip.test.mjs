@@ -128,11 +128,12 @@ test('a stop dropped on a new line can be undone from the toast, back to the ord
  const theme=await readFile(new URL('../src/guide-theme.css',import.meta.url),'utf8');
  assert.match(theme,/\.reorder-tools \.drag-handle::after\{inset:-8px 0 -8px -10px\}/);
  assert.match(theme,/\.reorder-tools \.to-options::after,\.reorder-tools \.remove-stop::after\{inset:-8px 0\}/);
- // No arrows beside each stop: the handle drags, takes the arrow keys, and Adjust at the foot of
+ // No arrows beside each stop: the handle drags, takes the arrow keys, and Reorder at the foot of
  // the day sets the stops wobbling for anyone who does not find the hold.
  assert.doesNotMatch(tl,/ArrowUp size|ArrowDown size|aria-label=\{`Move /);
  assert.match(tl,/onKeyDown=\{e=>\{const by=\{ArrowUp:-1,ArrowDown:1\}\[e\.key\];if\(by&&!busy\)\{e\.preventDefault\(\);move\(s\.id,i\+by\);\}\}\}/);
  assert.match(tl,/className="timeline-adjust" disabled=\{busy\} onClick=\{\(\)=>setAdjusting\(true\)\}/);
+ assert.match(tl,/<ArrowUpDown size=\{15\}\/>Reorder<\/button>/,'named Reorder, so it is not taken for Adjust the day, which moves the times');
  assert.match(tl,/const lift=d=>\{d\.lifted=true;setHeld\(d\.id\);setAdjusting\(true\);/,'a hold sets the day wobbling too');
  assert.match(tl,/if\(e\.pointerType==='mouse'\|\|adjusting\)lift\(d\)/,'and while it wobbles a handle lifts with no hold');
  // Put back exactly: the same reorder operation, handed the order from before, restores it.
@@ -2051,7 +2052,9 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  const edit=await readFile(new URL('../src/HomeEdit.jsx',import.meta.url),'utf8');
  assert.match(main,/<HomeStack editing=\{arranging\} setEditing=\{setArranging\} ids=\{homeOnShow\} place=\{\(id,before\)=>saveHome\(dropWidget\(homePrefs,id,before,homeOnShow\)\)\} remove=\{takeOffHome\}/);
  assert.match(main,/<HomeCard key=\{run\} id=\{run\}/);
- assert.match(main,/\{arranging\?'Done':'Edit Home'\}/);
+ assert.match(main,/\{!arranging&&<button type="button" className="home-arrange" onClick=\{\(\)=>setArranging\(true\)\}>/);
+ assert.doesNotMatch(edit,/Done/,'a tap off the cards settles Home, so there is no Done');
+ assert.match(edit,/const away=e=>\{if\(!e\.target\.closest\?\.\('\.home-card,\.home-edit-bar button'\)\)setEditing\(false\);\};/);
  assert.match(edit,/const HOLD=500,SLOP=10;/);
  assert.match(edit,/if\(editing\|\|e\.button>0\|\|!e\.target\.closest\('\.home-card'\)\|\|e\.target\.closest\(CONTROLS\)\)return;/,'a hold on a button is the button’s');
  assert.match(edit,/aria-label=\{`Take \$\{label\} off Home`\}/);
@@ -12335,4 +12338,21 @@ test('the buttons under each stop can be shown as icons only, keeping their word
  assert.match(main,/compact=\{settingOn\(settings,'stopIconsOnly'\)\}/);
  assert.match(main,/<Ticket size=\{15\}\/><span className="card-link-label">Tickets/);
  assert.match(css,/\.card-links\.compact \.card-link-label\{position:absolute;width:1px;height:1px/);
+});
+
+test('the Wallet can be read by activity date, newest added, name or person',async()=>{
+ const {ticketList}=await import('../src/trip-features.js');
+ const s=structuredClone(seed);
+ const [early,late]=[...seed.steps].filter(x=>x.day).sort((a,b)=>`${a.day}T${a.time||''}`<`${b.day}T${b.time||''}`?-1:1).filter((x,i,l)=>i===0||i===l.length-1);
+ s.documents=[
+  {id:'b',title:'Baseball',person:'Family',type:'note',category:'ticket',stepId:late.id,createdAt:'2026-01-01T00:00:00Z'},
+  {id:'z',title:'Zoo',person:'Boston',type:'note',category:'ticket',stepId:null,createdAt:'2026-03-01T00:00:00Z'},
+  {id:'a',title:'Airport bus',person:'Damien',type:'note',category:'ticket',stepId:early.id,createdAt:'2026-02-01T00:00:00Z'}
+ ];
+ const ids=order=>ticketList(s,{order}).map(d=>d.id);
+ assert.deepEqual(ids('activity'),['a','b','z'],'dated first, earliest first; unlinked last');
+ assert.deepEqual(ids('added'),['z','a','b']);
+ assert.deepEqual(ids('title'),['a','b','z']);
+ assert.deepEqual(ids('person'),['z','a','b']);
+ assert.deepEqual(ids(''),['b','z','a'],'no order keeps the stored order for other callers');
 });

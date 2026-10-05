@@ -7,8 +7,8 @@ const HOLD=450,SLOP=10;
 //
 // Holding any item for a moment sets the row wobbling. While it wobbles a tap does nothing but
 // pick an item up, an item dragged over another takes its place, and a row that scrolls
-// sideways carries on scrolling when an item is held near either end. Done, a tap anywhere
-// else or Escape settles it, and the new order is handed to onMove once, on the drop. The arrow
+// sideways carries on scrolling when an item is held near either end. A tap anywhere outside
+// the row or Escape settles it, and the new order is handed to onMove once, on the drop. The arrow
 // keys move a focused item along for anybody not using a finger.
 //
 // It is a hook rather than a component so the row and its items stay the elements they already
@@ -21,7 +21,7 @@ export function useWobble({ids,onMove}){
  const finish=()=>{setEditing(false);setHeld(null);drag.current=null;};
  useEffect(()=>{
   if(!editing)return;
-  const away=e=>{if(!row.current?.contains(e.target)&&!bar.current?.contains(e.target))finish();};
+  const away=e=>{if(!row.current?.contains(e.target))finish();};
   const esc=e=>{if(e.key==='Escape')finish();};
   document.addEventListener('pointerdown',away);document.addEventListener('keydown',esc);
   return ()=>{document.removeEventListener('pointerdown',away);document.removeEventListener('keydown',esc);};

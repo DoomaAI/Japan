@@ -176,8 +176,7 @@ export function BottomNav({tab,user,go,unread,prefs,setPrefs}){
    {unread&&<i aria-hidden="true"/>}
   </button>
   {w.editing&&<div ref={w.bar} className="wobble-done" role="status">
-   <small>Drag the shortcuts into the order you want. Home and More stay at the ends.</small>
-   <button type="button" onClick={w.finish}>Done</button>
+   <small>Drag the shortcuts into the order you want. Home and More stay at the ends. Tap outside to finish.</small>
   </div>}
  </nav>
  </>;
