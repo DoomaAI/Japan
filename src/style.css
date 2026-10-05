@@ -1058,3 +1058,13 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .menu-order li{position:relative}.menu-order li.drop-before:before,.menu-order li.drop-after:after{content:'';position:absolute;left:0;right:0;border-top:3px solid var(--green);border-radius:2px;pointer-events:none;z-index:3}
 .menu-order li.drop-before:before{top:calc(-.2rem - 2.5px)}.menu-order li.drop-after:after{bottom:calc(-.2rem - 2.5px)}
 .day-heading .day-check-run{flex-shrink:0;font-size:.85rem;padding:.55rem .75rem}
+/* Log yesterday: a slim line above the Home cards, opening to yesterday's unticked stops. */
+.yesterday-line{margin:0 0 .8rem;border:1px solid var(--border);border-radius:14px;background:var(--paper);overflow:hidden}
+.yesterday-bar{display:flex;align-items:center}
+.yesterday-toggle{flex:1;display:flex;align-items:center;justify-content:flex-start;gap:.6rem;font-weight:400;min-width:0;padding:.6rem .8rem;text-align:left;background:none;border:0;color:inherit}
+.yesterday-toggle>span{display:flex;flex-direction:column;flex:1;min-width:0}.yesterday-toggle small{opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.yesterday-chevron{transition:transform .2s}.yesterday-line.open .yesterday-chevron{transform:rotate(180deg)}
+.yesterday-dismiss{background:none;border:0;padding:.6rem .8rem;color:inherit;opacity:.7}
+.yesterday-list{display:flex;flex-direction:column;gap:.5rem;padding:0 .8rem .8rem}
+.yesterday-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}.yesterday-row>span{min-width:0}.yesterday-row small{margin-right:.4rem;opacity:.7}
+.yesterday-all{align-self:flex-start}
