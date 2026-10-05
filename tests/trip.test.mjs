@@ -328,8 +328,9 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  }
  // Home no longer splits into two columns, so the step card has the screen to itself and the
  // timeline is not rendered twice.
+ assert.equal((main.match(/\{planChooser\}/g)||[]).length,1,'Choose a plan is drawn on the day\u2019s plan, and on Home only as a widget');
  assert.equal((main.match(/<DayTimeline /g)||[]).length,1,'the timeline is rendered once, on its own screen');
- assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?\{dayStrip\(d=>go\('glance',d\)\)\}\s*<DayCheck heading=\{dayTitle\} [^\n]*\/>\s*<DayTimeline [^\n]*\/>\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayMap /,'it opens with the strip of dates as All days does, then the day with its check beside it, what was checked the night before, the stops, and the day\u2019s buttons under them');
+ assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?\{dayStrip\(d=>go\('glance',d\)\)\}\s*<DayCheck heading=\{dayTitle\} [^\n]*\/>\s*\{planChooser\}\s*<DayTimeline [^\n]*\/>\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayMap /,'it opens with the strip of dates as All days does, then the day with its check beside it, what was checked the night before, the choice of plan, the stops, and the day\u2019s buttons under them');
  assert.match(main,/<DayMap key=\{day\} [^\n]*\/>\s*\{awarenessAllows\(visibleState,user\.name,'spare'\)&&<SpareTime /,'if-we-have-time sits at the foot of the plan, after the map');
  assert.doesNotMatch(main,/today-layout/,'Home is one column now');
  assert.doesNotMatch(css,/today-layout/,'and the grid that made two of them is gone with it');
@@ -1966,7 +1967,9 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.ok(!HOME_DEFAULT.includes('find'),'no type-anything box on Home');
  assert.deepEqual(homeShown({order:['find','step'],hidden:[]}).slice(0,1),['onthisday'],'a phone that had it arranged loses it cleanly');
  const ON=HOME_DEFAULT.filter(id=>!HOME_OFF.includes(id));
- assert.deepEqual(HOME_OFF,['countdown','glance','adjust','tired','apps']);
+ assert.deepEqual(HOME_OFF,['countdown','plans','glance','adjust','tired','apps']);
+ assert.equal(HOME_WIDGETS.plans.page,'glance','Choose a plan lives on the day\u2019s plan and starts off Home');
+ assert.match(main,/plans:planChooser,/,'but can be brought out onto Home');
  assert.deepEqual(homeShown(emptyHome()),ON);
  assert.equal(ON[0],'onthisday','an anniversary leads Home, on the days there is one');assert.equal(ON[1],'runup','then the run-up, before we fly');assert.equal(ON[2],'dailyjapan','then a little Japan each day');assert.equal(ON[3],'bookingwindows','then the booking windows about to open');assert.equal(ON[4],'briefing','then the day in brief');assert.equal(ON[5],'step','then the step card');
  assert.deepEqual(ON.slice(ON.indexOf('nextup'),ON.indexOf('nextup')+4),['nextup','todaysphrase','todaysfact','todaystip'],'the phrase, the fun fact and the tip of the day sit just below what’s next');
