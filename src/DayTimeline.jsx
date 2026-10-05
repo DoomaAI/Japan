@@ -93,9 +93,10 @@ export default function DayTimeline({steps,allSteps,splits=[],lens,setLens,curre
  useEffect(()=>{const stop=e=>{if(drag.current?.lifted)e.preventDefault();};document.addEventListener('touchmove',stop,{passive:false});return()=>{document.removeEventListener('touchmove',stop);clearTimeout(drag.current?.timer);};},[]);
  // The arrows beside every stop are gone now that a stop drags; Reorder, at the foot of the day,
  // is the way in for anybody who does not find the hold. Either way the stops wobble, as Home's
- // cards do, and while they wobble a handle lifts at a touch with no hold. Done or Escape settles it.
- useEffect(()=>{if(!adjusting)return;const esc=e=>{if(e.key==='Escape')setAdjusting(false);};document.addEventListener('keydown',esc);return()=>document.removeEventListener('keydown',esc);},[adjusting]);
- const adjust=parent&&steps.length>1?adjusting?<div className="wobble-done timeline-adjust-done" role="status"><small>Drag a stop by its handle to the line where it should go.</small><button type="button" className="primary" onClick={()=>setAdjusting(false)}>Done</button></div>:<button type="button" className="timeline-adjust" disabled={busy} onClick={()=>setAdjusting(true)}><ArrowUpDown size={15}/>Reorder</button>:null;
+ // cards do, and while they wobble a handle lifts at a touch with no hold. A tap anywhere off the
+ // stops, or Escape, settles it.
+ useEffect(()=>{if(!adjusting)return;const esc=e=>{if(e.key==='Escape')setAdjusting(false);};const away=e=>{if(!list.current?.contains(e.target)||e.target.closest?.('.timeline-adjust-done'))setAdjusting(false);};document.addEventListener('keydown',esc);document.addEventListener('pointerdown',away);return()=>{document.removeEventListener('keydown',esc);document.removeEventListener('pointerdown',away);};},[adjusting]);
+ const adjust=parent&&steps.length>1?adjusting?<div className="wobble-done timeline-adjust-done" role="status"><small>Drag a stop by its handle to the line where it should go. Tap outside to finish.</small></div>:<button type="button" className="timeline-adjust" disabled={busy} onClick={()=>setAdjusting(true)}><ArrowUpDown size={15}/>Reorder</button>:null;
  // Ticking one off where the day is read, rather than swiping to its card first. The day at a
  // glance is where somebody standing in a queue looks, and "we've done that one" is the thing
  // they most often want to say.

@@ -942,7 +942,7 @@ function App(){
    {homeRuns(homeOnShow,arranging).map(run=>Array.isArray(run)?<div className="home-actions" key={run.join()}>{run.map(id=><React.Fragment key={id}>{homeWidgets[id]}</React.Fragment>)}</div>:<HomeCard key={run} id={run} label={homeLabel(run)} folded={todayHome.folded.includes(run)} fold={()=>saveHomeToday(foldWidget(homeToday,todayKey,run))} away={()=>saveHomeToday(awayToday(homeToday,todayKey,run))}>{homeWidgets[run]}</HomeCard>)}
    {!homeShown(homePrefs).length&&<div className="empty"><h2>Home is clear.</h2><p>Every widget is put away. Bring back the ones you want from Customise.</p></div>}
    {todayHome.away.length>0&&<div className="home-away"><EyeOff size={15}/><span>{todayHome.away.length===1?`${HOME_WIDGETS[todayHome.away[0]].label} is`:`${todayHome.away.length} cards are`} put away until tomorrow.</span><button type="button" onClick={()=>saveHomeToday(backToday(homeToday,todayKey))}><Eye size={15}/> Show {todayHome.away.length===1?'it':'them'}</button><button type="button" onClick={()=>go('settings')}><SlidersHorizontal size={15}/> Put away for good</button></div>}
-   <div className="home-customise"><Button icon={SlidersHorizontal} onClick={()=>go('personalise')}>Customise Home</Button><button type="button" className="home-arrange" aria-pressed={arranging} onClick={()=>setArranging(a=>!a)}>{arranging?<Check size={18}/>:<Move size={18}/>} {arranging?'Done':'Edit Home'}</button></div>
+   <div className="home-customise"><Button icon={SlidersHorizontal} onClick={()=>go('personalise')}>Customise Home</Button>{!arranging&&<button type="button" className="home-arrange" onClick={()=>setArranging(true)}><Move size={18}/> Edit Home</button>}</div>
   </HomeStack>}
   {tab==='glance'&&<>
    {planSwitch}

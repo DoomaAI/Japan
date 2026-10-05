@@ -17,8 +17,7 @@ export default function StopButtons({order,setOrder,buttons,label,compact}){
   </div>
   {/* Outside the row, so it is on screen however far along the row has been scrolled. */}
   {w.editing&&<div ref={w.bar} className="wobble-done" role="status">
-   <small>Drag them into the order you want{shown.length>1?'. Arrow keys work too.':'.'}</small>
-   <button type="button" onClick={w.finish}>Done</button>
+   <small>Drag them into the order you want{shown.length>1?'. Arrow keys work too.':'.'} Tap outside to finish.</small>
   </div>}
  </>;
 }

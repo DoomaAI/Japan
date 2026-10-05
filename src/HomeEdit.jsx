@@ -1,9 +1,10 @@
 import React,{createContext,useContext,useEffect,useRef} from 'react';
-import {Check,Plus,Minus} from 'lucide-react';
+import {Plus,Minus} from 'lucide-react';
 import {useDragOrder} from './drag-order.jsx';
 // Home arranged on Home itself, the way icons are on an iPhone's home screen: hold any card for a
 // moment and every card wobbles. While they wobble a card is dragged by itself to the green line
-// where it should go, the − in its corner takes it off Home, and Done, or Escape, settles them.
+// where it should go, the − in its corner takes it off Home, and a tap anywhere off the cards, or
+// Escape, settles them.
 // Customise still lists every widget, with an eye to bring back one taken off, and is one tap
 // away from the bar along the top while Home wobbles.
 //
@@ -22,8 +23,10 @@ export function HomeStack({editing,setEditing,ids,place,remove,add,children}){
  useEffect(()=>{
   if(!editing)return;
   const esc=e=>{if(e.key==='Escape')setEditing(false);};
-  document.addEventListener('keydown',esc);
-  return ()=>document.removeEventListener('keydown',esc);
+  // Add stays a button of its own; anything else that is not a card is a tap outside.
+  const away=e=>{if(!e.target.closest?.('.home-card,.home-edit-bar button'))setEditing(false);};
+  document.addEventListener('keydown',esc);document.addEventListener('pointerdown',away);
+  return ()=>{document.removeEventListener('keydown',esc);document.removeEventListener('pointerdown',away);};
  },[editing]);
  // Leaving Home settles it, so it never opens again already wobbling.
  useEffect(()=>()=>{cancel();setEditing(false);},[]);
@@ -46,9 +49,8 @@ export function HomeStack({editing,setEditing,ids,place,remove,add,children}){
  return <HomeEditing.Provider value={editing?{handlers,rowClass,remove}:null}>
   <div className={`home${editing?' arranging':''}`} data-home-wobbling={editing||undefined} {...hold}>
    {editing&&<div className="home-edit-bar" role="status">
-    <span>Drag a card to move it. Tap <Minus size={12} strokeWidth={3} aria-label="minus"/> to take it off Home.</span>
+    <span>Drag a card to move it. Tap <Minus size={12} strokeWidth={3} aria-label="minus"/> to take it off Home. Tap outside the cards to finish.</span>
     <button type="button" onClick={add}><Plus size={16}/> Add</button>
-    <button type="button" className="primary" onClick={()=>setEditing(false)}><Check size={16}/> Done</button>
    </div>}
    {children}
   </div>
