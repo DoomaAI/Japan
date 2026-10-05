@@ -3,7 +3,7 @@ import PageTitle from './PageTitle.jsx';
 import Mark from './Mark.jsx';
 import LocationDirectory,{GuideLocations} from './LocationDirectory.jsx';
 import {destinationFor,resolveLocation,showLocationDetails} from './locations.js';
-import {ensureFeatures,pendingProgress,phoneLinks,isTrainLeg,PIN_PLACES,stepPin,pinText,phraseSeenBy,phraseQueue,factSeenBy,factsSeenBy,factQueue,THANK_YOU_FROM,THANK_YOU_FOR,BOYS as NOTE_BOYS,todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,ticketList,isArchived,attachmentsOf,documentSteps,documentStepList,documentServesStep} from './trip-features.js';
+import {ensureFeatures,pendingProgress,phoneLinks,isTrainLeg,PIN_PLACES,stepPin,pinText,phraseSeenBy,phraseQueue,factSeenBy,factsSeenBy,factQueue,THANK_YOU_FROM,THANK_YOU_FOR,BOYS as NOTE_BOYS,todoProgress,inboxWaiting,SUMO_DAY,sumo as sumoState,ticketList,isArchived,attachmentsOf,documentSteps,documentStepList,documentServesStep,stepRatings} from './trip-features.js';
 import {askPhoneWhereItIs} from './geo.js';
 import RouteCard,{AddJourney} from './RouteCard.jsx';
 import {routeFor,legCount,legsTicked,routeMinutes,baseMinutes,journeyEnds,guideRoute,legName} from './route-data.js';
@@ -80,7 +80,7 @@ import Nearby,{MapsNearby} from './Nearby.jsx';
 import {hasAskHistory} from './ask-thread.js';
 import TodoList,{DayTodos} from './TodoList.jsx';
 import Packing,{PackingNudge} from './Packing.jsx';
-import StepReview from './StepReview.jsx';
+import StepReview,{RateNow} from './StepReview.jsx';
 import {useForecastCheck} from './Weather.jsx';
 import {forecastAge} from './weather-data.js';
 import DayTimeline from './DayTimeline.jsx';
@@ -603,6 +603,13 @@ function App(){
  // One leg of the way to a stop — a walk, a train, the change between two — ticked as it is
  // done. The last leg ticks the stop itself, so the stop is finished the moment the family is
  // actually there, and nobody has to remember to tick it twice.
+ // Ticking a stop off asks the person who ticked it how it was, if they were there and have not
+ // said yet. Bulk catch-ups (Tonight, Yesterday) do not: that is a list, not a moment.
+ function askRating(s){
+  if(!s||!settingOn(settings,'askRating')||!s.participants?.includes(user?.name))return;
+  if(stepRatings(state,s.id)[user.name])return;
+  setModal({type:'rate',step:s});
+ }
  async function tickRouteLeg(leg,finished){
   const s=current,total=legCount(s),left=total-legsTicked(s),at=new Date(),used=finished&&left===1?ticketList(state,{step:s,all:false}).length:0;
   if(!await mutate({type:'legStatus',id:s.id,leg,done:finished}))return;
@@ -610,6 +617,8 @@ function App(){
   if(left>1){notice(`Leg ${leg+1} of ${total} done. ${left-1} to go.`);return;}
   const variance=scheduleVariance(s,at);
   notice(`All ${total} legs done: ${s.title} completed ${japanClock(at)}${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used.`:''}`);
+
+  askRating(s);
  }
  // A stop on the way (a bag pickup, a shop) added to the route as a leg of its own, or taken off.
  async function routeWaypoint(w){
@@ -850,7 +859,7 @@ function App(){
      // thing that is alarming to notice later and reassuring to be told now. Say where the day
      // now stands as well: ticking off is the one moment we know both what was planned and what
      // actually happened, and twelve minutes in hand is worth hearing before the next step.
-     setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);}}}>Done</Button></>}{parent&&<button className="icon completion-more" aria-label="Edit, lock, move or remove this stop" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal size={18}/></button>}</div>
+     setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);askRating(current);}}}>Done</Button></>}{parent&&<button className="icon completion-more" aria-label="Edit, lock, move or remove this stop" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal size={18}/></button>}</div>
     {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg} onWaypoint={routeWaypoint} onSwap={routeSwap} onJourney={routeJourney} ends={current.routeStale?journeyEnds(state).get(current.id):null} lookOpen={settingOn(settings,'routeLookOpen')}/>}
     {!routeFor(current)&&current.status!=='done'&&current.status!=='skipped'&&(parent||current.participants.includes(user.name))&&<AddJourney key={`journey-${current.id}`} step={current} busy={busy} onWaypoint={routeWaypoint} onJourney={routeJourney} startOpen={journeyOpen===current.id}/>}
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore stop</button></p>}
@@ -951,7 +960,7 @@ function App(){
    {dayStrip(d=>go('glance',d))}
    <DayCheck heading={dayTitle} state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} accept={accept} notice={notice} selectStep={selectStep} busy={busy}/>
    {planChooser}
-   <DayTimeline steps={steps} allSteps={allSteps} splits={splits} lens={lens} setLens={follow} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop}/>
+   <DayTimeline steps={steps} allSteps={allSteps} splits={splits} lens={lens} setLens={follow} current={current} today={today} state={visibleState} user={user} parent={parent} busy={busy} selectStep={selectStep} mutate={mutate} notice={notice} addStep={before=>setModal({type:'edit',step:null,before})} removeStep={removeStop} optionStep={optionStop} onDone={askRating}/>
    {/* The day's own buttons sit under its stops, so the day itself is the first thing on the page. */}
    <div className="home-actions day-actions">{parent&&<Button icon={Clock} onClick={()=>setModal({type:'reschedule'})}>Adjust the day</Button>}{parent&&<Button icon={ArrowLeftRight} onClick={()=>setModal({type:'rearrange'})}>Move or swap days</Button>}<Button icon={Compass} onClick={()=>setModal({type:'tired'})}>Slow the day</Button><Button icon={ExternalLink} onClick={()=>setModal({type:'apps'})}>Useful apps</Button></div>
    <DayMap key={day} state={visibleState} day={day} selectStep={selectStep}/>
@@ -1042,12 +1051,13 @@ function App(){
   <BottomNav tab={tab} user={user} go={navGo} prefs={navPrefs} setPrefs={saveNav} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
   {toast&&!modal&&toastBar}
-  {modal&&<Dialog title={{edit:modal.step?'Edit stop':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',blend:'The Blend',quiz:'Dinner quiz',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',rearrange:'Move or swap days',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',report:'Tell the other phones',checkin:'Check In',latemsg:'Tell the others we’re late',puzzle:'Today’s puzzle',halfway:homeLabel('halfway'),sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Japan bingo',park:modal.park?.name||'Theme park rides',waits:`Wait times · ${modal.park?.short||''}`,foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',assistant:canAsk?'Concierge':'Find',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','waits','voice','nearby','sumo','ask','assistant'].includes(modal.type)}>
+  {modal&&<Dialog title={{edit:modal.step?'Edit stop':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',blend:'The Blend',quiz:'Dinner quiz',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',rearrange:'Move or swap days',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',report:'Tell the other phones',checkin:'Check In',latemsg:'Tell the others we’re late',puzzle:'Today’s puzzle',halfway:homeLabel('halfway'),sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Japan bingo',park:modal.park?.name||'Theme park rides',waits:`Wait times · ${modal.park?.short||''}`,foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',assistant:canAsk?'Concierge':'Find',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',rate:'How was it?',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','waits','voice','nearby','sumo','ask','assistant'].includes(modal.type)}>
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} mode={modal.mode} wishlist={modal.wishlist} need={modal.need} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)} available={!!config?.nearby}/>}
    {modal.type==='ask'&&<AskTrip state={visibleState} user={user} day={modal.step?.day||day} step={modal.step} config={config} online={online} request={request} mutate={mutate} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
    {modal.type==='assistant'&&<AskTrip assistant canAsk={canAsk} listen={!!modal.listen} find={{go:id=>{setModal(null);go(id);},selectStep:s=>{setModal(null);selectStep(s);},open:setModal,selectDay:d=>{setModal(null);selectDay(d);}}} state={visibleState} user={user} day={day} config={config} online={online} request={request} mutate={mutate} go={id=>{setModal(null);go(id);}} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
    {modal.type==='quiz'&&<DinnerQuiz state={visibleState} user={user} day={japanDate(now)} request={request} accept={accept} refresh={refresh} notice={notice}/>}
+   {modal.type==='rate'&&<RateNow state={visibleState} user={user} step={modal.step} mutate={mutate} busy={busy} close={()=>setModal(null)}/>}
    {modal.type==='blend'&&<BlendCard state={visibleState} notice={notice}/>}
    {modal.type==='halfway'&&<HalfwayCard state={visibleState} notice={notice} go={id=>{setModal(null);go(id);}}/>}
    {modal.type==='puzzle'&&<DailyPuzzle state={visibleState} user={user} mutate={mutate} busy={busy} notice={notice}/>}

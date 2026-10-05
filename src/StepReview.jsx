@@ -6,9 +6,10 @@ import {NEXT_TIME_CHIPS,nextTimeFor,MAX_NEXT_TIME} from './next-time.js';
 // Stars, and what we actually thought. Kept per person so nobody's average washes out somebody
 // else's — Nate giving the deer five and Lauren giving them two is the interesting bit, and an
 // average that hides it is worth less than the two numbers.
-// The stars are a slider: tap or drag along them and the rating follows the finger in tenths,
-// so "a bit under four" can be 3.8. Nothing is saved until the finger lifts. Arrow keys step a
-// tenth at a time; the cross takes the rating back.
+// A tap on a star gives that many whole stars, which is all most ratings need and the one thing
+// a thumb on a moving train can hit. Dragging along the row follows the finger in half-stars,
+// for "better than three, not quite four". Nothing is saved until the finger lifts. Arrow keys
+// step a half at a time; the cross takes the rating back. Tenths given before still show as given.
 // The star is drawn from 2 to 22 of its 24-wide box, so a fill is measured across the star
 // itself rather than the box — otherwise 4.2 looks like 4.
 const EDGE=2/24,BODY=20/24;
@@ -18,26 +19,29 @@ export function StarIcon({fill,size}){
  </span>;
 }
 export const starFill=(value,n)=>Math.min(1,Math.max(0,value-(n-1)));
-const tenth=v=>Math.min(STEP_STARS,Math.max(.1,Math.round(v*10)/10));
-export function Stars({value,onPick,disabled,label,size=26}){
- const row=useRef(null),[draft,setDraft]=useState(null);
+const half=v=>Math.min(STEP_STARS,Math.max(.5,Math.round(v*2)/2));
+// Further than this (in px) and the finger is dragging, not tapping.
+const DRAG=8;
+export function Stars({value,onPick,disabled,label,size=30}){
+ const row=useRef(null),from=useRef(null),[draft,setDraft]=useState(null);
  const shown=draft??value;
- const at=e=>{
-  const r=row.current.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*STEP_STARS,n=Math.floor(Math.min(x,STEP_STARS-.001));
-  return tenth(n+Math.min(1,Math.max(0,(x-n-EDGE)/BODY)));
- };
- const down=e=>{if(disabled||e.button>0)return;e.currentTarget.setPointerCapture?.(e.pointerId);setDraft(at(e));};
- const move=e=>{if(draft!==null)setDraft(at(e));};
- const up=e=>{if(draft===null)return;const v=at(e);setDraft(null);if(v!==value)onPick(v);};
+ const place=e=>{const r=row.current.getBoundingClientRect();return Math.min(Math.max((e.clientX-r.left)/r.width*STEP_STARS,0),STEP_STARS-.001);};
+ // A tap: the star under the finger, whole. A drag: half-stars, measured across the star itself.
+ const whole=e=>Math.floor(place(e))+1;
+ const slid=e=>{const x=place(e),n=Math.floor(x);return half(n+Math.min(1,Math.max(0,(x-n-EDGE)/BODY)));};
+ const dragging=e=>from.current!==null&&Math.abs(e.clientX-from.current)>DRAG;
+ const down=e=>{if(disabled||e.button>0)return;e.currentTarget.setPointerCapture?.(e.pointerId);from.current=e.clientX;setDraft(whole(e));};
+ const move=e=>{if(draft!==null)setDraft(dragging(e)?slid(e):whole(e));};
+ const up=e=>{if(draft===null)return;const v=dragging(e)?slid(e):whole(e);from.current=null;setDraft(null);if(v!==value)onPick(v);};
  const key=e=>{if(disabled)return;
-  const step={ArrowRight:.1,ArrowUp:.1,ArrowLeft:-.1,ArrowDown:-.1,PageUp:1,PageDown:-1}[e.key];
-  if(step){e.preventDefault();const v=tenth((value||0)+step);if(v!==value)onPick(v);}
+  const step={ArrowRight:.5,ArrowUp:.5,ArrowLeft:-.5,ArrowDown:-.5,PageUp:1,PageDown:-1}[e.key];
+  if(step){e.preventDefault();const v=half((value||0)+step);if(v!==value)onPick(v);}
   else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();if(value)onPick(0);}
  };
  return <div className="stars slide-stars">
   <div ref={row} className="slide-stars-row" role="slider" tabIndex={disabled?-1:0} aria-label={label} aria-disabled={disabled||undefined}
    aria-valuemin={0} aria-valuemax={STEP_STARS} aria-valuenow={shown||0} aria-valuetext={shown?`${starText(shown)} of ${STEP_STARS} stars`:'Not rated'}
-   onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={()=>setDraft(null)} onKeyDown={key}>
+   onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={()=>{from.current=null;setDraft(null);}} onKeyDown={key}>
    {Array.from({length:STEP_STARS},(_,i)=><StarIcon key={i} fill={starFill(shown,i+1)} size={size}/>)}
   </div>
   {shown>0&&<small className="stars-value">{starText(shown)}</small>}
@@ -136,4 +140,33 @@ export function DayRate({state,user,day,mutate,busy,label='How was the day?'}){
    {thoughts[name]&&<p>{thoughts[name].text}</p>}
   </div>)}
  </div>;
+}
+// "How was it?", the moment a stop is ticked off: the one time everybody has an opinion and the
+// phone is already in a hand. Big stars that save on the tap, then an optional line, and Later
+// to get on with the day. The same rating is on the stop afterwards, so nothing here is final.
+export function RateNow({state,user,step,mutate,busy,close}){
+ const box=useRef(null);
+ const mine=stepRatings(state,step.id)[user.name]||0,myThought=stepThoughts(state,step.id)[user.name]?.text||'';
+ const [saved,setSaved]=useState(false);
+ async function finish(e){
+  e.preventDefault();
+  const thought=String(new FormData(e.currentTarget).get('thought')||'').trim();
+  if(thought!==myThought&&!await mutate({type:'stepThought',id:step.id,person:user.name,thought}))return;
+  close();
+ }
+ return <form className="rate-now" onSubmit={finish}>
+  <p className="rate-now-title">{step.title}</p>
+  <Stars value={mine} disabled={busy} size={44} label={`How was ${step.title}?`}
+   onPick={async rating=>{if(await mutate({type:'stepRating',id:step.id,person:user.name,rating}))setSaved(true);}}/>
+  <small className="rate-now-hint">{mine?saved?'Saved. Tap again to change it.':'Tap a star to change it.':'Tap a star. Slide along for a half.'}</small>
+  {mine>0&&<>
+   <label>Anything to remember? <small>(optional)</small><textarea ref={box} name="thought" maxLength={2000} defaultValue={myThought} rows={2}
+    placeholder="The deer bowed back. Boston laughed for ten minutes."/></label>
+   <Dictate into={box} label="Say it" what="what you thought"/>
+  </>}
+  <div className="row wrap">
+   {mine>0&&<button className="primary" disabled={busy}><Check size={16}/>Done</button>}
+   <button type="button" onClick={close}>{mine?'Close':'Later'}</button>
+  </div>
+ </form>;
 }

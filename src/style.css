@@ -1083,3 +1083,4 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .card-links.compact svg{width:18px;height:18px}.card-links.compact .mark{font-size:1.05rem}
 .card-link-badge{display:none}
 .card-links.compact .card-link-badge{display:grid;place-items:center;position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:var(--ink);color:var(--paper);font-size:.75rem;font-weight:600;line-height:1}
+.rate-now{display:flex;flex-direction:column;align-items:center;gap:.6rem;text-align:center}.rate-now-title{margin:0;font-family:'Fraunces',Georgia,serif;font-size:1.25rem;font-weight:600}.rate-now .slide-stars{justify-content:center}.rate-now .slide-stars-row{gap:.3rem;padding:.5rem 0}.rate-now-hint{color:var(--muted)}.rate-now label{width:100%;text-align:left}.rate-now .row{justify-content:center;width:100%}
