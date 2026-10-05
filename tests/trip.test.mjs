@@ -8111,13 +8111,13 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  const store=(saved={})=>({getItem:k=>saved[k]??null,setItem:(k,v)=>{saved[k]=v;},saved});
  // Nothing is off until somebody says so, so a phone that never opens this page behaves
  // exactly as it always did.
- assert.deepEqual(DEFAULTS,{dailyPhrase:true,dailyFact:true,transcribeVoice:false,voiceAssistant:true,headphoneConcierge:false,matchaNearby:false,morningCheck:true,routeLookOpen:false});
+ assert.deepEqual(DEFAULTS,{dailyPhrase:true,dailyFact:true,transcribeVoice:false,voiceAssistant:true,headphoneConcierge:false,matchaNearby:false,morningCheck:true,routeLookOpen:false,stopIconsOnly:false});
  assert.deepEqual(readSettings('Nate',store()),DEFAULTS);
  // One at a time: turning the fun fact off leaves the phrase alone, which is the whole point
  // of two switches rather than one.
  const phone=store();
- assert.deepEqual(writeSetting('Nate','dailyFact',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,voiceAssistant:true,headphoneConcierge:false,matchaNearby:false,morningCheck:true,routeLookOpen:false});
- assert.deepEqual(readSettings('Nate',phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,voiceAssistant:true,headphoneConcierge:false,matchaNearby:false,morningCheck:true,routeLookOpen:false});
+ assert.deepEqual(writeSetting('Nate','dailyFact',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,voiceAssistant:true,headphoneConcierge:false,matchaNearby:false,morningCheck:true,routeLookOpen:false,stopIconsOnly:false});
+ assert.deepEqual(readSettings('Nate',phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,voiceAssistant:true,headphoneConcierge:false,matchaNearby:false,morningCheck:true,routeLookOpen:false,stopIconsOnly:false});
  // Under the person's own name. Two boys sharing a phone do not share an opinion about a
  // pop-up, and switching one off must never switch it off for somebody else.
  assert.deepEqual(readSettings('Boston',phone),DEFAULTS);
@@ -8131,7 +8131,7 @@ test('the two pop-ups can be turned off, one at a time, by the person they inter
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'not json at all'})),DEFAULTS);
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'{"dailyFact":"no"}'})),DEFAULTS);
  assert.deepEqual(readSettings('Nate',store({'japan.settings.Nate':'{"dailyLater":false}'})),DEFAULTS);
- assert.deepEqual(writeSetting('Nate','dailyLater',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,voiceAssistant:true,headphoneConcierge:false,matchaNearby:false,morningCheck:true,routeLookOpen:false},'a setting nothing knows about is not written');
+ assert.deepEqual(writeSetting('Nate','dailyLater',false,phone),{dailyPhrase:true,dailyFact:false,transcribeVoice:false,voiceAssistant:true,headphoneConcierge:false,matchaNearby:false,morningCheck:true,routeLookOpen:false,stopIconsOnly:false},'a setting nothing knows about is not written');
  assert.equal(settingOn(undefined,'transcribeVoice'),false,'writing voice notes down starts off');
  assert.equal(settingOn(undefined,'routeLookOpen'),false,'what to look for on a route card starts closed');
  assert.match(main,/lookOpen=\{settingOn\(settings,'routeLookOpen'\)\}/,'the route card is told how each line starts');
@@ -12323,4 +12323,13 @@ test('screens that answer one question are one card on More, with a switch betwe
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.match(main,/\{joinedSwitch\}\n  \{tab==='today'&&/);
  assert.match(main,/joinedGroup\(tab\)\?\.\[0\]!=='glance'\?joinedTabs\(tab,user\)/);
+});
+test('the buttons under each stop can be shown as icons only, keeping their words for screen readers',async()=>{
+ const {DEFAULTS}=await import('../src/settings.js');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.equal(DEFAULTS.stopIconsOnly,false);
+ assert.match(main,/compact=\{settingOn\(settings,'stopIconsOnly'\)\}/);
+ assert.match(main,/<Ticket size=\{15\}\/><span className="card-link-label">Tickets/);
+ assert.match(css,/\.card-links\.compact \.card-link-label\{position:absolute;width:1px;height:1px/);
 });

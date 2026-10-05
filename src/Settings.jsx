@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import PageTitle from './PageTitle.jsx';
-import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,RotateCcw,ExternalLink,Ticket,Image,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell,Coffee,Smile} from 'lucide-react';
+import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,RotateCcw,ExternalLink,Ticket,Image,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell,Coffee,Smile,LayoutGrid} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
 import {BarShortcuts,HomeWidgets,OpeningTips} from './Personalise.jsx';
@@ -17,7 +17,7 @@ import {NEST_STEPS,GOOGLE_ALBUM} from './google-frame-data.js';
 import {PLAN_TYPES,planOf,modulesOff,validTimeZone} from './plan-context.js';
 import {PAGES} from './nav-data.js';
 import {MATCHA_RADII,matchaPlaces} from './matcha-nearby.js';
-const ICONS={headphoneConcierge:Headphones,voiceAssistant:Sparkles,dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye,matchaNearby:Coffee,morningCheck:Smile};
+const ICONS={headphoneConcierge:Headphones,voiceAssistant:Sparkles,dailyPhrase:MessageSquare,dailyFact:Lightbulb,transcribeVoice:Mic,routeLookOpen:Eye,matchaNearby:Coffee,morningCheck:Smile,stopIconsOnly:LayoutGrid};
 // The one screen that turns things off. Each row says what it is, what it will do next time,
 // and what stays behind either way — because the fear that stops somebody switching a thing
 // off is not knowing what else goes with it. Nothing here is lost by turning it off: the
@@ -364,7 +364,10 @@ export default function Settings({user,state,mutate,busy,hand,settings,change,ma
   <section className="settings-section"><OpeningTips/></section>
   {setHome&&<section className="settings-section"><HomeWidgets home={home} setHome={setHome} held={held}/></section>}
   {setNavPrefs&&<section className="settings-section"><BarShortcuts user={user} prefs={navPrefs} setPrefs={setNavPrefs}/></section>}
-  {setLinkPrefs&&<section className="settings-section"><StopButtonOrder prefs={linkPrefs} setPrefs={setLinkPrefs}/></section>}
+  <section className="settings-section">
+   {setLinkPrefs?<StopButtonOrder prefs={linkPrefs} setPrefs={setLinkPrefs}/>:<h2>The buttons on each stop</h2>}
+   {SETTINGS.filter(s=>s.group==='stop').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
+  </section>
   <p><small>Remembered on this phone under your own name, so it takes effect with no signal and changes nothing for anybody else. Turning one back on brings it straight back, starting with today’s if you have not already marked it; nothing you have already seen is ever offered twice.</small></p>
  </>;
 }

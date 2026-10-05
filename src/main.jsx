@@ -850,24 +850,25 @@ function App(){
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore stop</button></p>}
     {/* One row rather than three that stack. Untouched, what only this day has (the park, the
         sumo, the train window) comes first, then everything every stop has; press and hold any
-        of them to wobble the row and drag them into your own order. */}
-    <StopButtons label="For this stop" order={linkOrder(linkPrefs)} setOrder={order=>saveLinks({order})} buttons={{
-     park:parkForDay(day)&&<button className="card-link-special" onClick={()=>setModal({type:'park',park:parkForDay(day)})}><Mark emoji="🎢"/>Rides &amp; park map</button>,
+        of them to wobble the row and drag them into your own order. Icons only (Settings) keeps
+        each label for screen readers and hides it from the row. */}
+    <StopButtons label="For this stop" order={linkOrder(linkPrefs)} setOrder={order=>saveLinks({order})} compact={settingOn(settings,'stopIconsOnly')} buttons={{
+     park:parkForDay(day)&&<button className="card-link-special" onClick={()=>setModal({type:'park',park:parkForDay(day)})}><Mark emoji="🎢"/><span className="card-link-label">Rides &amp; park map</span></button>,
      // Live waits for this stop's ride, and the rest of the park underneath, from Queue-Times.com
      // (src/wait-times.js). The official app stays one tap away inside the sheet.
-     waits:parkForDay(day)&&<button className="card-link-special" onClick={()=>setModal({type:'waits',park:parkForDay(day),step:current})}><Mark emoji="⏱️"/>Wait times</button>,
-     sumo:day===SUMO_DAY&&<button className="card-link-special" onClick={()=>setModal({type:'sumo'})}><Mark emoji="🥋"/>Sumo card{sumoState(state).bouts.length?` · ${sumoState(state).bouts.length} bouts`:''}</button>,
-     eyespy:isTrainLeg(current)&&<button className="card-link-special" onClick={()=>setModal({type:'eyespy',step:current})}><Mark emoji="🎱"/>Japan bingo</button>,
-     website:<Link className="button" href={current.website||`https://www.google.com/search?q=${encodeURIComponent((current.place||current.title)+' official website Japan')}`}><ExternalLink size={15}/>{current.website?'Website':'Find website'}</Link>,
-     tickets:<button onClick={()=>setModal({type:'tickets',step:current})}><Ticket size={15}/>Tickets{state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length?` (${state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length})`:''}</button>,
-     photos:<button onClick={()=>setModal({type:'media',step:current})}><ImageIcon size={15}/>Photos</button>,
-     voice:<button onClick={()=>setModal({type:'voice',step:current})}><Mic size={15}/>Voice note</button>,
-     ask:config?.ask&&<button onClick={()=>setModal({type:'ask',step:current})}><ConciergeBell size={15}/>Ask the concierge</button>,
-     guide:<button onClick={()=>openPage(current.page)}><BookOpen size={15}/>Guide p.{current.page}</button>,
-     remind:<button onClick={()=>setModal({type:'alarm',step:current})}><Bell size={15}/>Remind me</button>,
-     nearby:<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={15}/>Nearby</button>,
-     report:awarenessAllows(visibleState,user.name,'report')&&<button onClick={()=>setModal({type:'report',step:current})}><Radio size={15}/>Report</button>,
-     share:<button aria-label="Share this stop" onClick={()=>shareStep(current)}><Share2 size={15}/>Share</button>
+     waits:parkForDay(day)&&<button className="card-link-special" onClick={()=>setModal({type:'waits',park:parkForDay(day),step:current})}><Mark emoji="⏱️"/><span className="card-link-label">Wait times</span></button>,
+     sumo:day===SUMO_DAY&&<button className="card-link-special" onClick={()=>setModal({type:'sumo'})}><Mark emoji="🥋"/><span className="card-link-label">Sumo card{sumoState(state).bouts.length?` · ${sumoState(state).bouts.length} bouts`:''}</span></button>,
+     eyespy:isTrainLeg(current)&&<button className="card-link-special" onClick={()=>setModal({type:'eyespy',step:current})}><Mark emoji="🎱"/><span className="card-link-label">Japan bingo</span></button>,
+     website:<Link className="button" href={current.website||`https://www.google.com/search?q=${encodeURIComponent((current.place||current.title)+' official website Japan')}`}><ExternalLink size={15}/><span className="card-link-label">{current.website?'Website':'Find website'}</span></Link>,
+     tickets:(n=>(<button onClick={()=>setModal({type:'tickets',step:current})}><Ticket size={15}/><span className="card-link-label">Tickets{n?` (${n})`:''}</span>{n>0&&<b className="card-link-badge" aria-hidden="true">{n}</b>}</button>))(state.documents.filter(d=>documentServesStep(d,current.id)&&!isArchived(d)).length),
+     photos:<button onClick={()=>setModal({type:'media',step:current})}><ImageIcon size={15}/><span className="card-link-label">Photos</span></button>,
+     voice:<button onClick={()=>setModal({type:'voice',step:current})}><Mic size={15}/><span className="card-link-label">Voice note</span></button>,
+     ask:config?.ask&&<button onClick={()=>setModal({type:'ask',step:current})}><ConciergeBell size={15}/><span className="card-link-label">Ask the concierge</span></button>,
+     guide:<button onClick={()=>openPage(current.page)}><BookOpen size={15}/><span className="card-link-label">Guide p.{current.page}</span></button>,
+     remind:<button onClick={()=>setModal({type:'alarm',step:current})}><Bell size={15}/><span className="card-link-label">Remind me</span></button>,
+     nearby:<button onClick={()=>setModal({type:'nearby',step:current})}><Compass size={15}/><span className="card-link-label">Nearby</span></button>,
+     report:awarenessAllows(visibleState,user.name,'report')&&<button onClick={()=>setModal({type:'report',step:current})}><Radio size={15}/><span className="card-link-label">Report</span></button>,
+     share:<button aria-label="Share this stop" onClick={()=>shareStep(current)}><Share2 size={15}/><span className="card-link-label">Share</span></button>
     }}/>
     {current.status==='done'&&<StepReview state={visibleState} user={user} step={current} mutate={mutate} busy={busy}/>}
     <StopPlanB state={visibleState} step={current}/>
