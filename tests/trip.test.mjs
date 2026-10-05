@@ -2051,7 +2051,9 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  const edit=await readFile(new URL('../src/HomeEdit.jsx',import.meta.url),'utf8');
  assert.match(main,/<HomeStack editing=\{arranging\} setEditing=\{setArranging\} ids=\{homeOnShow\} place=\{\(id,before\)=>saveHome\(dropWidget\(homePrefs,id,before,homeOnShow\)\)\} remove=\{takeOffHome\}/);
  assert.match(main,/<HomeCard key=\{run\} id=\{run\}/);
- assert.match(main,/\{arranging\?'Done':'Edit Home'\}/);
+ assert.match(main,/\{!arranging&&<button type="button" className="home-arrange" onClick=\{\(\)=>setArranging\(true\)\}>/);
+ assert.doesNotMatch(edit,/Done/,'a tap off the cards settles Home, so there is no Done');
+ assert.match(edit,/const away=e=>\{if\(!e\.target\.closest\?\.\('\.home-card,\.home-edit-bar button'\)\)setEditing\(false\);\};/);
  assert.match(edit,/const HOLD=500,SLOP=10;/);
  assert.match(edit,/if\(editing\|\|e\.button>0\|\|!e\.target\.closest\('\.home-card'\)\|\|e\.target\.closest\(CONTROLS\)\)return;/,'a hold on a button is the button’s');
  assert.match(edit,/aria-label=\{`Take \$\{label\} off Home`\}/);
