@@ -1,6 +1,6 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {LocateFixed,Clapperboard,Printer,Smartphone,BookLock,PlaneLanding,AlarmClock,MailQuestion,BookImage,Stamp,Crown,GalleryHorizontalEnd,History,Wheat,Eye,Camera,Dices,Sparkles,MessageSquare,Lightbulb,House,CalendarDays,Ticket,UtensilsCrossed,Coins,PiggyBank,Trophy,NotebookPen,MapPin,Users,LifeBuoy,Inbox,Mail,FerrisWheel,ShoppingBag,BookOpen,Bell,Search,Heart,MoreHorizontal,ChevronRight,CloudSun,ListChecks,Luggage,ClipboardList,ConciergeBell,Circle,Camera as CameraIcon,SlidersHorizontal,Settings,ChevronUp,CalendarCheck,Radar,Map as MapIcon,ShieldAlert,Receipt,CreditCard,Medal,LayoutGrid,ChevronDown,Star,Check,Plus,Store,Footprints,DoorOpen,PlaneTakeoff,SearchX,Repeat,Hourglass,GraduationCap,X,ChevronLeft,EyeOff,Undo2,PanelBottom} from 'lucide-react';
-import {PAGES,FIXED,BAR_MAX,moveInMore,hideInMore,primaryNav,moreSections,navActive,hiddenNav,favourites,toggleFavourite,FAV_MAX,favRows,pickerSections,menuLayout,placeScreen,moveScreen} from './nav-data.js';
+import {PAGES,FIXED,BAR_MAX,moveInMore,arrangeInMore,hideInMore,primaryNav,moreSections,navActive,hiddenNav,favourites,toggleFavourite,FAV_MAX,favRows,pickerSections,menuLayout,placeScreen,moveScreen} from './nav-data.js';
 import {isOpen,setOpen} from './fold.js';
 import {useWobble} from './wobble.js';
 import {homePages} from './home-widgets.js';
@@ -337,24 +337,26 @@ function FavSheet({user,prefs,setPrefs,tab,go,close,all,bottom,drop,startChoosin
 // change them, and down in the sections a star marks each one. Hold any card to star or unstar
 // it there and then. A button marks which cards are already a shortcut on the bar or a widget
 // on Home, so it is plain what is one tap away; it is off to begin with.
-// Every card carries arrows and an eye underneath it, so the menu can be put in this person's
-// order and the screens they never open put away right here, without a mode to switch on first
-// or a trip to Customise. The card itself still opens its screen. Arrows rather than dragging,
-// for the same reasons as the bar's own list in Customise.
-const HOLD=450,SLOP=10;
+// Hold any card and every section wobbles, the way icons do on an iPhone's home screen: drag a
+// card along its section, tap the star on its corner to make it a favourite or the eye to put it
+// away, and tap anywhere else to settle. No arrows on a phone, where they doubled the height of
+// every card; with a mouse, where dragging is fiddlier, the arrows come back under each card
+// while it wobbles. Customise and Settings are not cards in a section but a row of their own at
+// the foot, with Arrange beside them for anybody who would rather not hold.
+const BELOW=['personalise','settings'];
 export function MorePage({user,tab,go,children,prefs,home,setPrefs}){
  const [where,setWhere]=useState(false);
  const [undo,setUndo]=useState(null);
+ const [arranging,setArranging]=useState(false);
  const [saved,setSaved]=useSavedFavourites();
  const barIds=primaryNav(user,prefs),onBar=new Set(barIds),onHome=homePages(home);
  const favs=favourites(user,saved,barIds),starred=new Set(favs),full=favs.length>=FAV_MAX;
- const sections=moreSections(user,prefs,where);
+ const sections=moreSections(user,prefs,where).map(([title,ids])=>[title,ids.filter(id=>!BELOW.includes(id))]).filter(([,ids])=>ids.length);
  // Every section starts folded. The one holding the screen you came from opens on its own,
  // so going back to More lands where you left it rather than on a wall of shut headings.
  const [open,setOpenState]=useState(()=>Object.fromEntries(sections.map(([title,ids])=>[title,isOpen(`more.${title}`,undefined,ids.includes(tab))])));
  const fold=title=>setOpenState(o=>({...o,[title]:setOpen(`more.${title}`,!o[title])}));
- // A long press stars or unstars a card; the tap that ends it does not also open the screen.
- const [said,setSaid]=useState(''),press=useRef(null),eat=useRef(false);
+ const [said,setSaid]=useState('');
  const star=id=>{
   const on=starred.has(id);
   // On the bar already, so a star would be a second way to the same screen.
@@ -364,18 +366,8 @@ export function MorePage({user,tab,go,children,prefs,home,setPrefs}){
   try{navigator.vibrate?.(12);}catch{}
   setSaid(on?`${PAGES[id].label} taken out of favourites`:`${PAGES[id].label} added to favourites`);
  };
- const holdProps=id=>({
-  onPointerDown:e=>{if(e.button>0)return;eat.current=false;clearTimeout(press.current?.timer);
-   press.current={x:e.clientX,y:e.clientY,timer:setTimeout(()=>{press.current=null;eat.current=true;star(id);},HOLD)};},
-  onPointerMove:e=>{const p=press.current;if(p&&Math.hypot(e.clientX-p.x,e.clientY-p.y)>SLOP){clearTimeout(p.timer);press.current=null;}},
-  onPointerUp:()=>{clearTimeout(press.current?.timer);press.current=null;},
-  onPointerCancel:()=>{clearTimeout(press.current?.timer);press.current=null;},
-  onContextMenu:e=>e.preventDefault(),
-  onClickCapture:e=>{if(eat.current){e.preventDefault();e.stopPropagation();eat.current=false;}}
- });
  // Long enough to reach Undo after putting a card away; the plain notes go sooner.
  useEffect(()=>{if(!said)return;const t=setTimeout(()=>setSaid(''),undo?6000:2400);return ()=>clearTimeout(t);},[said]);
- useEffect(()=>()=>clearTimeout(press.current?.timer),[]);
  const shift=(ids,id,by)=>setPrefs?.(moveInMore(prefs,ids,id,by));
  const putAway=id=>{
   if(!setPrefs||FIXED.includes(id))return;
@@ -383,43 +375,68 @@ export function MorePage({user,tab,go,children,prefs,home,setPrefs}){
   setSaid(`${PAGES[id].label} put away · back from Customise`);
  };
  useEffect(()=>{if(!said)setUndo(null);},[said]);
- const card=(id,i,ids)=>{
+ const card=(id,i,ids,item={},held=false)=>{
   const Icon=iconFor(id),bar=onBar.has(id),widget=onHome.has(id),on=starred.has(id);
   const label=PAGES[id].label;
-  return <div className={`more-card-wrap${setPrefs?' arranging':''}`} key={id}>
-   <button type="button" {...holdProps(id)} className={`right-now-tile${tab===id?' current':''}${where&&!bar&&!widget?' more-elsewhere':''}`} title={PAGES[id].note} onClick={()=>go(id)}>
-    <Icon size={22}/><span>{PAGES[id].label}</span>
+  return <div className={`more-card-wrap${arranging?' arranging':''}${held?' held':''}`} key={id} {...item}>
+   <button type="button" className={`right-now-tile${tab===id?' current':''}${where&&!bar&&!widget?' more-elsewhere':''}`} title={PAGES[id].note} onClick={()=>go(id)}>
+    <Icon size={22}/><span>{label}</span>
     {/* A favourite is marked where it sits, so it is plain which are chosen. */}
-    {on&&<Star className="more-fav-mark" size={13} aria-label="In favourites"/>}
+    {on&&!arranging&&<Star className="more-fav-mark" size={13} aria-label="In favourites"/>}
     {where&&(bar||widget)&&<span className="more-tags">{bar&&<span className="tag">Bar</span>}{widget&&<span className="tag">Home</span>}</span>}
    </button>
-   {setPrefs&&<span className="more-card-tools">
-    <button type="button" aria-label={`Move ${label} earlier`} disabled={i===0} onClick={()=>shift(ids,id,-1)}><ChevronLeft size={16}/></button>
-    <button type="button" aria-label={`Put ${label} away`} disabled={FIXED.includes(id)} onClick={()=>putAway(id)}><EyeOff size={15}/></button>
-    <button type="button" aria-label={`Move ${label} later`} disabled={i===ids.length-1} onClick={()=>shift(ids,id,1)}><ChevronRight size={16}/></button>
-   </span>}
+   {arranging&&<>
+    {!FIXED.includes(id)&&<button type="button" data-wobble-tool className="more-badge more-badge-away" aria-label={`Put ${label} away`} onClick={()=>putAway(id)}><EyeOff size={13}/></button>}
+    <button type="button" data-wobble-tool className={`more-badge more-badge-star${on?' on':''}`} aria-pressed={on} aria-label={on?`Take ${label} out of favourites`:`Add ${label} to favourites`} onClick={()=>star(id)}><Star size={13}/></button>
+    {/* Only where there is a mouse (style.css): on a phone the card is dragged. */}
+    <span className="more-card-tools" data-wobble-tool>
+     <button type="button" aria-label={`Move ${label} earlier`} disabled={i===0} onClick={()=>shift(ids,id,-1)}><ChevronLeft size={16}/></button>
+     <button type="button" aria-label={`Move ${label} later`} disabled={i===ids.length-1} onClick={()=>shift(ids,id,1)}><ChevronRight size={16}/></button>
+    </span>
+   </>}
   </div>;
  };
+ const below=BELOW.filter(id=>PAGES[id]);
  return <div className="more-page">
   <p className="eyebrow">EVERYTHING FOR OUR TRIP</p>
   <h1>More</h1>
   <div className="more-fav-line">
    <Star size={16}/>
-   <span><strong>Favourites · {favs.length}</strong><small>One swipe up the bar, from any screen. Hold a card below to star it; Edit arranges the bar too.</small></span>
+   <span><strong>Favourites · {favs.length}</strong><small>One swipe up the bar, from any screen. Hold a card below and tap its star; Edit arranges the bar too.</small></span>
    <button type="button" className="more-edit" onClick={openFavourites}>Edit</button>
   </div>
   <button type="button" className={`more-where${where?' on':''}`} aria-pressed={where} onClick={()=>setWhere(!where)}>
    <LayoutGrid size={16}/>{where?'Hide what is on my bar and Home':'Show what is on my bar and Home'}
   </button>
-  {setPrefs&&<p className="more-arrange-hint">Tap a card to open it. The arrows under it move it along its section, and the eye puts it away.</p>}
-  {sections.map(([title,ids])=>{const shut=!(open[title]??false);
-   return <section className={`more-section${shut?' shut':''}`} key={title}>
-    <h2><button type="button" className="more-fold" aria-expanded={!shut} onClick={()=>fold(title)}>
-     <span>{title}</span><small>{ids.length}</small><ChevronDown size={18}/>
-    </button></h2>
-    {!shut&&<div className="right-now more-grid">{ids.map((id,i)=>card(id,i,ids))}</div>}
-   </section>;})}
+  {setPrefs&&<p className="more-arrange-hint">{arranging
+   ?'Drag a card along its section. The star makes it a favourite and the eye puts it away. Tap anywhere else to finish.'
+   :'Tap a card to open it. Hold one to arrange them.'}</p>}
+  {sections.map(([title,ids])=><MoreSection key={title} title={title} ids={ids} shut={!(open[title]??false)} fold={fold}
+   card={card} canArrange={!!setPrefs} arranging={arranging} setArranging={setArranging}
+   arrange={list=>setPrefs?.(arrangeInMore(prefs,list))}/>)}
   <p className="more-said" role="status" aria-live="polite">{said}{undo&&<> <button type="button" className="more-undo" onClick={()=>{setPrefs(undo);setUndo(null);setSaid('');}}><Undo2 size={14}/>Undo</button></>}</p>
   {children}
+  {below.length>0&&<div className="more-foot">
+   {setPrefs&&<button type="button" data-wobble-tool className={`more-arrange${arranging?' on':''}`} aria-pressed={arranging} onClick={()=>setArranging(!arranging)}>
+    {arranging?<><Check size={16}/>Done</>:<><LayoutGrid size={16}/>Arrange</>}
+   </button>}
+   {below.map(id=>{const Icon=iconFor(id);
+    return <button type="button" key={id} className={tab===id?'current':''} title={PAGES[id].note} onClick={()=>go(id)}><Icon size={16}/>{PAGES[id].label}</button>;})}
+  </div>}
  </div>;
+}
+// One section of More. Each has its own row to drag within, since a card stays in its section,
+// but they share one wobble: holding a card in any of them sets them all going.
+function MoreSection({title,ids,shut,fold,card,canArrange,arranging,setArranging,arrange}){
+ const w=useWobble({ids,onMove:arrange,editing:canArrange&&arranging,setEditing:setArranging});
+ return <section className={`more-section${shut?' shut':''}`}>
+  <h2><button type="button" className="more-fold" aria-expanded={!shut} onClick={()=>fold(title)}>
+   <span>{title}</span><small>{ids.length}</small><ChevronDown size={18}/>
+  </button></h2>
+  {!shut&&(canArrange
+   ?<div className="right-now more-grid" data-wobbling={w.editing||undefined} {...w.rowProps}>
+     {w.order.map((id,i)=>{const {held,...item}=w.item(id);return card(id,i,w.order,item,held);})}
+    </div>
+   :<div className="right-now more-grid">{ids.map((id,i)=>card(id,i,ids))}</div>)}
+ </section>;
 }

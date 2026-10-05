@@ -2092,7 +2092,7 @@ test('every row in the menu draws an icon, and the bar swipes across the bottom'
  for(const id of Object.keys(PAGES))assert.ok(icons.has(id),`${id} has no icon, so its row cannot render`);
  // And a page added tomorrow without one falls back rather than blanking the menu.
  assert.match(nav,/export const iconFor=id=>ICONS\[id\]\|\|Circle;/);
- assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,5,'the bar, every More card and every card in the favourites sheet go through the fallback');
+ assert.equal((nav.match(/iconFor\(id\)/g)||[]).length,6,'the bar, every More card, the row at the foot of More and every card in the favourites sheet go through the fallback');
  assert.ok(!/const Icon=ICONS\[id\]/.test(nav),'nothing indexes ICONS directly any more');
  // Every button, Home and More included, gets the same cell: the bar's width shared by the
  // number of buttons, capped at 150px and never below a thumb; past that the tabs scroll like
@@ -10777,7 +10777,7 @@ test('favourites start as Right now, are starred in and out, and are cleaned on 
  assert.match(nav,/isOpen\(`more\.\$\{title\}`,undefined,ids\.includes\(tab\)\)/);
  assert.match(nav,/setOpen\(`more\.\$\{title\}`,!o\[title\]\)/);
  assert.match(nav,/aria-expanded=\{!shut\}/);
- assert.match(nav,/const shut=!\(open\[title\]\?\?false\);/);
+ assert.match(nav,/shut=\{!\(open\[title\]\?\?false\)\}/);
 });
 
 test('the favourites sheet: one swipe up the bar, as tall as its rows, and the same list as More',async()=>{
@@ -10815,12 +10815,12 @@ test('the favourites sheet: one swipe up the bar, as tall as its rows, and the s
  assert.match(nav,/aria-pressed=\{where==='fav'\}[^>]*disabled=\{!!why\('fav'\)\}/);
  assert.match(nav,/\{favs\.length\} of \{FAV_MAX\}/);
  // And down on More, a favourite is marked in its section.
- assert.match(nav,/\{on&&<Star className="more-fav-mark"/);
+ assert.match(nav,/\{on&&!arranging&&<Star className="more-fav-mark"/);
  assert.match(css,/\.fav-sheet-grid\{display:grid;grid-template-columns:repeat\(4,1fr\);grid-template-rows:repeat\(var\(--fav-rows,1\)/);
  assert.match(css,/\.fav-find\{width:100%;font-size:16px/,'16px, or iOS zooms the page when it is tapped');
 });
 
-test('favourites are put in order in the sheet, by drag, arrows or keys, and starred on More by a hold',async()=>{
+test('favourites are put in order in the sheet, by drag, arrows or keys, and starred on More from the wobble',async()=>{
  const {dropFavourite,FAV_MAX}=await import('../src/nav-data.js');
  // Along the row a favourite takes the place of the one it is dropped on, either way.
  assert.deepEqual(dropFavourite(['a','b','c','d'],'a','c'),['b','c','a','d']);
@@ -10845,9 +10845,9 @@ test('favourites are put in order in the sheet, by drag, arrows or keys, and sta
  assert.match(nav,/aria-label=\{`Move \$\{PAGES\[id\]\.label\} earlier`\} disabled=\{first\}/,'nothing goes in front of Home on the bar');
  assert.match(nav,/aria-label=\{`Move \$\{PAGES\[id\]\.label\} later`\} disabled=\{i===ids\.length-1\}/);
  assert.match(nav,/\{ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1\}\[e\.key\];if\(by&&!home\)\{e\.preventDefault\(\);shift\(id,by\);\}/);
- // On More a hold stars or unstars a card, says so, and the tap that ends it does not open it.
- assert.match(nav,/timer:setTimeout\(\(\)=>\{press\.current=null;eat\.current=true;star\(id\);\},HOLD\)/);
- assert.match(nav,/onClickCapture:e=>\{if\(eat\.current\)\{e\.preventDefault\(\);e\.stopPropagation\(\);eat\.current=false;\}\}/);
+ // On More a hold sets the cards wobbling, and the star on a wobbling card stars or unstars it
+ // and says so; the tap that ends the hold does not open the card (wobble.js eats it).
+ assert.match(nav,/className=\{`more-badge more-badge-star\$\{on\?' on':''\}`\} aria-pressed=\{on\}[^>]*onClick=\{\(\)=>star\(id\)\}/,'starred on More from the wobble');
  assert.match(nav,/if\(!on&&full\)\{setSaid\(`Favourites are full at \$\{FAV_MAX\}\. Take one out first\.`\);return;\}/);
  assert.match(nav,/className="more-said" role="status" aria-live="polite"/);
 });
@@ -12231,7 +12231,7 @@ test('the top bar shows the sky now: this hour when saved, else the day, nothing
 });
 
 test('More can be arranged and put away card by card, and its order survives the bar being changed',async()=>{
- const {moreSections,moveInMore,hideInMore,hiddenNav,cleanNav,emptyNav,FIXED}=await import('../src/nav-data.js');
+ const {moreSections,moveInMore,arrangeInMore,hideInMore,hiddenNav,cleanNav,emptyNav,FIXED}=await import('../src/nav-data.js');
  const nav=await readFile(new URL('../src/Navigation.jsx',import.meta.url),'utf8');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const damien={name:'Damien',role:'parent'};
@@ -12242,6 +12242,9 @@ test('More can be arranged and put away card by card, and its order survives the
  assert.deepEqual(after.slice(0,3),[ids[0],ids[2],ids[1]]);
  assert.deepEqual([...after].sort(),[...ids].sort(),'nothing gained or lost');
  assert.equal(moveInMore(moved,after,after[0],-1),moved,'the first card cannot go earlier');
+ // Dragged about, the whole section is written down as it was left.
+ const dragged=cleanNav(arrangeInMore(emptyNav(),[ids[1],ids[0],...ids.slice(2)]),damien);
+ assert.deepEqual(moreSections(damien,dragged).find(([t])=>t===title)[1].slice(0,2),[ids[1],ids[0]]);
  // Putting one away from More is the same put away as Customise, and Customise itself stays.
  const away=cleanNav(hideInMore(moved,ids[0]),damien);
  assert.ok(hiddenNav(damien,away).includes(ids[0]));
@@ -12251,9 +12254,15 @@ test('More can be arranged and put away card by card, and its order survives the
  assert.deepEqual(cleanNav({order:['nope','vault',ids[1]]},{name:'Nate',role:'child'}).order.includes('nope'),false);
  // The bar's own saves do not wipe the order, and the card still opens its screen.
  assert.match(main,/cleanNav\(\{order:navPrefs\.order,\.\.\.next\},user\)/);
- // Always there, with no mode to switch on, and holding an arrow is not holding the card.
- assert.doesNotMatch(nav,/arranging\?/);
- assert.match(nav,/<button type="button" \{\.\.\.holdProps\(id\)\}/);
+ // A hold sets every section wobbling at once; a phone drags, and the arrows are for a mouse.
+ assert.match(nav,/useWobble\(\{ids,onMove:arrange,editing:canArrange&&arranging,setEditing:setArranging\}\)/);
+ assert.match(nav,/<span className="more-card-tools" data-wobble-tool>/);
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/\.more-card-tools\{display:none;/);
+ assert.match(css,/@media\(hover:hover\) and \(pointer:fine\)\{\n \.more-card-tools\{display:flex\}/);
+ // Customise and Settings are a row of their own at the foot, not cards in a section.
+ assert.match(nav,/const BELOW=\['personalise','settings'\];/);
+ assert.match(nav,/\.filter\(id=>!BELOW\.includes\(id\)\)/);
  assert.match(nav,/onClick=\{\(\)=>go\(id\)\}/);
  assert.match(nav,/aria-label=\{`Put \$\{label\} away`\}/);
 });

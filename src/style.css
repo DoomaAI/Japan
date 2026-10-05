@@ -1020,8 +1020,24 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .more-said:empty{display:none}
 .more-said .more-undo{display:inline-flex;align-items:center;gap:.25rem;min-height:32px;margin-left:.4rem;padding:0 .6rem;border-radius:16px;background:transparent;border:1px solid currentColor;color:inherit;font-size:.8rem}
 .more-arrange-hint{margin:0 0 1rem;color:var(--muted);font-size:.82rem}
+/* More while it wobbles (MorePage): a star and an eye on each card's corners, as an iPhone puts
+   a minus on a wobbling icon. The arrows under each card are for a mouse only; on a phone the
+   card is dragged. With a mouse only the card itself wobbles, so the arrows hold still. */
 .more-card-wrap.arranging{flex-direction:column;gap:.25rem}
-.more-card-tools{display:flex;justify-content:space-between;gap:.2rem}
+.more-badge{position:absolute;z-index:2;display:grid;place-items:center;width:28px;height:28px;min-height:0;padding:0;border-radius:50%;background:var(--paper);border:1px solid var(--border);color:var(--muted)}
+.more-badge-away{top:4px;left:4px}
+.more-badge-star{top:4px;right:4px}
+.more-badge-star.on{color:var(--gold-ink)}.more-badge-star.on svg{fill:var(--gold)}
+.more-card-tools{display:none;justify-content:space-between;gap:.2rem}
+@media(hover:hover) and (pointer:fine){
+ .more-card-tools{display:flex}
+ .more-grid[data-wobbling]>[data-link]:not(.held){animation:none}
+ .more-grid[data-wobbling]>[data-link]:not(.held)>.right-now-tile{animation:wobble .3s ease-in-out infinite alternate}
+}
+.more-foot{display:flex;flex-wrap:wrap;gap:.5rem;margin:1.4rem 0 .4rem;padding-top:1rem;border-top:1px solid var(--border)}
+.more-foot button{flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:44px;padding:.45rem .8rem;font-size:.85rem;white-space:nowrap}
+.more-foot button.current{border-color:var(--accent)}
+.more-foot .more-arrange.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .more-card-tools button{flex:1;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0;border-radius:10px}
 .more-card-tools button:disabled{opacity:.35}
 .more-card-wrap{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}

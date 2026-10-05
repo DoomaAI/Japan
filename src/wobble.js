@@ -14,14 +14,23 @@ const HOLD=450,SLOP=10;
 // It is a hook rather than a component so the row and its items stay the elements they already
 // were: the caller spreads rowProps onto the row and item(id) onto each item, and marks the row
 // data-wobbling while editing is true.
-export function useWobble({ids,onMove}){
- const [editing,setEditing]=useState(false),[live,setLive]=useState(null),[held,setHeld]=useState(null);
+//
+// Several rows can wobble as one, as every section of More does: pass the same editing and
+// setEditing to each, and a tap on an item in any of them keeps them all wobbling. Anything
+// marked data-wobble-tool (a badge on an item, a Done button) is left to its own tap.
+export function useWobble({ids,onMove,editing:shared,setEditing:setShared}){
+ const [own,setOwn]=useState(false),[live,setLive]=useState(null),[held,setHeld]=useState(null);
+ const editing=shared??own,setEditing=setShared||setOwn;
  const row=useRef(null),bar=useRef(null),press=useRef(null),drag=useRef(null),eat=useRef(false);
  const order=live||ids;
  const finish=()=>{setEditing(false);setHeld(null);drag.current=null;};
  useEffect(()=>{
   if(!editing)return;
-  const away=e=>{if(!row.current?.contains(e.target))finish();};
+  const away=e=>{
+   if(e.target.closest?.('[data-wobble-tool]'))return;
+   if(setShared?e.target.closest?.('[data-link]'):row.current?.contains(e.target))return;
+   finish();
+  };
   const esc=e=>{if(e.key==='Escape')finish();};
   document.addEventListener('pointerdown',away);document.addEventListener('keydown',esc);
   return ()=>{document.removeEventListener('pointerdown',away);document.removeEventListener('keydown',esc);};
@@ -53,7 +62,10 @@ export function useWobble({ids,onMove}){
   if(to!==box.scrollLeft){box.scrollLeft=to;follow();hit();}
   d.frame=requestAnimationFrame(edge);
  };
- const itemOf=e=>{const el=e.target.closest?.('[data-link]');return el&&row.current?.contains(el)?el:null;};
+ const itemOf=e=>{
+  if(e.target.closest?.('[data-wobble-tool]'))return null;
+  const el=e.target.closest?.('[data-link]');return el&&row.current?.contains(el)?el:null;
+ };
  function down(e){
   const el=itemOf(e);if(!el)return;
   eat.current=false;
