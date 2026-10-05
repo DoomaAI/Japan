@@ -124,11 +124,17 @@ test('a stop dropped on a new line can be undone from the toast, back to the ord
  assert.match(tl,/const was=\(allSteps\|\|steps\)\.map\(s=>s\.id\)/,'the whole day’s order is kept, hidden stops included');
  assert.match(tl,/undo:async\(\)=>\{if\(await mutate\(\{type:'reorder',day:today\.date,ids:was\}\)\)/);
  // The handle is the handle all the way across: the tap zones of the buttons beside it grow
- // only outward, so a thumb on its right half no longer lands on Move up or Options.
+ // only outward, so a thumb on its right half no longer lands on Options.
  const theme=await readFile(new URL('../src/guide-theme.css',import.meta.url),'utf8');
  assert.match(theme,/\.reorder-tools \.drag-handle::after\{inset:-8px 0 -8px -10px\}/);
- assert.match(theme,/\.reorder-tools button\[aria-label\^="Move "\]::after\{inset:-8px 0 0\}/);
- assert.match(theme,/\.reorder-tools \.to-options::after,\.reorder-tools \.remove-stop::after\{inset:0 0 -8px\}/);
+ assert.match(theme,/\.reorder-tools \.to-options::after,\.reorder-tools \.remove-stop::after\{inset:-8px 0\}/);
+ // No arrows beside each stop: the handle drags, takes the arrow keys, and Adjust at the foot of
+ // the day sets the stops wobbling for anyone who does not find the hold.
+ assert.doesNotMatch(tl,/ArrowUp size|ArrowDown size|aria-label=\{`Move /);
+ assert.match(tl,/onKeyDown=\{e=>\{const by=\{ArrowUp:-1,ArrowDown:1\}\[e\.key\];if\(by&&!busy\)\{e\.preventDefault\(\);move\(s\.id,i\+by\);\}\}\}/);
+ assert.match(tl,/className="timeline-adjust" disabled=\{busy\} onClick=\{\(\)=>setAdjusting\(true\)\}/);
+ assert.match(tl,/const lift=d=>\{d\.lifted=true;setHeld\(d\.id\);setAdjusting\(true\);/,'a hold sets the day wobbling too');
+ assert.match(tl,/if\(e\.pointerType==='mouse'\|\|adjusting\)lift\(d\)/,'and while it wobbles a handle lifts with no hold');
  // Put back exactly: the same reorder operation, handed the order from before, restores it.
  const day=seed.days[0].date,before=activeSteps(seed,day).map(s=>s.id);
  const after=applyOperation(seed,{type:'reorder',day,ids:[...before.slice(1),before[0]]},parent);
@@ -4455,7 +4461,7 @@ test('a timeline stop lifts only on a deliberate hold and lands on the line betw
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  // A finger has to rest before the row lifts; wandering first means it was a scroll.
  assert.match(timeline,/const HOLD=\d+,SLOP=\d+/);
- assert.match(timeline,/if\(e\.pointerType==='mouse'\)lift\(d\);else d\.timer=setTimeout\(/);
+ assert.match(timeline,/if\(e\.pointerType==='mouse'\|\|adjusting\)lift\(d\);else d\.timer=setTimeout\(/);
  assert.match(timeline,/if\(!d\.lifted\)\{if\(Math\.hypot\(e\.clientX-d\.x,e\.clientY-d\.y\)>SLOP\)letGo\(\);return;\}/);
  // So the handle lets a swipe scroll the page, and only a lifted row stops it.
  assert.match(css,/\.reorder-tools \.drag-handle\{[^}]*touch-action:pan-y/);
@@ -11712,8 +11718,11 @@ test('nothing tappable is under 40px, past days still read, and a press shows',a
  assert.match(sweep,/\.avatar,\.topbar \.avatar\{width:40px;height:40px;min-height:40px\}/);
  assert.match(sweep,/\.timeline \.timeline-tick input,\.timeline-tick input\{width:40px;height:40px;min-height:40px\}/);
  // Where it cannot, the hit area is widened around the same drawing.
- assert.match(sweep,/\.timeline button\[aria-label\^="Move "\]::after,\.to-options::after,\.remove-stop::after,\.drag-handle::after\{content:'';position:absolute;inset:-8px -10px/);
- assert.match(sweep,/\.timeline-insert::before\{content:'';position:absolute;inset:-12px 0/);
+ assert.match(sweep,/\.to-options::after,\.remove-stop::after,\.drag-handle::after\{content:'';position:absolute;inset:-8px -10px/);
+ // Only the + on the add-a-stop line is a button, with its zone around the + rather than across
+ // the row, where it lay under the tray and bin of the stop above.
+ assert.match(sweep,/\.timeline-add::before\{content:'';position:absolute;inset:-12px -12px/);
+ assert.doesNotMatch(sweep,/\.timeline-insert::before/);
  // The hit area must not take the dashed line's pseudo-element, or the line is dragged up into the stop above.
  assert.doesNotMatch(sweep,/\.timeline-insert::after\{/);
  assert.match(sweep,/\.callout button::after\{content:'';position:absolute;inset:-10px -4px\}/,'a button inside a sentence keeps its line but gains a finger’s worth of room');

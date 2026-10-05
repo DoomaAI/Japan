@@ -259,7 +259,7 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .ticket-translate{margin-top:.8rem}.ticket-translate details{margin:.6rem 0 0;padding:.8rem}.ticket-translate summary{display:flex;align-items:center;gap:.45rem;font-size:.85rem}.translate-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem;padding:.5rem 0;border-top:1px solid var(--border)}.translate-row strong{font-size:.85rem}.ticket-translation{margin:.7rem 0;padding:.9rem 1rem;border:1px solid var(--border);border-radius:12px;background:var(--page)}.ticket-translation .eyebrow{margin-bottom:.4rem;font-size:.75rem}.ticket-translation.ja{background:#edf4ef}.ticket-translation .say-it{margin-bottom:.6rem}.ticket-translation .callout{margin:.6rem 0}.ticket-translation pre.document-text{margin:0 0 .5rem}
 .file-translate{margin-top:.6rem}.file-translate>button{display:inline-flex;align-items:center;gap:.4rem}.file-translate details{margin:0;padding:0;border:0;background:none}.file-translate summary{display:flex;align-items:center;gap:.45rem;font-size:.85rem;margin-bottom:.5rem}.file-translate .document-summary{margin:.2rem 0 .6rem}.file-translate-off{display:block;margin-top:.5rem;color:var(--muted)}
 .dictate-row{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:.2rem 0 .8rem}.dictate{font-size:.82rem;min-height:38px;padding:.45rem .9rem;border-radius:20px;background:var(--tint);border-color:var(--tint-border)}.dictate.listening{background:var(--danger,var(--danger));border-color:var(--danger,var(--danger));color:var(--paper)}.dictate.listening:hover{background:var(--danger,var(--danger));border-color:var(--danger,var(--danger))}.dictate-live{flex:1 1 140px;min-width:0;font-size:.85rem;font-style:italic;color:var(--muted);overflow-wrap:anywhere}.dictate-row .hear-problem{flex:1 1 100%;margin-top:0}.quest .dictate{font-size:.95rem;min-height:48px;padding:.6rem 1.2rem}
-.timeline-insert{display:flex;align-items:center;justify-content:flex-start;gap:.55rem;width:100%;min-height:36px;padding:.1rem .5rem .1rem calc(45px + 1.3rem);border:0;border-radius:8px;background:transparent;color:#7d9791;font-size:.76rem;font-weight:600;text-align:left}.timeline-insert:after{content:'';flex:1;border-top:1px dashed #cfdcd7}.timeline-insert:hover{background:#eef4f1;color:var(--green)}.timeline-insert:hover:after{border-color:#9dbdb2}.timeline-insert.end{min-height:44px;color:var(--ink);margin-top:.2rem}.timeline-insert.drop-gap,.timeline-gap.drop-gap{position:relative;z-index:6}.timeline-insert.drop-gap{background:var(--tint);color:var(--green)}.timeline-insert.drop-gap:after{border-top:3px solid var(--green)}.timeline-insert.drop-gap svg{scale:1.5}.timeline-gap.drop-gap{height:0;margin:-1.5px 0;border-top:3px solid var(--green)}
+.timeline-insert{display:flex;align-items:center;justify-content:flex-start;gap:.55rem;width:100%;min-height:36px;padding:.1rem .5rem .1rem calc(45px + 1.3rem);border-radius:8px;color:#7d9791;font-size:.76rem;font-weight:600}.timeline-add{display:inline-flex;align-items:center;gap:.55rem;flex:none;margin-left:-.3rem;padding:0 .3rem;min-height:0;border:0;border-radius:6px;background:none;color:inherit;font:inherit}.timeline-insert:after{content:'';flex:1;border-top:1px dashed #cfdcd7}.timeline-insert:has(.timeline-add:hover){color:var(--green)}.timeline-insert:has(.timeline-add:hover):after{border-color:#9dbdb2}.timeline-insert.end{min-height:44px;color:var(--ink);margin-top:.2rem}.timeline-insert.drop-gap,.timeline-gap.drop-gap{position:relative;z-index:6}.timeline-insert.drop-gap{background:var(--tint);color:var(--green)}.timeline-insert.drop-gap:after{border-top:3px solid var(--green)}.timeline-insert.drop-gap svg{scale:1.5}.timeline-gap.drop-gap{height:0;margin:-1.5px 0;border-top:3px solid var(--green)}
 /* The purchase shortlist. The photograph is the card: it is the only part of a find that cannot
    be written down, and the whole page exists so a decision can be made off it three days later.
    So it sits at the top edge to edge, and everything else is caption underneath it. */
@@ -491,9 +491,9 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .timeline .timeline-tick input{width:32px;height:32px;min-height:32px;margin:0;opacity:0;cursor:pointer}
 .timeline .timeline-tick input:disabled{pointer-events:none}
 .timeline-row:has(.timeline-tick input:focus-visible) .timeline-dot{outline:2px solid var(--green);outline-offset:2px}
-.timeline .reorder-tools{grid-template-columns:20px 24px 24px;grid-auto-rows:26px;align-items:center}
-.timeline .reorder-tools button{min-height:26px}
-.timeline .reorder-tools .drag-handle{grid-column:auto;grid-row:span 2;min-height:52px}
+.timeline .reorder-tools{grid-template-columns:20px 24px 24px;grid-auto-rows:40px;align-items:center}
+.timeline .reorder-tools button{min-height:40px}
+.timeline .reorder-tools .drag-handle{grid-column:auto}
 .timeline .timeline-insert{min-height:16px;padding-top:0;padding-bottom:0;font-size:.75rem}
 .timeline .timeline-insert svg{width:12px;height:12px}
 .timeline .timeline-insert.end{min-height:36px}
@@ -655,6 +655,15 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 [data-wobbling]>[data-link]:nth-child(2n):not(.held){animation-delay:-.13s;animation-duration:.3s}
 [data-wobbling]>[data-link]:nth-child(3n):not(.held){animation-delay:-.07s}
 @keyframes wobble{from{transform:rotate(-2deg)}to{transform:rotate(2deg)}}
+/* The day at a glance being adjusted (DayTimeline.jsx): held by a handle, or Adjust tapped at the
+   foot of the day, the stops wobble as Home's cards do, a handle lifts at a touch rather than after
+   a hold, and Done stays in reach above the bar however long the day is. */
+.timeline.adjusting .timeline-row:not(.lifted){animation:home-wobble .3s ease-in-out infinite alternate}
+.timeline.adjusting .timeline-row:nth-child(odd):not(.lifted){animation-delay:-.15s}
+.timeline.adjusting .reorder-tools .drag-handle{touch-action:none}
+.timeline-adjust{display:flex;align-items:center;gap:.4rem;margin:.4rem 0 0 auto;min-height:40px;padding:.35rem .95rem;border:1px solid var(--border);border-radius:20px;background:none;color:var(--ink);font-size:.8rem;font-weight:600}
+.timeline-adjust-done{position:sticky;bottom:calc(96px + env(safe-area-inset-bottom));z-index:7;margin:.5rem 0 0;padding:.5rem .75rem;background:var(--cream);border:1px solid var(--border);border-radius:12px}
+@media(prefers-reduced-motion:reduce){.timeline.adjusting .timeline-row{animation:none;outline:1px dashed var(--border)}}
 }
 @media(prefers-reduced-motion:reduce){[data-wobbling]>[data-link]{outline:1px dashed var(--border)}}
 
