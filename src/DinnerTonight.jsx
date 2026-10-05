@@ -1,5 +1,6 @@
 import React,{useState} from 'react';
 import {UtensilsCrossed,X,ExternalLink,Copy,Plus,Footprints,Search,Heart,PartyPopper,RotateCcw,List} from 'lucide-react';
+import {InBar} from './home-bar.js';
 import {dinnerShows,dinnerOf,dinnerAnchors,reservationMessage,dinnerOptions,myDinnerVotes,dinnerMatches,BOOKING,CHANNELS,MENUS} from './dinner-data.js';
 import {SuggestDeck} from './SuggestDeck.jsx';
 import {activeSteps} from './timing.js';
@@ -52,9 +53,9 @@ export default function DinnerTonight({state,user,day,today,clock,config,request
  const members=state.members||[],opts=dinnerOptions(found),mine=myDinnerVotes(found,user?.name),toSwipe=opts.filter(x=>!mine[x.key]);
  const swiping=opts.length>1&&!asList,matches=dinnerMatches(found,members),best=matches[0];
  const copy=t=>navigator.clipboard?.writeText(t).then(()=>notice?.('Copied.'),()=>{});
+ const away=<button type="button" className="icon" aria-label="Not tonight: put this away for today" onClick={dismiss}><X size={17}/></button>;
  return <section className="dinner-card" aria-label="Dinner tonight">
-  <div className="section-heading"><h3><UtensilsCrossed size={17}/> Dinner tonight</h3>
-   <button type="button" className="icon" aria-label="Not tonight: put this away for today" onClick={dismiss}><X size={17}/></button></div>
+  <InBar fallback={<div className="section-heading"><h3><UtensilsCrossed size={17}/> Dinner tonight</h3>{away}</div>}>{away}</InBar>
   {!found?<>
    <p>Nothing on the plan for dinner yet. {anchors.map((a,i)=>`${i?'or ':''}${a.id==='hotel'?'at or near':'near'} ${a.label}`).join(', ').replace(/^./,c=>c.toUpperCase())}?</p>
    <div className="row wrap">

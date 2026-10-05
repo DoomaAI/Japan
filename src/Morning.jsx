@@ -1,10 +1,12 @@
-import React,{useState} from 'react';
+import React,{useContext,useState} from 'react';
 import Mark from './Mark.jsx';
+import {InBar,HomeBarSlot} from './home-bar.js';
 import {Check,Flame,RotateCcw,X} from 'lucide-react';
 import {morningList,readTicks,writeTicks,readStreak,writeStreak,nextStreak,streakWords,readClosed,writeClosed} from './morning-data.js';
 // The Before we head out widget: one tap per thing to carry, reset each morning by itself, and
 // a streak for finishing. It is only about today; other days have no morning to get ready for.
 export default function MorningChecklist({state,day,today}){
+ const inBar=!!useContext(HomeBarSlot);
  const [ticks,setTicks]=useState(()=>readTicks(day)),[streak,setStreak]=useState(readStreak),[closed,setClosed]=useState(()=>readClosed(day));
  if(day!==today||closed)return null;
  const close=()=>{writeClosed(day);setClosed(true);};
@@ -16,14 +18,18 @@ export default function MorningChecklist({state,day,today}){
  };
  const reset=()=>{setTicks([]);writeTicks(day,[]);};
  const streakLine=streak.count>0&&(complete||streak.last!==day)?streakWords(streak.count,streak.forgiven&&streak.last===day?streak.forgiven:null):'';
+ // On Home the count and the × sit on the card's own heading line; the streak drops below it.
+ const count=complete?'Out the door.':`${done} of ${items.length} in the bag`;
+ const shut=<button type="button" className="morning-close" aria-label="Hide for the rest of today" title="Hide for the rest of today" onClick={close}><X size={18}/></button>;
  return <section className={`morning${complete?' complete':''}`}>
-  <div className="morning-head">
-   <div><h2 className="eyebrow">Before we head out</h2><strong>{complete?'Out the door.':`${done} of ${items.length} in the bag`}</strong></div>
+  <InBar fallback={<div className="morning-head">
+   <div><h2 className="eyebrow">Before we head out</h2><strong>{count}</strong></div>
    <div className="morning-tools">
     {streakLine&&<span className="morning-streak"><Flame size={15}/>{streakLine}</span>}
-    <button type="button" className="morning-close" aria-label="Hide for the rest of today" title="Hide for the rest of today" onClick={close}><X size={18}/></button>
+    {shut}
    </div>
-  </div>
+  </div>}><span className="bar-note">{count}</span>{shut}</InBar>
+  {inBar&&streakLine&&<p className="morning-streak"><Flame size={15}/>{streakLine}</p>}
   {!complete&&<div className="chips morning-chips">{items.map(i=><button type="button" key={i.id} className={`chip${ticks.includes(i.id)?' on':''}`} aria-pressed={ticks.includes(i.id)} title={i.why||''} onClick={()=>toggle(i.id)}>{ticks.includes(i.id)?<Check size={14}/>:<Mark emoji={i.emoji}/>}{i.label}</button>)}</div>}
   {!complete&&items.some(i=>i.why&&!['passports','ic'].includes(i.id))&&<p className="morning-why">{items.filter(i=>i.why&&!['passports','ic'].includes(i.id)).map(i=><span key={i.id}><Mark emoji={i.emoji} size={13}/> {i.why} </span>)}</p>}
   {complete&&<button type="button" className="linkish" onClick={reset}><RotateCcw size={13}/> Check again</button>}

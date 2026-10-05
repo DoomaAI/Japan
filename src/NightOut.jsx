@@ -1,5 +1,6 @@
 import React,{useState} from 'react';
 import {Moon,Wine,Martini,Music,IceCreamCone,X,ExternalLink,Plus,Footprints,Search,Hotel} from 'lucide-react';
+import {InBar} from './home-bar.js';
 import {nightShows,nightOf,nightAnchor,nightPlanned,moodsFor,moodOf,whoFor,nightStep,WHO,VIBES,PAYS} from './night-out-data.js';
 import GuideByline from './GuideByline.jsx';
 // After dinner, on Home in the evening: somewhere for a nightcap, a drink, a night out or a late
@@ -22,9 +23,9 @@ export default function NightOut({state,user,day,today,clock,config,request,acce
   if(await mutate({type:'add',step}))notice?.(`${step.title} is on the plan for ${step.time}, as an option.`);
  }
  const choose=id=>{setMood(id);setTime('');};
+ const away=<button type="button" className="icon" aria-label="Not tonight: put this away for today" onClick={dismiss}><X size={17}/></button>;
  return <section className="night-card" aria-label="After dinner">
-  <div className="section-heading"><h3><Moon size={17}/> After dinner</h3>
-   <button type="button" className="icon" aria-label="Not tonight: put this away for today" onClick={dismiss}><X size={17}/></button></div>
+  <InBar fallback={<div className="section-heading"><h3><Moon size={17}/> After dinner</h3>{away}</div>}>{away}</InBar>
   {planned.length>0&&<p className="night-planned">On the plan as an option: {planned.map(s=>`${s.title}${s.time?` at ${s.time}`:''}`).join('; ')}.</p>}
   <p>{parent?'What are you after tonight?':'Fancy a late treat?'} Near {anchor.label}.</p>
   {moods.length>1&&<div className="night-moods" role="radiogroup" aria-label="What you are after">

@@ -441,7 +441,7 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .swipe-controls button{padding-left:0;padding-right:0}
 /* Split days: the family going separate ways, one colour per lane, and where we meet back up. */
 :root{--lane-0:#2f7d6d;--lane-1:#c0633f;--lane-2:#5a6fb0;--lane-3:#9a6a1f}
-.option-group{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem}.split-toggle{min-height:40px;font-size:.82rem}
+.option-group{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem}
 .split-day{display:grid;gap:.8rem;margin-bottom:1rem}
 .split-card{border:1px solid var(--border);border-radius:14px;background:var(--paper);padding:.9rem 1rem}
 .split-head{display:flex;align-items:flex-start;gap:.6rem}.split-head>div{flex:1;min-width:0}.split-head h2{font-size:1.25rem;margin:0}.split-head .eyebrow{margin:0}.split-undo{min-height:36px;font-size:.78rem;padding:.4rem .6rem}
@@ -940,7 +940,7 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .home-card{margin:0}.home-card:has(>.home-card-body:empty){display:none}
 .home-card-bar{display:flex;align-items:center;gap:.1rem;margin:0 0 .15rem;min-height:30px}
 .home-card-bar>span{flex:1;min-width:0;font-size:.75rem;letter-spacing:.11em;font-weight:700;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.home-card-slot{display:inline-flex;align-items:center;gap:.3rem;flex:none;margin-left:.4rem}.home-card-slot:empty,.home-card.folded .home-card-slot{display:none}.home-card-slot .todays-card-count{font-family:var(--sans,inherit);font-size:.75rem;letter-spacing:.06em;font-weight:700;text-transform:uppercase;color:var(--muted);white-space:nowrap}.home-card-slot .todays-card-count:empty{display:none}.home-card-slot .briefing-new{margin:0}.home-card-slot .todays-card-steps{margin-left:0;gap:0}.home-card-slot .todays-card-steps .icon{min-width:32px}
+.home-card-slot{display:inline-flex;align-items:center;gap:.3rem;flex:none;margin-left:.4rem}.home-card-slot:empty,.home-card.folded .home-card-slot{display:none}.home-card-slot .todays-card-count{font-family:var(--sans,inherit);font-size:.75rem;letter-spacing:.06em;font-weight:700;text-transform:uppercase;color:var(--muted);white-space:nowrap}.home-card-slot .todays-card-count:empty{display:none}.home-card-slot .briefing-new{margin:0}.home-card-slot .todays-card-steps{margin-left:0;gap:0}.home-card-slot .todays-card-steps .icon{min-width:32px}.home-card-slot .bar-note{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);white-space:nowrap}.home-card-slot>button:not(.icon):not(.linkish){display:inline-flex;align-items:center;gap:.25rem;font-size:.82rem;min-height:36px;padding:.3rem .7rem;white-space:nowrap}.home-card-slot>.icon{min-height:36px;min-width:36px}.home-card-slot .weather-fold{border:0;background:none;padding:.3rem .2rem}.home-card-slot .weather-peek{font-size:.85rem;color:var(--muted)}
 .home-card-bar>.icon{min-height:30px;min-width:36px;padding:.25rem;color:var(--muted)}
 .home-card-bar .icon svg{transition:transform .15s}
 .home-card.folded .home-card-bar{margin-bottom:.7rem;padding:.2rem .2rem .2rem .8rem;background:var(--paper);border:1px solid var(--border);border-radius:12px}

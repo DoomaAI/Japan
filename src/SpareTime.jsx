@@ -1,5 +1,6 @@
 import React from 'react';
 import {Hourglass,Star,Plus,MapPin} from 'lucide-react';
+import {InBar} from './home-bar.js';
 import {parkForDay,THRILL} from './park-data.js';
 import {spareTime} from './spare-time.js';
 import {activeSteps,japanClock,japanDate} from './timing.js';
@@ -17,8 +18,9 @@ export default function SpareTime({state,day,now,user,parent,busy,mutate,selectS
    notes:`If we have time: ${pick.ride.land}. ${pick.ride.note} Allow about ${pick.allow} min; check the live wait in the app.`}});
   const added=result?.state?.steps?.at(-1);if(added&&selectStep)selectStep(added);
  }
+ const rides=openPark&&<button className="linkish" onClick={()=>openPark(park)}>All rides</button>;
  return <section className={`spare-time ${t.status}`} aria-label="If we have time">
-  <div className="section-heading"><h2 className="eyebrow"><Hourglass size={14}/> If we have time</h2>{openPark&&<button className="linkish" onClick={()=>openPark(park)}>All rides</button>}</div>
+  <InBar fallback={<div className="section-heading"><h2 className="eyebrow"><Hourglass size={14}/> If we have time</h2>{rides}</div>}>{rides}</InBar>
   <p className="spare-headline"><strong>{t.headline}</strong>{t.finished&&<small>Last stop finished {t.finished.text}.</small>}{t.where&&<small><MapPin size={12}/> We’re around {t.where}.</small>}</p>
   {t.status==='behind'
    ?(t.skippable.length?<p>To catch up, these could go: {t.skippable.map((s,i)=><React.Fragment key={s.id}>{i?', ':''}<button className="linkish" onClick={()=>selectStep?.(s)}>{s.title}</button></React.Fragment>)}.</p>:<p>No extras for now. Keep to the plan.</p>)

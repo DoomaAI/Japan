@@ -1,9 +1,8 @@
-import React,{useContext,useEffect,useState} from 'react';
-import {createPortal} from 'react-dom';
+import React,{useEffect,useState} from 'react';
 import {SlidersHorizontal} from 'lucide-react';
 import {RINGS,ringsFor,dayScore,cleanRings,shownRings,SCORED} from './rings-data.js';
 import {useWobble,mergeVisible} from './wobble.js';
-import {HomeBarSlot} from './home-bar.js';
+import {InBar} from './home-bar.js';
 // Rings for the day, drawn the way a loyalty app draws its progress: an open gauge each, the
 // count in the middle and "2 of 5" underneath. Three fit across the card; any more and the row
 // scrolls sideways. Which rings, and their order, belong to this person on this phone: the
@@ -25,7 +24,7 @@ function Gauge({ring}){
 const read=name=>{try{return cleanRings(JSON.parse(localStorage.getItem(`japan.rings.${name}`)||'null'));}catch{return cleanRings(null);}};
 export default function Rings({state,user,day}){
  const me=user?.name&&state.members?.includes(user.name)?user.name:null;
- const [prefs,setPrefs]=useState(()=>read(me)),[choosing,setChoosing]=useState(false),slot=useContext(HomeBarSlot);
+ const [prefs,setPrefs]=useState(()=>read(me)),[choosing,setChoosing]=useState(false);
  useEffect(()=>{if(me)setPrefs(read(me));},[me]);
  const save=next=>{const clean=cleanRings(next);setPrefs(clean);try{localStorage.setItem(`japan.rings.${me}`,JSON.stringify(clean));}catch{}};
  const ids=shownRings(prefs);
@@ -35,13 +34,13 @@ export default function Rings({state,user,day}){
  if(!stops.target&&!photos.done)return null;
  const rings=ringsFor(state,me,day,w.order);
  const closed=rings.filter(r=>r.closed).length;
+ const tools=<>
+  <span className="rings-closed">{closed} of {rings.length} closed</span>
+  <button type="button" className="icon" aria-label="Choose rings" aria-expanded={choosing} onClick={()=>setChoosing(c=>!c)}><SlidersHorizontal size={18}/></button>
+ </>;
  const toggle=id=>save({...prefs,shown:prefs.shown.includes(id)?prefs.shown.filter(x=>x!==id):[...prefs.shown,id]});
  return <section className="rings" aria-label="Your rings for the day">
-  {(()=>{const tools=<>
-   <span className="rings-closed">{closed} of {rings.length} closed</span>
-   <button type="button" className="icon" aria-label="Choose rings" aria-expanded={choosing} onClick={()=>setChoosing(c=>!c)}><SlidersHorizontal size={18}/></button>
-  </>;
-   return slot?createPortal(tools,slot):<header className="rings-head"><h3>Your rings today</h3>{tools}</header>;})()}
+  <InBar fallback={<header className="rings-head"><h3>Your rings today</h3>{tools}</header>}>{tools}</InBar>
   {choosing&&<fieldset className="rings-choose">
    <legend>Show these rings</legend>
    {prefs.order.map(id=><label key={id}><input type="checkbox" checked={prefs.shown.includes(id)} disabled={prefs.shown.includes(id)&&prefs.shown.length===1} onChange={()=>toggle(id)}/><span><b>{RINGS[id].label}</b><small>{RINGS[id].note}{SCORED.includes(id)?' · counts on the leaderboard':''}</small></span></label>)}

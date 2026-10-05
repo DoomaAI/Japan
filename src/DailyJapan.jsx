@@ -1,5 +1,6 @@
 import React from 'react';
 import {Check} from 'lucide-react';
+import {InBar} from './home-bar.js';
 import {dailyJapan} from './daily-japan-data.js';
 import SayIt from './SayIt.jsx';
 import {isChild} from './child-levels.js';
@@ -8,11 +9,11 @@ import {isChild} from './child-levels.js';
 // practical tip, which is only to read.
 export default function DailyJapan({state,user,today,mutate,busy}){
  const d=dailyJapan(state,today,user?.name,isChild(state,user?.name));if(!d)return null;
- const person=user?.name,member=state.members.includes(person);
+ const days=`${d.days} day${d.days===1?'':'s'} to go`,person=user?.name,member=state.members.includes(person);
  const learnt=()=>mutate({type:'phraseSeen',person,day:null,phraseIds:[d.phrase.id]});
  const read=()=>mutate({type:'factSeen',person,day:null,factIds:[d.fact.id]});
  return <section className="daily-japan" aria-label="A little Japan each day">
-  <p className="eyebrow">A little Japan · {d.days} day{d.days===1?'':'s'} to go</p>
+  <InBar fallback={<p className="eyebrow">A little Japan · {days}</p>}><span className="bar-note">{days}</span></InBar>
   {d.phrase&&<div className="daily-japan-part">
    <div className="daily-japan-phrase"><span aria-hidden="true">{d.phrase.icon}</span><strong>{d.phrase.en}</strong></div>
    <SayIt phrase={{...d.phrase,en:''}} size="small"/>

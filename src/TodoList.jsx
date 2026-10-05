@@ -2,6 +2,7 @@ import React,{useState,useEffect,useRef} from 'react';
 import PageTitle from './PageTitle.jsx';
 import {ListChecks,ShoppingBag,Plus,Trash2,CalendarDays,ChevronRight,Inbox,PiggyBank,Sparkles} from 'lucide-react';
 import Dictate from './Dictate.jsx';
+import {InBar} from './home-bar.js';
 import {parseCaptureLocally,CAPTURE_MAX} from './capture-data.js';
 import {japanDate,japanClock} from './timing.js';
 import {dayLabel} from './AdventurePages.jsx';
@@ -54,10 +55,10 @@ export function DayTodos({state,user,day,mutate,busy,go}){
   <button onClick={()=>setAdding(true)}><Plus size={16}/>Add something</button>
  </div>;
  return <section className="day-todos" aria-label="Things to do or buy on this day">
-  <div className="section-heading">
+  <InBar fallback={<div className="section-heading">
    <div><p className="eyebrow">THINGS TO DO OR BUY</p><h2>{done} of {total} ticked off</h2></div>
    <button onClick={()=>setAdding(a=>!a)}><Plus size={16}/>Add</button>
-  </div>
+  </div>}><span className="bar-note">{done} of {total} ticked off</span><button onClick={()=>setAdding(a=>!a)}><Plus size={16}/>Add</button></InBar>
   {list.map(item=><TodoRow key={item.id} item={item} state={state} user={user} mutate={mutate} busy={busy}/>)}
   {adding&&<form className="todo-add" onSubmit={add}>
    <input name="title" required maxLength={250} autoFocus placeholder="Post the postcards · buy a SIM at the airport"/>
