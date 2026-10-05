@@ -36,8 +36,6 @@ export function NextUp({state,day,person=null,after=null,now,selectStep,open,go,
   </div>
   {/* The booking that cannot move is its own small card, folded or not: it is the one line on
       the tile it would be alarming to miss. */}
-  {/* Time left in today, from what is still to do and how fast the day has actually gone. */}
-  {isToday&&current&&(t=>t&&<p className="time-left"><Clock size={14}/>{t.text}{t.paceWord?` · ${t.paceWord}`:''}</p>)(timeLeft(state,day,now,person))}
   {fixed&&<div className={`departure${passed?' passed':isToday&&remaining<0?' late':''}`}>
    <span className="eyebrow"><LockKeyhole size={12}/>Next fixed booking</span>
    <button className="next-title" onClick={()=>selectStep(fixed)}>{fixed.time} · {fixed.title}</button>
@@ -46,6 +44,9 @@ export function NextUp({state,day,person=null,after=null,now,selectStep,open,go,
    {shown&&<small>Estimate: {fixed.travelMinutes??20} min travel + {fixed.arrivalBuffer??15} min early arrival. Check live directions.</small>}
    <div className="departure-links"><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinationFor(state,fixed))}&travelmode=transit`} target="_blank" rel="noreferrer">Directions</a><button onClick={()=>open({type:'tickets',step:fixed})}>{tickets.length?`Tickets (${tickets.length})`:'Tickets'}</button>{parent&&shown&&<button onClick={()=>open({type:'edit',step:fixed})}>Edit estimate</button>}</div>
   </div>}
+  {/* Time left in today, from what is still to do and how fast the day has actually gone. A
+      background figure, not a call to act, so it waits behind the fold with the rest. */}
+  {shown&&isToday&&current&&(t=>t&&<p className="time-left"><Clock size={14}/><span>{t.text}{t.paceWord?` · ${t.paceWord}`:''}</span></p>)(timeLeft(state,day,now,person))}
   {shown&&<div className="dashboard-actions"><button onClick={()=>open({type:'checkin'})}>Check in</button><button onClick={()=>open({type:'latemsg'})}>Tell the others we’re late</button><button onClick={()=>go('whereabouts')}>Where is everyone?</button><button onClick={()=>open({type:'offline'})}>Offline readiness</button><button onClick={()=>go('meeting')}>Meeting card</button>{parent&&<><button onClick={()=>open({type:'late'})}>We’re running late</button><button onClick={()=>open({type:'capture'})}>Quick capture</button></>}<button onClick={()=>go('challenges')}>Boys’ missions</button><button onClick={()=>go('spending')}>Spending money</button><button onClick={()=>go('shopping')}>Shopping list</button></div>}
  </section>;
 }
