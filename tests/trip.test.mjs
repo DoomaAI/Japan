@@ -328,8 +328,9 @@ test('the day at a glance is its own screen, and Home leads with the step we are
  }
  // Home no longer splits into two columns, so the step card has the screen to itself and the
  // timeline is not rendered twice.
+ assert.equal((main.match(/\{planChooser\}/g)||[]).length,2,'Choose a plan is on Home and on the day\u2019s plan');
  assert.equal((main.match(/<DayTimeline /g)||[]).length,1,'the timeline is rendered once, on its own screen');
- assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?\{dayStrip\(d=>go\('glance',d\)\)\}\s*<DayCheck heading=\{dayTitle\} [^\n]*\/>\s*<DayTimeline [^\n]*\/>\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayMap /,'it opens with the strip of dates as All days does, then the day with its check beside it, what was checked the night before, the stops, and the day\u2019s buttons under them');
+ assert.match(main,/\{tab==='glance'&&<>\s*\{planSwitch\}\s*(?:\{\/\*[^*]*\*\/\}\s*)?\{dayStrip\(d=>go\('glance',d\)\)\}\s*<DayCheck heading=\{dayTitle\} [^\n]*\/>\s*\{planChooser\}\s*<DayTimeline [^\n]*\/>\s*(?:\{\/\*[^*]*\*\/\}\s*)?<div className="home-actions day-actions">.*<\/div>\s*<DayMap /,'it opens with the strip of dates as All days does, then the day with its check beside it, what was checked the night before, the choice of plan, the stops, and the day\u2019s buttons under them');
  assert.match(main,/<DayMap key=\{day\} [^\n]*\/>\s*\{awarenessAllows\(visibleState,user\.name,'spare'\)&&<SpareTime /,'if-we-have-time sits at the foot of the plan, after the map');
  assert.doesNotMatch(main,/today-layout/,'Home is one column now');
  assert.doesNotMatch(css,/today-layout/,'and the grid that made two of them is gone with it');
