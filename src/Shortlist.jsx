@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import PageTitle from './PageTitle.jsx';
 import {upload} from '@vercel/blob/client';
 import {Camera,Trash2,ShoppingBag,PiggyBank,MapPin,Tag,X,Plus,CalendarDays,ChevronRight,Star,LocateFixed,AlertCircle} from 'lucide-react';
+import {InBar} from './home-bar.js';
 import {shrinkPhoto} from './MenuReader.jsx';
 import {SHORTLIST_STATUS,SHORTLIST_SORTS,SHORTLIST_STARS,shortlistStatusLabel,shortlistFor,shortlistTotals,shortlistTags,
  shortlistStep,shortlistPlace,shortlistDay,shortlistWhere,shortlistPin,shortlistRating,shoppedAlready,
@@ -136,11 +137,11 @@ export function DayFinds({state,day,go}){
  if(!list.length)return null;
  const open=list.filter(s=>s.status==='thinking').length;
  return <section className="day-finds" aria-label="Things we saw on this day">
-  <div className="section-heading">
+  <InBar fallback={<div className="section-heading">
    <div><p className="eyebrow">SEEN IT, NOT BOUGHT IT</p>
     <h2>{list.length} {list.length===1?'thing':'things'} we saw on this day</h2></div>
    {go&&<button onClick={()=>go('shortlist')}>Shortlist<ChevronRight size={16}/></button>}
-  </div>
+  </div>}><span className="bar-note">{list.length} seen</span>{go&&<button onClick={()=>go('shortlist')}>Shortlist<ChevronRight size={16}/></button>}</InBar>
   <p><small>{open?`${open} still to decide about.`:'All decided.'}</small></p>
   <div className="day-find-strip">{list.slice(0,8).map(s=>
    <button key={s.id} className="day-find" onClick={()=>go?.('shortlist',null,s.id)}>
