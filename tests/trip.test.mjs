@@ -128,11 +128,12 @@ test('a stop dropped on a new line can be undone from the toast, back to the ord
  const theme=await readFile(new URL('../src/guide-theme.css',import.meta.url),'utf8');
  assert.match(theme,/\.reorder-tools \.drag-handle::after\{inset:-8px 0 -8px -10px\}/);
  assert.match(theme,/\.reorder-tools \.to-options::after,\.reorder-tools \.remove-stop::after\{inset:-8px 0\}/);
- // No arrows beside each stop: the handle drags, takes the arrow keys, and Adjust at the foot of
+ // No arrows beside each stop: the handle drags, takes the arrow keys, and Reorder at the foot of
  // the day sets the stops wobbling for anyone who does not find the hold.
  assert.doesNotMatch(tl,/ArrowUp size|ArrowDown size|aria-label=\{`Move /);
  assert.match(tl,/onKeyDown=\{e=>\{const by=\{ArrowUp:-1,ArrowDown:1\}\[e\.key\];if\(by&&!busy\)\{e\.preventDefault\(\);move\(s\.id,i\+by\);\}\}\}/);
  assert.match(tl,/className="timeline-adjust" disabled=\{busy\} onClick=\{\(\)=>setAdjusting\(true\)\}/);
+ assert.match(tl,/<ArrowUpDown size=\{15\}\/>Reorder<\/button>/,'named Reorder, so it is not taken for Adjust the day, which moves the times');
  assert.match(tl,/const lift=d=>\{d\.lifted=true;setHeld\(d\.id\);setAdjusting\(true\);/,'a hold sets the day wobbling too');
  assert.match(tl,/if\(e\.pointerType==='mouse'\|\|adjusting\)lift\(d\)/,'and while it wobbles a handle lifts with no hold');
  // Put back exactly: the same reorder operation, handed the order from before, restores it.

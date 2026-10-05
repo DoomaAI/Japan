@@ -655,7 +655,7 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 [data-wobbling]>[data-link]:nth-child(2n):not(.held){animation-delay:-.13s;animation-duration:.3s}
 [data-wobbling]>[data-link]:nth-child(3n):not(.held){animation-delay:-.07s}
 @keyframes wobble{from{transform:rotate(-2deg)}to{transform:rotate(2deg)}}
-/* The day at a glance being adjusted (DayTimeline.jsx): held by a handle, or Adjust tapped at the
+/* The day at a glance being adjusted (DayTimeline.jsx): held by a handle, or Reorder tapped at the
    foot of the day, the stops wobble as Home's cards do, a handle lifts at a touch rather than after
    a hold, and Done stays in reach above the bar however long the day is. */
 .timeline.adjusting .timeline-row:not(.lifted){animation:home-wobble .3s ease-in-out infinite alternate}
