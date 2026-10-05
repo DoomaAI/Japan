@@ -19,7 +19,7 @@ export function HalfwayLine({state,open}){
  const today=japanDate();
  if(!halfwayDue(state,today))return null;
  const card=halfwayCard(state,{today});if(!card)return null;
- return <button type="button" className="puzzle-line halfway-line" onClick={open}><span aria-hidden="true">✨</span><span><b>Halfway there · day {card.dayNumber} of {card.total}</b><small>The trip so far on one square, to share</small></span><ChevronRight size={18}/></button>;
+ return <button type="button" className="puzzle-line halfway-line" onClick={open}><span aria-hidden="true">✨</span><span><b>{card.headline} · day {card.dayNumber} of {card.total}</b><small>The trip so far on one square, to share</small></span><ChevronRight size={18}/></button>;
 }
 // A square on a canvas, to the share sheet as a picture, or saved where a browser cannot share
 // a file. Shared by the halfway card and the Blend.

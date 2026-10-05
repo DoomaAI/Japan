@@ -10,12 +10,18 @@ export function halfwayDue(state,today){
  const c=tripCountdown(state.days||[],today);
  return !!c&&c.phase==='during'&&c.day/c.total>=HALFWAY_FROM;
 }
+// What the card is called on the day: "Halfway there" only for its first two days, then the trip
+// so far, and the last day by name, so day 16 of 16 is never called halfway.
+export function halfwayHeadline(dayNumber,total){
+ if(dayNumber>=total)return 'Our last day';
+ return dayNumber<=Math.ceil(total*HALFWAY_FROM)+1?'Halfway there':'The trip so far';
+}
 export function halfwayCard(state,{today}={}){
  const cards=recapStory(state,{today,parent:false}),c=tripCountdown(state.days||[],today);
  const title=cards.find(x=>x.kind==='title'),numbers=cards.find(x=>x.kind==='numbers'),top=cards.find(x=>x.kind==='top'),people=cards.filter(x=>x.kind==='person');
  if(!title||!c)return null;
  return {
-  title:title.title,dayNumber:c.day,total:c.total,
+  title:title.title,dayNumber:c.day,total:c.total,headline:halfwayHeadline(c.day,c.total),
   stats:(numbers?.stats||[]).slice(0,6),
   top:top?.moments?.[0]||null,
   favourites:people.filter(p=>p.favourite).map(p=>({person:p.person,title:p.favourite.title,stars:p.favourite.stars})),
