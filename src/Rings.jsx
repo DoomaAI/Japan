@@ -54,7 +54,7 @@ export default function Rings({state,user,day}){
      <p className="gauge-label">{r.label}</p>
     </li>;})}
   </ul>
-  {w.editing&&<div ref={w.bar} className="wobble-done" role="status"><small>Drag the rings into the order you want.</small><button type="button" onClick={w.finish}>Done</button></div>}
+  {w.editing&&<div ref={w.bar} className="wobble-done" role="status"><small>Drag the rings into the order you want. Tap outside to finish.</small></div>}
   <small className="rings-family">{(state.members||[]).filter(n=>n!==me).map(n=>`${n} ${dayScore(state,n,day)}/3`).join(' · ')}</small>
  </section>;
 }
