@@ -381,14 +381,27 @@ function App(){
  async function refresh(){try{const e=await request('state');accept(e);setError('');return e;}catch(e){if(e.status===401){localStorage.removeItem('japan.snapshot');setEnvelope(null);setError(e.message);}else if(!e.status)setOnline(false);throw e;}}
  useEffect(()=>{
   let stop=false;
+  // The settings and the trip are asked for together rather than one after the other, which is
+  // a whole round trip saved on a slow signal; only a join link has to be used before the trip
+  // is asked for, because joining is what lets this phone see it. The settings are not needed
+  // to open the trip, so a failure there is left to the next refresh.
+  // With a copy saved on the phone, the trip opens from it after SAVED_WAIT rather than after
+  // the full twenty seconds a read is allowed: the live trip is still on its way, and replaces
+  // the saved one the moment it lands.
+  const SAVED_WAIT=5000,SLOW={};
+  const fresh=()=>{const c=stored('japan.snapshot',null);return c?.state&&Date.now()-c.savedAt<45*86400000?c:null;};
+  const fromSaved=cache=>{const s=adopt(ensureFeatures(cache.state));setEnvelope({...cache,state:s});setOnline(false);land(s);arrive(s);};
+  const lost=e=>{if(e.status===401){localStorage.removeItem('japan.snapshot');setEnvelope(null);setError(e.message);}};
   (async()=>{try{
-   const cfg=await request('config');if(stop)return;setConfig(cfg);
    const fragment=new URLSearchParams(location.hash.slice(1)),join=fragment.get('join');
-   if(join){history.replaceState(null,'',location.pathname+location.search);const r=await request('join',{token:join});if(r?.open){setJoining({token:join,...r});return;}}
-   const e=await request('state');if(stop)return;accept(e);
-   land(e.state);arrive(e.state);
+   const settings=request('config').then(cfg=>{if(!stop)setConfig(cfg);},()=>{});
+   if(join){await settings;history.replaceState(null,'',location.pathname+location.search);const r=await request('join',{token:join});if(r?.open){setJoining({token:join,...r});return;}}
+   const live=request('state'),cache=join?null:fresh();live.catch(()=>{});
+   const e=cache?await Promise.race([live,new Promise(res=>setTimeout(()=>res(SLOW),SAVED_WAIT))]):await live;if(stop)return;
+   if(e===SLOW){fromSaved(cache);live.then(e=>{if(!stop)accept(e);},e=>{if(!stop)lost(e);});return;}
+   accept(e);land(e.state);arrive(e.state);
    if(new URLSearchParams(location.search).has('page'))setTab('guide');
-  }catch(e){const cache=stored('japan.snapshot',null);if(!e.status&&cache&&Date.now()-cache.savedAt<45*86400000){const s=adopt(ensureFeatures(cache.state));setEnvelope({...cache,state:s});setOnline(false);land(s);arrive(s);}else setError(e.message);}finally{if(!stop)setLoading(false);}})();
+  }catch(e){const cache=fresh();if(!e.status&&cache)fromSaved(cache);else setError(e.message);}finally{if(!stop)setLoading(false);}})();
   // The day the phone opened on is checked against the plan once it is here, and a stop that was
   // restored from the phone rather than the address is let go of if it has since been finished.
   // A Shortcut, Siri or the Action button asked for something on the way in: do it once the
@@ -760,7 +773,7 @@ function App(){
  // The opening screen stays after the trip has come in until the card on it has finished.
  if(loading||(state&&!opened))return <Opening days={stored('japan.snapshot',null)?.state?.days} ready={!loading} onDone={()=>setOpened(true)}/>;
  if(joining&&!state)return <JoinScreen invite={joining} onJoined={()=>location.replace(location.pathname)}/>;
- if(!state)return <main className="entry"><img className="entry-photo" src="/cover.jpg" alt="Pasfield family Japan Travel Guide 2026 cover"/><div className="brand-mark">日</div><p className="eyebrow">THE PASFIELD FAMILY</p><h1>Japan, together.</h1><p>Open your private family link to join the trip. No email or password needed.</p>{error&&<p className="callout">{error}</p>}<p>The private parent link is prepared when the app is deployed. No setup key is required.</p></main>;
+ if(!state)return <main className="entry"><img className="entry-photo" src="/cover.jpg" alt="Pasfield family Japan Travel Guide 2026 cover"/><div className="brand-mark">日</div><p className="eyebrow">THE PASFIELD FAMILY</p><h1>Japan, together.</h1><p>Open your private family link to join the trip. No email or password needed.</p>{error&&<><p className="callout">{error}</p><button className="primary" onClick={()=>location.reload()}>Try again</button></>}<p>The private parent link is prepared when the app is deployed. No setup key is required.</p></main>;
  // A screen about one day opens the same way wherever you are: which day it is, and the strip
  // of dates to move along. Written once here rather than on each screen, because the strip has
  // to be told where a tap lands — Home when it is Home asking, and the screen you are already
