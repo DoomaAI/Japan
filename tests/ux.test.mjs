@@ -526,3 +526,19 @@ test('every phrase in the book says what you are likely to hear back, folded und
  assert.match(card,/more=\{p=><PhraseReplies phrase=\{p\}\/>\}/,'the Home card folds them out');
  assert.equal((book.match(/<PhraseReplies phrase=\{phrase\}\/>/g)||[]).length,3,'and so do the sheet, the flashcard and the list');
 });
+
+test('a tap gives whole stars, and ticking a stop off asks how it was',async()=>{
+ const review=await readFile(new URL('../src/StepReview.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const timeline=await readFile(new URL('../src/DayTimeline.jsx',import.meta.url),'utf8');
+ assert.match(review,/const whole=e=>Math\.floor\(place\(e\)\)\+1/,'a tap is the star under the finger');
+ assert.match(review,/const half=v=>/,'a drag moves in half-stars');
+ assert.match(review,/export function RateNow/);
+ assert.match(main,/function askRating\(s\)\{\n  if\(!s\|\|!settingOn\(settings,'askRating'\)\|\|!s\.participants\?\.includes\(user\?\.name\)\)return;\n  if\(stepRatings\(state,s\.id\)\[user\.name\]\)return;/,'only for someone who was there and has not rated it');
+ assert.match(main,/askRating\(current\);\}\}\}>Done<\/Button>/,'from the Done button');
+ assert.match(main,/onDone=\{askRating\}/,'and from the day at a glance');
+ assert.match(timeline,/onDone\?\.\(s\);/);
+ assert.match(main,/modal\.type==='rate'&&<RateNow/);
+ const {DEFAULTS}=await import('../src/settings.js');
+ assert.equal(DEFAULTS.askRating,true);
+});

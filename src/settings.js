@@ -49,6 +49,10 @@ export const SETTINGS=[
  {id:'routeLookOpen',label:'Show what to look for',group:'route',default:false,
   on:'Each train, subway and bus on a route card opens with what to look for to find it. Tap the line’s name to close it.',
   off:'Each line on a route card starts closed. Tap the line’s name to see what to look for.'},
+ // On by default: ticking a stop off is the moment anybody has an opinion about it.
+ {id:'askRating',label:'Ask how it was',group:'stop',
+  on:'When you tick off a stop you were at, a box asks how it was: tap a star, add a line if you like, or Later. It only asks if you have not rated it already.',
+  off:'Nothing pops up when a stop is ticked off. Stars and a line can still be given on the stop itself.'},
  // Off until asked for: words are kinder the first time round, icons once everybody knows them.
  {id:'stopIconsOnly',label:'Icons only',group:'stop',default:false,
   on:'The buttons under each stop show just their icons, so more of them fit across the screen. A number on the ticket icon says how many tickets it has.',
