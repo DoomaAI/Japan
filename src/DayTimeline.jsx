@@ -10,7 +10,7 @@ import {WhoseDay} from './SplitDay.jsx';
 import EntryIcon from './EntryIcon.jsx';
 // How long a finger rests on a handle before the row lifts, and how far it may wander meanwhile.
 const HOLD=220,SLOP=8,END=':end';
-export default function DayTimeline({steps,allSteps,splits=[],lens,setLens,current,today,state,user,parent,busy,selectStep,mutate,notice,addStep,removeStep,optionStep}){
+export default function DayTimeline({steps,allSteps,splits=[],lens,setLens,current,today,state,user,parent,busy,selectStep,mutate,notice,addStep,removeStep,optionStep,onDone}){
  const drag=useRef(null),list=useRef(null),[target,setTarget]=useState(null),[held,setHeld]=useState(null),[ask,setAsk]=useState(null),[adjusting,setAdjusting]=useState(false);
  // On a split day the list shown can be one person's lane, while the order is the whole day's.
  // So a move lands beside the stop it was dropped on within the whole day, and the other lanes'
@@ -108,6 +108,7 @@ export default function DayTimeline({steps,allSteps,splits=[],lens,setLens,curre
   if(!done){notice(`${s.title} is back on the list, with any tickets it marked used.`);return;}
   const variance=scheduleVariance(s,at);
   notice(`${s.title} completed ${japanClock(at)}${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used.`:''} Change the time below if it was finished earlier.`);
+  onDone?.(s);
  }
  // The tick lands on the moment it was tapped, which is rarely the moment it happened: the phone
  // comes out of a pocket at the next station. So the time is editable where it is shown, by
