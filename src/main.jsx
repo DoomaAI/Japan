@@ -54,6 +54,7 @@ import {roleOf,roleLabel,ROLE_NOTES,MEMBER_ROLES} from './people.js';
 import {MeetingCard,QuickCapture,GlobalSearch,Diary} from './PracticalPages.jsx';
 import Briefing,{Readiness} from './Briefing.jsx';
 import Tonight from './Tonight.jsx';
+import YesterdayLine from './YesterdayLine.jsx';
 import OnThisDay from './OnThisDay.jsx';
 import RunUp from './RunUp.jsx';
 import DailyJapan from './DailyJapan.jsx';
@@ -915,6 +916,7 @@ function App(){
    {dayHeading}
    <MomentBanner day={japanDate(now)} now={now} go={go}/>
    <QuizLine state={visibleState} open={()=>setModal({type:'quiz'})}/>
+   <YesterdayLine key={japanDate(now)} state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy} notice={notice}/>
    {homeRuns(homeOnShow,arranging).map(run=>Array.isArray(run)?<div className="home-actions" key={run.join()}>{run.map(id=><React.Fragment key={id}>{homeWidgets[id]}</React.Fragment>)}</div>:<HomeCard key={run} id={run} label={HOME_WIDGETS[run].label} folded={todayHome.folded.includes(run)} fold={()=>saveHomeToday(foldWidget(homeToday,todayKey,run))} away={()=>saveHomeToday(awayToday(homeToday,todayKey,run))}>{homeWidgets[run]}</HomeCard>)}
    {!homeShown(homePrefs).length&&<div className="empty"><h2>Home is clear.</h2><p>Every widget is put away. Bring back the ones you want from Customise.</p></div>}
    {todayHome.away.length>0&&<div className="home-away"><EyeOff size={15}/><span>{todayHome.away.length===1?`${HOME_WIDGETS[todayHome.away[0]].label} is`:`${todayHome.away.length} cards are`} put away until tomorrow.</span><button type="button" onClick={()=>saveHomeToday(backToday(homeToday,todayKey))}><Eye size={15}/> Show {todayHome.away.length===1?'it':'them'}</button><button type="button" onClick={()=>go('settings')}><SlidersHorizontal size={15}/> Put away for good</button></div>}
