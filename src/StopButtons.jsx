@@ -6,11 +6,12 @@ import {useWobble,mergeVisible} from './wobble.js';
 // Each button sits in a slot of its own so it can be picked up and hit-tested without touching
 // the button itself, which keeps doing exactly what it did before when the row is still. Only
 // the buttons this stop shows can be dragged; the rest keep their places in the order.
-export default function StopButtons({order,setOrder,buttons,label}){
+// Compact draws each as its icon alone; the words stay in the button for screen readers.
+export default function StopButtons({order,setOrder,buttons,label,compact}){
  const shown=order.filter(id=>buttons[id]);
  const w=useWobble({ids:shown,onMove:next=>setOrder(mergeVisible(order,next))});
  return <>
-  <div className="card-links" data-wobbling={w.editing||undefined} aria-label={label} {...w.rowProps}>
+  <div className={`card-links${compact?' compact':''}`} data-wobbling={w.editing||undefined} aria-label={label} {...w.rowProps}>
    {w.order.map(id=>{const {held,...item}=w.item(id);
     return <span key={id} className={`card-link-slot${held?' held':''}`} {...item}>{buttons[id]}</span>;})}
   </div>

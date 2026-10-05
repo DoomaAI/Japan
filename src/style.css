@@ -1068,3 +1068,9 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .yesterday-list{display:flex;flex-direction:column;gap:.5rem;padding:0 .8rem .8rem}
 .yesterday-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}.yesterday-row>span{min-width:0}.yesterday-row small{margin-right:.4rem;opacity:.7}
 .yesterday-all{align-self:flex-start}
+/* Icons only (Settings): the label stays in the button for screen readers, out of the row. */
+.card-links.compact .card-link-label{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.card-links.compact .card-link-slot>*,.home .card-links.compact .card-link-slot>*{position:relative;justify-content:center;min-width:44px;min-height:44px;padding:.35rem .6rem}
+.card-links.compact svg{width:18px;height:18px}.card-links.compact .mark{font-size:1.05rem}
+.card-link-badge{display:none}
+.card-links.compact .card-link-badge{display:grid;place-items:center;position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:var(--ink);color:var(--paper);font-size:.75rem;font-weight:600;line-height:1}

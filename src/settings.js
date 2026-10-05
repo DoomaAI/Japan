@@ -48,7 +48,11 @@ export const SETTINGS=[
  // Closed until asked for, so a route card stays short; tapping a line's name opens it either way.
  {id:'routeLookOpen',label:'Show what to look for',group:'route',default:false,
   on:'Each train, subway and bus on a route card opens with what to look for to find it. Tap the line’s name to close it.',
-  off:'Each line on a route card starts closed. Tap the line’s name to see what to look for.'}
+  off:'Each line on a route card starts closed. Tap the line’s name to see what to look for.'},
+ // Off until asked for: words are kinder the first time round, icons once everybody knows them.
+ {id:'stopIconsOnly',label:'Icons only',group:'stop',default:false,
+  on:'The buttons under each stop show just their icons, so more of them fit across the screen. A number on the ticket icon says how many tickets it has.',
+  off:'The buttons under each stop say what they are beside their icons. Swipe the row to see the rest.'}
 ];
 // On unless somebody has said otherwise, so a phone that has never opened this page behaves
 // exactly as it always did — apart from a setting that says it starts off.
