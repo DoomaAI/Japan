@@ -1,5 +1,6 @@
 import React,{useState} from 'react';
 import {CloudSun,RefreshCw,ChevronRight,ChevronDown,ChevronUp,Sunrise,Sunset} from 'lucide-react';
+import {InBar} from './home-bar.js';
 import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
 import {pointFor,forecastUrl,areaForecastUrl,AREAS_PER_REQUEST,stepTargets,stepReadings,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,hoursFor,stepWeather,iconAt,skyPhase,skyFor,hourLabel,nowWeather} from './weather-data.js';
 import {japanDate,japanClock} from './timing.js';
@@ -125,14 +126,17 @@ export default function Weather({state,day,mutate,busy,online,notice,dayLabel,go
  // Folded, it still says the one thing it is for: what it is doing outside. A section that
  // collapses to its own name is a row of wasted space with a chevron on it.
  const peek=today?<><SkyIcon icon={nowIcon}/>{` ${today.max}° / ${today.min}°${today.rain!==null?` · ${today.rain}%`:''}`}</>:'No forecast yet';
+ // On Home the card's own bar already says Weather: the peek, Check and the fold sit on it.
+ const checkButton=open&&<button type="button" disabled={busy||checking||!online} onClick={check}>
+    <RefreshCw size={14}/> {checking?'Checking…':online?'Check':'Offline'}</button>;
  return <section className={`weather${open?'':' folded'}`}>
-  <div className="weather-head">
+  <InBar fallback={<div className="weather-head">
    <h3><button type="button" className="weather-fold" aria-expanded={open} onClick={fold}>
     <CloudSun size={17}/> Weather{!open&&<span className="weather-peek">{peek}</span>}
     {open?<ChevronUp size={16}/>:<ChevronDown size={16}/>}</button></h3>
-   {open&&<button type="button" disabled={busy||checking||!online} onClick={check}>
-    <RefreshCw size={14}/> {checking?'Checking…':online?'Check':'Offline'}</button>}
-  </div>
+   {checkButton}
+  </div>}>{checkButton}<button type="button" className="weather-fold" aria-expanded={open} aria-label={open?'Fold the weather':'Open the weather'} onClick={fold}>
+    {!open&&<span className="weather-peek">{peek}</span>}{open?<ChevronUp size={16}/>:<ChevronDown size={16}/>}</button></InBar>
   {open&&<>{today
    ?<><div className="weather-today">
      <span className="weather-icon" aria-hidden="true"><SkyIcon icon={nowIcon}/></span>
