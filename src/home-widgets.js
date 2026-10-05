@@ -17,6 +17,7 @@ export const HOME_WIDGETS={
  dailyjapan:{label:'A little Japan each day',note:'Before we fly: one phrase to say, one fact to read and one tip, every day of the run-up'},
  bookingwindows:{label:'Booking windows',note:'Bookings opening in the next fortnight, and any open but not yet booked',page:'windows'},
  briefing:{label:'The day in brief',note:'Which day it is, the stops, fixed times, weather, a hotel move and any app to set up'},
+ plans:{label:'Choose a plan',note:'Where the day has alternatives, which one we are doing (parents choose); it lives on the day’s plan',off:true,page:'glance'},
  step:{label:'Now',note:'The current stop, swipe for the rest of the day'},
  checkin:{label:'Check In',note:'Somebody is on their way back: where to, by when, how far off, and when they get there'},
  late:{label:'Running late',note:'Who is running late for you, by how much and when they will get there; and while you are sharing where you are',page:'whereabouts'},
@@ -51,6 +52,7 @@ export const HOME_WIDGETS={
  guide:{label:'This day in the guide',note:'The original guide pages for the day',page:'guide'}
 };
 // The countdown starts put away and sits at the top once brought out, above the step card.
+// Choose a plan lives on the day's plan; brought out, it sits just above the step card.
 // The day's buttons — the day at a glance, adjust the day, we're tired, useful apps — live on
 // Today, beside the stops they act on, so Home starts without them. Each can still be put on
 // Home as a widget of its own; side by side they share one grid rather than stacking.

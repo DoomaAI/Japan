@@ -789,7 +789,7 @@ function App(){
  // foot of the day at a glance.
  const dayGuide=!!today?.pages?.length&&<section className="day-guide" aria-label="Original guide pages for this day"><div className="section-heading"><div><p className="eyebrow">YOUR ORIGINAL TRAVEL GUIDE</p><h2>This day in the guide</h2></div><Button icon={BookOpen} onClick={()=>openPage(today.pages[0])}>Read guide</Button></div><p>Swipe through the pages · tap any page to read it in full.</p><div className="day-guide-pages" key={day}>{today.pages.map(p=><button key={p} className="day-guide-page" onClick={()=>openPage(p)} aria-label={`Read original guide page ${p}`}><img src={`/api/guide?page=${p}`} alt={`Original travel guide page ${p}`} loading="lazy"/><span>Page {p}<ChevronRight size={16}/></span></button>)}</div></section>;
  // Choose a plan: where the day has alternative versions of a stretch, the one the family is
- // doing. Written once because it is on Home above the stop we are on and at the top of the day's plan.
+ // doing. It sits at the top of the day's plan, and on Home only for whoever brings it out.
  const planChooser=groups.length>0&&<div className="option-bar">{groups.map(g=>{const options=[...new Set(state.steps.filter(s=>s.group===g).map(s=>s.option))];return <div key={g} className="option-group"><label>Choose a plan<select disabled={!parent||busy} value={state.choices[g]||''} onChange={e=>mutate(e.target.value===SPLIT_CHOICE?{type:'groupMode',group:g,mode:'split'}:{type:'choose',group:g,option:e.target.value})}>{options.map(o=><option key={o}>{o}</option>)}{/* The same options, all at once by different people, rather than one of them for everybody. */}{options.length>1&&<><option disabled>──────────</option><option value={SPLIT_CHOICE}>We split up and do both</option></>}</select></label></div>;})}</div>;
  // Home is a stack of widgets, in the order this person has put them and without the ones they
  // have put away. Each one is written here once and drawn by id, so the arrangement lives in
@@ -821,8 +821,8 @@ function App(){
   todaystip:<TodaysTip tips={day===dayOnTrip?tipsForDay(visibleState.days,dayOnTrip,stepsFor(visibleState,dayOnTrip,user.name),isChild(visibleState,user.name)):null}/>,
   // How is everyone this morning sits just above Before we head out: both are done at breakfast.
   needs:<><Readiness state={visibleState} day={day} today={japanDate(now)} user={user} mutate={mutate} busy={busy} open={setModal} settings={settings} change={changeSetting}/><MorningChecklist key={day} state={visibleState} day={day} today={japanDate(now)}/></>,
+  plans:planChooser,
   step:<>
-   {planChooser}
    <SplitDay state={visibleState} splits={splits} day={day} now={now} user={user} parent={parent} busy={busy} lens={lens} setLens={follow} selectStep={selectStep} mutate={mutate} tellLate={()=>setModal({type:'latemsg'})}/>
    {splits.length>0&&<WhoseDay state={visibleState} user={user} lens={lens} setLens={follow}/>}
    <section className="step-area">
