@@ -12339,3 +12339,20 @@ test('the buttons under each stop can be shown as icons only, keeping their word
  assert.match(main,/<Ticket size=\{15\}\/><span className="card-link-label">Tickets/);
  assert.match(css,/\.card-links\.compact \.card-link-label\{position:absolute;width:1px;height:1px/);
 });
+
+test('the Wallet can be read by activity date, newest added, name or person',async()=>{
+ const {ticketList}=await import('../src/trip-features.js');
+ const s=structuredClone(seed);
+ const [early,late]=[...seed.steps].filter(x=>x.day).sort((a,b)=>`${a.day}T${a.time||''}`<`${b.day}T${b.time||''}`?-1:1).filter((x,i,l)=>i===0||i===l.length-1);
+ s.documents=[
+  {id:'b',title:'Baseball',person:'Family',type:'note',category:'ticket',stepId:late.id,createdAt:'2026-01-01T00:00:00Z'},
+  {id:'z',title:'Zoo',person:'Boston',type:'note',category:'ticket',stepId:null,createdAt:'2026-03-01T00:00:00Z'},
+  {id:'a',title:'Airport bus',person:'Damien',type:'note',category:'ticket',stepId:early.id,createdAt:'2026-02-01T00:00:00Z'}
+ ];
+ const ids=order=>ticketList(s,{order}).map(d=>d.id);
+ assert.deepEqual(ids('activity'),['a','b','z'],'dated first, earliest first; unlinked last');
+ assert.deepEqual(ids('added'),['z','a','b']);
+ assert.deepEqual(ids('title'),['a','b','z']);
+ assert.deepEqual(ids('person'),['z','a','b']);
+ assert.deepEqual(ids(''),['b','z','a'],'no order keeps the stored order for other callers');
+});

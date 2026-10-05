@@ -597,16 +597,41 @@ export function removalEffects(state,step){
 // Which tickets the page is showing, filters and all. Kept out of the screen so the count beside
 // the 'used tickets' toggle is worked out by exactly the same rules as the list itself, and so
 // the strip you swipe through can be given the same set the page is showing.
-export function ticketList(state,{step=null,all=true,category='',person='',search='',archived=false}={}){
+// When a booking is for: the earliest stop it is allocated to, else the day it was filed under,
+// else nothing — an unlinked ticket has no date of its own and sorts after every dated one.
+export function documentWhen(state,doc){
+ const times=documentStepList(state,doc).filter(s=>s.day).map(s=>`${s.day}T${s.time||'99:99'}`).sort();
+ return times[0]||(doc?.day?`${doc.day}T99:99`:null);
+}
+// The orders the Wallet can be read in. Every one falls back to the date of the activity and
+// then the name, so two tickets for the same person or added together still come out the same
+// way round on every phone.
+export const TICKET_ORDERS={activity:'Date of activity',added:'Recently added',title:'Name (A–Z)',person:'Person (A–Z)'};
+export function sortTickets(state,docs,order){
+ if(!TICKET_ORDERS[order])return docs;
+ const at=new Map((state.documents||[]).map((d,i)=>[d.id,i]));
+ const when=new Map(docs.map(d=>[d.id,documentWhen(state,d)]));
+ const name=(a,b)=>(a.title||'').localeCompare(b.title||'',undefined,{sensitivity:'base',numeric:true});
+ const byDate=(a,b)=>{const x=when.get(a.id),y=when.get(b.id);return x===y?name(a,b):!x?1:!y?-1:x<y?-1:1;};
+ const added=d=>Date.parse(d.createdAt)||0;
+ const compare={
+  activity:byDate,
+  added:(a,b)=>(added(b)-added(a))||(at.get(b.id)-at.get(a.id)),
+  title:(a,b)=>name(a,b)||byDate(a,b),
+  person:(a,b)=>(a.person||'').localeCompare(b.person||'',undefined,{sensitivity:'base'})||byDate(a,b)
+ }[order];
+ return [...docs].sort(compare);
+}
+export function ticketList(state,{step=null,all=true,category='',person='',search='',archived=false,order=''}={}){
  const q=search.trim().toLowerCase();
- return (state.documents||[]).filter(d=>{
+ return sortTickets(state,(state.documents||[]).filter(d=>{
   if(d.parentDocumentId||d.category==='memory'||isArchived(d)!==archived)return false;
   if(!all&&!documentServesStep(d,step?.id))return false;
   if(category&&(d.category||'ticket')!==category)return false;
   const files=attachmentsOf(state,d);
   if(person&&d.person!==person&&!files.some(a=>a.person===person))return false;
   return !q||[d.title,d.reference,d.notes,...(d.tags||[]),...files.flatMap(a=>[a.title,a.notes,...(a.tags||[])])].join(' ').toLowerCase().includes(q);
- });
+ }),order);
 }
 // What we thought of it, afterwards. Separate from a step's own notes, which are the plan —
 // these are four opinions about a thing that has happened, kept per person so nobody's stars
