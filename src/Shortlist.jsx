@@ -1,7 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import PageTitle from './PageTitle.jsx';
 import {upload} from '@vercel/blob/client';
-import {Camera,Trash2,ShoppingBag,PiggyBank,MapPin,Tag,X,Plus,CalendarDays,ChevronRight,Star,LocateFixed,AlertCircle} from 'lucide-react';
+import {Camera,Trash2,ShoppingBag,PiggyBank,MapPin,Tag,X,Plus,CalendarDays,ChevronRight,Star,LocateFixed,AlertCircle,ArrowUpDown} from 'lucide-react';
 import {InBar} from './home-bar.js';
 import {shrinkPhoto} from './MenuReader.jsx';
 import {SHORTLIST_STATUS,SHORTLIST_SORTS,SHORTLIST_STARS,shortlistStatusLabel,shortlistFor,shortlistTotals,shortlistTags,
@@ -13,6 +13,7 @@ import {dayLabel} from './AdventurePages.jsx';
 import {allHunts,huntForShortlist,shortlistToHunt} from './hunt-data.js';
 import {japanClock} from './timing.js';
 import {yen} from './format.js';
+import {useListWobble,inOrder,listOrder} from './wobble-list.jsx';
 export const shortlistPhotoUrl=s=>`/api/shortlist?id=${encodeURIComponent(s.id)}`;
 // Both figures, the way every other price in the app is shown: yen is what the ticket says while
 // you are standing in front of it, dollars is what decides whether it comes home.
@@ -74,7 +75,7 @@ function ToList({state,user,item,busy,mutate,go}){
  return <div className="find-tolist"><label>Rate it in a list<select value={list} onChange={e=>setList(e.target.value)}>{lists.map(h=><option key={h.id} value={h.id}>{h.icon} {h.title}</option>)}</select></label>
   <button disabled={busy||!list} onClick={()=>mutate({type:'huntAdd',hunt:list,...shortlistToHunt(item),by:user.name})}>Add to that list</button></div>;
 }
-export function Find({item,state,user,parent,busy,mutate,photo,drop,edit,onTag,onPin,rate,go}){
+export function Find({item,state,user,parent,busy,mutate,photo,drop,edit,onTag,onPin,rate,go,drag}){
  const stars=shortlistRating(item)??0,pin=shortlistPin(item);
  // A find still waiting on signal has no id the trip knows yet, so nothing that names one by id
  // — a photograph, a decision, the bin — is offered on it until it has synced.
@@ -85,7 +86,7 @@ export function Find({item,state,user,parent,busy,mutate,photo,drop,edit,onTag,o
  // the card offers the shopping list exactly then, and stops offering it once it has gone across.
  const shopped=!held&&shoppedAlready(state,item);
  const toShop=!held&&['yes','bought'].includes(item.status)&&!shopped;
- return <article className={`feature-card find ${item.status}`}>
+ return <article {...drag} className={`feature-card find ${item.status} ${drag?.className||''}`}>
   {item.photo
    ? <div className="find-photo"><img loading="lazy" src={shortlistPhotoUrl(item)} alt={item.title}/>
       {mine&&<div className="find-photo-actions">
@@ -192,7 +193,13 @@ export default function Shortlist({state,user,day,config,busy,setBusy,mutate,req
  }
  const parent=user.role==='parent',rate=yenPerAud(state);
  const filtered=!!(query||person||status||date||tag||least);
- const items=shortlistFor(state,{person,day:date,status,tag,query,sort,rating:least});
+ // Our order is the one the family dragged the cards into (wobble-list.jsx), laid over the
+ // still-to-decide order so a find added since lands where it would have anyway. Any other order
+ // is a question about price or date that a drag would only fight, so the cards hold still in it.
+ const own=sort==='own',ours=list=>own?inOrder(list,listOrder(state,'shortlist')):list;
+ const items=ours(shortlistFor(state,{person,day:date,status,tag,query,sort:own?'decide':sort,rating:least}));
+ const w=useListWobble({ids:items.map(s=>s.id),full:ours(shortlistFor(state,{sort:'decide'})).map(s=>s.id),
+  save:ids=>mutate({type:'listOrder',list:'shortlist',ids,by:user.name}),off:!own});
  const totals=shortlistTotals(items),tags=shortlistTags(state);
  const everything=(state.shortlist||[]).length;
  // Following a pin back to whatever it was pinned to: an activity opens that activity on its own
@@ -301,13 +308,15 @@ export default function Shortlist({state,user,day,config,busy,setBusy,mutate,req
     {!!tags.length&&<label>Tag<select value={tag} onChange={e=>setTag(e.target.value)}><option value="">Any tag</option>{tags.map(t=><option key={t}>{t}</option>)}</select></label>}
    </div>
   </div>
-  <p><strong>{items.length}{filtered?` of ${everything}`:''} on the shortlist</strong> · {totals.open} still to decide{totals.openYen?` (${both(totals.openYen,rate)} if we said yes to all of them)`:''} · {totals.yes} we are getting{totals.yesYen?` (${both(totals.yesYen,rate)})`:''}{totals.bought?` · ${totals.bought} bought`:''}
+  <div className="list-count"><p><strong>{items.length}{filtered?` of ${everything}`:''} on the shortlist</strong> · {totals.open} still to decide{totals.openYen?` (${both(totals.openYen,rate)} if we said yes to all of them)`:''} · {totals.yes} we are getting{totals.yesYen?` (${both(totals.yesYen,rate)})`:''}{totals.bought?` · ${totals.bought} bought`:''}
    {!!totals.unpriced&&<small>{totals.unpriced} of them {totals.unpriced===1?'has':'have'} no price written down, so {totals.unpriced===1?'it is':'they are'} not in those totals.</small>}
    <small>At $1 = ¥{Math.round(rate)}.</small></p>
+   {own?w.toggle:items.length>1&&<button type="button" data-wobble-tool className="list-reorder" onClick={()=>{setSort('own');w.setEditing(true);}}><ArrowUpDown size={15}/>Reorder</button>}</div>
   {working&&<p className="callout">{working}</p>}
-  <div className="feature-grid">{items.map(s=>
+  {w.bar}
+  <div className="feature-grid wobble-list" {...w.listProps}>{items.map(s=>
    <Find key={s.id} item={s} state={state} user={user} parent={parent} busy={busy} mutate={mutate} go={go}
-    photo={attach} drop={dropPhoto} edit={openForm} onTag={setTag} onPin={followPin} rate={rate}/>)}</div>
+    photo={attach} drop={dropPhoto} edit={openForm} onTag={setTag} onPin={followPin} rate={rate} drag={w.row(s.id)}/>)}</div>
   {!items.length&&<div className="empty"><Camera size={30}/><h3>Nothing on the shortlist{filtered?' matches':' yet'}</h3><p>{filtered?'Try Browse all, or a different order.':'Next time we walk out of a shop still thinking about something, photograph it here.'}</p></div>}
   {go&&<>
    <p className="callout"><ShoppingBag size={18}/><span>Once we have said we are getting something, it goes across to the <button onClick={()=>go('shopping')}>Shopping list</button> — the page with the budget, the quantity and the tick — from its own card.</span></p>

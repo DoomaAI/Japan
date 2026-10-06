@@ -527,7 +527,7 @@ test('the trip shop log keeps what was sorted and whether it was worth it, for t
  assert.throws(()=>applyOperation(state,{type:'shopLog',id:'esim',sorted:'yes'},lauren),/Invalid tick/);
  assert.ok(visibleTrip(state,{name:'Nate',role:'child'}).shopLog.esim,'the boys can read what was learned');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
- assert.match(main,/'bookingWindowBooked','shopLog'\]/,'a tick made with no signal is queued');
+ assert.match(main,/'bookingWindowBooked','shopLog'[,\]]/,'a tick made with no signal is queued');
 });
 test('apps to download: each app finds its days in the plan, and ones behind us are done',async()=>{
  const {SUGGESTED_APPS,APP_GROUPS,appDays,suggestedApps}=await import('../src/apps-data.js');

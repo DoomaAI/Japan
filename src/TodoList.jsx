@@ -1,23 +1,29 @@
 import React,{useState,useEffect,useRef} from 'react';
 import PageTitle from './PageTitle.jsx';
-import {ListChecks,ShoppingBag,Plus,Trash2,CalendarDays,ChevronRight,Inbox,PiggyBank,Sparkles} from 'lucide-react';
+import {ListChecks,ShoppingBag,Plus,Trash2,CalendarDays,ChevronRight,Inbox,PiggyBank,Sparkles,ArrowUpDown} from 'lucide-react';
 import Dictate from './Dictate.jsx';
 import {InBar} from './home-bar.js';
 import {parseCaptureLocally,CAPTURE_MAX} from './capture-data.js';
 import {japanDate,japanClock} from './timing.js';
 import {dayLabel} from './AdventurePages.jsx';
-import {TODO_KINDS,todos,todosFor,todoProgress,unallocatedTodos,BOYS,spending} from './trip-features.js';
+import {TODO_KINDS,todos,todosFor,todoProgress,unallocatedTodos,sortTodos,BOYS,spending} from './trip-features.js';
+import {useListWobble,inOrder,listOrder} from './wobble-list.jsx';
+// The list in the order the family dragged it into (wobble-list.jsx), ticked-off jobs still
+// sinking below the ones left to do; and every job in that order, for a drag to be saved into.
+const arranged=(state,list)=>[...inOrder(list,listOrder(state,'todos'))].sort((a,b)=>(!!a.doneAt)-(!!b.doneAt));
+const allArranged=state=>arranged(state,sortTodos(todos(state))).map(t=>t.id);
+const saveOrder=(mutate,user)=>ids=>mutate({type:'listOrder',list:'todos',ids,by:user.name});
 const KindIcon=({kind,...props})=>kind==='buy'?<ShoppingBag {...props}/>:<ListChecks {...props}/>;
 // One row, used on the day panel and on the full list, so a job looks the same wherever it is
 // ticked off. Anyone can tick; the wording and the bin are a parent's.
-function TodoRow({item,user,mutate,busy,onEdit,showDay,state,remove}){
+function TodoRow({item,user,mutate,busy,onEdit,showDay,state,remove,drag}){
  const parent=user.role==='parent',done=!!item.doneAt;
  // A boy's own thing to buy can be handed straight to his spending money, where it is counted
  // against what he actually has. Offered once: something already over there is not offered again.
  const boy=BOYS.includes(user.name)?user.name:null;
  const toBuy=state&&boy&&item.kind==='buy'&&!done&&[boy,'Family'].includes(item.person)
   &&!spending(state).items.some(i=>i.todoId===item.id);
- return <div className={`todo-row ${done?'done':''}`}>
+ return <div {...drag} className={`todo-row ${done?'done':''} ${drag?.className||''}`}>
   <label className="todo-tick">
    <input type="checkbox" checked={done} disabled={busy}
     onChange={e=>mutate({type:'todoStatus',id:item.id,done:e.target.checked,by:user.name})}
@@ -44,7 +50,8 @@ function TodoRow({item,user,mutate,busy,onEdit,showDay,state,remove}){
 // remember to post the postcards is the moment you are looking at the day you will post them.
 export function DayTodos({state,user,day,mutate,busy,go}){
  const [adding,setAdding]=useState(false);
- const list=todosFor(state,day),{done,total}=todoProgress(state,day);
+ const list=arranged(state,todosFor(state,day)),{done,total}=todoProgress(state,day);
+ const w=useListWobble({ids:list.map(t=>t.id),full:allArranged(state),save:saveOrder(mutate,user)});
  async function add(e){
   // Hold the form itself: React has let go of the event by the time the save comes back.
   e.preventDefault();const form=e.currentTarget,f=new FormData(form);
@@ -54,12 +61,13 @@ export function DayTodos({state,user,day,mutate,busy,go}){
   <span><ListChecks size={16}/>Nothing to do or buy on this day.</span>
   <button onClick={()=>setAdding(true)}><Plus size={16}/>Add something</button>
  </div>;
- return <section className="day-todos" aria-label="Things to do or buy on this day">
+ return <section className="day-todos wobble-list" aria-label="Things to do or buy on this day" {...w.listProps}>
   <InBar fallback={<div className="section-heading">
    <div><p className="eyebrow">THINGS TO DO OR BUY</p><h2>{done} of {total} ticked off</h2></div>
-   <button onClick={()=>setAdding(a=>!a)}><Plus size={16}/>Add</button>
-  </div>}><span className="bar-note">{done} of {total} ticked off</span><button onClick={()=>setAdding(a=>!a)}><Plus size={16}/>Add</button></InBar>
-  {list.map(item=><TodoRow key={item.id} item={item} state={state} user={user} mutate={mutate} busy={busy}/>)}
+   <span className="row">{w.toggle}<button onClick={()=>setAdding(a=>!a)}><Plus size={16}/>Add</button></span>
+  </div>}><span className="bar-note">{done} of {total} ticked off</span>{w.toggle}<button onClick={()=>setAdding(a=>!a)}><Plus size={16}/>Add</button></InBar>
+  {w.bar}
+  {list.map(item=><TodoRow key={item.id} item={item} state={state} user={user} mutate={mutate} busy={busy} drag={w.row(item.id)}/>)}
   {adding&&<form className="todo-add" onSubmit={add}>
    <input name="title" required maxLength={250} autoFocus placeholder="Post the postcards · buy a SIM at the airport"/>
    <select name="kind" defaultValue="do" aria-label="Kind">{TODO_KINDS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select>
@@ -96,12 +104,23 @@ export function CaptureBox({state,day,request,online,onParsed,first=null,clearFi
   <small>{online&&request?'The day, who it is for and what kind get filled in for you; check them, then add it.':'No signal: the phone fills in what it can, and you check the rest.'}</small>
  </form>;
 }
+// One heading's worth of the full list. Every group shares one wobble, so holding a job under
+// any day sets them all going; a job is dragged only among its own day's.
+function TodoGroup({state,list,full,user,mutate,editing,setEditing,children,...row}){
+ const w=useListWobble({ids:list.map(t=>t.id),full,save:saveOrder(mutate,user),editing,setEditing});
+ return <section className="todo-group wobble-list" {...w.listProps}>
+  {children}
+  {list.map(item=><TodoRow key={item.id} item={item} state={state} user={user} mutate={mutate} drag={w.row(item.id)} {...row}/>)}
+ </section>;
+}
 export default function TodoList({state,user,mutate,busy,go,day=null,remove,request,online=true,sayFirst=null,clearSayFirst}){
- const [edit,setEdit]=useState(null),[kind,setKind]=useState(''),[person,setPerson]=useState(''),[show,setShow]=useState('open');
+ const [edit,setEdit]=useState(null),[kind,setKind]=useState(''),[person,setPerson]=useState(''),[show,setShow]=useState('open'),[arranging,setArranging]=useState(false);
  const parent=user.role==='parent';
  const match=t=>(!kind||t.kind===kind)&&(!person||t.person===person)&&(show==='all'||(show==='done'?!!t.doneAt:!t.doneAt));
- const loose=unallocatedTodos(state).filter(match);
- const byDay=state.days.map(d=>({day:d,list:todosFor(state,d.date).filter(match)})).filter(g=>g.list.length);
+ const loose=arranged(state,unallocatedTodos(state).filter(match));
+ const byDay=state.days.map(d=>({day:d,list:arranged(state,todosFor(state,d.date).filter(match))})).filter(g=>g.list.length);
+ const full=allArranged(state),shared={state,full,user,mutate,busy,editing:arranging,setEditing:setArranging,onEdit:setEdit,remove};
+ const many=loose.length+byDay.reduce((n,g)=>n+g.list.length,0)>1;
  const all=todos(state),open=all.filter(t=>!t.doneAt).length;
  async function save(e){
   e.preventDefault();const f=new FormData(e.currentTarget);
@@ -118,17 +137,16 @@ export default function TodoList({state,user,mutate,busy,go,day=null,remove,requ
    <label>For<select value={person} onChange={e=>setPerson(e.target.value)}><option value="">Anyone</option><option>Family</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label>
   </div>
  </div>
- <p><strong>{open} still to do</strong> of {all.length}</p>
- {!!loose.length&&<section className="todo-group">
+ <div className="list-count"><p><strong>{open} still to do</strong> of {all.length}</p>{many&&<button type="button" data-wobble-tool className={`list-reorder${arranging?' on':''}`} aria-pressed={arranging} onClick={()=>setArranging(!arranging)}><ArrowUpDown size={15}/>{arranging?'Done':'Reorder'}</button>}</div>
+ {arranging&&<div className="wobble-done" role="status"><small>Drag a job to the line where it should go, within its own day. Tap outside the list to finish.</small></div>}
+ {!!loose.length&&<TodoGroup list={loose} {...shared}>
   <h2>No day yet</h2>
-  <p><small>Before we go, or whenever it fits. Give one a day to have it show on that day.</small></p>
-  {loose.map(item=><TodoRow key={item.id} item={item} state={state} user={user} mutate={mutate} busy={busy} onEdit={setEdit} remove={remove}/>)}
- </section>}
- {byDay.map(({day:d,list})=><section className="todo-group" key={d.date}>
+  <p><small>Before we go, or whenever it fits. Give one a day to have it show on that day. Hold one to put the list in order.</small></p>
+ </TodoGroup>}
+ {byDay.map(({day:d,list})=><TodoGroup key={d.date} list={list} showDay={false} {...shared}>
   <h2>{dayLabel(d.date)} · {d.city}</h2>
   <p><small>{d.title}</small></p>
-  {list.map(item=><TodoRow key={item.id} item={item} state={state} user={user} mutate={mutate} busy={busy} onEdit={setEdit} showDay={false} remove={remove}/>)}
- </section>)}
+ </TodoGroup>)}
  {!loose.length&&!byDay.length&&<div className="empty"><Inbox/><h2>{all.length?'Nothing matches those filters.':'Nothing on the list.'}</h2><p>{all.length?'Try Everything, or a different kind.':'Write down the small things — post the postcards, buy a SIM at the airport, charge the power banks — and put a day on the ones that belong to one.'}</p></div>}
  {edit&&<form key={edit.id||'new'} className="feature-card" onSubmit={save}>
   <h2>{edit.id?'Edit this one':edit.said?'Check it, then add it':'Add something'}</h2>

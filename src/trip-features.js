@@ -485,7 +485,7 @@ export function seededChallenges(state){
 }
 export function ensureFeatures(input){
  const state=windowsSeeded(disneySeaSeeded(disneySeeded(timesSeeded(notesSeeded(splitSeeded({...input,...expressSeeded(input)}))))));
- return {...state,allergies:state.allergies||{},checkIns:state.checkIns||[],lateNotices:state.lateNotices||[],readiness:state.readiness||{},stages:state.stages||{},bin:state.bin||[],settlements:state.settlements||[],icCards:state.icCards||{},askThread:state.askThread||[],mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],giftPeople:state.giftPeople??[],giftIdeas:state.giftIdeas??{},money:state.money??{},shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},bingo:state.bingo??{},shopLog:state.shopLog??{},stays:state.stays??{},localChecks:state.localChecks??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},noticed:state.noticed??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},dayRatings:state.dayRatings??{},dayThoughts:state.dayThoughts??{},predictions:state.predictions??{},bookingWindows:state.bookingWindows??[],dpa:state.dpa??[],mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:normaliseThankYou(state.thankYou),plan:planOf(state),people:peopleOf(state),invitation:invitationOf(state),rsvps:state.rsvps??{}};
+ return {...state,allergies:state.allergies||{},checkIns:state.checkIns||[],lateNotices:state.lateNotices||[],readiness:state.readiness||{},stages:state.stages||{},bin:state.bin||[],settlements:state.settlements||[],icCards:state.icCards||{},askThread:state.askThread||[],mapUrl:(state.mapUrl||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),mapEmbed:(state.mapEmbed||'').replace('1SDEq4N32fF5lTAzSNS00w5A1R0Ldarw','1mztIuWzTviCEZSLdDxEUqo2WK3HUNfo'),...seededChallenges(state),groupModes:state.groupModes??{},shopping:state.shopping??[],giftPeople:state.giftPeople??[],giftIdeas:state.giftIdeas??{},money:state.money??{},shortlist:state.shortlist??[],meetings:state.meetings??{},contacts:state.contacts??{Damien:'',Lauren:''},alerts:state.alerts??[],journal:state.journal??{},eyeSpy:state.eyeSpy??{},bingo:state.bingo??{},shopLog:state.shopLog??{},stays:state.stays??{},localChecks:state.localChecks??{},parkRides:state.parkRides??{},heights:state.heights??{},food:state.food??{},foodItems:state.foodItems??[],rates:state.rates??{perAud:DEFAULT_YEN_PER_AUD,at:null,by:null},phraseAudio:state.phraseAudio??{},phraseSeen:state.phraseSeen??{},phraseLog:state.phraseLog??{},factSeen:state.factSeen??{},factLog:state.factLog??{},customPhrases:state.customPhrases??[],games:state.games??{scores:{},janken:{round:null,scores:{}}},weather:{hours:{},...(state.weather??{at:null,by:null,days:{}})},photos:state.photos??[],photoVotes:state.photoVotes??{},drawings:state.drawings??[],voiceNotes:state.voiceNotes??[],proposals:state.proposals??[],todos:state.todos??[],expenses:state.expenses??[],payMethods:state.payMethods??[],hunts:{custom:[],entries:[],rankings:{},...(state.hunts||{})},noticed:state.noticed??[],trackers:state.trackers??[],placeCoords:{places:{},at:null,by:null,...(state.placeCoords||{})},packing:{...EMPTY_PACKING,...(state.packing||{})},spending:{...EMPTY_PURSE,...(state.spending||{})},inbox:state.inbox??[],stepReviews:state.stepReviews??{},dayRatings:state.dayRatings??{},dayThoughts:state.dayThoughts??{},predictions:state.predictions??{},bookingWindows:state.bookingWindows??[],dpa:state.dpa??[],mascots:state.mascots??{},sumo:{...EMPTY_SUMO,...(state.sumo||{})},party:{...EMPTY_PARTY,...(state.party||{}),people:{...((state.party||{}).people||{})}},thankYou:normaliseThankYou(state.thankYou),plan:planOf(state),people:peopleOf(state),invitation:invitationOf(state),rsvps:state.rsvps??{},listOrders:state.listOrders??{}};
 }
 export function delayedDayProposal(steps,delay,nowMinute=null){
  const changes=[],backlog=[],warnings=[];let cursor=nowMinute??0;
@@ -606,7 +606,7 @@ export function documentWhen(state,doc){
 // The orders the Wallet can be read in. Every one falls back to the date of the activity and
 // then the name, so two tickets for the same person or added together still come out the same
 // way round on every phone.
-export const TICKET_ORDERS={activity:'Date of activity',added:'Recently added',title:'Name (A–Z)',person:'Person (A–Z)'};
+export const TICKET_ORDERS={activity:'Date of activity',added:'Recently added',title:'Name (A–Z)',person:'Person (A–Z)',own:'Our order'};
 export function sortTickets(state,docs,order){
  if(!TICKET_ORDERS[order])return docs;
  const at=new Map((state.documents||[]).map((d,i)=>[d.id,i]));
@@ -618,7 +618,9 @@ export function sortTickets(state,docs,order){
   activity:byDate,
   added:(a,b)=>(added(b)-added(a))||(at.get(b.id)-at.get(a.id)),
   title:(a,b)=>name(a,b)||byDate(a,b),
-  person:(a,b)=>(a.person||'').localeCompare(b.person||'',undefined,{sensitivity:'base'})||byDate(a,b)
+  person:(a,b)=>(a.person||'').localeCompare(b.person||'',undefined,{sensitivity:'base'})||byDate(a,b),
+ // Left as they are, for the Wallet to lay the order the family dragged them into over.
+ own:()=>0
  }[order];
  return [...docs].sort(compare);
 }
@@ -874,7 +876,7 @@ export function shortlistWhere(state,find){
 // goes last in both rather than being treated as free and leading the cheap list.
 export const SHORTLIST_SORTS=[
  ['decide','Still to decide first'],['want','How much we want it'],['new','Newest first'],['old','Oldest first'],
- ['dear','Dearest first'],['cheap','Cheapest first'],['shop','By shop, A to Z'],['day','By the day we saw it']
+ ['dear','Dearest first'],['cheap','Cheapest first'],['shop','By shop, A to Z'],['day','By the day we saw it'],['own','Our order']
 ];
 // How much we want it, nought to five, which is the other half of deciding and the half a price
 // cannot answer. Unrated is not nought — it is a question nobody has answered yet — so it sorts
@@ -889,7 +891,9 @@ const SHORTLIST_SORTERS={
  dear:(a,b)=>priced(a)-priced(b)||(b.price??0)-(a.price??0)||age(b).localeCompare(age(a)),
  cheap:(a,b)=>priced(a)-priced(b)||(a.price??0)-(b.price??0)||age(b).localeCompare(age(a)),
  shop:(a,b)=>String(a.shop||a.place||'\uffff').localeCompare(String(b.shop||b.place||'\uffff'))||age(b).localeCompare(age(a)),
- want:(a,b)=>unrated(a)-unrated(b)||(shortlistRating(b)??0)-(shortlistRating(a)??0)||age(b).localeCompare(age(a))
+ want:(a,b)=>unrated(a)-unrated(b)||(shortlistRating(b)??0)-(shortlistRating(a)??0)||age(b).localeCompare(age(a)),
+ // Our order is the one the family dragged the list into, which the page lays over this (wobble-list.jsx).
+ own:()=>0
 };
 export const sortShortlistBy=(list,sort,state)=>[...list].sort(
  sort==='day'
@@ -1258,7 +1262,7 @@ export const PROPOSAL_KINDS=[['place','Place to see'],['food','Food or drink'],[
 // Whether an idea can go anywhere in a day, only inside its opening hours, or has to be booked
 // for an exact time. This is the tag that decides whether its scheduled step is locked.
 export const PROPOSAL_TIMING=[['flex','Flexible · any time'],['window','Available times only'],['fixed','Needs a fixed time']];
-export const PROPOSAL_SORTS=[['top','Most wanted'],['musts','Must-do first'],['new','Newest first'],['cost','Cheapest first']];
+export const PROPOSAL_SORTS=[['top','Most wanted'],['musts','Must-do first'],['new','Newest first'],['cost','Cheapest first'],['own','Our order']];
 export const PLACEMENT_LABEL={open:'Up for a vote',scheduled:'On the itinerary',options:'Moved to Options',parked:'Parked'};
 export const proposals=state=>state.proposals||[];
 export const proposalVoters=(p,vote)=>Object.entries(p.votes||{}).filter(([,v])=>v===vote).map(([name])=>name).sort();
@@ -1336,7 +1340,9 @@ export function rankedProposals(state,{query='',category='',suits='',by='',place
  const order={top:(a,b)=>proposalScore(b)-proposalScore(a)||musts(b)-musts(a)||age(a).localeCompare(age(b)),
   musts:(a,b)=>musts(b)-musts(a)||proposalScore(b)-proposalScore(a)||age(a).localeCompare(age(b)),
   new:(a,b)=>age(b).localeCompare(age(a)),
-  cost:(a,b)=>(a.cost??Infinity)-(b.cost??Infinity)||proposalScore(b)-proposalScore(a)};
+  cost:(a,b)=>(a.cost??Infinity)-(b.cost??Infinity)||proposalScore(b)-proposalScore(a),
+  // Left as they are, for the page to lay the order the family dragged them into over.
+  own:()=>0};
  return [...list].sort(order[sort]||order.top);
 }
 // Stops somebody can sit out while the rest carry on: on the day's live plan, not finished, not
@@ -1517,6 +1523,7 @@ export function pendingProgress(state,queue){
   if(o.type==='noticedAdd'){next.noticed=[...(next.noticed||[]),{id:`pending-${o.operationId}`,...noticedFields(o),by:o.by||'',at:o.at,pending:!live}];}
   if(o.type==='huntTried'){const h={custom:[],entries:[],rankings:{},...(next.hunts||{})};next.hunts={...h,entries:h.entries.map(e=>e.id===o.id?{...e,status:o.done?'tried':'want',pending:!live}:e)};}
   if(o.type==='huntRate'&&o.rating){const h=next.hunts||{};if(h.entries)next.hunts={...h,entries:h.entries.map(e=>e.id===o.id&&e.status==='want'?{...e,status:'tried'}:e)};}
+  if(o.type==='listOrder'&&typeof o.list==='string'&&Array.isArray(o.ids))next.listOrders={...(next.listOrders||{}),[o.list]:o.ids};
   if(o.type==='huntRank'&&Array.isArray(o.order)){const h={custom:[],entries:[],rankings:{},...(next.hunts||{})};next.hunts={...h,rankings:{...h.rankings,[o.hunt]:{...(h.rankings[o.hunt]||{}),[o.person]:o.order}}};}
   if(o.type==='huntRate'){const h={custom:[],entries:[],...(next.hunts||{})};next.hunts={...h,entries:h.entries.map(e=>{if(e.id!==o.id)return e;const ratings={...(e.ratings||{})};if(o.rating)ratings[o.person]=o.rating;else delete ratings[o.person];return {...e,ratings,pending:!live};})};}
   if(o.type==='foodRating'){const e=next.food[o.itemId]||{},ratings={...(e.ratings||{})};if(o.rating)ratings[o.person]=o.rating;else delete ratings[o.person];next.food={...next.food,[o.itemId]:{...e,ratings}};}

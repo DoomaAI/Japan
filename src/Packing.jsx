@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import PageTitle from './PageTitle.jsx';
-import {Radar,Luggage,Plus,X,Pencil,Trash2,RotateCcw,Inbox,MapPin,CloudSun,Compass,User,CalendarDays,Sparkles,DoorOpen,Check,ClipboardCheck} from 'lucide-react';
+import {Radar,Luggage,Plus,X,Pencil,Trash2,RotateCcw,Inbox,MapPin,CloudSun,Compass,User,CalendarDays,Sparkles,DoorOpen,Check,ClipboardCheck,ArrowUpDown} from 'lucide-react';
 import {packing} from './trip-features.js';
 import {PACK_CATEGORIES,PACK_PRIORITY,PACK_SOURCES,PACK_SCOPES,inPackScope,packCategoryLabel,packingSuggestions,dismissedSuggestions,nextPackUp,packingProgress,daysAhead,packingWeather,beforeWeGo,beforeProgress} from './packing-data.js';
 import {forwardedTrackers,linkState} from './trackers.js';
@@ -9,6 +9,7 @@ import GoingHome from './GoingHome.jsx';
 import {goingHomeSoon} from './going-home.js';
 import {SWEEP,readSweep,writeSweep,toggleSweep,sweepWords} from './sweep-data.js';
 import {shortDay as fmt} from './format.js';
+import {useListWobble,inOrder,listOrder} from './wobble-list.jsx';
 const SOURCE_ICONS={japan:MapPin,weather:CloudSun,activity:Compass,person:User,trip:CalendarDays};
 const whose=person=>person==='Family'?'All of us':`For ${person}`;
 // What goes onto the list from a suggestion: the suggestion as it stands, remembered by its id so
@@ -29,9 +30,9 @@ function Suggestion({s,mutate,busy,user}){
   </div>
  </div>;
 }
-function PackRow({item,user,mutate,busy,onEdit,remove}){
+function PackRow({item,user,mutate,busy,onEdit,remove,drag}){
  const packed=!!item.packedAt,mine=user.role==='parent'||item.createdBy===user.name;
- return <div className={`todo-row ${packed?'done':''}`}>
+ return <div {...drag} className={`todo-row ${packed?'done':''} ${drag?.className||''}`}>
   <label className="todo-tick">
    <input type="checkbox" checked={packed} disabled={busy}
     onChange={e=>mutate({type:'packStatus',id:item.id,packed:e.target.checked,by:user.name})}
@@ -48,6 +49,15 @@ function PackRow({item,user,mutate,busy,onEdit,remove}){
     onClick={()=>remove({type:'packRemove',id:item.id},{type:'packAdd',title:item.title,category:item.category,person:item.person,qty:item.qty,notes:item.notes},`“${item.title}” taken off the packing list.`)}><Trash2 size={16}/></button>
   </div>}
  </div>;
+}
+// One category's worth of the list. Every category shares one wobble, so holding anything sets
+// them all going; a thing is dragged only among its own category's.
+function PackGroup({label,list,full,user,mutate,editing,setEditing,...row}){
+ const w=useListWobble({ids:list.map(i=>i.id),full,save:ids=>mutate({type:'listOrder',list:'packing',ids,by:user.name}),editing,setEditing});
+ return <section className="todo-group wobble-list" {...w.listProps}>
+  <h2>{label}</h2>
+  {list.map(item=><PackRow key={item.id} item={item} user={user} mutate={mutate} drag={w.row(item.id)} {...row}/>)}
+ </section>;
 }
 // The things done rather than packed before we leave, for the next pack-up: shared, so a tick on
 // one phone shows on all of them, and cleared with the packing ticks when the next one starts.
@@ -105,13 +115,16 @@ export default function Packing({state,user,mutate,busy,remove}){
  // A child opens on their own list and a parent on everything; either can switch to the joint
  // list, or to anyone's own.
  const me=state.members.includes(user.name)?user.name:state.members[0]||'';
- const [scope,setScope]=useState(parent?'all':'own'),[who,setWho]=useState(me),[show,setShow]=useState('open'),[source,setSource]=useState(''),[edit,setEdit]=useState(null),[showDismissed,setShowDismissed]=useState(false);
+ const [scope,setScope]=useState(parent?'all':'own'),[who,setWho]=useState(me),[show,setShow]=useState('open'),[source,setSource]=useState(''),[edit,setEdit]=useState(null),[showDismissed,setShowDismissed]=useState(false),[query,setQuery]=useState(''),[arranging,setArranging]=useState(false);
  const {packed,total}=packingProgress(state,scope,who),next=nextPackUp(state,today);
  const w=packingWeather(state,daysAhead(state,today));
  const forPerson=x=>inPackScope(x,scope,who);
  const scopeCount=id=>items.filter(i=>inPackScope(i,id,who)).length;
  const scopeName=scope==='joint'?'the joint list':scope==='own'?(who===user.name?'your own list':`${who}’s own list`):'';
- const listed=items.filter(i=>forPerson(i)&&(show==='all'||(show==='packed'?!!i.packedAt:!i.packedAt)));
+ // The list in the order the family dragged it into (wobble-list.jsx), one order for every
+ // category and every person's list, so a drag on one phone's view keeps the rest in place.
+ const arranged=inOrder(items,listOrder(state,'packing')),full=arranged.map(i=>i.id);
+ const listed=arranged.filter(i=>forPerson(i)&&(show==='all'||(show==='packed'?!!i.packedAt:!i.packedAt))&&[i.title,i.notes].join(' ').toLowerCase().includes(query.toLowerCase()));
  const byCategory=PACK_CATEGORIES.map(([id,label])=>({id,label,list:listed.filter(i=>(PACK_CATEGORIES.some(([c])=>c===i.category)?i.category:'other')===id)})).filter(g=>g.list.length);
  const offered=suggestions.filter(s=>forPerson(s)&&(!source||s.sources.includes(source)));
  const essentials=offered.filter(s=>s.priority==='essential');
@@ -134,6 +147,7 @@ export default function Packing({state,user,mutate,busy,remove}){
   <button className={view==='before'?'selected':''} onClick={()=>setView('before')}>Before we go{next?` · ${beforeProgress(state,next).left}`:''}</button>
  </div>
  {view!=='before'&&<div className="document-filters"><div className="form-row">
+  {view==='list'&&items.length>3&&<label>Search<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Swimmers, charger"/></label>}
   {scope==='own'&&<label>Whose<select value={who} onChange={e=>setWho(e.target.value)}>{state.members.map(n=><option key={n} value={n}>{n===user.name?`${n} (me)`:n}</option>)}</select></label>}
   {view==='list'
    ?<label>Show<select value={show} onChange={e=>setShow(e.target.value)}><option value="open">Still to pack</option><option value="packed">Packed</option><option value="all">Everything</option></select></label>
@@ -141,12 +155,10 @@ export default function Packing({state,user,mutate,busy,remove}){
  </div></div>}
  {view==='before'&&<BeforeWeGo state={state} user={user} mutate={mutate} busy={busy} next={next}/>}
  {view==='list'&&<>
-  <button className="primary" onClick={()=>setEdit({title:'',category:'other',person:scope==='own'?who:scope==='joint'||parent?'Family':me,qty:1,notes:''})}><Plus size={18}/>{scope==='own'?(who===user.name?'Add something of my own':`Add something for ${who}`):scope==='joint'?'Add something we share':'Add something of our own'}</button>
-  {byCategory.map(g=><section className="todo-group" key={g.id}>
-   <h2>{g.label}</h2>
-   {g.list.map(item=><PackRow key={item.id} item={item} user={user} mutate={mutate} busy={busy} onEdit={setEdit} remove={remove}/>)}
-  </section>)}
-  {!byCategory.length&&<div className="empty"><Inbox/><h2>{items.length?(show==='open'?'Everything here is packed.':'Nothing matches those filters.'):'Nothing on the list yet.'}</h2>
+  <div className="list-count"><button className="primary" onClick={()=>setEdit({title:'',category:'other',person:scope==='own'?who:scope==='joint'||parent?'Family':me,qty:1,notes:''})}><Plus size={18}/>{scope==='own'?(who===user.name?'Add something of my own':`Add something for ${who}`):scope==='joint'?'Add something we share':'Add something of our own'}</button>{listed.length>1&&<button type="button" data-wobble-tool className={`list-reorder${arranging?' on':''}`} aria-pressed={arranging} onClick={()=>setArranging(!arranging)}><ArrowUpDown size={15}/>{arranging?'Done':'Reorder'}</button>}</div>
+  {arranging&&<div className="wobble-done" role="status"><small>Drag a thing to the line where it should go, within its own category. Tap outside the list to finish.</small></div>}
+  {byCategory.map(g=><PackGroup key={g.id} label={g.label} list={g.list} full={full} user={user} mutate={mutate} busy={busy} onEdit={setEdit} remove={remove} editing={arranging} setEditing={setArranging}/>)}
+  {!byCategory.length&&<div className="empty"><Inbox/><h2>{items.length?(show==='open'&&!query?'Everything here is packed.':'Nothing matches those filters.'):'Nothing on the list yet.'}</h2>
    <p>{items.length?'Try Everything, or another list.':<>Start from the <button onClick={()=>setView('suggest')}>suggestions</button>, or add something of our own.</>}</p></div>}
  </>}
  {view==='suggest'&&<>

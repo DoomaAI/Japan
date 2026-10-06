@@ -1,6 +1,7 @@
 import React,{useState} from 'react';
-import {Gift,Plus,ChevronDown,Sparkles,ExternalLink,ShoppingBag,Check} from 'lucide-react';
+import {Gift,Plus,ChevronDown,Sparkles,ExternalLink,ShoppingBag,Check,Inbox} from 'lucide-react';
 import {GIFT} from './shopping-groups.js';
+import {useListWobble,inOrder,listOrder} from './wobble-list.jsx';
 import {AGE_GROUPS,DESCRIBE_TIPS,GIFT_INTERESTS,findInterest,interestLabel,ageLabel,giftPeople,giftProgress,giftIdeas} from './gift-data.js';
 
 // People to buy for back home. Each one is a name, what they are into and a budget; opening
@@ -36,10 +37,17 @@ function Idea({idea,add,busy,dayLabel,guide}){
 
 export default function GiftPeople({state,user,today,mutate,busy,request,accept,config,notice,remove,dayLabel}){
  const people=giftPeople(state),parent=user.role==='parent';
- const [edit,setEdit]=useState(null),[open,setOpen]=useState(()=>new Set()),[asking,setAsking]=useState(''),[want,setWant]=useState({});
+ const [edit,setEdit]=useState(null),[open,setOpen]=useState(()=>new Set()),[asking,setAsking]=useState(''),[want,setWant]=useState({}),[query,setQuery]=useState(''),[show,setShow]=useState('all');
  const toggle=id=>setOpen(o=>{const n=new Set(o);n.has(id)?n.delete(id):n.add(id);return n;});
- const progress=people.map(p=>giftProgress(state,p)),sorted=people.map((p,i)=>[p,progress[i]]).sort(([a,A],[b,B])=>A.done-B.done||a.name.localeCompare(b.name));
- const covered=progress.filter(p=>p.done).length;
+ // In the order the family dragged them into (wobble-list.jsx), by name for anyone not yet placed,
+ // with whoever already has something bought still sinking to the bottom.
+ const progress=new Map(people.map(p=>[p.id,giftProgress(state,p)]));
+ const sorted=inOrder([...people].sort((a,b)=>a.name.localeCompare(b.name)),listOrder(state,'giftPeople')).map(p=>[p,progress.get(p.id)]).sort(([,A],[,B])=>A.done-B.done);
+ const covered=sorted.filter(([,pr])=>pr.done).length;
+ const listed=sorted.filter(([p,pr])=>(show==='all'||(show==='done'?pr.done:!pr.done))&&[p.name,p.relation,p.likes,p.notes,...p.interests.map(interestLabel)].join(' ').toLowerCase().includes(query.toLowerCase()));
+ // Anyone can hold a name to put the list in order; while it wobbles the fold is not a button,
+ // so a finger on a name drags it rather than opening it.
+ const w=useListWobble({ids:listed.map(([p])=>p.id),full:sorted.map(([p])=>p.id),save:ids=>mutate({type:'listOrder',list:'giftPeople',ids,by:user.name})});
  async function save(fields){if(await mutate({type:edit.id?'giftPersonEdit':'giftPersonAdd',id:edit.id,...fields}))setEdit(null);}
  function removeIt(p){setEdit(null);remove({type:'giftPersonRemove',id:p.id},{type:'giftPersonAdd',...p},`${p.name} taken off the people to buy for.`);}
  const addIdea=(p,idea,guide)=>{
@@ -52,12 +60,14 @@ export default function GiftPeople({state,user,today,mutate,busy,request,accept,
  const mine=p=>parent||p.createdBy===user.name;
  return <section className="gift-people">
   <div className="section-heading"><div><p className="eyebrow">SOUVENIRS FOR HOME</p><h2><Gift size={20}/> People to buy for</h2></div>{!edit&&<button onClick={()=>setEdit({interests:[]})}><Plus size={16}/>Add someone</button>}</div>
-  {people.length>0&&<p><small>{covered} of {people.length} have something bought. Open someone for ideas of what to get and where.</small></p>}
+  {people.length>3&&<div className="document-filters"><div className="form-row"><label>Search<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Name, or what they love"/></label><label>Show<select value={show} onChange={e=>setShow(e.target.value)}><option value="all">Everyone</option><option value="open">Nothing bought yet</option><option value="done">Something bought</option></select></label></div></div>}
+  {people.length>0&&<div className="list-count"><p><small>{covered} of {people.length} have something bought. Open someone for ideas of what to get and where.</small></p>{w.toggle}</div>}
   {!people.length&&!edit&&<p><small>Write down who we are bringing something back for and what they are into, and each gets ideas of what to buy and on which day we pass the shop.</small></p>}
   {edit&&<PersonForm key={edit.id||'new'} person={edit} busy={busy} save={save} cancel={()=>setEdit(null)} removeIt={edit.id&&mine(edit)?()=>removeIt(edit):null}/>}
-  <div className="shop-list">{sorted.map(([p,pr])=>{const shown=open.has(p.id),guide=state.giftIdeas?.[p.id];
-   return <article className={`feature-card shop-card ${pr.done?'finished':''} ${shown?'open':''}`} key={p.id}>
-    <div className="shop-head"><span className="gift-status" aria-hidden="true">{pr.done?<Check size={18}/>:<Gift size={18}/>}</span><button type="button" className="shop-toggle" aria-expanded={shown} onClick={()=>toggle(p.id)}><span><strong>{p.name}</strong><small>{[p.relation,p.interests.map(interestLabel).join(', '),p.budget!=null&&`¥${p.budget.toLocaleString()}`,pr.done?'Bought':pr.planned?`${pr.planned} on the list`:'Nothing yet'].filter(Boolean).join(' · ')}</small></span><ChevronDown size={18} aria-hidden="true"/></button></div>
+  {w.bar}
+  <div className="shop-list wobble-list" {...w.listProps}>{listed.map(([p,pr])=>{const shown=open.has(p.id),guide=state.giftIdeas?.[p.id],drag=w.row(p.id),line=<><span><strong>{p.name}</strong><small>{[p.relation,p.interests.map(interestLabel).join(', '),p.budget!=null&&`¥${p.budget.toLocaleString()}`,pr.done?'Bought':pr.planned?`${pr.planned} on the list`:'Nothing yet'].filter(Boolean).join(' · ')}</small></span><ChevronDown size={18} aria-hidden="true"/></>;
+   return <article key={p.id} {...drag} className={`feature-card shop-card ${pr.done?'finished':''} ${shown?'open':''} ${drag.className}`}>
+    <div className="shop-head"><span className="gift-status" aria-hidden="true">{pr.done?<Check size={18}/>:<Gift size={18}/>}</span>{w.editing?<span className="shop-toggle">{line}</span>:<button type="button" data-wobble-hold className="shop-toggle" aria-expanded={shown} onClick={()=>toggle(p.id)}>{line}</button>}</div>
     {shown&&<div className="shop-more">
      {(p.likes||p.avoid||p.age||p.notes)&&<p><small>{[p.age&&ageLabel(p.age),p.likes&&`Loves ${p.likes}`,p.avoid&&`Avoid ${p.avoid}`,p.notes].filter(Boolean).join(' · ')}</small></p>}
      {pr.items.length>0&&<><h3>On the shopping list</h3>{pr.items.map(s=><div className="list-row" key={s.id}><span>{s.boughtAt?'✓ ':''}{s.title}<small>{[s.store,s.budget!=null&&`¥${s.budget.toLocaleString()}`,s.boughtAt?'Bought':'Still to get'].filter(Boolean).join(' · ')}</small></span></div>)}{pr.over&&<p className="callout"><small>¥{pr.spent.toLocaleString()} planned, over the ¥{p.budget.toLocaleString()} budget.</small></p>}</>}
@@ -68,6 +78,7 @@ export default function GiftPeople({state,user,today,mutate,busy,request,accept,
      <div className="row wrap">{mine(p)&&<button onClick={()=>setEdit(p)}>Edit {p.name}</button>}</div>
     </div>}
    </article>;})}</div>
+  {people.length>0&&!listed.length&&<div className="empty"><Inbox/><h2>Nothing matches those filters.</h2><p>Try Everyone, or a different name.</p></div>}
   <p className="callout"><ShoppingBag size={18}/><span>Adding an idea puts it on the shopping list above, marked for them, with the shop and the day we are there.</span></p>
  </section>;
 }

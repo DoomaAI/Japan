@@ -10,6 +10,7 @@ import {dayLabel} from './AdventurePages.jsx';
 import {japanClock,japanDate} from './timing.js';
 import MoneyPictures from './MoneyPictures.jsx';
 import {yen} from './format.js';
+import {useListWobble,inOrder,listOrder} from './wobble-list.jsx';
 const dollars=(n,rate)=>`$${yenToAud(Math.abs(n||0),rate).toFixed(2)}`;
 // Both figures, always: a boy thinks in yen while he is standing in the shop and in dollars when
 // he works out whether it was worth it.
@@ -36,14 +37,14 @@ export function PurseMeter({total,spent,planned}){
 // One thing a boy wants, or has already bought. Ticking it is the moment it turns into money out,
 // so that is also the moment he is asked what it really cost — inline, because a guess written
 // down weeks ago is not a balance and a browser prompt box is not an answer a child will read.
-function SpendRow({item,user,rate,mine,busy,mutate,onEdit}){
+function SpendRow({item,user,rate,mine,busy,mutate,onEdit,drag}){
  const bought=!!item.boughtAt,[asking,setAsking]=useState(false);
  async function record(e){
   e.preventDefault();
   const spent=asYen(new FormData(e.currentTarget).get('spent'));
   if(await mutate({type:'spendBought',id:item.id,done:true,spent:spent===null||spent<0?null:spent,by:user.name}))setAsking(false);
  }
- return <div className={`todo-row spend-row${bought?' done':''}`}>
+ return <div {...drag} className={`todo-row spend-row${bought?' done':''} ${drag?.className||''}`}>
   <label className="todo-tick">
    <input type="checkbox" checked={bought||asking} disabled={busy||!mine}
     onChange={e=>{if(e.target.checked)setAsking(true);else if(bought){if(confirm(`Put “${item.title}” back on the list? What it cost goes back into the purse.`))mutate({type:'spendBought',id:item.id,done:false,by:user.name});}else setAsking(false);}}
@@ -126,6 +127,7 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
  const [person,setPerson]=useState(BOYS.includes(user.name)?user.name:boys[0]);
  const [edit,setEdit]=useState(null),[showMoney,setShowMoney]=useState(false);
  const [asking,setAsking]=useState(false),[standIn,setStandIn]=useState(false);
+ const [query,setQuery]=useState(''),[show,setShow]=useState('');
  // Every hook has run before this: the page is drawn the same way whoever is holding the phone.
  if(!person)return <><p className="eyebrow">THEIR OWN MONEY</p><h1>Spending money</h1><div className="empty"><PiggyBank/><h2>Nobody has a purse here.</h2><p>Spending money belongs to Nate and Boston, and neither is on this trip.</p></div></>;
  // A parent can stand where the boy stands. Standing there puts the parent's own buttons away —
@@ -139,7 +141,11 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
  // A boy whose awareness dial says he is always with a grown-up gets the purse in words, not
  // in yen; a parent's own view keeps the numbers, and standing in shows what he sees.
  const inWords=!parent&&childLevels(state,person).awareness==='with';
- const money=purse(state,person,today),items=spendItemsFor(state,person);
+ // Each boy's list in the order he dragged it into (wobble-list.jsx), what he has bought still
+ // sinking below what he has not; ordering is anybody's, the way ticking is.
+ const money=purse(state,person,today),items=[...inOrder(spendItemsFor(state,person),listOrder(state,`spending:${person}`))].sort((a,b)=>(!!a.boughtAt)-(!!b.boughtAt));
+ const shown=items.filter(i=>(!show||(show==='bought')===!!i.boughtAt)&&(!query.trim()||[i.title,i.notes].filter(Boolean).join(' ').toLowerCase().includes(query.trim().toLowerCase())));
+ const w=useListWobble({ids:shown.map(i=>i.id),full:items.map(i=>i.id),save:ids=>mutate({type:'listOrder',list:`spending:${person}`,ids,by:user.name})});
  const plan=allowanceFor(state,person),days=allowanceDays(state,person,today);
  const tops=topUpsFor(state,person),waiting=buyTodosFor(state,person);
  const asks=requestsFor(state,person),wanted=requestedFor(state,person),unanswered=openRequests(state);
@@ -168,7 +174,7 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
  return <>
  <p className="eyebrow">THEIR OWN MONEY, THEIR OWN CHOICES</p><PageTitle help={<><p>What Nate and Boston have to spend, what they have already spent it on, and what is left.</p><p>Money goes in by hand or as an amount a day that fills up by itself as the trip runs. Ticking something off is what turns it into money out, and that works with no signal.</p></>}>Spending money</PageTitle>
  <div className="segmented spend-people with-mascots">{boys.map(n=>
-  <button key={n} className={person===n?'selected':''} onClick={()=>{setPerson(n);setEdit(null);setAsking(false);}}><MascotBadge state={state} person={n} size={26}/>{n}
+  <button key={n} className={person===n?'selected':''} onClick={()=>{setPerson(n);setEdit(null);setAsking(false);setQuery('');setShow('');}}><MascotBadge state={state} person={n} size={26}/>{n}
    {unanswered.some(r=>r.person===n)&&<i className="ask-dot" aria-label="Waiting on an answer"/>}</button>)}</div>
 
  {grownUp&&<><div className="segmented view-as" role="group" aria-label="Whose view of this page">
@@ -268,9 +274,15 @@ export default function Spending({state,user,mutate,busy,go,notice=()=>{},today=
   </div>)}
  </section>}
 
- <section className="todo-group">
-  <h2>{money.waiting} still to buy · {money.bought} bought</h2>
-  {items.map(item=><SpendRow key={item.id} item={item} user={user} rate={rate} mine={mine} busy={busy} mutate={mutate} onEdit={setEdit}/>)}
+ <section className="todo-group wobble-list" {...w.listProps}>
+  <div className="list-count"><h2>{money.waiting} still to buy · {money.bought} bought</h2>{w.toggle}</div>
+  {items.length>3&&<div className="document-filters"><div className="form-row">
+   <label>Search<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Thing or note"/></label>
+   <label>Show<select value={show} onChange={e=>setShow(e.target.value)}><option value="">All of it</option><option value="waiting">Still to buy</option><option value="bought">Bought</option></select></label>
+  </div></div>}
+  {w.bar}
+  {shown.map(item=><SpendRow key={item.id} item={item} user={user} rate={rate} mine={mine} busy={busy} mutate={mutate} onEdit={setEdit} drag={w.row(item.id)}/>)}
+  {!!items.length&&!shown.length&&<div className="empty"><ShoppingBag/><h2>Nothing matches those filters.</h2></div>}
   {!items.length&&<div className="empty"><ShoppingBag/><h2>Nothing on the list yet.</h2>
    <p>Write down what {person} wants to buy with a guess at the price, and the bar above shows whether the money stretches to all of it.</p></div>}
  </section>

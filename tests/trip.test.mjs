@@ -657,7 +657,7 @@ test('a find says how much we want it and where the phone was standing, and the 
  // The button that opens the form is only a button if the form opens where it can be seen. On a
  // phone the list is longer than the screen, so the form sits above it rather than below it, and
  // the page goes to it — a form appended under the list is a button that does nothing.
- assert.ok(shortlistSource.indexOf('className="feature-card find-form"')<shortlistSource.indexOf('className="feature-grid"'),
+ assert.ok(shortlistSource.indexOf('className="feature-card find-form"')<shortlistSource.indexOf('className="feature-grid wobble-list"'),
   'the add form has to come before the list it is added to');
  assert.match(shortlistSource,/scrollIntoView/);
  assert.match(shortlistSource,/input\[name="title"\]'\)\?\.focus/);
@@ -10581,7 +10581,7 @@ test('voice notes can be written down, fixed afterwards, and found by what was s
 
 test('saved list items fold to one line so the whole list stays in view, and open for more',async()=>{
  const src=await readFile(new URL('../src/AdventurePages.jsx',import.meta.url),'utf8');
- const shop=src.slice(src.indexOf('export function Shopping('));
+ const shop=src.slice(src.indexOf('function ShopGroup('));
  assert.match(shop,/className="shop-toggle" aria-expanded=\{shown\}/,'each item has a fold toggle');
  assert.match(shop,/\{shown&&<div className="shop-more">/,'shop, notes and buttons only when opened');
  assert.match(shop,/new Set\(initial\?\[initial\.id\]:\[\]\)/,'an item opened from a link starts open');

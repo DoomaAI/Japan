@@ -1,6 +1,6 @@
 import React,{useRef,useState} from 'react';
 import PageTitle from './PageTitle.jsx';
-import {ThumbsUp,ThumbsDown,Star,MapPin,ExternalLink,CalendarDays,LockKeyhole,LockKeyholeOpen,Clock,Coins,Plus,Inbox,Trash2,ChevronRight,Users,Ticket,Search,AlertCircle,MessageSquareQuote,X} from 'lucide-react';
+import {ThumbsUp,ThumbsDown,Star,MapPin,ExternalLink,CalendarDays,LockKeyhole,LockKeyholeOpen,Clock,Coins,Plus,Inbox,Trash2,ChevronRight,Users,Ticket,Search,AlertCircle,MessageSquareQuote,X,ArrowUpDown} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import {japanDate} from './timing.js';
 import {TravelParty,PickedFor,Suggestions} from './PlanningParty.jsx';
@@ -8,6 +8,7 @@ import ChooseTogether from './ChooseTogether.jsx';
 import Recommendations from './Recommendations.jsx';
 import {recommenders,viaLabel} from './recommend-data.js';
 import {SETTINGS} from './decide-data.js';
+import {useListWobble,inOrder,listOrder} from './wobble-list.jsx';
 import {PROPOSAL_KINDS,PROPOSAL_TIMING,PROPOSAL_SORTS,PLACEMENT_LABEL,rankedProposals,tripAreas,ideasByBase,proposalParent,proposalChildren,proposalBase,proposalPlacement,proposalScore,proposalVoters,proposalMusts,yenPerAud,yenToAud} from './trip-features.js';
 const labelFor=(list,id,fallback)=>(list.find(([key])=>key===id)||fallback)[1];
 const kindLabel=id=>labelFor(PROPOSAL_KINDS,id,PROPOSAL_KINDS.at(-1));
@@ -53,7 +54,13 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
  const form=useRef();
  const parent=user.role==='parent',rate=yenPerAud(state),canLook=parent&&!!config?.research;
  const areas=tripAreas(state),grouped=sort==='base';
- const list=rankedProposals(state,{query,category,suits,by,placement,day:date,base,sort:grouped?'top':sort});
+ // Our order is the one the family dragged the ideas into (wobble-list.jsx), laid over Most wanted
+ // so a new idea lands where it would have anyway. Ranked by votes, cost or date the cards hold
+ // still, because a drag would only be undone by the next vote.
+ const own=sort==='own',ours=list=>own?inOrder(list,listOrder(state,'proposals')):list;
+ const list=ours(rankedProposals(state,{query,category,suits,by,placement,day:date,base,sort:grouped||own?'top':sort}));
+ const w=useListWobble({ids:list.map(p=>p.id),full:ours(rankedProposals(state,{placement:''})).map(p=>p.id),
+  save:ids=>mutate({type:'listOrder',list:'proposals',ids,by:user.name}),off:!own});
  const groups=grouped?ideasByBase(state,list,japanDate()):null;
  const counts=Object.fromEntries(Object.keys(PLACEMENT_LABEL).map(key=>[key,(state.proposals||[]).filter(p=>proposalPlacement(state,p).state===key).length]));
  function open(values){setEdit(values);setFound(null);setLookupError('');setRev(n=>n+1);}
@@ -114,12 +121,14 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
   </div>
   {(category||suits||by||date||query||base)&&<button onClick={()=>{setCategory('');setSuits('');setBy('');setDate('');setQuery('');setBase('');}}>Clear filters</button>}
  </div>
- <p><strong>{list.length} idea{list.length===1?'':'s'}</strong>{counts.parked?` · ${counts.parked} parked`:''}{counts.options?` · ${counts.options} in Options`:''}</p>
- {(()=>{const card=(p,part=false)=>{
+ <div className="list-count"><p><strong>{list.length} idea{list.length===1?'':'s'}</strong>{counts.parked?` · ${counts.parked} parked`:''}{counts.options?` · ${counts.options} in Options`:''}</p>
+  {own?w.toggle:list.length>1&&<button type="button" data-wobble-tool className="list-reorder" onClick={()=>{setSort('own');w.setEditing(true);}}><ArrowUpDown size={15}/>Reorder</button>}</div>
+ {w.bar}
+ {(()=>{const card=(p,part=false,drag)=>{
   const where=proposalPlacement(state,p),up=proposalVoters(p,1),down=proposalVoters(p,-1),musts=proposalMusts(p),score=proposalScore(p);
   const mine=(p.votes||{})[user.name],myMust=!!(p.musts||{})[user.name],canEdit=parent||p.addedBy===user.name;
   const up_=proposalParent(state,p),parts=proposalChildren(state,p),reached=proposalBase(state,p);
-  return <article className={`feature-card plan-card ${where.state}${part?' part':''}`} key={p.id}>
+  return <article {...drag} className={`feature-card plan-card ${where.state}${part?' part':''} ${drag?.className||''}`} key={p.id}>
    <div className="section-heading"><div><span className="eyebrow">{kindLabel(p.category)}</span><h2>{p.title}</h2></div><span className={`plan-score ${score>0?'for':score<0?'against':''}`} aria-label={`${score} net votes`}>{score>0?'+':''}{score}</span></div>
    {p.place&&<p className="place-line"><MapPin size={16}/>{p.place}{p.japanese&&<small lang="ja"> · {p.japanese}</small>}</p>}
    {p.notes&&<p>{p.notes}</p>}
@@ -186,7 +195,7 @@ export default function Planning({state,user,day,mutate,busy,selectStep,go,reque
    <div className="feature-grid">{g.items.map(({idea,children})=><React.Fragment key={idea.id}>{card(idea)}
     {!!children.length&&<div className="plan-children">{children.map(c=>card(c,true))}</div>}</React.Fragment>)}</div>
   </section>)
-  :<div className="feature-grid">{list.map(p=>card(p))}</div>;})()}
+  :<div className="feature-grid wobble-list" {...w.listProps}>{list.map(p=>card(p,false,w.row(p.id)))}</div>;})()}
  {!list.length&&<div className="empty"><Inbox/><h2>{(state.proposals||[]).length?'Nothing here to look at.':'The board is empty.'}</h2><p>{(state.proposals||[]).length?'Every idea we have is somewhere else. Try Everything, or clear the filters.':'Add somewhere you want to go, something you want to eat, or an event we should try to catch. The rest of us will vote on it.'}</p></div>}
  {edit&&<form ref={form} key={`${edit.id||'new'}-${rev}`} className="feature-card plan-form" onSubmit={save}>
   <h2>{edit.id?'Edit this idea':'Add an idea'}</h2>

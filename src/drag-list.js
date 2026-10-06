@@ -11,3 +11,11 @@ export function placeBefore(list,id,before){
 }
 // One row up or down by keyboard, as the line a drag would have used.
 export const stepBefore=(list,id,by)=>{const at=list.indexOf(id);if(at<0||at+by<0||at+by>=list.length)return null;return by<0?list[at-1]:list[at+2]??END;};
+// A list of things in the order the family dragged them into: the saved order first, then
+// anything added since, in the order the list would otherwise show it.
+export function inOrder(items,order,idOf=i=>i.id){
+ if(!order?.length)return items;
+ const at=new Map(order.map((id,i)=>[id,i]));
+ return items.map((item,i)=>[item,at.get(idOf(item))??Infinity,i]).sort((a,b)=>a[1]-b[1]||a[2]-b[2]).map(x=>x[0]);
+}
+export const listOrder=(state,key)=>state?.listOrders?.[key]||null;

@@ -2,6 +2,7 @@ import React,{useState} from 'react';
 import PageTitle from './PageTitle.jsx';
 import {Radar,Plus,Pencil,Trash2,ExternalLink,Link2,Link2Off,Truck,Languages,Inbox,CircleCheck,Circle} from 'lucide-react';
 import {TRACKER_KINDS,SHARE_LINK_DAYS,LOST_BAG_LINES,trackers,trackerKindLabel,linkState,trackerChecks} from './trackers.js';
+import {useListWobble,inOrder,listOrder} from './wobble-list.jsx';
 const when=d=>d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Asia/Tokyo'});
 // What to hold up at a baggage counter: the three lines staff need, then which bag it is and
 // how to reach us. The bag is described in our own words, because that is what we wrote down.
@@ -43,9 +44,9 @@ function ShareLink({tracker,parent,mutate,busy}){
   </div>}
  </div>;
 }
-function TrackerCard({tracker,state,user,mutate,busy,onEdit,remove}){
+function TrackerCard({tracker,state,user,mutate,busy,onEdit,remove,drag}){
  const parent=user.role==='parent',[lost,setLost]=useState(false);
- return <section className="feature-card tracker-card">
+ return <section {...drag} className={`feature-card tracker-card ${drag?.className||''}`}>
   <div className="section-heading">
    <div><p className="eyebrow">{trackerKindLabel(tracker.kind).toUpperCase()}</p><h2>{tracker.label}</h2></div>
    {parent&&<div className="todo-actions">
@@ -68,7 +69,10 @@ function TrackerCard({tracker,state,user,mutate,busy,onEdit,remove}){
  </section>;
 }
 export default function Trackers({state,user,mutate,busy,remove}){
- const [edit,setEdit]=useState(null),parent=user.role==='parent',list=trackers(state);
+ const [edit,setEdit]=useState(null),[find,setFind]=useState(''),[whose,setWhose]=useState(''),parent=user.role==='parent',list=inOrder(trackers(state),listOrder(state,'trackers'));
+ // Anybody can put the bags in the order they think of them (wobble-list.jsx); it is kept for the family.
+ const q=find.trim().toLowerCase(),shown=list.filter(t=>(!whose||t.person===whose)&&(!q||[t.label,t.notes,t.owner,trackerKindLabel(t.kind)].join(' ').toLowerCase().includes(q)));
+ const w=useListWobble({ids:shown.map(t=>t.id),full:list.map(t=>t.id),save:ids=>mutate({type:'listOrder',list:'trackers',ids,by:user.name})});
  async function save(e){
   e.preventDefault();const f=new FormData(e.currentTarget);
   if(await mutate({type:edit.id?'trackerEdit':'trackerAdd',id:edit.id,label:f.get('label'),kind:f.get('kind'),
@@ -88,7 +92,11 @@ export default function Trackers({state,user,mutate,busy,remove}){
   <label>How to recognise it<textarea name="notes" maxLength={1000} defaultValue={edit.notes||''} placeholder="Navy hard case, orange strap, name tag on the handle"/></label>
   <div className="row wrap"><button className="primary" disabled={busy}>{edit.id?'Save':'Add it'}</button><button type="button" onClick={()=>setEdit(null)}>Cancel</button></div>
  </form>}
- {list.map(t=><TrackerCard key={t.id} tracker={t} state={state} user={user} mutate={mutate} busy={busy} onEdit={setEdit} remove={remove}/>)}
+ {list.length>3&&<div className="document-filters"><div className="form-row"><label>Search<input type="search" value={find} placeholder="Bag, colour or note" onChange={e=>setFind(e.target.value)}/></label><label>Whose<select value={whose} onChange={e=>setWhose(e.target.value)}><option value="">Everyone’s</option><option>Family</option>{state.members.map(n=><option key={n}>{n}</option>)}</select></label></div></div>}
+ {list.length>1&&<div className="list-count"><p>{shown.length===list.length?`${list.length} trackers`:`${shown.length} of ${list.length} trackers`}</p>{w.toggle}</div>}
+ {w.bar}
+ <div className="wobble-list" {...w.listProps}>{shown.map(t=><TrackerCard key={t.id} tracker={t} state={state} user={user} mutate={mutate} busy={busy} onEdit={setEdit} remove={remove} drag={w.row(t.id)}/>)}</div>
+ {!!list.length&&!shown.length&&<p>Nothing matches those filters.</p>}
  {!list.length&&<div className="empty"><Inbox/><h2>No trackers written down.</h2><p>{parent?'Add each AirTag and the bag it is in. It takes a minute, and it is the minute you will not have at a baggage counter.':'Mum or Dad can add the trackers in our bags.'}</p></div>}
  <details className="feature-card"><summary><Radar size={16}/> Getting a tag ready for the trip</summary>
   <ol>
