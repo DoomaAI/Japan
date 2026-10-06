@@ -17,7 +17,7 @@ import React,{useEffect,useRef,useState} from 'react';
 // paper tearing, and a fanfare for that teaches the wrong thing.
 const PIECES=['🌸','🎌','⭐','🎉','🏮','🍡','🐟','🗻','🍣','✨'];
 export const WIN_MS=2600;
-export function WinBurst({on,label='You did it!',sub=''}){
+export function WinBurst({on,label='You did it!',sub='',pieces=PIECES}){
  const [going,setGoing]=useState(false);
  const was=useRef(false);
  useEffect(()=>{
@@ -30,7 +30,7 @@ export function WinBurst({on,label='You did it!',sub=''}){
  if(!going)return null;
  return <div className="win-burst">
   {/* The paper is decoration and is told so; the words underneath are the announcement. */}
-  <div className="win-paper" aria-hidden="true">{PIECES.map((piece,i)=>
+  <div className="win-paper" aria-hidden="true">{pieces.map((piece,i)=>
    <span key={i} style={{left:`${4+i*10.2}%`,animationDelay:`${(i%5)*0.11}s`}}>{piece}</span>)}</div>
   <p className="win-banner" role="status">
    <strong>{label}</strong>{sub&&<small>{sub}</small>}</p>
