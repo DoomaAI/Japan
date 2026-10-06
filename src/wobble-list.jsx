@@ -61,11 +61,4 @@ export function useListWobble({ids,full=ids,save,editing:shared,setEditing:setSh
  const bar=editing&&!off?<div className="wobble-done" role="status"><small>Drag a row to the line where it should go. Tap outside the list to finish.</small></div>:null;
  return {editing,setEditing,listProps,row,toggle,bar};
 }
-// A list of things in the order the family dragged them into: the saved order first, then
-// anything added since, in the order the list would otherwise show it.
-export function inOrder(items,order,idOf=i=>i.id){
- if(!order?.length)return items;
- const at=new Map(order.map((id,i)=>[id,i]));
- return items.map((item,i)=>[item,at.get(idOf(item))??Infinity,i]).sort((a,b)=>a[1]-b[1]||a[2]-b[2]).map(x=>x[0]);
-}
-export const listOrder=(state,key)=>state?.listOrders?.[key]||null;
+export {inOrder,listOrder} from './drag-list.js';
