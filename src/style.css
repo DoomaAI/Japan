@@ -327,7 +327,8 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .confirm-remove>p{margin-bottom:.8rem}
 .confirm-keeps{margin:0 0 1.2rem;padding-left:1.2rem;font-size:.86rem;line-height:1.6;color:var(--muted)}
 .confirm-keeps li{margin-bottom:.3rem}
-.confirm-actions{margin-top:1.2rem}
+.confirm-actions{margin-top:1.2rem;flex-wrap:nowrap;gap:.6rem}
+.confirm-actions button{flex:1 1 0;min-width:0;padding:.7rem .6rem;white-space:nowrap}
 .confirm-actions .danger{border-color:#e4c3bd}
 .confirm-actions .danger:hover{background:#fdf2f0;border-color:#cc9d95}
 /* The reversible answer, offered beside the one that cannot be taken back. */
