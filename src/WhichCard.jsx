@@ -4,6 +4,7 @@ import {Plus,Pencil,Trash2,Search,CreditCard,Banknote,Lightbulb} from 'lucide-re
 import {PAY_KINDS,PAY_HOLDERS,FEE_FIELDS,PAY_TIPS,payMethods,payKindLabel,advise,withdrawalSizes} from './pay-advice.js';
 import {yen,aud,rateText} from './Currency.jsx';
 import {rateIsSet} from './trip-features.js';
+import {useListWobble,inOrder,listOrder} from './wobble-list.jsx';
 const blank={name:'',kind:'debit',holder:'Damien',notes:'',fxFeePct:'',marginPct:'',atmFeeAud:'',atmFeePct:'',cashAdvancePct:''};
 const asForm=m=>({...blank,...m,...Object.fromEntries(FEE_FIELDS.map(([f])=>[f,m?.[f]??'']))});
 const num=v=>v===''||v===null||v===undefined?null:Number(v);
@@ -51,7 +52,12 @@ function CardForm({editing,config,request,mutate,busy,notice,done}){
 }
 export default function WhichCard({state,user,config,request,mutate,busy,notice,remove}){
  const [amount,setAmount]=useState('5000'),[situation,setSituation]=useState('shop'),[operator,setOperator]=useState('0'),[form,setForm]=useState(null);
+ const [find,setFind]=useState(''),[whose,setWhose]=useState('');
  const cards=payMethods(state);
+ // Our cards in the order anybody dragged them into, kept for the family (wobble-list.jsx).
+ const ordered=inOrder(cards,listOrder(state,'payMethods')),q=find.trim().toLowerCase();
+ const shown=ordered.filter(m=>(!whose||m.holder===whose)&&(!q||[m.name,m.notes,payKindLabel(m.kind)].join(' ').toLowerCase().includes(q)));
+ const w=useListWobble({ids:shown.map(m=>m.id),full:ordered.map(m=>m.id),save:ids=>mutate({type:'listOrder',list:'payMethods',ids,by:user.name})});
  const yenAmount=Number(String(amount).replace(/[^\d]/g,''))||0,op=Number(String(operator).replace(/[^\d]/g,''))||0;
  const {rate,options}=advise(state,{yen:yenAmount,situation,atmOperatorYen:situation==='atm'?op:0});
  const best=options[0];
@@ -77,9 +83,13 @@ export default function WhichCard({state,user,config,request,mutate,busy,notice,
   </section>
   <details className="callout" open={!cards.length}><summary><Lightbulb size={16}/> <strong>Paying in Japan: five things worth knowing</strong></summary><ul>{PAY_TIPS.map(t=><li key={t}>{t}</li>)}</ul></details>
   <h2>Our cards</h2>
+  {cards.length>3&&<div className="document-filters"><div className="form-row"><label>Search<input type="search" value={find} placeholder="Card, kind or note" onChange={e=>setFind(e.target.value)}/></label><label>Whose<select value={whose} onChange={e=>setWhose(e.target.value)}><option value="">Everyone’s</option>{PAY_HOLDERS.map(n=><option key={n}>{n}</option>)}</select></label></div></div>}
+  {cards.length>1&&<div className="list-count"><p>{shown.length===cards.length?`${cards.length} cards`:`${shown.length} of ${cards.length} cards`}</p>{w.toggle}</div>}
+  {cards.length>0&&!shown.length&&<p>Nothing matches those filters.</p>}
   {!form&&<button className="primary" onClick={()=>setForm({})}><Plus size={16}/> Add a card</button>}
   {form&&<CardForm editing={form.id?form:null} config={config} request={request} mutate={mutate} busy={busy} notice={notice} done={()=>setForm(null)}/>}
-  <ul className="pay-cards">{cards.map(m=><li key={m.id}>
+  {w.bar}
+  <ul className="pay-cards wobble-list" {...w.listProps}>{shown.map(m=><li key={m.id} {...w.row(m.id)}>
    <div><strong>{m.name}</strong><small>{payKindLabel(m.kind)} · {m.holder}</small>
     <small>{FEE_FIELDS.filter(([k])=>m.kind==='credit'||k!=='cashAdvancePct').map(([k,label,unit])=>`${label.replace(/ \(.*\)/,'')}: ${feeText(m,k,unit)}`).join(' · ')}</small>
     {m.researched&&<small>Looked up {new Date(m.researched.at).toLocaleDateString('en-AU',{day:'numeric',month:'short'})}{m.researched.sources?.[0]&&<> · <a href={m.researched.sources[0].url} target="_blank" rel="noopener noreferrer">source</a></>}</small>}

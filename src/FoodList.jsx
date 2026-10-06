@@ -9,10 +9,13 @@ import MenuReader from './MenuReader.jsx';
 import {Stars} from './StepReview.jsx';
 import {CardFacts,factAloudFor} from './FunFacts.jsx';
 import {factsForItem} from './fact-data.js';
+import {useListWobble,inOrder,listOrder} from './wobble-list.jsx';
 export const allFood=state=>[...FOOD,...(state.foodItems||[]).map(i=>({...i,custom:true}))];
 export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,notice,show,request,config}){
  const [kind,setKind]=useState(''),[only,setOnly]=useState(''),[query,setQuery]=useState(''),[edit,setEdit]=useState(null);
- const parent=user.role==='parent',items=allFood(state);
+ // In the order the family dragged the dishes into (wobble-list.jsx), ours and the built-in ones
+ // alike, so the ones we are after can sit at the top; a dish added since goes where it always did.
+ const parent=user.role==='parent',items=inOrder(allFood(state),listOrder(state,'food'));
  // A dish carries the facts about itself: how the onigiri wrapper works while you are holding
  // one, why the pancakes wobble while you are waiting for them. What the dish is called and
  // the note beside it are what the card says it is, and that is what the facts are matched on.
@@ -22,6 +25,7 @@ export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,
   &&(only!=='todo'||!Object.keys(triedFood(state,i.id)).length)
   &&(only!=='loved'||isFavourite(state,i.id))
   &&searchText([i.en,i.ja,i.romaji,i.say,i.note,...(i.variants||[]).flatMap(v=>[v.en,v.ja,v.romaji,v.say])].join(' ')).includes(searchText(query)));
+ const w=useListWobble({ids:list.map(i=>i.id),full:items.map(i=>i.id),save:ids=>mutate({type:'listOrder',list:'food',ids,by:user.name})});
  const tallies=items.filter(i=>Object.keys(triedFood(state,i.id)).length).length;
  // A list of dishes answers "what shall we try?" and not "where do we get it?", which is the
  // question standing on a street in Osaka with a hungry five-year-old. So the hunt goes out
@@ -50,6 +54,7 @@ export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,
   <div className="row wrap food-tools">
    {config?.nearby&&<button className="button primary" onClick={()=>findNearby(hunting)}><Compass size={18}/>{hunting.length?`Find these near us (${hunting.length})`:'Find food near us'}</button>}
    {parent&&<button className="button" onClick={()=>setEdit({kind:'meal'})}><Plus size={18}/>Add something we like</button>}
+   {w.toggle}
   </div>
   {edit&&<form className="feature-card" key={edit.id||'new'} onSubmit={save}>
    <h2>{edit.id?'Edit this dish':'Something we like'}</h2>
@@ -61,9 +66,11 @@ export default function FoodList({state,user,speak,openPage,mutate,busy,setBusy,
    <label>Note<textarea name="note" maxLength={2000} defaultValue={edit.note||''} placeholder="Where we had it, what to ask for"/></label>
    <div className="row wrap"><button className="primary" disabled={busy}>Save</button><button type="button" onClick={()=>setEdit(null)}>Cancel</button></div>
   </form>}
-  <div className="food-list">{list.map(item=>{
+  {w.bar}
+  <div className="food-list wobble-list" {...w.listProps}>{list.map(item=>{
    const tried=triedFood(state,item.id),ratings=foodRatings(state,item.id),average=foodAverage(state,item.id);
-   return <article className={`food-card${Object.keys(tried).length?' tried':''}${isFavourite(state,item.id)?' loved':''}`} key={item.id}>
+   const drag=w.row(item.id);
+   return <article {...drag} className={`food-card${Object.keys(tried).length?' tried':''}${isFavourite(state,item.id)?' loved':''} ${drag.className}`} key={item.id}>
     <div className="food-top">
      <div><strong>{item.en}</strong><small>{FOOD_KIND_LABEL(item.kind)}{item.custom?' · ours':''}</small></div>
      {average!==null&&<span className="food-score" title={`${Object.keys(ratings).length} rating(s)`}><Star size={14}/>{average}</span>}

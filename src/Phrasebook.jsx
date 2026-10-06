@@ -10,6 +10,7 @@ import {readingHelp} from './child-levels.js';
 import {swipeDelta,isControl,typesText,stepIndex} from './swipe.js';
 import SoundOut,{MouthKey} from './SoundOut.jsx';
 import SayIt from './SayIt.jsx';
+import {useListWobble,inOrder,listOrder} from './wobble-list.jsx';
 import SoundCheck from './SoundCheck.jsx';
 import PhraseReplies from './PhraseReplies.jsx';
 export function PhraseRow({phrase,size='small'}){
@@ -50,7 +51,9 @@ function OurPhrases({state,user,mutate,busy,request,notice,config,q}){
  const [english,setEnglish]=useState(''),[draft,setDraft]=useState(null),[asking,setAsking]=useState(false),[editing,setEditing]=useState(null);
  const parent=user.role==='parent';
  // Searching the page searches ours too, rather than leaving them sitting above the results.
- const mine=ourPhrases(state).filter(p=>!q||searchText([p.en,p.ja,p.romaji,p.say,p.note].join(' ')).includes(q));
+ // They come in the order anybody dragged them into, newest first until then (wobble-list.jsx).
+ const all=inOrder(ourPhrases(state),listOrder(state,'phrases')),mine=all.filter(p=>!q||searchText([p.en,p.ja,p.romaji,p.say,p.note].join(' ')).includes(q));
+ const w=useListWobble({ids:mine.map(p=>p.id),full:all.map(p=>p.id),save:ids=>mutate({type:'listOrder',list:'phrases',ids,by:user.name})});
  async function ask(){
   if(!english.trim())return;
   setAsking(true);
@@ -70,7 +73,7 @@ function OurPhrases({state,user,mutate,busy,request,notice,config,q}){
  }
  const form=editing||draft;
  return <section className="our-phrases">
-  <h2>Our own phrases{q&&mine.length?` · ${mine.length} match`:''}</h2>
+  <div className="list-count"><h2>Our own phrases{q&&mine.length?` · ${mine.length} match`:''}</h2>{w.toggle}</div>
   {parent
    ?<><p>Something you need to say that is not in the book? Ask for it, check it, keep it.</p>
     <div className="form-row">
@@ -98,14 +101,16 @@ function OurPhrases({state,user,mutate,busy,request,notice,config,q}){
      </div>
     </form>}</>
    :<p>{mine.length?'Phrases Mum and Dad added for us.':'Nothing added yet.'}</p>}
-  {mine.map(p=><div className="our-phrase" key={p.id}>
+  {q&&all.length>0&&!mine.length&&<p><small>Nothing matches those filters.</small></p>}
+  {w.bar}
+  <div className="wobble-list" {...w.listProps}>{mine.map(p=><div {...w.row(p.id)} className={`our-phrase ${w.row(p.id).className}`} key={p.id}>
    <PhraseRow phrase={p} size=""/>
    <small>Added by {p.by}{p.source==='translated'?' · translated':''}</small>
    {parent&&<div className="row wrap">
     <button type="button" onClick={()=>{setEditing(p);setDraft(null);}}>Edit</button>
     <button type="button" className="danger" disabled={busy} onClick={()=>{if(confirm('Remove this phrase?'))mutate({type:'phraseRemove',id:p.id});}}><Trash2 size={14}/> Remove</button>
    </div>}
-  </div>)}
+  </div>)}</div>
  </section>;
 }
 // One phrase at a time, turned with a finger. The long list is still there and still the way
@@ -180,7 +185,7 @@ export default function Phrasebook({state,user,day,mutate,busy,request,notice,co
  // they came from, so swiping and reading show exactly the same set.
  const deck=[
   ...sections.flatMap(s=>s.phrases.map(p=>({...p,section:s.title}))),
-  ...(section?[]:ourPhrases(state||{}).filter(p=>!q||searchText([p.en,p.ja,p.romaji,p.say,p.note].join(' ')).includes(q))
+  ...(section?[]:inOrder(ourPhrases(state||{}),listOrder(state,'phrases')).filter(p=>!q||searchText([p.en,p.ja,p.romaji,p.say,p.note].join(' ')).includes(q))
    .map(p=>({...p,section:'Ours'})))
  ];
  return <>

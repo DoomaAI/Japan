@@ -1117,3 +1117,4 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 .list-reorder.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .list-count{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap}.list-count p{margin:0}
 @media(prefers-reduced-motion:reduce){.wobble-list[data-list-wobbling]>[data-drag-id]:not(.held){animation:none;outline:1px dashed var(--border)}}
+.list-count{margin-bottom:.6rem}.list-count h2{margin:0}

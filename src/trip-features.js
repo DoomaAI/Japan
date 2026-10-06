@@ -606,7 +606,7 @@ export function documentWhen(state,doc){
 // The orders the Wallet can be read in. Every one falls back to the date of the activity and
 // then the name, so two tickets for the same person or added together still come out the same
 // way round on every phone.
-export const TICKET_ORDERS={activity:'Date of activity',added:'Recently added',title:'Name (A–Z)',person:'Person (A–Z)'};
+export const TICKET_ORDERS={activity:'Date of activity',added:'Recently added',title:'Name (A–Z)',person:'Person (A–Z)',own:'Our order'};
 export function sortTickets(state,docs,order){
  if(!TICKET_ORDERS[order])return docs;
  const at=new Map((state.documents||[]).map((d,i)=>[d.id,i]));
@@ -618,7 +618,9 @@ export function sortTickets(state,docs,order){
   activity:byDate,
   added:(a,b)=>(added(b)-added(a))||(at.get(b.id)-at.get(a.id)),
   title:(a,b)=>name(a,b)||byDate(a,b),
-  person:(a,b)=>(a.person||'').localeCompare(b.person||'',undefined,{sensitivity:'base'})||byDate(a,b)
+  person:(a,b)=>(a.person||'').localeCompare(b.person||'',undefined,{sensitivity:'base'})||byDate(a,b),
+ // Left as they are, for the Wallet to lay the order the family dragged them into over.
+ own:()=>0
  }[order];
  return [...docs].sort(compare);
 }
@@ -874,7 +876,7 @@ export function shortlistWhere(state,find){
 // goes last in both rather than being treated as free and leading the cheap list.
 export const SHORTLIST_SORTS=[
  ['decide','Still to decide first'],['want','How much we want it'],['new','Newest first'],['old','Oldest first'],
- ['dear','Dearest first'],['cheap','Cheapest first'],['shop','By shop, A to Z'],['day','By the day we saw it']
+ ['dear','Dearest first'],['cheap','Cheapest first'],['shop','By shop, A to Z'],['day','By the day we saw it'],['own','Our order']
 ];
 // How much we want it, nought to five, which is the other half of deciding and the half a price
 // cannot answer. Unrated is not nought — it is a question nobody has answered yet — so it sorts
@@ -889,7 +891,9 @@ const SHORTLIST_SORTERS={
  dear:(a,b)=>priced(a)-priced(b)||(b.price??0)-(a.price??0)||age(b).localeCompare(age(a)),
  cheap:(a,b)=>priced(a)-priced(b)||(a.price??0)-(b.price??0)||age(b).localeCompare(age(a)),
  shop:(a,b)=>String(a.shop||a.place||'\uffff').localeCompare(String(b.shop||b.place||'\uffff'))||age(b).localeCompare(age(a)),
- want:(a,b)=>unrated(a)-unrated(b)||(shortlistRating(b)??0)-(shortlistRating(a)??0)||age(b).localeCompare(age(a))
+ want:(a,b)=>unrated(a)-unrated(b)||(shortlistRating(b)??0)-(shortlistRating(a)??0)||age(b).localeCompare(age(a)),
+ // Our order is the one the family dragged the list into, which the page lays over this (wobble-list.jsx).
+ own:()=>0
 };
 export const sortShortlistBy=(list,sort,state)=>[...list].sort(
  sort==='day'
@@ -1258,7 +1262,7 @@ export const PROPOSAL_KINDS=[['place','Place to see'],['food','Food or drink'],[
 // Whether an idea can go anywhere in a day, only inside its opening hours, or has to be booked
 // for an exact time. This is the tag that decides whether its scheduled step is locked.
 export const PROPOSAL_TIMING=[['flex','Flexible · any time'],['window','Available times only'],['fixed','Needs a fixed time']];
-export const PROPOSAL_SORTS=[['top','Most wanted'],['musts','Must-do first'],['new','Newest first'],['cost','Cheapest first']];
+export const PROPOSAL_SORTS=[['top','Most wanted'],['musts','Must-do first'],['new','Newest first'],['cost','Cheapest first'],['own','Our order']];
 export const PLACEMENT_LABEL={open:'Up for a vote',scheduled:'On the itinerary',options:'Moved to Options',parked:'Parked'};
 export const proposals=state=>state.proposals||[];
 export const proposalVoters=(p,vote)=>Object.entries(p.votes||{}).filter(([,v])=>v===vote).map(([name])=>name).sort();
@@ -1336,7 +1340,9 @@ export function rankedProposals(state,{query='',category='',suits='',by='',place
  const order={top:(a,b)=>proposalScore(b)-proposalScore(a)||musts(b)-musts(a)||age(a).localeCompare(age(b)),
   musts:(a,b)=>musts(b)-musts(a)||proposalScore(b)-proposalScore(a)||age(a).localeCompare(age(b)),
   new:(a,b)=>age(b).localeCompare(age(a)),
-  cost:(a,b)=>(a.cost??Infinity)-(b.cost??Infinity)||proposalScore(b)-proposalScore(a)};
+  cost:(a,b)=>(a.cost??Infinity)-(b.cost??Infinity)||proposalScore(b)-proposalScore(a),
+  // Left as they are, for the page to lay the order the family dragged them into over.
+  own:()=>0};
  return [...list].sort(order[sort]||order.top);
 }
 // Stops somebody can sit out while the rest carry on: on the day's live plan, not finished, not

@@ -1,11 +1,12 @@
 import React,{useState} from 'react';
 import PageTitle from './PageTitle.jsx';
-import {Heart,ArrowUp,ArrowDown,Plus,Trash2,Check} from 'lucide-react';
+import {Heart,Plus,Trash2,Check} from 'lucide-react';
 import {thankYouNotes,thankYouSchedule,thankYouSpares,thankYouList,noteReadState,THANK_YOU_FROM,THANK_YOU_FOR,BOYS} from './trip-features.js';
 import {readTo} from './child-levels.js';
 import {japanClock,japanDate} from './timing.js';
 import {YOUNG_RATE} from './speech.js';
 import {dayLabel,useReadAloud,ReadAloudButton} from './AdventurePages.jsx';
+import {useListWobble} from './wobble-list.jsx';
 const preview=t=>t.length>110?t.slice(0,110).trimEnd()+'…':t;
 const readLabel=s=>s.read?`Read ${s.late?dayLabel(s.readDay)+' · ':''}${japanClock(s.when)} JST`:{waiting:'Waiting',today:'Not opened yet',missed:'Not opened'}[s.pending];
 function ReadStatus({day,seen,today}){
@@ -27,17 +28,17 @@ export function ThankYouNote({note,to,seenAt,busy,dismiss,young=false}){
  </div>;
 }
 export function ThankYouEditor({state,mutate,busy}){
- const [edit,setEdit]=useState(null),[to,setTo]=useState(THANK_YOU_FOR[0]);
+ const [edit,setEdit]=useState(null),[to,setTo]=useState(THANK_YOU_FOR[0]),[find,setFind]=useState('');
  const notes=thankYouNotes(state,to),schedule=thankYouSchedule(state,to),spares=thankYouSpares(state,to);
  const dayFor=new Map(schedule.filter(e=>e.message).map(e=>[e.message.id,e.day]));
  const order=notes.map(m=>m.id),seen=thankYouList(state,to).seen||{},today=japanDate();
  // Only days that have already arrived and carry a note can have been opened.
  const delivered=schedule.filter(e=>e.message&&e.day<=today).map(e=>e.day);
  const unopened=delivered.filter(d=>!seen[d]),opened=delivered.length-unopened.length;
- async function move(id,delta){
-  const i=order.indexOf(id),j=i+delta;if(j<0||j>=order.length)return;
-  const ids=[...order];[ids[i],ids[j]]=[ids[j],ids[i]];await mutate({type:'thankYouReorder',to,ids});
- }
+ const q=find.trim().toLowerCase(),shown=q?notes.filter(m=>m.text.toLowerCase().includes(q)):notes;
+ // Dragged into order like any other list (wobble-list.jsx), but saved as this person's own
+ // thankYouReorder with every note in it, as the notes are private and the order is the schedule.
+ const w=useListWobble({ids:shown.map(m=>m.id),full:order,save:ids=>mutate({type:'thankYouReorder',to,ids})});
  async function save(e){
   e.preventDefault();const f=new FormData(e.currentTarget);
   if(await mutate({type:edit.id?'thankYouEdit':'thankYouAdd',to,id:edit.id,text:f.get('text'),day:f.get('day')||null}))setEdit(null);
@@ -56,13 +57,17 @@ export function ThankYouEditor({state,mutate,busy}){
   <div className="section-heading"><h2>All notes ({notes.length})</h2><button className="primary" onClick={()=>setEdit({text:'',day:null})}><Plus size={18}/>Write a new note</button></div>
   {spares.length>0&&<p><small>{spares.length} note{spares.length===1?'':'s'} beyond the {state.days.length} trip days. They stay here as spares until you move them up the list.</small></p>}
   {edit&&!edit.id&&<NoteForm edit={edit} state={state} busy={busy} save={save} cancel={()=>setEdit(null)}/>}
-  {notes.map((m,i)=>{
+  {notes.length>3&&<div className="document-filters"><div className="form-row"><label>Search<input type="search" value={find} placeholder="A word in the note" onChange={e=>setFind(e.target.value)}/></label></div></div>}
+  {notes.length>1&&<div className="list-count"><p>{shown.length===notes.length?'Hold a note to move it':`${shown.length} of ${notes.length} notes`}</p>{w.toggle}</div>}
+  {!!notes.length&&!shown.length&&<p>Nothing matches those filters.</p>}
+  {w.bar}
+  <div className="wobble-list" {...w.listProps}>{shown.map(m=>{
    if(edit?.id===m.id)return <NoteForm key={m.id} edit={m} state={state} busy={busy} save={save} cancel={()=>setEdit(null)}/>;
    const day=dayFor.get(m.id);
-   return <article className="feature-card thank-you-row" key={m.id}>
+   const drag=w.row(m.id);
+   return <article {...drag} className={`feature-card thank-you-row ${drag.className}`} key={m.id}>
     <div className="section-heading">
      <span className="row wrap"><span className="tag">{day?`${dayLabel(day)}${m.day?' · pinned':''}`:'Spare'}</span>{day&&day<=today&&<ReadStatus day={day} seen={seen} today={today}/>}</span>
-     <span className="reorder-tools"><button aria-label={`Move note ${i+1} earlier`} disabled={busy||i===0} onClick={()=>move(m.id,-1)}><ArrowUp size={18}/></button><button aria-label={`Move note ${i+1} later`} disabled={busy||i===notes.length-1} onClick={()=>move(m.id,1)}><ArrowDown size={18}/></button></span>
     </div>
     <p>{m.text}</p>
     <div className="row wrap">
@@ -70,7 +75,7 @@ export function ThankYouEditor({state,mutate,busy}){
      <button className="danger" disabled={busy} onClick={()=>{if(confirm('Remove this note? The remaining notes move up a day.'))mutate({type:'thankYouRemove',to,id:m.id});}}><Trash2 size={16}/>Remove</button>
     </div>
    </article>;
-  })}
+  })}</div>
   {!notes.length&&<div className="empty"><h3>No notes yet</h3><p>Write the first one and it will appear for {to} on day one.</p></div>}
  </>;
 }

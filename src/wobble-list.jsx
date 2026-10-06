@@ -38,7 +38,9 @@ export function useListWobble({ids,full=ids,save,editing:shared,setEditing:setSh
   onPointerDown:e=>{
    if(off||editing||e.button>0||ids.length<2)return;
    const row=e.target.closest?.('[data-drag-id]');
-   if(!row||!e.currentTarget.contains(row)||e.target.closest(CONTROLS))return;
+   // A row whose name is its fold button marks it data-wobble-hold, so a hold on the name still counts.
+   const control=e.target.closest(CONTROLS);
+   if(!row||!e.currentTarget.contains(row)||(control&&!control.matches('[data-wobble-hold]')))return;
    eat.current=false;cancel();
    press.current={x:e.clientX,y:e.clientY,timer:setTimeout(()=>{
     press.current=null;eat.current=true;
