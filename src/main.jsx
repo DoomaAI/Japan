@@ -85,7 +85,7 @@ import {useForecastCheck} from './Weather.jsx';
 import {forecastAge} from './weather-data.js';
 import DayTimeline from './DayTimeline.jsx';
 import EntryIcon from './EntryIcon.jsx';
-import {ENTRY_TYPES,guessEntryType} from './entry-types.js';
+import {ENTRY_TYPES,guessEntryType,worthRating} from './entry-types.js';
 import {BOOKING_PLATFORMS,bookedVia} from './booked-via.js';
 import RemoveStop from './RemoveStop.jsx';
 import Rearrange from './Rearrange.jsx';
@@ -605,9 +605,10 @@ function App(){
  // done. The last leg ticks the stop itself, so the stop is finished the moment the family is
  // actually there, and nobody has to remember to tick it twice.
  // Ticking a stop off asks the person who ticked it how it was, if they were there and have not
- // said yet. Bulk catch-ups (Tonight, Yesterday) do not: that is a list, not a moment.
+ // said yet, and only for a stop worth rating: not a train, packing or a check-out. Bulk
+ // catch-ups (Tonight, Yesterday) do not: that is a list, not a moment.
  function askRating(s){
-  if(!s||!settingOn(settings,'askRating')||!s.participants?.includes(user?.name))return;
+  if(!s||!settingOn(settings,'askRating')||!s.participants?.includes(user?.name)||!worthRating(s))return;
   if(stepRatings(state,s.id)[user.name])return;
   setModal({type:'rate',step:s});
  }
