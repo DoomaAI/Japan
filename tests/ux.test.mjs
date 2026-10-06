@@ -157,9 +157,9 @@ test('the wallet leads with the next passes to scan, in the order we reach them'
  assert.deepEqual(nextPasses(done,day).map(p=>p.doc.id),['later'],'a stop ticked off has used its pass');
  assert.equal(nextPasses(state,day,1).length,1);
  const main=await source('main.jsx'),nav=await source('nav-data.js');
- assert.match(main,/<h1>Wallet<\/h1><CodeReader [^>]*\/><CodePrompt .*?\/><NextPasses /,'the passes come first, under the line that says codes are being read');
+ assert.match(main,/<h1>Bookings<\/h1><CodeReader [^>]*\/><CodePrompt .*?\/><NextPasses /,'the passes come first, under the line that says codes are being read');
  assert.match(main,/<summary>Search, filter and order all \{ticketList\(state,\{archived:false\}\)\.length\} bookings<\/summary>/);
- assert.match(nav,/tickets:\{label:'Wallet'/);
+ assert.match(nav,/tickets:\{label:'Bookings'/);
 });
 test('the build step leaves the hand-set night colours and the game boards alone, so nothing turns over twice',async()=>{
  const {themeCss}=await import('../scripts/dark-theme.mjs');
