@@ -1,8 +1,9 @@
 import React,{useState} from 'react';
-import {CloudSun,RefreshCw,ChevronRight,ChevronDown,ChevronUp,Sunrise,Sunset} from 'lucide-react';
+import {CloudSun,RefreshCw,ChevronRight,ChevronDown,ChevronUp,Sunrise,Sunset,PlaneLanding} from 'lucide-react';
+import {homeAhead,clockShift} from './home-front.js';
 import {InBar} from './home-bar.js';
 import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
-import {pointFor,forecastUrl,areaForecastUrl,AREAS_PER_REQUEST,stepTargets,stepReadings,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,hoursFor,stepWeather,iconAt,skyPhase,skyFor,hourLabel,nowWeather} from './weather-data.js';
+import {HOME_POINT,landingDay,homeForecastUrl,parseHomeForecast,homeForecastFor,homeArrivalTips,pointFor,forecastUrl,areaForecastUrl,AREAS_PER_REQUEST,stepTargets,stepReadings,parseForecast,parseHourly,forecastFor,forecastAge,ageLabel,describe,advice,hoursFor,stepWeather,iconAt,skyPhase,skyFor,hourLabel,nowWeather} from './weather-data.js';
 import {japanDate,japanClock} from './timing.js';
 import {isOpen,setOpen} from './fold.js';
 import SkyIcon from './SkyIcon.jsx';
@@ -89,7 +90,13 @@ export function useForecastCheck({state,day,mutate,notice}){
     }
     if(targets.length)steps=stepReadings(targets,byPlace);
    }catch{steps=undefined;}
-   if(await mutate({type:'weatherUpdate',days,hours,...(steps?{steps}:{})})&&!quiet)notice(steps?'Forecast updated for the family, hour by hour and stop by stop.':'Forecast updated for the family, hour by hour. The stops’ own forecasts could not be fetched this time.');
+   // And the morning we land at home. Worth having, not worth losing Japan's forecast over.
+   let home;
+   try{
+    const date=landingDay(state);
+    if(date){const r=await fetch(homeForecastUrl(date));if(r.ok)home=parseHomeForecast(await r.json(),date)||undefined;}
+   }catch{home=undefined;}
+   if(await mutate({type:'weatherUpdate',days,hours,...(steps?{steps}:{}),...(home?{home}:{})})&&!quiet)notice(steps?'Forecast updated for the family, hour by hour and stop by stop.':'Forecast updated for the family, hour by hour. The stops’ own forecasts could not be fetched this time.');
   }catch(e){if(!quiet)notice(`${e.message||'The forecast could not be fetched.'} The last one we have is still shown.`);}
   finally{setChecking(false);}
  }
@@ -104,6 +111,29 @@ function HourlyPanel({hours,nowHour}){
   <DayShape hours={hours}/>
   <HourlyChart hours={hours} nowHour={nowHour} picked={picked} onPick={setPicked}/>
   <HourlyTable hours={hours}/>
+ </div>;
+}
+// The last day here is the day before the first day home: what Sydney is doing the morning we
+// land, and what is different about walking out of arrivals — the clocks above all, because
+// daylight saving started at home while we were away.
+export function HomeArrival({state}){
+ const date=landingDay(state),last=state?.days?.at(-1)?.date;
+ if(!date||!last)return null;
+ const home=homeForecastFor(state),away=forecastFor(state,last);
+ const gap=homeAhead(date,HOME_POINT.zone),shift=clockShift([...(state.days||[]),{date}],HOME_POINT.zone);
+ const tips=homeArrivalTips(state,{home,away,gap,shifted:shift});
+ const when=new Date(`${date}T12:00:00Z`).toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'});
+ return <div className="home-arrival">
+  <h4><PlaneLanding size={17}/> Back home · {HOME_POINT.name}, {when}</h4>
+  {home
+   ?<><div className="weather-today">
+     <span className="weather-icon" aria-hidden="true"><SkyIcon icon={describe(home.code)[1]}/></span>
+     <div><strong>{home.max}° / {home.min}°</strong>
+      <small>{describe(home.code)[0]} · {home.city}{home.rain!==null?` · ${home.rain}% rain`:''}{home.uv!==null?` · UV ${home.uv}`:''}</small></div>
+    </div>
+    <SunTimes entry={home}/></>
+   :<p><small>No forecast for home yet. Check the weather with signal and it fills in for everyone.</small></p>}
+  <ul className="home-arrival-tips">{tips.map(t=><li key={t.id}><span aria-hidden="true">{t.icon}</span><span><strong>{t.title}.</strong> {t.text}</span></li>)}</ul>
  </div>;
 }
 export default function Weather({state,day,mutate,busy,online,notice,dayLabel,go,now}){
@@ -148,6 +178,7 @@ export default function Weather({state,day,mutate,busy,online,notice,dayLabel,go
     <SunTimes entry={today}/>
     {tip&&<p className="weather-advice">{tip}</p>}</>
    :<p><small>No forecast saved yet.{online?' Tap Check.':' It needs signal once, then it stays on the phone.'}</small></p>}
+  {day===state.days?.at(-1)?.date&&<HomeArrival state={state}/>}
   {!!ahead.filter(d=>d.entry).length&&<div className="weather-ahead">{ahead.map(d=>
    <button className="weather-day" key={d.date} onClick={()=>go?.('weather',d.date)}>
     <small>{dayLabel(d.date).replace(/,.*/,'')}</small>

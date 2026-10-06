@@ -315,3 +315,51 @@ export const isMorning=(clock,until=11)=>{
  const match=/^(\d{2}):\d{2}/.exec(String(clock||''));
  return !!match&&Number(match[1])<until;
 };
+// The other end of the last flight. The trip's forecast stops at Haneda, but the first thing
+// anyone needs on the morning we land is what Sydney is doing: a jumper in the carry-on or not,
+// and whether the walk to the car park is in the rain. Asked once, for the day after the last
+// day of the trip, in Sydney's own time.
+export const HOME_POINT={name:'Sydney',lat:-33.8688,lon:151.2093,zone:'Australia/Sydney'};
+export const landingDay=state=>{
+ const last=state?.days?.at(-1)?.date;if(!last)return null;
+ const at=new Date(`${last}T12:00:00Z`);at.setUTCDate(at.getUTCDate()+1);
+ return at.toISOString().slice(0,10);
+};
+export function homeForecastUrl(date,point=HOME_POINT){
+ const q=new URLSearchParams({latitude:point.lat,longitude:point.lon,timezone:point.zone,
+  daily:'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,sunrise,sunset',
+  start_date:date,end_date:date});
+ return `https://api.open-meteo.com/v1/forecast?${q}`;
+}
+// One day at home, read and checked exactly as a day in Japan is, with the UV beside it because
+// a Sydney spring sun is not a Tokyo autumn one.
+export function parseHomeForecast(json,date,point=HOME_POINT){
+ const entry=parseForecast(json,point.name)[date];if(!entry)return null;
+ const uv=json?.daily?.uv_index_max?.[json.daily.time.indexOf(date)];
+ return {date,...entry,uv:Number.isFinite(uv)&&uv>=0&&uv<=20?Math.round(uv):null};
+}
+export const homeForecastFor=state=>{const h=state?.weather?.home;return h&&h.date===landingDay(state)?h:null;};
+// What to know walking out of arrivals, worked out from the clocks, the two forecasts and the
+// plan rather than written in: the clock change is only mentioned when there was one, and the
+// jumper only when home is actually colder than the last day here.
+export function homeArrivalTips(state,{home,away,gap,shifted}={}){
+ const tips=[];
+ if(Number.isFinite(gap)&&gap!==0){
+  const forward=shifted&&shifted.after>shifted.before;
+  tips.push({id:'clocks',icon:'🕑',title:shifted?`Daylight saving ${forward?'started':'ended'} while we were away`:`Home is ${gap>0?'ahead of':'behind'} Japan`,
+   text:`${shifted?`Sydney’s clocks went ${forward?'forward':'back'} on ${new Date(`${shifted.day}T12:00:00Z`).toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'})}, so `:''}Sydney is ${Math.abs(gap)===1?'one hour':`${Math.abs(gap)} hours`} ${gap>0?'ahead of':'behind'} Japan. The landing time on the ticket is already Sydney time; phones change themselves the moment they find a network, but the car, the oven, watches and the boys’ bedside clocks do not.`});
+  tips.push({id:'sleep',icon:'😴',title:'Bedtime on Sydney time from the first night',
+   text:`An overnight flight and ${Math.abs(gap)===1?'an hour':`${Math.abs(gap)} hours`} ${gap>0?'lost':'gained'}: daylight and something to do in the morning, an ordinary dinner, and no naps after four. ${gap>=2?'The boys will feel it at bedtime, not at breakfast.':''}`.trim()});
+ }
+ if(home){
+  const [label]=describe(home.code);
+  const colder=away&&Number.isFinite(away.max)?away.max-home.max:null;
+  if(colder!==null&&colder>=4)tips.push({id:'layer',icon:'🧥',title:'Jumpers in the carry-on',text:`Sydney about ${home.max}° against ${away.max}° on our last day here, and ${home.min}° first thing. Within reach, not in the checked bags.`});
+  else if(colder!==null&&colder<=-4)tips.push({id:'warm',icon:'👕',title:'Warmer at home',text:`Sydney about ${home.max}° against ${away.max}° here. Something light to change into after the flight.`});
+  else if(home.min<=12)tips.push({id:'layer',icon:'🧥',title:'Cool first thing',text:`Down to ${home.min}° around landing. A jumper each in the carry-on.`});
+  if(/rain|shower|drizzle|thunder/i.test(label)||(home.rain??0)>=50)tips.push({id:'rain',icon:'☂️',title:'Rain at home',text:`${label}${home.rain!==null?`, ${home.rain}% chance`:''}. An umbrella out of the case before the walk to the car or the taxi rank.`});
+  if((home.uv??0)>=6)tips.push({id:'uv',icon:'🧴',title:`UV ${home.uv} — Sydney spring sun`,text:'Stronger than anything in Japan this trip. Hats and sunscreen if the boys are outside on the first afternoon.'});
+ }
+ tips.push({id:'border',icon:'🛂',title:'Through the border',text:'Passports out. SmartGate is for ten and over, so a parent takes the boys to the staffed counter together. Have the Travel Declaration codes in the Qantas app, or the paper cards from the plane, and declare anything food, wood or plant. Declaring costs nothing; not declaring can.'});
+ return tips;
+}
