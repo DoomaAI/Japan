@@ -239,14 +239,14 @@ const TABS=[...Object.keys(PAGES),'more'];
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
 const OFFLINE_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','bingoCard','parkRide','parkWant','foodTried','foodRating','phraseSeen','factSeen','moneyFound','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove','voiceNoteWords',
- 'proposalAdd','proposalVote','proposalMust','proposalRecommend','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','packBefore','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntPick','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','dayRating','dayThought','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','bookingWindowBooked','shopLog'];
+ 'proposalAdd','proposalVote','proposalMust','proposalRecommend','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','packBefore','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntPick','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','dayRating','dayThought','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','bookingWindowBooked','shopLog','listOrder'];
 // Taps that only record what just happened — a tick, a rating, a vote — show on the screen the
 // moment they are made and go to the family behind it, so the next tap is never kept waiting on
 // the last one's round trip. They ride the same queue as a tap made with no signal, which already
 // draws itself on the screen (pendingProgress) and replays against whatever the plan has become.
 // Adding things stays a plain save: the screens that add read the new item back from the answer.
 const INSTANT_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','parkRide','parkWant','foodTried','foodRating','phraseSeen','factSeen','gameScore',
- 'todoStatus','packStatus','packDismiss','packBefore','shortlistStatus','shortlistRating','spendBought','stepRating','dayRating','proposalVote','proposalMust','huntRate','huntRank','huntTried','expressPick','expressUsed','sumoPredict','sumoResult'];
+ 'todoStatus','packStatus','packDismiss','packBefore','shortlistStatus','shortlistRating','spendBought','stepRating','dayRating','proposalVote','proposalMust','huntRate','huntRank','huntTried','expressPick','expressUsed','sumoPredict','sumoResult','listOrder'];
 // Where the app opens. The address wins, then the place this phone was last looking — unless
 // that day is behind us, in which case the phone was put down overnight and Home should open on
 // today, not on last night's hotel. A stop restored this way is checked once the plan arrives:

@@ -69,6 +69,17 @@ export function extraOperation(state,op,user,fail,now){
   const status=op.answer.status,word={in:'is in',maybe:'is a maybe',out:'can’t make it'}[status];
   return {summary:null,important:false,title:`${name} ${word}${name!==user.name?` (answered by ${user.name})`:''}`};
  }
+ // Any list of our own put in order by dragging (src/wobble-list.jsx). The order is the family's,
+ // so anyone may set it, the way anyone ticks; ids no longer on the list are harmless and are
+ // simply passed over when the list is drawn.
+ if(op.type==='listOrder'){
+  if(typeof op.list!=='string'||!/^[a-z][\w:-]{0,79}$/i.test(op.list))fail('Choose a list.');
+  if(!Array.isArray(op.ids)||op.ids.length>1000||new Set(op.ids).size!==op.ids.length||op.ids.some(id=>typeof id!=='string'||!id||id.length>120))fail('That order does not match the list.');
+  const orders={...(state.listOrders||{})};
+  if(!(op.list in orders)&&Object.keys(orders).length>=200)fail('Too many lists in order.');
+  orders[op.list]=op.ids;state.listOrders=orders;
+  return {summary:null,important:false,title:'A list put in order'};
+ }
  // People (src/people.js). A parent adds someone by name, without a link: a child too young for a
  // phone, a guest who will only ever be answered for. And changes what anyone is, or which
  // household they belong to. Each is written to the history like any other change.

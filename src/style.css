@@ -1104,3 +1104,16 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
    beside it starts on the same line rather than a details margin below it. */
 .document-row{align-items:flex-start}.document-row .doc-thumb{width:62px;height:78px;min-height:0;padding:0;border:1px solid var(--border);background:var(--page)}.document-card{min-width:0;flex:1;background:var(--page);border:1px solid var(--border);border-radius:12px;padding:.8rem 1rem .4rem}.document-row .document-details{margin:0;padding:0;border:0;border-radius:0;background:transparent}.document-row.archived .document-card{background:transparent}.document-link{display:flex;align-items:flex-start;gap:.35rem;margin:.55rem 0 0;font-size:.8rem;color:var(--muted)}.document-link svg{flex:0 0 auto;margin-top:.15rem}.document-link button{display:inline;min-height:0;padding:0;font:inherit;line-height:1.4;text-align:left;color:var(--ink);text-decoration:underline;text-underline-offset:3px}.document-link .unlinked{font-style:italic}.document-quick{display:flex;gap:1.1rem;margin-top:.15rem}.document-quick button{display:inline-flex;align-items:center;gap:.3rem}.document-quick .danger{color:var(--danger)}
 .rate-now{display:flex;flex-direction:column;align-items:center;gap:.6rem;text-align:center}.rate-now-title{margin:0;font-family:'Fraunces',Georgia,serif;font-size:1.25rem;font-weight:600}.rate-now .slide-stars{justify-content:center}.rate-now .slide-stars-row{gap:.3rem;padding:.5rem 0}.rate-now-hint{color:var(--muted)}.rate-now label{width:100%;text-align:left}.rate-now .row{justify-content:center;width:100%}
+
+/* Any list of our own put in order (wobble-list.jsx): hold a row and the list wobbles as Home's
+   cards do; a row is dragged by itself to the green line where it should go. */
+.wobble-list[data-list-wobbling]>[data-drag-id]{position:relative;touch-action:none;cursor:grab;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.wobble-list[data-list-wobbling]>[data-drag-id]:not(.held){animation:home-wobble .3s ease-in-out infinite alternate}
+.wobble-list[data-list-wobbling]>[data-drag-id]:nth-of-type(2n):not(.held){animation-delay:-.15s;animation-duration:.34s}
+.wobble-list[data-list-wobbling]>[data-drag-id].held{z-index:5;cursor:grabbing;background:var(--paper);box-shadow:0 10px 26px #0003;border-radius:12px}
+.wobble-list>[data-drag-id].drop-before:before,.wobble-list>[data-drag-id].drop-after:after{content:'';position:absolute;left:0;right:0;border-top:3px solid var(--green);border-radius:2px;pointer-events:none;z-index:3}
+.wobble-list>[data-drag-id].drop-before:before{top:-2px}.wobble-list>[data-drag-id].drop-after:after{bottom:-2px}
+.list-reorder{display:inline-flex;align-items:center;gap:.35rem;font-size:.8rem;min-height:36px;padding:.3rem .7rem}
+.list-reorder.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.list-count{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap}.list-count p{margin:0}
+@media(prefers-reduced-motion:reduce){.wobble-list[data-list-wobbling]>[data-drag-id]:not(.held){animation:none;outline:1px dashed var(--border)}}
