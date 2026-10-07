@@ -35,3 +35,8 @@ export function guessEntryType(step){
  return PLACES.find(([re])=>re.test(place))?.[1]||'other';
 }
 export const entryType=step=>BY_ID.get(BY_ID.has(step?.category)?step.category:guessEntryType(step));
+// Ticking a stop off asks how it was only where the answer means something: a meal, a ride, a
+// shrine. A train, a walk home, packing, a check-out or an early night are things that happened,
+// not things anybody rates. A stop still waiting on a booking to be confirmed is not asked either.
+export const UNRATED_TYPES=['transport','admin','hotel'];
+export const worthRating=step=>!!step&&step.kind!=='review'&&!UNRATED_TYPES.includes(entryType(step).id);

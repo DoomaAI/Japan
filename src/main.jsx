@@ -85,10 +85,11 @@ import {useForecastCheck} from './Weather.jsx';
 import {forecastAge} from './weather-data.js';
 import DayTimeline from './DayTimeline.jsx';
 import EntryIcon from './EntryIcon.jsx';
-import {ENTRY_TYPES,guessEntryType} from './entry-types.js';
+import {ENTRY_TYPES,guessEntryType,worthRating} from './entry-types.js';
 import {BOOKING_PLATFORMS,bookedVia} from './booked-via.js';
 import RemoveStop from './RemoveStop.jsx';
 import Rearrange from './Rearrange.jsx';
+import StopActions from './StopActions.jsx';
 import Weather,{StepWeather,NowWeather} from './Weather.jsx';
 import DocumentReader from './DocumentReader.jsx';
 import PhotoDay from './PhotoDay.jsx';
@@ -606,9 +607,10 @@ function App(){
  // done. The last leg ticks the stop itself, so the stop is finished the moment the family is
  // actually there, and nobody has to remember to tick it twice.
  // Ticking a stop off asks the person who ticked it how it was, if they were there and have not
- // said yet. Bulk catch-ups (Tonight, Yesterday) do not: that is a list, not a moment.
+ // said yet, and only for a stop worth rating: not a train, packing or a check-out. Bulk
+ // catch-ups (Tonight, Yesterday) do not: that is a list, not a moment.
  function askRating(s){
-  if(!s||!settingOn(settings,'askRating')||!s.participants?.includes(user?.name))return;
+  if(!s||!settingOn(settings,'askRating')||!s.participants?.includes(user?.name)||!worthRating(s))return;
   if(stepRatings(state,s.id)[user.name])return;
   setModal({type:'rate',step:s});
  }
@@ -688,7 +690,8 @@ function App(){
  // spent on a round trip that comes back with the same answer.
  async function optionStop(s){
   if(s.locked){notice('Unlock its fixed time before saving this stop to Options.');return;}
-  if(await mutate({type:'backlog',id:s.id}))notice(`${s.title} was saved to Options, with everything on it. Add it to a day whenever it fits.`);
+  if(!await mutate({type:'backlog',id:s.id}))return false;
+  notice(`${s.title} was saved to Options, with everything on it. Add it to a day whenever it fits.`);return true;
  }
  function move(delta){const s=steps[index+delta];if(s){setSelected(s.id);updateUrl(day,s.id);}}
  function openPage(n){setGuidePage(n);setTab('guide');updateUrl(day,null,n);}
@@ -861,7 +864,7 @@ function App(){
      // thing that is alarming to notice later and reassuring to be told now. Say where the day
      // now stands as well: ticking off is the one moment we know both what was planned and what
      // actually happened, and twelve minutes in hand is worth hearing before the next step.
-     setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);askRating(current);}}}>Done</Button></>}{parent&&<button className="icon completion-more" aria-label="Edit, lock, move or remove this stop" onClick={()=>setModal({type:'edit',step:current})}><MoreHorizontal size={18}/></button>}</div>
+     setSelected(done);updateUrl(day,done);notice(`Completed${variance?`, ${variance.text}`:''}.${used?` ${used} ticket${used===1?'':'s'} marked used — undo brings ${used===1?'it':'them'} back.`:''} Rate it below, or swipe when you’re ready for the next step.`);askRating(current);}}}>Done</Button></>}{parent&&<button className="icon completion-more" aria-label="Edit, lock, move or remove this stop" onClick={()=>setModal({type:'actions',step:current})}><MoreHorizontal size={18}/></button>}</div>
     {routeFor(current)&&<RouteCard key={`route-${current.id}`} legs={routeFor(current)} step={current} busy={busy} canTick={current.status!=='skipped'&&(parent||current.participants.includes(user.name))} onTick={tickRouteLeg} onWaypoint={routeWaypoint} onSwap={routeSwap} onJourney={routeJourney} ends={current.routeStale?journeyEnds(state).get(current.id):null} lookOpen={settingOn(settings,'routeLookOpen')}/>}
     {!routeFor(current)&&current.status!=='done'&&current.status!=='skipped'&&(parent||current.participants.includes(user.name))&&<AddJourney key={`journey-${current.id}`} step={current} busy={busy} onWaypoint={routeWaypoint} onJourney={routeJourney} startOpen={journeyOpen===current.id}/>}
     {current.status==='skipped'&&<p className="callout">Skipped · <button onClick={()=>mutate({type:'status',id:current.id,status:'todo'})}>Restore stop</button></p>}
@@ -1054,7 +1057,7 @@ function App(){
   <BottomNav tab={tab} user={user} go={navGo} prefs={navPrefs} setPrefs={saveNav} unread={state.alerts.some(a=>!a.seenBy?.[user.name])}/>
   {updateReady&&<div className="toast update-toast" role="status"><RefreshCw size={16}/>A newer version of the app is ready.<button className="primary" onClick={()=>location.reload()}>Reload</button></div>}
   {toast&&!modal&&toastBar}
-  {modal&&<Dialog title={{edit:modal.step?'Edit stop':'Add a stop',remove:'Remove this stop?',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',blend:'The Blend',quiz:'Dinner quiz',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',rearrange:'Move or swap days',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',report:'Tell the other phones',checkin:'Check In',latemsg:'Tell the others we’re late',puzzle:'Today’s puzzle',halfway:homeLabel('halfway'),sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Japan bingo',park:modal.park?.name||'Theme park rides',waits:`Wait times · ${modal.park?.short||''}`,foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',assistant:canAsk?'Concierge':'Find',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',rate:'How was it?',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','waits','voice','nearby','sumo','ask','assistant'].includes(modal.type)}>
+  {modal&&<Dialog title={{edit:modal.step?'Edit stop':'Add a stop',remove:'Remove this stop?',actions:'This stop',tickets:'Tickets & documents',media:modal.step?modal.step.title:modal.day?fmtDay(modal.day)+' · Photos & videos':'Family gallery',show:'Show someone',blend:'The Blend',quiz:'Dinner quiz',alarm:'Remind me',family:'Our family',reschedule:'Adjust the day',rearrange:'Move or swap days',tired:'Take it easier',apps:'Useful apps',nearby:modal.mode==='food'?'Food near us':'Food & amenities near here',report:'Tell the other phones',checkin:'Check In',latemsg:'Tell the others we’re late',puzzle:'Today’s puzzle',halfway:homeLabel('halfway'),sumo:'Today at the sumo',schedule:'Add to a day',pending:'Updates waiting to sync',recovery:'Keep your parent link',late:'We’re running late',offline:'Offline readiness',capture:'Quick capture',phrase:'Phrase of the day',fact:'Fun fact of the day',stepfact:'Fun fact',eyespy:'Japan bingo',park:modal.park?.name||'Theme park rides',waits:`Wait times · ${modal.park?.short||''}`,foodcard:modal.item?.en||'Show someone',ask:modal.step?`Ask about ${modal.step.title}`:'Ask about our trip',assistant:canAsk?'Concierge':'Find',voice:modal.step?`${modal.step.title} · voice notes`:modal.day?fmtDay(modal.day)+' · Voice notes':'Voice notes',rate:'How was it?',thankyou:`A note from ${NOTE_BOYS.includes(user?.name)?'Dad':THANK_YOU_FROM}`}[modal.type]} onClose={()=>modal.type==='phrase'?seePhrase(modal.day):modal.type==='fact'?seeFact(modal.day):setModal(null)} wide={['tickets','media','eyespy','park','waits','voice','nearby','sumo','ask','assistant'].includes(modal.type)}>
    {modal.type==='sumo'&&<Sumo state={visibleState} user={user} day={SUMO_DAY} mutate={mutate} busy={busy} request={request} config={config} notice={notice} now={now}/>}
    {modal.type==='nearby'&&<Nearby state={visibleState} user={user} day={day} step={modal.step} mode={modal.mode} wishlist={modal.wishlist} need={modal.need} request={request} mutate={mutate} busy={busy} notice={notice} selectStep={selectStep} close={()=>setModal(null)} available={!!config?.nearby}/>}
    {modal.type==='ask'&&<AskTrip state={visibleState} user={user} day={modal.step?.day||day} step={modal.step} config={config} online={online} request={request} mutate={mutate} selectDay={d=>{setModal(null);selectDay(d);}} notice={notice}/>}
@@ -1085,6 +1088,7 @@ function App(){
        question can say which stop is going, what stays behind, and that Options will keep the
        whole stop instead. Closing it any other way — the X, the backdrop, Escape — keeps the
        stop where it is. */}
+   {modal.type==='actions'&&<StopActions state={state} step={state.steps.find(s=>s.id===modal.step.id)||modal.step} busy={busy} mutate={mutate} notice={notice} dayLabel={fmtDay} edit={s=>setModal({type:'edit',step:s})} remove={removeStop} toOptions={async s=>{if(await optionStop(s)){setModal(null);if(s.id===selected){setSelected(null);updateUrl(day,null);}}}} moved={s=>{setModal(null);if(s.id===selected){setSelected(null);updateUrl(day,null);}}}/>}
    {modal.type==='remove'&&<RemoveStop state={state} step={state.steps.find(s=>s.id===modal.step.id)||modal.step} busy={busy} mutate={mutate} notice={notice} dayLabel={fmtDay} close={gone=>{setModal(null);if(gone&&gone.id===selected){setSelected(null);updateUrl(gone.day||day,null);}}}/>}
    {modal.type==='show'&&<ShowLocation state={state} step={modal.step} notice={notice} maps={maps}/>}
 

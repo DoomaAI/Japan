@@ -51,7 +51,7 @@ export const SETTINGS=[
   off:'Each line on a route card starts closed. Tap the line’s name to see what to look for.'},
  // On by default: ticking a stop off is the moment anybody has an opinion about it.
  {id:'askRating',label:'Ask how it was',group:'stop',
-  on:'When you tick off a stop you were at, a box asks how it was: tap a star, add a line if you like, or Later. It only asks if you have not rated it already.',
+  on:'When you tick off a stop you were at, a box asks how it was: tap a star, add a line if you like, or Later. It only asks if you have not rated it already, and never for a train, a walk, packing or a hotel check-in.',
   off:'Nothing pops up when a stop is ticked off. Stars and a line can still be given on the stop itself.'},
  // Off until asked for: words are kinder the first time round, icons once everybody knows them.
  {id:'stopIconsOnly',label:'Icons only',group:'stop',default:false,
