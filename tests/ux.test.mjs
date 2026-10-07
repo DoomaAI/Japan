@@ -534,11 +534,21 @@ test('a tap gives whole stars, and ticking a stop off asks how it was',async()=>
  assert.match(review,/const whole=e=>Math\.floor\(place\(e\)\)\+1/,'a tap is the star under the finger');
  assert.match(review,/const half=v=>/,'a drag moves in half-stars');
  assert.match(review,/export function RateNow/);
- assert.match(main,/function askRating\(s\)\{\n  if\(!s\|\|!settingOn\(settings,'askRating'\)\|\|!s\.participants\?\.includes\(user\?\.name\)\)return;\n  if\(stepRatings\(state,s\.id\)\[user\.name\]\)return;/,'only for someone who was there and has not rated it');
+ assert.match(main,/function askRating\(s\)\{\n  if\(!s\|\|!settingOn\(settings,'askRating'\)\|\|!s\.participants\?\.includes\(user\?\.name\)\|\|!worthRating\(s\)\)return;\n  if\(stepRatings\(state,s\.id\)\[user\.name\]\)return;/,'only for someone who was there and has not rated it');
  assert.match(main,/askRating\(current\);\}\}\}>Done<\/Button>/,'from the Done button');
  assert.match(main,/onDone=\{askRating\}/,'and from the day at a glance');
  assert.match(timeline,/onDone\?\.\(s\);/);
  assert.match(main,/modal\.type==='rate'&&<RateNow/);
  const {DEFAULTS}=await import('../src/settings.js');
  assert.equal(DEFAULTS.askRating,true);
+});
+
+test('the how-was-it box only asks about stops worth rating',async()=>{
+ const {worthRating}=await import('../src/entry-types.js');
+ for(const title of['Nozomi 33 to Kyoto','Walk to Shibuya','Taxi home','Pack and final room check','Forward luggage to Kyoto','Check out','Early night','Check in and settle in'])
+  assert.equal(worthRating({title,kind:'flexible'}),false,`${title} is not asked`);
+ for(const title of['Okonomiyaki dinner','Fushimi Inari shrine','Mario Kart','teamLab Planets','Matcha at Ippodo'])
+  assert.equal(worthRating({title,kind:'flexible'}),true,`${title} is asked`);
+ assert.equal(worthRating({title:'Forward luggage',category:'food',kind:'flexible'}),true,'a type set by hand wins');
+ assert.equal(worthRating({title:'Okonomiyaki dinner',kind:'review'}),false,'a stop still to be confirmed is not asked');
 });

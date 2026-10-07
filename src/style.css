@@ -325,6 +325,10 @@ button.two-line{flex-direction:column;gap:.05rem;line-height:1.25;white-space:no
 .confirm-remove>h3{margin:.2rem 0 .3rem;font-size:1.15rem;overflow-wrap:anywhere}
 .confirm-remove>small{margin-bottom:1rem}
 .confirm-remove>p{margin-bottom:.8rem}
+.stop-actions>h3{margin:.2rem 0 .3rem;font-size:1.15rem;overflow-wrap:anywhere}
+.stop-actions>small{display:block;margin-bottom:1rem}
+.stop-actions>label,.stop-actions>button{margin-bottom:.8rem}
+.stop-actions>.row{border-top:1px solid var(--border);padding-top:.9rem}
 .confirm-keeps{margin:0 0 1.2rem;padding-left:1.2rem;font-size:.86rem;line-height:1.6;color:var(--muted)}
 .confirm-keeps li{margin-bottom:.3rem}
 .confirm-actions{margin-top:1.2rem}
