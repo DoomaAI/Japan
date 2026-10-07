@@ -29,6 +29,7 @@ import {allergenById} from '../src/allergy-data.js';
 import {MAX_NOTICED,NOTICED_TEXT,noticedFields} from '../src/noticed-data.js';
 import {findReportKind} from '../src/report-data.js';
 import {CHOICE_FIELDS,TEXT_FIELDS,validChoice} from '../src/mascot-data.js';
+import {landingDay} from '../src/weather-data.js';
 import {findRule} from '../src/booking-window-data.js';
 import {cleanRecommenders,withRecommender,matchProposal,RECOMMENDER_NAME,RECOMMENDER_SAID,RECOMMEND_VIA} from '../src/recommend-data.js';
 import {findShopItem,SHOP_VERDICTS,SHOP_NOTE_MAX} from '../src/shop-data.js';
@@ -651,7 +652,20 @@ export function extraOperation(state,op,user,fail,now){
     steps[id]={...hourReading(x,'Invalid stop forecast.'),area:x.area};
    }
   }
-  state.weather={at:now,by:user.name,days,hours,steps};
+  // The morning we land, at home: one day, the day after the last one here, and nothing else.
+  let home=state.weather.home||null;
+  if(op.home!==undefined){
+   const e=op.home;
+   if(!e||typeof e!=='object'||Array.isArray(e)||e.date!==landingDay(state))fail('Invalid home forecast.');
+   if(!Number.isInteger(e.code)||!Number.isInteger(e.max)||!Number.isInteger(e.min))fail('Invalid home forecast.');
+   if(e.max<-50||e.max>60||e.min<-60||e.min>50||e.min>e.max)fail('Invalid home forecast.');
+   if(e.rain!==null&&e.rain!==undefined&&!(Number.isInteger(e.rain)&&e.rain>=0&&e.rain<=100))fail('Invalid home forecast.');
+   if(e.uv!==null&&e.uv!==undefined&&!(Number.isInteger(e.uv)&&e.uv>=0&&e.uv<=20))fail('Invalid home forecast.');
+   if(!string(e.city,80))fail('Invalid home forecast.');
+   for(const k of ['sunrise','sunset'])if(e[k]!==null&&e[k]!==undefined&&!(typeof e[k]==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(e[k])))fail('Invalid home forecast.');
+   home={date:e.date,city:e.city,code:e.code,max:e.max,min:e.min,rain:e.rain??null,uv:e.uv??null,sunrise:e.sunrise??null,sunset:e.sunset??null};
+  }
+  state.weather={at:now,by:user.name,days,hours,steps,...(home?{home}:{})};
  }else if(op.type==='photoVote'){
   // One vote each per day, and you can change your mind. Voting for your own is allowed —
   // they are brothers, they will vote for their own, and everyone can see who voted.

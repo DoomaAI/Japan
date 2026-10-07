@@ -12386,3 +12386,35 @@ test('the day we fly out and the day we fly home are celebrated on Home, once a 
  const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
  assert.match(css,/prefers-reduced-motion:reduce\)\{\.travel-day-plane/,'a phone asked for less movement gets a parked plane');
 });
+
+test('the last day carries the weather at home the morning we land, and what is different there',async()=>{
+ const {landingDay,homeForecastUrl,parseHomeForecast,homeForecastFor,homeArrivalTips,HOME_POINT}=await import('../src/weather-data.js');
+ const {homeAhead,clockShift}=await import('../src/home-front.js');
+ const {ensureFeatures}=await import('../src/trip-features.js');
+ let state=ensureFeatures(structuredClone(seed));
+ const date=landingDay(state);
+ assert.equal(date,'2026-10-07','the day after the last day of the trip');
+ const url=homeForecastUrl(date);
+ assert.match(url,/timezone=Australia%2FSydney/);assert.match(url,/latitude=-33\.8688/);assert.match(url,/uv_index_max/);
+ const json={daily:{time:[date],weather_code:[61],temperature_2m_max:[19],temperature_2m_min:[11],precipitation_probability_max:[60],uv_index_max:[7.2],sunrise:[`${date}T05:47`],sunset:[`${date}T18:10`]}};
+ const home=parseHomeForecast(json,date);
+ assert.deepEqual(home,{date,city:'Sydney',code:61,max:19,min:11,rain:60,sunrise:'05:47',sunset:'18:10',uv:7});
+ assert.equal(parseHomeForecast({daily:{...json.daily,temperature_2m_min:[40]}},date),null,'a nonsense day is dropped');
+ // Kept in the trip beside Japan's days, by anybody, and kept when a later check has no home.
+ state=applyOperation(state,{type:'weatherUpdate',days:{},home},child);
+ assert.equal(homeForecastFor(state).max,19);
+ state=applyOperation(state,{type:'weatherUpdate',days:{}},child);
+ assert.equal(homeForecastFor(state).max,19,'a check that could not reach home keeps the last one');
+ for(const bad of [{...home,date:'2026-10-08'},{...home,min:30},{...home,uv:99},{...home,code:1.5},null,[]])
+  assert.throws(()=>applyOperation(state,{type:'weatherUpdate',days:{},home:bad},parent),/home forecast/);
+ // Daylight saving started in Sydney mid-trip: one hour ahead on day one, two on landing.
+ const gap=homeAhead(date,HOME_POINT.zone),shift=clockShift([...state.days,{date}],HOME_POINT.zone);
+ assert.equal(gap,2);assert.equal(shift.day,'2026-10-04');
+ const tips=homeArrivalTips(state,{home,away:{max:25},gap,shifted:shift});
+ const ids=tips.map(t=>t.id);
+ for(const id of ['clocks','sleep','layer','rain','uv','border'])assert.ok(ids.includes(id),id);
+ assert.match(tips[0].title,/Daylight saving started/);assert.match(tips[0].text,/forward on Sunday 4 October/);assert.match(tips[0].text,/2 hours ahead of Japan/);
+ // Nothing to say about the clocks with no gap, nor a jumper when home is no colder.
+ const plain=homeArrivalTips(state,{home:{...home,code:0,rain:0,uv:3,min:16},away:{max:20},gap:0}).map(t=>t.id);
+ assert.deepEqual(plain,['border']);
+});

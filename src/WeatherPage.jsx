@@ -3,7 +3,7 @@ import PageTitle from './PageTitle.jsx';
 import {CloudSun,RefreshCw,ChevronRight,ChevronDown} from 'lucide-react';
 import {dayLabel} from './AdventurePages.jsx';
 import HourlyChart,{HourlyTable,DayShape} from './WeatherCharts.jsx';
-import {SunTimes} from './Weather.jsx';
+import {SunTimes,HomeArrival} from './Weather.jsx';
 import SkyIcon from './SkyIcon.jsx';
 import {forecastFor,forecastAge,ageLabel,describe,advice,hoursFor,iconAt,skyPhase,skyFor} from './weather-data.js';
 import {japanDate,japanClock} from './timing.js';
@@ -51,6 +51,7 @@ export default function WeatherPage({state,day,now,check,checking,busy,online}){
     </button>
     {isOpen&&<div className="weather-row-body">
      <DayWeather state={state} day={d.date} nowHour={d.date===today?nowHour:null}/>
+     {d.date===state.days.at(-1)?.date&&<HomeArrival state={state}/>}
     </div>}
    </section>;
  };
