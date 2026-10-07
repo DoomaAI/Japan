@@ -2005,7 +2005,7 @@ test('Home is a column of widgets each phone orders and puts away for itself',as
  assert.deepEqual(homeRuns(['step','tired','apps','weather','glance']),['step',['tired','apps'],'weather',['glance']]);
  // Home draws them by id, the day heading and strip stay put, and the phone keeps the choice.
  assert.match(main,/const homeOnShow=tab==='today'\?homeShown\(homePrefs\)\.filter\(id=>awarenessAllows\(visibleState,user\.name,id\)&&!todayHome\.away\.includes\(id\)\):\[\];/);
- assert.match(main,/\{dayHeading\}\s*<MomentBanner [^\n]*\/>\s*<QuizLine [^\n]*\/>\s*<YesterdayLine [^\n]*\/>\s*\{homeRuns\(homeOnShow,arranging\)\.map\(run=>/);
+ assert.match(main,/\{dayHeading\}\s*<TravelDay [^\n]*\/>\s*<MomentBanner [^\n]*\/>\s*<QuizLine [^\n]*\/>\s*<YesterdayLine [^\n]*\/>\s*\{homeRuns\(homeOnShow,arranging\)\.map\(run=>/);
  // While Home is being edited each of the day's buttons is a card of its own.
  assert.deepEqual(homeRuns(['step','tired','apps'],true),['step','tired','apps']);
  // Today carries the day's buttons under its stops.
@@ -12364,6 +12364,27 @@ test('the Wallet can be read by activity date, newest added, name or person',asy
  assert.deepEqual(ids('title'),['a','b','z']);
  assert.deepEqual(ids('person'),['z','a','b']);
  assert.deepEqual(ids(''),['b','z','a'],'no order keeps the stored order for other callers');
+});
+test('the day we fly out and the day we fly home are celebrated on Home, once a phone each',async()=>{
+ const {travelDay,travelDayKey}=await import('../src/travel-day.js');
+ const days=seed.days,first=days[0].date,last=days.at(-1).date;
+ assert.equal(travelDay([],first),null);
+ assert.equal(travelDay(days,'2026-09-20'),null,'not the night before');
+ assert.equal(travelDay(days,'2026-09-25'),null,'not a day in the middle');
+ assert.equal(travelDay(days,first).kind,'out');
+ assert.equal(travelDay(days,first).page,'arrival');
+ assert.equal(travelDay(days,last).kind,'home');
+ assert.equal(travelDay(days,last).page,'flyinghome');
+ assert.match(travelDay(days,last).sub,new RegExp(`^${days.length} days`));
+ assert.equal(travelDay([...days].reverse(),first).kind,'out','read by date, not by order');
+ assert.equal(travelDay(days,'2026-12-01'),null);
+ assert.notEqual(travelDayKey(first),travelDayKey(last));
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/<TravelDay days=\{state\.days\} today=\{japanDate\(now\)\}/,'on Home, in the plan’s clock');
+ const win=await readFile(new URL('../src/Win.jsx',import.meta.url),'utf8');
+ assert.match(win,/pieces=PIECES/,'the burst takes the day’s own pieces');
+ const css=await readFile(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.match(css,/prefers-reduced-motion:reduce\)\{\.travel-day-plane/,'a phone asked for less movement gets a parked plane');
 });
 
 test('the last day carries the weather at home the morning we land, and what is different there',async()=>{

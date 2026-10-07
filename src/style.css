@@ -913,6 +913,24 @@ input[type=time],input[type=date],input[type=datetime-local]{-webkit-appearance:
 @media(prefers-reduced-motion:no-preference){.gauge-art circle{transition:stroke-dasharray .4s ease-out}}
 .blend-pick{align-items:center;margin:.4rem 0 .7rem}.blend-pick select{flex:1}
 .moment-banner{display:flex;align-items:center;gap:.6rem;width:100%;margin:0 0 .8rem;padding:.75rem .9rem;text-align:left;background:var(--ink);color:var(--paper);border:0;border-radius:14px;font-size:1.3rem}.moment-banner span{display:flex;flex-direction:column;font-size:1rem}.moment-banner small{opacity:.85}
+/* The flight out and the flight home: a sky across the top of Home with a plane crossing it on a
+   dotted trail, a few things drifting up behind it, and the words underneath. Out is evening over
+   Tokyo; home is gold and green. A phone asked for less movement gets the plane parked mid-sky. */
+.travel-day{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:0;width:100%;margin:0 0 1rem;padding:0;overflow:hidden;text-align:left;border:0;border-radius:20px;color:#fff;--sky:linear-gradient(160deg,var(--dark) 0%,var(--green) 62%,var(--accent) 130%);background:var(--sky);box-shadow:var(--shadow)}
+.travel-day:hover{background:var(--sky);border:0;filter:brightness(1.05)}
+.travel-day.home{--sky:linear-gradient(160deg,var(--green-deep) 0%,var(--green) 45%,var(--amber) 120%)}
+.travel-day-sky{position:relative;display:block;height:92px;overflow:hidden}
+.travel-day-sky i{position:absolute;font-style:normal;line-height:1}
+.travel-day-trail{left:-5%;right:-5%;top:58%;height:70px;border-top:2px dashed #ffffff55;border-radius:50% 50% 0 0}
+.travel-day-plane{top:52%;left:-12%;font-size:2rem;animation:travel-fly 6s cubic-bezier(.45,.05,.55,.95) infinite;filter:drop-shadow(0 4px 6px #0004)}
+.travel-day-bit{bottom:-4px;font-size:1.05rem;opacity:0;animation:travel-drift 4.2s ease-in infinite}
+.travel-day-words{display:flex;flex-direction:column;gap:.2rem;padding:.2rem 1.1rem 1rem}
+.travel-day-words b{font-family:'Fraunces',Georgia,serif;font-weight:500;font-size:1.65rem;line-height:1.15;animation:win-pop .5s cubic-bezier(.2,1.4,.5,1)}
+.travel-day-words small{color:inherit;opacity:.88;font-size:.85rem}
+.travel-day-words em{display:inline-flex;align-items:center;gap:.15rem;margin-top:.45rem;font-style:normal;font-size:.8rem;font-weight:700;letter-spacing:.04em;color:inherit;align-self:flex-start;padding:.3rem .6rem;border-radius:999px;background:#ffffff26}
+@keyframes travel-fly{0%{left:-12%;top:52%;transform:rotate(-10deg)}50%{left:46%;top:8%;transform:rotate(0)}100%{left:108%;top:52%;transform:rotate(12deg)}}
+@keyframes travel-drift{0%{transform:translateY(0) scale(.7);opacity:0}20%{opacity:.95}100%{transform:translateY(-84px) scale(1.1) rotate(25deg);opacity:0}}
+@media(prefers-reduced-motion:reduce){.travel-day-plane{left:46%;top:8%;animation:none}.travel-day-bit{display:none}.travel-day-words b{animation:none}}
 .photo-film{margin:.5rem 0}.photo-moment-now{margin:.4rem 0;padding:.5rem .7rem;background:var(--sand);border:1px solid var(--sand-border);border-radius:10px}.photo-developing{color:var(--muted)}.photo-badges{color:var(--muted)}
 .quiz-entry{margin:0 0 1rem;padding:.6rem .8rem;background:var(--sand);border:1px solid var(--sand-border);border-radius:14px}.quiz-entry summary{font-weight:700;cursor:pointer}
 .quiz-clock{height:6px;margin:.3rem 0 .6rem;background:var(--border);border-radius:3px;overflow:hidden}.quiz-clock i{display:block;height:100%;background:var(--ink)}

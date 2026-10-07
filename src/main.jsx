@@ -118,6 +118,7 @@ import DayCheck,{StopPlanB} from './DayCheck.jsx';
 import HotelMove from './HotelMove.jsx';
 import Rings from './Rings.jsx';
 import MomentBanner from './MomentBanner.jsx';
+import TravelDay from './TravelDay.jsx';
 import DinnerQuiz,{QuizLine} from './DinnerQuiz.jsx';
 import BlendCard,{BlendLine} from './BlendCard.jsx';
 import {StopInsider,StopEtiquette} from './StopGuide.jsx';
@@ -949,6 +950,7 @@ function App(){
   {joinedSwitch}
   {tab==='today'&&<HomeStack editing={arranging} setEditing={setArranging} ids={homeOnShow} place={(id,before)=>saveHome(dropWidget(homePrefs,id,before,homeOnShow))} remove={takeOffHome} add={()=>go('personalise')}>
    {dayHeading}
+   <TravelDay days={state.days} today={japanDate(now)} go={go}/>
    <MomentBanner day={japanDate(now)} now={now} go={go}/>
    <QuizLine state={visibleState} open={()=>setModal({type:'quiz'})}/>
    <YesterdayLine key={japanDate(now)} state={visibleState} user={user} today={japanDate(now)} mutate={mutate} busy={busy} notice={notice}/>
