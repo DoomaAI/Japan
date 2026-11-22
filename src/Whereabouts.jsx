@@ -93,7 +93,7 @@ export default function Whereabouts({state,user,day,now,request,mutate,busy,go,o
     {SHARE_FOR.map(m=><button type="button" key={m} className={live.until?'':'primary'} disabled={working} onClick={()=>{live.start(m);notice(`Sharing where you are for ${m<60?`${m} min`:m===60?'an hour':`${m/60} hours`}.`);}}>{m<60?`${m} min`:m===60?'1 hour':`${m/60} hours`}</button>)}
     {(mine||live.until)&&<button type="button" disabled={working} onClick={stop}><EyeOff size={16}/>Stop sharing</button>}
    </div>
-   <p><small>Rounded to about 100 m and deleted after {CHECKIN_HOURS} hours. {parent?'The boys see where Mum and Dad are; only a parent sees where the boys are.':'Mum and Dad see where you are, and you see where they are.'} For somebody’s exact place in the background, Find My does it properly.</small></p>
+   <p><small>Rounded to about 100 m and deleted after {CHECKIN_HOURS} hours. {state.whereaboutsOpen?'Everyone in the group sees everyone.':parent?'The boys see where Mum and Dad are; only a parent sees where the boys are.':'Mum and Dad see where you are, and you see where they are.'} For somebody’s exact place in the background, Find My does it properly.</small></p>
   </section>
   <section className="feature-card wa-people">
    <h2><Users size={18}/> Everyone</h2>
@@ -103,7 +103,7 @@ export default function Whereabouts({state,user,day,now,request,mutate,busy,go,o
      <button type="button" className="icon" aria-label={`Show ${c.name} on the map`} onClick={()=>centre(c)}><Crosshair size={17}/></button>
      <a className="button" href={walkTo(c)} target="_blank" rel="noopener noreferrer"><Navigation size={15}/>Walk there</a>
     </li>;})}
-    {quiet.map(n=><li key={n} className="quiet"><span><strong>{n}</strong><small>{parent||parentsOf(state).includes(n)?`Nothing shared in the last ${CHECKIN_HOURS} hours`:'Only a parent sees where the boys are'}</small></span></li>)}
+    {quiet.map(n=><li key={n} className="quiet"><span><strong>{n}</strong><small>{parent||state.whereaboutsOpen||parentsOf(state).includes(n)?`Nothing shared in the last ${CHECKIN_HOURS} hours`:'Only a parent sees where the boys are'}</small></span></li>)}
    </ul>
    <button type="button" disabled={finding} onClick={findMe}><Crosshair size={16}/>{finding?'Finding you…':me?'Find me again':'Show me on the map'}</button>
    <p><small>Show me puts you on this map only. It is not sent to anyone.</small></p>

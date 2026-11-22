@@ -107,4 +107,11 @@ export async function tellTomorrow(check,parents,send=sendOne){
  return deliver({key:`tomorrow|${check.day}`,kind:'tomorrow',title:`Tomorrow: ${act[0].title}`,
   body:act.length>1?`And ${act.length-1} more thing${act.length>2?'s':''} to look at before morning.`:act[0].detail||check.summary,url:`/?tab=glance&day=${check.day}`,to:parents},await subscriptions(),send);
 }
+// A meet-up on the ski fields: set, called off, or somebody late, not coming or already there,
+// told straight away to the people it concerns (server/ski.mjs works out who and what).
+export async function tellMeetup(notice,send=sendOne){
+ if(!notice||(!pushReady()&&send===sendOne))return 0;
+ if(!(await claim(notice.key)))return 0;
+ return deliver(notice,await subscriptions(),send);
+}
 export const resetDemoPush=()=>{demoSubs=new Map();demoSent=new Set();demoLast=0;};

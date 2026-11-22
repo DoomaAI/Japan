@@ -7,6 +7,8 @@ import {activeSteps,japanClock} from './timing.js';
 import {dayBriefing} from './briefing-data.js';
 import {momentFor} from './film-data.js';
 import {appReminders,APP_REMIND_AT} from './apps-data.js';
+import {activeMeetups,meetupAudience,meetupPush,MEETUP_REMIND_MIN} from './ski-data.js';
+import {planOf} from './plan-context.js';
 export const PUSH_KINDS=[
  ['leave','Time to leave','The leave-by time for each fixed booking'],
  ['windows','Booking windows','15 minutes before a booking opens, and when it opens (parents)'],
@@ -15,6 +17,7 @@ export const PUSH_KINDS=[
  ['morning','Morning briefing','At 7:30 each trip morning, the day in a line'],
  ['apps','Apps to set up','A week before we fly, and the evening before the parks and the Shinkansen (parents)'],
  ['tomorrow','Tomorrow’s check','The evening before, when the check finds something to act on (parents)'],
+ ['meetups','Ski meet-ups','A new meet-up, 15 minutes before one, and who is late, not coming or already there'],
  ['moment','The moment','Once a day, the same two minutes on every phone: a photo of whatever you are doing']
 ];
 export const PUSH_KIND_IDS=PUSH_KINDS.map(([id])=>id);
@@ -47,6 +50,12 @@ export function pushMoments(state){
   const one=r.apps.length===1&&r.first;
   out.push({key:`apps|${r.id}|${r.day}`,kind:'apps',at:at(r.day,APP_REMIND_AT),title:one?`Tomorrow: ${r.apps[0].name}`:'A week to go: apps to set up',
    body:one?r.apps[0].setup:`${r.apps.map(a=>a.name).join(', ')}. Set each one up on home Wi-Fi.`,url:'/?tab=help',to:parents});
+ }
+ // A quarter of an hour before each meet-up, to everyone who has not said they cannot come.
+ // The key carries the time, so a meet-up moved to later reminds again at the new time.
+ for(const m of activeMeetups(state,0)){
+  const to=meetupAudience(state,m,null);if(!to.length)continue;
+  out.push({key:`meetup-soon|${m.id}|${m.at}`,kind:'meetups',at:Date.parse(m.at)-MEETUP_REMIND_MIN*60000,...meetupPush('soon',m,'',planOf(state).timeZone),url:`/?tab=ski&meetup=${encodeURIComponent(m.id)}`,to});
  }
  return out.sort((a,b)=>a.at-b.at);
 }

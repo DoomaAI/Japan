@@ -6,6 +6,18 @@ A private iPhone Home Screen web app, prepared for a new GitHub repository and V
 
 The production frontend builds and the automated model/API checks pass. No GitHub repository, Vercel deployment, Neon database or Blob store has been created or connected yet. Live family sharing and uploads must be checked after those connections are made. The internal browser preview was blocked by the browser environment (`ERR_BLOCKED_BY_CLIENT`), so visual, touch, iPhone installation, calendar import, alarm Shortcut and offline browser checks remain outstanding. Do not treat this as a deployed or fully device-tested release.
 
+## Added 22 November 2026: Sapporo ski fields
+
+- **Ski fields** (More → Out and about) for a group skiing the five resorts inside Sapporo: Teine, Kokusai, Bankei, Fu’s and Moiwa. Four tabs per resort:
+  - **Lifts:** a button to the resort’s own page for which lifts are running today (Weathernews’ snow and lift report for Fu’s and Moiwa, which have no official status page), the website and trail map, a note on when queues build, and the resort’s lifts with *Meet at top* / *Meet at bottom*. No Sapporo resort publishes lift wait times, so none are shown.
+  - **Runs:** a checklist like the theme park rides. Each person stars what they want and ticks what they have done; filters by grade (green, red, black, the Japanese trail-map colours) and by done/not done; a count per person.
+  - **Map:** the runs in their grade colours, the lifts, places to eat, meet-ups and the group’s last shared positions. Tap a run to tick it, a lift or a lodge to meet there.
+  - **Meet up:** a place (any lift top or bottom, a lodge, or typed) and a time (in 15/30/60 min or a clock time), with a note such as Lunch or Last run. Everyone is notified when it is set and 15 minutes before; each person answers Coming, Late (with minutes), Can’t make it, or I’m here, and the others are told. Whoever set it, or an organiser, can call it off.
+- **Run and lift data** comes from OpenStreetMap (Overpass API), read by the server per resort, kept for 12 hours and kept on each phone, so the checklist opens with no signal after the first read. It is as complete as the mapping; the official trail map is always linked. Logic in `src/ski-data.js` and `server/ski.mjs`, screen in `src/SkiFields.jsx`, tests in `tests/ski.test.mjs`.
+- **Everyone sees everyone** on the map: an organiser can switch this on under Meet up, so a group of adults all see each other’s shared positions (previously only parents saw everyone).
+- **New notification kind** *Ski meet-ups* (Settings → Notifications). Reminders 15 minutes before need the 5-minute push tick (`docs/push.md`).
+- **Not built yet (on hold):** importing GPS tracks for runs, speed and vertical, and a native app for background tracking. A Home Screen web app only shares position while open.
+
 ## Changed on the road, 5 October 2026
 
 - **More: hold to arrange, no arrows on a phone.** The arrows and eye under every card on More are gone. Hold any card and every section wobbles: drag a card along its section, tap the **star** on its corner to make it a favourite or the **eye** to put it away, and tap anywhere else (or Escape) to settle. With a mouse the arrows come back under each card while it wobbles, and only the card itself wobbles so they hold still. **Customise** and **Settings** are no longer cards in Just for you but a row of their own at the very foot of More, with **Arrange** beside them (Done while arranging) for anybody who would rather not hold. A hold used to star a card; the star is now on the wobbling card. Logic in `MorePage` and `MoreSection` (`src/Navigation.jsx`), shared wobbling across rows in `useWobble` (`src/wobble.js`), the section order in `arrangeInMore` (`src/nav-data.js`).

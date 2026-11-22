@@ -35,7 +35,8 @@ import {calendarFeed,japanDate} from '../src/timing.js';
 import {RECEIPT_TYPES} from '../src/ledger-data.js';
 import {followView,followPhoto} from '../src/follow-data.js';
 import {applyKudos} from '../src/kudos-data.js';
-import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange,tellTomorrow,tellLate,tellLateNo} from './push.mjs';
+import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange,tellTomorrow,tellLate,tellLateNo,tellMeetup} from './push.mjs';
+import {skiMap,meetupChange,positionSeers} from './ski.mjs';
 import {tomorrowReady,tomorrowOf,nightly} from './tomorrow.mjs';
 import {isDeveloping,momentAccepts} from '../src/film-data.js';
 import {quizAction} from '../src/quiz-data.js';
@@ -429,8 +430,10 @@ export default async function handler(req,res){
   if(route==='state'&&req.method==='GET')return json(res,visibleEnvelope(await readTrip(),user));
   // Where we each last said we were. Shared by tapping, never by the app on its own; read by the
   // map, which only ever gets the ones this person is allowed to see.
-  if(route==='checkins'&&req.method==='GET')return json(res,{checkins:await listCheckins(user,new Date(),parentsOf((await readTrip()).state))});
-  if(route==='checkin'&&post){await shareCheckin(user,b);return json(res,{checkins:await listCheckins(user,new Date(),parentsOf((await readTrip()).state))});}
+  // A group that has said so (the ski fields' "everyone sees everyone") lets every member see
+  // every position; otherwise it is the parents, as it always was.
+  if(route==='checkins'&&req.method==='GET')return json(res,{checkins:await listCheckins(user,new Date(),positionSeers((await readTrip()).state,parentsOf))});
+  if(route==='checkin'&&post){await shareCheckin(user,b);return json(res,{checkins:await listCheckins(user,new Date(),positionSeers((await readTrip()).state,parentsOf))});}
   // Coordinates for our places, from the family My Map. The map's own KML export is read once,
   // on a parent's say-so, and each pin is matched to a place by name; nothing is guessed.
   if(route==='map-coordinates'&&post){
@@ -459,6 +462,8 @@ export default async function handler(req,res){
    if(fresh&&!(current.state.alerts||[]).some(a=>a.id===fresh.id))await Promise.race([tellChange(fresh,user.name),new Promise(r=>setTimeout(r,4000))]).catch(()=>{});
    // Running late goes to the phones it was for, straight away.
    if(b.operation?.type==='lateSend'){const sent=(saved.state.lateNotices||[]).findLast(n=>n.from===user.name&&!n.clearedAt);if(sent)await Promise.race([tellLate(sent),new Promise(r=>setTimeout(r,4000))]).catch(()=>{});}
+   // A meet-up on the ski fields: set, called off, or somebody late or there, told now.
+   {const n=meetupChange(current.state,saved.state,b.operation,user);if(n)await Promise.race([tellMeetup(n),new Promise(r=>setTimeout(r,4000))]).catch(()=>{});}
    if(b.operation?.type==='lateAnswer'&&b.operation.accept===false){const n=(saved.state.lateNotices||[]).find(n=>n.id===b.operation.id);if(n)await Promise.race([tellLateNo(n),new Promise(r=>setTimeout(r,4000))]).catch(()=>{});}
    // A discarded email leaves no attachments behind in private storage. The files are gone
    // from the trip either way, so a failed delete is not worth failing the change over.
@@ -812,6 +817,8 @@ export default async function handler(req,res){
    const db=await database();await db`UPDATE japan_grants SET revoked=true WHERE id=${b.id}`;return json(res,{ok:true});
   }
   // Live wait times for one park, read from Queue-Times.com and kept a minute (server/waits.mjs).
+  // The runs, lifts and places to eat at one Sapporo resort, from OpenStreetMap (server/ski.mjs).
+  if(route==='ski-map'&&req.method==='GET')return json(res,await skiMap(url.searchParams.get('resort')||''));
   if(route==='waits'&&req.method==='GET')return json(res,await parkWaits(url.searchParams.get('park')||''));
   if(route==='guide-index'&&req.method==='GET')return json(res,JSON.parse(await readFile(new URL('../data/guide-index.json',import.meta.url),'utf8')));
   if(route==='guide'&&req.method==='GET'){

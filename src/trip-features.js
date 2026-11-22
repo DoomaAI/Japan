@@ -1533,6 +1533,7 @@ export function pendingProgress(state,queue){
    slot.pending=!live;
   }}
   if(o.type==='parkRide'){const e=next.parkRides[o.rideId]||{},ridden={...(e.ridden||{})};if(o.done)ridden[o.person]=ridden[o.person]||o.at;else delete ridden[o.person];next.parkRides={...next.parkRides,[o.rideId]:{...e,ridden}};}
+  if(o.type==='skiRun'||o.type==='skiWant'){const runs=next.skiRuns||{},e=runs[o.runId]||{},key=o.type==='skiRun'?'done':'wants',list={...(e[key]||{})},on=o.type==='skiRun'?o.done:o.want;if(on)list[o.person]=list[o.person]||o.at;else delete list[o.person];next.skiRuns={...runs,[o.runId]:{...e,...(o.name?{name:o.name}:{}),[key]:list}};}
   if(o.type==='parkWant'){const e=next.parkRides[o.rideId]||{},wants={...(e.wants||{})};if(o.want)wants[o.person]=wants[o.person]||o.at;else delete wants[o.person];next.parkRides={...next.parkRides,[o.rideId]:{...e,wants}};}
   if(o.type==='bingoTick'){const mine={round:1,card:null,...(next.bingo[o.person]||{})},done={...(mine.done||{})},key=o.part!=null?`${o.square}:${o.part}`:o.square;if(o.done)done[key]=done[key]||o.at;else delete done[key];next.bingo={...next.bingo,[o.person]:{...mine,done}};}
   if(o.type==='bingoCard'&&Array.isArray(o.card)){const mine={round:1,card:null,done:{},...(next.bingo[o.person]||{})};if(o.round>(mine.round||1))next.bingo={...next.bingo,[o.person]:{...mine,round:o.round,card:[...o.card]}};}

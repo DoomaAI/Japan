@@ -59,6 +59,7 @@ export const PAGES={
  weather:{label:'Weather',note:'Every day and every hour, with the graphs'},
  nightstand:{label:'Nightstand',note:'The phone by the bed: the clock, tomorrow’s first fixed time and leave-by, the forecast and the alarm, dim after ten'},
  parks:{label:'Theme park rides',note:'Checklists, height limits and park maps'},
+ ski:{label:'Ski fields',note:'The Sapporo resorts: which lifts are open, the runs to tick off on a map, and meet-ups at the top or bottom of a lift'},
  shopping:{label:'Shopping list',note:'Souvenirs, gifts and things we need, what we saw and have not decided on, and the trip shop'},
  shortlist:{label:'Purchase shortlist',note:'Things we have seen in a shop, photographed, priced and still to decide on'},
  printguide:{label:'Print our guide',note:'The travel guide rebuilt from the plan as it stands, to print or save as a PDF'},
@@ -91,7 +92,7 @@ export const PRIMARY={
 // Screens that answer one question from two or three sides are one card (JOINED, below), so a
 // joined screen is reached through its host's card and the switch at the top of the page.
 export const MORE_SECTIONS=[
- ['Out and about',['weather','ask','places','food','allergy','hunts','local','phrases','whereabouts','safety','help']],
+ ['Out and about',['weather','ski','ask','places','food','allergy','hunts','local','phrases','whereabouts','safety','help']],
  ['Money',['money','paying','ledger','shopping']],
  ['The plan',['glance','guests','invitation','todo','packing','trackers','windows','arrival','homefront','vault','planning','predictions','printguide','parks','tickets']],
  ['Looking back',['noticed','nexttime','photos','memorymap','diary','recap','capsule']],

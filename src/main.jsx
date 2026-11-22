@@ -132,6 +132,7 @@ const AllergyCard=lazy(()=>import('./AllergyCard.jsx'));
 const Bingo=lazy(()=>import('./Bingo.jsx'));
 const RecentlyDeleted=lazy(()=>import('./RecentlyDeleted.jsx'));
 const ParkGuide=lazy(()=>import('./ParkGuide.jsx'));
+const SkiFields=lazy(()=>import('./SkiFields.jsx'));
 const LiveWaits=lazy(()=>import('./LiveWaits.jsx'));
 const Stamps=lazy(()=>import('./Stamps.jsx'));
 const Leaderboard=lazy(()=>import('./Leaderboard.jsx'));
@@ -240,7 +241,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // What is missing is deliberate: anything that reshapes the plan needs the latest revision
 // to be safe, a stale exchange rate or forecast overwriting a fresh one is worse than not
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
-const OFFLINE_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','bingoCard','parkRide','parkWant','foodTried','foodRating','phraseSeen','factSeen','moneyFound','gameScore',
+const OFFLINE_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','bingoCard','parkRide','parkWant','skiRun','skiWant','foodTried','foodRating','phraseSeen','factSeen','moneyFound','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove','voiceNoteWords',
  'proposalAdd','proposalVote','proposalMust','proposalRecommend','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','packBefore','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntPick','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','dayRating','dayThought','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','bookingWindowBooked','shopLog','listOrder'];
 // Taps that only record what just happened — a tick, a rating, a vote — show on the screen the
@@ -248,7 +249,7 @@ const OFFLINE_OPS=['status','legStatus','stageSet','challengeStatus','challengeS
 // the last one's round trip. They ride the same queue as a tap made with no signal, which already
 // draws itself on the screen (pendingProgress) and replays against whatever the plan has become.
 // Adding things stays a plain save: the screens that add read the new item back from the answer.
-const INSTANT_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','parkRide','parkWant','foodTried','foodRating','phraseSeen','factSeen','gameScore',
+const INSTANT_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','parkRide','parkWant','skiRun','skiWant','foodTried','foodRating','phraseSeen','factSeen','gameScore',
  'todoStatus','packStatus','packDismiss','packBefore','shortlistStatus','shortlistRating','spendBought','stepRating','dayRating','proposalVote','proposalMust','huntRate','huntRank','huntTried','expressPick','expressUsed','sumoPredict','sumoResult','listOrder'];
 // Where the app opens. The address wins, then the place this phone was last looking — unless
 // that day is behind us, in which case the phone was put down overnight and Home should open on
@@ -1011,6 +1012,7 @@ function App(){
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go} day={day} remove={removeThen} request={request} online={online&&!!config?.capture} sayFirst={sayFirst} clearSayFirst={()=>setSayFirst(null)}/>}
   {tab==='packing'&&<Packing state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
   {tab==='trackers'&&<Trackers state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
+  {tab==='ski'&&<Suspense fallback={<p>Opening the ski fields…</p>}><SkiFields state={visibleState} user={user} now={now} request={online?request:null} mutate={mutate} busy={busy} go={go} notice={notice} live={live}/></Suspense>}
   {tab==='whereabouts'&&<Suspense fallback={<p>Opening the map…</p>}><Whereabouts state={visibleState} user={user} day={day} now={now} request={request} mutate={mutate} busy={busy} go={go} open={setModal} notice={notice} live={live}/></Suspense>}
   {tab==='memorymap'&&<Suspense fallback={<p>Opening the map…</p>}><MemoryMap state={visibleState} user={user} request={request} accept={accept} notice={notice} busy={busy}/></Suspense>}
   {tab==='spending'&&<Spending state={visibleState} user={user} mutate={mutate} busy={busy} go={go} notice={notice} today={japanDate(now)}/>}
