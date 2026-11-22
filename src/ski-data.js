@@ -189,3 +189,28 @@ export function quickTimes(now=Date.now()){
  const five=5*60000;
  return [15,30,60].map(min=>({min,at:new Date(Math.ceil((now+min*60000)/five)*five).toISOString()}));
 }
+
+// ---- The trip's days ----------------------------------------------------------------------
+// The ski plan's days come from its dates and where each night is, set by its organiser when the
+// plan is started and changed whenever the bookings change. Flying through Osaka, the first day
+// is Osaka until somebody says otherwise; the rest are on the snow.
+export const DAY_PLACES=['Osaka','Kyoto','Nara','Sapporo','Travel day'];
+export const MAX_PLAN_DAYS=45;
+const isoDay=/^\d{4}-\d{2}-\d{2}$/;
+const addDays=(date,n)=>new Date(Date.parse(`${date}T00:00:00Z`)+n*86400000).toISOString().slice(0,10);
+// The dates from the first to the last, each with its place: the one asked for, else the one it
+// had, else Osaka on the first day and Sapporo after. A problem comes back as a sentence.
+export function planDays({from,to,places={}},had=[]){
+ if(!isoDay.test(from||'')||!isoDay.test(to||'')||!Number.isFinite(Date.parse(from))||!Number.isFinite(Date.parse(to)))return {problem:'Choose the first and the last day.'};
+ const count=Math.round((Date.parse(to)-Date.parse(from))/86400000)+1;
+ if(count<1)return {problem:'The last day is before the first.'};
+ if(count>MAX_PLAN_DAYS)return {problem:`Keep the trip under ${MAX_PLAN_DAYS} days.`};
+ const before=new Map(had.map(d=>[d.date,d]));
+ const days=[];
+ for(let i=0;i<count;i++){
+  const date=addDays(from,i),old=before.get(date),asked=typeof places[date]==='string'?places[date].replace(/\s+/g,' ').trim().slice(0,40):'';
+  const city=asked||old?.city||(i===0?'Osaka':'Sapporo');
+  days.push({date,title:old&&!asked?old.title:city==='Sapporo'?'Sapporo · on the snow':city,city,hotel:old?.hotel||'',pages:old?.pages||[]});
+ }
+ return {days};
+}

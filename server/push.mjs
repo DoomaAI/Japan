@@ -3,19 +3,21 @@
 // fell due since it last ran; a change to the plan is sent the moment it is saved. Nothing is
 // sent twice: every notification has a key, and a key is written down before it goes out.
 import webpush from 'web-push';
-import {database,localDemo} from './store.mjs';
+import {database,localDemo,currentPlan,FAMILY_PLAN} from './store.mjs';
 import {AppError} from './model.mjs';
 import {duePushes,wants,PUSH_KIND_IDS} from '../src/push-data.js';
 import {latePush} from '../src/late-data.js';
 export const pushReady=()=>!!(process.env.VAPID_PUBLIC_KEY&&process.env.VAPID_PRIVATE_KEY);
 export const pushPublicKey=()=>process.env.VAPID_PUBLIC_KEY||null;
-let tables,demoSubs=new Map(),demoSent=new Set(),demoLast=0;
+let tables,demoSubs=new Map(),demoSent=new Set(),demoLast={};
 async function db(){
  const sql=await database();
  tables??=(async()=>{
   await sql`CREATE TABLE IF NOT EXISTS japan_push (endpoint text PRIMARY KEY, name text NOT NULL, subscription jsonb NOT NULL, prefs jsonb NOT NULL DEFAULT '{}'::jsonb, created_at timestamptz NOT NULL DEFAULT now())`;
   await sql`CREATE TABLE IF NOT EXISTS japan_push_sent (key text PRIMARY KEY, sent_at timestamptz NOT NULL DEFAULT now())`;
   await sql`CREATE TABLE IF NOT EXISTS japan_push_tick (id text PRIMARY KEY, last_at timestamptz NOT NULL)`;
+  // Which plan a phone is told about: the one it was in when it last turned notifications on.
+  await sql`ALTER TABLE japan_push ADD COLUMN IF NOT EXISTS plan text NOT NULL DEFAULT 'family'`;
  })().catch(e=>{tables=undefined;throw e;});
  await tables;return sql;
 }
@@ -28,7 +30,7 @@ export function checkSubscription(s){
 }
 export async function subscribe(user,subscription,prefs){
  const sub=checkSubscription(subscription),p=cleanPrefs(prefs);
- if(localDemo()){demoSubs.set(sub.endpoint,{endpoint:sub.endpoint,name:user.name,subscription:sub,prefs:p});return p;}
+ if(localDemo()){demoSubs.set(sub.endpoint,{endpoint:sub.endpoint,name:user.name,plan:currentPlan(),subscription:sub,prefs:p});return p;}
  const sql=await db();
  await sql`INSERT INTO japan_push(endpoint,name,subscription,prefs) VALUES (${sub.endpoint},${user.name},${JSON.stringify(sub)}::jsonb,${JSON.stringify(p)}::jsonb)
   ON CONFLICT(endpoint) DO UPDATE SET name=${user.name},subscription=${JSON.stringify(sub)}::jsonb,prefs=${JSON.stringify(p)}::jsonb`;
@@ -40,11 +42,16 @@ export async function unsubscribe(user,endpoint){
  if(localDemo()){const s=demoSubs.get(endpoint);if(s&&(s.name===user.name||user.role==='parent'))demoSubs.delete(endpoint);return;}
  const sql=await db();await sql`DELETE FROM japan_push WHERE endpoint=${endpoint} AND (name=${user.name} OR ${user.role==='parent'})`;
 }
+// The phones of the plan this request is about, and no other's.
 export async function subscriptions(){
- if(localDemo())return [...demoSubs.values()];
- const sql=await db();return await sql`SELECT endpoint,name,subscription,prefs FROM japan_push`;
+ if(localDemo())return [...demoSubs.values()].filter(s=>(s.plan||FAMILY_PLAN)===currentPlan());
+ const sql=await db();return await sql`SELECT endpoint,name,subscription,prefs FROM japan_push WHERE plan=${currentPlan()}`;
 }
-async function claim(key){
+// A key names a notification for good. The family's keys are as they always were; another
+// plan's carry its id, so two plans' "the moment, 10 January" are two notifications, not one.
+const planKey=key=>currentPlan()===FAMILY_PLAN?key:`${currentPlan()}|${key}`;
+async function claim(raw){
+ const key=planKey(raw);
  if(localDemo()){if(demoSent.has(key))return false;demoSent.add(key);return true;}
  const sql=await db();const r=await sql`INSERT INTO japan_push_sent(key) VALUES (${key}) ON CONFLICT DO NOTHING RETURNING key`;return r.length>0;
 }
@@ -63,10 +70,11 @@ function sendOne(subscription,payload){
  return webpush.sendNotification(subscription,JSON.stringify(payload),{TTL:3600,urgency:'high'});
 }
 async function lastTick(now){
- if(localDemo()){const l=demoLast||now-5*60000;demoLast=now;return l;}
+ if(localDemo()){const id=currentPlan(),l=demoLast[id]||now-5*60000;demoLast[id]=now;return l;}
  const sql=await db();
- const [r]=await sql`SELECT last_at FROM japan_push_tick WHERE id='family'`;
- await sql`INSERT INTO japan_push_tick(id,last_at) VALUES ('family',${new Date(now).toISOString()}) ON CONFLICT(id) DO UPDATE SET last_at=${new Date(now).toISOString()}`;
+ const id=currentPlan();
+ const [r]=await sql`SELECT last_at FROM japan_push_tick WHERE id=${id}`;
+ await sql`INSERT INTO japan_push_tick(id,last_at) VALUES (${id},${new Date(now).toISOString()}) ON CONFLICT(id) DO UPDATE SET last_at=${new Date(now).toISOString()}`;
  return r?Date.parse(r.last_at):now-5*60000;
 }
 // The tick: everything that fell due since the last one, each claimed before it is sent.
@@ -114,4 +122,4 @@ export async function tellMeetup(notice,send=sendOne){
  if(!(await claim(notice.key)))return 0;
  return deliver(notice,await subscriptions(),send);
 }
-export const resetDemoPush=()=>{demoSubs=new Map();demoSent=new Set();demoLast=0;};
+export const resetDemoPush=()=>{demoSubs=new Map();demoSent=new Set();demoLast={};};

@@ -220,5 +220,7 @@ On hold, by decision:
 1. **Run tracking from GPS:** import a GPX file per person per day (Slopes, Strava or Apple Workouts export), match it to the mapped runs and lifts, and auto-tick runs with top speed, vertical and distance, plus a group leaderboard.
 2. **Background tracking:** a native wrapper (see `docs/native-apps.md`) with a background-location plugin, since a Home Screen web app gets no position while the phone is locked.
 
-Still to check on a phone: the run data for each resort once the server can reach Overpass (it could not from the build session), and the lift-status links once the 2026–27 season pages are live.
+Also built: the ski trip is its own plan in the same app (README, “a second plan”), with Osaka, Nara, Universal and Kyoto ideas on its board.
+
+Still to check on a phone: joining the ski plan by its open link and switching between the two plans on a real iPhone; the run data for each resort once the server can reach Overpass (it could not from the build session), and the lift-status links once the 2026–27 season pages are live.
 

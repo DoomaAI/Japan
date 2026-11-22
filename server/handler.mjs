@@ -7,7 +7,7 @@ import {Readable} from 'node:stream';
 import {get,head,del} from '@vercel/blob';
 import {handleUpload} from '@vercel/blob/client';
 import {AppError,applyOperation,documentDetails,documentAssociation,ticketParent} from './model.mjs';
-import {database,readTrip,writeTrip,updateTrip,session,localDemo,hash,token,setCookie,cookieOf,renewSession,renewAllLinks,RENEW_WITHIN} from './store.mjs';
+import {database,readTrip,writeTrip,updateTrip,session,localDemo,hash,token,setCookie,cookieOf,renewSession,renewAllLinks,RENEW_WITHIN,runInPlan,enterPlan,currentPlan,FAMILY_PLAN,PLAN_IDS,PLAN_SEEDS,planExists,createPlan,planTitles,addCookie,otherCookieOf,sessionPlan} from './store.mjs';
 import {visibleEnvelope,visibleTrip} from './visibility.mjs';
 import {usageSummary} from './usage.mjs';
 import {roleOf,joinMember,cleanName,MEMBER_ROLES,householdProblem,parentsOf} from '../src/people.js';
@@ -37,6 +37,7 @@ import {followView,followPhoto} from '../src/follow-data.js';
 import {applyKudos} from '../src/kudos-data.js';
 import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange,tellTomorrow,tellLate,tellLateNo,tellMeetup} from './push.mjs';
 import {skiMap,meetupChange,positionSeers} from './ski.mjs';
+import {planDays} from '../src/ski-data.js';
 import {tomorrowReady,tomorrowOf,nightly} from './tomorrow.mjs';
 import {isDeveloping,momentAccepts} from '../src/film-data.js';
 import {quizAction} from '../src/quiz-data.js';
@@ -78,7 +79,10 @@ function checkOrigin(req){
  if(localDemo()){if(origin&&new URL(origin).host!==req.headers.host)throw new AppError('Request origin is not allowed.',403);return;}
  if(!process.env.APP_ORIGIN||origin!==process.env.APP_ORIGIN)throw new AppError('Request origin is not allowed.',403);
 }
-export default async function handler(req,res){
+// Every request starts in the family's plan; a link or a session moves it into its own plan
+// (server/store.mjs), and nothing it reads or writes after that is another plan's.
+export default function handler(req,res){return runInPlan(FAMILY_PLAN,()=>handle(req,res));}
+async function handle(req,res){
  res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');
  try{
   const url=new URL(req.url,'http://localhost'),route=url.pathname.replace(/^\/api\/?/,'');
@@ -128,7 +132,7 @@ export default async function handler(req,res){
    if(problem)throw new AppError(problem);
    if(joined&&!localDemo()){
     const db=await database(),grantId=randomUUID();
-    await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,via,expires_at) VALUES (${grantId},${hash(token())},${name},'child','personal','invitation',now()+interval '6 months')`;
+    await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,via,plan_id,expires_at) VALUES (${grantId},${hash(token())},${name},'child','personal','invitation',${currentPlan()},now()+interval '6 months')`;
     const sid=token();await db`INSERT INTO japan_sessions(token_hash,grant_id,expires_at) VALUES (${hash(sid)},${grantId},now()+interval '6 months')`;setCookie(res,sid);
    }
    return json(res,{ok:true,name,joined,view:invitationView((await readTrip()).state)});
@@ -223,7 +227,10 @@ export default async function handler(req,res){
    const secret=process.env.CRON_SECRET||'',given=(req.headers.authorization||'').replace(/^Bearer /,'')||url.searchParams.get('key')||'';
    if(!secret||secret.length<16||hash(given)!==hash(secret))throw new AppError('Not allowed.',403);
    if(!pushReady())return json(res,{ok:true,ready:false,sent:[]});
-   return json(res,{ok:true,ready:true,sent:await tick((await readTrip()).state)});
+   // Each plan's moments, in that plan's own scope, so its phones and its keys are its own.
+   const sent=[];
+   for(const plan of PLAN_IDS){if(!(await planExists(plan)))continue;enterPlan(plan);sent.push(...await tick((await readTrip()).state));}
+   return json(res,{ok:true,ready:true,sent});
   }
   // Tomorrow's check and Plan B, run in the Japan evening by the scheduler (vercel.json crons,
   // which send the cron secret as a bearer token). It checks whichever trip day is tomorrow in
@@ -244,8 +251,10 @@ export default async function handler(req,res){
   if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),tomorrow:tomorrowReady(),highlights:highlightsReady(),frameMail:frameMailReady(),googleFrames:googleReady(),dinner:dinnerReady(),nightOut:nightOutReady(),giftIdeas:giftIdeasReady(),postcard:postcardReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
-   const db=await database();const [u]=await db`SELECT id,kind,role,household,max_uses,uses FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
+   const db=await database();const [u]=await db`SELECT id,kind,role,household,max_uses,uses,plan_id FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
    if(!u)throw new AppError('This invite has expired or been revoked.',403);
+   enterPlan(PLAN_SEEDS[u.plan_id]?u.plan_id:FAMILY_PLAN);
+   if(!(await planExists(currentPlan())))throw new AppError('This plan has not been set up yet.',404);
    let grantId=u.id;
    // A link anyone can join with makes a person: they say their name, the name goes on the plan
    // with the link's role and household, and a link of their own is made for that name (its
@@ -260,9 +269,13 @@ export default async function handler(req,res){
     if(problem)throw new AppError(problem);
     const [used]=await db`UPDATE japan_grants SET uses=uses+1 WHERE id=${u.id} AND revoked=false AND (max_uses IS NULL OR uses<max_uses) RETURNING id`;
     if(!used)throw new AppError('This link has been used as many times as it allows. Ask for a new one.',403);
-    grantId=randomUUID();await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,household,via,expires_at) VALUES (${grantId},${hash(token())},${name},${u.role},'personal',${u.household||''},${u.id},now()+interval '6 months')`;
+    grantId=randomUUID();await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,household,via,plan_id,expires_at) VALUES (${grantId},${hash(token())},${name},${u.role},'personal',${u.household||''},${u.id},${currentPlan()},now()+interval '6 months')`;
    }
-   const sid=token();await db`INSERT INTO japan_sessions(token_hash,grant_id,expires_at) VALUES (${hash(sid)},${grantId},now()+interval '6 months')`;setCookie(res,sid);return json(res,{ok:true});
+   const sid=token();await db`INSERT INTO japan_sessions(token_hash,grant_id,expires_at) VALUES (${hash(sid)},${grantId},now()+interval '6 months')`;
+   // Joining another plan keeps this phone's way back into the one it was in.
+   const was=cookieOf(req),wasPlan=await sessionPlan(was);
+   if(wasPlan&&wasPlan!==currentPlan())addCookie(res,'japan_other',was);
+   setCookie(res,sid);return json(res,{ok:true,plan:currentPlan()});
   }
   const user=await session(req);
   // A phone inside the last month of its session is pushed out another six months, cookie and
@@ -271,6 +284,39 @@ export default async function handler(req,res){
    const until=await renewSession(req);if(until){user.expiresAt=until;setCookie(res,cookieOf(req));}
   }
   if(route==='session'&&req.method==='GET')return json(res,{user});
+  // The plans in this app, and moving this phone between them. A family parent makes another
+  // plan (with themselves as its organiser) and is handed a link into it; joining keeps the way
+  // back, so Switch moves the phone between the two without a link being opened again.
+  if(route==='plans'&&req.method==='GET'){
+   const titles=await planTitles(),other=user.demo?null:await sessionPlan(otherCookieOf(req));
+   const familyParent=user.plan===FAMILY_PLAN&&user.role==='parent';
+   return json(res,{current:{id:user.plan,title:titles[user.plan]||user.plan},
+    other:other&&other!==user.plan?{id:other,title:titles[other]||other}:null,
+    canCreate:familyParent?PLAN_IDS.filter(id=>id!==FAMILY_PLAN&&!titles[id]):[],
+    canOpen:familyParent?PLAN_IDS.filter(id=>id!==FAMILY_PLAN&&titles[id]):[]});
+  }
+  if(route==='plan-open'&&post){
+   // Make the plan if it is not there yet, and hand this family parent their own organiser link into it.
+   if(user.plan!==FAMILY_PLAN||user.role!=='parent')throw new AppError('A family parent can do this.',403);
+   const plan=String(b.plan||'');if(!PLAN_SEEDS[plan]||plan===FAMILY_PLAN)throw new AppError('That plan does not exist.',404);
+   // A plan starts with its dates: the app's days are what every screen hangs from.
+   let days=null;
+   if(!(await planExists(plan))){const r=planDays({from:b.from,to:b.to});if(r.problem)throw new AppError(r.problem);days=r.days;}
+   await createPlan(plan,user.name,days);
+   if(user.demo){addCookie(res,'japan_preview_plan',plan);return json(res,{ok:true,switched:true});}
+   enterPlan(plan);
+   const {state}=await readTrip();
+   if(!state.members.includes(user.name)){await updateTrip(s=>{const problem=joinMember(s,{name:user.name,role:'parent',household:'',via:'family',now:new Date().toISOString()});return problem?null:s;});}
+   const db=await database(),raw=token(),id=randomUUID();
+   await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,plan_id,expires_at) VALUES (${id},${hash(raw)},${user.name},'parent','personal',${plan},now()+interval '6 months')`;
+   return json(res,{ok:true,token:raw});
+  }
+  if(route==='plan-switch'&&post){
+   if(user.demo){const back=user.plan===FAMILY_PLAN?'ski':FAMILY_PLAN;addCookie(res,'japan_preview_plan',back===FAMILY_PLAN?'':back);return json(res,{ok:true});}
+   const other=otherCookieOf(req),plan=await sessionPlan(other);
+   if(!plan||plan===user.plan)throw new AppError('There is no other plan on this phone. Open the plan’s link once.',404);
+   addCookie(res,'japan_other',cookieOf(req));setCookie(res,other);return json(res,{ok:true,plan});
+  }
   // Keep everyone signed in: every link and session runs from now for six months. The phones
   // that are not this one pick up their fresh cookie the next time they open the app.
   if(route==='renew-links'&&post){parent(user);const until=await renewAllLinks();if(!user.demo)setCookie(res,cookieOf(req));return json(res,{until});}
@@ -794,7 +840,7 @@ export default async function handler(req,res){
    parent(user);return json(res,{since:30,usage:await usageSummary(30)});
   }
   if(route==='invites'&&req.method==='GET'){
-   parent(user);if(localDemo())return json(res,{invites:[]});const db=await database();return json(res,{invites:await db`SELECT id,name,role,kind,household,max_uses,uses,revoked,expires_at FROM japan_grants ORDER BY created_at`});
+   parent(user);if(localDemo())return json(res,{invites:[]});const db=await database();return json(res,{invites:await db`SELECT id,name,role,kind,household,max_uses,uses,revoked,expires_at FROM japan_grants WHERE plan_id=${currentPlan()} ORDER BY created_at`});
   }
   if(route==='invites'&&post){
    parent(user);if(localDemo())throw new AppError('Connect Neon to create real invite links.',503);
@@ -805,20 +851,20 @@ export default async function handler(req,res){
     if(!MEMBER_ROLES.includes(b.role))throw new AppError('Choose what people who join with this link can do.');
     const household=b.household===undefined?'':b.household;if(householdProblem(household))throw new AppError(householdProblem(household));
     const max=b.maxUses===undefined||b.maxUses===null?null:b.maxUses;if(max!==null&&(!Number.isInteger(max)||max<1||max>OPEN_MAX_USES))throw new AppError(`Allow between 1 and ${OPEN_MAX_USES} uses, or leave it open.`);
-    await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,household,max_uses,expires_at) VALUES (${id},${hash(raw)},'',${b.role},'open',${household},${max},now()+interval '6 months')`;
+    await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,household,max_uses,plan_id,expires_at) VALUES (${id},${hash(raw)},'',${b.role},'open',${household},${max},${currentPlan()},now()+interval '6 months')`;
     return json(res,{url:`${process.env.APP_ORIGIN}/#join=${raw}`,id,kind:'open'});
    }
    if(!validName((await readTrip()).state,b.name,b.role))throw new AppError('Choose someone in the plan, with the role they have.');
-   await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,expires_at) VALUES (${id},${hash(raw)},${b.name},${b.role},'personal',now()+interval '6 months')`;
+   await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,plan_id,expires_at) VALUES (${id},${hash(raw)},${b.name},${b.role},'personal',${currentPlan()},now()+interval '6 months')`;
    return json(res,{url:`${process.env.APP_ORIGIN}/#join=${raw}`,id,kind:'personal'});
   }
   if(route==='revoke'&&post){
    parent(user);if(b.id===user.id||b.id==='owner')throw new AppError('Keep the owner access. Revoke another invite instead.');
-   const db=await database();await db`UPDATE japan_grants SET revoked=true WHERE id=${b.id}`;return json(res,{ok:true});
+   const db=await database();await db`UPDATE japan_grants SET revoked=true WHERE id=${b.id} AND plan_id=${currentPlan()}`;return json(res,{ok:true});
   }
-  // Live wait times for one park, read from Queue-Times.com and kept a minute (server/waits.mjs).
   // The runs, lifts and places to eat at one Sapporo resort, from OpenStreetMap (server/ski.mjs).
   if(route==='ski-map'&&req.method==='GET')return json(res,await skiMap(url.searchParams.get('resort')||''));
+  // Live wait times for one park, read from Queue-Times.com and kept a minute (server/waits.mjs).
   if(route==='waits'&&req.method==='GET')return json(res,await parkWaits(url.searchParams.get('park')||''));
   if(route==='guide-index'&&req.method==='GET')return json(res,JSON.parse(await readFile(new URL('../data/guide-index.json',import.meta.url),'utf8')));
   if(route==='guide'&&req.method==='GET'){
@@ -900,6 +946,9 @@ export default async function handler(req,res){
   }
   // Passports, visas and the like: a parent's only, from routes of their own, and never part of
   // the trip that every phone is sent. See vault.mjs for how they are sealed.
+  // Passports and visas are the family's alone: an organiser of another plan is a parent in that
+  // plan, not in this one, so the vault answers only inside the family's plan.
+  if(base.startsWith('vault')&&currentPlan()!==FAMILY_PLAN)throw new AppError('Passports and visas are not part of this plan.',404);
   if(route==='vault'&&req.method==='GET'){parent(user);return json(res,{ready:vaultReady(),records:vaultReady()?vaultView(await listVault()):[]});}
   if(route==='vault'&&post){
    parent(user);const {state}=await readTrip();

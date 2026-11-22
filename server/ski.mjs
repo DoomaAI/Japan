@@ -2,7 +2,7 @@
 // kept, the run checklist and the meet-ups, and the notifications a meet-up sends.
 import {AppError} from './model.mjs';
 import {randomUUID} from 'node:crypto';
-import {skiResort,overpassQuery,readOverpass,OVERPASS_URL,OSM_CREDIT,validRunId,MEETUP_ANSWERS,MEETUP_AHEAD_MS,MEETUP_KEEP_MS,meetupAudience,meetupPush} from '../src/ski-data.js';
+import {planDays,skiResort,overpassQuery,readOverpass,OVERPASS_URL,OSM_CREDIT,validRunId,MEETUP_ANSWERS,MEETUP_AHEAD_MS,MEETUP_KEEP_MS,meetupAudience,meetupPush} from '../src/ski-data.js';
 import {planOf} from '../src/plan-context.js';
 
 // The map of a resort changes when somebody edits OpenStreetMap, which is rarely, so one read
@@ -28,9 +28,9 @@ export async function skiMap(resortId,now=Date.now(),get=fetch){
 export const resetSkiCache=()=>cache.clear();
 
 // ---- Operations ---------------------------------------------------------------------------
-const SKI_OPS=['skiRun','skiWant','meetupAdd','meetupAnswer','meetupHere','meetupCancel','whereaboutsOpen'];
+const SKI_OPS=['skiRun','skiWant','meetupAdd','meetupAnswer','meetupHere','meetupCancel','whereaboutsOpen','planDays'];
 // The ones anybody in the group may make for themselves.
-export const SKI_MEMBER_OPS=SKI_OPS.filter(t=>t!=='whereaboutsOpen');
+export const SKI_MEMBER_OPS=SKI_OPS.filter(t=>!['whereaboutsOpen','planDays'].includes(t));
 const cleanText=(v,max)=>typeof v==='string'?v.replace(/\s+/g,' ').trim().slice(0,max):'';
 export function skiOperation(state,op,user,fail,now){
  if(!SKI_OPS.includes(op?.type))return null;
@@ -56,6 +56,19 @@ export function skiOperation(state,op,user,fail,now){
   if(typeof op.open!=='boolean')fail('Invalid setting.');
   state.whereaboutsOpen=op.open;
   return {summary:null,important:false,title:'Where we are'};
+ }
+ // The dates and where each day is, for a plan that started from its own state (the family's
+ // days are its guide's and are not rewritten here). A stop on a day that is no longer in the
+ // trip goes to the ideas with no date, not into the bin.
+ if(op.type==='planDays'){
+  if(!parent)fail('An organiser sets the dates.',403);
+  if(!state.ownSeed)fail('This plan’s days come from its guide.');
+  const {days,problem}=planDays({from:op.from,to:op.to,places:op.places&&typeof op.places==='object'?op.places:{}},state.days||[]);
+  if(problem)fail(problem);
+  const kept=new Set(days.map(d=>d.date));
+  for(const st of state.steps||[])if(st.day&&!kept.has(st.day)){st.backlogFrom={day:st.day,time:st.time,bookingTime:st.bookingTime,status:st.status};st.day=null;st.time=null;st.bookingTime=null;st.status='todo';}
+  state.days=days;
+  return {summary:`Dates set: ${days[0].date} to ${days.at(-1).date}`,important:true,title:'Trip dates'};
  }
  const meetups=(state.meetups||[]).filter(m=>Date.parse(m.at)>Date.parse(now)-MEETUP_KEEP_MS*4);
  state.meetups=meetups;

@@ -28,6 +28,8 @@ Leave-by times, booking windows, the morning briefing and the 15-minute reminder
 - **Vercel Pro:** add to `vercel.json`: `"crons":[{"path":"/api/push-tick","schedule":"*/5 * * * *"}]`. Vercel sends `CRON_SECRET` as the bearer token by itself.
 - **Vercel Hobby:** do **not** add a cron more often than daily — the deployment is refused. Use a free external scheduler (e.g. cron-job.org) to call `https://<your domain>/api/push-tick?key=<CRON_SECRET>` every 5 minutes.
 
+The tick runs every plan in turn (the family’s and Sapporo ski), each to its own phones. A phone is told about the plan it was in when it last turned notifications on.
+
 A missed tick is caught up by the next one; anything more than an hour late is dropped rather than sent, and nothing is ever sent twice.
 
 ## 4. On each phone
