@@ -18,8 +18,9 @@ test('the ski plan starts with its own state: none of the family’s Express Pas
  const s=ensureFeatures(structuredClone({...skiSeed,days}));
  assert.equal(s.ownSeed,true);assert.equal(s.plan.type,'ski');assert.equal(s.plan.title,'Sapporo ski');
  assert.deepEqual(s.steps,[]);assert.equal((s.expressSlots||[]).length,0);assert.equal((s.bookingWindows||[]).length,0);
- assert.equal(s.proposals.length,18);
- const bases=new Set(s.proposals.flatMap(p=>p.tags));for(const t of ['Osaka','Nara','Kyoto','Universal'])assert.ok(bases.has(t),t);
+ assert.equal(s.proposals.length,23);
+ const bases=new Set(s.proposals.flatMap(p=>p.tags));for(const t of ['Osaka','Nara','Kyoto','Universal','Getting to Sapporo','Getting there'])assert.ok(bases.has(t),t);
+ assert.equal(s.proposals.filter(p=>p.tags.includes('Getting to Sapporo')&&p.id!=='travel-forward-bags').length,3,'train in a day, train with a night, or fly: up for a vote');
  for(const p of s.proposals){assert.ok(['flex','window','fixed'].includes(p.timing),p.id);assert.match(p.mapUrl,/^https:\/\//);if(p.website)assert.match(p.website,/^https:\/\//);}
  assert.ok(s.proposals.filter(p=>p.parentId).every(p=>s.proposals.some(q=>q.id===p.parentId)),'every part belongs to an idea on the board');
  // The family's plan is untouched by the change: it is still seeded as it always was.
@@ -28,11 +29,12 @@ test('the ski plan starts with its own state: none of the family’s Express Pas
 test('a ski trip keeps the ski fields and the board, and leaves the family’s own pages off',()=>{
  const plan={plan:{type:'ski'}};
  for(const id of ['ski','days','planning','food','money','phrases','whereabouts','arrival'])assert.equal(moduleOn(plan,id),true,id);
+ assert.equal(moduleOn(plan,'windows'),true,'booking windows, for the flights and Universal');
  for(const id of ['vault','guide','parks','games','spending','thanks','invitation'])assert.equal(moduleOn(plan,id),false,id);
  assert.equal(planType('nope').id,'trip','an unknown type is still the family trip');
 });
 test('the dates make the days: Osaka first, the snow after, places kept when the dates move',()=>{
- assert.equal(days.length,9);assert.equal(days[0].city,'Osaka');assert.equal(days[1].city,'Sapporo');assert.equal(days[1].title,'Sapporo · on the snow');
+ assert.equal(days.length,9);assert.equal(days[0].city,'Osaka');assert.equal(days[0].title,'Arrive in Osaka');assert.equal(days[1].city,'Sapporo');assert.equal(days[1].title,'Sapporo · on the snow');
  const moved=planDays({from:'2027-01-19',to:'2027-01-24',places:{'2027-01-19':'Kyoto'}},days.map(d=>d.date==='2027-01-21'?{...d,city:'Nara',title:'Nara'}:d)).days;
  assert.deepEqual(moved.map(d=>d.city),['Kyoto','Osaka','Nara','Sapporo','Sapporo','Sapporo']);
  assert.match(planDays({from:'2027-01-28',to:'2027-01-20'}).problem,/before/);
@@ -75,10 +77,22 @@ test('API: the plans list, starting the ski plan with its dates, and the passpor
   const plans=await call('/api/plans');assert.equal(plans.body.current.id,'family');
   const started=await call('/api/plan-open',{plan:'ski',from:'2027-01-20',to:'2027-01-28'});assert.equal(started.status,200);assert.match(cookie,/japan_preview_plan=ski/);
   const state=await call('/api/state');assert.equal(state.body.state.plan.title,'Sapporo ski');assert.equal(state.body.state.days[0].city,'Osaka');
-  assert.equal((await call('/api/vault')).status,404,'no passports outside the family’s plan');
   assert.equal((await call('/api/plan-open',{plan:'ski'})).status,403,'only from the family’s plan');
+  // The features keyed by a link of their own work inside the ski plan too.
+  const cal=await call('/api/calendar-link',{});assert.equal(cal.status,200);
+  const ics=await fetch(base+'/api/calendar?key='+cal.body.url.split('key=')[1]);assert.equal(ics.status,200);assert.match(await ics.text(),/Arrive in Osaka/);
   await call('/api/plan-switch',{});
   assert.equal((await call('/api/state')).body.state.plan.type,'trip','back in the family’s plan');
   assert.equal((await call('/api/plan-open',{plan:'family'})).status,404);
+  // Starting again, then handing the plan to someone else from the start.
+  assert.equal((await call('/api/plan-reset',{plan:'ski'})).status,400,'only with the plan named to confirm');
+  assert.equal((await call('/api/plan-reset',{plan:'ski',confirm:'ski'})).status,200);
+  assert.deepEqual((await call('/api/plans')).body.canCreate,['ski']);
+  const handed=await call('/api/plan-open',{plan:'ski',from:'2027-02-01',to:'2027-02-08',organiser:'Sam'});
+  assert.equal(handed.status,200);assert.equal(handed.body.organiser,'Sam');assert.ok(!cookie,'the family phone stays in the family’s plan');
+  const listed=(await call('/api/plans')).body.plans.ski;
+  assert.deepEqual(listed.organisers,['Sam']);assert.equal(listed.member,false);assert.equal(listed.people,1);
+  assert.equal((await call('/api/plan-open',{plan:'ski'})).status,403,'a plan somebody else organises is opened by their invitation');
+  assert.equal((await call('/api/plan-open',{plan:'ski',organiser:'Alex'})).status,400,'already started');
  }finally{server.close();}
 });

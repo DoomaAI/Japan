@@ -193,7 +193,9 @@ export function quickTimes(now=Date.now()){
 // ---- The trip's days ----------------------------------------------------------------------
 // The ski plan's days come from its dates and where each night is, set by its organiser when the
 // plan is started and changed whenever the bookings change. Flying through Osaka, the first day
-// is Osaka until somebody says otherwise; the rest are on the snow.
+// is Osaka until somebody says otherwise (the flight from Sydney lands at Kansai); the rest are
+// on the snow. How the group gets from Osaka to Sapporo is still open: the options are ideas on
+// the board, up for a vote.
 export const DAY_PLACES=['Osaka','Kyoto','Nara','Sapporo','Travel day'];
 export const MAX_PLAN_DAYS=45;
 const isoDay=/^\d{4}-\d{2}-\d{2}$/;
@@ -210,7 +212,7 @@ export function planDays({from,to,places={}},had=[]){
  for(let i=0;i<count;i++){
   const date=addDays(from,i),old=before.get(date),asked=typeof places[date]==='string'?places[date].replace(/\s+/g,' ').trim().slice(0,40):'';
   const city=asked||old?.city||(i===0?'Osaka':'Sapporo');
-  days.push({date,title:old&&!asked?old.title:city==='Sapporo'?'Sapporo · on the snow':city,city,hotel:old?.hotel||'',pages:old?.pages||[]});
+  days.push({date,title:old&&!asked?old.title:i===0&&city==='Osaka'?'Arrive in Osaka':city==='Sapporo'?'Sapporo · on the snow':city,city,hotel:old?.hotel||'',pages:old?.pages||[]});
  }
  return {days};
 }

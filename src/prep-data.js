@@ -19,7 +19,7 @@ export function prepMeasures(state){
  };
 }
 export const MILESTONES=[
- {at:100,measure:'profiles',title:'Tell the app who we are',hint:'Ages, likes, and anything to avoid, for all four of us.'},
+ {at:100,measure:'profiles',title:'Tell the app who we are',hint:'Ages, likes, and anything to avoid, for all of us.'},
  {at:50,measure:'votes',title:'Vote on the ideas',hint:'Everyone gives a thumbs up or down on the planning board.'},
  {at:30,measure:'phrases',title:`${PHRASES_EACH} phrases each`,hint:'Hello, thank you, excuse me… hear them and say them back.'},
  {at:14,measure:'tickets',title:'Every booking in the app',hint:'A ticket or confirmation on each fixed time.'},

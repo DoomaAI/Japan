@@ -85,6 +85,16 @@ export async function createPlan(plan,organiser,days=null){
  if(localDemo()){if(!demo.has(plan))demo.set(plan,{state:seed,revision:1});return;}
  const db=await database();await db`INSERT INTO japan_trip(id,state) VALUES (${plan},${JSON.stringify(seed)}::jsonb) ON CONFLICT(id) DO NOTHING`;
 }
+// Taking a plan away so it can start again: its state, every link into it, its positions, its
+// phones and its documents. The family's plan is never removed here.
+export async function removePlan(plan){
+ if(!PLAN_SEEDS[plan]||plan===FAMILY_PLAN)throw new AppError('That plan cannot be removed.',400);
+ if(localDemo()){demo.delete(plan);return;}
+ const db=await database();
+ await db`DELETE FROM japan_trip WHERE id=${plan}`;
+ await db`UPDATE japan_grants SET revoked=true WHERE plan_id=${plan}`;
+ for(const q of [db`DELETE FROM japan_positions WHERE plan=${plan}`,db`DELETE FROM japan_push WHERE plan=${plan}`,db`DELETE FROM japan_vault WHERE plan=${plan}`])await q.catch(()=>{});
+}
 // The plans there are, by id and title, for the switch between them.
 export async function planTitles(){
  const out={};

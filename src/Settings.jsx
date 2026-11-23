@@ -266,24 +266,50 @@ function movePlan(plan,hash=''){
 }
 function Plans({request,notice}){
  const [plans,setPlans]=useState(null),[working,setWorking]=useState(false);
- const [starting,setStarting]=useState(null),[from,setFrom]=useState(''),[to,setTo]=useState('');
- useEffect(()=>{request('plans').then(setPlans,()=>{});},[request]);
- if(!plans||(!plans.other&&!plans.canCreate.length&&!plans.canOpen.length))return null;
- const open=async id=>{setWorking(true);try{const r=await request('plan-open',{plan:id,from,to});if(r.token)movePlan(id,`join=${r.token}`);else movePlan(id);}catch(e){notice?.(e.message);setWorking(false);}};
+ const [starting,setStarting]=useState(null),[from,setFrom]=useState(''),[to,setTo]=useState(''),[who,setWho]=useState('me'),[organiser,setOrganiser]=useState(''),[handed,setHanded]=useState(null),[resetting,setResetting]=useState(null);
+ const load=()=>request('plans').then(setPlans,()=>{});
+ useEffect(()=>{load();},[request]);// eslint-disable-line react-hooks/exhaustive-deps
+ if(!plans||(!plans.other&&!plans.canCreate.length&&!Object.keys(plans.plans||{}).length))return null;
+ const name=id=>PLAN_NAMES[id]||plans.plans?.[id]?.title||id;
+ const start=async id=>{setWorking(true);try{
+   const r=await request('plan-open',{plan:id,from,to,...(who==='other'?{organiser:organiser.trim()}:{})});
+   if(r.token)movePlan(id,`join=${r.token}`);else if(r.switched)movePlan(id);
+   else{setHanded({...r,plan:id});setStarting(null);setWorking(false);load();}
+  }catch(e){notice?.(e.message);setWorking(false);}};
+ const open=async id=>{setWorking(true);try{const r=await request('plan-open',{plan:id});if(r.token)movePlan(id,`join=${r.token}`);else movePlan(id);}catch(e){notice?.(e.message);setWorking(false);}};
  const swap=async()=>{setWorking(true);try{const r=await request('plan-switch',{});movePlan(r.plan||plans.other?.id||'family');}catch(e){notice?.(e.message);setWorking(false);}};
+ const reset=async id=>{setWorking(true);try{await request('plan-reset',{plan:id,confirm:id});setResetting(null);setHanded(null);notice?.(`${name(id)} is gone. Start it again whenever you are ready.`);await load();}catch(e){notice?.(e.message);}finally{setWorking(false);}};
+ const copy=async url=>{try{await navigator.clipboard.writeText(url);notice?.('Copied. Send it to them on its own: it is their way in.');}catch{notice?.(url);}};
  return <section className="settings-section">
   <h2>Plans</h2>
-  <p>You are in <strong>{plans.current.title}</strong>. Each plan has its own people, its own plan and its own notifications.</p>
-  <div className="row wrap">
-   {plans.other&&<button type="button" className="primary" disabled={working} onClick={swap}>Switch to {plans.other.title}</button>}
-   {[...plans.canOpen,...plans.canCreate].filter(id=>id!==plans.other?.id).map(id=><button type="button" key={id} disabled={working} onClick={()=>plans.canCreate.includes(id)?setStarting(id):open(id)}>{plans.canCreate.includes(id)?`Start the ${PLAN_NAMES[id]||id} plan`:`Open ${PLAN_NAMES[id]||id}`}</button>)}
-  </div>
-  {starting&&<form className="plan-start" onSubmit={e=>{e.preventDefault();open(starting);}}>
-   <p>When is the trip? The first day is in Osaka and the rest in Sapporo to start with; change each day afterwards under This plan.</p>
+  <p>You are in <strong>{plans.current.title}</strong>. Each plan has its own people, its own plan, its own passports and its own notifications.</p>
+  {plans.other&&<div className="row wrap"><button type="button" className="primary" disabled={working} onClick={swap}>Switch to {plans.other.title}</button></div>}
+  {Object.entries(plans.plans||{}).map(([id,p])=><div key={id} className="plan-card">
+   <p><strong>{p.title}</strong><br/><small>Organised by {p.organisers.join(' and ')||'nobody yet'} · {p.people} {p.people===1?'person':'people'}</small></p>
+   <div className="row wrap">
+    {p.member&&plans.other?.id!==id&&<button type="button" disabled={working} onClick={()=>open(id)}>Open {p.title}</button>}
+    {resetting===id
+     ?<><button type="button" className="danger" disabled={working} onClick={()=>reset(id)}>Yes, start {p.title} again</button><button type="button" onClick={()=>setResetting(null)}>Keep it</button></>
+     :<button type="button" className="linkish" onClick={()=>setResetting(id)}>Start it again…</button>}
+   </div>
+   {resetting===id&&<p className="callout">Starting again deletes {p.title}: its plan, ideas, meet-ups and passports, and every link into it stops working. The family’s plan is not touched.</p>}
+  </div>)}
+  {plans.canCreate.length>0&&!starting&&<div className="row wrap">{plans.canCreate.map(id=><button type="button" key={id} disabled={working} onClick={()=>{setStarting(id);setHanded(null);}}>Start the {name(id)} plan</button>)}</div>}
+  {starting&&<form className="plan-start" onSubmit={e=>{e.preventDefault();start(starting);}}>
+   <p>When is the trip? The first day is Osaka (the flight from Sydney lands at Kansai) and the rest Sapporo to begin with; the organiser changes each day afterwards under Dates and places.</p>
    <div className="form-row"><label>First day<input type="date" required value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Last day<input type="date" required min={from||undefined} value={to} onChange={e=>setTo(e.target.value)}/></label></div>
-   <div className="row wrap"><button className="primary" disabled={working||!from||!to}>Start {PLAN_NAMES[starting]||starting}</button><button type="button" onClick={()=>setStarting(null)}>Cancel</button></div>
+   <fieldset className="plan-who"><legend>Who organises it?</legend>
+    <label className="check"><input type="radio" name="who" checked={who==='me'} onChange={()=>setWho('me')}/> Me</label>
+    <label className="check"><input type="radio" name="who" checked={who==='other'} onChange={()=>setWho('other')}/> Someone else</label>
+    {who==='other'&&<label>Their name<input value={organiser} maxLength={40} required placeholder="e.g. Sam" onChange={e=>setOrganiser(e.target.value)}/></label>}
+   </fieldset>
+   {who==='other'&&<p><small>The plan starts with only them in it. You get a link to send them; opening it makes them the organiser, and they invite the group (you included, if you are going) from there.</small></p>}
+   <div className="row wrap"><button className="primary" disabled={working||!from||!to||(who==='other'&&!organiser.trim())}>{who==='other'?`Start it for ${organiser.trim()||'them'}`:`Start ${name(starting)}`}</button><button type="button" onClick={()=>setStarting(null)}>Cancel</button></div>
   </form>}
-  {plans.canCreate.length>0&&<p><small>Starting a plan makes you its organiser. Then, in that plan, tap your initial at the top right → Invite people → A link anyone can join with, and send it to the group: each person types their name. The family’s plan, photos, bookings and passports are not part of it.</small></p>}
+  {handed&&<div className="callout plan-handed">
+   <p><strong>{name(handed.plan)} is ready for {handed.organiser}.</strong> Send them this link. It is theirs alone: opening it on their phone makes them the organiser.</p>
+   {handed.url?<div className="row wrap"><code>{handed.url}</code><button type="button" onClick={()=>copy(handed.url)}>Copy the link</button></div>:<p><small>{handed.note}</small></p>}
+  </div>}
   <p><small>Notifications follow the plan this phone is in.</small></p>
  </section>;
 }

@@ -30,7 +30,7 @@ export const PLAN_TYPES=[
  // family's journey (its guide, its passports, the boys' games, the theme-park checklist with
  // the boys' heights) and the invitation pages a group already together has no use for.
  {id:'ski',label:'Ski trip',note:'A group on the snow: the ski fields, meet-ups, the plan and ideas, food, money and phrases',
-  off:['trackers','windows','homefront','vault','guide','printguide','parks','local','stamps','facts','challenges','showtell','mascot','games','leaderboard','capsule','book','predictions','shop','thanks','nightstand','spending','guests','invitation']},
+  off:['trackers','homefront','vault','guide','printguide','parks','local','stamps','facts','challenges','showtell','mascot','games','leaderboard','capsule','book','predictions','shop','thanks','nightstand','spending','guests','invitation']},
  // A trip switches off only the two pages that belong to an invitation, which a family away
  // together has no use for; everything it had before plans had types, it keeps.
  {id:'trip',label:'Trip',note:'Days to weeks away: everything the app does',
