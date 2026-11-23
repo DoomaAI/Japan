@@ -94,6 +94,7 @@ import Weather,{StepWeather,NowWeather} from './Weather.jsx';
 import DocumentReader from './DocumentReader.jsx';
 import PhotoDay from './PhotoDay.jsx';
 import {MascotBadge} from './Mascot.jsx';
+import {planOf} from './plan-context.js';
 import React,{useEffect,useLayoutEffect,useMemo,useRef,useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
 import {upload} from '@vercel/blob/client';
@@ -132,6 +133,7 @@ const AllergyCard=lazy(()=>import('./AllergyCard.jsx'));
 const Bingo=lazy(()=>import('./Bingo.jsx'));
 const RecentlyDeleted=lazy(()=>import('./RecentlyDeleted.jsx'));
 const ParkGuide=lazy(()=>import('./ParkGuide.jsx'));
+const SkiFields=lazy(()=>import('./SkiFields.jsx'));
 const LiveWaits=lazy(()=>import('./LiveWaits.jsx'));
 const Stamps=lazy(()=>import('./Stamps.jsx'));
 const Leaderboard=lazy(()=>import('./Leaderboard.jsx'));
@@ -182,6 +184,12 @@ const maps=place=>isMapLink(place)?place:'https://www.google.com/maps/search/?ap
 // The Days screen's book opens on the cover the offline shell keeps, so it is there with no signal.
 const coverSource=n=>n===1?'/cover.jpg':`/api/guide?page=${n}`;
 const stored=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
+// Which plan this phone's saved copy and queue belong to. Moving to another plan clears them, so
+// a tap made in one plan is never replayed into the other. True when something was cleared.
+function leavePlan(next){
+ try{const was=localStorage.getItem('japan.plan')||'family';localStorage.setItem('japan.plan',next);if(was===next)return false;
+  for(const k of ['japan.snapshot','japan.queue','japan.position'])localStorage.removeItem(k);return true;}catch{return false;}
+}
 // Nothing waits forever on a train: a read gets twenty seconds and a save or an answer fifty,
 // which is inside the minute the server allows itself. A request that runs out of time, or one
 // that never connects, comes back as a plain sentence with no status, which is what the callers
@@ -240,7 +248,7 @@ const TABS=[...Object.keys(PAGES),'more'];
 // What is missing is deliberate: anything that reshapes the plan needs the latest revision
 // to be safe, a stale exchange rate or forecast overwriting a fresh one is worse than not
 // saving it, and a janken hand thrown into a queue is not a game, it is a message.
-const OFFLINE_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','bingoCard','parkRide','parkWant','foodTried','foodRating','phraseSeen','factSeen','moneyFound','gameScore',
+const OFFLINE_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','bingoCard','parkRide','parkWant','skiRun','skiWant','foodTried','foodRating','phraseSeen','factSeen','moneyFound','gameScore',
  'journal','shoppingAdd','shoppingStatus','acknowledge','thankYouSeen','phraseAdd','foodAdd','documentNote','voiceNoteLabel','voiceNoteRemove','voiceNoteWords',
  'proposalAdd','proposalVote','proposalMust','proposalRecommend','todoAdd','todoStatus','packAdd','packAddAll','packStatus','packDismiss','packBefore','shortlistAdd','shortlistStatus','shortlistRating','spendAdd','spendBought','expenseAdd','huntAdd','huntPick','noticedAdd','huntRate','huntRank','huntTried','spendRequest','sumoResult','sumoPredict','stepRating','stepThought','dayRating','dayThought','mascotSave','mascotRemove','expressPick','expressUsed','predictionSet','bookingWindowBooked','shopLog','listOrder'];
 // Taps that only record what just happened — a tick, a rating, a vote — show on the screen the
@@ -248,7 +256,7 @@ const OFFLINE_OPS=['status','legStatus','stageSet','challengeStatus','challengeS
 // the last one's round trip. They ride the same queue as a tap made with no signal, which already
 // draws itself on the screen (pendingProgress) and replays against whatever the plan has become.
 // Adding things stays a plain save: the screens that add read the new item back from the answer.
-const INSTANT_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','parkRide','parkWant','foodTried','foodRating','phraseSeen','factSeen','gameScore',
+const INSTANT_OPS=['status','legStatus','stageSet','challengeStatus','challengeSkip','eyeSpy','bingoTick','parkRide','parkWant','skiRun','skiWant','foodTried','foodRating','phraseSeen','factSeen','gameScore',
  'todoStatus','packStatus','packDismiss','packBefore','shortlistStatus','shortlistRating','spendBought','stepRating','dayRating','proposalVote','proposalMust','huntRate','huntRank','huntTried','expressPick','expressUsed','sumoPredict','sumoResult','listOrder'];
 // Where the app opens. The address wins, then the place this phone was last looking — unless
 // that day is behind us, in which case the phone was put down overnight and Home should open on
@@ -402,7 +410,10 @@ function App(){
   (async()=>{try{
    const fragment=new URLSearchParams(location.hash.slice(1)),join=fragment.get('join');
    const settings=request('config').then(cfg=>{if(!stop)setConfig(cfg);},()=>{});
-   if(join){await settings;history.replaceState(null,'',location.pathname+location.search);const r=await request('join',{token:join});if(r?.open){setJoining({token:join,...r});return;}}
+   if(join){await settings;history.replaceState(null,'',location.pathname+location.search);const r=await request('join',{token:join});if(r?.open){setJoining({token:join,...r});return;}
+    // A link into another plan: what this phone kept of the last plan (its copy, its unsent taps,
+    // where it was looking) belongs to that plan, so it goes before the new plan is read.
+    if(r?.plan&&leavePlan(r.plan)){location.reload();return;}}
    const live=request('state'),cache=join?null:fresh();live.catch(()=>{});
    const e=cache?await Promise.race([live,new Promise(res=>setTimeout(()=>res(SLOW),SAVED_WAIT))]):await live;if(stop)return;
    if(e===SLOW){fromSaved(cache);live.then(e=>{if(!stop)accept(e);},e=>{if(!stop)lost(e);});return;}
@@ -557,6 +568,8 @@ function App(){
   }finally{working.current=false;setBusy(false);}
  }
  const visibleState=state?pendingProgress(state,queue):null;
+ // The family's own name over the family's plan; any other plan carries its own title.
+ const familyPlan=!visibleState?.ownSeed,planTitle=planOf(visibleState||{}).title||'Our plan';
  const toastBar=<div className="toast" role="status">{typeof toast==='string'?toast:toast?.text}{toast?.undo&&<button type="button" className="toast-undo" onClick={()=>{const u=toast.undo;setToast('');u();}}>Undo</button>}<button aria-label="Dismiss" onClick={()=>setToast('')}><X size={16}/></button></div>;
  const [photoPerson,setPhotoPerson]=useState(()=>new URLSearchParams(location.search).get('who')||'');
  // What this person has asked not to be shown, kept on their own phone and read under their
@@ -933,7 +946,7 @@ function App(){
       own, for the five-year-old holding the phone. It says what the screen is for in words he
       can follow rather than reading the heading at him, and being in the same place on every
       page is what lets him find it without reading anything to find it. */}
-  <header className="topbar"><a className="brand" href="/" onClick={e=>{e.preventDefault();setTab('today');}}><span className="brand-mark" aria-hidden="true">✿</span><span>Japan <b>2026</b><small>THE PASFIELD FAMILY</small></span></a><div className="top-actions">{noteForMe&&!noteRead&&<button className="icon thank-you-button" aria-label={`A note from ${NOTE_BOYS.includes(user.name)?'Dad':THANK_YOU_FROM}`} onClick={()=>setModal({type:'thankyou',note:noteForMe})}><Heart size={20}/><i/></button>}{!conciergeButton&&<button className="icon" aria-label="Search everything" onClick={()=>go('search')}><Search size={20}/></button>}<button className="icon notification-button" aria-label="Family updates" onClick={()=>go('updates')}><Bell size={20}/>{state.alerts.some(a=>!a.seenBy?.[user.name])&&<i/>}</button>{/* Read aloud for the boys; on a parent's phone the top edge keeps to search, updates, the clock and the family. A note shows here only until it is read; after that it is kept in the family panel. */}{!parent&&<SpeakRules id={`page-${tab}`} text={pageRule(tab)} label="What is this page?" compact/>}{leave?<button type="button" className={`local-clock leave-chip${leave.minutes<=0?' now':''}`} aria-label={`${leave.minutes>0?`Leave in ${spanWords(leave.minutes)}`:'Leave now'} for ${leave.fixed.title} at ${leave.fixed.time}. Open it.`} onClick={()=>selectStep(leave.fixed)}><Clock size={14}/>{leave.minutes>0?spanWords(leave.minutes):'Now'}<small>LEAVE {japanClock(leave.departure)}</small></button>:dayOnTrip?<NowWeather state={visibleState} day={dayOnTrip} clock={japanClock(now)} fallback={clockChip} onOpen={()=>go('weather',dayOnTrip)}/>:clockChip}<button className="avatar" aria-label="Family settings" onClick={()=>setModal({type:'family'})}><MascotBadge state={state} person={user.name} size={38}/></button></div></header>
+  <header className="topbar"><a className="brand" href="/" onClick={e=>{e.preventDefault();setTab('today');}}><span className="brand-mark" aria-hidden="true">✿</span>{familyPlan?<span>Japan <b>2026</b><small>THE PASFIELD FAMILY</small></span>:<span>{planTitle}<small>{planOf(visibleState||{}).type==='ski'?'SAPPORO · OSAKA':'OUR PLAN'}</small></span>}</a><div className="top-actions">{noteForMe&&!noteRead&&<button className="icon thank-you-button" aria-label={`A note from ${NOTE_BOYS.includes(user.name)?'Dad':THANK_YOU_FROM}`} onClick={()=>setModal({type:'thankyou',note:noteForMe})}><Heart size={20}/><i/></button>}{!conciergeButton&&<button className="icon" aria-label="Search everything" onClick={()=>go('search')}><Search size={20}/></button>}<button className="icon notification-button" aria-label="Family updates" onClick={()=>go('updates')}><Bell size={20}/>{state.alerts.some(a=>!a.seenBy?.[user.name])&&<i/>}</button>{/* Read aloud for the boys; on a parent's phone the top edge keeps to search, updates, the clock and the family. A note shows here only until it is read; after that it is kept in the family panel. */}{!parent&&<SpeakRules id={`page-${tab}`} text={pageRule(tab)} label="What is this page?" compact/>}{leave?<button type="button" className={`local-clock leave-chip${leave.minutes<=0?' now':''}`} aria-label={`${leave.minutes>0?`Leave in ${spanWords(leave.minutes)}`:'Leave now'} for ${leave.fixed.title} at ${leave.fixed.time}. Open it.`} onClick={()=>selectStep(leave.fixed)}><Clock size={14}/>{leave.minutes>0?spanWords(leave.minutes):'Now'}<small>LEAVE {japanClock(leave.departure)}</small></button>:dayOnTrip?<NowWeather state={visibleState} day={dayOnTrip} clock={japanClock(now)} fallback={clockChip} onOpen={()=>go('weather',dayOnTrip)}/>:clockChip}<button className="avatar" aria-label="Family settings" onClick={()=>setModal({type:'family'})}><MascotBadge state={state} person={user.name} size={38}/></button></div></header>
   {/* On Home, the line that only says all is well gives its room to the step card; offline, a
       queue or a local preview still say so there as everywhere else. */}
   <div className={`syncbar${tab==='today'&&online&&!user.demo&&(!queue.length||sending)?' quiet':''}`}>{!online?<><WifiOff size={14}/> Offline · saved on this phone</>:user.demo?<><AlertCircle size={14}/> Local preview · family sharing needs setup</>:queue.length&&!sending?<><Clock size={14}/>{queue.length} update{queue.length!==1?'s':''} waiting to sync</>:<><Cloud size={14}/> Shared family plan <span>Signed in as {user.name}</span></>}{!user.demo&&<button type="button" className="sync-now" disabled={syncing} onClick={syncNow}>{syncing?'Syncing…':'Sync now'}{syncedAt&&!syncing&&<small>{japanClock(new Date(syncedAt))}</small>}</button>}</div>
@@ -1011,6 +1024,7 @@ function App(){
   {tab==='todo'&&<TodoList state={visibleState} user={user} mutate={mutate} busy={busy} go={go} day={day} remove={removeThen} request={request} online={online&&!!config?.capture} sayFirst={sayFirst} clearSayFirst={()=>setSayFirst(null)}/>}
   {tab==='packing'&&<Packing state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
   {tab==='trackers'&&<Trackers state={visibleState} user={user} mutate={mutate} busy={busy} remove={removeThen}/>}
+  {tab==='ski'&&<Suspense fallback={<p>Opening the ski fields…</p>}><SkiFields state={visibleState} user={user} now={now} request={online?request:null} mutate={mutate} busy={busy} go={go} notice={notice} live={live}/></Suspense>}
   {tab==='whereabouts'&&<Suspense fallback={<p>Opening the map…</p>}><Whereabouts state={visibleState} user={user} day={day} now={now} request={request} mutate={mutate} busy={busy} go={go} open={setModal} notice={notice} live={live}/></Suspense>}
   {tab==='memorymap'&&<Suspense fallback={<p>Opening the map…</p>}><MemoryMap state={visibleState} user={user} request={request} accept={accept} notice={notice} busy={busy}/></Suspense>}
   {tab==='spending'&&<Spending state={visibleState} user={user} mutate={mutate} busy={busy} go={go} notice={notice} today={japanDate(now)}/>}

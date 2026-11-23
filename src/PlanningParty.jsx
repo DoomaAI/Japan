@@ -95,7 +95,7 @@ export function TravelParty({state,user,mutate,busy}){
   <div className="party-person">
    <div className="section-heading"><h3>How we want the days to go</h3>{parent&&<button onClick={()=>edit(editing==='trip'?null:'trip')}>{editing==='trip'?'Close':'Edit'}</button>}</div>
    {editing!=='trip'?<>
-    <p><small><strong>Pace:</strong> {paceLabel(us.pace)}{us.budget?` · about ¥${us.budget.toLocaleString()} a day for the four of us (≈$${yenToAud(us.budget,yenPerAud(state)).toFixed(0)})`:''}</small></p>
+    <p><small><strong>Pace:</strong> {paceLabel(us.pace)}{us.budget?` · about ¥${us.budget.toLocaleString()} a day for all of us (≈$${yenToAud(us.budget,yenPerAud(state)).toFixed(0)})`:''}</small></p>
     {us.notes&&<p><small>{us.notes}</small></p>}
    </>:<form onSubmit={saveTrip}>
     <label>Pace<select name="pace" defaultValue={us.pace}>{PACES.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>

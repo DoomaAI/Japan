@@ -10,11 +10,11 @@
 // record or file it belongs to, so one cannot be swapped in for another.
 import {createCipheriv,createDecipheriv,createHash,randomBytes,randomUUID} from 'node:crypto';
 import {put,get,del} from '@vercel/blob';
-import {database,localDemo} from './store.mjs';
+import {database,localDemo,currentPlan} from './store.mjs';
 import {AppError} from './model.mjs';
 import {VAULT_KINDS,VAULT_FILE_TYPES,VAULT_FILE_MAX,VAULT_FILES_PER_DOC,VAULT_LIMIT,VAULT_FIELDS,cleanVaultRecord} from '../src/vault-data.js';
 const VERSION=Buffer.from([1]);
-let demoRecords=new Map(),demoFiles=new Map(),ready;
+let demoRecords=new Map(),demoPlans=new Map(),demoFiles=new Map(),ready;
 function key(){
  const raw=process.env.VAULT_KEY||'';
  if(/^[a-f0-9]{64}$/i.test(raw))return Buffer.from(raw,'hex');
@@ -41,31 +41,33 @@ export function open(sealed,bound){
 }
 async function db(){
  const sql=await database();
- ready??=sql`CREATE TABLE IF NOT EXISTS japan_vault (id text PRIMARY KEY, sealed text NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())`.catch(e=>{ready=undefined;throw e;});
+ // Each plan's documents are its own: the family's passports are not another plan's organiser's.
+ ready??=(async()=>{await sql`CREATE TABLE IF NOT EXISTS japan_vault (id text PRIMARY KEY, sealed text NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())`;
+  await sql`ALTER TABLE japan_vault ADD COLUMN IF NOT EXISTS plan text NOT NULL DEFAULT 'family'`;})().catch(e=>{ready=undefined;throw e;});
  await ready;return sql;
 }
 const unseal=(id,text)=>JSON.parse(open(Buffer.from(text,'base64'),`record:${id}`).toString('utf8'));
 async function readAll(){
- if(localDemo())return [...demoRecords.entries()].map(([id,text])=>unseal(id,text));
+ if(localDemo())return [...demoRecords.entries()].filter(([id])=>(demoPlans.get(id)||'family')===currentPlan()).map(([id,text])=>unseal(id,text));
  const sql=await db();
- return (await sql`SELECT id,sealed FROM japan_vault ORDER BY updated_at`).map(r=>unseal(r.id,r.sealed));
+ return (await sql`SELECT id,sealed FROM japan_vault WHERE plan=${currentPlan()} ORDER BY updated_at`).map(r=>unseal(r.id,r.sealed));
 }
 async function readOne(id){
  if(typeof id!=='string'||!/^[a-f0-9-]{36}$/.test(id))throw new AppError('That document is not in the vault.',404);
- if(localDemo()){const t=demoRecords.get(id);return t?unseal(id,t):null;}
- const sql=await db();const [r]=await sql`SELECT sealed FROM japan_vault WHERE id=${id}`;
+ if(localDemo()){const t=(demoPlans.get(id)||'family')===currentPlan()&&demoRecords.get(id);return t?unseal(id,t):null;}
+ const sql=await db();const [r]=await sql`SELECT sealed FROM japan_vault WHERE id=${id} AND plan=${currentPlan()}`;
  return r?unseal(id,r.sealed):null;
 }
 async function write(record){
  need();
  const text=seal(Buffer.from(JSON.stringify(record)),`record:${record.id}`).toString('base64');
- if(localDemo()){demoRecords.set(record.id,text);return;}
+ if(localDemo()){demoRecords.set(record.id,text);demoPlans.set(record.id,currentPlan());return;}
  const sql=await db();
- await sql`INSERT INTO japan_vault(id,sealed,updated_at) VALUES (${record.id},${text},now()) ON CONFLICT(id) DO UPDATE SET sealed=excluded.sealed,updated_at=now()`;
+ await sql`INSERT INTO japan_vault(id,sealed,plan,updated_at) VALUES (${record.id},${text},${currentPlan()},now()) ON CONFLICT(id) DO UPDATE SET sealed=excluded.sealed,updated_at=now() WHERE japan_vault.plan=excluded.plan`;
 }
 async function forget(id){
- if(localDemo()){demoRecords.delete(id);return;}
- const sql=await db();await sql`DELETE FROM japan_vault WHERE id=${id}`;
+ if(localDemo()){if((demoPlans.get(id)||'family')===currentPlan())demoRecords.delete(id);return;}
+ const sql=await db();await sql`DELETE FROM japan_vault WHERE id=${id} AND plan=${currentPlan()}`;
 }
 async function storeFile(pathname,bytes){
  if(localDemo()){demoFiles.set(pathname,bytes);return;}
@@ -141,4 +143,4 @@ export async function readVaultFile(id,fileId){
 }
 // What the screen gets: everything but where the sealed files sit in storage.
 export const vaultView=records=>records.map(r=>({...r,files:(r.files||[]).map(({pathname,...f})=>f)}));
-export const resetDemoVault=()=>{demoRecords=new Map();demoFiles=new Map();};
+export const resetDemoVault=()=>{demoRecords=new Map();demoPlans=new Map();demoFiles=new Map();};

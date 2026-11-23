@@ -2,15 +2,17 @@
 // permanent record, with a history and a revision every phone checks, and a position is neither
 // permanent nor worth bumping everybody's revision for. One row a person, overwritten by the
 // next share, and gone three hours after it was made — deleted, not hidden.
-import {database,localDemo} from './store.mjs';
+import {database,localDemo,currentPlan} from './store.mjs';
 import {AppError} from './model.mjs';
 import {CHECKIN_PLACES,CHECKIN_HOURS,roundedPosition,validPosition,canSeeCheckin} from '../src/memory-map.js';
 let demo=new Map(),ready;
 async function db(){
  const sql=await database();
- ready??=sql`CREATE TABLE IF NOT EXISTS japan_checkins (name text PRIMARY KEY, lat double precision NOT NULL, lng double precision NOT NULL, at timestamptz NOT NULL DEFAULT now())`.catch(e=>{ready=undefined;throw e;});
+ // One row a person in each plan. The first table had one a name for the whole app, from before
+ // there was more than one plan; positions last three hours, so the new table simply takes over.
+ ready??=sql`CREATE TABLE IF NOT EXISTS japan_positions (plan text NOT NULL, name text NOT NULL, lat double precision NOT NULL, lng double precision NOT NULL, at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (plan,name))`.catch(e=>{ready=undefined;throw e;});
  await ready;
- await sql`DELETE FROM japan_checkins WHERE at < now() - make_interval(hours => ${CHECKIN_HOURS})`;
+ await sql`DELETE FROM japan_positions WHERE at < now() - make_interval(hours => ${CHECKIN_HOURS})`;
  return sql;
 }
 export function checkPosition(body){
@@ -21,13 +23,13 @@ export function checkPosition(body){
 export async function shareCheckin(user,body,now=new Date()){
  const at=now.toISOString();
  if(body?.stop===true){
-  if(localDemo())demo.delete(user.name);else{const sql=await db();await sql`DELETE FROM japan_checkins WHERE name=${user.name}`;}
+  if(localDemo())demo.delete(`${currentPlan()}|${user.name}`);else{const sql=await db();await sql`DELETE FROM japan_positions WHERE plan=${currentPlan()} AND name=${user.name}`;}
   return;
  }
  const p=checkPosition(body);
- if(localDemo()){demo.set(user.name,{name:user.name,...p,at});return;}
+ if(localDemo()){demo.set(`${currentPlan()}|${user.name}`,{name:user.name,plan:currentPlan(),...p,at});return;}
  const sql=await db();
- await sql`INSERT INTO japan_checkins(name,lat,lng,at) VALUES (${user.name},${p.lat},${p.lng},${at}) ON CONFLICT(name) DO UPDATE SET lat=excluded.lat,lng=excluded.lng,at=excluded.at`;
+ await sql`INSERT INTO japan_positions(plan,name,lat,lng,at) VALUES (${currentPlan()},${user.name},${p.lat},${p.lng},${at}) ON CONFLICT(plan,name) DO UPDATE SET lat=excluded.lat,lng=excluded.lng,at=excluded.at`;
 }
 // Who may see whom is decided by the plan's records (src/people.js): a parent sees everyone, and
 // everyone sees the parents and themselves. The handler passes the plan's parents in.
@@ -35,10 +37,10 @@ export async function listCheckins(user,now=new Date(),parents=[]){
  let rows;
  if(localDemo()){
   for(const [k,c] of demo)if(now-new Date(c.at)>=CHECKIN_HOURS*3600000)demo.delete(k);
-  rows=[...demo.values()];
+  rows=[...demo.values()].filter(c=>c.plan===currentPlan()).map(({plan,...c})=>c);
  }else{
   const sql=await db();
-  rows=(await sql`SELECT name,lat,lng,at FROM japan_checkins`).map(r=>({name:r.name,lat:r.lat,lng:r.lng,at:new Date(r.at).toISOString()}));
+  rows=(await sql`SELECT name,lat,lng,at FROM japan_positions WHERE plan=${currentPlan()}`).map(r=>({name:r.name,lat:r.lat,lng:r.lng,at:new Date(r.at).toISOString()}));
  }
  return rows.filter(c=>canSeeCheckin(user,c,parents));
 }

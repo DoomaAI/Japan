@@ -211,3 +211,16 @@ Constraints to check before building:
 - The 60-second Vercel function limit rules out rendering on the server. The Claude call in stage 2 should fit.
 - Music: use only tracks you own a licence for, or none. Voice notes make a good alternative soundtrack.
 - AI-generated footage (Veo, Sora, Runway) is deliberately left out. The point is our own pictures.
+
+## Sapporo ski fields — logged 22 November 2026
+
+Built: resort cards with lift-status links, a run checklist and map from OpenStreetMap, meet-ups with push notifications, and an organiser switch so everyone in a group sees everyone’s shared position (README, 22 November 2026).
+
+On hold, by decision:
+1. **Run tracking from GPS:** import a GPX file per person per day (Slopes, Strava or Apple Workouts export), match it to the mapped runs and lifts, and auto-tick runs with top speed, vertical and distance, plus a group leaderboard.
+2. **Background tracking:** a native wrapper (see `docs/native-apps.md`) with a background-location plugin, since a Home Screen web app gets no position while the phone is locked.
+
+Also built: the ski trip is its own plan in the same app (README, “a second plan”), with Osaka, Nara, Universal and Kyoto ideas on its board.
+
+Still to check on a phone: joining the ski plan by its open link and switching between the two plans on a real iPhone; the run data for each resort once the server can reach Overpass (it could not from the build session), and the lift-status links once the 2026–27 season pages are live.
+

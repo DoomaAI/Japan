@@ -1,5 +1,6 @@
-import React,{useState} from 'react';
+import React,{useEffect,useState} from 'react';
 import PageTitle from './PageTitle.jsx';
+import {planDays,DAY_PLACES} from './ski-data.js';
 import {Sparkles,MessageSquare,Lightbulb,Mic,Eye,RotateCcw,ExternalLink,Ticket,Image,BookOpen,Bell,Compass,Share2,CalendarDays,Copy,Zap,Tv,Trash2,Send,Mail,Plus,Headphones,ConciergeBell,Coffee,Smile,LayoutGrid,Star} from 'lucide-react';
 import {SETTINGS,settingOn} from './settings.js';
 import Notifications from './Notifications.jsx';
@@ -254,11 +255,87 @@ function DeepLinks({notice}){
   <p><small>The address only opens on a phone already signed in to the trip; on any other phone it shows the front door.</small></p>
  </section>;
 }
+// The plans in this app: the family's Japan trip and the Sapporo ski trip, in the one app and the
+// one database, each with its own people. A family parent opens the ski plan (making it the first
+// time) as its organiser; once a phone has been in both, Switch moves between them. Whatever the
+// phone kept of one plan is cleared before the other is read, so nothing crosses over.
+const PLAN_NAMES={ski:'Sapporo ski'};
+function movePlan(plan,hash=''){
+ try{localStorage.setItem('japan.plan',plan);for(const k of ['japan.snapshot','japan.queue','japan.position'])localStorage.removeItem(k);}catch{}
+ if(hash)location.assign(`${location.pathname}#${hash}`);location.reload();
+}
+function Plans({request,notice}){
+ const [plans,setPlans]=useState(null),[working,setWorking]=useState(false);
+ const [starting,setStarting]=useState(null),[from,setFrom]=useState(''),[to,setTo]=useState(''),[who,setWho]=useState('me'),[organiser,setOrganiser]=useState(''),[handed,setHanded]=useState(null),[resetting,setResetting]=useState(null);
+ const load=()=>request('plans').then(setPlans,()=>{});
+ useEffect(()=>{load();},[request]);// eslint-disable-line react-hooks/exhaustive-deps
+ if(!plans||(!plans.other&&!plans.canCreate.length&&!Object.keys(plans.plans||{}).length))return null;
+ const name=id=>PLAN_NAMES[id]||plans.plans?.[id]?.title||id;
+ const start=async id=>{setWorking(true);try{
+   const r=await request('plan-open',{plan:id,from,to,...(who==='other'?{organiser:organiser.trim()}:{})});
+   if(r.token)movePlan(id,`join=${r.token}`);else if(r.switched)movePlan(id);
+   else{setHanded({...r,plan:id});setStarting(null);setWorking(false);load();}
+  }catch(e){notice?.(e.message);setWorking(false);}};
+ const open=async id=>{setWorking(true);try{const r=await request('plan-open',{plan:id});if(r.token)movePlan(id,`join=${r.token}`);else movePlan(id);}catch(e){notice?.(e.message);setWorking(false);}};
+ const swap=async()=>{setWorking(true);try{const r=await request('plan-switch',{});movePlan(r.plan||plans.other?.id||'family');}catch(e){notice?.(e.message);setWorking(false);}};
+ const reset=async id=>{setWorking(true);try{await request('plan-reset',{plan:id,confirm:id});setResetting(null);setHanded(null);notice?.(`${name(id)} is gone. Start it again whenever you are ready.`);await load();}catch(e){notice?.(e.message);}finally{setWorking(false);}};
+ const copy=async url=>{try{await navigator.clipboard.writeText(url);notice?.('Copied. Send it to them on its own: it is their way in.');}catch{notice?.(url);}};
+ return <section className="settings-section">
+  <h2>Plans</h2>
+  <p>You are in <strong>{plans.current.title}</strong>. Each plan has its own people, its own plan, its own passports and its own notifications.</p>
+  {plans.other&&<div className="row wrap"><button type="button" className="primary" disabled={working} onClick={swap}>Switch to {plans.other.title}</button></div>}
+  {Object.entries(plans.plans||{}).map(([id,p])=><div key={id} className="plan-card">
+   <p><strong>{p.title}</strong><br/><small>Organised by {p.organisers.join(' and ')||'nobody yet'} · {p.people} {p.people===1?'person':'people'}</small></p>
+   <div className="row wrap">
+    {p.member&&plans.other?.id!==id&&<button type="button" disabled={working} onClick={()=>open(id)}>Open {p.title}</button>}
+    {resetting===id
+     ?<><button type="button" className="danger" disabled={working} onClick={()=>reset(id)}>Yes, start {p.title} again</button><button type="button" onClick={()=>setResetting(null)}>Keep it</button></>
+     :<button type="button" className="linkish" onClick={()=>setResetting(id)}>Start it again…</button>}
+   </div>
+   {resetting===id&&<p className="callout">Starting again deletes {p.title}: its plan, ideas, meet-ups and passports, and every link into it stops working. The family’s plan is not touched.</p>}
+  </div>)}
+  {plans.canCreate.length>0&&!starting&&<div className="row wrap">{plans.canCreate.map(id=><button type="button" key={id} disabled={working} onClick={()=>{setStarting(id);setHanded(null);}}>Start the {name(id)} plan</button>)}</div>}
+  {starting&&<form className="plan-start" onSubmit={e=>{e.preventDefault();start(starting);}}>
+   <p>When is the trip? The first day is Osaka (the flight from Sydney lands at Kansai) and the rest Sapporo to begin with; the organiser changes each day afterwards under Dates and places.</p>
+   <div className="form-row"><label>First day<input type="date" required value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Last day<input type="date" required min={from||undefined} value={to} onChange={e=>setTo(e.target.value)}/></label></div>
+   <fieldset className="plan-who"><legend>Who organises it?</legend>
+    <label className="check"><input type="radio" name="who" checked={who==='me'} onChange={()=>setWho('me')}/> Me</label>
+    <label className="check"><input type="radio" name="who" checked={who==='other'} onChange={()=>setWho('other')}/> Someone else</label>
+    {who==='other'&&<label>Their name<input value={organiser} maxLength={40} required placeholder="e.g. Sam" onChange={e=>setOrganiser(e.target.value)}/></label>}
+   </fieldset>
+   {who==='other'&&<p><small>The plan starts with only them in it. You get a link to send them; opening it makes them the organiser, and they invite the group (you included, if you are going) from there.</small></p>}
+   <div className="row wrap"><button className="primary" disabled={working||!from||!to||(who==='other'&&!organiser.trim())}>{who==='other'?`Start it for ${organiser.trim()||'them'}`:`Start ${name(starting)}`}</button><button type="button" onClick={()=>setStarting(null)}>Cancel</button></div>
+  </form>}
+  {handed&&<div className="callout plan-handed">
+   <p><strong>{name(handed.plan)} is ready for {handed.organiser}.</strong> Send them this link. It is theirs alone: opening it on their phone makes them the organiser.</p>
+   {handed.url?<div className="row wrap"><code>{handed.url}</code><button type="button" onClick={()=>copy(handed.url)}>Copy the link</button></div>:<p><small>{handed.note}</small></p>}
+  </div>}
+  <p><small>Notifications follow the plan this phone is in.</small></p>
+ </section>;
+}
 // What kind of plan this is, and where. The record behind every date, every price and the menu
 // itself (src/plan-context.js). A parent can rename the plan, move its clock, or call it a
 // dinner rather than a trip, and the pages a dinner has no use for leave the menu on every phone
 // at the next refresh. The list under the picker says exactly which, before the change is made,
 // because the fear that stops somebody changing a thing is not knowing what goes with it.
+// The dates of a plan that started from its own state, and where each day is. The family's days
+// are its guide's, so this is not offered there.
+function PlanDates({state,mutate,busy}){
+ const days=state.days||[];
+ const [from,setFrom]=useState(days[0]?.date||''),[to,setTo]=useState(days.at(-1)?.date||''),[places,setPlaces]=useState(()=>Object.fromEntries(days.map(d=>[d.date,d.city])));
+ const preview=planDays({from,to,places},days);
+ const dirty=from!==days[0]?.date||to!==days.at(-1)?.date||days.some(d=>places[d.date]!==d.city);
+ return <section className="settings-section">
+  <h2>Dates and places</h2>
+  <div className="form-row"><label>First day<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Last day<input type="date" min={from||undefined} value={to} onChange={e=>setTo(e.target.value)}/></label></div>
+  {preview.problem?<p className="callout">{preview.problem}</p>:<ul className="plan-days">{preview.days.map(d=><li key={d.date}>
+   <span>{new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(`${d.date}T00:00:00Z`))}</span>
+   <select aria-label={`Where on ${d.date}`} value={places[d.date]||d.city} onChange={e=>setPlaces(p=>({...p,[d.date]:e.target.value}))}>{[...new Set([...DAY_PLACES,d.city])].map(c=><option key={c}>{c}</option>)}</select>
+  </li>)}</ul>}
+  <p><small>A stop on a day that leaves the trip goes to the ideas with no date.</small></p>
+  <button type="button" className="primary" disabled={busy||!!preview.problem||!dirty} onClick={()=>mutate({type:'planDays',from,to,places})}>Save the dates</button>
+ </section>;
+}
 function ThisPlan({state,mutate,busy}){
  const plan=planOf(state);
  const [title,setTitle]=useState(plan.title),[zone,setZone]=useState(plan.timeZone),[type,setType]=useState(plan.type);
@@ -352,7 +429,9 @@ export default function Settings({user,state,mutate,busy,hand,settings,change,ma
    <h2>Route cards</h2>
    {SETTINGS.filter(s=>s.group==='route').map(s=><SettingRow key={s.id} s={s} settings={settings} change={change}/>)}
   </section>
+  {request&&<Plans request={request} notice={notice}/>}
   {user?.role==='parent'&&state&&mutate&&<ThisPlan state={state} mutate={mutate} busy={busy}/>}
+  {user?.role==='parent'&&state?.ownSeed&&mutate&&<PlanDates key={`${state.days?.[0]?.date}|${state.days?.length}`} state={state} mutate={mutate} busy={busy}/>}
   {user?.role==='parent'&&state&&mutate&&<ChildLevels state={state} mutate={mutate} busy={busy}/>}
   {user?.role==='parent'&&state&&hand&&<HandOver state={state} user={user} hand={hand}/>}
   {request&&<Notifications config={config} request={request} notice={notice} user={user}/>}

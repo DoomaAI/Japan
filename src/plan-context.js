@@ -13,7 +13,7 @@
 // The pages that only make sense on a journey: days away, luggage, paperwork at the border,
 // the destination's own content and the boys' trip games. Every type other than a trip starts
 // from this list and keeps back the ones it needs.
-const TRIP_ONLY=['days','packing','trackers','windows','arrival','flyinghome','homefront','vault','guide','printguide','parks','local','phrases','allergy','stamps','facts','challenges','spending','showtell','mascot','games','leaderboard','capsule','book','recap','diary','nexttime','predictions','shop','thanks','nightstand','hunts','food','money','paying','shopping','shortlist','lost'];
+const TRIP_ONLY=['days','packing','trackers','windows','arrival','flyinghome','homefront','vault','guide','printguide','parks','ski','local','phrases','allergy','stamps','facts','challenges','spending','showtell','mascot','games','leaderboard','capsule','book','recap','diary','nexttime','predictions','shop','thanks','nightstand','hunts','food','money','paying','shopping','shortlist','lost'];
 const without=(list,keep)=>list.filter(id=>!keep.includes(id));
 export const PLAN_TYPES=[
  {id:'outing',label:'Outing',note:'A dinner, drinks or a day out: hours to a day, people who know each other',
@@ -26,6 +26,11 @@ export const PLAN_TYPES=[
   off:without(TRIP_ONLY,['days','allergy','capsule','book','recap','diary','printguide','thanks','shopping','windows'])},
  {id:'event',label:'Multi-day event',note:'An offsite, a reunion, a conference or a carnival over several days',
   off:without(TRIP_ONLY,['days','packing','printguide','food','allergy','diary','recap','book','windows'])},
+ // A group ski trip through Osaka to Sapporo: the trip's own pages, less the ones made for the
+ // family's journey (its guide, its passports, the boys' games, the theme-park checklist with
+ // the boys' heights) and the invitation pages a group already together has no use for.
+ {id:'ski',label:'Ski trip',note:'A group on the snow: the ski fields, meet-ups, the plan and ideas, food, money and phrases',
+  off:['trackers','homefront','vault','guide','printguide','parks','local','stamps','facts','challenges','showtell','mascot','games','leaderboard','capsule','book','predictions','shop','thanks','nightstand','spending','guests','invitation']},
  // A trip switches off only the two pages that belong to an invitation, which a family away
  // together has no use for; everything it had before plans had types, it keeps.
  {id:'trip',label:'Trip',note:'Days to weeks away: everything the app does',

@@ -7,7 +7,7 @@ import {Readable} from 'node:stream';
 import {get,head,del} from '@vercel/blob';
 import {handleUpload} from '@vercel/blob/client';
 import {AppError,applyOperation,documentDetails,documentAssociation,ticketParent} from './model.mjs';
-import {database,readTrip,writeTrip,updateTrip,session,localDemo,hash,token,setCookie,cookieOf,renewSession,renewAllLinks,RENEW_WITHIN} from './store.mjs';
+import {database,readTrip,writeTrip,updateTrip,session,localDemo,hash,token,setCookie,cookieOf,renewSession,renewAllLinks,RENEW_WITHIN,runInPlan,enterPlan,currentPlan,FAMILY_PLAN,PLAN_IDS,PLAN_SEEDS,planExists,createPlan,removePlan,planTitles,addCookie,otherCookieOf,sessionPlan} from './store.mjs';
 import {visibleEnvelope,visibleTrip} from './visibility.mjs';
 import {usageSummary} from './usage.mjs';
 import {roleOf,joinMember,cleanName,MEMBER_ROLES,householdProblem,parentsOf} from '../src/people.js';
@@ -22,7 +22,7 @@ import {checkLocal} from './local-check.mjs';
 import {suggestIdeas,suggestReady} from './suggest.mjs';
 import {findEvents,eventsReady} from './events.mjs';
 import {askTrip,askReady} from './ask.mjs';
-import {conciergeAnswer,makeConciergeLink} from './concierge.mjs';
+import {conciergeAnswer,makeConciergeLink,conciergeUser} from './concierge.mjs';
 import {parseCapture,captureReady} from './capture.mjs';
 import {nearbyPlaces,nearbyReady} from './nearby.mjs';
 import {fetchSumoDay,fetchSumoResults,fetchWrestler,sumoReady} from './sumo.mjs';
@@ -35,7 +35,9 @@ import {calendarFeed,japanDate} from '../src/timing.js';
 import {RECEIPT_TYPES} from '../src/ledger-data.js';
 import {followView,followPhoto} from '../src/follow-data.js';
 import {applyKudos} from '../src/kudos-data.js';
-import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange,tellTomorrow,tellLate,tellLateNo} from './push.mjs';
+import {pushReady,pushPublicKey,subscribe,unsubscribe,tick,tellChange,tellTomorrow,tellLate,tellLateNo,tellMeetup} from './push.mjs';
+import {skiMap,meetupChange,positionSeers} from './ski.mjs';
+import {planDays} from '../src/ski-data.js';
 import {tomorrowReady,tomorrowOf,nightly} from './tomorrow.mjs';
 import {isDeveloping,momentAccepts} from '../src/film-data.js';
 import {quizAction} from '../src/quiz-data.js';
@@ -72,12 +74,28 @@ const DRAWING_LIMIT=60;
 // A personal link is for someone already in the plan, with the role their record gives them.
 const validName=(state,name,role)=>state.members.includes(name)&&roleOf(state,name)===role;
 const OPEN_MAX_USES=500;
+const PLAN_NAMES={ski:'Sapporo ski'};
 function checkOrigin(req){
  const origin=req.headers.origin;
  if(localDemo()){if(origin&&new URL(origin).host!==req.headers.host)throw new AppError('Request origin is not allowed.',403);return;}
  if(!process.env.APP_ORIGIN||origin!==process.env.APP_ORIGIN)throw new AppError('Request origin is not allowed.',403);
 }
-export default async function handler(req,res){
+// Every request starts in the family's plan; a link or a session moves it into its own plan
+// (server/store.mjs), and nothing it reads or writes after that is another plan's.
+export default function handler(req,res){return runInPlan(FAMILY_PLAN,()=>handle(req,res));}
+// A link with no session behind it (a calendar, a follow-along page, a photo frame, Siri, the
+// invitation) names its plan by its key alone. Each plan is looked in, the family's first, and
+// the request carries on in the plan whose key it is; a key no plan holds is checked against
+// the family's, where it fails the way it always did.
+async function keyedTrip(test){
+ for(const plan of PLAN_IDS){
+  if(!(await planExists(plan)))continue;
+  enterPlan(plan);const trip=await readTrip();
+  if(test(trip.state))return trip;
+ }
+ enterPlan(FAMILY_PLAN);return readTrip();
+}
+async function handle(req,res){
  res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');
  try{
   const url=new URL(req.url,'http://localhost'),route=url.pathname.replace(/^\/api\/?/,'');
@@ -94,7 +112,9 @@ export default async function handler(req,res){
   // a rejected sender is not retried for hours, and nothing it says reaches the itinerary — it
   // waits in the inbox for a parent to read and file.
   if(base==='email-in'&&post){
-   authoriseInbound(req,route);
+   // One forwarding address a plan: email-in/<secret> is the family's, email-in/<secret>/<plan> another's.
+   const parts=route.split('/'),plan=parts.length>2&&PLAN_SEEDS[parts.at(-1)]?parts.pop():FAMILY_PLAN;
+   authoriseInbound(req,parts.join('/'));enterPlan(plan);
    const received=await receiveEmail(b);
    if(!received.filed)return json(res,{ok:true,filed:false,reason:received.reason});
    await updateTrip(state=>addToInbox(state,received.item));
@@ -104,7 +124,7 @@ export default async function handler(req,res){
   // built in src/rsvp-data.js. The key is the plan's own, minted by a parent, withdrawn by one.
   const inviteKeyOk=(state,key)=>!!state.inviteKey&&/^[a-f0-9]{64}$/.test(key)&&hash(key)===hash(state.inviteKey);
   if(route==='invitation'&&req.method==='GET'){
-   const key=url.searchParams.get('key')||'',trip=await readTrip();
+   const key=url.searchParams.get('key')||'',trip=await keyedTrip(s=>inviteKeyOk(s,key));
    if(!inviteKeyOk(trip.state,key))throw new AppError('This invitation link is not valid any more.',403);
    res.setHeader('Cache-Control','private, no-store');return json(res,invitationView(trip.state));
   }
@@ -113,7 +133,7 @@ export default async function handler(req,res){
   // as a parent may. Answers close on the RSVP day; after it the page says to ask the organiser.
   if(route==='rsvp'&&post){
    checkOrigin(req);
-   const key=String(b.key||''),first=await readTrip();
+   const key=String(b.key||''),first=await keyedTrip(s=>inviteKeyOk(s,key));
    if(!inviteKeyOk(first.state,key))throw new AppError('This invitation link is not valid any more.',403);
    if(!invitationOf(first.state).published)throw new AppError('The invitation is not out yet.',403);
    const name=cleanName(b.name),now=new Date().toISOString();let problem=null,joined=false;
@@ -127,7 +147,7 @@ export default async function handler(req,res){
    if(problem)throw new AppError(problem);
    if(joined&&!localDemo()){
     const db=await database(),grantId=randomUUID();
-    await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,via,expires_at) VALUES (${grantId},${hash(token())},${name},'child','personal','invitation',now()+interval '6 months')`;
+    await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,via,plan_id,expires_at) VALUES (${grantId},${hash(token())},${name},'child','personal','invitation',${currentPlan()},now()+interval '6 months')`;
     const sid=token();await db`INSERT INTO japan_sessions(token_hash,grant_id,expires_at) VALUES (${hash(sid)},${grantId},now()+interval '6 months')`;setCookie(res,sid);
    }
    return json(res,{ok:true,name,joined,view:invitationView((await readTrip()).state)});
@@ -136,7 +156,7 @@ export default async function handler(req,res){
   // The trip as a calendar, fetched by the phone's Calendar app with no cookie to show, so it is
   // let in on a key of its own that only a parent is ever handed. A wrong key learns nothing.
   if(route==='calendar'&&req.method==='GET'){
-   const key=url.searchParams.get('key')||'',trip=await readTrip();
+   const key=url.searchParams.get('key')||'',trip=await keyedTrip(s=>!!s.calendarKey&&/^[a-f0-9]{64}$/.test(key)&&hash(key)===hash(s.calendarKey));
    if(!trip.state.calendarKey||!/^[a-f0-9]{64}$/.test(key)||hash(key)!==hash(trip.state.calendarKey))throw new AppError('This calendar link is not valid.',403);
    res.statusCode=200;res.setHeader('Content-Type','text/calendar; charset=utf-8');res.setHeader('Cache-Control','private, max-age=300');
    res.end(calendarFeed(trip.state,process.env.APP_ORIGIN||`http://${req.headers.host}`));return;
@@ -147,6 +167,7 @@ export default async function handler(req,res){
   if(route==='concierge'&&req.method==='GET'){
    const plain=url.searchParams.get('format')!=='json';
    try{
+    const key=url.searchParams.get('key')||'';await keyedTrip(s=>!!conciergeUser(s,key));
     const out=await conciergeAnswer(url.searchParams.get('key')||'',url.searchParams.get('q')||'');
     if(!plain)return json(res,out);
     res.statusCode=200;res.setHeader('Content-Type','text/plain; charset=utf-8');res.end(out.speak);return;
@@ -160,7 +181,7 @@ export default async function handler(req,res){
   // like the calendar, with no session. What it sends is the allow-list in follow-data.js, and
   // the only files it serves are the family's day photos. A wrong or withdrawn key learns nothing.
   if((route==='follow'||route==='follow-photo')&&req.method==='GET'){
-   const key=url.searchParams.get('key')||'',trip=await readTrip();
+   const key=url.searchParams.get('key')||'',trip=await keyedTrip(s=>!!keyAccess(s,key,hash));
    if(!keyAccess(trip.state,key,hash))throw new AppError('This follow-along link is not valid any more.',403);
    const today=japanDate();
    if(route==='follow')return json(res,followView(trip.state,today));
@@ -174,7 +195,7 @@ export default async function handler(req,res){
   // Shortcut to fetch and save into an album. Only a frame's own key opens it, and each photo is
   // handed over once (a parent can start the album again from Settings).
   if(route==='frame-feed'&&req.method==='GET'){
-   const key=url.searchParams.get('key')||'',trip=await readTrip(),access=keyAccess(trip.state,key,hash);
+   const key=url.searchParams.get('key')||'',trip=await keyedTrip(s=>keyAccess(s,key,hash)?.kind==='frame'),access=keyAccess(trip.state,key,hash);
    if(access?.kind!=='frame')throw new AppError('This frame link is not valid any more.',403);
    const frame=trip.state.frameKeys.find(f=>f.id===access.id),shots=photosToFeed(trip.state,frame,japanDate());
    const origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
@@ -187,14 +208,14 @@ export default async function handler(req,res){
   // Google account the Hub uses, and come back here. No session: the link's secret (kept only as a
   // hash, for a week, used once) is what says which frame this is.
   if(route==='google-connect'&&req.method==='GET'){
-   const c=url.searchParams.get('c')||'',{state}=await readTrip(),origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
+   const c=url.searchParams.get('c')||'',{state}=await keyedTrip(s=>/^[a-f0-9]{64}$/.test(c)&&(s.googleFrames||[]).some(x=>x.nonce===hash(c))),origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
    const g=/^[a-f0-9]{64}$/.test(c)&&(state.googleFrames||[]).find(x=>x.nonce&&x.nonce===hash(c)&&Date.parse(x.nonceUntil)>Date.now());
    if(!googleReady()||!g)return page(res,'This link has run out','Ask for a new one: it works for a week, once.');
    res.statusCode=302;res.setHeader('Location',authUrl(origin,c));res.setHeader('Cache-Control','no-store');res.end();return;
   }
   if(route==='google-callback'&&req.method==='GET'){
    const c=url.searchParams.get('state')||'',code=url.searchParams.get('code')||'',origin=process.env.APP_ORIGIN||`http://${req.headers.host}`;
-   const {state}=await readTrip(),g=/^[a-f0-9]{64}$/.test(c)&&(state.googleFrames||[]).find(x=>x.nonce&&x.nonce===hash(c)&&Date.parse(x.nonceUntil)>Date.now());
+   const {state}=await keyedTrip(s=>/^[a-f0-9]{64}$/.test(c)&&(s.googleFrames||[]).some(x=>x.nonce===hash(c))),g=/^[a-f0-9]{64}$/.test(c)&&(state.googleFrames||[]).find(x=>x.nonce&&x.nonce===hash(c)&&Date.parse(x.nonceUntil)>Date.now());
    if(!g)return page(res,'This link has run out','Ask for a new one: it works for a week, once.');
    if(!code)return page(res,'Not connected','Google was not given permission, so no photos can be added. Open the link again to try once more.');
    try{
@@ -210,7 +231,7 @@ export default async function handler(req,res){
   // first name; it cannot write a word. The trip's revision moves, so the phones see it on their
   // next refresh, and the follower gets the view back with theirs in it.
   if(route==='follow-react'&&post){
-   const key=String(b.key||''),trip=await readTrip();
+   const key=String(b.key||''),trip=await keyedTrip(s=>!!keyAccess(s,key,hash));
    if(!keyAccess(trip.state,key,hash))throw new AppError('This follow-along link is not valid any more.',403);
    if(!applyKudos(trip.state,b))throw new AppError('That one could not be given.');
    await updateTrip(state=>applyKudos(state,b));
@@ -222,7 +243,10 @@ export default async function handler(req,res){
    const secret=process.env.CRON_SECRET||'',given=(req.headers.authorization||'').replace(/^Bearer /,'')||url.searchParams.get('key')||'';
    if(!secret||secret.length<16||hash(given)!==hash(secret))throw new AppError('Not allowed.',403);
    if(!pushReady())return json(res,{ok:true,ready:false,sent:[]});
-   return json(res,{ok:true,ready:true,sent:await tick((await readTrip()).state)});
+   // Each plan's moments, in that plan's own scope, so its phones and its keys are its own.
+   const sent=[];
+   for(const plan of PLAN_IDS){if(!(await planExists(plan)))continue;enterPlan(plan);sent.push(...await tick((await readTrip()).state));}
+   return json(res,{ok:true,ready:true,sent});
   }
   // Tomorrow's check and Plan B, run in the Japan evening by the scheduler (vercel.json crons,
   // which send the cron secret as a bearer token). It checks whichever trip day is tomorrow in
@@ -230,21 +254,31 @@ export default async function handler(req,res){
   if(route==='tomorrow-check'&&(req.method==='GET'||post)){
    const secret=process.env.CRON_SECRET||'',given=(req.headers.authorization||'').replace(/^Bearer /,'')||url.searchParams.get('key')||'';
    if(!secret||secret.length<16||hash(given)!==hash(secret))throw new AppError('Not allowed.',403);
-   // The mailed frames get the day's photos on the same nightly run, key or no key.
-   const framed=await mailFrames((await readTrip()).state,japanDate()).catch(()=>[]);
-   if(framed.length)await updateTrip(state=>recordSent(state,framed));
-   const googled=await sendGoogleFrames((await readTrip()).state,japanDate()).catch(()=>[]);
-   if(googled.length)await updateTrip(state=>recordGoogleSent(state,googled));
-   if(!tomorrowReady())return json(res,{ok:true,ready:false,framed:framed.length});
-   const {state}=await readTrip(),day=tomorrowOf(state);
-   if(!day)return json(res,{ok:true,ready:true,day:null});
-   return json(res,{ok:true,ready:true,...await nightly(state,day,undefined,{onCheck:check=>tellTomorrow(check,parentsOf(state)).catch(()=>0)})});
+   // Every plan in turn, each in its own scope: its frames, then tomorrow's check for its organisers.
+   const runs={};
+   for(const plan of PLAN_IDS){
+    if(!(await planExists(plan)))continue;
+    enterPlan(plan);
+    // The mailed frames get the day's photos on the same nightly run, key or no key.
+    const framed=await mailFrames((await readTrip()).state,japanDate()).catch(()=>[]);
+    if(framed.length)await updateTrip(state=>recordSent(state,framed));
+    const googled=await sendGoogleFrames((await readTrip()).state,japanDate()).catch(()=>[]);
+    if(googled.length)await updateTrip(state=>recordGoogleSent(state,googled));
+    if(!tomorrowReady()){runs[plan]={ready:false,framed:framed.length};continue;}
+    const {state}=await readTrip(),day=tomorrowOf(state);
+    runs[plan]=day?{ready:true,...await nightly(state,day,undefined,{onCheck:check=>tellTomorrow(check,parentsOf(state)).catch(()=>0)})}:{ready:true,day:null};
+   }
+   // The family's run is the answer as it always was; the others ride along beside it.
+   const {family,...others}=runs;
+   return json(res,{ok:true,ready:tomorrowReady(),...(family||{}),plans:others});
   }
   if(route==='config'&&req.method==='GET')return json(res,{push:pushReady(),pushKey:pushPublicKey(),configured:!!process.env.DATABASE_URL,demo:localDemo(),capture:captureReady(),events:eventsReady(),uploads:!!(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID),menuReader:menuReaderReady(),translator:translatorReady(),documentReader:readerReady(),photoCoach:coachReady(),research:researchReady(),suggest:suggestReady(),ask:askReady(),tomorrow:tomorrowReady(),highlights:highlightsReady(),frameMail:frameMailReady(),googleFrames:googleReady(),dinner:dinnerReady(),nightOut:nightOutReady(),giftIdeas:giftIdeasReady(),postcard:postcardReady(),nearby:nearbyReady(),sumo:sumoReady(),emailInbox:emailInboxReady(),emailInboxOpen:openToAnySender(),vault:vaultReady()});
   if(route==='join'&&post){
    if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new AppError('Invalid family link.',403);
-   const db=await database();const [u]=await db`SELECT id,kind,role,household,max_uses,uses FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
+   const db=await database();const [u]=await db`SELECT id,kind,role,household,max_uses,uses,plan_id FROM japan_grants WHERE token_hash=${hash(b.token)} AND revoked=false AND expires_at>now()`;
    if(!u)throw new AppError('This invite has expired or been revoked.',403);
+   enterPlan(PLAN_SEEDS[u.plan_id]?u.plan_id:FAMILY_PLAN);
+   if(!(await planExists(currentPlan())))throw new AppError('This plan has not been set up yet.',404);
    let grantId=u.id;
    // A link anyone can join with makes a person: they say their name, the name goes on the plan
    // with the link's role and household, and a link of their own is made for that name (its
@@ -259,9 +293,13 @@ export default async function handler(req,res){
     if(problem)throw new AppError(problem);
     const [used]=await db`UPDATE japan_grants SET uses=uses+1 WHERE id=${u.id} AND revoked=false AND (max_uses IS NULL OR uses<max_uses) RETURNING id`;
     if(!used)throw new AppError('This link has been used as many times as it allows. Ask for a new one.',403);
-    grantId=randomUUID();await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,household,via,expires_at) VALUES (${grantId},${hash(token())},${name},${u.role},'personal',${u.household||''},${u.id},now()+interval '6 months')`;
+    grantId=randomUUID();await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,household,via,plan_id,expires_at) VALUES (${grantId},${hash(token())},${name},${u.role},'personal',${u.household||''},${u.id},${currentPlan()},now()+interval '6 months')`;
    }
-   const sid=token();await db`INSERT INTO japan_sessions(token_hash,grant_id,expires_at) VALUES (${hash(sid)},${grantId},now()+interval '6 months')`;setCookie(res,sid);return json(res,{ok:true});
+   const sid=token();await db`INSERT INTO japan_sessions(token_hash,grant_id,expires_at) VALUES (${hash(sid)},${grantId},now()+interval '6 months')`;
+   // Joining another plan keeps this phone's way back into the one it was in.
+   const was=cookieOf(req),wasPlan=await sessionPlan(was);
+   if(wasPlan&&wasPlan!==currentPlan())addCookie(res,'japan_other',was);
+   setCookie(res,sid);return json(res,{ok:true,plan:currentPlan()});
   }
   const user=await session(req);
   // A phone inside the last month of its session is pushed out another six months, cookie and
@@ -270,6 +308,56 @@ export default async function handler(req,res){
    const until=await renewSession(req);if(until){user.expiresAt=until;setCookie(res,cookieOf(req));}
   }
   if(route==='session'&&req.method==='GET')return json(res,{user});
+  // The plans in this app, and moving this phone between them. A family parent makes another
+  // plan (with themselves as its organiser) and is handed a link into it; joining keeps the way
+  // back, so Switch moves the phone between the two without a link being opened again.
+  if(route==='plans'&&req.method==='GET'){
+   const titles=await planTitles(),other=user.demo?null:await sessionPlan(otherCookieOf(req));
+   const familyParent=user.plan===FAMILY_PLAN&&user.role==='parent';
+   // Who is in each other plan and who organises it, for a family parent deciding what to do with it.
+   const others={};
+   if(familyParent)for(const id of PLAN_IDS.filter(id=>id!==FAMILY_PLAN&&titles[id])){
+    const st=(await runInPlan(id,()=>readTrip())).state;
+    others[id]={title:titles[id],member:st.members.includes(user.name),organisers:parentsOf(st),people:st.members.length};
+   }
+   return json(res,{current:{id:user.plan,title:titles[user.plan]||user.plan},
+    other:other&&other!==user.plan?{id:other,title:titles[other]||other}:null,
+    canCreate:familyParent?PLAN_IDS.filter(id=>id!==FAMILY_PLAN&&!titles[id]):[],
+    canOpen:Object.keys(others).filter(id=>others[id].member),plans:others});
+  }
+  if(route==='plan-open'&&post){
+   // Start a plan with its dates and an organiser (the family parent asking, or somebody else
+   // they name), or open one this parent is already in. Somebody else is handed their own
+   // organiser link; the family parent's phone stays where it is.
+   if(user.plan!==FAMILY_PLAN||user.role!=='parent')throw new AppError('A family parent can do this.',403);
+   const plan=String(b.plan||'');if(!PLAN_SEEDS[plan]||plan===FAMILY_PLAN)throw new AppError('That plan does not exist.',404);
+   const organiser=b.organiser===undefined||b.organiser===null||b.organiser===''?user.name:cleanName(b.organiser);
+   if(!organiser)throw new AppError('Say who will organise it.');
+   const fresh=!(await planExists(plan));
+   if(fresh){const r=planDays({from:b.from,to:b.to});if(r.problem)throw new AppError(r.problem);await createPlan(plan,organiser,r.days);}
+   else if(organiser!==user.name)throw new AppError('That plan is already started. Start it again to hand it to someone else.');
+   enterPlan(plan);
+   const {state}=await readTrip();
+   if(!state.members.includes(organiser))throw new AppError(`${PLAN_NAMES[plan]||'That plan'} is organised by ${parentsOf(state).join(' and ')||'somebody else'}. Ask them for a link to join.`,403);
+   if(user.demo){if(organiser!==user.name)return json(res,{ok:true,url:null,organiser,note:'Links are made once the app is connected to Neon.'});addCookie(res,'japan_preview_plan',plan);return json(res,{ok:true,switched:true});}
+   const db=await database(),raw=token(),id=randomUUID();
+   await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,plan_id,expires_at) VALUES (${id},${hash(raw)},${organiser},${roleOf(state,organiser)||'parent'},'personal',${plan},now()+interval '6 months')`;
+   if(organiser!==user.name)return json(res,{ok:true,organiser,url:`${process.env.APP_ORIGIN}/#join=${raw}`});
+   return json(res,{ok:true,token:raw});
+  }
+  if(route==='plan-reset'&&post){
+   // Start a plan again from nothing: a family parent's call, made from the family's plan.
+   if(user.plan!==FAMILY_PLAN||user.role!=='parent')throw new AppError('A family parent can do this.',403);
+   const plan=String(b.plan||'');if(!PLAN_SEEDS[plan]||plan===FAMILY_PLAN)throw new AppError('That plan cannot be started again.',404);
+   if(b.confirm!==plan)throw new AppError('Confirm which plan to start again.');
+   await removePlan(plan);return json(res,{ok:true});
+  }
+  if(route==='plan-switch'&&post){
+   if(user.demo){const back=user.plan===FAMILY_PLAN?'ski':FAMILY_PLAN;addCookie(res,'japan_preview_plan',back===FAMILY_PLAN?'':back);return json(res,{ok:true});}
+   const other=otherCookieOf(req),plan=await sessionPlan(other);
+   if(!plan||plan===user.plan)throw new AppError('There is no other plan on this phone. Open the plan’s link once.',404);
+   addCookie(res,'japan_other',cookieOf(req));setCookie(res,other);return json(res,{ok:true,plan});
+  }
   // Keep everyone signed in: every link and session runs from now for six months. The phones
   // that are not this one pick up their fresh cookie the next time they open the app.
   if(route==='renew-links'&&post){parent(user);const until=await renewAllLinks();if(!user.demo)setCookie(res,cookieOf(req));return json(res,{until});}
@@ -429,8 +517,10 @@ export default async function handler(req,res){
   if(route==='state'&&req.method==='GET')return json(res,visibleEnvelope(await readTrip(),user));
   // Where we each last said we were. Shared by tapping, never by the app on its own; read by the
   // map, which only ever gets the ones this person is allowed to see.
-  if(route==='checkins'&&req.method==='GET')return json(res,{checkins:await listCheckins(user,new Date(),parentsOf((await readTrip()).state))});
-  if(route==='checkin'&&post){await shareCheckin(user,b);return json(res,{checkins:await listCheckins(user,new Date(),parentsOf((await readTrip()).state))});}
+  // A group that has said so (the ski fields' "everyone sees everyone") lets every member see
+  // every position; otherwise it is the parents, as it always was.
+  if(route==='checkins'&&req.method==='GET')return json(res,{checkins:await listCheckins(user,new Date(),positionSeers((await readTrip()).state,parentsOf))});
+  if(route==='checkin'&&post){await shareCheckin(user,b);return json(res,{checkins:await listCheckins(user,new Date(),positionSeers((await readTrip()).state,parentsOf))});}
   // Coordinates for our places, from the family My Map. The map's own KML export is read once,
   // on a parent's say-so, and each pin is matched to a place by name; nothing is guessed.
   if(route==='map-coordinates'&&post){
@@ -459,6 +549,10 @@ export default async function handler(req,res){
    if(fresh&&!(current.state.alerts||[]).some(a=>a.id===fresh.id))await Promise.race([tellChange(fresh,user.name),new Promise(r=>setTimeout(r,4000))]).catch(()=>{});
    // Running late goes to the phones it was for, straight away.
    if(b.operation?.type==='lateSend'){const sent=(saved.state.lateNotices||[]).findLast(n=>n.from===user.name&&!n.clearedAt);if(sent)await Promise.race([tellLate(sent),new Promise(r=>setTimeout(r,4000))]).catch(()=>{});}
+   // What someone is in the plan is what their link lets them do, from their next tap.
+   if(b.operation?.type==='memberRole'&&!localDemo()){const db=await database();await db`UPDATE japan_grants SET role=${roleOf(saved.state,b.operation.name)} WHERE plan_id=${currentPlan()} AND name=${b.operation.name} AND kind='personal'`;}
+   // A meet-up on the ski fields: set, called off, or somebody late or there, told now.
+   {const n=meetupChange(current.state,saved.state,b.operation,user);if(n)await Promise.race([tellMeetup(n),new Promise(r=>setTimeout(r,4000))]).catch(()=>{});}
    if(b.operation?.type==='lateAnswer'&&b.operation.accept===false){const n=(saved.state.lateNotices||[]).find(n=>n.id===b.operation.id);if(n)await Promise.race([tellLateNo(n),new Promise(r=>setTimeout(r,4000))]).catch(()=>{});}
    // A discarded email leaves no attachments behind in private storage. The files are gone
    // from the trip either way, so a failed delete is not worth failing the change over.
@@ -789,7 +883,7 @@ export default async function handler(req,res){
    parent(user);return json(res,{since:30,usage:await usageSummary(30)});
   }
   if(route==='invites'&&req.method==='GET'){
-   parent(user);if(localDemo())return json(res,{invites:[]});const db=await database();return json(res,{invites:await db`SELECT id,name,role,kind,household,max_uses,uses,revoked,expires_at FROM japan_grants ORDER BY created_at`});
+   parent(user);if(localDemo())return json(res,{invites:[]});const db=await database();return json(res,{invites:await db`SELECT id,name,role,kind,household,max_uses,uses,revoked,expires_at FROM japan_grants WHERE plan_id=${currentPlan()} ORDER BY created_at`});
   }
   if(route==='invites'&&post){
    parent(user);if(localDemo())throw new AppError('Connect Neon to create real invite links.',503);
@@ -800,17 +894,19 @@ export default async function handler(req,res){
     if(!MEMBER_ROLES.includes(b.role))throw new AppError('Choose what people who join with this link can do.');
     const household=b.household===undefined?'':b.household;if(householdProblem(household))throw new AppError(householdProblem(household));
     const max=b.maxUses===undefined||b.maxUses===null?null:b.maxUses;if(max!==null&&(!Number.isInteger(max)||max<1||max>OPEN_MAX_USES))throw new AppError(`Allow between 1 and ${OPEN_MAX_USES} uses, or leave it open.`);
-    await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,household,max_uses,expires_at) VALUES (${id},${hash(raw)},'',${b.role},'open',${household},${max},now()+interval '6 months')`;
+    await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,household,max_uses,plan_id,expires_at) VALUES (${id},${hash(raw)},'',${b.role},'open',${household},${max},${currentPlan()},now()+interval '6 months')`;
     return json(res,{url:`${process.env.APP_ORIGIN}/#join=${raw}`,id,kind:'open'});
    }
    if(!validName((await readTrip()).state,b.name,b.role))throw new AppError('Choose someone in the plan, with the role they have.');
-   await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,expires_at) VALUES (${id},${hash(raw)},${b.name},${b.role},'personal',now()+interval '6 months')`;
+   await db`INSERT INTO japan_grants(id,token_hash,name,role,kind,plan_id,expires_at) VALUES (${id},${hash(raw)},${b.name},${b.role},'personal',${currentPlan()},now()+interval '6 months')`;
    return json(res,{url:`${process.env.APP_ORIGIN}/#join=${raw}`,id,kind:'personal'});
   }
   if(route==='revoke'&&post){
    parent(user);if(b.id===user.id||b.id==='owner')throw new AppError('Keep the owner access. Revoke another invite instead.');
-   const db=await database();await db`UPDATE japan_grants SET revoked=true WHERE id=${b.id}`;return json(res,{ok:true});
+   const db=await database();await db`UPDATE japan_grants SET revoked=true WHERE id=${b.id} AND plan_id=${currentPlan()}`;return json(res,{ok:true});
   }
+  // The runs, lifts and places to eat at one Sapporo resort, from OpenStreetMap (server/ski.mjs).
+  if(route==='ski-map'&&req.method==='GET')return json(res,await skiMap(url.searchParams.get('resort')||''));
   // Live wait times for one park, read from Queue-Times.com and kept a minute (server/waits.mjs).
   if(route==='waits'&&req.method==='GET')return json(res,await parkWaits(url.searchParams.get('park')||''));
   if(route==='guide-index'&&req.method==='GET')return json(res,JSON.parse(await readFile(new URL('../data/guide-index.json',import.meta.url),'utf8')));

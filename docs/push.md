@@ -23,10 +23,12 @@ Redeploy so the function picks them up. The two tables it needs are created on f
 
 ## 3. Something to call the tick every 5 minutes
 
-Leave-by times, booking windows and the morning briefing are sent by `/api/push-tick`. Plan changes do not need it — they are sent the moment they are saved.
+Leave-by times, booking windows, the morning briefing and the 15-minute reminder before a ski meet-up are sent by `/api/push-tick`. A new meet-up, and somebody late, not coming or already there, are sent the moment they are saved. Plan changes do not need it — they are sent the moment they are saved.
 
 - **Vercel Pro:** add to `vercel.json`: `"crons":[{"path":"/api/push-tick","schedule":"*/5 * * * *"}]`. Vercel sends `CRON_SECRET` as the bearer token by itself.
 - **Vercel Hobby:** do **not** add a cron more often than daily — the deployment is refused. Use a free external scheduler (e.g. cron-job.org) to call `https://<your domain>/api/push-tick?key=<CRON_SECRET>` every 5 minutes.
+
+The tick runs every plan in turn (the family’s and Sapporo ski), each to its own phones. A phone is told about the plan it was in when it last turned notifications on.
 
 A missed tick is caught up by the next one; anything more than an hour late is dropped rather than sent, and nothing is ever sent twice.
 
